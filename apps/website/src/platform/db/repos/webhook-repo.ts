@@ -4,6 +4,11 @@ import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import type { ContentKernel } from "../content-kernel.js";
 import type { WebhookDeliveriesTable, WebhookSubscriptionsTable } from "../content-database.generated.js";
 
+/** Host type boundary for durable repositories (ADR-036).
+ * Webhook tables are core-owned, not third-party plugin data modules; writes use the host mutation
+ * chokepoint and composite workspace isolation. API keys remain owned by identity.
+ * Host rows use stable ULIDs. Delivery/signature/envelope contracts belong to the Jini owner.
+ */
 import type { DeliveryEnvelopeStore } from "#src/features/webhooks/index";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/index";
 import type {

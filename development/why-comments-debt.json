@@ -2700,6 +2700,38 @@
     {
       "id": "0f4aac65199f",
       "reason": "P9 SH-1: header of the deleted taxonomy/index.ts re-export barrel; @jini-ai/cms/taxonomy owns the surface, gated-hooks.ts and tool-registrations.ts keep their own headers."
+    },
+    {
+      "id": "156c4a0bad76",
+      "reason": "P9 SH-2: same comment with its pointer updated — features/database/timeline.ts (deleted shell) became @jini-ai/db/tools, where LedgerRow lives."
+    },
+    {
+      "id": "1eef2b22a6cd",
+      "reason": "P9 SH-2: header of the deleted contracts/core/external-mcp-access.ts compat path; importers use @jini-ai/mcp/federation/hosted and @jini-ai/core/contracts/hosted-mcp directly."
+    },
+    {
+      "id": "391fa992a930",
+      "reason": "P9 SH-2: header of the deleted contracts/core/external-mcp-auth.ts compat path; importers use @jini-ai/mcp/federation/hosted and @jini-ai/core/contracts/hosted-mcp directly."
+    },
+    {
+      "id": "0a535f2436cf",
+      "reason": "P9 SH-2: file header of the deleted contracts/core/path-containment.ts shell; the function rationale moved onto resolvePathWithin in Jini packages/platform/src/fs/strict-containment.ts, whose own header states the same contract."
+    },
+    {
+      "id": "4a785488b219",
+      "reason": "P9 SH-2: one-line pointer header of the deleted features/database/timeline.ts shell; importers use @jini-ai/db/tools directly."
+    },
+    {
+      "id": "8f75cce1d79c",
+      "reason": "P9 SH-2: header of the deleted navigation/menu-version-conflict-error.ts shell; Jini packages/cms/src/navigation/menu-service.ts documents MenuVersionConflictError with the same reasoning (subclass of MenuConflictError, reload vs the other conflicts)."
+    },
+    {
+      "id": "d90fb853e1db",
+      "reason": "P9 SH-2: one-line pointer header of the deleted features/recovery/recovery-orchestrator.ts shell; importers use @jini-ai/db/recovery/recovery-orchestrator directly."
+    },
+    {
+      "id": "9fa9bda4fc6e",
+      "reason": "P9 SH-2: one-line pointer header of the deleted features/webhooks/types.ts shell; its ADR-036 block moved to platform/db/repos/webhook-repo.ts."
     }
   ]
 }
