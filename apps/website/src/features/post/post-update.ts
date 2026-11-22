@@ -6,7 +6,7 @@ import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, merg
 import { type SlugChangeCaptureLookup, assertValidExplicitSlug, hasPostBeenPublished, availablePostSlug, trashedSlugHolderOrConflict, releaseTrashedSlug, captureSlugChange } from "./post-slugs.js";
 import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "./post-write-fields.js";
 import { isAutomaticPostSlug } from "./slug.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
 import { isDeepStrictEqual } from "node:util";
 

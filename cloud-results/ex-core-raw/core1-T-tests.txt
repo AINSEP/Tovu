@@ -1,0 +1,23 @@
+0 pass=9 fail=0 apps/website/src/features/theme/__tests__/inject-current-entity-content-id.test.ts
+0 pass=5 fail=0 apps/website/src/features/theme/__tests__/inject-page-title.test.ts
+0 pass=2 fail=0 apps/website/src/features/theme/__tests__/pages-blank-template.canary.test.ts
+0 pass=4 fail=0 apps/website/src/features/theme/__tests__/static-render-author.test.ts
+0 pass=37 fail=0 apps/website/src/features/publish-content/__tests__/apply-loop.test.ts
+0 pass=6 fail=0 apps/website/src/features/theme/__tests__/static-render-featured-image.test.ts
+0 pass=23 fail=0 apps/website/src/features/theme/__tests__/theme-pages-render.canary.test.ts
+0 pass=61 fail=0 apps/website/src/features/theme/validation/__tests__/validate-theme-package.test.ts
+0 pass=9 fail=0 apps/website/src/features/post/__tests__/post.authorship.test.ts
+1 pass=64 fail=1 apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+    ✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (8.006348ms)
+    ✖ failing tests:
+    ✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (8.006348ms)
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+0 pass=2 fail=0 apps/website/src/platform/db/migrations/__tests__/posts-author-migration.test.ts
+0 pass=1 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/img-by-url.test.ts
+0 pass=6 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/render-author.test.ts
+0 pass=12 fail=0 apps/website/src/features/theme/__tests__/template-render.canary.test.ts
+0 pass=10 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/render-featured-image.unit.test.ts
+0 pass=72 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/render-media-and-embed-markers.unit.test.ts
+0 pass=10 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/render-products.unit.test.ts
+0 pass=8 fail=0 apps/website/src/server/inbound/public-http/http/site/__tests__/render-site-timezone.unit.test.ts
+0 pass=11 fail=0 apps/website/src/server/__tests__/routes/post-template-author.test.ts

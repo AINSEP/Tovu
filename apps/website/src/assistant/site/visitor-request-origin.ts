@@ -1,6 +1,6 @@
 import type { FrontendHookInput } from '@jini-ai/daemon/http';
 import { normalizeOriginCandidate } from '@jini-ai/core/contracts/server/verified-origin';
-import { readRequestFacts } from '#src/contracts/core/request-facts';
+import { readRequestFacts } from '@jini-ai/core/contracts/site/request-facts';
 
 /** Shared site visitor policy for confirmations and frontend control.
  * Fetch metadata alone is spoofable; every request must match a validated origin.

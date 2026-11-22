@@ -3,7 +3,7 @@ import { restorePostForward } from "../post/post-trash.js";
 import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
 import { PostVersionConflictError, PostNotFoundError } from "../post/post.js";
 import type { ForgetRemovedPostFn, BeforeSaveHookPort, PostRecord, PostRepoPort } from "../post/contracts.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 /**
  * @file One shared composer for the deps bag every widgets write-path function needs
  * (`Jini/packages/cms/src/widgets/write-service.ts`/`Jini/packages/cms/src/widgets/embed-service.ts`/`Jini/packages/cms/src/widgets/region-area-service.ts`).

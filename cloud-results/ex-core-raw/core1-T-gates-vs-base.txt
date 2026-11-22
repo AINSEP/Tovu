@@ -1,0 +1,24 @@
+check:boundaries exit 0; diff-lines vs base: 0
+check:size exit 1; diff-lines vs base: 0
+check:complexity exit 0; diff-lines vs base: 0
+check:hooks exit 0; diff-lines vs base: 0
+check:why-comments exit 1; diff-lines vs base: 0
+check:architecture exit 1; diff-lines vs base: 18
+    2c2
+    <   propagation cost (all-import)                        12.40%
+    ---
+    >   propagation cost (all-import)                        12.41%
+    9,10c9,10
+    <     └ deep-import edges (informational)                2863
+    <   bidirectional hub count                              13.74% (315/2293)
+    ---
+    >     └ deep-import edges (informational)                2858
+    >   bidirectional hub count                              13.75% (315/2291)
+    73c73
+    <   propagation cost (all-import) improved: 15.52 → 12.4
+    ---
+    >   propagation cost (all-import) improved: 15.52 → 12.41
+    80c80
+    <   improved:  propagation cost (all-import)       15.52 → 12.40  (-3.12 pts, -20.1%)
+    ---
+    >   improved:  propagation cost (all-import)       15.52 → 12.41  (-3.11 pts, -20.04%)

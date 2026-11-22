@@ -15,7 +15,7 @@ import {
  * maxUploadBytes override; Jini's default for other consumers' image/video uploads stays 10 MiB.
  */
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import { decodeStrictBase64 } from "#src/contracts/core/index";
+import { decodeStrictBase64 } from "@jini-ai/core/contracts/site/strict-base64";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalStringField } from "@jini-ai/cms/media";

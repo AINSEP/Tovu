@@ -1,0 +1,9 @@
+   × AC-02 / U-002-B1: stampWatermark rejects when called outside an open transaction 12ms
+   × behavior.spec.md §4: watermark per-transaction increment limit is exactly 1 per stampWatermark call 1ms
+   × stampWatermark rejects a closed non-null transaction before incrementing 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/contracts/site/gated-mutations/__tests__/watermark.unit.test.ts > AC-02 / U-002-B1: stampWatermark rejects when called outside an open transaction
+ FAIL  src/contracts/site/gated-mutations/__tests__/watermark.unit.test.ts > behavior.spec.md §4: watermark per-transaction increment limit is exactly 1 per stampWatermark call
+ FAIL  src/contracts/site/gated-mutations/__tests__/watermark.unit.test.ts > stampWatermark rejects a closed non-null transaction before incrementing
+      Tests  3 failed (3)
+      Tests  3 passed (3)

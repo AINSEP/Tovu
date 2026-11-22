@@ -15,7 +15,7 @@ import type { TemplateRenderDeps } from "./deps.js";
 import { siteTimeZoneDep } from "./site-title.js";
 import { listingState } from "../listing/listing-state.js";
 import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
-import { postAuthorForDisplay } from "#src/contracts/core/post-author";
+import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import { resolveAssignedTermsForRender } from "./taxonomy.js";

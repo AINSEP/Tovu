@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { TOVU_REQUEST_FACTS } from '#src/contracts/core/request-facts';
+import { JINI_REQUEST_FACTS } from '@jini-ai/core/contracts/site/request-facts';
 import { createFrontendControl } from '@jini-ai/daemon/http';
 import { createNodeDispatcher } from '@jini-ai/http-kit/node-bridge';
 import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/server/runtime/composition/jini-routes';
@@ -12,7 +12,7 @@ import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';
 /** The hook input a Jini route list gives: the request's headers and the facts the host put in `locals` (the host app's parsed query among them). */
 function hookInput({ headers, query }: { headers: Record<string, string>; query: Record<string, unknown> }) {
   const facts = { clientAddress: '203.0.113.1', servingProtocol: 'https', secure: true, query };
-  return { request: new Request('https://site.test/stream', { headers }), locals: { [TOVU_REQUEST_FACTS]: facts } };
+  return { request: new Request('https://site.test/stream', { headers }), locals: { [JINI_REQUEST_FACTS]: facts } };
 }
 
 test('frontend owner uses verified proxy principal and the originating tab', () => {

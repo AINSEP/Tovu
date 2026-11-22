@@ -3,7 +3,7 @@ import { type PostRepoPort, type PostRecord, PostNotFoundError, ROOT_SLUG, PostC
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { RemovePostFn } from "./post-trash.js";
 import { versionConflictMessage, appendPostRevision, emitPublicTransitionEvent } from "./post-write-effects.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { releaseTrashedSlug } from "./post-slugs.js";
 
 export interface RetirePostForReplacementInput {

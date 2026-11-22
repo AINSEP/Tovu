@@ -1,0 +1,33 @@
+1 pass=64 fail=1 apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+    ✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (6.550637ms)
+    ✖ failing tests:
+    ✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (6.550637ms)
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+1 pass=6 fail=2 apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts
+      ✖ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (191.135328ms)
+    ✖ mail observations and retention [sqlite] (532.644564ms)
+      ✖ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (3723.193335ms)
+    ✖ mail observations and retention [pglite] (3888.98732ms)
+    ✖ failing tests:
+    ✖ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (191.135328ms)
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    ✖ real policy emits suppression, capture, throttling and redirected delivery with effective feedback attribution (3723.193335ms)
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+1 pass=0 fail=2 apps/website/src/server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts
+    ✖ createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller (1033.418018ms)
+    ✖ createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller (212.647948ms)
+    ✖ failing tests:
+    ✖ createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller (1033.418018ms)
+      Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+    ✖ createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller (212.647948ms)
+      Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+1 pass=7 fail=1 apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts
+    ✖ AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts or app.ts (2.076236ms)
+    ✖ failing tests:
+    ✖ AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts or app.ts (2.076236ms)
+      AssertionError [ERR_ASSERTION]: inventory entry "workspace": none of its sourceHints (SqliteWorkspaceRepo) is used by code in deps.ts/app.ts — likely stale (REQ-12)
+1 pass=7 fail=1 apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts
+    ✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2111.926114ms)
+    ✖ failing tests:
+    ✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2111.926114ms)
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:

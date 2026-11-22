@@ -5,7 +5,8 @@ import { type Clock as ClockPort } from "@jini-ai/core/primitives";
 import { assertEntityLive } from "@jini-ai/cms/core";
 import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
-import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
+import { type PostRecord, type PostRepoPort } from "../post/index.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
 import { announcePendingGoLive } from "@jini-ai/cms/entries";
 import { SYSTEM_ACTOR_ID } from "../post/index.js";

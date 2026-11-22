@@ -7,7 +7,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "../post-create.js";
 import { deletePost } from "../post-trash.js";
 import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "../post-read.js";
-import { isTrashed } from "../../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { updatePost } from "../post-update.js";
 import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";

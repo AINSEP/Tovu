@@ -1,0 +1,14 @@
+   × decodeStrictBase64: accepts well-formed standard base64 and returns exact bytes 9ms
+   × decodeStrictBase64: the accepted-case result bytes equal Buffer.from(v, 'base64') exactly 1ms
+   × decodeStrictBase64: rejects the empty string 1ms
+   × decodeStrictBase64: rejects an all-padding string 1ms
+   × decodeStrictBase64: rejects characters outside the base64 alphabet 1ms
+   × decodeStrictBase64: rejects a non-alphabet character embedded mid-string 1ms
+   × decodeStrictBase64: rejects a truncated (non-multiple-of-4) length 1ms
+   × decodeStrictBase64: rejects embedded newlines even when the surrounding text is valid base64 1ms
+   × decodeStrictBase64: rejects trailing whitespace 1ms
+   × decodeStrictBase64: rejects padding that appears before the final characters 1ms
+   × decodeStrictBase64: rejects base64url characters ('-', '_') 1ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  11 failed (11)
+      Tests  11 passed (11)

@@ -1,4 +1,4 @@
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { ToolInputError } from "@jini-ai/core";
 import type { PublicPostKind } from "@jini-ai/cms/core";
 import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "./post.js";

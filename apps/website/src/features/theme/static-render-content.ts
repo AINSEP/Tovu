@@ -1,5 +1,5 @@
 import { FEATURED_IMAGE_MARKER_TYPE, markersOfType, substituteMarkers, withAddedId, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
+import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import { escapeHtml } from "#src/platform/html/escape";
 
 

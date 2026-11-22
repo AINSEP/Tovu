@@ -5,7 +5,7 @@ import { PostValidationError, ROOT_SLUG, type PostRepoPort, type PostRecord, Pos
 import type { PostKind } from "#src/contracts/core/post-kind";
 import type { CreatePostInput } from "./post-create.js";
 import type { UUID } from "@jini-ai/core/primitives";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { deriveAvailableName } from "@jini-ai/core/naming";
 
 /** The call-time lookup {@link UpdatePostDeps.slugChangeCapture} takes — `getSlugChangeCapture`'s shape. */

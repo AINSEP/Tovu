@@ -1,6 +1,6 @@
 import type { FrontendSessionOwner } from '@jini-ai/daemon';
 import type { FrontendHookInput } from '@jini-ai/daemon/http';
-import { readRequestFacts } from '#src/contracts/core/request-facts';
+import { readRequestFacts } from '@jini-ai/core/contracts/site/request-facts';
 import { RUN_PRINCIPAL_HEADER } from './daemon-access.js';
 
 /** The proxy authenticates the principal; the private bind token authenticates the tab.

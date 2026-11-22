@@ -2,7 +2,7 @@ import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteRenderContext, SiteProduct } from "../render-context.js";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { shortDate, renderPostBody } from "./post-body.js";
-import { postAuthorForDisplay } from "#src/contracts/core/post-author";
+import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { resolveCoverImage } from "@jini-ai/cms/media/cover-image";
 import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
