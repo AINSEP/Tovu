@@ -1,0 +1,55 @@
+HEAD 311d26dfa6	25cba763c4
+size exit=1	exit=1
+boundaries exit=0	exit=0
+admin-tsc exit=0	exit=0
+desktop-tsc-preload exit=0	exit=0
+desktop-tsc-live-verify exit=0	exit=0
+desktop-tsc-renderer exit=0	exit=0
+desktop-tsc-main exit=0	exit=0
+typecheck exit=0	exit=0
+errors exit=0	exit=0
+worker-import-graph exit=0	exit=0
+complexity exit=1	exit=1
+hooks exit=0	exit=0
+typecheck-scripts exit=2	exit=2
+why-comments exit=1	exit=1
+typecheck-tests exit=0	exit=0
+architecture exit=1	exit=1
+DONE	DONE
+== architecture
+1c1
+< check:architecture — 2292 files, 73 modules, production files only
+---
+> check:architecture — 2293 files, 73 modules, production files only
+3,4c3,4
+<   propagation cost (all-import)                        12.39%
+<   propagation cost (runtime-only)                      3.26%
+---
+>   propagation cost (all-import)                        12.40%
+>   propagation cost (runtime-only)                      3.27%
+11c11
+<   bidirectional hub count                              13.74% (315/2292)
+---
+>   bidirectional hub count                              13.74% (315/2293)
+72,73c72,73
+<   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.26
+<   propagation cost (all-import) improved: 15.52 → 12.39
+---
+>   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.27
+>   propagation cost (all-import) improved: 15.52 → 12.4
+79,80c79,80
+<   regressed: propagation cost (runtime-only)     3.06 → 3.26  (+0.2 pts, +6.54%)
+<   improved:  propagation cost (all-import)       15.52 → 12.39  (-3.13 pts, -20.17%)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.27  (+0.21 pts, +6.86%)
+>   improved:  propagation cost (all-import)       15.52 → 12.40  (-3.12 pts, -20.1%)
+== errors
+1c1,3
+< Error gate passed: 590 findings in 326 file/rule entries.
+---
+> New: [catch-reads-error] apps/website/src/features/agent-plugins/bundled-id-upgrade.ts (5)
+> New: [catch-reads-error] apps/website/src/features/agent-plugins/lifecycle.ts (1)
+> Error gate (WARN mode): 2 new or worse entries. Not failing the build yet; fix them or use a named idiom.
+== worker-import-graph
+ℹ pass 26
+ℹ fail 0

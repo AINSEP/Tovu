@@ -1,0 +1,31 @@
+### MUTATION m1-1 in apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
+@@ -112 +112 @@ async function upgradeOne(input: {
+-  for (const revision of input.blockers) {
++  for (const revision of [] as InstalledRevision[]) {
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts pass=2 fail=1 rc=1 secs=1
+apps/website/src/features/agent-plugins/__tests__/unit/installed-plugin-id-upgrade.unit.test.ts pass=2 fail=2 rc=1 secs=2
+✖ a site installed from the pre-rename 0.7.2 bundle reaches jini/cloudflare with its owner activation kept, and a second run is stable (197.033519ms)
+✖ the upgrade keeps the plugin's data and memory and saves the moved pre-rename copy (181.732951ms)
+✖ a site installed from the pre-rename 0.7.2 bundle reaches jini/cloudflare with its owner activation kept, and a second run is stable (197.033519ms)
+✖ the upgrade keeps the plugin's data and memory and saves the moved pre-rename copy (181.732951ms)
+✖ a moved copy whose replacement did not seed is put back and reported as restored (2.689254ms)
+✖ a moved copy whose replacement did not seed is put back and reported as restored (2.689254ms)
+restored apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
+### MUTATION m1-2 in apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
+@@ -132 +132 @@ async function unverifiedReason({ port, ledger, revision, from }: {
+-  if (revision.id !== from) return `its installed copy is published as '${revision.id ?? "an unnamed publisher"}', not '${from}'`;
++  if (false as boolean) return `its installed copy is published as '${revision.id ?? "an unnamed publisher"}', not '${from}'`;
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts pass=3 fail=0 rc=0 secs=0
+apps/website/src/features/agent-plugins/__tests__/unit/installed-plugin-id-upgrade.unit.test.ts pass=3 fail=1 rc=1 secs=1
+✖ an unrelated publisher's revision in the same slot stays in place and is named for the publisher list (196.924669ms)
+✖ an unrelated publisher's revision in the same slot stays in place and is named for the publisher list (196.924669ms)
+restored apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
+### MUTATION m1-3 in apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
+@@ -135 +135 @@ async function unverifiedReason({ port, ledger, revision, from }: {
+-  if (repacked.sha256 !== revision.archiveDigest) return "its installed files were changed after install";
++  if (false as boolean) return "its installed files were changed after install";
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts pass=3 fail=0 rc=0 secs=1
+apps/website/src/features/agent-plugins/__tests__/unit/installed-plugin-id-upgrade.unit.test.ts pass=3 fail=1 rc=1 secs=2
+✖ a pre-rename copy whose files were edited after install stays in place and is reported in plain words (194.285406ms)
+✖ a pre-rename copy whose files were edited after install stays in place and is reported in plain words (194.285406ms)
+restored apps/website/src/features/agent-plugins/bundled-id-upgrade.ts
