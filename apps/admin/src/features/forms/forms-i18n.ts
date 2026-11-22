@@ -9,8 +9,8 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * this pass's field labels/buttons/headers, left English for a follow-up pass.
  */
 
-import { FORMS_FIELD_SETTINGS_I18N } from "./forms-field-settings-i18n";
-import { FORMS_LEAVE_GUARD_I18N } from "./forms-leave-guard-i18n";
+import { FORMS_FIELD_SETTINGS_I18N } from "@jini-ai/admin/screens/forms/forms-field-settings-i18n";
+import { FORMS_LEAVE_GUARD_I18N } from "@jini-ai/admin/screens/forms/forms-leave-guard-i18n";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 export const FORMS_DICT: Record<string, Record<string, string>> = {

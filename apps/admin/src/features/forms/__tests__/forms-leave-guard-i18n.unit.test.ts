@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FORMS_LEAVE_GUARD_KEYS, FORMS_LEAVE_GUARD_TRANSLATIONS } from "../forms-leave-guard-i18n";
+import { FORMS_LEAVE_GUARD_KEYS, FORMS_LEAVE_GUARD_TRANSLATIONS } from "@jini-ai/admin/screens/forms/forms-leave-guard-i18n";
 import { FORMS_DICT, t } from "../forms-i18n";
 
 /**

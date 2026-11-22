@@ -2,7 +2,7 @@ import type { AdminContentType } from "../../features/collections/api/collection
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import type { AdminMenu } from "../../features/menus/api/menus-api.types";
 import { menusApi } from "../../features/menus/api/menus-api";
-import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
+import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";

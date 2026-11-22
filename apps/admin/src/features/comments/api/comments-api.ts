@@ -1,7 +1,7 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
 import { querySuffix } from "../../../lib/query-suffix";
-import type { AdminCommentsQueuePage, CommentStatus } from "./comments-api.types";
+import type { AdminCommentsQueuePage, CommentStatus } from "@jini-ai/admin/screens/comments/api/comments-api.types";
 
 /** The admin API calls of the comments feature. */
 export const commentsApi = {
