@@ -2744,6 +2744,42 @@
     {
       "id": "f61d0bf8cd44",
       "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
+    },
+    {
+      "id": "2175e418ee63",
+      "reason": "Moved to Jini @jini-ai/cms media/site-transform/image-ops.ts header (Jini 944514c6, X-image-transform-1), 'Tovu imports' reworded 'host imports'; the Tovu file is deleted."
+    },
+    {
+      "id": "381e3dfd2998",
+      "reason": "Moved to Jini @jini-ai/cms media/site/bootstrap.ts header (Jini bc0a9a4c, X-media-1), route path citation reworded to 'the host's public media-rendition route'; the Tovu file is deleted."
+    },
+    {
+      "id": "3ed7da6d8527",
+      "reason": "Moved to Jini @jini-ai/cms media/site/content-type-store.ts header (Jini bc0a9a4c, X-media-1), host path citations reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "9325823a9b13",
+      "reason": "Moved to Jini @jini-ai/cms media/site/content-type-store.ts InMemoryMediaContentTypeStore doc (Jini bc0a9a4c, X-media-1), composition path reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "5aa0da779e66",
+      "reason": "Moved to Jini @jini-ai/cms media/site/hydrate-blob-store-from-seed.ts header (Jini bc0a9a4c, X-media-1), env-var name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "cb05ec4145d6",
+      "reason": "Moved to Jini @jini-ai/cms media/site/public-path.ts header verbatim (Jini bc0a9a4c, X-media-1); the Tovu file is deleted."
+    },
+    {
+      "id": "5aab111e6252",
+      "reason": "Moved to Jini @jini-ai/platform object-store/site/setting.ts header (Jini 96ad836c, X-object-storage-1), env-var name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "a6cfe1079080",
+      "reason": "Obsolete with its subject: it justified routes/media/content-type.ts re-exporting the content-type helpers; after X-media-1 that file would be a re-export shell to Jini, so it is deleted and its importers use @jini-ai/cms/media/site/content-type-resolution directly. No code remains for it to explain."
+    },
+    {
+      "id": "b9484b5d239f",
+      "reason": "Moved to Jini @jini-ai/cms media/site/__tests__/public-path.test.ts header (Jini bc0a9a4c, X-media-1), the source-path citation reworded to the relative module; the Tovu test is deleted."
     }
   ]
 }
