@@ -23,7 +23,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPost } from "../post-create.js";
-import { isTrashed } from "../../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "../post.js";
 import type { ForgetRemovedPostFn } from "../post-trash.js";
 import { createPostRevertRegistry } from "../reverters.js";

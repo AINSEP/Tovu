@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { readRequestFacts, TOVU_REQUEST_FACTS } from "#src/contracts/core/request-facts";
+import { readRequestFacts, JINI_REQUEST_FACTS } from "@jini-ai/core/contracts/site/request-facts";
 import { captureRequestFacts, requestFactsLocals } from "../request-facts.js";
 
 type Trust = "loopback" | 1 | null;
@@ -49,7 +49,7 @@ test("request facts: they are the same answers the hooks computed before (the ex
 });
 
 test("request facts: absent or malformed facts throw, and there is no default address", () => {
-  for (const locals of [{}, { [TOVU_REQUEST_FACTS]: null }, { [TOVU_REQUEST_FACTS]: { clientAddress: "x" } }, { [TOVU_REQUEST_FACTS]: { clientAddress: "x", servingProtocol: "http", secure: "yes", query: {} } }]) {
+  for (const locals of [{}, { [JINI_REQUEST_FACTS]: null }, { [JINI_REQUEST_FACTS]: { clientAddress: "x" } }, { [JINI_REQUEST_FACTS]: { clientAddress: "x", servingProtocol: "http", secure: "yes", query: {} } }]) {
     assert.throws(() => readRequestFacts({ locals }), /request facts are missing/);
   }
 });

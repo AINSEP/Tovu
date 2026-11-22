@@ -1,6 +1,6 @@
 import { replaceMediaFile } from '@jini-ai/cms/media';
 import type { Express, Response } from 'express';
-import { decodeStrictBase64 } from '#src/contracts/core/index';
+import { decodeStrictBase64 } from '@jini-ai/core/contracts/site/strict-base64';
 import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, TOVU_MAX_UPLOAD_BYTES,
   resolveUploadContentType, type MediaRecord } from '#src/features/media/index';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';

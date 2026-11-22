@@ -1,7 +1,7 @@
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type PostRepoPort, type PostRecord, PostNotFoundError, SYSTEM_ACTOR_ID, PostConflictError } from "./post.js";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { appendPostRevision, emitPublicTransitionEvent } from "./post-write-effects.js";
 
 export interface DeletePostInput {

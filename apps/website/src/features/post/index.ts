@@ -3,7 +3,6 @@ export { createPost } from "./post-create.js";
 export { createPublicPostReader, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, findPublishedPostById, findPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts, listPublishedPostPreviews, type PublicPostReaderPort } from "./post-read.js";
 export { isPublicPost, EMAIL_TEMPLATE_KIND, SYSTEM_ACTOR_ID, DEFAULT_BODY_JSON, ROOT_SLUG, PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord, type PublicPostRecord, type PostRepoPort, type PostBodyFormat, type PostAutosaveSnapshot } from "./post.js";
 export { deletePost, restorePostForward, type ForgetRemovedPostFn, type RemovePostFn } from "./post-trash.js";
-export { isTrashed } from "../../contracts/core/soft-delete.js";
 export { normalizeFeaturedMediaId, normalizePostAuthor, normalizePublishAt, presentScheduleFields, MAX_TITLE_LENGTH } from "./post-write-fields.js";
 export { updatePost, type UpdatePostInput } from "./post-update.js";
 export { hasPostBeenPublished, type SlugChangeCaptureLookup } from "./post-slugs.js";

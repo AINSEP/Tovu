@@ -5,7 +5,7 @@ import type { VaultRecord } from "@jini-ai/core/contracts/vault";
 import { credentialViewFields, credentialWriteFields } from "../credential-store-fields.js";
 import { listDuplicateResourceHandlers, registerDuplicateResourceHandler, resetDuplicateResourceHandlersForTests } from "../duplicate-resource-registry.js";
 import { SITE_GUIDE_POINTER } from "../site-guide-pointer.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 
 /**
  * @file L11 "unmeasured" files — no importing test was found by the lane's scan. These pin their

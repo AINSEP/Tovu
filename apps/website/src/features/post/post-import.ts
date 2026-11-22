@@ -2,7 +2,7 @@ import { type PostRepoPort, PostConflictError, type PostRecord, PostVersionConfl
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type BeforeSaveHookPort, runBeforeSaveHook, mergeExt } from "./post-before-save.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
 
 /** The STRICT slug-uniqueness rule `importPostEntity` (publish) keeps: a slug claimed by any

@@ -1,4 +1,4 @@
-import { isTrashed } from "./soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 
 /**
  * @file Scheduled publishing — the one rule for "is this published row live yet?".

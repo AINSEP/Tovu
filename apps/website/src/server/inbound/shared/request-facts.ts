@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import type { FrontendHookInput } from "@jini-ai/daemon/http";
 import { nodeRequestHeaders } from "@jini-ai/http-kit/node-bridge";
-import { TOVU_REQUEST_FACTS, type TovuRequestFacts } from "#src/contracts/core/request-facts";
+import { JINI_REQUEST_FACTS, type RequestFacts } from "@jini-ai/core/contracts/site/request-facts";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveProtocol } from "#src/platform/express/public-origin";
 
@@ -15,7 +15,7 @@ import { resolveProtocol } from "#src/platform/express/public-origin";
  * the one the hooks computed before the facts existed.
  * @complexity O(1) time and space; no I/O.
  */
-export function captureRequestFacts({ req }: { readonly req: Request }, _optional: Record<string, never> = {}): TovuRequestFacts {
+export function captureRequestFacts({ req }: { readonly req: Request }, _optional: Record<string, never> = {}): RequestFacts {
   return { clientAddress: resolveClientIp(req), servingProtocol: resolveProtocol(req), secure: req.secure, query: req.query };
 }
 
@@ -24,7 +24,7 @@ export function captureRequestFacts({ req }: { readonly req: Request }, _optiona
  * @param optional.base - The locals to extend (default none).
  */
 export function requestFactsLocals({ req }: { readonly req: Request }, { base = {} }: { readonly base?: Readonly<Record<string, unknown>> } = {}): Record<string, unknown> {
-  return { ...base, [TOVU_REQUEST_FACTS]: captureRequestFacts({ req }) };
+  return { ...base, [JINI_REQUEST_FACTS]: captureRequestFacts({ req }) };
 }
 
 /**

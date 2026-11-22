@@ -4,12 +4,12 @@ import test from "node:test";
 import {
   InMemoryPostRepo,
   deletePost,
-  isTrashed,
   createPostReverters,
   createPostRevertRegistry,
   type PostRecord,
   type PostReverterDeps,
 } from "#src/features/post/index";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

@@ -3,7 +3,7 @@ import { createDocumentArchiveReader } from "#src/features/media/document-archiv
 import type { Request, Response } from "express";
 
 import { captureMediaUploaded, MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
-import { decodeStrictBase64 } from "#src/contracts/core/index";
+import { decodeStrictBase64 } from "@jini-ai/core/contracts/site/strict-base64";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalStringField } from "@jini-ai/cms/media";

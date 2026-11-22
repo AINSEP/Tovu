@@ -26,7 +26,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import { isTrashed } from "#src/contracts/core/soft-delete";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";

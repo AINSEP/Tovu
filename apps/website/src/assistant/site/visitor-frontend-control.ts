@@ -10,7 +10,7 @@ import {
 import type { Express, Request, Response } from 'express';
 import type { Clock } from '@jini-ai/core/primitives';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { readRequestFacts } from '#src/contracts/core/request-facts';
+import { readRequestFacts } from '@jini-ai/core/contracts/site/request-facts';
 import { allowsVisitorRequestOrigin } from './visitor-request-origin.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
 

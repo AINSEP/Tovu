@@ -18,7 +18,7 @@ import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publi
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 
 import { importPostEntity } from "./post-import.js";
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { presentScheduleFields } from "./post-write-fields.js";
 import { restorePostForward } from "./post-trash.js";
 import { retirePostForReplacement } from "./post-retire.js";

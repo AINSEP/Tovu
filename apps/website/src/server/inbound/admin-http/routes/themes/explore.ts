@@ -49,7 +49,8 @@ import {
 // `../explore.js`) keeps working unchanged — this file no longer DEFINES `fileExtension`, it only
 // re-publishes the shared one, purely for that test's import path.
 export { fileExtension };
-import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
+import { ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { ContentRouteDeps } from "../content/deps.js";

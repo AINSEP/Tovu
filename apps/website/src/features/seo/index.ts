@@ -10,9 +10,10 @@ import type {
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import {
-  createPublicPostReader, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
+  createPublicPostReader, resolveFeaturedImageRef, ROOT_SLUG,
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,
 } from "../post/index.js";
+import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefinitionRepoPort } from "../media/index.js";
 import { resolvePostMemberAccess } from "../members/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
