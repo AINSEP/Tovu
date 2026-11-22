@@ -1,8 +1,8 @@
 import { nowIso as clockNowIso, type Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-failure.js";
-import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
-import { CONTENT_HASH_VERSION } from "./content-hash.js";
+import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
 import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";

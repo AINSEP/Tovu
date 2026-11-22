@@ -11,7 +11,7 @@ import { InMemoryBlobStore, mediaPublicPath, replaceMediaFile, type MediaRecord 
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
 import { planImport } from "#src/features/publish-content/planner";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 const workspaceId = "11111111-1111-1111-1111-111111111111";

@@ -6,7 +6,7 @@ import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/ga
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
+import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PlanImportDeps } from "./planner.js";

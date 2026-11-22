@@ -9,9 +9,9 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
-import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
+import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
-import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { registerPublishContentImportRoutes } from "../import.js";

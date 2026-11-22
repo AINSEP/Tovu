@@ -18,7 +18,7 @@ import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
-import { executePublishContentImport, RestorePointUnavailableError } from "./execute-import.js";
+import { executePublishContentImport, RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "./run-repo.js";
 import { entityKey, type PublishContentReport } from "./plan-rows.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
@@ -48,7 +48,7 @@ import { resolvePublishDestinationCredential } from "./destination-credential.js
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
-import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
+import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import type { BeforeSaveHookPort } from "#src/features/post/index";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 

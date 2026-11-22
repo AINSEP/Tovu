@@ -3,7 +3,7 @@ import type { Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";

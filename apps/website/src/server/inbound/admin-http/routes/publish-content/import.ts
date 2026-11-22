@@ -9,7 +9,7 @@ import {
 } from "#src/contracts/core/gated-mutations/gateway";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
-import { executePublishContentImport } from "#src/features/publish-content/execute-import";
+import { executePublishContentImport } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, type CredentialKindForbiddenBody } from "#src/server/inbound/admin-http/dev-auth";

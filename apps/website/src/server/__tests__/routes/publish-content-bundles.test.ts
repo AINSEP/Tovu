@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { loginAsBarePrincipal } from "../helpers/http-test-server.js";

@@ -10,7 +10,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID } from "../agent-tools.js";
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
 import { createFileProvisioning, COMMITTED_JSON_CODEC } from "../../publish-trust/provisioning.js";
-import { describePublishReadiness, siteLabelFor } from "../publish-readiness.js";
+import { describePublishReadiness, siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

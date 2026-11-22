@@ -18,7 +18,7 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
-import { contentHash } from "../content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";

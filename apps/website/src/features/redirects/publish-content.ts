@@ -1,4 +1,4 @@
-import { malformedKey } from "#src/features/publish-content/precheck-reasons";
+import { malformedKey } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 

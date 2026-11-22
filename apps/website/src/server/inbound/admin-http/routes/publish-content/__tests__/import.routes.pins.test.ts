@@ -6,9 +6,9 @@ import Database from "better-sqlite3";
 
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
+import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo, stageBundle, type StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { contentKernel } from "#src/platform/db/content-kernel";

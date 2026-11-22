@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 
-import { describePublishReadiness } from "#src/features/publish-content/publish-readiness";
+import { describePublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,

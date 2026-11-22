@@ -8,7 +8,7 @@ import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { toRecord, toRow, updatableColumns } from "../repo.rows.js";
 import { createPostReverters } from "../reverters.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { contributePostPublish, toPublishableState } from "../publish-content.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
