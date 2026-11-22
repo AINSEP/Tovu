@@ -9,7 +9,7 @@ Owner K1 (11-22): routes leave Tovu as server-framework-neutral specs with their
 
 ## J (Jini) — K4 seam split of that pattern's generic half
 1. Tests first: `packages/core/src/contracts/server/__tests__/route-refusal.test.ts` — a refusal carries `status` and the exact `body`, is an `Error`, keeps `name`.
-2. Move `SettingsRequestError` + `rejectSettingsRequest` (settings/shared.ts:157-175, verbatim bodies, why-comments kept) to `packages/core/src/contracts/server/route-refusal.ts`, renamed `RouteRefusalError` / `rejectRoute` (generic names; no other change). Export from `@jini-ai/core/contracts/server` (existing barrel) — universal.
+2. Move `SettingsRequestError` + `rejectSettingsRequest` (settings/shared.ts:157 and :167, verbatim bodies, why-comments kept) to `packages/core/src/contracts/server/route-refusal.ts`, renamed `RouteRefusalError` / `rejectRoute` (generic names; no other change). Export from `@jini-ai/core/contracts/server` (existing barrel) — universal.
 3. `CONTENT_ENTRY_MAX_BODY_BYTES` (`apps/website/src/server/inbound/shared/body-size-limit.ts:26`) → `packages/cms/src/admin-http/limits.ts` (export `./admin-http/limits`); route specs set `maxBodyBytes` from it instead of calling `rejectOversizedJsonBody`.
 4. api-baseline delta for core + cms; changeset `p9k-rt-k1-0`.
 Mutation: make `rejectRoute` drop `code` from the body → the new test goes red.
