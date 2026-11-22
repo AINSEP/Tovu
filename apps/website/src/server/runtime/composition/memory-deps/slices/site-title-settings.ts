@@ -1,11 +1,11 @@
 import { observed } from "@jini-ai/core/errors/idioms";
 import { InMemorySiteTitlePreservationStore, ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
-import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
+import { ensureAdminInterfaceSettingDefinitions } from "@jini-ai/cms/settings/site/admin-interface";
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../../configuration/seed.js";
-import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
-import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
+import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
+import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
-import { ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
+import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeIdentitySettings } from "./identity-settings.js";

@@ -78,7 +78,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
+import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
 import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 
 import { captureRouteError } from "../../inbound/shared/observability-middleware.js";

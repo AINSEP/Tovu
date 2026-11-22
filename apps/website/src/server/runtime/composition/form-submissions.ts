@@ -14,8 +14,8 @@ import {
   pullFromFormDestination,
 } from "#src/features/form-destinations/index";
 import type { FormDestinationAddress, FormDestinationRegistry } from "@jini-ai/cms/forms";
-import { readFormDestinationSetting } from "#src/features/settings/form-destination";
-import { readFormsAutoPull } from "#src/features/settings/index";
+import { readFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
+import { readFormsAutoPull } from "@jini-ai/cms/settings/site/form-delivery";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { importRemoteFormSubmissions, type FormImportCounts, type FormSubmissionReceiptPort, type RemoteImportResult, type RemoteSubmissionInput } from "@jini-ai/cms/forms/html";
 import { buildFormDestinationManifest, type FormDestinationPullReport, type FormPullCounts, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort } from "#src/features/forms/index";

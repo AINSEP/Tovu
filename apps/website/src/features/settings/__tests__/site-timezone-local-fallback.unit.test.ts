@@ -3,7 +3,7 @@ import test, { type TestContext } from "node:test";
 
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { formatDateLabel, formatIsoDate } from "@jini-ai/cms/widgets/date-label";
-import { resolveSiteTimeZone } from "../site-timezone.js";
+import { resolveSiteTimeZone } from "@jini-ai/cms/settings/site/site-timezone";
 
 /** Use the real process timezone/Intl boundary, restoring it after each serial test. */
 function processZone(t: TestContext, zone: string): void {

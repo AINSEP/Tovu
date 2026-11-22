@@ -21,7 +21,7 @@ import { readMediaObjectStoreSetting } from "#src/features/object-storage/index"
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { resolveShareDirectory } from "../site-paths.js";
-import { resolveSiteTimeZone } from "#src/features/settings/site-timezone";
+import { resolveSiteTimeZone } from "@jini-ai/cms/settings/site/site-timezone";
 import { rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { selectArtifactStoreProvider } from "#src/features/object-storage/index";

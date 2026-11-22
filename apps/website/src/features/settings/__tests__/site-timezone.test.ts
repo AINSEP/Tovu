@@ -12,7 +12,7 @@ import {
   resolveSiteTimeZone,
   SITE_TIMEZONE_KEY,
   SITE_TIMEZONE_NAMESPACE,
-} from "../site-timezone.js";
+} from "@jini-ai/cms/settings/site/site-timezone";
 
 /**
  * @file Bug D (2026-10-22): `core.site.timezone`, the zone public pages format post dates in. Only a

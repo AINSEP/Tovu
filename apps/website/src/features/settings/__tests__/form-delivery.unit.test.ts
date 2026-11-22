@@ -6,7 +6,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
-import { enforceFormDeliveryBindingsWrite, ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "../form-delivery.js";
+import { enforceFormDeliveryBindingsWrite, ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "@jini-ai/cms/settings/site/form-delivery";
 
 /**
  * @file Unit tests for the two form delivery settings: their registered defaults, the fresh reads

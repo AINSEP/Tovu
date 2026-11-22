@@ -3,7 +3,7 @@ import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planForm
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDeliveryForm } from "#src/features/forms/index";
-import { readFormDeliveryBindings } from "#src/features/settings/index";
+import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 
 /**
  * @file Binds Jini's durable form delivery (`@jini-ai/cms/forms`: plan once per submission, one
