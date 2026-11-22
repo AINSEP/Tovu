@@ -12,7 +12,8 @@ import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified
 import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildSeoToolRegistrations, seoDerivedRisk, type createSitemapService, type SeoPackageToolDeps } from "@jini-ai/cms/seo";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { SeoHostBindings } from "./index.js";

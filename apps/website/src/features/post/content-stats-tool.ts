@@ -12,7 +12,7 @@ import type { PostRecord, PostRepoPort } from "./post.js";
 import { extractPostPlainText } from "./search.js";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { sniffContentType } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "../media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 
 /** Read ports only; structural projections also permit small in-memory fixtures. */
 export interface ContentStatsToolDeps {

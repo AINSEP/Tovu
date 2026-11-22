@@ -3,9 +3,9 @@ import { SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqli
 import { SqliteNewsletterListRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { builtInSeedUploadsDir } from "../site-paths.js";
-import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
+import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
-import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
+import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
 import { rebuildNavLocationBindings } from "#src/features/navigation/index";

@@ -2,13 +2,8 @@ import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-a
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { Request, Response } from "express";
 
-import {
-  captureMediaUploaded,
-  MediaConflictError,
-  MediaValidationError,
-  resolveUploadContentType,
-  uploadMedia,
-} from "#src/features/media/index";
+import { captureMediaUploaded, MediaConflictError, MediaValidationError, uploadMedia } from "#src/features/media/index";
+import { resolveUploadContentType } from "@jini-ai/cms/media/site/upload-content-type";
 /**
  * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
  * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's

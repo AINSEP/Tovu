@@ -12,16 +12,8 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import {
-  InMemoryAssetBlobRepo,
-  InMemoryAssetRenditionRepo,
-  InMemoryBlobStore,
-  InMemoryMediaContentTypeStore,
-  InMemoryMediaRepo,
-  InMemoryTransformDefinitionRepo,
-  registerTransform,
-  type BlobStorePort,
-} from "../../media/index.js";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo, registerTransform, type BlobStorePort } from "../../media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";

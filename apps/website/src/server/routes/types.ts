@@ -65,19 +65,13 @@ import type { LoadSourceControlProviders } from "../../features/source-control/p
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "../../features/agent-plugins/auth-schemes.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type {
-  AssetBlobRepoPort,
-  AssetRenditionRepoPort,
-  BlobStorePort,
-  ImageTransformerPort,
-  MediaContentTypeStorePort,
-  TransformDefinitionRepoPort,
-} from "../../features/media/index.js";
+import type { AssetBlobRepoPort, AssetRenditionRepoPort, BlobStorePort, ImageTransformerPort, TransformDefinitionRepoPort } from "../../features/media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for
 // `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
 // this host's wider public media surface.
-import type { HydrateBlobStoreFromSeedResult } from "../../features/media/index.js";
+import type { HydrateBlobStoreFromSeedResult } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import type { RemoveMediaFn } from "../../features/media/contracts.js";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";

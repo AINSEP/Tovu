@@ -7,7 +7,8 @@ import test from "node:test";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { MediaApplyBlockedError, MediaApplyConflictError, contributeMediaPublish } from "../publish-content.js";

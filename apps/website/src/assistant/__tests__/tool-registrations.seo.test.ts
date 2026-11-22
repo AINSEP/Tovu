@@ -22,12 +22,8 @@ import { InMemoryPostRepo } from "../../features/post/index.js";
 import type { PostRecord } from "../../features/post/post.js";
 import { InMemorySettingsRepo } from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import {
-  InMemoryAssetRenditionRepo,
-  InMemoryMediaContentTypeStore,
-  InMemoryMediaRepo,
-  InMemoryTransformDefinitionRepo,
-} from "../../features/media/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../features/media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
 import { createSitemapService, getSeoAgentToolCatalog, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";

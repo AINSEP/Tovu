@@ -6,14 +6,8 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import {
-  InMemoryAssetBlobRepo,
-  InMemoryAssetRenditionRepo,
-  InMemoryBlobStore,
-  InMemoryMediaContentTypeStore,
-  InMemoryMediaRepo,
-  InMemoryTransformDefinitionRepo,
-} from "../../features/media/index.js";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../features/media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../../features/media-import/tool-registrations.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

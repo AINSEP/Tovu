@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { GetEntryMetaDeps, HeadElement, PageHeadContext, SeoSettings } from "@jini-ai/cms/seo";
 import { InMemoryMediaRepo, type MediaRecord } from "../../media/index.js";
-import { InMemoryMediaContentTypeStore } from "../../media/content-type-store.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
 import { createSeoFeaturedImagePort } from "../index.js";
 import { createSeoPageHeadHook } from "../page-head-contributor.js";

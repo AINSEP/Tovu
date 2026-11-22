@@ -9,9 +9,8 @@ import { registerAdminMediaUpdateRoute } from "../update.js";
 import { registerAdminMediaListRoute } from "../list.js";
 import type { MediaRouteDeps } from "../deps.js";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
-  InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo,
-  InMemoryImageTransformer } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from "#src/features/media/index";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 
 /** Owner dispatch 2026-10-04: authenticated attribution, JSON spoof refusal and read-only edits. */
 test("admin upload stamps its actor, PATCH preserves it, and list exposes it", async (t) => {

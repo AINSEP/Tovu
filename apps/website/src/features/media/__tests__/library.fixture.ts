@@ -1,6 +1,6 @@
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import { InMemoryMediaContentTypeStore } from '../index.js';
+import { InMemoryMediaContentTypeStore } from '@jini-ai/cms/media/site/content-type-store';
 import { InMemoryVersionedMediaRepo, InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from '@jini-ai/cms/media';
 import type { MediaRouteDeps } from '#src/server/inbound/admin-http/routes/media/deps';
 import type { ToolExecutionContext } from '@jini-ai/core';

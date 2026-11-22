@@ -5,7 +5,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
+import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";

@@ -6,7 +6,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 
 import type { ToolContributor } from "@jini-ai/core";
-import { readStoredBytes } from "./original-bytes.js";
+import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRecord, type MediaRepoPort } from "./index.js";
 

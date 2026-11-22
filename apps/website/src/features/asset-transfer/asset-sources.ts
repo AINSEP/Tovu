@@ -6,7 +6,7 @@ import { ToolInputError, requireInputRecord, requireString, type ToolExecutionCo
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { findMediaByIdOrSlug } from "../media/index.js";
-import { readStoredBytes } from "../media/index.js";
+import { readStoredBytes } from "@jini-ai/cms/media/site/original-bytes";
 import { findThemeOrThrow } from "../theme/asset-operations.js";
 import { sniffThemeImportType } from "../theme/asset-operations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";

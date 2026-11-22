@@ -20,7 +20,7 @@ import { buildMediaGenerationRegistrations } from "../../media-generation/tool-r
 import { buildMediaImportRegistrations } from "../../media-import/tool-registrations.js";
 import { buildPromoteChatAttachmentTool } from "../promote-chat-attachment.js";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
-import { withChatPreview } from "../chat-preview.js";
+import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 
 // Exercise the real registered handlers, upload/replacement services and codec. Only paid vendor
 // generation and outbound downloads are substituted; no HTTP server or external I/O is needed.

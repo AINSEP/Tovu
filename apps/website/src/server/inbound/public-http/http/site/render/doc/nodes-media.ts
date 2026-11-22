@@ -8,7 +8,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { formatHtmlAttributes } from "@jini-ai/cms/widgets/media-attributes";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
-import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { renderVideoTag } from "@jini-ai/cms/widgets/media-tags";
 import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
 

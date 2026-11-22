@@ -15,7 +15,7 @@ import {
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
-import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap.js";
+import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 
 /**
  * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/runtime/composition/deps.ts` chains

@@ -14,7 +14,8 @@ import {
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,
 } from "../post/index.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefinitionRepoPort } from "../media/index.js";
+import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/index.js";
+import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import { resolvePostMemberAccess } from "../members/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/index.js";

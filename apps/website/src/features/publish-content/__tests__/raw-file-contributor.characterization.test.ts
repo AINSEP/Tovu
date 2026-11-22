@@ -14,7 +14,8 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/index";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
