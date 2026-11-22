@@ -1,5 +1,5 @@
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/content-types/site/system-content-types";
+import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/entries/site/system-content-types";
 import assert from "node:assert/strict";
 import test from "node:test";
 

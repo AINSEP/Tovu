@@ -12,7 +12,7 @@ import { announcePendingGoLive } from "@jini-ai/cms/entries";
 import { SYSTEM_ACTOR_ID } from "../post/index.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "@jini-ai/cms/entries/site/entry-refs-extractor";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets/site/entry-refs-extractor";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import {
   PageConcurrentEditError,

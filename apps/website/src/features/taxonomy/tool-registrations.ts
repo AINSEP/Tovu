@@ -31,7 +31,7 @@ import type { PostRepoPort } from "../post/index.js";
 import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "@jini-ai/cms/taxonomy/site/content-targets";
 import type { CollectionOwnerLookupPort, MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import { buildMergeTermHooks } from "./gated-hooks.js";
-import { taxonomyAgentToolCatalog } from "@jini-ai/cms/taxonomy/site/agent-tools";
+import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
   type EntryRecordLookupPort,
 } from "@jini-ai/cms/taxonomy";
