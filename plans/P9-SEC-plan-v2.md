@@ -56,7 +56,7 @@ Also corrected (found while re-verifying):
   - Please confirm option 1, or choose the fallback.
 - **OD-3. D5 port-surface additions (block SEC-6, SEC-8 verify, SEC-12 and SEC-14 until answered).** §1 says "no new port; if one is needed, STOP". Each item below is an optional field on an existing port or module option, not a new port token, except item (d).
   - (a) `RootKeyPort.reveal?` (SEC-6). It reverses the comment "No reveal operation" at `J:ports.ts:21`.
-  - (b) Publish `verify` plus snapshot `executionMode` and `verification` (SEC-8). These go on a new adapter factory over the existing W1–W5 wire, not on a port.
+  - (b) Publish `verify` plus snapshot `executionMode` and `verification` (SEC-8). `verify` goes on a new adapter factory over the existing W1–W5 wire. The screen's existing `SecurityApiPort` publish `list` result also gains `executionMode` and per-row `lastVerification` fields, which is a type-hash change to an existing port.
   - (c) `SecurityApiPort.sharedKeys?` and `useProjectKey?` (SEC-12), and masked `tokenHint` display (`J:models.ts:10` says no hint).
   - (d) An optional `securityEventsToken` (SEC-14). This is a **new optional port token**, shaped like comments' events port.
   - **Smallest option for (d):** no token. The host passes `refreshSignal?: { subscribe({ onRefresh }): () => void }` as a field on `security()`'s existing optional args, the same mechanism as `rootKeyScopeNotice` (`J:react/index.ts:5`).
@@ -647,7 +647,7 @@ All files are under `packages/admin/src/security/` unless shown with a package p
 
 **UI.**
 - The v1 items.
-- **Stylesheet handoff (check item 1).** The dialog marks its parts with `data-jini-part="security.shared-keys.{source,list,overwrite,results}"`. These replace the five `.copy-keys-*` selectors of `T:copy-keys-dialog.css` (6 lines). SEC-T1b re-targets the Tovu copy of those rules.
+- **Stylesheet handoff (check item 1).** The dialog marks its parts with `data-jini-part="security.shared-keys.{source,list,overwrite,results}"`. These replace the five `.copy-keys-*` rules of `T:copy-keys-dialog.css`. SEC-T1b re-targets the Tovu copy of those rules.
 
 **Tests first.**
 - The v1 ports.
@@ -856,7 +856,7 @@ Core's web `jsonRoute` (`json-route.ts:169-258`) is **not** used for these route
 
 **U-AUTH-T1 content.**
 - `registerAuthRoutes` keeps `:585-608`: the limiter and the owner-* registrations, unchanged. The owner passkey `signedIn` callback (`:601-607`) stays inline with its single `res.json`. The recovery routes and the admin clients `lib/owner-recovery-api.ts` and `lib/owner-passkey-api.ts` are untouched.
-- It then mounts the seven specs with `mountJsonRoute` **in the same order and at the same position**, before `requirePublishTrust` / `requireAdminSession` (snapshot lines 46-55).
+- It then mounts the seven specs with `mountJsonRoute` **in the same order and at the same position**, before `requirePublishTrust` / `requireAdminSession` (`default` snapshot lines 47-55).
 - Refactor `redeemOwnerBootSession` (`:513-545`) to return `BootRedemption`.
 - Delete the seven `register…Route` functions (`:639-875`, about 237 lines).
 
