@@ -3,7 +3,7 @@ import { createPost } from "./post-create.js";
 import { AGENT_TOOL_PRINCIPAL_KIND } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { PostNotFoundError, PostValidationError, type PostRecord, type PublicPostRecord } from "./post.js";

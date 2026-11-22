@@ -104,7 +104,7 @@ export type ToolContributor = import("@jini-ai/core").ToolContributor<AssistantT
 export type DerivedToolContributor = import("@jini-ai/core").DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type AssistantToolContributions = GenericToolContributions<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type PeerSiteReads = GenericPeerSiteReads<AssistantToolRegistryDeps>;
-export type DuplicateResourceHandlerContributor = import("./tool-contributions.js").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
+export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contracts/site/assistant-tool-contributions").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
 
 
 /**
