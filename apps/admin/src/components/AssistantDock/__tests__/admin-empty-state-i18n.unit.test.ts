@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { t as dockT } from "../assistant-dock-i18n";
-import { t as taxonomyT } from "../../../features/taxonomy/taxonomy-i18n";
+import { t as taxonomyT } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 
 test("empty states use the exact translated copy in every supported locale", () => {
   expect(taxonomyT({ locale: "es", key: "No taxonomies yet" })).toBe("Todavía no hay taxonomías");

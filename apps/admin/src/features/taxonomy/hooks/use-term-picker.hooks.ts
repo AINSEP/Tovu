@@ -3,7 +3,7 @@ import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t } from "../taxonomy-i18n";
+import { t } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
 

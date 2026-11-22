@@ -6,7 +6,7 @@ import { ApiError, describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { isVersionConflict } from "../../lib/version-conflict";
-import { t as translate } from "./collections-i18n";
+import { t as translate } from "@jini-ai/admin/screens/collections/collections-i18n";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

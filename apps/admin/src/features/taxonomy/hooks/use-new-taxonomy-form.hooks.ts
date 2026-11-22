@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t } from "../taxonomy-i18n";
+import { t } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 import { KEYS } from "../rules";
 import { defaultNewTaxonomyFormPort } from "./new-taxonomy-form-dependencies.hooks";
 import type { NewTaxonomyFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-taxonomy-form-port.hooks";
