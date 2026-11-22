@@ -9,7 +9,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import {
   buildDuplicateThemeRegistrations,
   contributeDuplicateThemeTools,

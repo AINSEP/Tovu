@@ -2,7 +2,7 @@ import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { readPreviewSwitcher } from "#src/features/theme/preview-switcher";
 import { previewThemePath } from "#src/features/theme/preview-switcher-html";
 import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
-import type { RouteManifest, ManifestRoute } from "./ports.js";
+import type { RouteManifest, ManifestRoute } from "@jini-ai/devops/static-export/site/ports";
 
 function isHtmlPage({ route }: { route: ManifestRoute }, _options = {}): boolean {
   return !["well-known", "redirect", "not-found"].includes(route.kind);

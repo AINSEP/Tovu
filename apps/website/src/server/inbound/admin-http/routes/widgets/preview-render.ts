@@ -1,7 +1,7 @@
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { findWidgetTypeRegistration, validateWidgetConfig, WidgetConfigValidationError, WidgetTypeUnregisteredError } from '@jini-ai/cms/widgets';
 import { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
-import { resolveActiveThemeId } from '#src/features/presentation/index';
+import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/index';
 import { renderStaticFragment } from '#src/features/theme/rendering';

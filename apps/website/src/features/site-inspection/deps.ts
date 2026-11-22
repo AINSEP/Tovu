@@ -1,4 +1,4 @@
-import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";

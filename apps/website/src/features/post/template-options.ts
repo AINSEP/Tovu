@@ -1,5 +1,5 @@
 import type { PresentationSettingsRepoPort } from "../presentation/index.js";
-import { resolveActiveThemeId } from "../presentation/index.js";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme, type DiscoveredTheme } from "../theme/index.js";
 import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";

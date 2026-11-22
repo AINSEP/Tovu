@@ -9,7 +9,7 @@ import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
-import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
+import type { ManifestRoute, ManifestSkip, RouteManifest } from "@jini-ai/devops/static-export/site/ports";
 
 /**
  * @file The public-site route enumerator, shared by the exporter and theme previews.
@@ -60,7 +60,7 @@ import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
  * header for why a type-only import of the god type still counts as a real graph edge under
  * `check:architecture`'s `--ts-pre-compilation-deps` resolution, not just a runtime one).
  *
- * `resolveActiveThemeId` (`#src/features/presentation/index`) and `resolveActiveTheme`
+ * `resolveActiveThemeId` (`@jini-ai/cms/presentation/site/active-theme-id`) and `resolveActiveTheme`
  * (`#src/features/theme/index`) each only need their own narrow
  * `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` — this interface is a structural
  * superset of both (the same `presentationRepo`/`workspaceId`/`themes` fields, same types), so
@@ -86,7 +86,7 @@ export interface RouteManifestDeps {
   readonly presentationRepo: PresentationSettingsRepoPort;
   readonly themes: DiscoveredTheme[];
   readonly redirectRepo: RedirectRepoPort;
-  /** The same `resolveActiveThemeId` (`features/presentation/active-theme-id.ts`) the live routes
+  /** The same `resolveActiveThemeId` (`@jini-ai/cms/presentation/site/active-theme-id`) the live routes
    *  resolve the active theme with, injected rather than imported directly — see file header. */
   readonly resolveActiveThemeId: () => Promise<string>;
   /** The same `listPublishedPosts` (`features/post/post.ts`) the live routes render posts/pages
@@ -112,7 +112,7 @@ export interface RouteManifestProduct {
   readonly title: string;
 }
 
-/** Base slug for the synthetic 404-probe route (`ports.ts`'s `ManifestRoute.kind: "not-found"`
+/** Base slug for the synthetic 404-probe route (`@jini-ai/devops/static-export/site/ports`'s `ManifestRoute.kind: "not-found"`
  *  doc) — a real-looking, `[a-z0-9-]+`-shaped slug chosen specifically to miss every real post,
  *  page, and theme page, so requesting it exercises the SAME "nothing matched" branch a genuinely
  *  broken visitor link would. */

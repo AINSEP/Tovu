@@ -18,7 +18,7 @@ import { SiteShareRegistry } from "../share-registry.js";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { renderRedirectStub } from "@jini-ai/devops/static-export";
-import { rewriteExportOriginResponse } from "../../site-export/public-origin-policy.js";
+import { rewriteExportOriginResponse } from "@jini-ai/devops/static-export/site/public-origin-policy";
 
 const now = () => new Date("2026-10-30T17:15:00.000Z");
 const context = async () => ({ name: "My Site", slug: "my-site", theme: "Active Theme", timeZone: "America/Los_Angeles" });

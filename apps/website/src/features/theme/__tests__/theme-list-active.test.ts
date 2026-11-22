@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryPresentationSettingsRepo } from "@jini-ai/cms/presentation";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
 import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { applyActiveTheme } from "../set-active-theme-tool.js";

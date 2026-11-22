@@ -290,7 +290,7 @@ test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct
 
 /**
  * A workspace with no `presentation_settings` row is a real, documented state —
- * `features/presentation/active-theme-id.ts`'s `resolveActiveThemeId` exists specifically to
+ * `@jini-ai/cms/presentation/site/active-theme-id`'s `resolveActiveThemeId` exists specifically to
  * degrade it to `""` rather than let `PresentationSettingsNotFoundError` escape, and `pages.ts`
  * has always routed through that helper.
  *

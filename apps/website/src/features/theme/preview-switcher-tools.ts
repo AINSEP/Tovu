@@ -6,7 +6,7 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 import { fromSettingsRevisionConflict, requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import { withModelFacingRegistrationErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { toolMetadata } from "../../contracts/core/tool-metadata/theme.js";
 import { readPreviewSwitcherWithRevision, parsePreviewSwitcher, PREVIEW_SWITCHER_NAMESPACE, PREVIEW_SWITCHER_KEY } from "./preview-switcher.js";
 import type { SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
