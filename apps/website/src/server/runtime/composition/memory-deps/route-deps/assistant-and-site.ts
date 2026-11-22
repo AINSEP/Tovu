@@ -5,7 +5,7 @@ import { composeAgentPluginPreferences, composePluginProviderFaces } from "../..
 import { getEffective, set } from "#src/features/settings/index";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/external-mcp-roster-change.js";
-import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
+import { readBuiltInExternalMcpServerIds } from "@jini-ai/mcp/external/built-in-connections";
 import { createExternalMcpOAuthService } from "../../../../../features/external-mcp/external-mcp-oauth.js";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";

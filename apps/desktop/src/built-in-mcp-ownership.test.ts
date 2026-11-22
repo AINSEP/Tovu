@@ -9,7 +9,7 @@ import { SITES_MCP_SERVER_ID } from "./sites-mcp-identity.ts";
 test("desktop declares ownership using the same id its registration source uses", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-mcp-owner-"));
   try {
-    const env = buildServeEnv({ repoRoot: root, baseEnv: { TOVU_BUILT_IN_MCP_SERVER_IDS: '["unrelated-inherited-value"]' } });
-    assert.deepEqual(JSON.parse(env.TOVU_BUILT_IN_MCP_SERVER_IDS!), [SITES_MCP_SERVER_ID]);
+    const env = buildServeEnv({ repoRoot: root, baseEnv: { JINI_BUILT_IN_MCP_SERVER_IDS: '["unrelated-inherited-value"]' } });
+    assert.deepEqual(JSON.parse(env.JINI_BUILT_IN_MCP_SERVER_IDS!), [SITES_MCP_SERVER_ID]);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
