@@ -8,10 +8,14 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import {
-  InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore,
-  InMemoryMediaContentTypeStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo,
-  TOVU_MAX_UPLOAD_BYTES,
+  InMemoryAssetBlobRepo,
+  InMemoryAssetRenditionRepo,
+  InMemoryBlobStore,
+  InMemoryMediaContentTypeStore,
+  InMemoryMediaRepo,
+  InMemoryTransformDefinitionRepo,
 } from "../../media/index.js";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";

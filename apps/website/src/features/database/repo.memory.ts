@@ -1,4 +1,4 @@
-import type { LedgerReadPort, LedgerRow } from "./timeline.js";
+import type { LedgerReadPort, LedgerRow } from "@jini-ai/db/tools";
 import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
 import type { RestorePointListPort, RestorePointRecord } from "@jini-ai/db/tools";
 import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";

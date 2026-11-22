@@ -20,7 +20,7 @@ import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
 import { forceRemove } from '../fixtures/force-remove.js';
 import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
-import type { McpServerConfig } from '../../mcp-metadata.js';
+import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 
 // S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.
 const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };

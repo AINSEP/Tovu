@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planRestore } from "../../recovery-orchestrator.js";
+import { planRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
 
 /**
  * @file CIC U-003 (SPEC-019) — `planRestore`'s fresh `costClass` re-check before delegating to

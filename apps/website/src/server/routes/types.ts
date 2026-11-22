@@ -84,7 +84,7 @@ import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jin
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { LedgerReadPort } from "../../features/database/timeline.js";
+import type { LedgerReadPort } from "@jini-ai/db/tools";
 import type {
   RestorePointListPort,
   RestorePointSavePort,

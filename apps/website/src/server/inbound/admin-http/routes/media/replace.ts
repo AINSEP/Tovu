@@ -1,8 +1,13 @@
 import { replaceMediaFile } from '@jini-ai/cms/media';
 import type { Express, Response } from 'express';
 import { decodeStrictBase64 } from '#src/contracts/core/index';
-import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, TOVU_MAX_UPLOAD_BYTES,
-  resolveUploadContentType, type MediaRecord } from '#src/features/media/index';
+import {
+  DEFAULT_ALLOWED_MIME_TYPES,
+  MediaValidationError,
+  resolveUploadContentType,
+  type MediaRecord,
+} from '#src/features/media/index';
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from '@jini-ai/cms/media';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { MediaRouteDeps } from './deps.js';
 import { sendMediaNotFound, sendValidationOrInternalError } from './route-guards.js';

@@ -12,7 +12,7 @@ import {
   type IngestHitOptional,
 } from "@jini-ai/analytics";
 import type { AnalyticsSinkPort, IngestDeps } from "./ports.js";
-import type { NormalizedHit } from "./types.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
 
 /**
  * Preserve bounded event bags (ADR-022 bounded-cost discipline: 20 keys and 200-char strings)

@@ -8,7 +8,8 @@ import { registerAdminMenuCreateRoute } from '../create.js';
 import { registerAdminMenuDeleteRoute } from '../delete.js';
 import { registerAdminMenuGetRoute } from '../get-by-id.js';
 import { registerAdminMenuListRoute } from '../list.js';
-import { MenuConflictError, MenuVersionConflictError } from '#src/features/navigation/index';
+import { MenuConflictError } from '#src/features/navigation/index';
+import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
 import { WS, BASE, INTERNAL, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [

@@ -20,7 +20,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";
 
 import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers as provisionWithPort, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
-import type { McpServerConfig } from "../../mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 
 /**
  * @file `federate-mcp.ts` — Phase 4 of the 2026-09-10 plugin-MCP-wiring work, rewritten against the

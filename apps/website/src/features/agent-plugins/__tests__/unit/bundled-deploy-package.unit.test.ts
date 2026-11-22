@@ -17,7 +17,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } from "../../bundled-catalog.js";
 import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";

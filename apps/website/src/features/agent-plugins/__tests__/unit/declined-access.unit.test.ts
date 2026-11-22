@@ -7,7 +7,7 @@ import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external
 import { createApplyConnectDefaults } from '../../apply-connect-defaults.js';
 import { previewAgentPluginEnableAccess } from '../../enable-access.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
-import type { McpServerConfig } from '../../mcp-metadata.js';
+import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 
 const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
 async function fixture() {

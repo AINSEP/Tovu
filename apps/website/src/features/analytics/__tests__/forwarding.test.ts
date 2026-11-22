@@ -4,7 +4,7 @@ import test from "node:test";
 import { createAnalyticsForwarderRegistry, type AnalyticsForwarderModule, type AnalyticsHooks as EngineHooks } from "@jini-ai/analytics";
 
 import { cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks, type AnalyticsProviderSet } from "../forwarding.js";
-import type { AnalyticsSiteConfig, NormalizedHit } from "../types.js";
+import type { AnalyticsSiteConfig, NormalizedHit } from "@jini-ai/analytics";
 
 const hit = (path = "/a"): NormalizedHit => ({
   workspaceId: "ws-1", occurredAt: "2026-10-21T10:00:00.000Z", kind: "pageview", path, referrerHost: null,

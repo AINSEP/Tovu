@@ -2,7 +2,7 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "#src/features/analytics/index";
-import type { DeviceClass, HitKind, NormalizedHit } from "#src/features/analytics/index";
+import type { DeviceClass, HitKind, NormalizedHit } from "@jini-ai/analytics";
 import type { ContentKernel } from "../content-kernel.js";
 import type { AnalyticsEventsTable } from "../content-database.generated.js";
 

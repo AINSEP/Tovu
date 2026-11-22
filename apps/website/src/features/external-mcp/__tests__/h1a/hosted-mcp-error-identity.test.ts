@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
-import { ExternalMcpValidationError as AccessShimValidationError } from "../../../../contracts/core/external-mcp-access.js";
+import { ExternalMcpValidationError as AccessShimValidationError } from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpSecretStoreUnconfiguredError as StoreUnconfigured, ExternalMcpValidationError as StoreValidationError } from "../../external-mcp-store.js";
 import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../../agent-plugins/mcp-host-bindings.js";
 import type { AgentPluginMcpProjections } from "@jini-ai/agent-plugins/connect";

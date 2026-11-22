@@ -4,7 +4,7 @@ import test from "node:test";
 import { createAnalyticsForwardLimiter } from "@jini-ai/analytics";
 
 import { analyticsPrivacyPolicy, analyticsSaltContext, createAnalyticsIngestBinding, createLocalAnalyticsSink, type AnalyticsIngestRouteDeps } from "../jini-adapters.js";
-import type { NormalizedHit } from "../types.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
 
 const hit = (path: string): NormalizedHit => ({
   workspaceId: "ws-1", occurredAt: "2026-10-21T10:00:00.000Z", kind: "pageview", path, referrerHost: null,

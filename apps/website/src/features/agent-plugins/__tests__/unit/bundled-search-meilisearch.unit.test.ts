@@ -19,7 +19,7 @@ import { agentPluginSourceDir } from "../../../../../../../development/test-supp
 
 import { packAgentPluginDirectory, seedBundledAgentPlugins } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { SEARCH_PROVIDERS_FILENAME, loadSearchProviderContributions, loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
 
 /**

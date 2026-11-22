@@ -4,7 +4,7 @@ import test from "node:test";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 
 import { describeTransferApproval, formatSnapshotTime } from "../confirmation-ui.js";
-import type { DatabaseTransferPlan } from "../plan-store.js";
+import type { DatabaseTransferPlan } from "@jini-ai/db/tools";
 
 function plan(overrides: Partial<DatabaseTransferPlan> = {}): DatabaseTransferPlan {
   return { planId: "plan", workspaceId: "ws", principalId: "owner", expiresAtMs: 10_000, connectionString: "postgres://user:SECRET@db.example/catalog", destination: { host: "db.example", port: "5432", database: "catalog", user: "user" }, snapshot: Buffer.from("SECRET SNAPSHOT"), snapshotAt: "snapshot-one", site: "site", schema: "tovu_site", replaces: null, tableCount: 1, rowCount: 1, leftOut: [{ table: "users", rows: 2, reason: "logins" }, { table: "keys", rows: 5, reason: "keys" }], ...overrides };

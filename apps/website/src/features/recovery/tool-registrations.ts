@@ -50,7 +50,7 @@ import {
   type DeepLinkRestorePointLookupPort,
 } from "@jini-ai/db/recovery/deep-link";
 import { computeDisclosure, type DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
-import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestrator.js";
+import { confirmRestore, executeRestore, planRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
 import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -45,7 +45,7 @@ import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
 import { executeMigrateForward } from "@jini-ai/db/recovery/migrate-forward-execute";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
-import type { LedgerReadPort } from "./timeline.js";
+import type { LedgerReadPort } from "@jini-ai/db/tools";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

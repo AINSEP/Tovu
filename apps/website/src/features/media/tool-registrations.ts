@@ -15,7 +15,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey, sniffContentType } from "./index.js";
 import type { MediaPublicUrlDeps, RemoveMediaFn } from "./contracts.js";
-import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 

@@ -133,7 +133,6 @@ export {
 
 export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 
-export { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 export { resolveUploadContentType, assertAllowedSniffedContentType } from "./upload-content-type.js";
 
 export { mediaUrlKey, mediaPublicPath, type MediaUrlKeySource, type MediaPublicPathVariant } from "./public-path.js";

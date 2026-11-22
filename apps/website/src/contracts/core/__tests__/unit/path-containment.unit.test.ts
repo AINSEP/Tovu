@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { resolvePathWithin } from "../../path-containment.js";
+import { resolvePathWithin } from "@jini-ai/platform/fs";
 
 /**
  * @file Direct coverage for `resolvePathWithin`'s two escapes — a `../`-laden traversal segment,

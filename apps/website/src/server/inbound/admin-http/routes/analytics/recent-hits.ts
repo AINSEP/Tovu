@@ -4,7 +4,7 @@ import { respondToApiError } from "#src/server/error-mapping/respond";
 import type { Express } from "express";
 
 import type { AnalyticsSinkPort } from "#src/features/analytics/index";
-import type { DeviceClass, HitKind, NormalizedHit } from "#src/features/analytics/index";
+import type { DeviceClass, HitKind, NormalizedHit } from "@jini-ai/analytics";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

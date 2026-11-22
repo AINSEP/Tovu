@@ -17,9 +17,9 @@ import {
   type SurfaceExchange,
 } from "@jini-ai/daemon/surface-exchanges";
 import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../features/external-mcp/external-mcp-oauth.js";
-import { resolveExternalMcpAuthMode } from "../contracts/core/external-mcp-auth.js";
-import { resolveExternalMcpOAuthStatus } from "../contracts/core/external-mcp-auth.js";
-import { type ExternalMcpOAuthStatus } from "../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
+import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
+import { type ExternalMcpOAuthStatus } from "@jini-ai/core/contracts/hosted-mcp";
 import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
 
 /**

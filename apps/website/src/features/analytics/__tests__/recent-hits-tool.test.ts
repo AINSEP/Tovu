@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
-import type { NormalizedHit } from "../index.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
 import { createLocalAnalyticsSink } from "../jini-adapters.js";
 import { buildAnalyticsRegistrations, contributeAnalyticsTools, analyticsDerivedRisk } from "../tool-registrations.js";
 

@@ -6,8 +6,8 @@
 import { readFile } from "node:fs/promises";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
-import type { AgentPluginMcpConfig, McpServerConfig } from "./mcp-metadata.js";
-import { parseAgentPluginMcpConfig } from "./mcp-metadata.js";
+import type { AgentPluginMcpConfig, McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { assertContainedOnDisk } from "./lifecycle.js";
 
 /**

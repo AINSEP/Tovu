@@ -6,7 +6,7 @@ import {
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
 } from "../repo.memory.js";
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "../types.js";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {
   return {

@@ -136,7 +136,6 @@ export { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
 export { isMenuHtmlAuthoring, MAX_MENU_HTML_LENGTH, type MenuHtmlAuthoring, type NavMenuMode } from "@jini-ai/cms/navigation";
 
 /** The compare-and-set loss, told apart from the other `MenuConflictError`s — see its own file. */
-export { MenuVersionConflictError } from "./menu-version-conflict-error.js";
 
 /**
  * R4 (`plan-publish-repoint-menus-2026-09-24.md` §2.4/§3): the menu-domain entity reverter(s), so a

@@ -2,7 +2,7 @@ import { InMemoryMenuRepo, MenuConflictError } from "@jini-ai/cms/navigation";
 import type { MenuRepoPort, MenuSaveOptions, MenuStatus, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 import type { MenuTrashLookup } from "./menu-trash-follow-ups.js";
-import { MenuVersionConflictError } from "./menu-version-conflict-error.js";
+import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 
 /**
  * @file The in-memory twin of `repo.sqlite.ts`'s Trash rules, for the hermetic composition

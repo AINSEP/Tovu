@@ -42,8 +42,8 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
 
 /**
  * {@link MEDIA_IMPORT_EGRESS_POLICY}'s response cap — the transport-level BACKSTOP, deliberately set
- * above `features/media-import`'s own accept limit (`contracts/core/upload-limits.ts`'s
- * `TOVU_MAX_UPLOAD_BYTES`, 50 MiB as of 2026-09-21 — this host's override of `@jini-ai/cms/media`'s
+ * above `features/media-import`'s own accept limit (`@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`,
+ * imported as `TOVU_MAX_UPLOAD_BYTES`, 50 MiB as of 2026-09-21 — this host's override of `@jini-ai/cms/media`'s
  * 10 MiB `DEFAULT_MAX_UPLOAD_BYTES`, the same cap `uploadMedia` itself is now called with) so the feature's
  * own error message is the one a caller normally sees, and this cap only fires for a response so far
  * over the line that reading it to the feature's own check would be wasted bandwidth.
@@ -194,7 +194,7 @@ export const SITE_IMPORT_EGRESS_POLICY: EgressPolicy = {
  *
  * Also the cap this server (acting as the PULLING side) applies to a peer's `blob-get.ts` response
  * for one blob: that route sends the blob's raw bytes as base64 JSON, which inflates them ~1.33x, so
- * this must clear `TOVU_MAX_UPLOAD_BYTES`'s (`contracts/core/upload-limits.ts`, 50 MiB as of
+ * this must clear `TOVU_MAX_UPLOAD_BYTES`'s (`@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, 50 MiB as of
  * 2026-09-21) base64-inflated size (~66.7 MiB) with headroom — raised from 64 MiB alongside that
  * cap's own 2026-09-21 increase to 50 MiB, which the old 64 MiB value no longer cleared.
  */

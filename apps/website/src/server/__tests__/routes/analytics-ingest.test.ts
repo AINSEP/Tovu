@@ -8,7 +8,7 @@ import express from "express";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { AnalyticsConfigPort } from "#src/features/analytics/index";
-import type { AnalyticsSiteConfig } from "#src/features/analytics/index";
+import type { AnalyticsSiteConfig } from "@jini-ai/analytics";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";

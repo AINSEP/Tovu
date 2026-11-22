@@ -3,7 +3,8 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Quick wins A: an admin adapter over the same guarded fetch and upload pipeline as the tool. */
 import type { Express } from "express";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
-import { MediaValidationError, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { MediaValidationError, uploadMedia } from "#src/features/media/index";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { fetchImage } from "#src/features/media-import/fetch-image";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { EgressRefusedError } from "#src/platform/http/index";

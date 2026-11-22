@@ -14,7 +14,7 @@ import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
 import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
 import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
-import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "#src/features/webhooks/types";
+import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Shared `WebhookDeliveryRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T021), incl.

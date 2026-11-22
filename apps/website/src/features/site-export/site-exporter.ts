@@ -298,7 +298,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
     // Capture group 2 is mandatory in this pattern (`([^'")]+)`, not optional) — always populated
     // whenever the surrounding match succeeds (see extractAssetUrls's own note on match[1]).
 /**
- * Maps a fetched asset's site-relative URL to its output file, via `core/path-containment.ts`'s
+ * Maps a fetched asset's site-relative URL to its output file, via `@jini-ai/platform/fs`'s
  * shared `resolvePathWithin` — the same check `theme-static-assets.ts`'s `resolveThemeDir` applies
  * to a theme id. A URL extracted from rendered HTML is still, transitively, request-shaped input,
  * not a trusted literal, and the refusal is genuinely reachable: `extractAssetUrls` is a raw

@@ -16,7 +16,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
-import type { McpServerConfig } from "../../mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory, createBundledSourceArchiveReader } from "../../lifecycle.js";
 import { installAgentPlugin } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";

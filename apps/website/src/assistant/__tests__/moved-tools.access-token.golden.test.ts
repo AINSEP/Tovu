@@ -23,7 +23,7 @@ import { createTempSiteLayoutFixture, testSiteLayoutContext } from '../../__test
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from '../../__tests__/support/credential-save.js';
 import { mcpTestPort, credentialTestPort } from '../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js';
 import { saveAgentPluginToken, type AgentPluginAccessTokenToolDeps } from '../../features/agent-plugins/access-token-tool.js';
-import type { McpServerConfig } from '../../features/agent-plugins/mcp-metadata.js';
+import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 import { InMemoryExternalMcpServerRepo } from '../../features/external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../features/external-mcp/external-mcp-store.js';
 import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';

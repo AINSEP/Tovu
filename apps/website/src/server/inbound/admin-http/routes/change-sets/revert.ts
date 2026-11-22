@@ -57,7 +57,7 @@ function sendChangeSetRevertError({ res, err }: { res: Response; err: unknown },
  *
  * Task 14b (2026-09-18): accepts an optional `force: true` body field, which is itself the
  * "operator explicitly clicked through a warning" signal — the same shape
- * `features/recovery/recovery-orchestrator.ts`'s `disclosureAcknowledged` uses (a single
+ * `@jini-ai/db/recovery/recovery-orchestrator`'s `disclosureAcknowledged` uses (a single
  * strictly-`=== true` boolean the caller must deliberately set), not the full
  * `gated-mutations` plan -> confirm -> execute token ceremony, which is a separate, heavier
  * primitive this route has no other reason to adopt. `force` is forwarded to `revertChangeSet`

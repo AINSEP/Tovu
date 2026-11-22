@@ -13,7 +13,7 @@ import express from "express";
 import { readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 
 import { provisionAgentPluginMcpServers } from "../../features/agent-plugins/federate-mcp.js";
-import { parseAgentPluginMcpConfig } from "../../features/agent-plugins/mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";

@@ -205,7 +205,7 @@ test("registerThemeStaticAssets: path traversal in the themeId segment cannot es
 
 test("registerThemeStaticAssets: resolveThemeDir is actually WIRED to the shared resolvePathWithin containment check, not just the dot/__ prefix guard", async (t) => {
   // Regression for the exact gap this task existed to close: d4ef2941 wrote the shared
-  // containment helper (core/path-containment.ts) but never wired theme-static-assets.ts to it,
+  // containment helper (`resolvePathWithin`, now in @jini-ai/platform/fs) but never wired theme-static-assets.ts to it,
   // and nothing caught that. This pins the wiring itself, not the helper (already covered
   // directly by core/__tests__/unit/path-containment.unit.test.ts).
   //

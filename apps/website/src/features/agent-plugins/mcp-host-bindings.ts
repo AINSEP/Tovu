@@ -1,6 +1,6 @@
 /** Compatibility wiring only: all projections/errors remain the canonical store's functions. */
-import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, ExternalMcpValidationError } from '../../contracts/core/external-mcp-access.js';
-import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '../../contracts/core/external-mcp-auth.js';
+import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, ExternalMcpValidationError } from '@jini-ai/mcp/federation/hosted';
+import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '@jini-ai/mcp/federation/hosted';
 import { ExternalMcpSecretStoreUnconfiguredError } from '@jini-ai/mcp/federation/hosted';
 import { OAuthError } from '../../platform/oauth/errors.js';
 import type { AgentPluginMcpContext } from './service-ports.js';

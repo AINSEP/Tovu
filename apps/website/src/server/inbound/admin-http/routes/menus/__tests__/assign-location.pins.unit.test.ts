@@ -3,7 +3,14 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EntityNotLiveError } from '@jini-ai/cms/core';
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, MenuVersionConflictError, type NavMenuEntry } from '#src/features/navigation/index';
+import {
+  InMemoryMenuRepo,
+  InMemoryNavLocationBindingRepo,
+  MenuConflictError,
+  MenuNotFoundError,
+  type NavMenuEntry,
+} from '#src/features/navigation/index';
+import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
 import type { MenuRouteDeps } from '#src/server/inbound/admin-http/http/menus';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';

@@ -6,7 +6,7 @@ import type { LedgerAppendPort } from "@jini-ai/db/recovery";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
-import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
+import type { LedgerReadPort, LedgerRow } from "@jini-ai/db/tools";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
 import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";

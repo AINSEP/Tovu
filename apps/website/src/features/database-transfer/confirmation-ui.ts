@@ -1,6 +1,6 @@
 import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import type { DatabaseTransferPlan } from "./plan-store.js";
+import type { DatabaseTransferPlan } from "@jini-ai/db/tools";
 
 /**
  * @file The card `database_transfer_run` raises before anything is written. Same held-open exchange

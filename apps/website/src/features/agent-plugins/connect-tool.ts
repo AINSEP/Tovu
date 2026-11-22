@@ -20,7 +20,7 @@ import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
-import type { McpServerConfig } from "./mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import {
   runAgentPluginConnect as runWithPorts, titleCaseFromPluginId as titleCaseWithPorts, hasStoredAgentPluginCredential as hasStoredWithPorts,

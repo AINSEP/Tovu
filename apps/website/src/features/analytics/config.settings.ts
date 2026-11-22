@@ -8,7 +8,7 @@ import {
 } from "../settings/index.js";
 import { LOCAL_ANALYTICS_SINK_ID } from "@jini-ai/analytics";
 import type { AnalyticsConfigPort } from "./ports.js";
-import type { AnalyticsSiteConfig } from "./types.js";
+import type { AnalyticsSiteConfig } from "@jini-ai/analytics";
 
 /**
  * @file Boot-time `core.analytics.*` setting-definition registration plus the

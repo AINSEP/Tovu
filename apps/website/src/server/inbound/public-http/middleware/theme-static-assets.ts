@@ -3,7 +3,7 @@ import path from "node:path";
 import express from "express";
 import type { Express, NextFunction, Request, Response } from "express";
 
-import { resolvePathWithin } from "#src/contracts/core/path-containment";
+import { resolvePathWithin } from "@jini-ai/platform/fs";
 
 import { resolveThemeDirs } from "./theme-asset-dirs.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";

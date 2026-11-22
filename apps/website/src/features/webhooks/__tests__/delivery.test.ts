@@ -16,7 +16,7 @@ import {
 } from "../repo.memory.js";
 import { createFixedSecretSigner, verifySignature } from "../signing.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
-import type { WebhookBeforeDispatchHook } from "../types.js";
+import type { WebhookBeforeDispatchHook } from "@jini-ai/integrations/webhooks";
 
 /** Builds a full delivery-worker test rig: repos, envelope store, id/clock, signer, http double. */
 function makeRig(options: { nowIso?: string } = {}) {

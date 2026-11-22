@@ -1,8 +1,6 @@
 /** Compatibility adapter; engine ordering, wipe-guard and identifier rationale now lives in @jini-ai/db/transfer. */
 import type { TransferSource, TransferNaming } from "@jini-ai/db/transfer";
 import { PARTIALLY_EXCLUDED_TABLES, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
-export { SourceSchemaMismatchError, IncompleteTransferPlanError, planTransfer } from "@jini-ai/db/transfer";
-export type { TableCount, CopyMarker, CopyResult, TargetInspection, TargetSchemaState, TransferCopyInfo } from "@jini-ai/db/transfer";
 export { collectTransferTables, planSnapshotTables, type SnapshotTablePlan, type TransferColumn, type TransferTable } from "./table-catalog.js";
 /** The first site gets this schema; existing destination markers must keep their original names. */
 export const DEFAULT_TRANSFER_SCHEMA = "tovu";

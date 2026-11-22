@@ -12,7 +12,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
 import type { InstalledAgentPluginServers } from "../../import-access-token.js";
-import type { McpServerConfig } from "../../mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { forceRemove } from "../fixtures/force-remove.js";

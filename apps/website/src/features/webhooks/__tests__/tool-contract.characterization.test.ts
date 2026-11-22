@@ -21,7 +21,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { contributeWebhooksTools, type IntegrationsToolDeps } from "../tool-registrations.js";
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "../types.js";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 
 const WORKSPACE_ID = "ws-webhooks-contract";
 const PRINCIPAL_ID = "principal-under-test";

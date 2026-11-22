@@ -5,36 +5,6 @@
  * never via deep paths. TYPES/INTERFACES ONLY at this stage (ADR-035 draft): the concrete
  * ingest/rollup/query services and adapters land against this surface later.
  */
-export type {
-  AnalyticsAggregateRow,
-  AnalyticsDomainEventName,
-  AnalyticsDomainEventPayloads,
-  AnalyticsEventRow,
-  AnalyticsGoalDef,
-  AnalyticsGranularity,
-  AnalyticsPermission,
-  AnalyticsSessionRow,
-  AnalyticsSinkKind,
-  AnalyticsSiteConfig,
-  BreakdownRow,
-  DeviceClass,
-  DimensionName,
-  DimensionOverflowValue,
-  GoalTriggeredPayload,
-  HitKind,
-  IngestBeacon,
-  IngestContext,
-  MetricName,
-  NormalizedHit,
-  RealtimeSnapshot,
-  RollupCompletedPayload,
-  StatsFilter,
-  StatsQuery,
-  StatsResult,
-  TimeSeriesPoint,
-  UtmParams,
-  VisitorSketch,
-} from "./types.js";
 
 export type {
   AggregateDelta,
