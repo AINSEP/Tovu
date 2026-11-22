@@ -7,7 +7,7 @@ import { ModulePanel } from '../ModulePanel';
 import { tovuKit } from '../kit';
 import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
 import type { AdminMedia } from '../../../features/media/api/media-api.types';
-import { setPublishToLiveAvailable } from '@jini-ai/admin/publish-content/screen/hooks/publish-availability.store';
+import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 const item = { id: 'm1', slug: 'my-photo', workspaceId: 'workspace-local', title: 'Photo', alt: 'Original alt', caption: '', credit: '', sha256: 'hash', status: 'active', createdAt: '2026-10-03', updatedAt: '2026-10-03', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null, contentType: 'image/png', publicUrl: '/m/my-photo/public' } satisfies AdminMedia;
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 function Fixture({ permissions = ['*'], children }: { permissions?: string[]; children?: React.ReactNode }) {

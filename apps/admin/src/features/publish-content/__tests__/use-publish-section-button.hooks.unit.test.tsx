@@ -1,7 +1,7 @@
 import { act, render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { PublishSectionButton } from "../PublishSectionButton";
-import { setPublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+import { setPublishToLiveAvailable } from "../hooks/publish-availability.store";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setPublishToLiveAvailable({ next: true }); });
 

@@ -6,7 +6,7 @@ import {
   isPublishToLiveAvailable,
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,
-} from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+} from "../hooks/publish-availability.store";
 import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks/publish-request.store";
 
 /**

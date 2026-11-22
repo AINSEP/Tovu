@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fe
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setPublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+import { setPublishToLiveAvailable } from "../../publish-content/hooks/publish-availability.store";
 import { closePublishRequest, usePublishRequest } from "../../publish-content/hooks/publish-request.store";
 import { Dashboard } from "../Dashboard";
 

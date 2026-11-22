@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
-import { isPublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+import { isPublishToLiveAvailable } from "./publish-availability.store";
 
 /**
  * @file `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — the one
