@@ -507,3 +507,24 @@ test("daemon remote discovery and the real BYOK root expose the identical tool-i
   // conversion above had merged) — same proof, extended to cover it too.
   assert.ok(daemonIds.includes("content_read.media_asset"));
 });
+
+test("W7–9 guidance resolves named readers through CLI and BYOK catalogs", async () => {
+  const { SITE_GUIDE_POINTER } = await import("../site-guide-pointer.js");
+  const { createAssistantByokModule } = await import("../../server/runtime/composition/modules/assistant-byok.js");
+  const { buildDaemonToolSurface } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-tool-surface.js");
+  const daemonDeps = createRouteDeps();
+  await daemonDeps.identityReady;
+  const byokDeps = createRouteDeps();
+  await byokDeps.identityReady;
+  const daemon = await buildDaemonToolSurface(daemonDeps);
+  const byok = createAssistantByokModule({ routeDeps: byokDeps });
+  await byok.toolSurface.ready;
+  for (const registry of [daemon, byok.toolSurface.registry]) {
+    const ids = registry.list({}).map(tool => tool.id);
+    for (const id of ["site_guide", "load_agent_plugin", "content_read.menu", "content_read.content_post"]) {
+      assert.ok(ids.includes(id), `both assembled catalogs expose ${id}`);
+    }
+  }
+  assert.match(SITE_GUIDE_POINTER, /delegated executor in your tool list/, "guidance follows the advertised transport");
+  assert.doesNotMatch(SITE_GUIDE_POINTER, /execute_readonly_delegated_tool/, "guidance never assumes a particular proxy");
+});

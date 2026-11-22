@@ -291,7 +291,7 @@ test("pages_read_html on a doc page with content reports bodyFormat, the real ve
   assert.equal(result.version, row.version);
   assert.equal(result.hasDocContent, true);
   assert.match(String(result.note), /rich-text \(doc\) page with content/);
-  assert.match(String(result.note), /revision history/);
+  assert.match(String(result.note), /Keep rich text for routine edits and reserve conversion for an explicit format change/, "a doc fallback preserves its rich-text format");
 });
 
 test("pages_read_html on a brand-new (empty doc) page reports hasDocContent: false and no note", async () => {
@@ -615,9 +615,8 @@ for (const { bodyJson, hasDocContent } of [
     assert.deepEqual(result, {
       id: "fallback", html: "", regions: [], bodyFormat: "doc", version: before.version,
       hasDocContent, theme: null,
-      ...(hasDocContent ? { note: "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
-        "replaces that rich-text body; the previous body is kept in the page's revision history." } : {}),
-    });
+      ...(hasDocContent ? { note: "This page is a rich-text (doc) page with content. Keep rich text for routine edits and reserve conversion for an explicit format change." } : {}),
+    }, "doc fallback reports format preservation without conversion advice");
     assert.deepEqual(await repo.findById({ workspaceId: WS, id: "fallback" }), before);
   });
 }

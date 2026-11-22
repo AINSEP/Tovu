@@ -294,8 +294,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "null for a draft/unpublished row, since it has no live link yet. " +
       "Omit kind to derive it from the stored row. Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
       "'post' is rejected as not-found (mirrors pages/get-by-id.ts's explicit guard) — but with kind:'post', a row whose actual " +
-      "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Call this same tool WITHOUT an id first (its listing mode) " +
-      "to browse available ids.",
+      "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Browse entries with content_read.content_post without an ID.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
@@ -317,7 +316,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "Optional publishAt schedules it; featuredImage sets its lead image. A scheduled result has scheduled:true and publicUrl " +
       "null: tell the user when it will be published. A published result also has publishedWhere: whether it is on this local " +
       "site only or on the live site — never call a local-only publish live. A new page is not added to the site header: the header " +
-      "shows the site menu, so link the page with menus_update_menu_tree and describe the header only from menus_list_menus.",
+      "shows the site menu, so link the page with menus_update_menu_tree. Read the rendered menu’s record with content_read.menu.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
@@ -358,7 +357,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +
       "human made in the admin editor between your read and your write. Pass the 'version' from the content_read.content_post " +
       "row you based your edit on. If it no longer matches, the call is rejected with VERSION_CONFLICT and " +
-      "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version. Even " +
+      "NOTHING is written — read again and retry only if the affected content is unchanged. " +
+      "If it changed, show the overlap and ask which edit to keep. Even " +
       "without expectedVersion, a partial patch (any field omitted) is still checked against the row's current version at write " +
       "time, so a human's save landing between your read and this call still rejects with VERSION_CONFLICT rather than silently " +
       "merging over it — only a FULL four-field call with no expectedVersion keeps the old unguarded last-write-wins behavior. " +
@@ -397,7 +397,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
             "OPTIONAL optimistic-concurrency basis — the 'version' of the row you read before making this edit. Omit it and " +
             "this update simply overwrites whatever is currently stored, INCLUDING a human's unseen changes. Send it and the " +
             "update is rejected with VERSION_CONFLICT (nothing written) if anyone saved in the meantime. Send it whenever you " +
-            "have a version to send.",
+            "have a version to send. On conflict, read again and retry only if the affected content is unchanged. " +
+            "If it changed, show the overlap and ask which edit to keep.",
         },
       },
     },

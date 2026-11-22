@@ -117,3 +117,10 @@ test("the preview contributor builds the same read-only preview tool with the re
   const result = await registration!.handler(context({ postId: 'draft-1' })) as { body: string };
   assert.equal(result.body, '<p>From contributor</p>'); assert.equal(rendered, 1);
 });
+
+test("W10 draft preview is by entry ID and public screenshots only show the served address", () => {
+  const description = postPreviewAgentToolCatalog[0].description;
+  assert.match(description, /Preview a draft by entry ID/, "draft checks use their entry ID");
+  assert.match(description, /A public-route screenshot checks only the page served at that address/, "public screenshots never certify an unsaved draft");
+  assert.doesNotMatch(description, /exactly as it would look once published/, "preview does not promise public parity");
+});

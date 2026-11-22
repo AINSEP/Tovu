@@ -123,7 +123,7 @@ test("pages_read_html gives a doc page's own text and widget back as editable HT
   assert.match(result.html, /<p>Have a question\?<\/p>/);
   assert.match(result.html, /<div data-embed-config='\{"type":"widget","id":"form-1","content":\{"note":"it\\u0027s"\}\}'><\/div>/);
   assert.equal(result.hasDocContent, true);
-  assert.match(String(result.note), /Keep what is there/);
+  assert.match(String(result.note), /Keep rich text for routine edits and reserve conversion for an explicit format change/, "rendered doc HTML does not authorize converting its stored format");
   assert.deepEqual(await repo.findById({ workspaceId, id: "contact" }), before);
 });
 
