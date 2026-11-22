@@ -419,14 +419,25 @@ describe("standing-draft autosave stale-basis notice", () => {
 describe("version-conflict banner", () => {
   const CONFLICT = { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } as const;
 
-  it("states that the work was not saved, is still in the editor, and that saving again replaces theirs", () => {
+  it("states that work was not saved and remains in the editor", () => {
     renderEditor({ saveConflict: { ...CONFLICT } });
     const notice = screen.getByText(/someone else saved this while you were editing/i);
     expect(notice).toHaveTextContent(/version 1/);
     expect(notice).toHaveTextContent(/version 2/);
     expect(notice).toHaveTextContent(/were NOT saved/);
     expect(notice).toHaveTextContent(/still here in the editor/i);
-    expect(notice).toHaveTextContent(/will replace their version/i);
+    expect(notice, "normal Save does not promise to replace another version").not.toHaveTextContent(/saving again/i);
+  });
+
+  it("stale Save offers Load latest and Replace their version", async () => {
+    const { ctrl, container } = renderEditor({ saveConflict: { ...CONFLICT }, pendingExternalVersion: 2,
+      autosaveStaleBasis: { baseVersion: 1, draft: { bodyFormat: "html", bodyHtml: "<p>local</p>", title: "About", slug: "about", baseVersion: 1 } } });
+    expect(screen.getByText("Loading the latest version discards your unsaved edits."), "the choice explains that loading discards edits").toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Load latest" }), "one conflict choice owns Load latest").toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Replace their version" }), "replacement is explicitly named").toBeInTheDocument();
+    expect(container.querySelector('[data-agent-element="page-autosave-stale"]'), "the duplicate paused-autosave banner waits").toBeNull();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Load latest" }));
+    expect(ctrl.loadExternalChange, "the direct action calls the existing reload handler").toHaveBeenCalledTimes(1);
   });
 
   it("renders nothing at all when there is no conflict", () => {
@@ -434,10 +445,10 @@ describe("version-conflict banner", () => {
     expect(container.querySelector('[data-agent-element="page-version-conflict"]')).toBeNull();
   });
 
-  it('"Save anyway" calls saveOverwritingConflict, and nothing else', async () => {
+  it('"Replace their version" calls saveOverwritingConflict, and nothing else', async () => {
     const user = userEvent.setup();
     const { ctrl } = renderEditor({ saveConflict: { ...CONFLICT } });
-    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    await user.click(screen.getByRole("button", { name: "Replace their version" }));
     expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
     expect(ctrl.dismissSaveConflict).not.toHaveBeenCalled();
     expect(ctrl.save).not.toHaveBeenCalled();
@@ -703,6 +714,47 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     renderEditor({ view: "preview" });
     expect(screen.getByTitle("Page preview")).toBeInTheDocument();
     expect(screen.queryByLabelText("Page HTML")).not.toBeInTheDocument();
+  });
+
+  it("clean published Preview links to the saved YouTube video", () => {
+    const html = '<iframe src="https://www.youtube-nocookie.com/embed/saved-video"></iframe>';
+    renderEditor({ view: "preview", status: "published", dirty: false, html, page: { ...BASE_PAGE, bodyHtml: html } });
+    const link = screen.getByRole("link", { name: "Watch on YouTube" });
+    expect(link, "the saved video has a canonical watch URL").toHaveAttribute("href", "https://www.youtube.com/watch?v=saved-video");
+    expect(link, "the watch link opens a separate tab").toHaveAttribute("target", "_blank");
+    expect(link, "the watch tab cannot access the admin opener or referrer").toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("pending Preview links to the working copy's videos", () => {
+    const html = '<iframe src="https://www.youtube.com/embed/pending-one"></iframe><iframe src="https://www.youtube-nocookie.com/embed/pending-two"></iframe><iframe src="https://www.youtube.com/embed/pending-one"></iframe>';
+    const { container } = renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true, html,
+      page: { ...BASE_PAGE, bodyHtml: '<iframe src="https://www.youtube.com/embed/saved-video"></iframe>' } });
+    expect(screen.getAllByRole("link", { name: "Watch on YouTube" }).map(link => link.getAttribute("href")), "only pending IDs appear once in document order").toEqual([
+      "https://www.youtube.com/watch?v=pending-one", "https://www.youtube.com/watch?v=pending-two",
+    ]);
+    expect(container.querySelector('input[name="bodyHtml"]'), "the POST carries the same working HTML").toHaveValue(html);
+    expect(screen.getByTitle("Page preview"), "pending Preview still uses the hidden POST").not.toHaveAttribute("src");
+    expect(screen.getByTitle("Page preview"), "the sandbox stays unchanged").toHaveAttribute("sandbox", PAGE_PREVIEW_IFRAME_SANDBOX);
+    expect(screen.getByTitle("Page preview"), "the referrer policy stays unchanged").toHaveAttribute("referrerpolicy", "no-referrer");
+  });
+
+  it("a document-format Page links to its YouTube node in Preview", () => {
+    renderEditor({ view: "preview", html: "", page: { ...BASE_PAGE, bodyFormat: "doc", bodyJson: { type: "doc", content: [
+      { type: "blockquote", content: [{ type: "youtube", attrs: { src: "https://youtu.be/doc-video" } }] },
+    ] } } });
+    expect(screen.getByRole("link", { name: "Watch on YouTube" }), "nested legacy YouTube nodes have a watch link").toHaveAttribute("href", "https://www.youtube.com/watch?v=doc-video");
+  });
+
+  it("fake YouTube hosts and other editor tabs have no watch link", () => {
+    const { ctrl, rerender } = renderEditor({ view: "preview", html: '<iframe src="https://www.youtube.com.evil.test/embed/fake"></iframe><iframe src="https://example.com/embed/other"></iframe>' });
+    expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "lookalike hosts and other embeds are excluded").toBeNull();
+    ctrl.html = '<iframe src="https://www.youtube.com/embed/real-video"></iframe>';
+    ctrl.view = "html";
+    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "HTML view has no watch row").toBeNull();
+    ctrl.view = "interactive";
+    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    expect(screen.queryByRole("link", { name: "Watch on YouTube" }), "Interactive view has no watch row").toBeNull();
   });
 
   // 2026-08-11 fix: the preview used to always show the raw stored body in a sandboxed iframe with

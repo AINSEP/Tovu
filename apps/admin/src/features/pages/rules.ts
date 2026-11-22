@@ -447,7 +447,7 @@ export function pageVersionConflictMessage({ t, ...conflict }: { t: Translate } 
   const current =
     conflict.currentVersion === null ? t("a newer version") : t("version {version}").replace("{version}", String(conflict.currentVersion));
   return t(
-    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor."
   )
     .replace("{basis}", () => basis)
     .replace("{current}", () => current);

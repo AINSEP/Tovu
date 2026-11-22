@@ -53,7 +53,9 @@ import {
 import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
-import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, type SaveStatusOverride } from "./post-editor-messages";
+import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure, type SaveStatusOverride } from "./post-editor-messages";
+import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.hooks";
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
@@ -463,6 +465,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // `PostEditorController.saving`'s own doc for the double-write bug this closes. Mirrors
   // `use-page-editor.hooks.ts`'s identical `saving` state.
   const [saving, setSaving] = useState(false);
+  const [saveSettlement, setSaveSettlement] = useState(0);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
   // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
   // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
@@ -686,9 +689,20 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // assistant changed without re-fetching presentation settings, which an entry write never touches.
   const loadedTemplates = useRef<string[]>([]);
   /** Seeds every editable field, the TipTap doc and the dirty baseline from one server row — shared
-   *  by the load effect and an external (assistant) write landing while the editor is clean. */
-  function applyLoadedPost({ post, activeThemeTemplates }: { post: AdminPost; activeThemeTemplates: string[] }, _options: Record<string, never> = {}): void {
+   *  by the load effect and an external (assistant) write landing while the editor is clean. Only
+   *  `useLoadedPostApply` calls it, with the live instance it checked, never one a closure kept. */
+  function applyLoadedPost({ post, activeThemeTemplates, liveEditor }: LoadedPostRow & { liveEditor: Editor }, _options: Record<string, never> = {}): void {
     const form = loadedPostForm({ post, activeThemeTemplates });
+    // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
+    // every post saved before this feature has a `bodyJson` with no `title` node, which the
+    // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
+    // load. Already-migrated posts pass through unchanged; anything else gets a title node
+    // synthesized from this SAME `post.title` that `setTitle` gets below, so `original.title` (below) and
+    // the doc's own title node agree from the first render — no false-dirty on an untouched,
+    // freshly-opened pre-migration post.
+    // Body first: if it throws, `post` stays null and the screen shows the load error with no Save,
+    // not a title over an empty body that Save would write back (client report 2026-11-21).
+    liveEditor.commands.setContent(withTitleNode({ bodyJson: post.bodyJson, title: post.title }) as never);
     setPost(post);
     setTitle(post.title);
     setStoredSlug(post.slug);
@@ -701,14 +715,6 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     setAuthor(form.author);
     setShowAuthor(form.showAuthor);
     setHideCoverImageInBody(form.hideCoverImageInBody);
-    // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
-    // every post saved before this feature has a `bodyJson` with no `title` node, which the
-    // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
-    // load. Already-migrated posts pass through unchanged; anything else gets a title node
-    // synthesized from this SAME `post.title` just set above, so `original.title` (below) and
-    // the doc's own title node agree from the first render — no false-dirty on an untouched,
-    // freshly-opened pre-migration post.
-    editor.commands.setContent(withTitleNode({ bodyJson: post.bodyJson, title: post.title }) as never);
     // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
     // loaded — both sides of the later dirty comparison are then produced by the exact same
     // serialization, so a schema-normalization difference between the server's stored JSON
@@ -716,16 +722,20 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     // freshly-opened, untouched post. `original.templateChoice` uses the SAME defaulted value
     // (not the raw, possibly-null `post.templateChoice`) so simply opening an unset post never
     // shows as dirty on its own — only an actual further change does.
-    setOriginal(postFormSnapshot({ fields: form, bodyJson: editor.getJSON() }));
+    setOriginal(postFormSnapshot({ fields: form, bodyJson: liveEditor.getJSON() }));
   }
 
-  const loadInputs = useRef({ port, applyLoadedPost, navigate, t });
-  loadInputs.current = { port, applyLoadedPost, navigate, t };
+  // Rows go into the newest live editor; `bodyReady` gates Save/Publish (`use-loaded-post-apply.hooks.ts`).
+  const { takeLoadedRow, clearLoadedRow, bodyReady } = useLoadedPostApply({ editor, applyLoadedPost, setError, t });
+
+  const loadInputs = useRef({ port, navigate, t, takeLoadedRow, clearLoadedRow });
+  loadInputs.current = { port, navigate, t, takeLoadedRow, clearLoadedRow };
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
-    const { port, applyLoadedPost, navigate, t } = loadInputs.current;
+    let cancelled = false;
+    const { port, navigate, t, clearLoadedRow } = loadInputs.current;
     firstSaveRequest.current = null;
-    setPost(null);
+    setPost(null); clearLoadedRow(); // the new route has nothing in the editor yet
     setError(null);
     // Loaded together (not two independent effects) so the template default below never races: the
     // owner's own ordering request ("default to the template... I don't want it to be no template
@@ -741,6 +751,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     } satisfies AdminPost });
     Promise.all([row, port.getPresentation()])
       .then(([{ post }, presentation]) => {
+        if (cancelled) return;
         const { activeThemeTemplates } = presentation;
         setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
         setStaticPageIds(presentation.activeThemeStaticPageIds);
@@ -751,7 +762,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         // The template default and the tri-state `overridesThemePage` normalization live in
         // `loadedPostForm` (`post-editor-state.rules.ts`), with their own reasoning.
         loadedTemplates.current = activeThemeTemplates;
-        applyLoadedPost({ post: post, activeThemeTemplates: activeThemeTemplates });
+        loadInputs.current.takeLoadedRow({ post: post, activeThemeTemplates: activeThemeTemplates });
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
         // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
@@ -759,7 +770,10 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         const redirectPath = post.id ? slugRedirectPath({ base: "/posts", requestedId: postId, item: post }) : null;
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
-      .catch((e) => setError(e instanceof Error ? e.message : t("failed to load post")));
+      .catch((e) => {
+        if (!cancelled) setError(reportPostLoadFailure({ error: e, t: t }));
+      });
+    return () => { cancelled = true; };
   }, [postId]);
 
   // Mention feature (2026-08-11) — fetched once per mount, independent of `postId` (same
@@ -838,6 +852,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // the address bar. Same clean/dirty/saving rule the Pages editor applies
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
+    routeIdentity: postId,
+    saveSettlement,
     loaded: savedPost,
     fetchLatest: ({ id }, _options = {}) => port.getPost({ id }).then((loaded) => loaded.post),
     isDirty: () => isDirty,
@@ -857,7 +873,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   /** {@link externalRefresh}'s apply half: the new row, plus the address bar following a slug the
    *  assistant changed (same replace-navigate and remount guard as `runSave`'s rename). */
   function applyExternalPost(fresh: AdminPost): void {
-    applyLoadedPost({ post: fresh, activeThemeTemplates: loadedTemplates.current });
+    takeLoadedRow({ post: fresh, activeThemeTemplates: loadedTemplates.current });
     setSaveConflict(null);
     setMessage(formatOutsideChangeMessage({ version: fresh.version, t: t }));
     if (postId !== fresh.slug && postId !== fresh.id) {
@@ -919,6 +935,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    * ordinary save.
    */
   async function runSave({ statusOverride, expectedVersion }: { statusOverride: SaveStatusOverride; expectedVersion: number | undefined }, _options: Record<string, never> = {}) {
+    if (!bodyReady) { setError(t(POST_NOT_LOADED_SAVE_REFUSED)); return; } // never write an unloaded body
     // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
@@ -950,7 +967,10 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       // flip the shared `saving` flag back off, or an older call's own settlement could briefly
       // re-enable Save/Publish while a newer call is still in flight. Mirrors
       // `use-page-editor.hooks.ts`'s identical `finally` in `runSave`.
-      if (settlement.isCurrent({ generation })) setSaving(false);
+      if (settlement.isCurrent({ generation })) {
+        setSaving(false);
+        setSaveSettlement(counter => counter + 1);
+      }
     }
   }
 
@@ -1055,7 +1075,6 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       setError(t("could not re-read the current version — your changes are still here, try again"));
       return;
     }
-    setPost(fresh);
     await runSave({ statusOverride: attemptedStatus, expectedVersion: fresh.version });
   }
 
@@ -1113,7 +1132,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function restoreRecoveredDraft(): void {
     const draft: (NonNullable<typeof autosave.recoverableDraft> & { author?: string | null; showAuthor?: boolean }) | null = autosave.recoverableDraft;
-    if (!draft || draft.bodyJson === undefined) return;
+    if (!draft || draft.bodyJson === undefined || !isLiveEditor(editor)) return;
     editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
     setTitle(draft.title);
     setSlug({ value: draft.slug });
@@ -1143,7 +1162,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function setTitleAndSyncEditor({ next }: { next: string }, _options: Record<string, never> = {}): void {
     setTitle(next);
-    editor.commands.setPostTitleText({ text: next });
+    if (isLiveEditor(editor)) editor.commands.setPostTitleText({ text: next });
   }
 
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads

@@ -1,5 +1,7 @@
 import { type Translate, interpolate } from "@jini-ai/core/text";
 import { isUnexpectedServerFailure } from "@/lib/server-failure";
+import { ApiError } from "@/lib/admin-http/request";
+import { publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { isoToLocalDateTimeInput, isScheduledPost } from "../rules";
 
@@ -55,4 +57,30 @@ export function formatSaveErrorMessage({ error, statusOverride, t }: { error: un
   if (isUnexpectedServerFailure({ error })) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
   if (error instanceof Error) return error.message;
   return t(statusOverride === "published" ? "publish failed" : "save failed");
+}
+
+/** The editor's inline line when a post could not be opened. Also the dictionary key. */
+export const POST_LOAD_FAILED = "This post didn't finish loading. Reload the page; nothing was changed.";
+
+/** The refusal when Save/Publish is pressed before the loaded body is in the editor. Also the dictionary key. */
+export const POST_NOT_LOADED_SAVE_REFUSED = "This post hasn't finished loading, so nothing was saved. Wait a moment, then try again.";
+
+/**
+ * The load effect's failure line (client report 2026-11-21: the raw JavaScript message "Cannot read
+ * properties of null (reading 'commands')" was shown next to Delete). A server refusal (4xx) keeps
+ * the server's own plain reason ("post not found"). A server or network failure already raised the
+ * shared notice with copyable details, so it gets only the plain line. Anything else is a defect in
+ * this app: the plain line inline, and the technical cause goes to the shared notice's Copy details
+ * instead of the screen.
+ * @complexity O(1) plus the shared notice's bounded redaction.
+ */
+export function reportPostLoadFailure({ error, t }: { error: unknown; t: Translate }, _options: Record<string, never> = {}): string {
+  if (error instanceof ApiError) return isUnexpectedServerFailure({ error }) ? t(POST_LOAD_FAILED) : error.message || t(POST_LOAD_FAILED);
+  publishLocalAdminFailure({
+    message: "The post editor could not show this post.",
+    action: "Reload the page. If it keeps happening, copy details and report this problem.",
+    step: "Open post in the editor",
+    cause: error,
+  });
+  return t(POST_LOAD_FAILED);
 }

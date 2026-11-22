@@ -12,6 +12,8 @@ import {
   type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
+import { pagePreviewYoutubeIds } from "./lib/page-preview-youtube";
+
 import { isProtectedEmbedElement } from "./lib/embed-placeholder";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -384,11 +386,13 @@ function PageAutosaveRecoveryBanner({
 function PageVersionConflictBanner({
   saveConflict,
   onSaveAnyway,
+  onLoadLatest,
   onDismiss,
   t,
 }: {
   saveConflict: PageSaveConflict;
   onSaveAnyway: () => void;
+  onLoadLatest: () => void;
   onDismiss: () => void;
   t: Translate;
 }) {
@@ -401,6 +405,8 @@ function PageVersionConflictBanner({
       })}
     >
       <p>{pageVersionConflictMessage({ t, ...saveConflict })}</p>
+      <p>{t("Loading the latest version discards your unsaved edits.")}</p>
+      <button type="button" className="btn-secondary" onClick={onLoadLatest}>{t("Load latest")}</button>
       <button
         type="button"
         className="btn-secondary"
@@ -410,7 +416,7 @@ function PageVersionConflictBanner({
           label: "Save these changes anyway, replacing the version the other operator saved",
         })}
       >
-        {t("Save anyway")}
+        {t("Replace their version")}
       </button>
       <button
         type="button"
@@ -562,11 +568,11 @@ function PageEditorNotices({
         />
       ) : null}
       {/* Waits while the outside-change notice is up: one moved version, one banner — see `PostEditorNotices`. */}
-      {autosaveStaleBasis && pendingExternalVersion === null ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} t={t} /> : null}
+      {autosaveStaleBasis && pendingExternalVersion === null && !saveConflict ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} t={t} /> : null}
       {saveConflict ? (
-        <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} t={t} />
+        <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onLoadLatest={onLoadExternalChange} onDismiss={() => { onDismissConflict(); onDismissExternalChange(); }} t={t} />
       ) : null}
-      {pendingExternalVersion !== null ? (
+      {pendingExternalVersion !== null && !saveConflict ? (
         <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} t={t} />
       ) : null}
     </>
@@ -885,6 +891,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       <PageEditorPane
         view={view}
         canvasStyling={canvasStyling}
+        bodyJson={page.bodyFormat === "doc" ? page.bodyJson : undefined}
         html={html}
         setHtml={setHtml}
         draftHtml={draftHtml}
@@ -988,6 +995,7 @@ function PageEditorPane({
   view,
   canvasStyling,
   html,
+  bodyJson,
   setHtml,
   draftHtml,
   setDraftHtml,
@@ -1018,6 +1026,7 @@ function PageEditorPane({
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
   html: string;
+  bodyJson?: Record<string, unknown>;
   setHtml: (value: string) => void;
   draftHtml: string;
   setDraftHtml: (value: string) => void;
@@ -1077,6 +1086,7 @@ function PageEditorPane({
     return (
       <PagePreview
         html={html}
+        bodyJson={bodyJson}
         width={DEVICE_PREVIEW_WIDTHS[device]}
         slug={slug}
         version={version}
@@ -1201,6 +1211,7 @@ function PageEditorPane({
  */
 function PagePreview({
   html,
+  bodyJson,
   width,
   slug,
   version,
@@ -1218,6 +1229,7 @@ function PagePreview({
   t,
 }: {
   html: string;
+  bodyJson?: Record<string, unknown>;
   width: number;
   slug: string;
   /** Cache-busts the live-site branch's `src` — see `PagePreviewFrame`'s own doc. */
@@ -1250,6 +1262,7 @@ function PagePreview({
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
   t: Translate;
 }) {
+  const youtubeIds = pagePreviewYoutubeIds({ html, bodyJson });
   const canShowLiveSite = status === "published" && !dirty;
 
   // ONE element tree in both states, only the outer class changes (2026-10-05 owner bug). The two
@@ -1271,6 +1284,7 @@ function PagePreview({
     <div className={expanded ? "page-preview-expanded" : "page-preview-host"}>
       <div className="page-preview-surface">
         <p className="field-hint editor-preview-note">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
+        <div>{youtubeIds.map(id => <a key={id} href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noopener noreferrer">{t("Watch on YouTube")}</a>)}</div>
         <div className="page-preview-stage">
           {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
           <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>

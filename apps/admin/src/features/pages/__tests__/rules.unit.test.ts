@@ -580,8 +580,8 @@ describe("pagePartialSaveMessage", () => {
 
 describe("pageVersionConflictMessage with unknown versions", () => {
   it("explains a newer save without inventing either missing version", () => {
-    expect(pageVersionConflictMessage({ t: identityT, expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
-      .toBe("Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version.");
+    expect(pageVersionConflictMessage({ t: identityT, expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }), "unknown Page versions retain unsaved-work copy without an ordinary overwrite promise")
+      .toBe("Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. Your changes were NOT saved, and are still here in the editor.");
   });
 });
 
