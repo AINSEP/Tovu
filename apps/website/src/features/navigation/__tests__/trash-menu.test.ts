@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MenuConflictError, MenuNotFoundError } from "../index.js";
-import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
-import { trashMenu, type RemoveMenuFn } from "../trash-menu.js";
+import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
+import { trashMenu, type RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 
 const at = "2026-10-01T12:00:00.000Z";
 const input = { workspaceId: "ws", menuId: "m1", actor: { principalId: "operator", pluginId: "plugin" } };

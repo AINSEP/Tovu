@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMenuRepo, MenuConflictError, type NavMenuEntry } from "../index.js";
 import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
-import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
+import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 
 function menu(overrides: Partial<NavMenuEntry> = {}): NavMenuEntry {
   return { id: "m1", workspaceId: "ws", slug: "nav", title: "Saved navigation", status: "draft", doc: { type: "menu", version: 1, items: [] },

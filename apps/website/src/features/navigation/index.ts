@@ -124,15 +124,7 @@ export {
   type RebuildNavLocationBindingsResult,
 } from "@jini-ai/cms/navigation";
 
-/**
- * `trashMenu`/`RemoveMenuFn` (T5): host-local, not from Jini — the generic trash pipeline's menu
- * entry point (`trash-menu.ts`). `remove` is an injected structural type, so this stays free of any
- * `features/trash` import; the composition root binds it.
- */
-export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
-
-/** Menu HTML mode (2026-10-08): the host's raw-HTML permission, and Jini's validation helpers. */
-export { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
+/** Menu HTML mode (2026-10-08): Jini's validation helpers. */
 export { isMenuHtmlAuthoring, MAX_MENU_HTML_LENGTH, type MenuHtmlAuthoring, type NavMenuMode } from "@jini-ai/cms/navigation";
 
 /** The compare-and-set loss, told apart from the other `MenuConflictError`s — see its own file. */
