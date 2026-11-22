@@ -1,0 +1,7 @@
+P9 scanner: plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 (18f1b17c0), clean worktree per commit. FILES-LEFT = moving + shells; themeAreaFiles = scanner areas theme + adm-themes.
+== base (f7185f153a)
+moving 2483 ready 541 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2483,"shells":3,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
+== final (f01e466a12)
+moving 2482 ready 540 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2482,"shells":3,"total":2485,"themeAreaFiles":111,"totalExclThemeAreas":2374,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
