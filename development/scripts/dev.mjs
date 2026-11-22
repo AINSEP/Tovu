@@ -753,7 +753,9 @@ export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, s
  */
 export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = waitForHttpOk, probe = probeLoopbackHttp, readAttachment = readDevAttachment } = {}) {
   try {
-    await wait(`${scheme}://127.0.0.1:${apiPort}/readyz`, { timeoutMs: 90_000,
+    // Object argument: Jini's `waitForHttpOk({ url }, options)` (API-args rule, Jini d57f4d980). A bare
+    // string reached the probe as `url: undefined`, so a ready API still timed out after 90 s.
+    await wait({ url: `${scheme}://127.0.0.1:${apiPort}/readyz` }, { timeoutMs: 90_000,
       probe: ({ url, timeoutMs }) => {
         const attached = readAttachment();
         if (attached?.port === 0) return false;

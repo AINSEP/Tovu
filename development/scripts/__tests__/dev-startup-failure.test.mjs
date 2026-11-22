@@ -50,7 +50,7 @@ test("a bound API socket cannot announce readiness until readyz accepts the conf
   const calls = [];
   const certificate = Buffer.from("configured leaf");
   const ready = await waitForDevApi({ apiPort: 3002, scheme: "https" }, { certificate,
-    wait: async (url, options) => {
+    wait: async ({ url }, options) => {
       assert.equal(url, "https://127.0.0.1:3002/readyz");
       assert.equal(options.timeoutMs, 90_000);
       assert.equal(await options.probe({ url, timeoutMs: 2000 }), false);
@@ -119,7 +119,7 @@ test("readiness follows an attached site's address and startup continues without
   const readAttachment = () => record;
   const probed = [], lines = [];
   assert.equal(await waitForDevApi({ apiPort: 4327, scheme: "http" }, {
-    readAttachment, wait: async (url, options) => assert.equal(await options.probe({ url, timeoutMs: 100 }), true),
+    readAttachment, wait: async ({ url }, options) => assert.equal(await options.probe({ url, timeoutMs: 100 }), true),
     probe: async ({ url }) => { probed.push(url); return true; },
   }), true);
   assert.deepEqual(probed, ["https://127.0.0.1:4328/readyz"]);
@@ -149,7 +149,7 @@ test("an attachment still starting cannot probe the requested port or report suc
   const probed = [];
   assert.equal(await waitForDevApi({ apiPort: 4327, scheme: "http" }, {
     readAttachment: () => record,
-    wait: async (url, options) => {
+    wait: async ({ url }, options) => {
       assert.equal(await options.probe({ url, timeoutMs: 100 }), false);
       assert.deepEqual(probed, []);
       record = { ...record, port: 4328 };

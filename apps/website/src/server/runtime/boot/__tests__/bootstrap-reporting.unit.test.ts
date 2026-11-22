@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import type { SeedBundledAgentPluginsResult } from "#src/features/agent-plugins/lifecycle";
+import type { TovuSeedBundledAgentPluginsResult } from "#src/features/agent-plugins/lifecycle";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 
 const lifecycle = await import("#src/features/agent-plugins/lifecycle");
@@ -11,7 +11,7 @@ const catalog = await import("#src/features/agent-plugins/bundled-catalog");
 const grants = await import("#src/features/agent-plugins/grant-signed-in-defaults");
 const soonLock = await import("#src/features/agent-plugins/soon-lock");
 const calls: string[] = [];
-let report: SeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+let report: TovuSeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
 // Boot-warning inputs (plugins plan v2 §3.4): mutated per case, read by bootstrap at call time.
 const selection = new Map<string, string>();
 let activations: { schemaVersion: 1; plugins: Record<string, { enabled: boolean }> } = { schemaVersion: 1, plugins: {} };
@@ -84,7 +84,7 @@ test("TW2: bundled preparation reports failures and retirements in order before 
   await bundled.prepare();
   assert.deepEqual(calls, [
     "seed",
-    "warn:[bundled-agent-plugins] 'broken' could not be seeded: bad package",
+    "warn:[bundled-agent-plugins] 'broken' could not be installed from this build (bad package); the copy already installed, if any, stays in use. Restart Tovu to try again; if it keeps failing, reinstall 'broken' from Agent Plugins.",
     "warn:[bundled-agent-plugins] the bundled-digest ledger could not be written: ledger unavailable",
     "warn:[bundled-agent-plugins] retired 'failed' could not be removed: busy",
     "info:[bundled-agent-plugins] retired 'old' (moved into 'new'; successor: not-needed)",
@@ -97,6 +97,32 @@ test("TW2: bundled preparation reports failures and retirements in order before 
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   await bundled.prepare();
   assert.deepEqual(calls, ["seed", "faces", "soon-lock", "tokens", "renames", "grants"]);
+});
+
+test("publisher-ID upgrades are reported in plain words, and an explained plugin gets no second, generic seed line", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  t.mock.method(console, "info", (line: string) => { calls.push(`info:${line}`); });
+  report = { sourceRoot: "bundled", retirements: [], outcomes: [
+    { pluginId: "cloudflare", status: "seeded", archiveDigest: "digest", activationRecorded: false },
+    { pluginId: "github", status: "failed", reason: "Error" },
+    { pluginId: "fly", status: "failed", reason: "Error" },
+  ], idUpgrades: [
+    { status: "upgraded", pluginId: "cloudflare", to: "jini/cloudflare", moved: [{ packageRoot: "/ws/cloudflare/package/sha256/a", savedAt: "/ws/.bundled-id-upgrade/cloudflare/a" }] },
+    { status: "held", pluginId: "github", to: "jini/github", reason: "its installed files were changed after install" },
+    { status: "restored", pluginId: "fly", to: "jini/fly", moved: [] },
+  ] };
+  const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
+  assert.ok(bundled);
+  await bundled.prepare();
+  assert.deepEqual(calls, [
+    "seed",
+    "info:[bundled-agent-plugins] 'cloudflare' moved to its new publisher ID 'jini/cloudflare'; its on/off switch, settings, data and memory are kept. The previous copy is saved in /ws/.bundled-id-upgrade/cloudflare/a",
+    "warn:[bundled-agent-plugins] 'github' stays on its current version because its installed files were changed after install, so Tovu will not replace it with 'jini/github'. It keeps working. To get the new version, uninstall 'github' and install it again from Agent Plugins; if another publisher made it, ask them for an update.",
+    "warn:[bundled-agent-plugins] 'fly' could not move to 'jini/fly' because the new version did not install; the previous version was put back and stays in use. Restart Tovu to try again.",
+    "faces", "soon-lock", "tokens", "renames", "grants",
+  ]);
 });
 
 const SEEDED_NOTHING = "warn:[bundled-agent-plugins] this build selects 2 plugin packages (jev, site-import) but no bundled plugin was found in bundled; rebuild Tovu (in development: npm run agent-plugins:compose, then restart)";
@@ -128,7 +154,7 @@ test("D0a: an enabled plugin with neither a bundled source nor an installed pack
   await bundled.prepare();
   assert.deepEqual(calls, [
     "seed",
-    "warn:[bundled-agent-plugins] 'broken' could not be seeded: bad package",
+    "warn:[bundled-agent-plugins] 'broken' could not be installed from this build (bad package); the copy already installed, if any, stays in use. Restart Tovu to try again; if it keeps failing, reinstall 'broken' from Agent Plugins.",
     "warn:[bundled-agent-plugins] 'gone' is turned on, but this build does not ship it and it is not installed; add its package to the build, or turn it off in Agent Plugins",
     "faces", "soon-lock", "tokens", "renames", "grants",
   ]);

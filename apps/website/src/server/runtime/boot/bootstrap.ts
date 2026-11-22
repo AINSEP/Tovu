@@ -2,7 +2,7 @@ import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
-import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins, type BundledIdUpgradeOutcome } from "../../../features/agent-plugins/lifecycle.js";
 import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
@@ -381,9 +381,13 @@ function bundledAgentPluginsBootModule(deps: NewsletterRouteDeps, options: Build
 }
 
 function logBundledSeedFailures(result: Awaited<ReturnType<typeof seedBundledAgentPlugins>>): void {
+  // A plugin the publisher-ID upgrade already explained gets that plain line only; Jini's own reason
+  // for it is the bare same-slot conflict (`PLUGIN_ID_CONFLICT`, logged as "Error").
+  const explained = new Set((result.idUpgrades ?? []).map(upgrade => upgrade.pluginId));
+  for (const upgrade of result.idUpgrades ?? []) logBundledIdUpgrade(upgrade);
   for (const outcome of result.outcomes) {
-    if (outcome.status === "failed") {
-      consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}` });
+    if (outcome.status === "failed" && !explained.has(outcome.pluginId)) {
+      consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be installed from this build (${outcome.reason}); the copy already installed, if any, stays in use. Restart Tovu to try again; if it keeps failing, reinstall '${outcome.pluginId}' from Agent Plugins.` });
     }
   }
   if (result.ledgerFailure !== undefined) {
@@ -392,6 +396,18 @@ function logBundledSeedFailures(result: Awaited<ReturnType<typeof seedBundledAge
     // plugin that was upgraded in place falls back to being refused as ambiguous until a
     // later boot writes the ledger (`Jini packages/agent-plugins/src/lifecycle/bundled-digests.ts`).
     consoleLogger.warn({ message: `[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}` });
+  }
+}
+
+/** One plain line per publisher-ID upgrade outcome (`features/agent-plugins/bundled-id-upgrade.ts`). */
+function logBundledIdUpgrade(upgrade: BundledIdUpgradeOutcome): void {
+  const id = upgrade.pluginId;
+  if (upgrade.status === "upgraded") {
+    consoleLogger.info({ message: `[bundled-agent-plugins] '${id}' moved to its new publisher ID '${upgrade.to}'; its on/off switch, settings, data and memory are kept. The previous copy is saved in ${upgrade.moved.map(revision => revision.savedAt).join(", ")}` });
+  } else if (upgrade.status === "held") {
+    consoleLogger.warn({ message: `[bundled-agent-plugins] '${id}' stays on its current version because ${upgrade.reason}, so Tovu will not replace it with '${upgrade.to}'. It keeps working. To get the new version, uninstall '${id}' and install it again from Agent Plugins; if another publisher made it, ask them for an update.` });
+  } else {
+    consoleLogger.warn({ message: `[bundled-agent-plugins] '${id}' could not move to '${upgrade.to}' because the new version did not install; the previous version was put back and stays in use. Restart Tovu to try again.` });
   }
 }
 
