@@ -29,3 +29,13 @@ restored by byte copy; cmp identical
 (head before: body-size-limit 6/0)
 1 5 1 apps/website/src/server/inbound/shared/__tests__/body-size-limit.test.ts
 restored by byte copy; cmp identical
+
+## M4 (A-K2-0a.T, named): apps/admin/src/integrations/jini-kits.ts binds chat's translator as the kit UI translator (hooks: { ..., useT: useChatT } with import { useT as useChatT } from '@jini-ai/chat/react')
+admin tsc:
+vitest:
+     × supplies the UI translator, never chat's 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+Note: admin tsc stays 0 under this mutation (both translators share a type); only the new identity test catches the swap.
+restored by byte copy; cmp identical
