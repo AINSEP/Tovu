@@ -1,4 +1,4 @@
-PARTIAL 5c6620136: item 5 (C026) only partly done — the vendor guard still lists 28 hits that need plugin-owned declarations in Jini or an owner call on the bundled inventory; item 6 had nothing to repoint
+DONE 7d69d3e3f4: review r62t-rev-ex5a FIX 1-6 applied (C043 policy moved to Jini `codex/ex2-holds-tovu-jini` c57e0a89; C026 wording + 3 allow-list keys). C026 guard still red on the 25 baseline hits the review leaves open
 
 # ex2-holds-tovu (2026-11-22) — SH-3, C043, C115, howto2 revert, C026, Jini follow-ups, P0.T
 
@@ -231,3 +231,84 @@ Raw: `ex2-holds-tovu-raw/{base,tip}-<gate>.txt` (tip = `8f6818798`) and `final-<
 3. **6-width gate vs tool presets:** `web_screenshot_page` presets are 1280/768/375, so the restored gate needs custom widths.
 4. **Jini item-3 follow-up** (`extension-capability-vocabulary`): apply after Jini `codex/ex2-holds-jini` merges.
 5. **Scanner inputs:** FILES-LEFT drops by 3 (the SH-3 shells) and by P0.T's moved files.
+
+## Review fixes
+Review: `origin/plan/whats-left-1122:reviews/ex5a-review-holds-tovu.md` (r62t-rev-ex5a, at `34d713e9e`). Items 1, 3, 4, 6 and 7 were APPROVED and are untouched. Unattended, Opus high, no subagents, no codebase-memory tools, no force-push, no `--no-verify`.
+
+**Commits (all pushed with a plain `git push` after `git pull --rebase`)**
+| repo / branch | commit | what |
+|---|---|---|
+| Jini `codex/ex2-holds-tovu-jini` (new, from `origin/integ/merge-14-2026-11-22` `4902a6a1`) | `c57e0a89` | FIX 4 + the Jini half of FIX 2 |
+| Tovu `codex/ex2-holds-tovu` | `6737a7e23a` | C043 FIX 1–4 (Tovu half) + `development/open-bugs.md` C043 entry |
+| Tovu `codex/ex2-holds-tovu` | `d7c9168873` | C026 FIX 5–6 |
+| Tovu `codex/ex2-holds-tovu` | `7d69d3e3f4` | keeps `worker.ts`'s original test-seam why-comment (why-comments gate back to 80) |
+| Tovu `codex/ex2-holds-tovu` | the commit after `7d69d3e3f4` | this section + `ex2-holds-tovu-raw/fix-*` |
+
+**The Tovu tip needs the Jini branch.** `startTier2Worker` now requires `importPolicy`, so Tovu at `6737a7e23a`+ typechecks only against Jini `c57e0a89` (and the Tovu base fails typecheck against it, see Gates). Merge order: Jini `codex/ex2-holds-tovu-jini` first, then link it for this Tovu branch.
+
+**Setup.** As `combine-13-tovu.md`, except Jini: Node 24.22.3, pnpm 10.33.2. Jini at `codex/ex2-holds-tovu-jini` (merge-14 `4902a6a1` + `c57e0a89`): `pnpm install --frozen-lockfile` 0, `pnpm --no-bail -r build` 0, plugins rebuilt after the change. Tovu: `npm ci --ignore-scripts` root/admin/desktop/site-chat 0/0/0/0, `link-jini.mjs` against `/home/user/Jini/packages` 0, contracts tsc 0, sdk build 0. Base tree: `git worktree` at `origin/integ/merge-13-2026-11-22` (`f7185f153`) sharing the same `node_modules` and the same linked Jini. No PostgreSQL.
+
+### FIX 1 — Tier-2 policy SDK-only by default; exact content-analyzer exception
+- `apps/website/src/server/runtime/plugin-tier2/worker.ts:34-44` — new `TIER2_IMPORT_POLICY`: `sdkSpecifiers: PLUGIN_SDK_SPECIFIERS` for every plugin, plus ONE trusted entry, `CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath` → exactly `@jini-ai/cms/seo/content-analysis` and `#src/platform/html/slug` (the two bare specifiers its own files import). Why-comment records it as the coordinator decision the owner may revisit.
+- The `BUILT_IN_PLUGINS_DIR` directory exemption is gone, so the `path.relative()` drive question no longer arises. Jini matches the trusted entry by **real path equality**, not containment (`import-policy.ts` `tier2ImportPolicyData`).
+- **Tests:** `worker.unit.test.ts` "the C043 import policy is SDK-only, plus exactly the two specifiers…" (`deepEqual` on the whole policy). In the integration test, the refusal loop now also covers `@jini-ai/cms/seo/content-analysis` and `#src/platform/html/slug` from a site plugin, which must be refused. The real-worker content-analyzer probe still loads.
+- **Mutations:** **M-c** trust list emptied → content-analyzer probe **12/1 red**. **M-d** (Jini dist) trust widened to every entry → the two trusted-specifier refusals **11/2 red**.
+
+### FIX 2 — policy set-up deferred to the real-import path
+- Jini `packages/plugins/src/host/worker/start.ts:64-76` — with no injected importer, the import function registers the policy, then the host's SDK resolver, then calls `realImport`. It runs inside `runTier2Call`'s import-stage `try`, so a malformed or unreadable entry becomes `{ ok: false, stage: "import" }`. The policy data is computed before anything is registered. With an injected `importModule`, neither the policy nor the resolver is touched.
+- Tovu `worker.ts` `main()` no longer computes anything from the entry. It passes `importPolicy: TIER2_IMPORT_POLICY` through.
+- **Tests (Tovu):**
+  - `worker.unit.test.ts` "main() with an injected importer does no filesystem set-up for the entry path" uses an entry under a regular file, so any realpath gives ENOTDIR. Before the fix that threw; it now posts ok.
+  - "main() without an importer answers a malformed entry file URL with an import-stage reply".
+  - Integration: "a malformed entry file URL is a structured import-stage reply, not a crashed worker" (real worker).
+- **Tests (Jini, `import-policy.unit.test.ts`):** malformed URL → import-stage reply, nothing registered; a policy that throws → `stage: "import"` before the resolver or import; order policy → resolver → import of the same entry; injected importer registers neither. `l1c1.extract-s6.unit.test.ts` updated: order `["policy","register","import …"]`, and its seam injected.
+- **Mutation M-b** (Jini dist `start.js`): policy registered before `runTier2Call`, outside its handling → Tovu `worker.unit` **9/1 red** and integration **12/1 red** (both malformed-URL tests). This is the "stage:import reply lost → red" mutation.
+
+### FIX 3 — the refusal test proves a policy refusal, not a missing package
+- `worker-import-allowlist.integration.test.ts:36-52` — every temp plugin package gets `node_modules/tier2-fixture-dependency` (`package.json` with `exports`, `index.mjs`). The test asserts `createRequire(entry).resolve(...)` finds it before running, and the refusal loop imports it in place of `zod`. `assertRefused` still requires `stage: "import"`, `may not import "<specifier>"` and `only the plugin SDK`.
+- **Mutation M-a** (Jini dist): bare-specifier refusal off (the "SDK-only allowlist removed" mutation) → **4/9 red**, including `tier2-fixture-dependency`. That shows the package was resolvable and only the policy stopped it.
+
+### FIX 4 — reusable Node import-policy logic moved to Jini
+- New Jini `packages/plugins/src/host/worker/import-policy.ts`, exported from `@jini-ai/plugins/host/worker`:
+  - `Tier2ImportPolicy` (`sdkSpecifiers`, `trustedImports?`);
+  - `tier2ImportPolicyData()`: package = the entry's real grandparent;
+  - `registerTier2ImportPolicy()` with an injectable `register`.
+  - The `data:` resolve hook holds the same rules as before (SDK and trusted specifiers by name, own files by path, a climb out refused). It names no product: the host injects its aliases and trust decisions through the existing `startTier2Worker` seam (new required `importPolicy`, plus the optional `registerImportPolicy` test seam).
+- Tovu `apps/website/src/features/plugin-runtime/sdk-resolver.ts` is back to the merge-13 SDK-only resolver, byte for byte (`pluginPackageUrl` and the refusal hook removed). Tovu's exported helper `tier2PluginPackageUrl` (`worker.ts:56`) is deleted; its logic is Jini's `tier2ImportPolicyData`. No re-export shell.
+- **Jini checks:** plugins vitest **77 files / 1024 tests, 0 fail**. Before the module existed: `import-policy.unit` failed to load and `l1c1` was 6/1 red; after, 14/0. `pnpm guard` 0, plugins `tsc --noEmit` 0.
+
+### FIX 5–6 — C026
+- **FIX 5:** `apps/website/src/features/api-connections/shared-owner.ts:81` now reads exactly `Label projection opens only the listed lifecycle/context rows, never token payloads.`
+- **FIX 6:** `vendor-neutrality.test.ts:57-59` adds the three exact `path:text` keys for `bundled-catalog.ts:47`, `:48` and `:57`, read from the file, not typed by hand. The doc block has a host-inventory bullet. The exact-match `Set.has` and the stale-entry assertion are unchanged.
+- **Result:** the guard is still red, as the review expects. It has **25 hits** (base merge-13: 29), and none is in `bundled-catalog.ts` or `shared-owner.ts`. The rest (`contribution*`, `surface-adapters.security`, `public-config.ts:15`, `bundled-id-upgrade*`) stay open.
+- **Mutation M-e:** the `:57` key reworded (one trailing space) → the failure list gains `bundled-catalog.ts:57`.
+- **Limit:** the stale-entry assertion runs only after the hit assertion, so while the 25 baseline hits stay red it cannot be observed failing on its own.
+
+### Tests (raw: `ex2-holds-tovu-raw/fix-*`)
+- **Red before the change** (`fix-red-before-*.txt`): `worker.unit` did not load (no `TIER2_IMPORT_POLICY`), and the integration test was 0/13. **Caveat:** that integration run used the new Jini, so the old `worker.ts` also lacked `importPolicy`. It is not a clean old-policy measurement. The specific reds are the mutations above.
+- **After** (`fix-after-*.txt`): `worker.unit` 10/0, integration 13/0.
+- **Changed files and importers:** 40 files (`fix-node-test-files.txt`), each alone under a 15-min watchdog, 3 in parallel (`fix-tip-node-tests.txt`). **36 green, 4 red, all BASE-RED with the same test names at merge-13** (`fix-base_*.txt`):
+
+  | file | result | cause |
+  |---|---|---|
+  | `serve-command-wiring.unit` | 5/2 | — |
+  | `plugin-host.integration` | 22/3 | includes `'jini/calendly'` vs `'tovu/calendly'` |
+  | `shared-bindings.postgres` | 0/1 | no PostgreSQL |
+  | `vendor-neutrality` | 1/1 | the 25 hits |
+
+### Gates — base merge-13 vs tip (raw `fix-{base,tip}-<gate>.txt`, same linked Jini)
+| gate | base | tip | note |
+|---|---|---|---|
+| typecheck, typecheck:tests | 2, 2 | **0, 0** | Base fails only at `worker.ts(47,27)` TS2345: merge-13 does not pass the new required `importPolicy` to the linked Jini. Not a tip regression |
+| typecheck:scripts | 2 | 2 | identical output |
+| check:size, complexity, hooks, errors | 1, 0, 0, 0 | 1, 0, 0, 0 | identical output |
+| check:boundaries | 0 (112 warn) | 0 (112 warn) | modules 6773 → 6771 (the earlier deleted shells) |
+| check:why-comments | 80 | 80 | after `7d69d3e3f4`; it was 81 before (the reworded seam comment) |
+| check:architecture | exit 1 | exit 1 | same single ratchet row as the earlier tip (runtime-only 3.29 → 3.30); deep-import edges +1 (`worker.ts` → content-analyzer `index.js`) |
+| worker-import-graph | 0 | 0 | |
+| admin tsc, desktop tsc ×4 | — | — | not re-run: no admin or desktop file changed |
+
+### Owner follow-ups
+1. **C043 exception:** the content-analyzer trust list (`worker.ts` `TIER2_IMPORT_POLICY`) is a coordinator decision. Remove it, and move content-analyzer onto SDK-only imports, if the owner prefers.
+2. **Merge order:** Jini `codex/ex2-holds-tovu-jini` (`c57e0a89`, on merge-14) before this Tovu branch. It is a breaking signature change for any other `startTier2Worker` host; none exists in Jini or Tovu.
+3. **C026:** 25 guard hits remain (unchanged decision list from item 5 above).
