@@ -3,6 +3,7 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */
 import path from "node:path";
+import * as nodeFs from "node:fs/promises";
 import {
   createAgentPluginLifecycle,
   type AgentPluginLifecycleOptional,
@@ -25,6 +26,7 @@ import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugi
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
+import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
@@ -62,6 +64,11 @@ export type InstallAgentPluginRequired = Omit<JiniInstallRequired, "layout" | "a
 export type UninstallAgentPluginRequired = Omit<JiniUninstallRequired, "layout"> & { readonly layout: AgentPluginLayout };
 export type SeedBundledAgentPluginsRequired = Omit<JiniSeedRequired, "layout"> & { readonly layout: AgentPluginLayout };
 export type RetireBundledAgentPluginsRequired = Omit<JiniRetireRequired, "layout"> & { readonly layout: AgentPluginLayout };
+/** Jini's seed report plus this host's publisher-ID upgrade outcomes (`bundled-id-upgrade.ts`), when any ran. */
+export type TovuSeedBundledAgentPluginsResult = import("@jini-ai/agent-plugins/lifecycle").SeedBundledAgentPluginsResult & {
+  readonly idUpgrades?: readonly BundledIdUpgradeOutcome[] | undefined;
+};
+export type { BundledIdUpgradeOutcome } from "./bundled-id-upgrade.js";
 export type TrustedPluginPackagesQuery = Omit<JiniTrustedQuery, "onInactive"> & { readonly onInactive?: (plugin: TrustedPluginPackage) => Promise<void> };
 
 /** Adapt the host's validated workspace layout to the lifecycle owner's port. */
@@ -184,14 +191,38 @@ function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, op
   };
 }
 
+/** Moves verified pre-rename bundled revisions aside (`bundled-id-upgrade.ts`), seeds, then puts back
+ * any whose canonical replacement did not seed. The step is optional: its own fault never blocks
+ * seeding, which then reports the same-slot conflict exactly as it did before this step existed.
+ * @complexity One package listing per boot once a site is upgraded; see the step for the first run. */
+async function seedWithIdUpgrade({ owner, filesystem }: { owner: LifecycleOwner; filesystem: BundledIdUpgradePort["filesystem"] }, input: SeedBundledAgentPluginsRequired): Promise<TovuSeedBundledAgentPluginsResult> {
+  let upgrades: BundledIdUpgradeOutcome[] = [];
+  try {
+    const port: BundledIdUpgradePort = {
+      listInstalledPlugins: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
+      readBundledAgentPluginDigests: ({ workspaceRoot }) => owner.readBundledAgentPluginDigests({ workspaceRoot }),
+      packAgentPluginDirectory: ({ sourceDir }) => owner.packAgentPluginDirectory({ sourceDir }),
+      readBundledSourceManifest: createBundledSourceManifestReader({ bundledSourceRoot: input.sourceRoot }),
+      filesystem,
+    };
+    upgrades = await upgradeRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
+  } catch {
+    // Listing failed before anything moved: seeding below reports each affected plugin itself.
+  }
+  const result = await owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) });
+  if (upgrades.length === 0) return result;
+  const seededIds = new Set(result.outcomes.flatMap(outcome => outcome.status === "seeded" ? [outcome.pluginId] : []));
+  return { ...result, idUpgrades: await restoreUnseededUpgrades({ outcomes: upgrades, seededIds, filesystem }) };
+}
+
 /** The owner's install-side writers, with this host's layout and archive reader adapted to the owner's ports. */
-function buildLayoutAdaptedMethods({ owner }: { owner: LifecycleOwner }) {
+function buildLayoutAdaptedMethods({ owner, filesystem }: { owner: LifecycleOwner; filesystem: BundledIdUpgradePort["filesystem"] }) {
   return {
     installAgentPlugin: (input: InstallAgentPluginRequired, options: Parameters<typeof owner.installAgentPlugin>[1] = {}) => owner.installAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }, options),
     updateAgentPlugin: (input: Omit<import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired, "layout" | "archiveReader"> & { layout: AgentPluginLayout; archiveReader: AgentPluginArchiveReaderPort }) => owner.updateAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }),
     uninstallAgentPlugin: (input: UninstallAgentPluginRequired, options: Parameters<typeof owner.uninstallAgentPlugin>[1] = {}) => owner.uninstallAgentPlugin({ ...input, layout: ownerLayout(input.layout) }, options),
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),
-    seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
+    seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => seedWithIdUpgrade({ owner, filesystem }, input),
     retireBundledAgentPlugins: (input: RetireBundledAgentPluginsRequired, options: Parameters<typeof owner.retireBundledAgentPlugins>[1] = {}) => owner.retireBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, options),
   };
 }
@@ -259,7 +290,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     ...owner,
     soonCatalog,
     ...buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, optional }),
-    ...buildLayoutAdaptedMethods({ owner }),
+    ...buildLayoutAdaptedMethods({ owner, filesystem: optional.filesystem ?? nodeFs }),
     ...buildPassthroughMethods({ owner }),
   };
 }
