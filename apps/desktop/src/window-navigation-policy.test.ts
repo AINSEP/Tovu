@@ -16,7 +16,7 @@ import test from "node:test";
 import { EventEmitter } from "node:events";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
-import { installWebviewGuestPolicy } from "./main/windows/guest-navigation.ts";
+import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-navigation";
 import * as signInLinks from "@tovu/contracts/hosted-sign-in-links";
 import { renderOAuthCallbackPage } from "../../website/src/server/inbound/public-http/routes/oauth/callback-page.ts";
 import assert from "node:assert/strict";

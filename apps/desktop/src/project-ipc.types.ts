@@ -6,7 +6,7 @@ import type { OpenSiteEntry, ServerExitLike, SiteRuntime } from "./project-ipc.s
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
-import type { SitePresence, PresenceSender } from "./project-ipc.presence.ts";
+import type { SitePresence, PresenceSender } from "@jini-ai/desktop-host/shell/site-presence";
 
 
 /**

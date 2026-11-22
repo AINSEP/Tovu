@@ -181,7 +181,7 @@ import { createAppWindow } from "./windows/app-window.ts";
 import { desktopCopy } from "../desktop-i18n.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
-import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
+import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-navigation";
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
