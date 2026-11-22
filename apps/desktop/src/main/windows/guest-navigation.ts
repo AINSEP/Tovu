@@ -5,7 +5,7 @@
  * without Electron. `main.ts` keeps only the `app.on("web-contents-created", ...)` line that hands
  * each new contents to {@link installWebviewGuestPolicy}.
  */
-import { installGuestWindowOpenPolicy, isSameOrigin, type NavigableContents } from "../../window-navigation-policy.ts";
+import { installGuestWindowOpenPolicy, isSameOrigin, type NavigableContents } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 
 /** The slice of a `WebContents` the guest policy touches. */
 type GuestContents = NavigableContents & {

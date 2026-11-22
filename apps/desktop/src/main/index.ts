@@ -132,7 +132,7 @@ import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWindowQuitPrompt, type QuitPhase } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
-import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
+import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
@@ -163,7 +163,7 @@ import { addSitePointer } from "../add-site-pointer.ts";
 import { importSiteArchive, stopRunningImports, tidyInterruptedImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
-import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
+import { readWindowBounds, writeWindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
 import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import { installWebviewGuestPolicy } from "./guest-navigation.ts";
 import type { GuestContents } from "./guest-navigation.ts";
-import type { WindowOpenResponse } from "../../window-navigation-policy.ts";
+import type { WindowOpenResponse } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 
 const SITE = "http://127.0.0.1:4567";
 const OTHER_SITE = "http://127.0.0.1:4600";
