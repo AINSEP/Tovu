@@ -7,7 +7,7 @@ import type { SenderDomainVerification } from "@jini-ai/platform/mail";
 import type { DomainBinding } from "../binding.repo.js";
 import { inspectDomainDns } from "../dns-changes.js";
 import type { DnsChangeToolDeps } from "../dns-tools.js";
-import { DMARC_HINT_VALUE } from "../mail-requirements.js";
+import { DMARC_HINT_VALUE } from "@jini-ai/devops/dns/site/mail-requirements";
 import { mailDnsRecordStatus, readMailDnsStatus, verifyMailDnsStatus, type MailDnsRecordView, type MailDnsStatusPorts } from "../mail-dns-status.js";
 import { buildMailDnsRegistrations, mailDnsAgentToolCatalog, mailDnsDerivedRisk, mailDnsPorts } from "../mail-dns-tools.js";
 import { context, fakeAuthoritative, memoryBindings } from "./dns-fakes.js";

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { toolApprovalPresentation, renderDetailList } from "@jini-ai/ui/mcp-ui/surfaces";
-import { executeCommitSchema } from "../../../../../website/src/features/source-control/commit-schema";
+import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
 
 it("the public Jini approval presentation keeps the registered target-folder label and selected value", () => {
   const presentation = toolApprovalPresentation({ descriptor: { id: "source_control_execute_commit", inputSchema: executeCommitSchema } }, { text: ({ key }) => key });

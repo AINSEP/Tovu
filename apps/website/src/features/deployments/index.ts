@@ -2,14 +2,6 @@
  * @file Public surface for deployments (ADR-009 §1): export, publish and plugin deploy paths.
  */
 export type {
-  DeploymentProviderId,
-  DeploymentRunStatus,
-  DeploymentTargetRecord,
-  ReleaseRecord,
-  ReleaseSource,
-} from "./types.js";
-
-export type {
   DeploymentError,
   DeploymentErrorCode,
   DeploymentProviderContext,

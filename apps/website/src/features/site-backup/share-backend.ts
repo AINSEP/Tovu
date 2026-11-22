@@ -1,7 +1,7 @@
 import type { CredentialWarning } from "./credential-warnings.js";
 import { randomUUID } from "node:crypto";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
-import { SiteShareExportFailure, type SiteShareExportStep } from "./share-export-failure.js";
+import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";

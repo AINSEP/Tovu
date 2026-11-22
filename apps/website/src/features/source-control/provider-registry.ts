@@ -10,7 +10,7 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "./credential-form.js";
+import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "@jini-ai/devops/source-control/site/credential-form";
 import { createSourceControlProviderKit } from "./provider-kit.js";
 import type { SourceControlHostFacts, SourceControlProvider, SourceControlProviderKit, SourceControlProviderModule } from "./provider-module.js";
 

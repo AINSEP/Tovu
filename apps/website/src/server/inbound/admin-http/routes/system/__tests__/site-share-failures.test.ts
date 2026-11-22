@@ -8,7 +8,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { sendSiteShareFailure } from "../site-share-password.js";
-import { SiteShareExportFailure } from "#src/features/site-backup/share-export-failure";
+import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 
 test("an archive failure returns the actual job step and redacted copyable details", async t => {
   const logged = t.mock.method(console, "error", () => {});
