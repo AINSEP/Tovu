@@ -11,7 +11,7 @@ import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../asset-transfer/asset-so
 import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../asset-transfer/asset-destinations.js";
 import { isShapeRejection as isThemeShapeRejection } from "../theme/asset-operations.js";
 import { isImportShapeRejection } from "../media-import/tool-registrations.js";
-import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normalizeOutputs, renderOutputs, type RenderedImage } from "./image-ops.js";
+import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normalizeOutputs, renderOutputs, type RenderedImage } from "@jini-ai/cms/media/site-transform/image-ops";
 
 /**
  * @file `image_transform` — one parameterized tool for every resize/crop/convert job (owner
