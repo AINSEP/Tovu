@@ -1,0 +1,119 @@
+Every red file in the final node suite, its first error line, and its result at base 41e948ee4a (clean worktree at the base commit, same node_modules, Jini merge-13 linked)
+
+automatic-agent-plugins.integration.test.ts :: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+serve-command-wiring.unit.test.ts :: AssertionError [ERR_ASSERTION]: runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts to Node's own all-i
+outbox-retry-policies.unit.test.ts :: lastError: 'authorization-required'
+bundled-automatic-relevance.unit.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+bundled-deploy-package.unit.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+bundled-ui-ux-design-package.unit.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+federate-mcp.unit.test.ts :: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /transient lookup failure/. Input:
+install-upload-update.unit.test.ts :: Error: Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.
+tw2-L224-characterization.unit.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+copy-engine.postgres.test.ts :: Error: postgres: psql request failed
+tool-registrations.postgres.test.ts :: Error: postgres: psql request failed
+external-mcp-frozen-db.postgres.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+providers.test.ts :: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+ready-providers.test.ts :: AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+run-ledger.dialects.test.ts :: 
+playwright-page-capture.unit.test.ts :: 
+tool-contract.characterization.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+resolve-html-page-embeds.integration.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+no-raw-sqlite.boundary.test.ts :: AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) inst
+checksums.test.ts :: AssertionError [ERR_ASSERTION]: 0002_drop_empty_legacy_chat_tables changed after it was pinned; add a new step instead
+postgres-baseline.test.ts :: AssertionError [ERR_ASSERTION]: table external_mcp_servers
+runner.postgres.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+forms-submit.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+member-password-auth.test.ts :: diagnostic: 'Error: database connection lost\n' +
+pages-update-html-auth.test.ts :: diagnostic: 'Error: disk full\n' +
+l244-characterization.unit.test.ts :: diagnostic: 'Error: private\n' +
+site-backups.integration.test.ts :: diagnostic: 'Error: SECRET internals\n' +
+agent-daemon-server.tool-restriction-wiring.unit.test.ts :: AssertionError [ERR_ASSERTION]: agent-daemon-server.ts must import the shared resolver, not hardcode a second copy of the list
+byok-message-attachments.unit.test.ts :: 
+component-catalog-routes.integration.test.ts :: AssertionError [ERR_ASSERTION]: search request failed:
+render.golden.characterization.test.ts :: AssertionError [ERR_ASSERTION]: render output drifted for: widget:contact-form-default, widget:contact-form-range, widget:contact-form-html, widget:co
+mail-send.golden.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+resolve-mailer.unit.test.ts :: [mail] credential lookup failed CustomCredentialSecretStoreUnconfiguredError: The credential could not be saved or unlocked. Check the site credential
+bundled-inactive-gating.integration.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+deps-provider-plugin-boot.integration.test.ts :: AssertionError [ERR_ASSERTION]
+plugin-host.integration.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+portable-plugin-host.unit.test.ts :: AssertionError [ERR_ASSERTION]: provisioning receives the host's same MCP port instance
+webhook-delivery-worker.shutdown.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+webhook-delivery-worker.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+after-assembly-forms-search.characterization.unit.test.ts :: AssertionError [ERR_ASSERTION]: slice call missing
+shared-oauth-commerce.characterization.unit.test.ts :: AssertionError [ERR_ASSERTION]: compositionCommerce call missing
+guidance.test.mjs :: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /"plugin":"tovu\/calendly"/. Input:
+deploy-config.test.mjs :: AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type object ({
+host-signals.test.mjs :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+publish-candidates.test.mjs :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+source-control-credential.test.mjs :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+source-control-tool-wiring.test.mjs :: SyntaxError: The requested module '@jini-ai/core/primitives' does not provide an export named 'createRandomUuidGenerator'
+exports.test.mjs :: AssertionError [ERR_ASSERTION]: Got unwanted exception.
+form-delivery.e2e.test.mjs :: SyntaxError: The requested module '@jini-ai/core/primitives' does not provide an export named 'createRandomUuidGenerator'
+sheets-admin-host-schema.security.test.mjs :: SyntaxError: The requested module '@jini-ai/core/primitives' does not provide an export named 'createRandomUuidGenerator'
+credential-card.test.mjs :: AssertionError [ERR_ASSERTION]: false == true
+deploy-config.test.mjs :: 
+credential-card.test.mjs :: AssertionError [ERR_ASSERTION]: false == true
+deploy-config.test.mjs :: 
+resend-mcp.test.mjs :: SyntaxError: The requested module '@jini-ai/core/primitives' does not provide an export named 'createRandomUuidGenerator'
+bundled-agent-plugin-selection.test.ts :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+site-plugin-directories.test.mjs :: SyntaxError: The requested module '../../../apps/website/src/server/runtime/composition/deps.ts' does not provide an export named 'pluginsInstallDir'
+
+== at base
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts	exit=1	pass=7	fail=6
+apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts	exit=1	pass=30	fail=4
+apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts	exit=1	pass=3	fail=1
+apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts	exit=1	pass=0	fail=14
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts	exit=1	pass=0	fail=7
+apps/website/src/features/member-login/__tests__/providers.test.ts	exit=1	pass=59	fail=1
+apps/website/src/features/member-login/__tests__/ready-providers.test.ts	exit=1	pass=0	fail=4
+apps/website/src/features/webhooks/__tests__/tool-contract.characterization.test.ts	exit=1	pass=13	fail=2
+apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts	exit=1	pass=64	fail=1
+apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts	exit=1	pass=2	fail=1
+apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts	exit=1	pass=41	fail=2
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts	exit=1	pass=5	fail=2
+apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts	exit=1	pass=6	fail=1
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts	exit=1	pass=2	fail=4
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts	exit=1	pass=3	fail=4
+apps/website/src/features/agent-plugins/__tests__/unit/install-upload-update.unit.test.ts	exit=1	pass=17	fail=1
+apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts	exit=1	pass=0	fail=1
+apps/website/src/assistant/persistence/__tests__/run-ledger.dialects.test.ts	exit=124	pass=54	fail=0
+apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts	exit=1	pass=24	fail=1
+apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts	exit=1	pass=77	fail=1
+apps/website/src/platform/db/migrations/__tests__/checksums.test.ts	exit=1	pass=3	fail=2
+apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts	exit=1	pass=2	fail=1
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts	exit=1	pass=2	fail=1
+apps/website/src/server/__tests__/routes/forms-submit.test.ts	exit=1	pass=39	fail=1
+apps/website/src/server/__tests__/routes/member-password-auth.test.ts	exit=1	pass=29	fail=1
+apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts	exit=1	pass=12	fail=1
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts	exit=1	pass=17	fail=4
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-backups.integration.test.ts	exit=1	pass=0	fail=1
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts	exit=1	pass=11	fail=1
+apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts	exit=1	pass=3	fail=2
+apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts	exit=1	pass=0	fail=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts	exit=1	pass=12	fail=1
+apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts	exit=1	pass=0	fail=1
+apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts	exit=1	pass=32	fail=1
+apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts	exit=1	pass=7	fail=1
+apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts	exit=1	pass=6	fail=1
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts	exit=1	pass=22	fail=3
+apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts	exit=1	pass=4	fail=2
+apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.test.ts	exit=1	pass=13	fail=1
+apps/website/src/server/runtime/composition/site-deps/__tests__/after-assembly-forms-search.characterization.unit.test.ts	exit=1	pass=2	fail=1
+apps/website/src/server/runtime/composition/site-deps/__tests__/shared-oauth-commerce.characterization.unit.test.ts	exit=1	pass=2	fail=1
+content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs	exit=1	pass=1	fail=1
+content/agent-plugin-overlays/fly/__tests__/deploy-config.test.mjs	exit=1	pass=3	fail=2
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs	exit=1	pass=129	fail=34
+content/agent-plugin-overlays/fly/__tests__/publish-candidates.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/github/__tests__/source-control-credential.test.mjs	exit=1	pass=2	fail=1
+content/agent-plugin-overlays/github/__tests__/source-control-tool-wiring.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs	exit=1	pass=5	fail=1
+content/agent-plugin-overlays/google-workspace/__tests__/form-delivery.e2e.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-host-schema.security.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/railway/__tests__/credential-card.test.mjs	exit=1	pass=2	fail=1
+content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs	exit=1	pass=1	fail=1
+content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs	exit=1	pass=2	fail=1
+content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs	exit=1	pass=1	fail=1
+development/scripts/__tests__/bundled-agent-plugin-selection.test.ts	exit=1	pass=2	fail=1
+development/scripts/__tests__/site-plugin-directories.test.mjs	exit=1	pass=0	fail=1
+
+resend-mcp at base: see combine-13-tovu-overlay-fix.txt

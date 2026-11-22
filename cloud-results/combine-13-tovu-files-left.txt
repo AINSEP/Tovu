@@ -1,0 +1,16 @@
+P9 scanner: plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 (75b14f028), run on a clean worktree of each commit. FILES-LEFT = moving + shells. 'excl theme areas' drops the scanner's own theme + adm-themes areas (111 files); the scanner has no other theme switch.
+== base
+moving 2488 ready 550 blocked 1938 keep 372 steps 93 batches 37 unbatched 0
+{"moving":2488,"shells":21,"total":2509,"themeAreaFiles":111,"totalExclThemeAreas":2398,"shellsLeft":["apps/admin/src/lib/standing-draft-recovery-message.ts","apps/website/src/contracts/core/external-mcp-access.ts","apps/website/src/contracts/core/external-mcp-auth.ts","apps/website/src/contracts/core/path-containment.ts","apps/website/src/contracts/core/upload-limits.ts","apps/website/src/features/agent-plugins/mcp-metadata.ts","apps/website/src/features/analytics/types.ts","apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts","apps/website/src/features/database/timeline.ts","apps/website/src/features/database-transfer/copy-engine.ts","apps/website/src/features/database-transfer/plan-store.ts","apps/website/src/features/database-transfer/postgres-target.ts","apps/website/src/features/entries/index.ts","apps/website/src/features/form-destinations/types.ts","apps/website/src/features/member-login/types.ts","apps/website/src/features/navigation/menu-version-conflict-error.ts","apps/website/src/features/recovery/recovery-orchestrator.ts","apps/website/src/features/taxonomy/index.ts","apps/website/src/features/webhooks/types.ts"]}
+== f9d2f0226
+moving 2491 ready 549 blocked 1942 keep 372 steps 93 batches 37 unbatched 0
+{"moving":2491,"shells":3,"total":2494,"themeAreaFiles":111,"totalExclThemeAreas":2383,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
+== 1242ca802
+moving 2486 ready 544 blocked 1942 keep 372 steps 92 batches 37 unbatched 0
+{"moving":2486,"shells":3,"total":2489,"themeAreaFiles":111,"totalExclThemeAreas":2378,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
+== final
+moving 2483 ready 541 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2483,"shells":3,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
+== tip
+moving 2483 ready 541 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2483,"shells":3,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375,"shellsLeft":["apps/website/src/features/custom-credentials/sets/host.ts","apps/website/src/features/custom-credentials/sets/store.ts","apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}

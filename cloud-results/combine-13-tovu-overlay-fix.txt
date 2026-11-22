@@ -1,0 +1,23 @@
+6 overlay tests importing the deleted features/agent-plugins/mcp-metadata.ts
+== after merge 3 (2df9efdfd), before the fix
+content/agent-plugin-overlays/composio/__tests__/connection-contract.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/fly/__tests__/package-manifest.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/resend/__tests__/bundled-mail.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/supabase/__tests__/connection-contract.test.mjs	exit=1	pass=0	fail=1
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/website/src/features/agent-plugins/mcp-metadata.ts' imported from /home/user/Tovu/content/agent-plugin-overlays/composio/__tests__/connection-contract.test.mjs
+== at base 41e948ee4a
+content/agent-plugin-overlays/composio/__tests__/connection-contract.test.mjs @41e948ee4a: ℹ pass 1 ℹ fail 0 
+content/agent-plugin-overlays/fly/__tests__/package-manifest.test.mjs @41e948ee4a: ℹ pass 4 ℹ fail 0 
+content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs @41e948ee4a: ℹ pass 1 ℹ fail 0 
+content/agent-plugin-overlays/resend/__tests__/bundled-mail.test.mjs @41e948ee4a: ℹ pass 28 ℹ fail 0 
+content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs @41e948ee4a: ℹ pass 0 ℹ fail 1 
+content/agent-plugin-overlays/supabase/__tests__/connection-contract.test.mjs @41e948ee4a: ℹ pass 1 ℹ fail 0 
+== after fix 0d7f78fa4
+content/agent-plugin-overlays/composio/__tests__/connection-contract.test.mjs	exit=0	pass=1	fail=0
+content/agent-plugin-overlays/fly/__tests__/package-manifest.test.mjs	exit=0	pass=4	fail=0
+content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs	exit=0	pass=1	fail=0
+content/agent-plugin-overlays/resend/__tests__/bundled-mail.test.mjs	exit=0	pass=28	fail=0
+content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs	exit=1	pass=0	fail=1
+content/agent-plugin-overlays/supabase/__tests__/connection-contract.test.mjs	exit=0	pass=1	fail=0

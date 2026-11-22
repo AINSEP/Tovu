@@ -290,3 +290,31 @@ Details: `cloud-results/combine-12-tovu.md`.
   `site-backup/push-content.ts → source-control/provider-module.ts` and boundaries no-circular
   `backup-service.ts ↔ push-content.ts` (tv-bugs3a B8a); why-comments 79 → 80 (`3ee47e16609e`, tv-howto2).
 - Cleared: complexity 3 → 0 and size `backup-service.ts` (tv-bugs3a).
+
+## combine-13 (Tovu `integ/merge-13-2026-11-22`, 2026-11-22)
+
+Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, against Jini `integ/merge-13-2026-11-22`
+`7c4ee7881` (READY content `e4e3bf175`). Details: `cloud-results/combine-13-tovu.md`.
+
+**No production bug found.** No Tovu consumer of RT-3's removed `@jini-ai/agent-plugins/commerce/server` exists
+(Tovu's commerce composition imports `@jini-ai/commerce` directly).
+
+### `C13-overlay-tests-deleted-shell` — FIXED (`0d7f78fa4`, test harness, not production)
+- ex-sh (SH-2) deleted `apps/website/src/features/agent-plugins/mcp-metadata.ts`. Six
+  `content/agent-plugin-overlays/*/__tests__/*.test.mjs` files imported it by a relative path that the SH importer
+  rewrite did not see, and crashed with `ERR_MODULE_NOT_FOUND` (composio, fly, higgsfield-media, supabase
+  connection/manifest tests, resend bundled-mail and resend-mcp). They now import `parseAgentPluginMcpConfig` from
+  `@jini-ai/agent-plugins/lifecycle`, the module the shell forwarded. Import line only.
+
+### Pre-existing, listed (BASE-RED at `41e948ee4a`, not fixed)
+- `C13-overlay-core-primitives-uuid`: 4 overlay tests import `createRandomUuidGenerator` from
+  `@jini-ai/core/primitives`, which Jini moved to `@jini-ai/platform/system` (`2d0216d6`, before merge-12):
+  `resend/resend-mcp`, `github/source-control-tool-wiring`, `google-workspace/form-delivery.e2e`,
+  `google-workspace/sheets-admin-host-schema.security` (via `sheets-admin-harness.mjs`). Each fails to load.
+- `C13-test-writes-dev-site`: a node test seeds agent-plugin packages into the repo's own
+  `sites/tovu-dev/agent-plugins/ws/workspace-local/` (and a root `chat.db` appears), leaving untracked files after a run.
+- `M3-a` coverage gap: no Tovu test kills a negated `evidence.source !== "workspace-setting"` in
+  `exportPublicOrigin` (now Jini devops); Jini's own characterization test does.
+- Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
+  (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
+  `presentation/active-theme-id.ts`). The gate does not fail on them.
