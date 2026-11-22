@@ -7,7 +7,7 @@ import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";
 import { projectPostBody } from "@jini-ai/cms/media/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { postAuthorForDisplay } from "#src/contracts/core/post-author";
+import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 
 /** `YYYY-MM-DD` — the calendar day of `iso` in the site's `timeZone` (UTC when absent), so a post
