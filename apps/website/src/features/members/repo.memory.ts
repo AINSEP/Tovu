@@ -15,6 +15,7 @@
  */
 import { pageFromArray, type ListPage } from "@jini-ai/core/list-page";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import { afterSettled } from "@jini-ai/core/errors/idioms";
 import { matchesRecordFields, upsertRecord } from "@jini-ai/core/records";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type {
@@ -59,7 +60,7 @@ export function createInMemoryCredentialLifecycle(_options = {}): NonNullable<Me
     transaction: <T>(work: () => Promise<T>): Promise<T> => {
       const run = tail.then(work);
       // The transaction caller receives run; this tail only keeps the queue usable.
-      tail = run.catch(() => undefined);
+      tail = afterSettled({ promise: run });
       return run;
     },
     // The transaction mutex is global to this composition, so per-key locks add nothing.

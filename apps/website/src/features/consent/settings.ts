@@ -1,4 +1,5 @@
 import { formatErrorForLog } from "@jini-ai/core";
+import { observed } from "@jini-ai/core/errors/idioms";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ensureSettingDefinitions, getEffective, type EnsureSettingDefinitionsDeps, type SettingsRepoPort, type SettingDefinitionSpec } from '@jini-ai/core/settings';
 
@@ -39,7 +40,7 @@ export function createSiteConsentReadiness({ after, systemPrincipalId, ...requir
     catch (error) { console.error(`[consent] privacy defaults failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   });
   // Attach a rejection observer now; a request may arrive long after registration fails.
-  void ready.catch(() => undefined);
+  observed({ promise: ready });
   return ready;
 }
 

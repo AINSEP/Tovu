@@ -1,6 +1,7 @@
 import type { Generated } from "kysely";
 
 import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { afterSettled, observed } from "@jini-ai/core/errors/idioms";
 
 /**
  * @file The sidecar database journal (`ops/database-journal.db`, see `sqlite/database-journal-db.ts`)
@@ -83,7 +84,7 @@ export type JournalKernel = KyselyKernel<JournalDatabase>;
  */
 export function gateJournalKernel({ kernel, ready }: { kernel: JournalKernel; ready: Promise<void> }, _optional: Record<string, never> = {}): JournalKernel {
   // Observed here so a failed open is not an unhandled rejection; every call below re-throws it.
-  ready.catch(() => {});
+  observed({ promise: ready });
   return {
     ...kernel,
     ready,
@@ -109,7 +110,7 @@ export function gateJournalKernel({ kernel, ready }: { kernel: JournalKernel; re
     },
     close: async () => {
       // Readiness errors reach kernel callers; close must still release the underlying handle.
-      await ready.catch(() => {});
+      await afterSettled({ promise: ready });
       await kernel.close();
     },
   };

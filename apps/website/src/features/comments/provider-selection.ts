@@ -1,6 +1,7 @@
 /** Site-scoped provider choice on the existing settings ledger; no comment data is moved. */
 import type { CommentsSelectionStorePort } from '@jini-ai/capability-providers/comments';
 import { ToolInputError } from '@jini-ai/core';
+import { observed } from "@jini-ai/core/errors/idioms";
 import { createSettingsPrincipalLookup, ensureSettingDefinitions, set, type SettingsRepoPort } from '../settings/index.js';
 import type { SetCommentsSettingsDeps, EnsureCommentsSettingDefinitionsDeps } from './settings.js';
 import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
@@ -80,7 +81,7 @@ export function createCommentsCapability(required: {
   const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
   // Observed at once: nothing awaits it until the first comments request, and a boot rejection left
   // unobserved until then is an unhandled rejection. Only marks it handled; `resolve` still throws it.
-  ready.catch(() => undefined);
+  observed({ promise: ready });
   const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
     writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });
   providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }, _optional = {}) => {
