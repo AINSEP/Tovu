@@ -1,0 +1,63 @@
+components/AssistantDock/AssistantDock.state.hooks.ts 2:fs-files 7:ai-assistant 15:webmcp 16:skills 24:voice-input
+components/AssistantDock/DockChatPane.tsx 10:skills 15:voice-input
+components/AssistantDock/DockHeader.tsx 5:ai-assistant
+components/AssistantDock/DockSettingsMenu.tsx 7:taxonomy
+components/AssistantDock/FolderDropNotice.tsx 4T:fs-files
+components/AssistantDock/SubagentsIndicator.tsx 1:ai-assistant
+components/AssistantDock/assistant-dock-props.tsx 4:voice-input 5T:fs-files 7:settings
+components/AssistantDock/hooks/composer-discovery.hooks.ts 2:plugins 3:skills 11:plugins
+components/AssistantDock/hooks/composer-files.hooks.ts 2:skills 9:fs-files
+components/AssistantDock/hooks/composer-skills.hooks.ts 4:plugins 5T:plugins
+components/AssistantDock/hooks/resolve-composer-discovery-outcome.ts 7:plugins 8:plugins 9:skills
+components/AssistantDock/hooks/run-context.hooks.ts 2T:plugins
+components/AssistantDock/hooks/selected-agent-plugins.hooks.ts 3T:plugins
+components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks.ts 5:settings
+components/EmbedInsertControl/EmbedInsertControl.tsx 5T:widgets
+components/MailStatusBanner/MailStatusBanner.tsx 3T:email
+components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts 4T:email
+components/MediaEditDialog/MediaEditDialog.hooks.tsx 3:media 6:media
+components/MediaPickerDialog/MediaPickerDialog.hooks.tsx 4T:media
+components/MediaPickerDialog/MediaPickerDialog.tsx 8T:media
+components/MediaPickerDialog/media-picker-dependencies.hooks.ts 1T:media 2:media
+components/MediaPickerDialog/media-picker-port.hooks.ts 1T:media
+components/TemplateSource/TemplateSourceModal.tsx 7T:themes
+components/TemplateSource/use-template-source.hooks.ts 6T:themes
+components/WidgetConfigFields/MediaContentEditor.hooks.ts 2T:media
+components/WidgetConfigFields/MediaContentEditor.tsx 8T:media
+components/WidgetConfigFields/WidgetConfigFields.hooks.tsx 5T:collections
+components/WidgetConfigFields/WidgetConfigFields.tsx 3:collections 4T:collections 5T:menus 6T:widgets 7T:forms
+components/WidgetConfigFields/media-content-rules.ts 1T:media
+components/WidgetConfigFields/widget-config-fields-dependencies.hooks.ts 1T:collections 2:collections 3T:menus 4:menus 5T:forms 6:forms
+components/WidgetConfigFields/widget-config-fields-port.hooks.ts 1T:collections 2T:menus 3T:forms
+components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx 4T:widgets 10:widgets
+components/WidgetPickerDialog/WidgetPickerDialog.tsx 5T:widgets 8:widgets
+components/WidgetPickerDialog/widget-picker-dependencies.hooks.ts 1T:widgets 2:widgets
+components/WidgetPickerDialog/widget-picker-port.hooks.ts 1T:widgets
+hooks/admin-execution-credential-dependencies.hooks.ts 1T:ai-assistant
+hooks/admin-execution-credential-port.hooks.ts 1T:ai-assistant
+hooks/use-admin-execution-credential.hooks.ts 4T:ai-assistant
+hooks/use-sites-sidebar-nav.hooks.ts 5:sites 6T:sites 7:sites
+hooks/use-tovu-execution-policy.hooks.ts 3T:deployment 4:deployment 6:settings 7:settings
+integrations/jini-admin/comments-ports.ts 6:comments
+integrations/jini-admin/forms-module.hooks.ts 7:publish-content
+integrations/jini-admin/forms-ports.ts 5:forms
+integrations/jini-admin/media-ports.ts 6:media
+integrations/jini-admin/modules.hooks.ts 8:publish-content
+integrations/jini-admin/redirects-module.hooks.ts 6:redirects 7:publish-content
+integrations/jini-admin/redirects-ports.ts 10:redirects
+integrations/jini-admin/seo-module.hooks.ts 8:publish-content
+integrations/jini-admin/seo-ports.ts 9:seo
+integrations/jini-admin/widgets-module.hooks.ts 5T:widgets 11:publish-content
+integrations/jini-admin/widgets-ports.ts 8:widgets
+lib/admin-post-list-sort.ts 3T:posts
+lib/agent-navigation-entities.ts 2:integrations 3:posts 4:pages 5:menus 6:widgets
+lib/assistant-transport.ts 4:plugins
+lib/descriptor-i18n.ts 1T:deployment 2T:source-control
+lib/execution-settings.ts 69T:ai-assistant 70:ai-assistant 71:settings
+lib/ledger-slice.ts 7:settings
+lib/media-embed-extension.hooks.ts 4:media 5:media
+lib/media-image-extension.tsx 5:media
+lib/settings-events.ts 25:themes
+lib/tovu-execution-policy.ts 2T:deployment
+lib/widget-embed-extension.hooks.ts 5T:widgets 6:widgets
+lib/widget-embed-extension.tsx 4T:widgets

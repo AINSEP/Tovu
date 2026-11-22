@@ -1,0 +1,328 @@
+## admin-themes -> settings
+   admin-themes/AdminThemes.tsx:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   admin-themes/AdminThemes.tsx:8 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+## admin-ui -> settings
+   admin-ui/AdminUi.tsx:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## ai-assistant -> deployment
+   ai-assistant/AiAssistant.tsx:5 via hooks/use-tovu-execution-adapters.hooks.ts ⇒ hooks/use-tovu-execution-adapters.hooks.ts:6->lib/tovu-execution-policy.ts
+   ai-assistant/AiAssistant.tsx:6 via hooks/use-tovu-execution-policy.hooks.ts ⇒ hooks/use-tovu-execution-policy.hooks.ts:3->features/deployment/api/deployment-api.types.ts
+## ai-assistant -> settings
+   ai-assistant/AiAssistant.tsx:2 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   ai-assistant/AiAssistant.tsx:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   ai-assistant/AiAssistant.tsx:5 via hooks/use-tovu-execution-adapters.hooks.ts ⇒ hooks/use-tovu-execution-adapters.hooks.ts:4->components/AssistantDock/hooks/execution-config.hooks.ts
+   ai-assistant/AiAssistant.tsx:6 via hooks/use-tovu-execution-policy.hooks.ts ⇒ hooks/use-tovu-execution-policy.hooks.ts:6->features/settings/ai-agent-presentation.ts
+   ai-assistant/AiAssistant.tsx:21 via components/AdminByokKeyPanel.tsx ⇒ components/AdminByokKeyPanel.tsx:4->hooks/use-admin-locale.hooks.ts
+   ai-assistant/AiAssistant.tsx:32 via hooks/use-admin-execution-credential.hooks.ts ⇒ hooks/use-admin-execution-credential.hooks.ts:11->lib/execution-settings.ts
+   …+5
+## analytics -> settings
+   analytics/hooks/use-analytics.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## auth -> settings
+   auth/Login.tsx:9 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## authentication -> settings
+   authentication/Authentication.tsx:2 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   authentication/Authentication.tsx:13 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## collections -> forms
+   collections/CollectionEntryEditor.tsx:4 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   collections/hooks/use-collection-entry-editor.hooks.ts:9 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## collections -> media
+   collections/CollectionEntryEditor.tsx:4 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   collections/hooks/use-collection-entry-editor.hooks.ts:9 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## collections -> menus
+   collections/CollectionEntryEditor.tsx:4 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   collections/hooks/use-collection-entry-editor.hooks.ts:9 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## collections -> settings
+   collections/CollectionEntries.tsx:5 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   collections/CollectionEntryEditor.tsx:4 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   collections/CollectionEntryEditor.tsx:6 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   collections/Collections.tsx:7 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   collections/hooks/use-collection-entries.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   collections/hooks/use-collection-entry-editor.hooks.ts:9 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   …+5
+## collections -> widgets
+   collections/CollectionEntryEditor.tsx:4 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   collections/hooks/use-collection-entry-editor.hooks.ts:9 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## comments -> HOST
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:22->panel-contracts.ts
+## comments -> collections
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## comments -> forms
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## comments -> media
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:10->integrations/jini-admin/media-ports.ts
+   comments/index.ts:11 via integrations/jini-admin/comments-module.hooks.ts ⇒ integrations/jini-admin/comments-module.hooks.ts:6->integrations/jini-admin/comments-ports.ts
+## comments -> menus
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## comments -> publish-content
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+## comments -> redirects
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:13->integrations/jini-admin/redirects-ports.ts
+## comments -> seo
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:15->integrations/jini-admin/seo-ports.ts
+## comments -> settings
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+   comments/index.ts:11 via integrations/jini-admin/comments-module.hooks.ts ⇒ integrations/jini-admin/comments-module.hooks.ts:5->hooks/use-admin-locale.hooks.ts
+## comments -> widgets
+   comments/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:17->integrations/jini-admin/widgets-ports.ts
+## consent -> settings
+   consent/consent-i18n.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## content-analysis -> settings
+   content-analysis/hooks/use-content-analysis.hooks.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## dashboard -> settings
+   dashboard/hooks/use-dashboard.hooks.ts:9 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## database -> settings
+   database/Database.tsx:7 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   database/Database.tsx:12 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   database/hooks/use-migrate-forward-section.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   database/hooks/use-schema-state-section.hooks.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   database/hooks/use-timeline-section.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## deployment -> settings
+   deployment/Deployment.tsx:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   deployment/HistoryTab.tsx:2 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   deployment/StaticSiteTab.tsx:3 via components/CredentialHint.tsx ⇒ components/CredentialHint.tsx:2->hooks/use-credential-hint.hooks.ts
+   deployment/StaticSiteTab.tsx:8 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   deployment/hooks/use-deployment-overview.hooks.ts:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   deployment/hooks/use-dockerfile-source.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   …+3
+## deployment -> source-control
+   deployment/hooks/use-static-publish.hooks.ts:7 via lib/descriptor-i18n.ts ⇒ lib/descriptor-i18n.ts:2->features/source-control/api/source-control-api.types.ts
+## email -> settings
+   email/Email.tsx:8 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   email/EmailTemplateEditor.tsx:9 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   email/hooks/use-email.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## forms -> HOST
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:22->panel-contracts.ts
+## forms -> collections
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## forms -> comments
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+## forms -> media
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:10->integrations/jini-admin/media-ports.ts
+   forms/index.ts:14 via integrations/jini-admin/forms-module.hooks.ts ⇒ integrations/jini-admin/forms-module.hooks.ts:8->integrations/jini-admin/forms-ports.ts
+## forms -> menus
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## forms -> publish-content
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+   forms/index.ts:14 via integrations/jini-admin/forms-module.hooks.ts ⇒ integrations/jini-admin/forms-module.hooks.ts:7->features/publish-content/PublishSectionButton.tsx
+## forms -> redirects
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:13->integrations/jini-admin/redirects-ports.ts
+## forms -> seo
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:15->integrations/jini-admin/seo-ports.ts
+## forms -> settings
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+   forms/index.ts:14 via integrations/jini-admin/forms-module.hooks.ts ⇒ integrations/jini-admin/forms-module.hooks.ts:5->hooks/use-admin-locale.hooks.ts
+## forms -> widgets
+   forms/index.ts:13 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:17->integrations/jini-admin/widgets-ports.ts
+## import-export -> settings
+   import-export/hooks/use-import-export.hooks.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## integrations -> settings
+   integrations/IntegrationDeliveries.tsx:2 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   integrations/Integrations.tsx:6 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   integrations/hooks/use-integration-deliveries.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   integrations/hooks/use-integrations.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## library -> settings
+   library/hooks/use-library.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## media -> settings
+   media/Media.tsx:1 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   media/Media.tsx:4 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   media/Media.tsx:31 via components/AssistantDock/DockHeaderTip.tsx ⇒ components/AssistantDock/DockHeaderTip.tsx:5->components/AssistantDock/DockHeaderTip.hooks.ts
+   media/RemoteImageImport.tsx:4 via components/AssistantDock/DockHeaderTip.tsx ⇒ components/AssistantDock/DockHeaderTip.tsx:5->components/AssistantDock/DockHeaderTip.hooks.ts
+   media/hooks/use-edit-media-panel.hooks.ts:18 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   media/hooks/use-media.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## members -> settings
+   members/MembersPanel.tsx:3 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   members/hooks/members-controller.hooks.ts:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## menus -> settings
+   menus/hooks/use-menu-editor.hooks.ts:10 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   menus/hooks/use-menus.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## observability -> settings
+   observability/Observability.tsx:1 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   observability/hooks/use-observability-status.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   observability/hooks/use-recent-server-errors.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## pages -> posts
+   pages/Pages.tsx:1 via lib/admin-post-list-sort.ts ⇒ lib/admin-post-list-sort.ts:3->features/posts/api/posts-api.types.ts
+## pages -> settings
+   pages/Pages.tsx:14 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   pages/hooks/use-page-editor.hooks.ts:18 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   pages/hooks/use-pages.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## pages -> themes
+   pages/PageEditor.tsx:35 via components/TemplateSource/TemplateSourceModal.tsx ⇒ components/TemplateSource/TemplateSourceModal.tsx:1->components/TemplateSource/TemplateSourceModal.hooks.ts
+## playground -> settings
+   playground/Playground.tsx:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## plugins -> settings
+   plugins/AgentPlugins.tsx:2 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   plugins/PluginRow.tsx:7 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   plugins/hooks/use-agent-plugin-details-modal.hooks.ts:2 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   plugins/hooks/use-agent-plugin-memory.hooks.ts:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   plugins/hooks/use-agent-plugins.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   plugins/hooks/use-plugin-package-files.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   …+2
+## posts -> collections
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:27 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## posts -> forms
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:27 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## posts -> media
+   posts/PostCoverImage.tsx:6 via components/MediaPickerDialog/MediaPickerDialog.tsx ⇒ components/MediaPickerDialog/MediaPickerDialog.tsx:2->components/MediaPickerDialog/JiniMediaPicker.hooks.ts
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:25 via lib/media-image-extension.tsx ⇒ lib/media-image-extension.tsx:5->features/media/api/media-api.ts
+   posts/hooks/use-post-editor.hooks.ts:26 via lib/media-embed-extension.tsx ⇒ lib/media-embed-extension.tsx:3->components/MediaPickerDialog/MediaPickerDialog.tsx
+   posts/hooks/use-post-editor.hooks.ts:27 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+   posts/hooks/use-post-featured-image.hooks.ts:3 via components/MediaPickerDialog/media-picker-dependencies.hooks.ts ⇒ components/MediaPickerDialog/media-picker-dependencies.hooks.ts:1->features/media/api/media-api.types.ts
+   …+1
+## posts -> menus
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:27 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## posts -> settings
+   posts/PostCoverImage.tsx:6 via components/MediaPickerDialog/MediaPickerDialog.tsx ⇒ components/MediaPickerDialog/MediaPickerDialog.tsx:3->hooks/use-admin-locale.hooks.ts
+   posts/Posts.tsx:16 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   posts/Posts.tsx:17 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:25 via lib/media-image-extension.tsx ⇒ lib/media-image-extension.tsx:6->components/MediaPickerDialog/MediaPickerDialog.tsx
+   posts/hooks/use-post-editor.hooks.ts:26 via lib/media-embed-extension.tsx ⇒ lib/media-embed-extension.tsx:3->components/MediaPickerDialog/MediaPickerDialog.tsx
+   …+3
+## posts -> themes
+   posts/editor/template/PostEditorTemplateModalGate.tsx:1 via components/TemplateSource/TemplateSourceModal.tsx ⇒ components/TemplateSource/TemplateSourceModal.tsx:1->components/TemplateSource/TemplateSourceModal.hooks.ts
+## posts -> widgets
+   posts/editor/toolbar/insert-controls.tsx:5 via components/EmbedInsertControl/EmbedInsertControl.tsx ⇒ components/EmbedInsertControl/EmbedInsertControl.tsx:1->components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+   posts/hooks/use-post-editor.hooks.ts:27 via lib/widget-embed-extension.tsx ⇒ lib/widget-embed-extension.tsx:1->lib/widget-embed-extension.hooks.ts
+## providers -> settings
+   providers/Providers.tsx:2 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   providers/Providers.tsx:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   providers/hooks/use-always-allow.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## publish-content -> settings
+   publish-content/hooks/use-publish-content-confirm.hooks.ts:53 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   publish-content/hooks/use-publish-section-button.hooks.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## recovery -> settings
+   recovery/Recovery.tsx:17 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   recovery/hooks/use-recovery.hooks.ts:9 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   recovery/hooks/use-restore-flow.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## redirects -> HOST
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:22->panel-contracts.ts
+## redirects -> collections
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## redirects -> comments
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+## redirects -> forms
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## redirects -> media
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:10->integrations/jini-admin/media-ports.ts
+   redirects/index.ts:11 via integrations/jini-admin/redirects-module.hooks.ts ⇒ integrations/jini-admin/redirects-module.hooks.ts:8->integrations/jini-admin/redirects-ports.ts
+## redirects -> menus
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## redirects -> publish-content
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+   redirects/index.ts:11 via integrations/jini-admin/redirects-module.hooks.ts ⇒ integrations/jini-admin/redirects-module.hooks.ts:7->features/publish-content/PublishSectionButton.tsx
+## redirects -> seo
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:15->integrations/jini-admin/seo-ports.ts
+## redirects -> settings
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+   redirects/index.ts:11 via integrations/jini-admin/redirects-module.hooks.ts ⇒ integrations/jini-admin/redirects-module.hooks.ts:5->hooks/use-admin-locale.hooks.ts
+## redirects -> widgets
+   redirects/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:17->integrations/jini-admin/widgets-ports.ts
+## roles -> settings
+   roles/hooks/use-roles-state.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## security -> deployment
+   security/hooks/use-access-tokens.hooks.ts:9 via lib/descriptor-i18n.ts ⇒ lib/descriptor-i18n.ts:1->features/deployment/api/deployment-api.types.ts
+## security -> settings
+   security/AccessTokensTab.tsx:1 via components/CredentialHint.tsx ⇒ components/CredentialHint.tsx:2->hooks/use-credential-hint.hooks.ts
+   security/AccessTokensTab.tsx:8 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   security/OtherCredentialsSection.tsx:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   security/Security.tsx:9 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   security/SiteKeyTab.tsx:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   security/hooks/use-access-tokens.hooks.ts:11 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   …+3
+## security -> source-control
+   security/hooks/use-access-tokens.hooks.ts:9 via lib/descriptor-i18n.ts ⇒ lib/descriptor-i18n.ts:2->features/source-control/api/source-control-api.types.ts
+## seo -> HOST
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:22->panel-contracts.ts
+## seo -> collections
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## seo -> comments
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+## seo -> forms
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## seo -> media
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:10->integrations/jini-admin/media-ports.ts
+   seo/index.ts:11 via integrations/jini-admin/seo-module.hooks.ts ⇒ integrations/jini-admin/seo-module.hooks.ts:7->components/MediaPickerDialog/MediaPickerDialog.tsx
+## seo -> menus
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+## seo -> publish-content
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+   seo/index.ts:11 via integrations/jini-admin/seo-module.hooks.ts ⇒ integrations/jini-admin/seo-module.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+## seo -> redirects
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:13->integrations/jini-admin/redirects-ports.ts
+## seo -> settings
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+   seo/index.ts:11 via integrations/jini-admin/seo-module.hooks.ts ⇒ integrations/jini-admin/seo-module.hooks.ts:6->hooks/use-admin-locale.hooks.ts
+## seo -> widgets
+   seo/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:17->integrations/jini-admin/widgets-ports.ts
+## settings -> ai-assistant
+   settings/SettingsUi.tsx:3 via hooks/use-tovu-execution-adapters.hooks.ts ⇒ hooks/use-tovu-execution-adapters.hooks.ts:4->components/AssistantDock/hooks/execution-config.hooks.ts
+   settings/SettingsUi.tsx:137 via hooks/use-admin-execution-credential.hooks.ts ⇒ hooks/use-admin-execution-credential.hooks.ts:4->features/ai-assistant/api/ai-assistant-api.types.ts
+   settings/SettingsUi.tsx:138 via components/AdminByokKeyPanel.tsx ⇒ components/AdminByokKeyPanel.tsx:9->hooks/use-admin-execution-credential.hooks.ts
+   settings/hooks/use-settings-ui.hooks.ts:15 via lib/execution-settings.ts ⇒ lib/execution-settings.ts:69->features/ai-assistant/api/ai-assistant-api.types.ts
+   settings/rules.ts:5 via lib/execution-settings.ts ⇒ lib/execution-settings.ts:69->features/ai-assistant/api/ai-assistant-api.types.ts
+## settings -> deployment
+   settings/SettingsUi.tsx:3 via hooks/use-tovu-execution-adapters.hooks.ts ⇒ hooks/use-tovu-execution-adapters.hooks.ts:6->lib/tovu-execution-policy.ts
+   settings/SettingsUi.tsx:4 via hooks/use-tovu-execution-policy.hooks.ts ⇒ hooks/use-tovu-execution-policy.hooks.ts:3->features/deployment/api/deployment-api.types.ts
+## sites -> settings
+   sites/hooks/use-site-list-prefs.hooks.ts:12 via lib/ledger-slice.ts ⇒ lib/ledger-slice.ts:7->features/settings/api/settings-api.ts
+   sites/hooks/use-site-list-prefs.hooks.ts:13 via lib/settings-tabs.ts ⇒ lib/settings-tabs.ts:33->lib/ledger-slice.ts
+   sites/hooks/use-sites.hooks.ts:10 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## skills -> settings
+   skills/Skills.tsx:2 via admin-themes/use-admin-theme.hooks.ts ⇒ admin-themes/use-admin-theme.hooks.ts:6->hooks/use-admin-appearance-snapshot.hooks.ts
+   skills/Skills.tsx:14 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## source-control -> deployment
+   source-control/hooks/use-source-control-credentials.hooks.ts:8 via lib/descriptor-i18n.ts ⇒ lib/descriptor-i18n.ts:1->features/deployment/api/deployment-api.types.ts
+## source-control -> settings
+   source-control/ProvidersTab.tsx:1 via components/CredentialHint.tsx ⇒ components/CredentialHint.tsx:2->hooks/use-credential-hint.hooks.ts
+   source-control/ProvidersTab.tsx:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   source-control/SourceControl.tsx:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   source-control/hooks/use-source-control-credentials.hooks.ts:10 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## taxonomy -> settings
+   taxonomy/Taxonomy.tsx:12 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   taxonomy/hooks/use-merge-term-section.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   taxonomy/hooks/use-new-taxonomy-form.hooks.ts:4 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   taxonomy/hooks/use-new-term-form.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   taxonomy/hooks/use-taxonomy.hooks.ts:14 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   taxonomy/hooks/use-term-detail-panel.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   …+1
+## themes -> settings
+   themes/hooks/use-theme-explore-theme.hooks.ts:2 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   themes/hooks/use-theme-explore.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   themes/hooks/use-theme-preview-refresh.hooks.ts:2 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+   themes/hooks/use-themes.hooks.ts:5 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## trash -> settings
+   trash/hooks/use-trash.hooks.ts:6 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## users -> settings
+   users/UsersPanel.tsx:3 via components/status-labels.ts ⇒ components/status-labels.ts:2->hooks/use-admin-locale.hooks.ts
+   users/hooks/users-controller.hooks.ts:3 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts
+## widgets -> HOST
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:22->panel-contracts.ts
+## widgets -> collections
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:7->components/WidgetConfigFields/WidgetConfigFields.tsx
+## widgets -> comments
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+## widgets -> forms
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:7->components/WidgetConfigFields/WidgetConfigFields.tsx
+## widgets -> media
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:10->integrations/jini-admin/media-ports.ts
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:7->components/WidgetConfigFields/WidgetConfigFields.tsx
+## widgets -> menus
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:18->integrations/jini-admin/widgets-module.hooks.ts
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:7->components/WidgetConfigFields/WidgetConfigFields.tsx
+## widgets -> publish-content
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:8->features/publish-content/PublishSectionButton.tsx
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:11->features/publish-content/PublishSectionButton.tsx
+## widgets -> redirects
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:13->integrations/jini-admin/redirects-ports.ts
+## widgets -> seo
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:15->integrations/jini-admin/seo-ports.ts
+## widgets -> settings
+   widgets/index.ts:10 via integrations/jini-admin/modules.hooks.ts ⇒ integrations/jini-admin/modules.hooks.ts:11->integrations/jini-admin/comments-ports.ts
+   widgets/index.ts:11 via integrations/jini-admin/widgets-module.hooks.ts ⇒ integrations/jini-admin/widgets-module.hooks.ts:6->hooks/use-admin-locale.hooks.ts
+## workspace -> settings
+   workspace/hooks/use-workspace.hooks.ts:7 via hooks/use-admin-locale.hooks.ts ⇒ hooks/use-admin-locale.hooks.ts:5->hooks/admin-locale-dependencies.hooks.ts

@@ -1,0 +1,381 @@
+SCC all: [["ai-assistant","integrations","plugins","providers","settings"],["dashboard","media","pages","posts","publish-content","taxonomy","themes"],["deployment","import-export","security","source-control"]]
+SCC value: [["ai-assistant","settings"],["dashboard","media","pages","posts","publish-content","taxonomy","themes"],["deployment","import-export","security","source-control"]]
+
+## admin-ui -> admin-themes
+  admin-ui/AdminUi.tsx:5  -> admin-themes/index.ts {{ AdminThemes }}
+  admin-ui/AdminUi.tsx:6  -> admin-themes/admin-themes-i18n.ts {{ t }}
+
+## admin-ui -> integrations
+  admin-ui/AdminUi.tsx:7  -> integrations/index.ts {{ IntegrationsRedirect }}
+
+## admin-ui -> settings
+  admin-ui/AdminUi.tsx:8  -> settings/index.ts {{ AdminAppearance }}
+
+## ai-assistant -> settings
+  ai-assistant/AiAssistant.tsx:7  -> settings/ai-agent-presentation.ts {{ isDesktopAdmin, localCliScopeCopy }}
+  ai-assistant/AiAssistant.tsx:8  -> settings/settings-execution-i18n.ts {{ t as tExecution }}
+
+## collections -> publish-content
+  collections/CollectionEntries.tsx:6  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+  collections/Collections.tsx:11  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## collections -> taxonomy
+  collections/CollectionEntryEditor.tsx:7  -> taxonomy/TermPicker.tsx {{ TermPicker }}
+
+## dashboard -> auth
+  dashboard/hooks/dashboard-dependencies.hooks.ts:7  -> auth/api/auth-api.ts {{ authApi }}
+
+## dashboard -> comments
+  dashboard/hooks/dashboard-dependencies.hooks.ts:9  -> comments/api/comments-api.ts {{ commentsApi }}
+
+## dashboard -> media
+  dashboard/hooks/dashboard-dependencies.hooks.ts:3  -> media/api/media-api.ts {{ mediaApi }}
+
+## dashboard -> pages
+  dashboard/hooks/dashboard-dependencies.hooks.ts:8  -> pages/api/pages-api.ts {{ pagesApi }}
+
+## dashboard -> posts
+  dashboard/Dashboard.tsx:1 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  dashboard/hooks/dashboard-dependencies.hooks.ts:5 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  dashboard/hooks/dashboard-dependencies.hooks.ts:6  -> posts/api/posts-api.ts {{ postsApi }}
+  dashboard/hooks/dashboard-port.hooks.ts:2 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  dashboard/hooks/use-dashboard.hooks.ts:6 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  dashboard/rules.ts:2 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+
+## dashboard -> publish-content
+  dashboard/Dashboard.tsx:10  -> publish-content/hooks/publish-request.store.ts {{ requestPublish }}
+  dashboard/Dashboard.tsx:11  -> publish-content/hooks/publish-availability.store.ts {{ usePublishToLiveAvailable }}
+
+## dashboard -> sites
+  dashboard/hooks/dashboard-dependencies.hooks.ts:1 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyState }}
+  dashboard/hooks/dashboard-dependencies.hooks.ts:2  -> sites/api/sites-api.ts {{ sitesApi }}
+  dashboard/hooks/dashboard-port.hooks.ts:1 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyState }}
+  dashboard/rules.ts:1 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyState }}
+
+## dashboard -> themes
+  dashboard/hooks/dashboard-dependencies.hooks.ts:4  -> themes/api/themes-api.ts {{ themesApi }}
+
+## database -> taxonomy
+  database/api/database-api.ts:3 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+  database/hooks/migrate-forward-section-dependencies.hooks.ts:1 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+  database/hooks/migrate-forward-section-port.hooks.ts:1 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+
+## deployment -> import-export
+  deployment/StaticSiteTab.tsx:15 [T] -> import-export/api/import-export-api.types.ts {{ AdminExportRunSnapshot }}
+  deployment/hooks/static-export-dependencies.hooks.ts:1 [T] -> import-export/api/import-export-api.types.ts {{ AdminExportRunSnapshot }}
+  deployment/hooks/static-export-dependencies.hooks.ts:2  -> import-export/api/import-export-api.ts {{ importExportApi }}
+  deployment/hooks/static-export-port.hooks.ts:1 [T] -> import-export/api/import-export-api.types.ts {{ AdminExportRunSnapshot }}
+  deployment/hooks/use-static-export.hooks.ts:3 [T] -> import-export/api/import-export-api.types.ts {{ AdminExportRunSnapshot }}
+  deployment/rules.ts:4 [T] -> import-export/api/import-export-api.types.ts {{ AdminExportRunSnapshot }}
+
+## deployment -> security
+  deployment/StaticSiteTab.tsx:13 [T] -> security/api/security-api.types.ts {{ AdminPublishExecutionMode }}
+  deployment/api/deployment-api.types.ts:1 [T] -> security/api/security-api.types.ts {{ AdminPublishCredentialProviderId }}
+  deployment/hooks/publish-credentials-dependencies.hooks.ts:1 [T] -> security/api/security-api.types.ts {{ AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishCredentia}
+  deployment/hooks/publish-credentials-dependencies.hooks.ts:2  -> security/api/security-api.ts {{ securityApi }}
+  deployment/hooks/publish-credentials-port.hooks.ts:1 [T] -> security/api/security-api.types.ts {{ AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnaps}
+  deployment/hooks/use-publish-credentials.hooks.ts:6 [T] -> security/api/security-api.types.ts {{ AdminPublishCredentialProviderId, AdminPublishCredentialSummary, AdminPublishCredentialV}
+  deployment/rules.ts:2 [T] -> security/api/security-api.types.ts {{ AdminPublishConnectionInput, AdminPublishCredentialProviderId, AdminPublishCredentialSum}
+
+## email -> integrations
+  email/hooks/use-email-provider.hooks.ts:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  email/hooks/use-email-provider.hooks.ts:4  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+
+## email -> pages
+  email/EmailTemplateEditor.hooks.ts:1  -> pages/page-editor-i18n.ts {{ t as pageEditorT }}
+  email/EmailTemplateEditor.tsx:14  -> pages/page-editor-i18n.ts {{ t as pageEditorT }}
+  email/EmailTemplateEditor.tsx:15  -> pages/rules.ts {{ PAGE_PREVIEW_IFRAME_SANDBOX }}
+
+## email -> plugins
+  email/EmailProviderTab.tsx:8  -> plugins/rules.ts {{ agentPluginDisplayName }}
+
+## import-export -> settings
+  import-export/hooks/use-import-export.hooks.ts:5  -> settings/ai-agent-presentation.ts {{ isDesktopAdmin }}
+
+## import-export -> sites
+  import-export/ImportExport.tsx:5  -> sites/index.ts {{ SiteExportTab, SiteImportTab }}
+  import-export/hooks/use-import-export.hooks.ts:4  -> sites/api/sites-api.ts {{ sitesApi }}
+  import-export/hooks/use-import-export.hooks.ts:6  -> sites/index.ts {{ sitesTranslator, useSitesSnapshot }}
+
+## import-export -> source-control
+  import-export/git-backup-rules.ts:2 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlCredentialSummary }}
+  import-export/hooks/git-backup-port.hooks.ts:1 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlCredentialSummary }}
+  import-export/hooks/git-backup-port.hooks.ts:2  -> source-control/api/source-control-api.ts {{ sourceControlApi }}
+
+## integrations -> plugins
+  integrations/api/integrations-api.types.ts:2 [T] -> plugins/api/plugins-api.types.ts {{ AdminPluginFiles }}
+
+## library -> auth
+  library/hooks/library-dependencies.hooks.ts:4  -> auth/api/auth-api.ts {{ authApi }}
+
+## library -> media
+  library/Library.tsx:8 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  library/hooks/library-dependencies.hooks.ts:1 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  library/hooks/library-dependencies.hooks.ts:2  -> media/api/media-api.ts {{ mediaApi }}
+  library/hooks/library-port.hooks.ts:1 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  library/hooks/use-library.hooks.ts:5 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  library/hooks/use-library.hooks.ts:9  -> media/rules.ts {{ readFileAsBase64 }}
+  library/rules.ts:2 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+
+## library -> users
+  library/hooks/library-dependencies.hooks.ts:3  -> users/api/users-api.ts {{ usersApi }}
+
+## media -> publish-content
+  media/Media.tsx:45  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## media -> trash
+  media/hooks/media-dependencies.hooks.ts:4  -> trash/api/trash-api.ts {{ trashApi }}
+
+## media -> users
+  media/hooks/media-dependencies.hooks.ts:3  -> users/api/users-api.ts {{ usersApi }}
+
+## menus -> pages
+  menus/hooks/menus-dependencies.hooks.ts:1  -> pages/api/pages-api.ts {{ pagesApi }}
+  menus/hooks/menus-dependencies.hooks.ts:6  -> pages/rules.ts {{ pagePublicPath }}
+
+## menus -> publish-content
+  menus/Menus.tsx:3  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## menus -> trash
+  menus/hooks/menus-dependencies.hooks.ts:2  -> trash/api/trash-api.ts {{ trashApi }}
+
+## observability -> auth
+  observability/hooks/use-queries-tab.hooks.ts:3  -> auth/api/auth-api.ts {{ authApi }}
+
+## pages -> posts
+  pages/Pages.tsx:8 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/api/pages-api.ts:3 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/page-editor-dependencies.hooks.ts:4 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/page-editor-dependencies.hooks.ts:5  -> posts/api/posts-api.ts {{ postsApi }}
+  pages/hooks/page-editor-port.hooks.ts:2 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/page-editor-save.ts:8 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/pages-dependencies.hooks.ts:1 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/pages-dependencies.hooks.ts:2  -> posts/api/posts-api.ts {{ postsApi }}
+  pages/hooks/pages-port.hooks.ts:1 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/use-page-editor.hooks.ts:7 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/hooks/use-pages.hooks.ts:4 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+  pages/page-editor-i18n.ts:13  -> posts/posts-i18n.ts {{ t as postT }}
+  pages/rules.ts:6 [T] -> posts/api/posts-api.types.ts {{ AdminPost }}
+
+## pages -> publish-content
+  pages/Pages.tsx:15  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## pages -> taxonomy
+  pages/PageEditor.tsx:37  -> taxonomy/TermPicker.tsx {{ TermPicker }}
+
+## pages -> themes
+  pages/PageEditor.tsx:2  -> themes/hooks/use-theme-preview-refresh.hooks.ts {{ useThemePreviewFrame }}
+  pages/PageEditor.tsx:3  -> themes/ThemePreviewReloadButton.tsx {{ WiredThemePreviewReloadButton }}
+  pages/PageEditor.tsx:34 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  pages/hooks/page-editor-dependencies.hooks.ts:2 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  pages/hooks/page-editor-dependencies.hooks.ts:3  -> themes/api/themes-api.ts {{ themesApi }}
+  pages/hooks/page-editor-port.hooks.ts:1 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  pages/hooks/theme-pages-dependencies.hooks.ts:1  -> themes/api/themes-api.ts {{ themesApi }}
+  pages/hooks/use-page-editor.hooks.ts:6 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  pages/hooks/use-theme-pages.hooks.ts:4  -> themes/api/themes-api.types.ts {{ NO_THEME_ID }}
+
+## plugins -> integrations
+  plugins/AgentPluginLinkedLock.tsx:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/AgentPluginMaturity.tsx:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/AgentPluginRow.tsx:8 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/AgentPlugins.hooks.ts:2 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/AgentPlugins.tsx:13 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/hooks/agent-plugin-install-dependencies.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/hooks/agent-plugin-install-port.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/hooks/agent-plugins-dependencies.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin, AdminAgentPluginFiles }}
+  plugins/hooks/agent-plugins-dependencies.hooks.ts:2  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  plugins/hooks/agent-plugins-port.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin, AdminAgentPluginFiles }}
+  plugins/hooks/use-agent-plugin-install.hooks.ts:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/hooks/use-agent-plugin-update.hooks.ts:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/hooks/use-agent-plugins.hooks.ts:5 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+  plugins/rules.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminAgentPlugin }}
+
+## plugins -> providers
+  plugins/hooks/plugins-dependencies.hooks.ts:3  -> providers/api/providers-api.ts {{ providersApi }}
+
+## posts -> content-analysis
+  posts/editor/PostSavedPanels.tsx:2  -> content-analysis/ContentAnalysisCard.tsx {{ ContentAnalysisCard }}
+
+## posts -> media
+  posts/hooks/post-editor-dependencies.hooks.ts:2 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  posts/hooks/post-editor-dependencies.hooks.ts:3  -> media/api/media-api.ts {{ mediaApi }}
+  posts/hooks/post-editor-port.hooks.ts:1 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+  posts/hooks/use-post-featured-image.hooks.ts:2 [T] -> media/api/media-api.types.ts {{ AdminMedia }}
+
+## posts -> pages
+  posts/editor/notices/PostEditorNotices.tsx:2  -> pages/PageEditor.tsx {{ PageExternalChangeBanner }}
+  posts/editor/preview/PostPreviewFrame.tsx:1  -> pages/rules.ts {{ PAGE_PREVIEW_IFRAME_SANDBOX }}
+  posts/hooks/use-post-editor.hooks.ts:54  -> pages/page-editor-i18n.ts {{ t as translatePageEditor }}
+
+## posts -> publish-content
+  posts/Posts.tsx:18  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## posts -> taxonomy
+  posts/editor/PostSavedPanels.tsx:3  -> taxonomy/TermPicker.tsx {{ TermPicker }}
+
+## posts -> themes
+  posts/editor/header/PostEditorToolbarEnd.tsx:1  -> themes/ThemePreviewReloadButton.tsx {{ WiredThemePreviewReloadButton }}
+  posts/editor/preview/PostPreviewFrame.tsx:2  -> themes/hooks/use-theme-preview-refresh.hooks.ts {{ useThemePreviewFrame }}
+  posts/editor/template/PostEditorTemplateModalGate.tsx:2 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  posts/hooks/post-editor-dependencies.hooks.ts:4 [T] -> themes/api/themes-api.types.ts {{ AdminThemeSummary, PresentationSettings }}
+  posts/hooks/post-editor-dependencies.hooks.ts:5  -> themes/api/themes-api.ts {{ themesApi }}
+  posts/hooks/post-editor-port.hooks.ts:2 [T] -> themes/api/themes-api.types.ts {{ AdminThemeSummary, PresentationSettings }}
+  posts/hooks/post-editor-state.rules.ts:1 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+  posts/hooks/use-post-editor.hooks.ts:21 [T] -> themes/api/themes-api.types.ts {{ ThemeTier }}
+
+## providers -> integrations
+  providers/Providers.tsx:13  -> integrations/Integrations.tsx {{ Integrations }}
+  providers/Providers.tsx:14  -> integrations/hooks/use-integrations.hooks.ts {{ useWiredIntegrations }}
+  providers/Providers.tsx:15  -> integrations/integrations-i18n.tsx {{ t as tIntegrations }}
+  providers/always-allow-rules.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpServer, AdminExternalMcpToolApproval }}
+  providers/hooks/always-allow-dependencies.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpServer, AdminExternalMcpToolApproval }}
+  providers/hooks/always-allow-dependencies.hooks.ts:2  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  providers/hooks/always-allow-port.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpServer, AdminExternalMcpToolApproval }}
+
+## providers -> settings
+  providers/Providers.tsx:11  -> settings/ExternalMcpSettingsPanel.tsx {{ ExternalMcpSettingsPanel }}
+  providers/hooks/use-providers.hooks.ts:1  -> settings/hooks/use-external-mcp.hooks.ts {{ useExternalMcp, type ExternalMcpController }}
+
+## publish-content -> dashboard
+  publish-content/hooks/use-publish-section-button.hooks.ts:4  -> dashboard/dashboard-i18n.ts {{ t as translateDashboard }}
+
+## recovery -> database
+  recovery/api/recovery-api.types.ts:1 [T] -> database/api/database-api.types.ts {{ RestorePointCostClass }}
+  recovery/hooks/recovery-dependencies.hooks.ts:3 [T] -> database/api/database-api.types.ts {{ AdminRestorePointSummary }}
+  recovery/hooks/recovery-dependencies.hooks.ts:4  -> database/api/database-api.ts {{ databaseApi }}
+  recovery/hooks/recovery-port.hooks.ts:2 [T] -> database/api/database-api.types.ts {{ AdminRestorePointSummary }}
+
+## recovery -> taxonomy
+  recovery/api/recovery-api.ts:2 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+  recovery/hooks/restore-flow-dependencies.hooks.ts:1 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+  recovery/hooks/restore-flow-port.hooks.ts:1 [T] -> taxonomy/api/taxonomy-api.types.ts {{ GatedConfirmResult, GatedPlanResult }}
+
+## security -> ai-assistant
+  security/hooks/other-credentials-dependencies.hooks.ts:2  -> ai-assistant/api/ai-assistant-api.ts {{ aiAssistantApi }}
+  security/hooks/other-credentials-port.hooks.ts:2 [T] -> ai-assistant/api/ai-assistant-api.types.ts {{ AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAs}
+
+## security -> auth
+  security/hooks/security-permissions-dependencies.hooks.ts:1  -> auth/api/auth-api.ts {{ authApi }}
+
+## security -> deployment
+  security/AccessTokensTab.tsx:11 [T] -> deployment/api/deployment-api.types.ts {{ AdminPublishTargetField }}
+  security/AccessTokensTab.tsx:12  -> deployment/rules.ts {{ fieldHelpText }}
+  security/access-token-forms.ts:5  -> deployment/rules.ts {{ buildCredentialConnectionInput, fieldNameHandleSegment, requiredFieldsFilled }}
+  security/access-token-providers.ts:1 [T] -> deployment/api/deployment-api.types.ts {{ AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField }
+  security/access-token-rows.ts:2  -> deployment/rules.ts {{ PUBLISH_CREDENTIAL_ROW_LABEL }}
+  security/hooks/access-tokens-dependencies.hooks.ts:3  -> deployment/api/deployment-api.ts {{ deploymentApi }}
+  security/hooks/access-tokens-port.hooks.ts:2 [T] -> deployment/api/deployment-api.types.ts {{ AdminPublishTargetDescriptor }}
+  security/hooks/use-access-tokens.hooks.ts:14  -> deployment/rules.ts {{ withPromotedDefault }}
+
+## security -> integrations
+  security/hooks/other-credentials-dependencies.hooks.ts:1  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  security/hooks/other-credentials-port.hooks.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpServer }}
+
+## security -> media
+  security/hooks/other-credentials-dependencies.hooks.ts:3 [T] -> media/api/media-api.types.ts {{ AdminMediaProviderMap }}
+  security/hooks/other-credentials-dependencies.hooks.ts:4  -> media/api/media-api.ts {{ mediaApi }}
+  security/hooks/other-credentials-port.hooks.ts:3 [T] -> media/api/media-api.types.ts {{ AdminMediaProviderMap }}
+  security/hooks/use-other-credentials.hooks.ts:5 [T] -> media/api/media-api.types.ts {{ AdminMediaProviderMap }}
+  security/other-credential-stores.ts:1  -> media/media-provider-catalog.ts {{ MEDIA_PROVIDER_CATALOG }}
+
+## security -> providers
+  security/hooks/access-tokens-dependencies.hooks.ts:6  -> providers/api/providers-api.ts {{ providersApi }}
+
+## security -> sites
+  security/hooks/site-key-dependencies.hooks.ts:1  -> sites/api/sites-api.ts {{ sitesApi }}
+  security/hooks/site-key-port.hooks.ts:1 [T] -> sites/api/sites-api.types.ts {{ AdminGeneratedSiteKey, AdminImportedSiteKey, AdminRevealedSiteKey, AdminSiteKeyStartFres}
+  security/hooks/site-key-status.rules.ts:1 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyStatus }}
+  security/hooks/use-site-key-recovery.hooks.ts:3 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyAffectedWebhook, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus }}
+  security/hooks/use-site-key.hooks.ts:4 [T] -> sites/api/sites-api.types.ts {{ AdminSiteKeyStatus }}
+
+## security -> source-control
+  security/access-token-forms.ts:3 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlConnectionInput }}
+  security/access-token-forms.ts:6  -> source-control/rules.ts {{ buildSourceControlConnectionInput }}
+  security/access-token-providers.ts:2 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlProviderDescriptor }}
+  security/access-token-providers.ts:3  -> source-control/rules.ts {{ sourceControlProviderInfoFromDescriptor }}
+  security/access-token-rows.ts:3  -> source-control/rules.ts {{ SOURCE_CONTROL_CREDENTIAL_ROW_LABEL }}
+  security/hooks/access-tokens-dependencies.hooks.ts:4 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlCredentialsSnapshot }}
+  security/hooks/access-tokens-dependencies.hooks.ts:5  -> source-control/api/source-control-api.ts {{ sourceControlApi }}
+  security/hooks/access-tokens-port.hooks.ts:3 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor, AdminSourceCont}
+  security/hooks/use-access-tokens.hooks.ts:7 [T] -> source-control/api/source-control-api.types.ts {{ AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary }}
+
+## settings -> admin-themes
+  settings/AdminAppearance.tsx:12  -> admin-themes/index.ts {{ AdminThemeSchemeControl }}
+
+## settings -> ai-assistant
+  settings/hooks/use-external-mcp-admissions.hooks.ts:6  -> ai-assistant/api/ai-assistant-api.ts {{ aiAssistantApi }}
+
+## settings -> auth
+  settings/hooks/use-external-mcp-admissions.hooks.ts:7  -> auth/api/auth-api.ts {{ authApi }}
+
+## settings -> fs-files
+  settings/ai-agent-presentation.ts:2  -> fs-files/folder-drop-port.ts {{ getFolderDropPort }}
+
+## settings -> integrations
+  settings/ExternalMcpSharedChoice.hooks.ts:2  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  settings/external-mcp-admissions-rules.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissi}
+  settings/external-mcp-tool-picker-rules.ts:1 [T] -> integrations/api/integrations-api.types.ts {{ AdminRemoteToolSurfaceEntry }}
+  settings/hooks/use-external-mcp-admissions.hooks.ts:4 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpAdmissionsSnapshot }}
+  settings/hooks/use-external-mcp-admissions.hooks.ts:5  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  settings/hooks/use-external-mcp-oauth-connect.hooks.ts:3  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  settings/hooks/use-external-mcp-tool-picker.hooks.ts:3 [T] -> integrations/api/integrations-api.types.ts {{ AdminRemoteToolSurfaceEntry }}
+  settings/hooks/use-external-mcp-tool-picker.hooks.ts:4  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+  settings/hooks/use-external-mcp.hooks.ts:25 [T] -> integrations/api/integrations-api.types.ts {{ AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput }}
+  settings/hooks/use-external-mcp.hooks.ts:26  -> integrations/api/integrations-api.ts {{ integrationsApi }}
+
+## settings -> voice-input
+  settings/ai-agent-presentation.ts:3  -> voice-input/voice-input-port.ts {{ getVoiceInputPort }}
+
+## settings -> webmcp
+  settings/SettingsUi.tsx:146  -> webmcp/BrowserAgentSettingsPanel.tsx {{ BrowserAgentSettingsPanel }}
+
+## settings -> workspace
+  settings/SettingsUi.tsx:130  -> workspace/index.ts {{ Workspace }}
+  settings/SettingsUi.tsx:131  -> workspace/workspace-i18n.ts {{ t as tWorkspace }}
+
+## sites -> auth
+  sites/hooks/site-transfer-dependencies.hooks.ts:3  -> auth/api/auth-api.ts {{ authApi }}
+
+## sites -> users
+  sites/hooks/site-transfer-dependencies.hooks.ts:2  -> users/api/users-api.ts {{ usersApi }}
+
+## skills -> plugins
+  skills/SkillRow.tsx:5  -> plugins/agent-plugins-visuals.tsx {{ EyeIcon, TrashIcon }}
+  skills/Skills.tsx:11  -> plugins/PackageFilesModal.tsx {{ PackageFilesModal }}
+  skills/api.ts:3 [T] -> plugins/api/plugins-api.types.ts {{ AdminPluginFiles }}
+  skills/use-skill-files.hooks.ts:5 [T] -> plugins/PackageFilesModal.tsx {{ PackageFilesModalProps }}
+  skills/use-skill-files.hooks.ts:6  -> plugins/rules.ts {{ packageFilesRead, packageFilesViewState, type PackageFilesRead }}
+
+## source-control -> deployment
+  source-control/ProvidersTab.tsx:9  -> deployment/rules.ts {{ fieldHelpText, fieldNameHandleSegment }}
+  source-control/api/source-control-api.types.ts:2 [T] -> deployment/api/deployment-api.types.ts {{ AdminDescriptorI18n, AdminPublishTargetField }}
+  source-control/rules.ts:2 [T] -> deployment/api/deployment-api.types.ts {{ AdminPublishTargetField }}
+
+## taxonomy -> auth
+  taxonomy/hooks/term-picker-dependencies.hooks.ts:3  -> auth/api/auth-api.ts {{ authApi }}
+
+## taxonomy -> publish-content
+  taxonomy/Taxonomy.tsx:13  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## taxonomy -> trash
+  taxonomy/hooks/taxonomy-dependencies.hooks.ts:3  -> trash/api/trash-api.ts {{ trashApi }}
+
+## themes -> pages
+  themes/hooks/use-theme-explore.hooks.ts:10  -> pages/lib/theme-page-publish-state.ts {{ homeFallbackPublishReason }}
+
+## themes -> publish-content
+  themes/Themes.tsx:12  -> publish-content/PublishSectionButton.tsx {{ PublishSectionButton }}
+
+## themes -> trash
+  themes/hooks/themes-dependencies.hooks.ts:3  -> trash/api/trash-api.ts {{ trashApi }}
+
+## trash -> users
+  trash/hooks/trash-dependencies.hooks.ts:1 [T] -> users/api/users-api.types.ts {{ AdminIdentityUser }}
+  trash/hooks/trash-dependencies.hooks.ts:2  -> users/api/users-api.ts {{ usersApi }}
+  trash/hooks/trash-port.hooks.ts:1 [T] -> users/api/users-api.types.ts {{ AdminIdentityUser }}
+
+## users -> auth
+  users/hooks/users-dependencies.hooks.ts:4  -> auth/api/auth-api.ts {{ authApi }}
+
+## users -> roles
+  users/hooks/users-dependencies.hooks.ts:2  -> roles/api/roles-api.ts {{ rolesApi }}

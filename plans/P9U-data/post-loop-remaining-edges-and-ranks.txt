@@ -1,0 +1,43 @@
+loop files 84 remaining edges 79 pairs 41
+admin-ui -> admin-themes admin-ui/AdminUi.tsx:5 admin-ui/AdminUi.tsx:6
+admin-ui -> integrations admin-ui/AdminUi.tsx:7
+admin-ui -> settings admin-ui/AdminUi.tsx:8
+collections -> publish-content collections/CollectionEntries.tsx:6 collections/Collections.tsx:11
+collections -> taxonomy collections/CollectionEntryEditor.tsx:7
+database -> taxonomy database/api/database-api.ts:3T database/hooks/migrate-forward-section-dependencies.hooks.ts:1T database/hooks/migrate-forward-section-port.hooks.ts:1T
+email -> integrations email/hooks/use-email-provider.hooks.ts:3T email/hooks/use-email-provider.hooks.ts:4
+email -> pages email/EmailTemplateEditor.hooks.ts:1 email/EmailTemplateEditor.tsx:14 email/EmailTemplateEditor.tsx:15
+email -> plugins email/EmailProviderTab.tsx:8
+import-export -> settings import-export/hooks/use-import-export.hooks.ts:5
+import-export -> sites import-export/ImportExport.tsx:5 import-export/hooks/use-import-export.hooks.ts:4 import-export/hooks/use-import-export.hooks.ts:6
+library -> auth library/hooks/library-dependencies.hooks.ts:4
+library -> media library/Library.tsx:8T library/hooks/library-dependencies.hooks.ts:1T library/hooks/library-dependencies.hooks.ts:2 library/hooks/library-port.hooks.ts:1T library/hooks/use-library.hooks.ts:5T library/hooks/use-library.hooks.ts:9 library/rules.ts:2T
+library -> users library/hooks/library-dependencies.hooks.ts:3
+media -> trash media/hooks/media-dependencies.hooks.ts:4
+media -> users media/hooks/media-dependencies.hooks.ts:3
+menus -> pages menus/hooks/menus-dependencies.hooks.ts:1 menus/hooks/menus-dependencies.hooks.ts:6
+menus -> publish-content menus/Menus.tsx:3
+menus -> trash menus/hooks/menus-dependencies.hooks.ts:2
+observability -> auth observability/hooks/use-queries-tab.hooks.ts:3
+recovery -> database recovery/api/recovery-api.types.ts:1T recovery/hooks/recovery-dependencies.hooks.ts:3T recovery/hooks/recovery-dependencies.hooks.ts:4 recovery/hooks/recovery-port.hooks.ts:2T
+recovery -> taxonomy recovery/api/recovery-api.ts:2T recovery/hooks/restore-flow-dependencies.hooks.ts:1T recovery/hooks/restore-flow-port.hooks.ts:1T
+security -> ai-assistant security/hooks/other-credentials-dependencies.hooks.ts:2 security/hooks/other-credentials-port.hooks.ts:2T
+security -> auth security/hooks/security-permissions-dependencies.hooks.ts:1
+security -> integrations security/hooks/other-credentials-dependencies.hooks.ts:1 security/hooks/other-credentials-port.hooks.ts:1T
+security -> media security/hooks/other-credentials-dependencies.hooks.ts:3T security/hooks/other-credentials-dependencies.hooks.ts:4 security/hooks/other-credentials-port.hooks.ts:3T security/hooks/use-other-credentials.hooks.ts:5T security/other-credential-stores.ts:1
+security -> sites security/hooks/site-key-dependencies.hooks.ts:1 security/hooks/site-key-port.hooks.ts:1T security/hooks/site-key-status.rules.ts:1T security/hooks/use-site-key-recovery.hooks.ts:3T security/hooks/use-site-key.hooks.ts:4T
+settings -> admin-themes settings/AdminAppearance.tsx:12
+settings -> fs-files settings/ai-agent-presentation.ts:2
+settings -> voice-input settings/ai-agent-presentation.ts:3
+settings -> webmcp settings/SettingsUi.tsx:146
+settings -> workspace settings/SettingsUi.tsx:130 settings/SettingsUi.tsx:131
+sites -> auth sites/hooks/site-transfer-dependencies.hooks.ts:3
+sites -> users sites/hooks/site-transfer-dependencies.hooks.ts:2
+skills -> plugins skills/SkillRow.tsx:5 skills/Skills.tsx:11 skills/api.ts:3T skills/use-skill-files.hooks.ts:5T skills/use-skill-files.hooks.ts:6
+taxonomy -> auth taxonomy/hooks/term-picker-dependencies.hooks.ts:3
+taxonomy -> trash taxonomy/hooks/taxonomy-dependencies.hooks.ts:3
+themes -> trash themes/hooks/themes-dependencies.hooks.ts:3
+trash -> users trash/hooks/trash-dependencies.hooks.ts:1T trash/hooks/trash-dependencies.hooks.ts:2 trash/hooks/trash-port.hooks.ts:1T
+users -> auth users/hooks/users-dependencies.hooks.ts:4
+users -> roles users/hooks/users-dependencies.hooks.ts:2
+{"admin-themes":0,"admin-ui":2,"ai-assistant":0,"analytics":0,"auth":0,"authentication":0,"collections":4,"comments":0,"consent":0,"content-analysis":0,"dashboard":0,"database":4,"deployment":0,"email":1,"forms":0,"fs-files":0,"import-export":3,"integrations":0,"library":4,"media":3,"members":0,"menus":3,"observability":1,"pages":0,"playground":0,"plugins":0,"posts":0,"providers":0,"publish-content":0,"recovery":5,"redirects":0,"roles":0,"security":4,"seo":0,"settings":1,"sites":2,"skills":1,"source-control":0,"taxonomy":3,"themes":3,"trash":2,"users":1,"voice-input":0,"webmcp":0,"widgets":0,"workspace":0}
