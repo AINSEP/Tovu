@@ -3,7 +3,7 @@ import { FORM_SUCCESS_CLASS, FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SC
 import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "@jini-ai/cms/forms/form-controls";
 import { fieldMaxChars } from "@jini-ai/cms/forms/field-length-caps";
 import { str, arr } from "./value-readers.js";
-import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
+import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { randomUUID } from "node:crypto";
 import type { FormCollectionPlan } from "@jini-ai/core/contracts/forms";
 import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";

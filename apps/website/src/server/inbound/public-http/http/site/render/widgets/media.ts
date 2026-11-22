@@ -3,7 +3,7 @@ import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { NO_MARKER_ATTRIBUTES } from "@jini-ai/cms/widgets/media-attributes";
 import { isObject, str } from "../value-readers.js";
 import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
-import { renderWidgetPlaceholder } from "./placeholder.js";
+import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
 import { renderVideoTag, renderImageTag } from "@jini-ai/cms/widgets/media-tags";
 import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
@@ -11,7 +11,7 @@ import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/h
 import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderMediaRawHtml } from "@jini-ai/cms/widgets/html/media-html";
-import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";
+import { logMediaHtmlEvent } from "@jini-ai/cms/widgets/site/media-html-log";
 
 /**
  * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07;
