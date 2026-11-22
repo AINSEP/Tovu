@@ -1,0 +1,7 @@
+apps/admin/src/features/security/__tests__/CopyKeysDialog.unit.test.tsx pass=3 fail=? rc=0 secs=3
+apps/admin/src/features/security/hooks/__tests__/use-copy-keys.unit.test.tsx pass=6 fail=? rc=0 secs=13
+apps/website/src/features/site-backup/__tests__/push-cancellation.unit.test.ts pass=7 fail=0 rc=0 secs=6
+apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts pass=84 fail=0 rc=0 secs=5
+apps/website/src/server/__tests__/assistant-ag-ui-wire.golden.test.ts pass=11 fail=1 rc=1 secs=9
+apps/website/src/server/runtime/boot/__tests__/plugin-activation-poll-boot.unit.test.ts pass=5 fail=0 rc=0 secs=3
+apps/website/src/server/runtime/composition/__tests__/agent-daemon-deps.plugin-activation-poll.test.ts pass=7 fail=0 rc=0 secs=1

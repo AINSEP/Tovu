@@ -1,0 +1,8 @@
+### MUTATION m3-B7 in apps/website/src/features/site-backup/backup-service.ts
+@@ -696 +696 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
+-  if (plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
++  if ((false as boolean) && plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
+apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts pass=83 fail=1 rc=1 secs=4
+✖ the plan reports credential warnings and push refuses before writing (21.841782ms)
+✖ the plan reports credential warnings and push refuses before writing (21.841782ms)
+restored apps/website/src/features/site-backup/backup-service.ts
