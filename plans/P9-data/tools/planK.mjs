@@ -37,7 +37,7 @@ for (const f of files) {
   const sk = /\.tsx?$/.test(f) ? shellKind(f) : null; if (sk) { SHELL.set(f, { area: p.area, kind: sk }); continue; }
   P.set(f, p);
 }
-const startLeft = P.size + SHELL.size;
+let startLeft = P.size + SHELL.size;
 
 // ---- import statement → names, type-only
 function stmtAt(f, line) { const L = srcOf(f).split('\n'); let s = line - 1; while (s > 0 && !/^\s*(import|export)\b/.test(L[s])) s--; return L.slice(s, line).join(' ').replace(/\s+/g, ' '); }
@@ -100,6 +100,7 @@ let work; for (let it = 0; it < 6; it++) {
   if (!changed) break;
 }
 
+startLeft = P.size + SHELL.size; // after the K3 STAYS fixpoint
 // ---- dependency levels inside the moving set (cycles cut)
 const level = new Map();
 function lvl(f, stack = new Set()) { if (level.has(f)) return level.get(f); if (stack.has(f)) return 0; stack.add(f); let l = 0; for (const i of g[f].imps) if (i.to && P.has(i.to) && i.to !== f) l = Math.max(l, lvl(i.to, stack) + 1); stack.delete(f); level.set(f, l); return l; }
@@ -110,7 +111,7 @@ for (const [f, v] of Object.entries(g)) for (const i of v.imps) if (i.to) { if (
 // ---- old sheets: which old steps are done / still valid
 const oldSteps = new Map();
 if (OLD) for (const n of fs.readdirSync(OLD)) {
-  if (!/^[A-Z]+-.*-\d+\.md$/.test(n) || n.startsWith('SH-')) continue;
+  if (!/^[A-Z]+-.*-\d+\.md$/.test(n) || /^(SH|RT-K1|A-K2|K3|K4|K5|V)-/.test(n)) continue;
   const t = fs.readFileSync(path.join(OLD, n), 'utf8'); const id = n.replace(/\.md$/, '');
   const fl = [...t.matchAll(/^\| `([^`]+)` \| `packages\//gm)].map((m) => m[1]);
   const gone = fl.filter((f) => !g[f]); const kept = fl.filter((f) => KEEP.has(f));
@@ -221,6 +222,11 @@ const pre = [
   { id: 'K4-i18n-common.T', repo: 'Tovu', lane: 'K4', deps: ['K4-i18n-common.J'], est: 60, files: 0, touch: [I18N_COMMON] },
   { id: 'SH-3', repo: 'Tovu', lane: 'SH', deps: [], est: 45, files: SHELL.size, touch: [...SHELL.keys()] },
 ];
+// hand lanes (no files-left change): XC (Jini cross-package, K5 injection), SEC, S
+const HAND = [['XC-1', 'chat', 100, []], ['XC-2', 'chat', 80, ['XC-1']], ['XC-3', 'agent-runtime', 110, []], ['XC-4', 'daemon', 100, []], ['XC-5', 'integrations', 80, []],
+  ['XC-6a', 'node-adapters', 90, []], ['XC-6b', 'server', 100, ['XC-6a']], ['XC-6c', 'server', 110, ['XC-6b']], ['XC-6d', 'server', 110, ['XC-6c']], ['S6b.J', 'integrations', 110, []]];
+for (const [id, pkg, est, deps] of HAND) pre.push({ id, repo: 'Jini', lane: id.slice(0, 2), deps, est, pkg, files: 0 });
+pre.push({ id: 'SEC-0', repo: 'Tovu', lane: 'SEC', deps: [], est: 90, files: 0, touch: [] }, { id: 'S6b.T', repo: 'Tovu', lane: 'S', deps: ['S6b.J'], est: 60, files: 0, touch: ['apps/website/src/platform/db/repos/webhook-repo.ts'] });
 for (const s of seamSteps) { pre.push({ id: s.id + '.J', repo: 'Jini', lane: 'K4', deps: [], est: Math.min(110, Math.round(s.cost)), pkg: 'core', files: 0 }); pre.push({ id: s.id + '.T', repo: 'Tovu', lane: 'K4', deps: [s.id + '.J'], est: Math.min(110, Math.round(s.cost * 0.8)), files: 0, touch: s.targets.map(([t]) => t).filter((t) => g[t]) }); }
 const items = [...pre];
 for (const s of steps) { items.push({ id: s.id + '.J', repo: 'Jini', lane: s.lane, deps: [...s.deps].map((d) => d.startsWith('SH') ? d : d + '.J'), est: s.estJ, pkg: s.area[3], files: 0, s }); items.push({ id: s.id + '.T', repo: 'Tovu', lane: s.lane, deps: [s.id + '.J', ...[...s.deps].filter((d) => d.startsWith('K4-') || d === 'RT-K1-0' || d === 'A-K2-0').map((d) => d + '.T')], est: s.estT, files: s.files.length, touch: [...s.files, ...s.impFiles], s }); }
@@ -288,7 +294,7 @@ for (const s of steps) {
 for (const s of seamSteps) {
   const L = [`# ${s.id} — move Tovu-kept and cross-package TYPES into @jini-ai/core (K4 seam split)`, '', 'Types only. The Tovu file keeps every value and its policy; it imports the moved types from core. Every other Tovu importer of those names repoints to core. No re-export from the Tovu file (no shells).', '', '| target | names (as imported by Jini-bound files) | Jini-bound users | all importers | Jini destination |', '|---|---|---|---|---|'];
   for (const [t, v] of s.targets) { const slug = t.replace(/^apps\/(website|admin|desktop)\/src\//, '').replace(/^@tovu\//, 'tovu-').replace(/^@jini-ai\//, '').replace(/\.(tsx?|mjs)$/, '').replace(/\/index$/, '').replace(/[^a-z0-9/-]/gi, '-').split('/').slice(-2).join('-'); L.push(`| \`${t}\` | ${[...v.names].join(', ')} | ${v.users.size} | ${(importers.get(t) || []).length} | \`packages/core/src/contracts/site/${slug}.ts\` (export \`./contracts/site/${slug}\`)${v.j ? ' — Jini-internal: move from the owning package' : ''} |`); }
-  L.push('', 'Rename product names at move (`TovuPublishPorts` → `PublishPorts`, …) and add a P9-BREAKS row only if the name is persisted. Mutation: type-only → `pnpm typecheck` must fail when one moved field is renamed in core, then revert. Est ' + Math.round(s.cost) + ' min (J), T about ' + Math.round(s.cost * 0.8) + ' min.', '');
+  L.push('', 'If a type references a third-party type (kysely, express, react, drizzle), it cannot enter core (core has no dependencies): each Jini-bound user then declares the structural slice it reads beside itself (K4db rule) and the target is dropped from this step. ' + 'Rename product names at move (`TovuPublishPorts` → `PublishPorts`, …) and add a P9-BREAKS row only if the name is persisted. Mutation: type-only → `pnpm typecheck` must fail when one moved field is renamed in core, then revert. Est ' + Math.round(s.cost) + ' min (J), T about ' + Math.round(s.cost * 0.8) + ' min.', '');
   fs.writeFileSync(path.join(OUT, 'steps', s.id + '.md'), L.join('\n'));
 }
 console.log(JSON.stringify({ startLeft, moving: P.size, shells: SHELL.size, keep: KEEP.size, staysK3: STAYK3.size, codexKeep: codexKeep.size, steps: steps.length, seam: seamSteps.length, oldValid: [...oldSteps.values()].filter((o) => /VALID|rest valid/.test(o.status)).length, items: items.length, batches: batches.length, unbatched: left.length, cyclesCut: cut, final: curve[curve.length - 1] }));

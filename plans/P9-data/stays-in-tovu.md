@@ -1,4 +1,6 @@
-# P9 — files in Jini-bound directories that STAY in Tovu
+# P9K — files in Jini-bound directories that STAY in Tovu (412)
+
+Rules: plan.mjs KEEP_RULES (product screens, desktop packaging, composition, product-named files), Codex FIX/BLOCK 11-22 (Tovu policy files; their types move to core in K4 seam steps), K1 host ports (Express auth/session/static helpers the host turns into `JsonRoutePorts`), K3 (product copy with no args object). Steps may add rows under their STOP rules; each such row names the step.
 
 | file | LOC | why it stays |
 |---|---|---|
@@ -361,9 +363,39 @@
 | `apps/desktop/src/workspace-chat-ipc.ts` | 220 | desktop packaging / site management (Tovu product) |
 | `apps/desktop/src/workspace-conversation-store.ts` | 146 | desktop packaging / site management (Tovu product) |
 | `apps/desktop/src/zoom-menu.ts` | 52 | desktop packaging / site management (Tovu product) |
+| `apps/website/src/contracts/core/admin-locales.ts` | 2 | K3: imports product copy and has no args object to carry it (owner K3: stays) |
+| `apps/website/src/contracts/core/approval-i18n.ts` | 118 | Codex FIX/BLOCK 11-22: Tovu policy (approval-i18n); K4 moves only its types to core |
+| `apps/website/src/contracts/core/assistant-content-guidance.ts` | 13 | Codex FIX/BLOCK 11-22: Tovu policy (assistant-content-guidance); K4 moves only its types to core |
+| `apps/website/src/contracts/core/consent-refusal.ts` | 12 | Codex FIX/BLOCK 11-22: Tovu policy (consent-refusal); K4 moves only its types to core |
+| `apps/website/src/contracts/core/credential-store.ts` | 9 | Codex FIX/BLOCK 11-22: Tovu policy (credential-store); K4 moves only its types to core |
+| `apps/website/src/contracts/core/custom-credential-categories.ts` | 10 | Codex FIX/BLOCK 11-22: Tovu policy (custom-credential-categories); K4 moves only its types to core |
+| `apps/website/src/contracts/core/fs-folder-recovery.ts` | 4 | Codex FIX/BLOCK 11-22: Tovu policy (fs-folder-recovery); K4 moves only its types to core |
+| `apps/website/src/contracts/core/gated-mutations/composition.ts` | 164 | Codex FIX/BLOCK 11-22: Tovu policy (gated-mutations/composition); K4 moves only its types to core |
+| `apps/website/src/contracts/core/gated-mutations/gateway.ts` | 214 | Codex FIX/BLOCK 11-22: Tovu policy (gated-mutations/gateway); K4 moves only its types to core |
+| `apps/website/src/contracts/core/gated-mutations/ports.ts` | 54 | Codex FIX/BLOCK 11-22: Tovu policy (gated-mutations/ports); K4 moves only its types to core |
+| `apps/website/src/contracts/core/gated-mutations/token.ts` | 147 | Codex FIX/BLOCK 11-22: Tovu policy (gated-mutations/token); K4 moves only its types to core |
+| `apps/website/src/contracts/core/public-page-security-headers.ts` | 49 | Codex FIX/BLOCK 11-22: Tovu policy (public-page-security-headers); K4 moves only its types to core |
+| `apps/website/src/contracts/core/publish-history-list-limit.ts` | 25 | Codex FIX/BLOCK 11-22: Tovu policy (publish-history-list-limit); K4 moves only its types to core |
+| `apps/website/src/contracts/core/redirect-tables.ts` | 8 | Codex FIX/BLOCK 11-22: Tovu policy (redirect-tables); K4 moves only its types to core |
+| `apps/website/src/contracts/core/runtime-mode.ts` | 33 | Codex FIX/BLOCK 11-22: Tovu policy (runtime-mode); K4 moves only its types to core |
+| `apps/website/src/contracts/core/scheduled-publish.ts` | 63 | Codex FIX/BLOCK 11-22: Tovu policy (scheduled-publish); K4 moves only its types to core |
+| `apps/website/src/contracts/core/secret-redaction.ts` | 2 | K3: imports product copy and has no args object to carry it (owner K3: stays) |
+| `apps/website/src/contracts/core/settings-vocabulary.ts` | 12 | Codex FIX/BLOCK 11-22: Tovu policy (settings-vocabulary); K4 moves only its types to core |
+| `apps/website/src/contracts/core/site-key-state.ts` | 39 | Codex FIX/BLOCK 11-22: Tovu policy (site-key-state); K4 moves only its types to core |
+| `apps/website/src/contracts/core/theme-ids.ts` | 60 | Codex FIX/BLOCK 11-22: Tovu policy (theme-ids); K4 moves only its types to core |
+| `apps/website/src/contracts/core/theme-slots.ts` | 42 | Codex FIX/BLOCK 11-22: Tovu policy (theme-slots); K4 moves only its types to core |
+| `apps/website/src/contracts/core/tool-metadata/approval-policy.ts` | 12 | Codex FIX/BLOCK 11-22: Tovu policy (tool-metadata/approval-policy); K4 moves only its types to core |
+| `apps/website/src/contracts/core/tool-metadata/post.ts` | 120 | Codex FIX/BLOCK 11-22: Tovu policy (tool-metadata/post); K4 moves only its types to core |
+| `apps/website/src/contracts/core/tool-metadata/site-evidence.ts` | 14 | Codex FIX/BLOCK 11-22: Tovu policy (tool-metadata/site-evidence); K4 moves only its types to core |
+| `apps/website/src/contracts/core/tool-metadata/site-guide.ts` | 14 | Codex FIX/BLOCK 11-22: Tovu policy (tool-metadata/site-guide); K4 moves only its types to core |
+| `apps/website/src/contracts/core/tool-metadata/sites.ts` | 59 | Codex FIX/BLOCK 11-22: Tovu policy (tool-metadata/sites); K4 moves only its types to core |
+| `apps/website/src/contracts/core/widget-tables.ts` | 3 | Codex FIX/BLOCK 11-22: Tovu policy (widget-tables); K4 moves only its types to core |
+| `apps/website/src/contracts/headless/assistant-permanent-deletes-policy.ts` | 40 | Codex FIX/BLOCK 11-22: Tovu policy (assistant-permanent-deletes-policy); K4 moves only its types to core |
 | `apps/website/src/features/custom-credentials/tovu-credential-card-identity.ts` | 19 | product-named file (tovu-*) |
 | `apps/website/src/features/custom-credentials/tovu-credential-sets.ts` | 61 | product-named file (tovu-*) |
 | `apps/website/src/features/publish-content/tovu-publish-ports.ts` | 152 | product-named file (tovu-*) |
+| `apps/website/src/features/publish-content/ui/sections.ts` | 104 | Codex FIX/BLOCK 11-22: Tovu policy (sections); K4 moves only its types to core |
+| `apps/website/src/features/site-export/export-failure-summary.ts` | 57 | Codex FIX/BLOCK 11-22: Tovu policy (export-failure-summary); K4 moves only its types to core |
 | `apps/website/src/features/sites/agent-tools.ts` | 160 | Tovu product: site management / owner guidance |
 | `apps/website/src/features/sites/deps.ts` | 125 | Tovu product: site management / owner guidance |
 | `apps/website/src/features/sites/index.ts` | 43 | Tovu product: site management / owner guidance |
@@ -374,3 +406,13 @@
 | `apps/website/src/features/sites/site-preview/site-preview-store.ts` | 97 | Tovu product: site management / owner guidance |
 | `apps/website/src/features/sites/tool-registrations.ts` | 316 | Tovu product: site management / owner guidance |
 | `apps/website/src/features/sites/warm-switch.ts` | 37 | Tovu product: site management / owner guidance |
+| `apps/website/src/platform/html/menu-render.ts` | 88 | Codex FIX/BLOCK 11-22: Tovu policy (menu-render); K4 moves only its types to core |
+| `apps/website/src/platform/html/published-webmcp-strip.ts` | 69 | Codex FIX/BLOCK 11-22: Tovu policy (published-webmcp-strip); K4 moves only its types to core |
+| `apps/website/src/platform/html/safe-url.ts` | 149 | Codex FIX/BLOCK 11-22: Tovu policy (safe-url); K4 moves only its types to core |
+| `apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts` | 265 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/admin-static.ts` | 103 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/authorize-guard.ts` | 90 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/dev-auth.ts` | 877 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/local-admin-request.ts` | 28 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/publish-trust-auth.ts` | 473 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |
+| `apps/website/src/server/inbound/admin-http/sea-runtime.ts` | 41 | K1 host port: Express auth/session/static helper the host turns into JsonRoutePorts (stays as composition) |

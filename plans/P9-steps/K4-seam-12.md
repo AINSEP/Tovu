@@ -6,4 +6,4 @@ Types only. The Tovu file keeps every value and its policy; it imports the moved
 |---|---|---|---|---|
 | `apps/website/src/platform/site-dir/index.ts` | SitesWorkspace, CreateSitePort, CreateSiteResult, SiteCreationAllocation, SiteBinding | 4 | 153 | `packages/core/src/contracts/site/platform-site-dir.ts` (export `./contracts/site/platform-site-dir`) |
 
-Rename product names at move (`TovuPublishPorts` → `PublishPorts`, …) and add a P9-BREAKS row only if the name is persisted. Mutation: type-only → `pnpm typecheck` must fail when one moved field is renamed in core, then revert. Est 123 min (J), T about 98 min.
+If a type references a third-party type (kysely, express, react, drizzle), it cannot enter core (core has no dependencies): each Jini-bound user then declares the structural slice it reads beside itself (K4db rule) and the target is dropped from this step. Rename product names at move (`TovuPublishPorts` → `PublishPorts`, …) and add a P9-BREAKS row only if the name is persisted. Mutation: type-only → `pnpm typecheck` must fail when one moved field is renamed in core, then revert. Est 123 min (J), T about 98 min.
