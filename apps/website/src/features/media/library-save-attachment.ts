@@ -4,7 +4,7 @@ import { requireInputRecord, requireString, ToolInputError, type ToolRegistratio
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { MAX_DOCUMENT_BYTES, MediaValidationError, uploadMedia, documentContentType, documentDisplayFilename, type MediaToolDeps, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';
 import { refuseUnexpectedKeys } from '../../contracts/core/human-confirm.js';
-import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/site/media';
 import { resolveChatAttachmentBytes, type ChatAttachmentLookup } from './promote-chat-attachment.js';
 
 /** Host adapter shared by attachment, generated-text and file-copy saves; callers authorize media.upload.
