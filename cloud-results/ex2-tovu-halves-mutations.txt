@@ -1,0 +1,13 @@
+# ex2-tovu-halves mutations (raw)
+
+## M1 (K4-i18n-common.T): delete es 'Save: "Guardar",' in linked Jini packages/admin/dist/core/i18n-common-base.js (= src/core/i18n-common-base.ts es.Save)
+     × ships the exact same key set across every locale block 8ms
+     × falls back to COMMON_I18N when the feature dictionary has no entry for the key 1ms
+     × keeps the product-named notice out of the package and in this app 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > COMMON_I18N: cross-locale key parity > ships the exact same key set across every locale block
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > createDictionaryTranslator > falls back to COMMON_I18N when the feature dictionary has no entry for the key
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > COMMON_I18N: composition over ADMIN_COMMON_I18N > keeps the product-named notice out of the package and in this app
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 20 passed (23)
+restored by byte copy; cmp identical
