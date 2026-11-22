@@ -459,10 +459,8 @@ function docPageNote({ hasDocContent, html }: { hasDocContent: boolean; html: st
   return hasDocContent
     ? {
         note: html
-          ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
-            "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
-          : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
-            "replaces that rich-text body; the previous body is kept in the page's revision history.",
+          ? "This rich-text (doc) page is shown here as HTML. Keep rich text for routine edits and reserve conversion for an explicit format change."
+          : "This page is a rich-text (doc) page with content. Keep rich text for routine edits and reserve conversion for an explicit format change.",
       }
     : {};
 }

@@ -19,11 +19,13 @@ import { type Translate } from "@jini-ai/core/text";
 export function PostVersionConflictBanner({
   saveConflict,
   onSaveAnyway,
+  onLoadLatest,
   onDismiss,
   t,
 }: {
   saveConflict: PostSaveConflict;
   onSaveAnyway: () => void;
+  onLoadLatest: () => void;
   onDismiss: () => void;
   t: Translate;
 }) {
@@ -36,6 +38,8 @@ export function PostVersionConflictBanner({
       })}
     >
       <p>{postVersionConflictMessage(saveConflict)}</p>
+      <p>{t("Loading the latest version discards your unsaved edits.")}</p>
+      <button type="button" className="btn-secondary" onClick={onLoadLatest}>{t("Load latest")}</button>
       <button
         type="button"
         className="btn-secondary"
@@ -45,7 +49,7 @@ export function PostVersionConflictBanner({
           label: "Save these changes anyway, replacing the version the other operator saved",
         })}
       >
-        {t("Save anyway")}
+        {t("Replace their version")}
       </button>
       <button
         type="button"

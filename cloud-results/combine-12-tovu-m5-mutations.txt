@@ -1,0 +1,16 @@
+### MUTATION m5-homepage-switch in content/agent-plugin-overlays/site-import/GUIDANCE.md
+@@ -43 +43 @@ read only `host/content-mapping.md` § Local-folder sources; do not run the publ
+-| Homepage check | Preview draft home by entry ID. Check `/` only after the agreed switch. `fetch_published_page` checks the local copy; `fetch_live_url` only reads THIS site's own published copy |
++| Homepage check | Preview draft home by entry ID. Check `/` after publishing. `fetch_published_page` checks the local copy; `fetch_live_url` only reads THIS site's own published copy |
+content/agent-plugin-overlays/site-import/__tests__/site-import-overlay.test.mjs pass=6 fail=1 rc=1 secs=0
+✖ the final / check names the published and live readers (7.659884ms)
+✖ the final / check names the published and live readers (7.659884ms)
+restored content/agent-plugin-overlays/site-import/GUIDANCE.md
+### MUTATION m5-forms-pointer in apps/website/src/contracts/core/page-html.ts
+@@ -15 +15 @@ const EMBED_TYPE_NOTES: Readonly<Record<string, string>> = {
+-  form: "a live form from the site's forms system, listed by forms_list_definitions — reuse or create a native form with supported fields",
++  form: "a live form from the site's forms system, — reuse or create a native form with supported fields",
+apps/website/src/features/pages/__tests__/tool-registrations.test.ts pass=52 fail=1 rc=1 secs=3
+✖ pages_write_html and pages_write_region name every embed marker type the resolvers support (3.453939ms)
+✖ pages_write_html and pages_write_region name every embed marker type the resolvers support (3.453939ms)
+restored apps/website/src/contracts/core/page-html.ts

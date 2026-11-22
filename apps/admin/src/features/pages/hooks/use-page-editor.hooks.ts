@@ -544,9 +544,8 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
   const invalidate = useInvalidate();
   const fetchInitial = useCallback(async () => {
     // Loaded together: an empty template picker must not flash while presentation lags the page.
-    try { return await Promise.all([pageLoader.load(), port.getPresentation()]); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : t({ locale, key: "failed to load page" })); }
-  }, [port, pageLoader, routeSlug, locale]);
+    return Promise.all([pageLoader.load(), port.getPresentation()]);
+  }, [port, pageLoader, routeSlug]);
   const initialKey = useMemo(() => ["pages", "editor", routeSlug] as const, [routeSlug]);
   const initial = useCachedLoader({ key: initialKey, fetch: fetchInitial }, { staleTime: 0 });
   const hydratedRoute = useRef<string | null>(null);
@@ -594,6 +593,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
   // Posts, which open on "edit").
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveSettlement, setSaveSettlement] = useState(0);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // The "Nothing changed. Save anyway?" warning (owner, 2026-10-10) — see `unchangedSaveHandlers`.
   const [confirmingUnchangedSave, setConfirmingUnchangedSave] = useState(false);
@@ -647,8 +647,8 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
         const canonicalPath = canonicalPageRedirect({ post, routeSlug });
         if (canonicalPath) navigate(canonicalPath, { replace: true });
       })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : t({ locale, key: "failed to load page" }));
+      .catch(() => {
+        if (!cancelled) setError(t({ locale, key: "failed to load page" }));
       });
     return () => {
       cancelled = true;
@@ -844,7 +844,10 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
         // briefly re-enable Save/Publish while a newer call is still in flight.
-        if (settlement.isCurrent({ generation })) setSaving(false);
+        if (settlement.isCurrent({ generation })) {
+          setSaving(false);
+          setSaveSettlement(counter => counter + 1);
+        }
       }
     },
     [html, title, slug, status, templateChoice, locale, port, navigate, t, settlement, autosave.clearStandingDraft, autosave.preserveFailedSave]
@@ -959,6 +962,8 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
   // ref on every check, so listing `dirty`/`saving`/`page` in a dependency array here is unnecessary.
   // `isDirty` is wider than `dirty` on the Interactive tab — see `pageRefreshMayHaveUnsavedEdits`.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
+    routeIdentity: routeSlug,
+    saveSettlement,
     loaded: page,
     fetchLatest: ({ id }, _options = {}) => readPage(id).then(({ post }) => post),
     isDirty: () => pageRefreshMayHaveUnsavedEdits({ dirty, view }),

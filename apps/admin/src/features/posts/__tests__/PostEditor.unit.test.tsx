@@ -383,7 +383,9 @@ describe("Post load — error and loading states", () => {
 
     render(<PostEditor postId="p1" />);
 
-    expect(await screen.findByText("network down")).toBeInTheDocument();
+    // A network failure reads as plain words; the shared failure notice carries the details.
+    expect(await screen.findByText("This post didn't finish loading. Reload the page; nothing was changed.")).toBeInTheDocument();
+    expect(screen.queryByText("network down")).not.toBeInTheDocument();
     expect(screen.queryByText(/loading editor/i)).not.toBeInTheDocument();
   });
 
@@ -938,8 +940,10 @@ describe("Template picker", () => {
     await user.selectOptions(templateSelect(), "");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2));
     const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body));
+    // A later call is the version recheck after the Save settles (tv-bugs3b B2): a read, never a second write.
+    for (const [, init] of fetchMock.mock.calls.slice(2)) expect((init as RequestInit | undefined)?.method ?? "GET").toBe("GET");
     expect(body.templateChoice).toBe("");
     expect(body.templateChoice).not.toBeNull();
   });
@@ -1070,7 +1074,7 @@ describe("Recovery and version-conflict banners", () => {
     const user = userEvent.setup();
     const { ctrl } = renderPostEditor({ saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } });
     expect(screen.getByText(/someone else saved/i)).toHaveTextContent(/version 2/i);
-    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    await user.click(screen.getByRole("button", { name: "Replace their version" }));
     expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
     expect(ctrl.dismissSaveConflict).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Keep editing" }));

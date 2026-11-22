@@ -2185,6 +2185,116 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     };
   }
 
+  it.each(["clean", "dirty", "interactive"])("focus checks the version without an assistant bus event: %s", async mode => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.page, "the initial page is loaded").not.toBeNull());
+    const basis = result.current.page?.version;
+    if (mode === "dirty") act(() => result.current.setHtml("<p>Typed text</p>"));
+    if (mode === "interactive") {
+      act(() => result.current.setView("interactive"));
+      result.current.interactiveEditorRef.current = { flush: vi.fn(async () => "<p>Buffered canvas text</p>") };
+    }
+    deps.port.simulateExternalWrite({ patch: { title: "Assistant title", bodyHtml: "<p>Assistant body</p>" } });
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(mode === "clean" ? result.current.page?.version : result.current.pendingExternalVersion, "focus discovers the outside version").toBe(deps.port.current.version));
+    expect(result.current.title, "only the clean copy adopts the new title").toBe(mode === "clean" ? "Assistant title" : HTML_PAGE.title);
+    expect(result.current.html, "dirty or buffered canvas text is not replaced").toBe(mode === "clean" ? "<p>Assistant body</p>" : mode === "dirty" ? "<p>Typed text</p>" : HTML_PAGE.bodyHtml);
+    if (mode !== "clean") expect(result.current.page?.version, "local edits keep their original saved basis").toBe(basis);
+  });
+
+  it.each([false, true])("a refresh ignored during Save is checked once after settlement, conflict=%s", async conflict => {
+    const deps = refreshDeps();
+    deps.port = createFakePageEditorPort({ page: DOC_PAGE });
+    const { result } = renderHook(() => usePageEditor({ routeSlug: DOC_PAGE.slug, deps }));
+    await waitFor(() => expect(result.current.page, "the document page is loaded").not.toBeNull());
+    act(() => result.current.setTitle("Operator title"));
+    let finishSave!: () => void;
+    const gate = new Promise<void>(resolve => { finishSave = resolve; });
+    const update = deps.port.updatePost;
+    let saveHeld = false;
+    deps.port.updatePost = async input => {
+      if (conflict) { saveHeld = true; await gate; return update(input); }
+      const saved = await update(input);
+      saveHeld = true;
+      await gate;
+      return saved;
+    };
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.save(); });
+    await waitFor(() => expect(saveHeld, "the write reaches its separate Save gate before the outside write").toBe(true));
+    expect(result.current.saving, "Save remains in flight during the first refresh read").toBe(true);
+    deps.port.simulateExternalWrite({ patch: { title: "Assistant title" } });
+    const fresh = deps.port.current;
+    let finishRead!: (value: { post: typeof fresh }) => void;
+    const read = new Promise<{ post: typeof fresh }>(resolve => { finishRead = resolve; });
+    const get = vi.spyOn(deps.port, "getPage").mockReturnValueOnce(read);
+    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    await act(async () => { finishRead({ post: fresh }); await read; });
+    expect(get, "the check settles once during Save").toHaveBeenCalledTimes(1);
+    await act(async () => { finishSave(); await saving; });
+    await waitFor(() => expect(get, "Save settlement schedules exactly one fresh read").toHaveBeenCalledTimes(2));
+    expect(get.mock.calls[1]?.[0], "the new read uses the saved row ID").toEqual({ routeSlug: DOC_PAGE.id });
+    await waitFor(() => expect(conflict ? result.current.pendingExternalVersion : result.current.page?.version, "the settled editor observes the stored write").toBe(fresh.version));
+    expect(result.current.title, "a conflict preserves typed text").toBe(conflict ? "Operator title" : "Assistant title");
+    if (conflict) {
+      await act(async () => { await result.current.save(); });
+      expect(deps.port.updatePostCalls.map(patch => patch.expectedVersion), "repeated Save keeps the original basis").toEqual([DOC_PAGE.version, DOC_PAGE.version]);
+      expect(deps.port.current.title, "the assistant write remains stored").toBe("Assistant title");
+    }
+  });
+
+  it("stale Save Load latest preserves a failed reload, then discards the draft and ignores an old autosave refusal", async () => {
+    const deps = refreshDeps();
+    deps.port = createFakePageEditorPort({ page: HTML_PAGE, autosave: { bodyFormat: "html", bodyHtml: "<p>Standing draft</p>",
+      title: "Standing title", slug: "landing", baseVersion: HTML_PAGE.version, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" } });
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.recoverableDraft, "the standing draft is available").not.toBeNull());
+    let refuse!: (value: { applied: boolean }) => void;
+    const oldAutosave = new Promise<{ applied: boolean }>(resolve => { refuse = resolve; });
+    const put = vi.spyOn(deps.port, "putAutosave").mockReturnValueOnce(oldAutosave);
+    vi.useFakeTimers();
+    try {
+      act(() => result.current.setHtml("<p>Typed work</p>"));
+      await act(async () => { await vi.advanceTimersByTimeAsync(3001); });
+      expect(put, "the old-basis autosave is in flight").toHaveBeenCalledTimes(1);
+      deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>Assistant body</p>" } });
+      await act(async () => { await result.current.save("published"); });
+      expect(result.current.saveConflict, "the stale Save offers recovery").not.toBeNull();
+      const draft = result.current.recoverableDraft;
+      const read = vi.spyOn(deps.port, "getPage").mockRejectedValueOnce(new Error("reload failed"));
+      await act(async () => { await result.current.loadExternalChange(); });
+      expect(result.current.html, "failed reload retains typed work").toBe("<p>Typed work</p>");
+      expect(result.current.recoverableDraft, "failed reload retains the standing draft").toEqual(draft);
+      expect(result.current.saveConflict, "failed reload leaves the stale Save choice available").not.toBeNull();
+      expect(deps.port.discardAutosaveCalled, "failed reload does not discard saved recovery work").toBe(false);
+      read.mockRestore();
+      await act(async () => { await result.current.loadExternalChange(); });
+      expect(result.current.html, "successful reload adopts the latest body").toBe("<p>Assistant body</p>");
+      expect(result.current.saveConflict, "successful reload clears the conflict").toBeNull();
+      expect(result.current.recoverableDraft, "successful reload discards the old standing draft").toBeNull();
+      expect(deps.port.discardAutosaveCalled, "the server discard waits behind the in-flight old autosave").toBe(false);
+      await act(async () => { refuse({ applied: false }); await oldAutosave; });
+      expect(deps.port.discardAutosaveCalled, "the stored draft is discarded once that autosave settles").toBe(true);
+      expect(result.current.autosaveStaleBasis, "an old refusal cannot pause the new basis").toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each([undefined, "published"] satisfies Array<"published" | undefined>)("deliberate Page replacement retains intent %s", async attemptedStatus => {
+    const deps = refreshDeps();
+    deps.port = createFakePageEditorPort({ page: { ...HTML_PAGE, status: "draft" } });
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.page, "the Page basis has loaded").not.toBeNull());
+    act(() => result.current.setHtml("<p>Operator body</p>"));
+    deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>Assistant body</p>" } });
+    await act(async () => { await result.current.save(attemptedStatus); });
+    const freshVersion = deps.port.current.version;
+    await act(async () => { await result.current.saveOverwritingConflict(); });
+    expect(deps.port.updatePostCalls.at(-1), "replacement sends the re-read basis and original intent").toMatchObject({ expectedVersion: freshVersion, status: attemptedStatus ?? "draft" });
+    expect(deps.port.current.bodyHtml, "deliberate replacement persists the operator's body").toBe("<p>Operator body</p>");
+    expect(result.current.saveConflict, "successful replacement clears the stale choice").toBeNull();
+  });
+
   it("clean editor: an assistant write replaces the working copy and preview baseline without a reload", async () => {
     const deps = refreshDeps();
     const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
@@ -2485,14 +2595,24 @@ describe("page editor recovery and failure outcomes", () => {
     };
   }
 
-  it.each([new Error("page unavailable"), "transport failed"])("reports an initial load failure without hydrating a page: %s", async failure => {
+  it.each([new Error("private transport canary"), "transport failed"])("reports an initial load failure without hydrating a page: %s", async failure => {
     const deps = editorDeps();
     deps.port.getPage = async () => { throw failure; };
     const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
-    await waitFor(() => expect(result.current.error).toBe(failure instanceof Error ? failure.message : "en:failed to load page"));
-    expect(result.current.page).toBeNull();
-    expect(result.current.title).toBe("");
-    expect(deps.navigate).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.error, "initial load failures use translated public copy").toBe("en:failed to load page"));
+    expect(result.current.error, "private transport details stay out of the banner").not.toContain("private transport canary");
+    expect(result.current.page, "a failed load does not hydrate a page").toBeNull();
+    expect(result.current.title, "a failed load leaves the title empty").toBe("");
+    expect(deps.navigate, "a failed load does not redirect").not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected presentation read with translated initial load copy", async () => {
+    const deps = editorDeps();
+    deps.port.getPresentation = async () => { throw new Error("private transport canary"); };
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.error, "presentation failures use translated public copy").toBe("en:failed to load page"));
+    expect(result.current.error, "presentation failures do not expose the canary").not.toContain("private transport canary");
+    expect(result.current.page, "presentation failure does not hydrate a partial page").toBeNull();
   });
 
   it("keeps pending edits when the locale changes after hydration", async () => {

@@ -1,0 +1,82 @@
+HEAD 311d26dfa6	6d92cf1ad1
+size exit=1	exit=1
+boundaries exit=0	exit=0
+admin-tsc exit=0	exit=0
+desktop-tsc-preload exit=0	exit=0
+desktop-tsc-live-verify exit=0	exit=0
+desktop-tsc-renderer exit=0	exit=0
+desktop-tsc-main exit=0	exit=0
+typecheck exit=0	exit=0
+errors exit=0	exit=0
+worker-import-graph exit=0	exit=0
+complexity exit=1	exit=0
+hooks exit=0	exit=0
+typecheck-scripts exit=2	exit=2
+why-comments exit=1	exit=1
+typecheck-tests exit=0	exit=0
+architecture exit=1	exit=1
+DONE	DONE
+== size
+6a7,11
+> Worsened violation: apps/admin/src/features/pages/PageEditor.tsx:714 <file> [max-lines] 1015 (baseline 1002)
+> Worsened violation: apps/admin/src/features/pages/PageEditor.tsx:735 PageEditor#1 [max-lines-per-function] 221 (baseline 220)
+> Worsened violation: apps/admin/src/features/pages/PageEditor.tsx:994 PageEditorPane#1 [max-lines-per-function] 128 (baseline 125)
+> Worsened violation: apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:515 usePageEditor#1 [max-lines-per-function] 384 (baseline 380)
+> Worsened violation: apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:420 usePostEditor#1 [max-lines-per-function] 410 (baseline 400)
+9d13
+< Worsened violation: apps/website/src/features/site-backup/backup-service.ts:738 <file> [max-lines] 547 (baseline 535)
+== complexity
+1,3c1
+< New violation: apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts:24 useCopyKeys#1 [complexity] 11
+< New violation: apps/website/src/features/site-backup/backup-service.ts:681 pushPlannedBackup#1 [complexity] 11
+< New violation: apps/website/src/server/runtime/composition/plugin-activation-polling.ts:46 reconcilePluginActivationsOnce#1 [complexity] 13
+---
+> check:complexity — ok: 0 entries (0 cyclomatic, 0 cognitive).
+== architecture
+1,4c1,4
+< check:architecture — 2292 files, 73 modules, production files only
+<   cross-feature import edges (all-import)              318
+<   propagation cost (all-import)                        12.39%
+<   propagation cost (runtime-only)                      3.26%
+---
+> check:architecture — 2293 files, 73 modules, production files only
+>   cross-feature import edges (all-import)              319
+>   propagation cost (all-import)                        12.40%
+>   propagation cost (runtime-only)                      3.27%
+10,11c10,11
+<     └ deep-import edges (informational)                2862
+<   bidirectional hub count                              13.74% (315/2292)
+---
+>     └ deep-import edges (informational)                2863
+>   bidirectional hub count                              13.74% (315/2293)
+55a56
+>   NEW cross-feature edge: apps/website/src/features/site-backup/push-content.ts -> apps/website/src/features/source-control/provider-module.ts
+72,73c73,74
+<   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.26
+<   propagation cost (all-import) improved: 15.52 → 12.39
+---
+>   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.27
+>   propagation cost (all-import) improved: 15.52 → 12.4
+79,80c80,81
+<   regressed: propagation cost (runtime-only)     3.06 → 3.26  (+0.2 pts, +6.54%)
+<   improved:  propagation cost (all-import)       15.52 → 12.39  (-3.13 pts, -20.17%)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.27  (+0.21 pts, +6.86%)
+>   improved:  propagation cost (all-import)       15.52 → 12.40  (-3.12 pts, -20.1%)
+== boundaries
+119a120,122
+>   warn no-circular: apps/website/src/features/site-backup/backup-service.ts → 
+>       apps/website/src/features/site-backup/push-content.ts →
+>       apps/website/src/features/site-backup/backup-service.ts
+== errors
+1c1,5
+< Error gate passed: 590 findings in 326 file/rule entries.
+---
+> New: [catch-reads-error] apps/website/src/features/agent-plugins/bundled-id-upgrade.ts (5)
+> New: [catch-reads-error] apps/website/src/features/agent-plugins/lifecycle.ts (1)
+> Worse: [catch-reads-error] apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts (2 -> 3)
+> 7 entries improved or are gone: run with --update to lower the debt list.
+> Error gate (WARN mode): 3 new or worse entries. Not failing the build yet; fix them or use a named idiom.
+== worker-import-graph
+ℹ pass 26
+ℹ fail 0

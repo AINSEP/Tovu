@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, render, within } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -177,6 +177,21 @@ async function handlesOf(driver: ReturnType<typeof createDomPageDriver>) {
 }
 
 describe("driving the post editor's Editor/Preview tabs and expand toggle through page.* verbs", () => {
+  it("stale Save offers Load latest and Replace their version", () => {
+    const { ctrl, container } = renderPostEditor({ saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: "published" },
+      pendingExternalVersion: 2, autosaveStaleBasis: { baseVersion: 1, draft: { bodyFormat: "doc", bodyJson: POST.bodyJson, title: POST.title, slug: POST.slug, baseVersion: 1 } } });
+    const pane = within(container);
+    expect(pane.getByText("Loading the latest version discards your unsaved edits."), "the Post choice explains discarded edits").toBeInTheDocument();
+    expect(pane.getAllByRole("button", { name: "Load latest" }), "only the stale Save choice offers reload").toHaveLength(1);
+    fireEvent.click(pane.getByRole("button", { name: "Load latest" }));
+    expect(ctrl.loadExternalChange, "Post reload uses the existing handler").toHaveBeenCalledTimes(1);
+    fireEvent.click(pane.getByRole("button", { name: "Replace their version" }));
+    expect(ctrl.saveOverwritingConflict, "the existing overwrite action stays wired").toHaveBeenCalledTimes(1);
+    fireEvent.click(pane.getByRole("button", { name: "Keep editing" }));
+    expect(ctrl.dismissSaveConflict, "Keep editing dismisses the stale Save choice").toHaveBeenCalledTimes(1);
+    expect(ctrl.dismissExternalChange, "Keep editing also dismisses the duplicate outside-change choice").toHaveBeenCalledTimes(1);
+  });
+
   it("reports post-view-edit and post-view-preview — the exact gap the plan names, closed", async () => {
     const { container } = renderPostEditor({ view: "edit" });
     const driver = createDomPageDriver({ root: container, pages: {} });

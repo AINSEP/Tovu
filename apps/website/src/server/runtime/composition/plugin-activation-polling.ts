@@ -57,6 +57,13 @@ export async function reconcilePluginActivationsOnce(
     await attachActivatedPlugin({ deps, attachedIds, failures, pluginId, version: activeVersion });
   }
 
+  removeDisabledActivations({ deps, enabledVersions, attachedIds, failures });
+}
+
+function removeDisabledActivations(
+  { deps, enabledVersions, attachedIds, failures }: { deps: PluginActivationPollDeps; enabledVersions: Map<string, string>; attachedIds: Set<string>; failures: Map<string, PluginAttachFailure> },
+  _optional = {}
+): void {
   for (const pluginId of failures.keys()) if (!enabledVersions.has(pluginId)) failures.delete(pluginId);
   for (const pluginId of attachedIds) {
     if (enabledVersions.has(pluginId)) continue;

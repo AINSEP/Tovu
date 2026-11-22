@@ -1,4 +1,5 @@
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
+import { afterSettled } from "@jini-ai/core/errors/idioms";
 import type { SetValueRequired, SettingsRepoPort } from "@jini-ai/core/settings";
 import {
   BUILTIN_SEARCH_PROVIDER_ID, createSearchIndexer, createSearchProviderRegistry, createSearchService, searchIndexName,
@@ -233,7 +234,7 @@ export function createSiteSearchRuntime(required: SiteSearchPorts, optional: Sit
   const ready = (async () => {
     // `ready` must never reject (every consumer awaits it). The settings chain reports its own
     // failure; plugin providers still load after it, whichever way it settled.
-    await Promise.resolve(settingsReady).catch(() => undefined);
+    await afterSettled({ promise: Promise.resolve(settingsReady) });
     try {
       const { refusals } = contributeProviders({ registry, loaded: withoutReservedIds(await required.loadPluginProviders()) });
       for (const refusal of refusals) log(`[site-search] ${refusal}`);

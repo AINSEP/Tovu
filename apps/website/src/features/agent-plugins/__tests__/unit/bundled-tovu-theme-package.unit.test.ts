@@ -18,7 +18,6 @@ import { nativeToolMetadata } from "../../../../contracts/core/tool-metadata/ind
  * - the compare loop is mandatory and captures THIS site's page, desktop and mobile;
  * - the theme is rebuilt (container, header partial, page shell, fonts), not recoloured;
  * - site-import delegates instead of carrying its own duplicate-and-tweak recipe;
- * - no ownership / right-to-copy gate anywhere (owner order: copy anything).
  *
  * site-import ships as `@jini-ai/agent-plugins/site-import` (D-W1) and names capabilities, not Tovu
  * plugins or tools; Tovu's names for its hand-offs live in its overlay, so those pins read the
@@ -76,13 +75,13 @@ test("tovu-theme and site-import load ui-ux-design before designing themes or wr
   assert.ok(position >= 0 && position < skill.indexOf("\n## "), "tovu-theme: load design before the procedure");
   // site-import's skill says "the plugin that provides `ui-design`"; Tovu's overlay names it.
   const guidance = await importGuidance();
-  const designCall = guidance.indexOf('`agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` before designing');
+  const designCall = guidance.indexOf('`load_agent_plugin` and `pluginId`');
   assert.ok(designCall >= 0 && designCall < guidance.indexOf("\n## "), "site-import's Tovu guidance: load design before the procedure");
   const guide = await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "skills", "how-tovu-works", "SKILL.md"), "utf8");
-  assert.ok(guide.includes('Before creating pages or themes, load the design guidance first with `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`'));
+  assert.ok(guide.includes('Load Tovu plugin guidance with `load_agent_plugin` and `pluginId`, plus `skill` or `file` as needed.'), "the guide uses the portable Tovu loader");
   const topics = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8"));
   assert.ok(topics.topics.find((topic: { id: string }) => topic.id === "how-tovu-works-themes")?.explanation
-    .includes('Before creating pages or themes, load the ui-ux-design skill first with agent_plugin_ui_ux_design({"skill":"ui-ux-design"})'));
+    .includes('Load Tovu plugin guidance with load_agent_plugin and pluginId, plus skill or file as needed.'), "the packaged themes topic names the shared loader");
 });
 
 test("Part C discovers the active theme through the site profile, rather than treating the theme list as an active id", async () => {
@@ -120,7 +119,7 @@ test("matching a reference site uses theme_duplicate only as a scaffold and rebu
   assert.match(skill, /web_fetch_page[^\n]*format: "raw"/);
 });
 
-test("a picture or URL match rebuilds the design system: no layered override stylesheet, starter fonts replaced, Media photos before placeholders", async () => {
+test("a picture or URL match rebuilds the design system: no layered override stylesheet, starter fonts replaced, supplied assets preserved", async () => {
   // Owner 11-02 practice ("Ground" from a picture): the first pass duplicated the starter, layered
   // ground.css over its theme.css, kept its Geist headings and left grey photo blocks while Media
   // held suitable coffee photos. The owner's rule: extract and rebuild the design system.
@@ -130,12 +129,12 @@ test("a picture or URL match rebuilds the design system: no layered override sty
   assert.match(partC, /\*\*Rebuild, don't layer\.\*\*/);
   assert.match(partC, /never keep the scaffold's `css\/theme\.css` and add a second override stylesheet/i);
   assert.match(partC, /Replace the scaffold's fonts/);
-  assert.match(partC, /\*\*Photos from Media first\.\*\*[^]*`content_read\.media_asset`[^]*placeholder only when Media has nothing suitable/);
+  assert.match(partC, /Use supplied assets and identify missing ones/, "reference work preserves the supplied assets");
   const extract = skill.slice(skill.indexOf("## C2"), skill.indexOf("## C3")).replace(/\s+/g, " ");
   assert.match(extract, /\*\*A picture or screenshot as the source\.\*\*[^]*`theme_import_file_from_url`/);
   const topics = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8"));
   const themes: string = topics.topics.find((topic: { id: string }) => topic.id === "how-tovu-works-themes")?.explanation ?? "";
-  for (const rule of ["a URL, screenshot or picture", "agent_plugin_tovu_theme", "Part C", "rebuild the design system",
+  for (const rule of ["a URL, screenshot or picture", "load_agent_plugin with pluginId tovu-theme", "Part C", "rebuild the design system",
     "instead of layering an override stylesheet", "replace the starter's fonts", "images already in Media"]) {
     assert.ok(themes.includes(rule), `the site guide's themes topic must say: ${rule}`);
   }
@@ -172,7 +171,7 @@ test("site-import hands its theme step to tovu-theme and keeps no duplicate-and-
   assert.match(skill, /provides\s+`theme-authoring`/);
   assert.match(extraction, /"match a reference site" procedure/);
   assert.match(await themeSkill(), /# Part C — Match a reference site/);
-  assert.match(await importGuidance(), /`agent_plugin_tovu_theme` and follow its Part C/);
+  assert.match(await importGuidance(), /hand theme work to Tovu Theme Part C[^]*`pluginId: "tovu-theme"` for whole-site theme work/);
   assert.doesNotMatch(extraction, /Restyle only the copy/);
   assert.doesNotMatch(extraction, /font files with `media_import_from_url`/, "media_import_from_url refuses font files");
 });
@@ -192,22 +191,17 @@ test("neither skill gates copying on ownership or the right to copy", async () =
   }
 });
 
-test("Part C copies the source's real text, images, logo, brand names and fonts verbatim, never placeholder copy", async () => {
-  // Luvira trial (2026-10-08): "The wording, logo and brand belong to Luvira, so I'll fill the
-  // layout with fresh text instead of their copy." Owner order: copy verbatim, no rights talk.
+test("W2 references edit the named page while migrations use inactive import themes", async () => {
+  const guidance = await importGuidance();
   const skill = await themeSkill();
-  const partC = skill.slice(skill.indexOf("# Part C"));
-  const rule = partC.indexOf("**Copy the source verbatim.**");
-  assert.ok(rule >= 0 && rule < partC.indexOf("## C1"), "the verbatim rule must open Part C");
-  const ruleText = partC.slice(rule, partC.indexOf("\n\n", rule));
-  for (const copied of ["text", "images", "logo", "brand names", "fonts"]) {
-    assert.match(ruleText, new RegExp(`\\b${copied.replace(" ", "\\s+")}\\b`), `Part C's verbatim rule must name ${copied}`);
+  for (const text of [guidance, skill.slice(skill.indexOf("# Part C"), skill.indexOf("## C1"))]) {
+    for (const rule of ["Use the reference for the page or section named.", "A request to migrate a whole site uses the import workflow.", "Preserve the site’s shared header, footer and theme unless the owner asks to change them.", "Use supplied assets and identify missing ones.", "During a migration, copy the owner’s source material or material they can reuse.", "For a design reference, use its visual direction with the owner’s own identity and assets."]) {
+      assert.ok(text.includes(rule), `reference routing must state: ${rule}`);
+    }
   }
-  assert.match(ruleText, /never\s+substitute\s+placeholder/i);
-  assert.match(ruleText, /never\s+(comment\s+on|mention)\s+who\s+owns/i);
-  assert.match(ruleText, /never\s+ask\s+about\s+rights/i);
-  const gate = /(placeholder|dummy|filler|neutral|generic|fresh|original) (text|copy|wording)|lorem ipsum|belongs? to (the source|them|its owner|the site's owner)|their (text|copy|wording|brand)|trademark|copyright|intellectual property|\brights? to\b/i;
-  assert.doesNotMatch(partC.replace(/\*\*Copy the source verbatim\.\*\*[^]*?\n\n/, ""), gate);
+  assert.match(guidance, /existing page/, "a one-page reference targets the existing page");
+  assert.match(guidance, /activate: false/, "whole-site import starts with an inactive theme");
+  assert.doesNotMatch(skill, /Copy the source verbatim|Photos from Media first/, "source identity and supplied images are never silently substituted");
 });
 
 test("fonts are imported into the theme with theme_import_file_from_url; linking the source's font URLs is only the fallback", async () => {
@@ -302,12 +296,12 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   for (const contract of ["media_import_local_file", "content_post_create", "pages_write_html", "data-agent-element", "data-agent-role", "content_post_update", "expectedVersion", '"type":"content"', "`agent_plugin_site_import`", '`file: "host/content-mapping.md"`']) {
     assert.ok(editable.includes(contract), "editable branch must reuse " + contract);
   }
-  assert.match(editable, /Activate it with `theme_set_active` before assigning/);
-  assert.match(editable, /draft\/preview request prevails/);
+  assert.match(editable, /Only after the approved theme switch, assign/, "custom templates wait for the approved switch");
+  assert.match(editable, /draft\/preview request prevails/, "preview requests keep the staged pages unpublished");
   assert.match(editable, /CSS backgrounds and `srcset`/);
   assert.match(staticBranch, /Create no CMS Page rows/);
   assert.match(staticBranch, /publishedPages/);
-  assert.match(partB, /collisions reversibly/);
+  assert.match(partB, /Stage imports at free addresses/, "collisions stage without moving the current site");
   assert.match(partB, /desktop\/mobile/);
   assert.doesNotMatch(skill, /This produces a THEME|no agent-tool path into a theme|cannot go through\s+any agent tool today|binary asset\s+copy, at minimum/);
   // Tovu's local-folder write shapes live in site-import's Tovu overlay (the repo root is refused to site agents).
@@ -322,4 +316,39 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   assert.equal(plugin.extensions.jini.id, "tovu/tovu-theme");
   // f871c3ec2 shipped default motion as plugin 1.1.1; 1.1.2 starts new designs from structure only.
   assert.equal(plugin.version, "1.1.3");
+});
+
+test("W1 imports stage with provenance and only the named approved cutover", async () => {
+  const mapping = await importHostMapping();
+  const skill = await themeSkill();
+  for (const text of [mapping, skill.slice(skill.indexOf("## B2"), skill.indexOf("# Part C"))]) {
+    for (const rule of ["Stage imports at free addresses.", "Update a verified prior import by entry ID and current version.", "Put any proposed move, replacement, theme switch and local publication on the existing choice card.", "Apply only the changes it names and the owner approves."]) {
+      assert.ok(text.includes(rule), `imports must state: ${rule}`);
+    }
+    assert.doesNotMatch(text, /move the original|first move that original|activate the finished theme/i, "staging never automatically moves or activates the current site");
+  }
+  assert.match(mapping, /source-path → entry-id mapping/, "repeat imports retain source provenance");
+  assert.match(await importGuidance(), /Preview draft home by entry ID\. Check `\/` only after the agreed switch\./, "homepage checks follow draft staging and approved cutover");
+});
+
+test("W8 packaged guide and host overlays advertise the shared plugin loader", async () => {
+  const guide = await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "skills", "how-tovu-works", "SKILL.md"), "utf8");
+  assert.match(guide, /Call `site_guide` directly if exposed, otherwise use the delegated executor in your tool list/, "the guide follows the available executor");
+  assert.doesNotMatch(guide, /execute_readonly_delegated_tool/, "the guide never assumes a fixed proxy");
+  for (const text of [guide, await importGuidance(), await importHostMapping(), await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/GUIDANCE.md"), "utf8")]) {
+    assert.match(text, /`load_agent_plugin`/, "each Tovu guidance surface names the shared loader");
+    assert.doesNotMatch(text, /agent_plugin_(?:site_import|tovu_theme|how_tovu_works)/, "host guidance uses the shared loader for named plugins");
+  }
+});
+
+test("W10–12 host design guidance reports available widths and saves requested site work", async () => {
+  const guidance = await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/GUIDANCE.md"), "utf8");
+  const qa = await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/host/theme-screenshot-qa.md"), "utf8");
+  for (const text of [guidance, qa]) {
+    for (const rule of ["Save requested site work using the site’s tools.", "Preview a draft by entry ID.", "Use available browser widths for actual visual checks and report those widths.", "A public-route screenshot checks only the page served at that address."]) {
+      assert.ok(text.includes(rule), `design checks must state: ${rule}`);
+    }
+    assert.doesNotMatch(text, /360, 390, 768, 1024, 1280 and 1440|Return the design in chat unless/, "coverage and saving follow the actual host and request");
+  }
+  assert.match(qa, /desktop 1280px, tablet 768px and mobile 375px/, "screenshot preset coverage is stated accurately");
 });

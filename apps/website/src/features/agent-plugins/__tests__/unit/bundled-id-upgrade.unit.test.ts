@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradePort, type InstalledRevision } from "../../bundled-id-upgrade.js";
+import { RENAMED_BUNDLED_PLUGIN_IDS, restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradePort, type InstalledRevision } from "../../bundled-id-upgrade.js";
 
 const RENAMED = new Map([["cloudflare", { from: "tovu/cloudflare", to: "jini/cloudflare" }]]);
 const REVISION: InstalledRevision = { pluginId: "cloudflare", id: "tovu/cloudflare", archiveDigest: "a".repeat(64), packageRoot: "/ws/cloudflare/package/sha256/aaa" };
@@ -50,4 +50,17 @@ test("a moved copy whose replacement did not seed is put back and reported as re
   assert.equal(restored[0]?.status, "restored");
   assert.deepEqual(renames, [[REVISION.packageRoot, savedAt], [savedAt, REVISION.packageRoot]]);
   assert.deepEqual(await restoreUnseededUpgrades({ outcomes: upgrades, seededIds: new Set(["cloudflare"]), filesystem: port.filesystem }), upgrades);
+});
+
+// Measured in combine-11 (cloud-results/combine-11-tovu-b4-plugin-id-upgrade.txt): every bundled package
+// @jini-ai/agent-plugins 0.7.2 shipped as `tovu/<id>` and 0.7.3-next.2 ships as `jini/<id>`.
+const MEASURED_RENAMES_0_7_2 = [
+  "calendly", "cloudflare", "composio", "fly", "github-pages", "github", "google-login", "google-workspace",
+  "higgsfield-media", "jev", "meilisearch", "netlify", "opentelemetry", "posthog", "railway", "render", "resend",
+  "s3-compatible", "sentry", "shopify", "site-compliance", "site-import", "supabase", "vercel", "wordpress",
+];
+
+test("the rename map covers every bundled package 0.7.2 shipped as tovu/<id>", () => {
+  const missing = MEASURED_RENAMES_0_7_2.filter(id => RENAMED_BUNDLED_PLUGIN_IDS.get(id)?.from !== `tovu/${id}` || RENAMED_BUNDLED_PLUGIN_IDS.get(id)?.to !== `jini/${id}`);
+  assert.deepEqual(missing, [], "a site holding one of these pre-rename copies would keep it and log a seed conflict on every boot");
 });

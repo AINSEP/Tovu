@@ -54,8 +54,8 @@ const EXPECTED_VERSION_SCHEMA = {
 const VERSION_CONFLICT_GUIDANCE =
   "\n\n" + ASSISTANT_CONTENT_EDIT_GUIDANCE +
   "\n\nCONCURRENCY: read with pages_read_html and pass its version as expectedVersion before " +
-  "editing it. On VERSION_CONFLICT nothing was written — re-read with pages_read_html, reapply your " +
-  "change to what you get back, and resend with the new version.";
+  "editing it. On VERSION_CONFLICT nothing was written — read again and retry only if the affected content is unchanged. " +
+  "If it changed, show the overlap and ask which edit to keep.";
 
 export const pagesAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -72,7 +72,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "pages_write_html. Pass the returned 'version' back as expectedVersion on whichever write you " +
       "make.\n\n" +
       "Without regionId, a page that has never been given HTML reads back as an empty string with no regions " +
-      "and its current version — that is a new page, not an error; author it with pages_write_html. " +
+      "and its current version. An empty HTML read can be a rich-text page. Check its format before choosing a writer. " +
       "An absent, duplicate or unclosed region is refused. Example: {slug:'/',regionId:'page-hero'}.",
     sideEffects: "none",
     authorization: { permission: "content.read" },

@@ -56,3 +56,11 @@ test('no vendor name is hard-coded in the core policy', () => {
   const csp = createPublicPageSecurityHeaderSet({ resources: { scripts: [], styles: [], fonts: [], fontPreconnects: {} } })['Content-Security-Policy-Report-Only'];
   assert.doesNotMatch(csp ?? '', /calendly/i);
 });
+
+test('W7 embeds name the exact provider, watch fallback and native form authoring', () => {
+  for (const rule of ["Use the YouTube block in rich text.", "discover an enabled embed that supports the exact provider", "use the owner’s real link and a labeled fallback", "keep the site’s consent settings", "Watch on YouTube", "Reuse or create a native form with supported fields", "An actual test submission requires authorization.", "Report notification setup separately from the ability to collect submissions."]) {
+    assert.ok(PAGE_HTML_CONTRACT.includes(rule), `page guidance must state: ${rule}`);
+  }
+  assert.doesNotMatch(PAGE_HTML_CONTRACT, /if no suitable form exists yet, say so/, "a requested form can be authored through native tools");
+  assert.match(PAGE_HTML_CONTRACT, /no sandbox loosening/, "Preview preserves its sandbox");
+});

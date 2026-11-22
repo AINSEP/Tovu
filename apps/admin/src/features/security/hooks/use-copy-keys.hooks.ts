@@ -17,6 +17,10 @@ function copyKeyRows({ source, credentialId }: { source: AdminCredentialCopySour
     text: key.siteName ? key.label : `${key.label} · ${key.provider ?? key.kind}`, worksFor: (key.worksFor ?? []).join(', '), locked: key.locked ?? '' }));
 }
 
+function copyKeyOmissions({ source }: { source: AdminCredentialCopySource | undefined }, _optional: Record<string, never> = {}) {
+  return source?.keys.flatMap(key => key.siteName && key.omittedCount !== undefined ? [{ id: key.id, siteName: key.siteName, count: key.omittedCount }] : []) ?? [];
+}
+
 /** One metadata read per open, one approval per key; a key saved on another site is added to Shared Keys first.
  * @returns The existing dialog controller with secret-free labels and outcomes.
  * @complexity O(k) time/space per open for at most 50 owner metadata rows; no background polling.
@@ -66,7 +70,7 @@ export function useCopyKeys({ t }: { t: Translate }, { port = securityApi }: { p
     empty: !loading && !source?.keys.length,
     error: error ? t(error) : '',
     keys: copyKeyRows({ source, credentialId }),
-    omissions: source?.keys.flatMap(key => key.siteName && key.omittedCount !== undefined ? [{ id: key.id, siteName: key.siteName, count: key.omittedCount }] : []) ?? [],
+    omissions: copyKeyOmissions({ source }),
     results: results.map((result, index) => ({ key: `${result.id}:${index}`,
       text: result.status === 'granted' ? t('Granted to this site') : t(GRANT_FAILED) })),
   };

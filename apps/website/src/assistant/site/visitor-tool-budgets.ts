@@ -1,6 +1,7 @@
 import { visitorToolBudgetId } from '../../contracts/site-assistant/visitor-tools.js';
 /** Per-process visitor budgets. HTTP-kit owns counting/expiry; this adapter owns Tovu's two scopes. */
 import type { Clock } from "@jini-ai/core/primitives";
+import { afterSettled } from "@jini-ai/core/errors/idioms";
 import { createMemoryCounterStore, type CounterStore } from "@jini-ai/http-kit/rate-limit";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import type { VisitorToolLimits } from "../../contracts/site-assistant/visitor-tools.js";
@@ -49,7 +50,7 @@ export function createVisitorToolBudgets({ clock }: { clock: Clock }, _options =
     charge(target, _optional = {}) {
       const result = pending.then(() => consume(target));
       // The caller receives result; this recovery only keeps the budget queue usable.
-      pending = result.catch(() => undefined);
+      pending = afterSettled({ promise: result });
       return result;
     },
   };

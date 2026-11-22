@@ -1,0 +1,8 @@
+### MUTATION B1-drop-option in apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts
+@@ -286 +286 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps,
+-      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE });
++      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) });
+apps/website/src/server/__tests__/assistant-ag-ui-wire.golden.test.ts pass=11 fail=1 rc=1 secs=9
+✖ a dropped daemon stream closes partial text and reports a private interruption message (3667.639405ms)
+✖ a dropped daemon stream closes partial text and reports a private interruption message (3667.639405ms)
+restored apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts

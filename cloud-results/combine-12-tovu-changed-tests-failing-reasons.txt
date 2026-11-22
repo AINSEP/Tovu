@@ -1,0 +1,50 @@
+=== apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts
+✖ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (547.448108ms)
+✖ explicit loader and guarded write refuse ask through the real executor (28.231198ms)
+=== apps/website/src/assistant/__tests__/moved-tools.golden.test.ts
+✖ moved tools, cards, approvals and counters match the golden recorded before any move (473.515933ms)
+=== apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+✖ runServeCommand's body passes the resolved host into app.listen(port, host) (7.069344ms)
+✖ the BR-07 shutdown uses the shared bounded store close with the composition and boot work (9.728066ms)
+=== apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts
+✖ /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts (42.23967ms)
+✖ T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result (40.976906ms)
+✖ T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones (43.592016ms)
+✖ T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout (44.96394ms)
+✖ a Postgres site copy preserves publish backstop audit rows and their undo inverses (48.782323ms)
+✖ a count mismatch or rejected replacement preserves the earlier rows and marker (45.458471ms)
+✖ a re-copy replaces the site's own copy and never appends (44.349169ms)
+✖ a row Postgres rejects rolls the whole copy back and names only the table (47.565094ms)
+✖ a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead (47.560923ms)
+✖ a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied (39.524907ms)
+✖ an unconfirmed first-copy plan cannot overwrite a copy created since planning (49.297782ms)
+✖ cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction (50.026629ms)
+✖ the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys (556.122867ms)
+✖ two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up (39.771126ms)
+=== apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts
+✖ the default launcher resolves the host Playwright module and captures through its structural adapter (72.270334ms)
+=== apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+✖ PUT /pages/:id/html on a trashed page answers the 409 entity-not-live envelope, not a 500 (7.931219ms)
+=== apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts
+✖ L244 authoring: absent or ignored patch preserves the definition: null (164.49678ms)
+✖ L244 authoring: absent or ignored patch preserves the definition: undefined (227.491651ms)
+✖ L244 authoring: absent or ignored patch preserves the definition: {"name":7,"fields":{},"ignored":true} (152.476706ms)
+✖ L244 authoring: absent or ignored patch preserves the definition: {} (193.323847ms)
+=== apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-backups.integration.test.ts
+✖ site-backup routes gate, map errors and run the shared plan/push service (128.875613ms)
+=== apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts
+✖ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted (67.956707ms)
+✖ imports the shared tool policy resolver from assistant-system-overlay.ts (5.632317ms)
+=== apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts
+✖ BYOK attachment refusals stay 400 while preparation faults become redacted incidents (73.183356ms)
+✖ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory (18.529876ms)
+=== apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (3745.90595ms)
+=== apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts
+✖ real bundled resend and SMTP composition retain requests, ordered ledger, policy, identity, status, rotation, cards and counters (85.946456ms)
+=== apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts
+✖ the default SMTP transport and console log are used when none is injected (51.65693ms)
+=== apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts
+✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2082.598985ms)
+=== development/scripts/__tests__/site-plugin-directories.test.mjs
+✖ development/scripts/__tests__/site-plugin-directories.test.mjs (5526.875376ms)

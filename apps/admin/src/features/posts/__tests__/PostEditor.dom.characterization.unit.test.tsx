@@ -484,7 +484,9 @@ describe("PostEditor — DOM order of the regions", () => {
       },
     }));
     const handles = Array.from(container.querySelectorAll('.notice[data-agent-element]')).map((el) => el.getAttribute("data-agent-element"));
-    expect(handles).toEqual(["post-autosave-recovery", "post-autosave-stale", "post-version-conflict"]);
+    // A save conflict hides the stale-basis notice: the conflict banner's Load latest / Replace their
+    // version is the one choice left (tv-bugs3b B2).
+    expect(handles).toEqual(["post-autosave-recovery", "post-version-conflict"]);
   });
 });
 

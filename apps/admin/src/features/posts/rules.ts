@@ -141,7 +141,7 @@ export function postVersionConflictMessage(conflict: PostSaveConflict): string {
   const current = conflict.currentVersion === null ? "a newer version" : `version ${conflict.currentVersion}`;
   return (
     `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
-    "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+    "Your changes were NOT saved, and are still here in the editor."
   );
 }
 

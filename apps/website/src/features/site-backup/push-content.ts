@@ -1,5 +1,7 @@
 import { uploadPlannedContent, type PendingFile, type PushFailure, type UploadPlannedContentInput } from "@jini-ai/devops/backup/upload";
 import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
+import type { CommitBackupTreeInput, CredentialedRepositoryTarget, SourceControlProvider } from "../source-control/provider-module.js";
+import type { PushResult } from "./backup-service.js";
 import type { SiteBackupPlan } from "./plan-content.js";
 import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";
 
@@ -46,4 +48,35 @@ export function uploadBackupPlan(
       return { path: SITE_BACKUP_MANIFEST_PATH, content: Buffer.from(manifest, "utf8") };
     },
   }, { inlineTextMaxBytes, concurrency });
+}
+
+export async function commitBackupPlan(
+  { provider, target, plan, entries }: { provider: SourceControlProvider; target: CredentialedRepositoryTarget; plan: SiteBackupPlan; entries: CommitBackupTreeInput["entries"] },
+  _optional: Record<string, never> = {},
+) {
+  const committed = await provider.commitBackupTree({
+    ...target,
+    branch: plan.repository.branch,
+    folder: plan.folder,
+    commitMessage: plan.commitMessage,
+    parentCommitSha: plan.repository.parentCommitSha,
+    baseTreeSha: plan.repository.baseTreeSha,
+    htmlUrl: plan.repository.htmlUrl,
+    entries: entries,
+  });
+  if (!committed.ok) return committed;
+  return {
+    ok: true,
+    result: {
+      pushed: true,
+      commitSha: committed.commitSha,
+      commitUrl: committed.commitUrl,
+      repository: `${plan.owner}/${plan.repo}`,
+      branch: plan.repository.branch,
+      folder: plan.folder,
+      credentialWarnings: plan.credentialWarnings ?? [],
+      filesWritten: entries.length,
+      totalBytes: entries.reduce((sum, entry) => sum + entry.bytes, 0),
+    },
+  } satisfies { ok: true; result: PushResult };
 }

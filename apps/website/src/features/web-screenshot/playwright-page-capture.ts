@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { observed } from "@jini-ai/core/errors/idioms";
 import { captureBudget, type CaptureBudget, type CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
 import { REAL_CAPTURE_CLOCK, type CaptureClock } from "@jini-ai/diagnostics/web-evidence/capture-clock";
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease, type RenderSession } from "@jini-ai/diagnostics/web-evidence/playwright";
@@ -137,7 +138,7 @@ export function createPlaywrightPageCapture(
       try {
         const work = shoot({ request, plan, progress }, controller.signal);
         // A capture that lost the race still settles later; its outcome is already reported.
-        work.catch(() => {});
+        observed({ promise: work });
         return await Promise.race([work, deadline]);
       } catch (error) {
         // A caller's cancel is not a capture failure: its own reason reaches the caller, never a "navigation failed".

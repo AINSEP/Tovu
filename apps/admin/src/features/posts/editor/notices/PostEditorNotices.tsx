@@ -66,16 +66,17 @@ export function PostEditorNotices({
           t={t}
         />
       ) : null}
-      {autosaveStaleBasis && pendingExternalVersion == null ? <PostAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {autosaveStaleBasis && pendingExternalVersion == null && !saveConflict ? <PostAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
       {saveConflict ? (
         <PostVersionConflictBanner
           saveConflict={saveConflict}
           onSaveAnyway={() => void saveOverwritingConflict()}
-          onDismiss={dismissSaveConflict}
+          onLoadLatest={() => void loadExternalChange()}
+          onDismiss={() => { dismissSaveConflict(); dismissExternalChange(); }}
           t={t}
         />
       ) : null}
-      {pendingExternalVersion != null ? (
+      {pendingExternalVersion != null && !saveConflict ? (
         <PageExternalChangeBanner onLoadLatest={() => void loadExternalChange()} onKeepEdits={dismissExternalChange} t={t} />
       ) : null}
     </>

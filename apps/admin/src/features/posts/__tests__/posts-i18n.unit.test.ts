@@ -139,13 +139,13 @@ const LOCALIZED = [
     publishAt: "Publicar el", scheduled: "Programado", alt: "Texto alternativo (opcional)", insert: "Insertar",
     load: "No se pudieron cargar las entradas", create: "Error al guardar", publish: "No se pudo publicar la entrada",
     unpublish: "No se pudo anular la publicación de la entrada", remove: "No se pudo eliminar la entrada",
-    editorLoad: "No se pudo cargar la entrada", editorDelete: "Error al eliminar",
+    editorLoad: "Esta entrada no terminó de cargarse. Vuelve a cargar la página; no se cambió nada.", editorDelete: "Error al eliminar",
     conflict: "No se pudo volver a leer la versión actual — tus cambios siguen aquí, inténtalo de nuevo" },
   { locale: "ja", drag: "ドラッグして並べ替え", saved: "保存しました · バージョン 2", published: "公開しました · バージョン 2",
     publishAt: "公開日時", scheduled: "公開予約済み", alt: "代替テキスト（任意）", insert: "挿入",
     load: "投稿を読み込めませんでした", create: "保存に失敗しました", publish: "投稿を公開できませんでした",
     unpublish: "投稿の公開を取り消せませんでした", remove: "投稿を削除できませんでした",
-    editorLoad: "投稿を読み込めませんでした", editorDelete: "削除に失敗しました",
+    editorLoad: "この投稿の読み込みが完了しませんでした。ページを再読み込みしてください。何も変更されていません。", editorDelete: "削除に失敗しました",
     conflict: "現在のバージョンを再取得できませんでした — 変更内容は保持されています。もう一度お試しください" },
 ];
 
@@ -251,6 +251,9 @@ for (const copy of LOCALIZED) {
           fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
         }
         else {
+          // Unsaved work, so the version recheck after this Save settles keeps the conflict rather
+          // than loading the newer row into a clean editor (tv-bugs3b B2).
+          act(() => controller.setTitle({ next: "Edited title" }));
           port.simulateConcurrentSave({});
           await act(() => controller.save({}));
           expect(controller.saveConflict).not.toBeNull();

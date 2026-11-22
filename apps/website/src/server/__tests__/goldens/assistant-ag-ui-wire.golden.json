@@ -1,5 +1,44 @@
 {
-  "every payload, then end with max_tool_turns": {
+  "mixed payloads stop at pending approval": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Working\",\"detail\":\"step 2 of 3\"}}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Still working\"}}\n\ndata: {\"type\":\"REASONING_START\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_START\",\"messageId\":\"reasoning_1\",\"role\":\"reasoning\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_CONTENT\",\"messageId\":\"reasoning_1\",\"delta\":\"plan the search\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_2\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_2\",\"delta\":\"Let me check that.\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_2\"}\n\ndata: {\"type\":\"TOOL_CALL_START\",\"toolCallId\":\"call-1\",\"toolCallName\":\"search\",\"toolOrigin\":\"bridge\",\"bridgeCall\":{\"name\":\"posts.search\",\"input\":{\"q\":\"posts\"},\"buffered\":true}}\n\ndata: {\"type\":\"TOOL_CALL_ARGS\",\"toolCallId\":\"call-1\",\"delta\":\"{\\\"q\\\":\\\"posts\\\"}\"}\n\ndata: {\"type\":\"TOOL_CALL_END\",\"toolCallId\":\"call-1\"}\n\ndata: {\"type\":\"TOOL_CALL_RESULT\",\"messageId\":\"tool_result_msg_3\",\"toolCallId\":\"call-1\",\"content\":\"found 3\",\"role\":\"tool\",\"isError\":true,\"media\":[{\"type\":\"image\",\"mimeType\":\"image/png\",\"data\":\"AAAA\"}],\"outcome\":\"unknown\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.usage\",\"value\":{\"kind\":\"usage\",\"inputTokens\":11,\"outputTokens\":7,\"costUsd\":0.01,\"cumulativeCostUsd\":0.05,\"costSessionId\":\"cost-1\",\"durationMs\":1200,\"stopReason\":\"end_turn\"}}\n\ndata: {\"type\":\"RAW\",\"event\":\"raw line\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"outcome\":{\"type\":\"interrupt\",\"interrupts\":[{\"id\":\"approval-1\",\"reason\":\"confirmation\",\"message\":\"Allow action?\",\"toolCallId\":\"call-1\"}]}}\n\n"
+  },
+  "unmarked payloads, then end with max_tool_turns": {
     "httpVersion": "1.1",
     "status": 200,
     "headers": [

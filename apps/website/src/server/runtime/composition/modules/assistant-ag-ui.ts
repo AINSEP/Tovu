@@ -283,12 +283,16 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 
     const state = createAgUiTranslationState(AG_UI_TRANSLATION);
     const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state,
-      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) });
+      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE });
     runFinished = true;
     res.end();
     runTracker.setOutcome(outcome);
   } }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
 }
+
+/** The owner-approved RUN_ERROR words for a daemon stream that drops mid-run (bugs1 T4). The
+ *  transport's own message stays private: Jini's drain returns it to the run tracker only. */
+const AG_UI_INTERRUPTION_MESSAGE = "The assistant’s response was interrupted. Send your request again.";
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
   return {

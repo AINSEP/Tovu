@@ -1427,13 +1427,20 @@ test("share tool adapters enforce exact input contracts, pass job/principal/sign
   await assert.rejects(call(tool("site_share_create"), {}), thrown => thrown === error);
 });
 
-test("backup plan and push return credential warnings for the chat to show", async t => {
+test("the plan reports credential warnings and push refuses before writing", async t => {
   const h = harness(t); await h.seed();
   const credentialWarnings = [{ path: "content.db:posts.body_json", kind: "labeled secret" }];
   const planTool = overriddenTool(h, "site_backup_plan", { siteBackupSanitize: async () => ({ bytes: Buffer.from(DB_BYTES), media: [], credentialWarnings }) });
   const planned = await call(planTool, PLAN_INPUT) as Result;
-  assert.deepEqual(planned.credentialWarnings, credentialWarnings);
-  const pushed = await call(h.pushTool, { planId: planned.planId }) as Result;
-  assert.equal(pushed.pushed, true);
-  assert.deepEqual(pushed.credentialWarnings, credentialWarnings);
+  assert.deepEqual(planned.credentialWarnings, credentialWarnings, "the plan reports the sanitizer's credential warnings");
+  assert.ok(planned.planId, "the warning-bearing plan has an ID");
+  const writesBeforePush = h.github.writes().length;
+  const pushed = await call(h.pushTool, { planId: planned.planId });
+  assert.deepEqual(pushed, {
+    pushed: false,
+    cancelled: false,
+    code: "UNSAFE_FILE",
+    message: "The export contains files with possible credentials. Remove the credentials and export again.",
+  }, "push refuses the warning-bearing plan");
+  assert.equal(h.github.writes().length, writesBeforePush, "the refused push makes no repository writes");
 });

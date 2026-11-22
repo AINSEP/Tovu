@@ -12,7 +12,7 @@ export type PageSkeletonRegion = (typeof PAGE_SKELETON_REGIONS)[number];
  */
 const EMBED_TYPE_NOTES: Readonly<Record<string, string>> = {
   widget: "a saved widget",
-  form: "a live form from the site's forms system, listed by forms_list_definitions — the right way to collect input",
+  form: "a live form from the site's forms system, listed by forms_list_definitions — reuse or create a native form with supported fields",
   taxonomy: "a taxonomy's term list; `id` is the taxonomy id or its unique name",
   media: "an uploaded image or video",
   gallery: "ordered images rendered as accessible figures; configure images and layout as documented below",
@@ -110,14 +110,16 @@ export const PAGE_HTML_CONTRACT =
   "`toolparamdescription` on named controls. Use `toolautosubmit` only for read-only operations " +
   "such as search. Contact, newsletter and booking submissions must retain human submission. " +
   "Do not invent a submission endpoint or field contract just to add WebMCP tags.\n" +
-  "- NO <form action=\"...\">. A form you invent posts nowhere and silently drops whatever a visitor " +
-  "types into it. If the page needs to collect anything, embed a real form with the `form` marker " +
-  "below; if no suitable form exists yet, say so in your reply instead of writing one.\n" +
+  "- CONTACT FORM: Reuse or create a native form with supported fields, then place it on the requested page. " +
+  "Check that it renders and that submission is configured. An actual test submission requires authorization. " +
+  "Report notification setup separately from the ability to collect submissions. Use the form marker below.\n" +
   // The owner paste path stores authorized page HTML unchanged, so this is guidance for raw HTML only.
   // A vendor widget goes through its plugin, which owns its files, external hosts and consent.
-  "- EXTERNAL RESOURCES: no <script src> and no <iframe> to another site. To show a third-party widget " +
-  "(a booking calendar, a chat widget), use that plugin's embed instead: find it with plugins_list or plugins_search, " +
-  "turn it on with plugins_set_enabled if needed, and place it as described under EMBEDS. " +
+  "- EXTERNAL RESOURCES: no <script src> and no <iframe> to another site. Use the plugin's embed. " +
+  "Use the YouTube block in rich text. For page HTML, discover an enabled embed that supports the exact provider, " +
+  "and use the owner’s real link and a labeled fallback. If only a link is supported, say so. " +
+  "Check playback or interaction where possible and keep the site’s consent settings. " +
+  "YouTube in Preview uses a labeled 'Watch on YouTube' link fallback; no sandbox loosening. " +
   "No remote stylesheets, remote fonts or hotlinked images. Use the site's own uploaded media or inline SVG.\n" +
   "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
   "existing HTML file read via fs_read_file) references an image, font, video, or audio file no tool " +

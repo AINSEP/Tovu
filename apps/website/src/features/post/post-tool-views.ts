@@ -157,7 +157,7 @@ export const PUBLISHED_WHERE_LIVE = "Published on the live site (this instance i
  */
 export const PAGE_HEADER_NAVIGATION =
   "This page is not added to the site header automatically: the header shows the site menu (Admin → Menus), not the list of pages. " +
-  "To link it from the header, add it with menus_update_menu_tree; name the header's links only from menus_list_menus, never from the pages you created.";
+  "To link it from the header, add it with menus_update_menu_tree. Read the rendered menu’s record with content_read.menu. Never infer its links from the pages you created.";
 
 /** {@link PAGE_HEADER_NAVIGATION} for a created page; posts are listed by the theme, not header-linked. @complexity O(1). */
 export function headerNavigationView({ kind }: { kind: string }, _options = {}): { headerNavigation?: string } {

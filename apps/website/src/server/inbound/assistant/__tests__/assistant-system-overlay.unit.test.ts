@@ -318,25 +318,28 @@ test("published content guidance prioritizes the live URL and requires explicit 
   assert.match(overlay, /overwrite:true only when the user explicitly asked/);
 });
 
-test("every assistant overlay explains automatic editor updates and slug navigation after content edits", () => {
+test("W3–4 CLI and BYOK explain overlap handling and open-editor choices", () => {
   const overlays = [SYSTEM_PREAMBLE, ...[false, true].flatMap(prohibited =>
     [false, true].map(nativeToolAccess => buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess })))];
   for (const overlay of overlays) {
-    assert.match(overlay, /open post\/page editor automatically picks up successful assistant edits/);
-    assert.match(overlay, /editor URL follows a changed slug/);
-    assert.match(overlay, /Do not tell the user to reload the editor or claim its URL still uses the old slug/);
-    assert.match(overlay, /Unsaved local edits are preserved/);
+    for (const rule of ["Send the version you read.", "retry only if the affected content is unchanged.", "If it changed, show the overlap and ask which edit to keep.", "An open editor with unsaved changes may ask what to keep.", "Load latest discards unsaved edits.", "A draft of edits to a live page is a preview, not a saved draft."]) {
+      assert.ok(overlay.includes(rule), `both assistant transports must state: ${rule}`);
+    }
+    assert.doesNotMatch(overlay, /automatically picks up successful assistant edits/, "refresh is never promised unconditionally");
   }
 });
 
-test('all post/page write descriptions explain editor synchronization without recommending a reload', () => {
+test("W3–4 page readers and writers preserve format and stop on overlapping edits", () => {
+  const reader = pagesAgentToolCatalog.find(tool => tool.name === 'pages_read_html');
+  assert.ok(reader, "the HTML reader remains advertised");
+  assert.match(reader.description, /An empty HTML read can be a rich-text page\. Check its format before choosing a writer\./, "empty HTML does not authorize format conversion");
   const writers = [...postAgentToolCatalog, ...pagesAgentToolCatalog].filter(tool =>
     ['content_post_update', 'pages_write_html', 'pages_write_region', 'pages_move_region'].includes(tool.name));
-  assert.equal(writers.length, 4);
+  assert.equal(writers.length, 4, "all four content writers carry the conflict protocol");
   for (const tool of writers) {
-    assert.match(tool.description, /open post\/page editor automatically picks up successful assistant edits/, tool.name);
-    assert.match(tool.description, /editor URL follows a changed slug/, tool.name);
-    assert.doesNotMatch(tool.description, /(?:please|must|need to) (?:reload|refresh)|(?:^|[.!?]\s+)(?:The )?editor URL (?:still uses|keeps) the old slug/i, tool.name);
+    assert.match(tool.description, /retry only if the affected content is unchanged/, `${tool.name} preserves concurrent edits`);
+    assert.match(tool.description, /Load latest discards unsaved edits/, `${tool.name} explains the editor choice`);
+    assert.doesNotMatch(tool.description, /reapply your change/, `${tool.name} never directs a blind retry`);
   }
 });
 

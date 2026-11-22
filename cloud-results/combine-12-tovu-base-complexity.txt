@@ -1,0 +1,7 @@
+
+> tovu@0.1.0 check:complexity
+> node --import tsx development/scripts/check-src-complexity-drift.ts
+
+New violation: apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts:24 useCopyKeys#1 [complexity] 11
+New violation: apps/website/src/features/site-backup/backup-service.ts:681 pushPlannedBackup#1 [complexity] 11
+New violation: apps/website/src/server/runtime/composition/plugin-activation-polling.ts:46 reconcilePluginActivationsOnce#1 [complexity] 13

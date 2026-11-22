@@ -1,0 +1,26 @@
+## after merge (before test fixes)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  5 failed | 57 passed (62)
+      Tests  7 failed | 1627 passed (1634)
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > stale Save Load latest preserves a failed reload, then discards the draft and ignores an old autosave refusal
+ FAIL  src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx > PostEditor DOM — states > version conflict banner
+ FAIL  src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx > PostEditor — DOM order of the regions > the four notices keep their order and the stale-basis notice waits for an outside change
+ FAIL  src/features/posts/__tests__/PostEditor.unit.test.tsx > Template picker > persists an explicit "No template chosen" as "" so the opt-out is distinguishable from never-chosen
+ FAIL  src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx > usePostEditor — assistant edits while the editor is open > stale Save Load latest preserves a failed reload, then discards the draft and ignores an old autosave refusal
+ FAIL  src/features/posts/__tests__/posts-i18n.unit.test.ts > Posts screens in es > translates the editor conflict fallback
+ FAIL  src/features/posts/__tests__/posts-i18n.unit.test.ts > Posts screens in ja > translates the editor conflict fallback
+## same 5 files at m3 (HEAD^1 of merge)
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=127 fail=? rc=0 secs=23
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx pass=76 fail=? rc=0 secs=23
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=29
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=5 fail=? rc=0 secs=15
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts pass=52 fail=? rc=0 secs=17
+## same 5 files at origin/codex/tv-bugs3b alone
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=135 fail=1 rc=1 secs=22
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx pass=74 fail=2 rc=1 secs=22
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=139 fail=1 rc=1 secs=28
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=11 fail=1 rc=1 secs=16
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts pass=50 fail=2 rc=1 secs=18
+## after test fixes 6d92cf1ad
+ Test Files  62 passed (62)
+      Tests  1634 passed (1634)

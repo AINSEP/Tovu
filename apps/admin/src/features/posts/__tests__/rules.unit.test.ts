@@ -738,16 +738,16 @@ describe("buildPostAutosaveDraft", () => {
 
 describe("postVersionConflictMessage", () => {
   it("says the work is unsaved AND still present, naming both versions", () => {
-    expect(postVersionConflictMessage({ expectedVersion: 3, currentVersion: 4, attemptedStatus: undefined })).toBe(
+    expect(postVersionConflictMessage({ expectedVersion: 3, currentVersion: 4, attemptedStatus: undefined }), "the conflict names both versions and preserves unsaved-work copy").toBe(
       "Someone else saved this while you were editing — you were working from version 3, and version 4 is now stored. " +
-        "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+        "Your changes were NOT saved, and are still here in the editor."
     );
   });
 
   it("degrades to prose rather than printing 'version null' when the server omitted the details", () => {
-    expect(postVersionConflictMessage({ expectedVersion: null, currentVersion: null, attemptedStatus: undefined })).toBe(
+    expect(postVersionConflictMessage({ expectedVersion: null, currentVersion: null, attemptedStatus: undefined }), "unknown versions retain the recovery copy without promising an ordinary overwrite").toBe(
       "Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. " +
-        "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+        "Your changes were NOT saved, and are still here in the editor."
     );
   });
 });

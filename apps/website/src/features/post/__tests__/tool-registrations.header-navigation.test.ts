@@ -46,7 +46,8 @@ test("a created page's result says the header shows the site menu, not the page,
   const result = await create({ kind: "page", title: "Visit", status: "published" });
   assert.equal(result.headerNavigation, PAGE_HEADER_NAVIGATION);
   assert.match(PAGE_HEADER_NAVIGATION, /header shows the site menu/);
-  assert.match(PAGE_HEADER_NAVIGATION, /menus_list_menus/);
+  assert.match(String(result.headerNavigation), /Read the rendered menu’s record with content_read\.menu/, "the create result names the current menu card");
+  assert.doesNotMatch(String(result.headerNavigation), /menus_list_menus/, "the create result never cites a retired tool");
   assert.match(PAGE_HEADER_NAVIGATION, /menus_update_menu_tree/);
 });
 
@@ -58,7 +59,15 @@ test("a created post carries no header note: posts are listed by the theme, not 
 test("the create description and the Themes guide topic say navigation changes through the menu tools", () => {
   const description = postAgentToolCatalog.find((tool) => tool.name === "content_post_create")?.description ?? "";
   assert.match(description, /not added to the site header/);
-  assert.match(description, /menus_update_menu_tree/);
+  assert.match(description, /menus_update_menu_tree/, "the descriptor names the menu writer");
+  assert.match(description, /Read the rendered menu’s record with content_read\.menu/, "the descriptor names the current menu card");
   assert.match(themes.explanation, /header and footer render the site menus/);
   assert.match(themes.explanation, /menus_update_menu_tree/);
+});
+
+test("W9 single-entry reads direct browsing to the assembled content card", () => {
+  const reader = postAgentToolCatalog.find(tool => tool.name === "content_post_get");
+  assert.ok(reader, "the underlying single-entry reader remains declared");
+  assert.match(reader.description, /Browse entries with content_read\.content_post without an ID/, "browsing uses the listing card");
+  assert.doesNotMatch(reader.description, /this same tool WITHOUT an id/, "a required-id tool never advertises an ID-less call");
 });

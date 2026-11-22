@@ -21,6 +21,8 @@ import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
   /** The row the editor treats as its saved basis; `null` before load. */
   loaded: Row | null;
+  routeIdentity: string;
+  saveSettlement: number;
   /** Re-reads the row by id through the editor's own injected port. */
   fetchLatest: (input: { id: string }, options?: Record<string, never>) => Promise<Row>;
   /** Called when the fetch SETTLES — must reflect the working copy at that instant, not at the
@@ -59,9 +61,21 @@ export interface ExternalEntryRefreshController {
 export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
   input: ExternalEntryRefreshInput<Row>
 ): ExternalEntryRefreshController {
-  const { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef } = useExternalRefreshState<Row>({ input });
-  const { checkForExternalChange } = useExternalRefreshCheck<Row>({ latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion });
+  const { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef, notifiedRowId } = useExternalRefreshState<Row>({ input });
+  const { checkForExternalChange } = useExternalRefreshCheck<Row>({ latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion, notifiedRowId });
   const { loadExternalChange } = useExternalRefreshLoad<Row>({ latestRef, setNotifiedVersion, dismissedForBasisRef, generations, loadInFlightRef, checkDeferredRef, checkForExternalChange });
+
+  useEffect(() => {
+    window.addEventListener("focus", checkForExternalChange);
+    return () => window.removeEventListener("focus", checkForExternalChange);
+  }, [checkForExternalChange]);
+  const lastSettlement = useRef({ routeIdentity: input.routeIdentity, counter: input.saveSettlement });
+  useEffect(() => {
+    const previous = lastSettlement.current;
+    lastSettlement.current = { routeIdentity: input.routeIdentity, counter: input.saveSettlement };
+    if (previous.routeIdentity !== input.routeIdentity) return;
+    if (input.saveSettlement > previous.counter) checkForExternalChange();
+  }, [input.routeIdentity, input.saveSettlement, checkForExternalChange]);
 
   const dismissExternalChange = useCallback(() => {
     dismissedForBasisRef.current = latestRef.current.loaded?.version ?? null;
@@ -69,7 +83,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
   }, []);
 
   const pendingExternalVersion =
-    notifiedVersion !== null && input.loaded !== null && notifiedVersion > input.loaded.version ? notifiedVersion : null;
+    notifiedVersion !== null && input.loaded !== null && notifiedVersion > input.loaded.version && notifiedRowId.current === input.loaded.id ? notifiedVersion : null;
 
   return { pendingExternalVersion, checkForExternalChange, loadExternalChange, dismissExternalChange };
 }
@@ -121,12 +135,12 @@ function useExternalRefreshLoad<Row extends ExternalEntryRevision>(
 }
 
 function useExternalRefreshCheck<Row extends ExternalEntryRevision>(
-  { latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion }:
+  { latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion, notifiedRowId }:
     Pick<ReturnType<typeof useExternalRefreshState<Row>>, "latestRef" | "loadInFlightRef" | "checkDeferredRef" | "generations" | "dismissedForBasisRef"
-    | "setNotifiedVersion">
+    | "setNotifiedVersion" | "notifiedRowId">
 ) {
   const checkForExternalChange = useCallback(() => {
-    const loaded = latestRef.current.loaded;
+    const { loaded, routeIdentity } = latestRef.current;
     if (loaded === null) return;
     // Never supersedes a Load latest click (reviewer finding 3, 2026-09-16): with one shared
     // generation, a tool-result publish landing during the click's re-read dropped the click
@@ -142,6 +156,7 @@ function useExternalRefreshCheck<Row extends ExternalEntryRevision>(
       .then((fresh) => {
         if (!generations.isCurrent({ generation })) return;
         const current = latestRef.current;
+        if (current.routeIdentity !== routeIdentity || current.loaded?.id !== loaded.id) return;
         const decision = decideExternalEntryRefresh({
           loaded: current.loaded,
           fresh,
@@ -154,6 +169,7 @@ function useExternalRefreshCheck<Row extends ExternalEntryRevision>(
           current.supersedeStandingDraftBasis(fresh.version);
           current.applyLatest(fresh);
         } else if (decision === "notify") {
+          notifiedRowId.current = fresh.id;
           setNotifiedVersion(fresh.version);
         } else {
           // "ignore" — nothing to do; see this file's header for why a failed/no-op check is silent.
@@ -182,17 +198,22 @@ function useExternalRefreshState<Row extends ExternalEntryRevision>(
   });
 
   const generations = useSettlementGeneration();
+  const saving = input.isSaving();
   useEffect(() => {
+    loadInFlightRef.current = false;
+    checkDeferredRef.current = false;
     return () => {
       // A fetch that settles after unmount must not touch state on a dead hook instance.
       generations.next();
     };
-  }, [generations]);
+  }, [generations, input.routeIdentity, input.loaded?.id, saving, input.saveSettlement]);
 
   const dismissedForBasisRef = useRef<number | null>(null);
+  useEffect(() => { dismissedForBasisRef.current = null; }, [input.routeIdentity, input.loaded?.id]);
   const [notifiedVersion, setNotifiedVersion] = useState<number | null>(null);
+  const notifiedRowId = useRef<string | null>(null);
   // True while a Load latest click waits on its re-read, and whether a check arrived meanwhile.
   const loadInFlightRef = useRef(false);
   const checkDeferredRef = useRef(false);
-  return { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef };
+  return { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef, notifiedRowId };
 }

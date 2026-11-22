@@ -1,0 +1,105 @@
+### MUTATION m4-B0a-save-before-load in apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+@@ -938 +938 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
+-    if (!bodyReady) { setError(t(POST_NOT_LOADED_SAVE_REFUSED)); return; } // never write an unloaded body
++    if (false as boolean) { setError(t(POST_NOT_LOADED_SAVE_REFUSED)); return; } // never write an unloaded body
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=20
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=136 fail=? rc=0 secs=24
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=31
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=12 fail=? rc=0 secs=17
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=8 fail=1 rc=1 secs=18
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=98 fail=2 rc=1 secs=24
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=2
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx > usePostEditor — optimistic concurrency > refuses to save when no post has loaded — the editor would write an empty body with no version to check
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx > usePostEditor — remaining boundaries > a save before any row has loaded is refused, reaches no server, and parks no local backup
+ FAIL  src/features/posts/__tests__/post-editor-load-race.unit.test.tsx > usePostEditor — the post loads after the editor instance was replaced > applies the body to the replacement editor, with no error and no save before it lands
+restored apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+### MUTATION m4-B0b-destroyed-editor-live in apps/admin/src/lib/live-tiptap-editor.ts
+@@ -21 +21 @@ export function isLiveEditor(editor: Editor | null | undefined): editor is Edito
+-  return editor != null && (editor.schema as Editor["schema"] | null) !== null;
++  return editor != null;
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=19
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=136 fail=? rc=0 secs=23
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=30
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=12 fail=? rc=0 secs=17
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=7 fail=2 rc=1 secs=18
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=100 fail=? rc=0 secs=24
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=2
+ FAIL  src/features/posts/__tests__/post-editor-load-race.unit.test.tsx > usePostEditor — the post loads after the editor instance was replaced > a load that lands before the replacement renders waits for it instead of writing into the destroyed one
+ FAIL  src/features/posts/__tests__/post-editor-load-race.unit.test.tsx > isLiveEditor > is false for a missing editor and for a destroyed one, true for a working one
+restored apps/admin/src/lib/live-tiptap-editor.ts
+### MUTATION m4-B1-no-youtube-link in apps/admin/src/features/pages/lib/page-preview-youtube.ts
+@@ -32 +32 @@ export function pagePreviewYoutubeIds(
+-  return [...new Set(ids)];
++  return [...new Set(ids)].slice(0, 0);
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=96 fail=3 rc=1 secs=19
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=136 fail=? rc=0 secs=23
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=30
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=12 fail=? rc=0 secs=17
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=9 fail=? rc=0 secs=18
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=100 fail=? rc=0 secs=24
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=2
+ FAIL  src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > clean published Preview links to the saved YouTube video
+ FAIL  src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > pending Preview links to the working copy's videos
+ FAIL  src/features/pages/__tests__/PageEditor.unit.test.tsx > view toggle (Preview / Interactive / HTML) > a document-format Page links to its YouTube node in Preview
+restored apps/admin/src/features/pages/lib/page-preview-youtube.ts
+### MUTATION m4-B3-raw-page-load-error in apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts
+@@ -650,2 +650,2 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
+-      .catch(() => {
+-        if (!cancelled) setError(t({ locale, key: "failed to load page" }));
++      .catch((e) => {
++        if (!cancelled) setError(e instanceof Error ? e.message : t({ locale, key: "failed to load page" }));
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=20
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=134 fail=2 rc=1 secs=26
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=30
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=12 fail=? rc=0 secs=16
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=9 fail=? rc=0 secs=18
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=100 fail=? rc=0 secs=24
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=3
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > reports an initial load failure without hydrating a page: Error: private transport canary
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > page editor recovery and failure outcomes > reports a rejected presentation read with translated initial load copy
+restored apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts
+### MUTATION m4-B2a-no-focus-recheck in apps/admin/src/hooks/use-external-entry-refresh.hooks.ts
+@@ -69 +69 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
+-    window.addEventListener("focus", checkForExternalChange);
++    void 0;
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=20
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=133 fail=3 rc=1 secs=26
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=32
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=10 fail=2 rc=1 secs=18
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=9 fail=? rc=0 secs=20
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=100 fail=? rc=0 secs=26
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=3
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > focus checks the version without an assistant bus event: clean
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > focus checks the version without an assistant bus event: dirty
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > focus checks the version without an assistant bus event: interactive
+ FAIL  src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx > usePostEditor — assistant edits while the editor is open > focus checks the version without an assistant bus event, dirty=false
+ FAIL  src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx > usePostEditor — assistant edits while the editor is open > focus checks the version without an assistant bus event, dirty=true
+restored apps/admin/src/hooks/use-external-entry-refresh.hooks.ts
+### MUTATION m4-B2b-no-post-save-recheck in apps/admin/src/hooks/use-external-entry-refresh.hooks.ts
+@@ -77 +77 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
+-    if (input.saveSettlement > previous.counter) checkForExternalChange();
++    if (false as boolean) checkForExternalChange();
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=20
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=134 fail=2 rc=1 secs=26
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=32
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=10 fail=2 rc=1 secs=18
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=9 fail=? rc=0 secs=20
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=100 fail=? rc=0 secs=26
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=3
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > a refresh ignored during Save is checked once after settlement, conflict=false
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts > usePageEditor — content refresh bus (assistant writes while the editor is open) > a refresh ignored during Save is checked once after settlement, conflict=true
+ FAIL  src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx > usePostEditor — assistant edits while the editor is open > a refresh ignored during Save is checked once after settlement, conflict=false
+ FAIL  src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx > usePostEditor — assistant edits while the editor is open > a refresh ignored during Save is checked once after settlement, conflict=true
+restored apps/admin/src/hooks/use-external-entry-refresh.hooks.ts
+### MUTATION m4-B4-no-cancel-guard in apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+@@ -754 +753,0 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
+-        if (cancelled) return;
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx pass=99 fail=? rc=0 secs=19
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts pass=136 fail=? rc=0 secs=23
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx pass=140 fail=? rc=0 secs=29
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx pass=12 fail=? rc=0 secs=16
+apps/admin/src/features/posts/__tests__/post-editor-load-race.unit.test.tsx pass=9 fail=? rc=0 secs=18
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx pass=99 fail=1 rc=1 secs=24
+apps/admin/src/hooks/__tests__/use-external-entry-refresh.unit.test.ts pass=24 fail=? rc=0 secs=3
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx > a superseded Post load cannot overwrite the live editor when it later resolves
+restored apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
