@@ -1,0 +1,12 @@
+# node reds not in combine-11's list, re-run with the tree detached at 311d26dfa (Jini merge-12 linked)
+apps/website/src/assistant/__tests__/moved-tools.golden.test.ts pass=0 fail=1 rc=1 secs=7
+apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts pass=0 fail=14 rc=1 secs=3
+apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts pass=0 fail=1 rc=1 secs=11
+development/scripts/__tests__/site-plugin-directories.test.mjs pass=0 fail=1 rc=1 secs=6
+
+# 3 long-standing base-reds at 311d26dfa
+apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts pass=41 fail=2 rc=1 secs=9
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts pass=5 fail=2 rc=1 secs=6
+apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts pass=24 fail=1 rc=1 secs=1
+
+# moved-tools catalog bytes: recorded 755760; 311d26dfa 755816; m4 6d92cf1ad 755816; tip before re-record 757141

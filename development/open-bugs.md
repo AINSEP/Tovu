@@ -259,3 +259,34 @@ Details: `cloud-results/combine-11-tovu.md`.
   reconcilePluginActivationsOnce` 13 (main's backoff in integ's signature).
 - Size: `backup-service.ts` 547 (baseline 535).
 - why-comments: 77 → 79 (`b3ec582b7325`, `096121b6167d`).
+
+## combine-12 (Tovu `integ/merge-12-2026-11-22`, 2026-11-22)
+
+Five merges on top of combine-11, against Jini `integ/merge-12-2026-11-22` `6b8e0d48a` + local `codex/jx-chatlinks`.
+Details: `cloud-results/combine-12-tovu.md`.
+
+### `C12-seed-upgrade-missing-ids` — FIXED (`748c032db`)
+- tv-seed-upgrade's `RENAMED_TO_JINI` (`features/agent-plugins/bundled-id-upgrade.ts`) listed 23 IDs. combine-11
+  measured 25 bundled packages that `@jini-ai/agent-plugins` 0.7.2 shipped as `tovu/<id>` and next.2 ships as
+  `jini/<id>`. Missing: `calendly` (Tovu seeds it) and `shopify`. A site holding either kept the pre-rename copy
+  and hit a seed conflict on every boot.
+- Witness: `bundled-id-upgrade.unit.test.ts` "the rename map covers every bundled package 0.7.2 shipped as
+  tovu/<id>" (red `['calendly','shopify']` before the fix).
+
+### `C12-howto2-form-id-pointer` — FIXED (`8cef2d19b`)
+- tv-howto2 W8 dropped "listed by forms_list_definitions" from the page HTML `form` marker, so `pages_write_html`
+  and `pages_write_region` no longer said where a form ID comes from. The pointer is kept beside W8's new words.
+
+### `C11-agui-run-error-raw-message` — FIXED (`a6a94d354`)
+- Tovu passes its approved sentence to Jini `drainRunFramesToAgUi(ctx, { interruptionMessage })`.
+
+### `C11-installed-plugin-id-upgrade` — FIXED (tv-seed-upgrade merge `25cba763c` + `748c032db`)
+
+### Not production / listed
+- The new `Load latest` button in both conflict banners has no `data-agent-element/role/label` (siblings do).
+- Gate debt: size Worsened `PageEditor.tsx` (file 1015, `PageEditor` 221, `PageEditorPane` 128),
+  `usePageEditor` 384, `usePostEditor` 410 (tv-bugs3b); error gate WARN `catch-reads-error` in
+  `bundled-id-upgrade.ts` (5), `lifecycle.ts` (1), `use-page-editor.hooks.ts` 2 → 3; architecture NEW edge
+  `site-backup/push-content.ts → source-control/provider-module.ts` and boundaries no-circular
+  `backup-service.ts ↔ push-content.ts` (tv-bugs3a B8a); why-comments 79 → 80 (`3ee47e16609e`, tv-howto2).
+- Cleared: complexity 3 → 0 and size `backup-service.ts` (tv-bugs3a).
