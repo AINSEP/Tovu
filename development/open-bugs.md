@@ -323,11 +323,14 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 
 Owner-approved holds on top of combine-13 (`0d7f78fa4`, Jini merge-13 linked). Details: `cloud-results/ex2-holds-tovu.md`.
 
-### `C043` Tier-2 plugin worker import allowlist — FIXED (`5be5b781c`, security MED)
-- The worker's resolve hook now refuses, for modules inside a non-built-in plugin package, every bare specifier
-  except the two SDK specifiers (`node:fs`, `child_process`, npm packages, `data:`) and any path that resolves outside
-  the package. Plain refusal message. Built-ins under `features/plugin-runtime/built-ins/` are exempt
-  (content-analyzer imports host packages). Owner: confirm the exemption.
+### `C043` Tier-2 plugin worker import allowlist — FIXED (`5be5b781c`; review fixes on `codex/ex2-holds-tovu`, security MED)
+- The import policy lives in Jini's Node worker adapter (`@jini-ai/plugins/host/worker` `registerTier2ImportPolicy`, Jini
+  `codex/ex2-holds-tovu-jini`). For modules inside a plugin package it refuses every bare specifier except the SDK
+  specifiers (`node:fs`, `child_process`, npm packages, `data:`) and any path that resolves outside the package.
+- SDK-only by default. Coordinator decision (owner may revisit): the registered content-analyzer entry also gets exactly
+  `@jini-ai/cms/seo/content-analysis` and `#src/platform/html/slug`, injected by Tovu's worker entry (`TIER2_IMPORT_POLICY`).
+  No directory is exempt.
+- Set up on the real-import path, so a malformed entry URL is a structured `stage: "import"` reply.
 
 ### `C115` disk-space 507 reported as an incident — FIXED (`46fc4f901`)
 - `adminFailureResponse` returns the typed `DatabaseDiskSpaceError` refusal before logging/reporting; no incident,
