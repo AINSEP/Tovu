@@ -12,7 +12,7 @@ export type PageSkeletonRegion = (typeof PAGE_SKELETON_REGIONS)[number];
  */
 const EMBED_TYPE_NOTES: Readonly<Record<string, string>> = {
   widget: "a saved widget",
-  form: "a live form from the site's forms system — reuse or create a native form with supported fields",
+  form: "a live form from the site's forms system, listed by forms_list_definitions — reuse or create a native form with supported fields",
   taxonomy: "a taxonomy's term list; `id` is the taxonomy id or its unique name",
   media: "an uploaded image or video",
   gallery: "ordered images rendered as accessible figures; configure images and layout as documented below",

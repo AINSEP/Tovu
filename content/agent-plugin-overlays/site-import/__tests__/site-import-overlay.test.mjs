@@ -65,7 +65,7 @@ test('the overlay reads references through the plugin tool, never the refused re
     assert.doesNotMatch(text, /fs_read_file|root `repo`|content\/agent-plugins\//, name);
   }
   const guidance = (await overlayTexts())[0].text;
-  assert.match(guidance, /`agent_plugin_site_import`[^]*?`file: "references\/<file>"`/);
+  assert.match(guidance, /`load_agent_plugin`, `pluginId: "site-import"`[^]*?`file: "references\/<file>"`/);
   assert.match(guidance, /`file: "host\/content-mapping\.md"`/);
 });
 
@@ -79,14 +79,16 @@ test('the capability hand-off resolves to the Tovu plugins that provide it', asy
   const guidance = (await overlayTexts())[0].text;
   const theme = JSON.parse(await readFile(path.join(contentRoot, 'tovu-theme/plugin.json'), 'utf8'));
   assert.ok(theme.extensions.jini.provides.includes('theme-authoring'));
-  assert.match(guidance, /provides\s+`theme-authoring` is Tovu Theme: call `agent_plugin_tovu_theme`/);
-  assert.match(guidance, /provides `ui-design` is UI\/UX Design: call\s+`agent_plugin_ui_ux_design/);
+  // r62t-howto W9: the hand-off names the providing plugins by ID through `load_agent_plugin`.
+  assert.match(guidance, /hand theme work to Tovu Theme Part C/);
+  assert.match(guidance, /`pluginId: "tovu-theme"` for whole-site theme work/);
+  assert.match(guidance, /`pluginId: "ui-ux-design"`, `skill: "ui-ux-design"` before designing/);
 });
 
 test('the final / check names the published and live readers', async () => {
   const guidance = (await overlayTexts())[0].text;
-  assert.match(guidance, /`fetch_published_page` for `\/` \(status 200\)/);
-  assert.match(guidance, /`fetch_live_url` once published/);
+  assert.match(guidance, /Check `\/` only after the agreed switch\. `fetch_published_page` checks the local copy/);
+  assert.match(guidance, /`fetch_live_url` only reads THIS site's own published copy/);
 });
 
 test('the overlay is vendor-neutral: no model or vendor names', async () => {

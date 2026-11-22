@@ -171,7 +171,7 @@ test("site-import hands its theme step to tovu-theme and keeps no duplicate-and-
   assert.match(skill, /provides\s+`theme-authoring`/);
   assert.match(extraction, /"match a reference site" procedure/);
   assert.match(await themeSkill(), /# Part C — Match a reference site/);
-  assert.match(await importGuidance(), /`agent_plugin_tovu_theme` and follow its Part C/);
+  assert.match(await importGuidance(), /hand theme work to Tovu Theme Part C[^]*`pluginId: "tovu-theme"` for whole-site theme work/);
   assert.doesNotMatch(extraction, /Restyle only the copy/);
   assert.doesNotMatch(extraction, /font files with `media_import_from_url`/, "media_import_from_url refuses font files");
 });
