@@ -10,7 +10,7 @@ import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sql
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
-import { createEntry } from "#src/features/entries/index";
+import { createEntry } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";

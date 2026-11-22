@@ -2,8 +2,8 @@
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { parse } from "cookie";
-import { MemberLoginError, type LoginProvider, type OidcLoginDeps, type LoginContext,
-  type MemberLoginLinkDeps, type MemberLoginOutcomeCode } from "#src/features/member-login/index";
+import { type OidcLoginDeps, type LoginContext, type MemberLoginLinkDeps } from "#src/features/member-login/index";
+import { MemberLoginError, type LoginProvider, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
 import { resolveMemberSession, type MemberSessionRecord, type MemberRecord } from "#src/features/members/index";
 import type { MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";

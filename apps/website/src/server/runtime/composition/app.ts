@@ -79,7 +79,7 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
-import { noopStampWatermark } from "#src/features/taxonomy/index";
+import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 
 import { captureRouteError } from "../../inbound/shared/observability-middleware.js";
 import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";

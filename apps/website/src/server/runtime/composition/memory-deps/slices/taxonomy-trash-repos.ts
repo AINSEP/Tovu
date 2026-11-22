@@ -3,7 +3,7 @@ import type { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildTrashRegistry } from "#src/features/trash/index";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { SqliteTermRepo, SqliteTaxonomyRevisionRepo, SqliteTaxonomyRepo, SqliteEntryTermRepo } from "#src/features/taxonomy/repo.sqlite";
-import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
+import { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 
 export function composeTaxonomyTrashRepos(required: { taxonomyDb: ContentDb; workspaceId: string; outbox: InMemoryOutbox; clock: MemoryClock; idGen: MemoryIdGen }, _optional = {}) {

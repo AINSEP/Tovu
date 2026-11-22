@@ -34,7 +34,7 @@ import { buildMergeTermHooks } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
   type EntryRecordLookupPort,
-} from "./index.js";
+} from "@jini-ai/cms/taxonomy";
 import type { TaxonomyListPort, TermListPort, EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermRepoPort, ImportableTermRepoPort, UnassignableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MemberLoginError } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { completionCredential } from "../complete-sign-in.js";
 import { proofBody } from "../oidc-verify-email.js";
 

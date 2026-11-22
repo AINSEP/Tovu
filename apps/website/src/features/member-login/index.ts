@@ -5,7 +5,5 @@ export { beginOidcLogin, completeOidcLogin, memberLoginCallbackUrl, sealLoginEma
 export type { OidcLoginDeps, LoginContext, CompletedOidcLogin } from "./oidc-login.js";
 export { resolveFederatedIdentity, requestLoginEmailProof } from "./link-service.js";
 export type { MemberLoginLinkDeps, MemberLoginLinkInput, MemberLoginLinkResult } from "./link-service.js";
-export { MemberLoginError } from "./types.js";
-export type { LoginProvider, LoginProviderPreset, VerifiedLoginIdentity, MemberLoginOutcomeCode } from "./types.js";
 
 export { createReadyLoginProviderList } from "./ready-providers.js";

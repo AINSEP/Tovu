@@ -7,8 +7,8 @@ import { sql } from "kysely";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createEntry, publishEntry, updateEntry } from "../../index.js";
-import type { EntryRecord } from "../../index.js";
+import { createEntry, publishEntry, updateEntry } from "@jini-ai/cms/entries";
+import type { EntryRecord } from "@jini-ai/cms/entries";
 import type { CollectionListQuery } from "../../public-list.js";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
 

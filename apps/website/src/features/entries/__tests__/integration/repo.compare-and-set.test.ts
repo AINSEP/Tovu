@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "../../index.js";
-import type { EntryRecord, EntryRevisionInput  } from "../../index.js";
+import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "@jini-ai/cms/entries";
+import type { EntryRecord, EntryRevisionInput  } from "@jini-ai/cms/entries";
 import type { EntryRepoPort } from "@jini-ai/cms/entries";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";

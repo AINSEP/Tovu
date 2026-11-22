@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MemberLoginError } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { callbackParams } from "../oidc-callback.js";
 import { MemberOidcCancelled } from "../oidc-deps.js";
 

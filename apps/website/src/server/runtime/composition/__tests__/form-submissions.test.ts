@@ -9,7 +9,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
-import { formDestinationKeyLabel, type FormDestinationPage, type FormDestinationRegistry } from "#src/features/form-destinations/index";
+import { formDestinationKeyLabel } from "#src/features/form-destinations/index";
+import type { FormDestinationPage, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini-ai/core/settings";
 import { FORM_PULL_LEASE_MS } from "#src/features/form-destinations/index";
 import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";

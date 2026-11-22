@@ -3,7 +3,7 @@ import type { Express } from "express";
 
 import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
-import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError } from "#src/features/taxonomy/index";
+import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError } from "@jini-ai/cms/taxonomy";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMergeTermHooks } from "#src/features/taxonomy/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

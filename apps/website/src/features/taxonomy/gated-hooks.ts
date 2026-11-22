@@ -1,7 +1,7 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
-import type { MergeTermPlanDetails } from "./index.js";
+import type { MergeTermPlanDetails } from "@jini-ai/cms/taxonomy";
 import { buildMergeTermHooks as buildJiniMergeTermHooks, type MergeableEntryTermRepoPort, type ImportableTermRepoPort, type TermRepoPort, type TaxonomyRevisionRepoPort } from "@jini-ai/cms/taxonomy";
 
 /**

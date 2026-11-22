@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import type { EntryRecord, EntryStatus } from "../../entries/index.js";
+import type { EntryRecord, EntryStatus } from "@jini-ai/cms/entries";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createCommentsHostPorts, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";

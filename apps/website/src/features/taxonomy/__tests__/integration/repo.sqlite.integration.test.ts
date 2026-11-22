@@ -17,8 +17,8 @@ import {
   assignTerms,
   createPostBackedContentLookup,
   InMemoryContentLookup,
-} from "../../index.js";
-import type { DeletableTermRepoPort } from "../../index.js";
+} from "@jini-ai/cms/taxonomy";
+import type { DeletableTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { TermListPort, TermRepoPort } from "@jini-ai/cms/taxonomy";
 import { openPreparedContentDb } from "../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 

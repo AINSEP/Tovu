@@ -1,7 +1,8 @@
 import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
-import { beginOidcLogin, memberLoginCallbackUrl, MemberLoginError } from "#src/features/member-login/index";
+import { beginOidcLogin, memberLoginCallbackUrl } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
 import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
   redirectMemberOidcError, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";

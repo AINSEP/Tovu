@@ -8,7 +8,7 @@ import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
-import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
@@ -19,7 +19,7 @@ import {
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../../features/taxonomy/index.js";
+} from "@jini-ai/cms/taxonomy";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 

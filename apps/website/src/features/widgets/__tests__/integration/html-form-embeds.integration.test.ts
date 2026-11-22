@@ -1,7 +1,7 @@
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render/content-html";

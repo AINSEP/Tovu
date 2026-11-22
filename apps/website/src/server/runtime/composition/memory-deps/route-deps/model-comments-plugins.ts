@@ -1,4 +1,4 @@
-import { noopStampWatermark } from "#src/features/taxonomy/index";
+import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";

@@ -68,7 +68,7 @@ import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/a
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
-import { entriesAgentToolCatalog } from "../../features/entries/index.js";
+import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { catalog as pluginsInstallCatalog } from "../../features/plugin-runtime/install-tool.js";

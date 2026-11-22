@@ -7,7 +7,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
-import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { WidgetEmbedGuardrailError, WidgetEmbedReorderCountMismatchError, WidgetReferencedError } from "@jini-ai/cms/widgets";

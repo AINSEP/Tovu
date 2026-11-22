@@ -4,7 +4,7 @@ import { CommerceCheckoutValidationError, CommerceOrderNotFoundError, CommercePr
   CommerceProductNotFoundError, commerceBuyerStatus, toCommerceBuyerOrder, type CommerceOrderView } from "@jini-ai/commerce";
 import { escapeHtml } from "#src/platform/html/escape";
 import { resolveMemberSession } from "#src/features/members/access-resolver";
-import { MemberLoginError } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
 import { uniqueMemberCookie } from "../members/oidc-deps.js";

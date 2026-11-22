@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
@@ -78,7 +78,7 @@ test("T1: host links require the same plugin's ready provider and workspace", as
   const { createPluginExportRuntime } = await import("../../exports/runtime.js");
   const { source } = harness();
   const runtime = createPluginExportRuntime({ workspaceId, source,
-    listProviders: async () => [{ id: "demo", pluginId: "other-plugin" } as import("#src/features/member-login/types").LoginProvider] });
+    listProviders: async () => [{ id: "demo", pluginId: "other-plugin" } as import("@jini-ai/user-management/server").LoginProvider] });
   assert.match((await render(marker(), runtime)).html, /Authored fallback/);
   assert.equal(await runtime.forRender({ mode: "live" }).resolve({ workspaceId: "other-workspace", config }), undefined);
 });

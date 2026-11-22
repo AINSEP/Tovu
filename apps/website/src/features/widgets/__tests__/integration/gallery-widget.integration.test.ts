@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } from '@jini-ai/cms/widgets';
 import { registerCoreResolver, createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
 import { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } from '@jini-ai/cms/widgets/html';
-import { InMemoryEntryRepo } from '#src/features/entries/index';
+import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';

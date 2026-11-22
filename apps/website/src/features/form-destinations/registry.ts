@@ -1,7 +1,7 @@
 import { asFormDestinationModule, buildFormDestinationRegistry, parseFormDestinationsFile } from "@jini-ai/cms/forms";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "#src/features/agent-plugins/lifecycle";
 
-import type { FormDestinationDescriptor, FormDestinationModule, FormDestinationRegistry } from "./types.js";
+import type { FormDestinationDescriptor, FormDestinationModule, FormDestinationRegistry } from "@jini-ai/cms/forms";
 
 /**
  * @file Loads the form destinations Agent Plugins contribute: a copy of the mail-adapter

@@ -17,7 +17,7 @@ import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import { type FormDestinationKit, type FormDestinationRegistry } from "#src/features/form-destinations/index";
+import { type FormDestinationKit, type FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "../../../../features/api-connections/__tests__/support/acme-harness.js";
 import { composeFormDeliveryDeliverer } from "../form-delivery-deliverer.js";
 

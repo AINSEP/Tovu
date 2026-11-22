@@ -5,7 +5,7 @@ import { createMemberAccessResolver } from "#src/features/members/index";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberWorkspace, type MemberPublicRouteDeps } from "./deps.js";
 import { sendMemberAuthError, MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
-import { MemberLoginError } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { uniqueMemberCookie, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Never cache identity; resolver validates sessions, then the member row enforces current status. */

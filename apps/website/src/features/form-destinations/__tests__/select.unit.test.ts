@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import { selectFormReceiver } from "../select.js";
-import type { FormDestinationDescriptor, FormDestinationModule } from "../types.js";
+import type { FormDestinationDescriptor, FormDestinationModule } from "@jini-ai/cms/forms";
 
 /** @file Receiver selection from the site's `core.forms` `receiver` setting and the publish's host. */
 

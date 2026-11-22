@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FormDestinationKit, FormDestinationPage, RemoteFormSubmission } from "../types.js";
+import type { FormDestinationKit, FormDestinationPage, RemoteFormSubmission } from "@jini-ai/cms/forms";
 import { FORM_PULL_BUDGET_MS, FORM_PULL_LEASE_MS, FORM_PULL_REQUEST_TIMEOUT_MS, formDestinationKey, pullFromFormDestination } from "../pull.js";
 
 /** @file Page loop, acknowledge-only-committed and key redaction for the generic form destination pull. */

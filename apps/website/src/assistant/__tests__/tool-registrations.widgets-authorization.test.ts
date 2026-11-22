@@ -25,7 +25,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
-import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
@@ -133,7 +133,7 @@ async function seedFixture(deps: RegistryDepsWithoutLimiter): Promise<{ widgetIn
   const contentTypeRepo = (deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo }).contentTypeRepo;
   const entryRepo = (deps as unknown as { entryRepo: InMemoryEntryRepo }).entryRepo;
   const { registerContentType } = await import("../../features/content-types/write-service.js");
-  const { createEntry } = await import("../../features/entries/index.js");
+  const { createEntry } = await import("@jini-ai/cms/entries");
   const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({

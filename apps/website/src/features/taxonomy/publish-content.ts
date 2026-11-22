@@ -16,7 +16,7 @@ import {
   toTaxonomyOutbox,
   type Taxonomy,
   type Term,
-} from "./index.js";
+} from "@jini-ai/cms/taxonomy";
 
 /**
  * @file `taxonomy` and `term` on the publish factory. Both keep the source's own id (Jini's

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
-import type { LoginProvider } from "../types.js";
+import type { LoginProvider } from "@jini-ai/user-management/server";
 
 export const provider: LoginProvider = { id: "google", label: "Google", pluginId: "google-login", configurationVersion: "preset-v1",
   issuer: "https://accounts.google.com", authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",

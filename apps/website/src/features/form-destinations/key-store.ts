@@ -7,7 +7,7 @@ import {
   updateCustomCredential,
   type CustomCredentialWriteDeps,
 } from "#src/features/custom-credentials/index";
-import type { FormDestinationAddress } from "./types.js";
+import type { FormDestinationAddress } from "@jini-ai/cms/forms";
 
 /**
  * @file The site's form receiver keys, kept in Tovu's existing credential vault as one custom

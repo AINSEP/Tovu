@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryEntryTermRepo, InMemoryTermRepo } from "../index.js";
+import { InMemoryEntryTermRepo, InMemoryTermRepo } from "@jini-ai/cms/taxonomy";
 import { buildMergeTermHooks } from "../gated-hooks.js";
 
 const AT = "2026-09-29T12:00:00.000Z";

@@ -22,9 +22,9 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "../../content-types/index.js";
-import { InMemoryEntryRepo } from "../../entries/index.js";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createPost, InMemoryPostRepo } from "../../post/index.js";
-import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo, noopStampWatermark } from "../index.js";
+import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo, noopStampWatermark } from "@jini-ai/cms/taxonomy";
 import { contributeTaxonomyTools, type TaxonomyToolDeps } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-taxonomy-contract";

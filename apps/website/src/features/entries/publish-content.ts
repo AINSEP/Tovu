@@ -7,7 +7,7 @@ import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { EntryPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "#src/features/taxonomy/term-sync";
-import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "#src/features/taxonomy/index";
+import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 
 import {
   ContentTypeNotActiveError,
@@ -19,7 +19,7 @@ import {
   toEntryOutbox,
   VersionConflictError,
   type EntryStatus,
-} from "./index.js";
+} from "@jini-ai/cms/entries";
 import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
 
 /**

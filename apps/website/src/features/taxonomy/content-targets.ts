@@ -2,7 +2,7 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   type ContentRecordLookupPort,
   type EntryRecordLookupPort,
-} from "./index.js";
+} from "@jini-ai/cms/taxonomy";
 import {
   createLiveCollectionTermPolicy as createJiniLiveCollectionTermPolicy,
   createContentTargetPorts as createJiniContentTargetPorts,

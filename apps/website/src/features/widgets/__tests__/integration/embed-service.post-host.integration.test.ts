@@ -5,7 +5,7 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
-import { InMemoryEntryRepo, createEntry } from "#src/features/entries/index";
+import { InMemoryEntryRepo, createEntry } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, type EmbedServiceDeps } from "@jini-ai/cms/widgets";

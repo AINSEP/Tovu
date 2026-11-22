@@ -108,7 +108,7 @@ import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
-} from "../../features/taxonomy/index.js";
+} from "@jini-ai/cms/taxonomy";
 import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";

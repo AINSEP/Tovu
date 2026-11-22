@@ -8,7 +8,7 @@ import type { MemberRecord } from "../../members/types.js";
 import type { OutboundEmail } from "../../../platform/mail/index.js";
 import { issueMemberSession } from "../../members/member-credentials.js";
 import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
-import { MemberLoginError } from "../types.js";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");

@@ -7,7 +7,7 @@ import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthoriz
   type AuthorizationCallbackParams, type OAuthClient, type OAuthHttpPorts, type OAuthProviderDescriptor,
   type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { MemberLoginError, type LoginProvider, type VerifiedLoginIdentity } from "./types.js";
+import { MemberLoginError, type LoginProvider, type VerifiedLoginIdentity } from "@jini-ai/user-management/server";
 
 export interface OidcLoginDeps {
   readonly clock: Clock;

@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDeps } from "#src/server/routes/types";
-import { InMemoryEntryRepo, type EntryRecord } from "#src/features/entries/index";
+import { InMemoryEntryRepo, type EntryRecord } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";

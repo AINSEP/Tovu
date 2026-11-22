@@ -1,6 +1,6 @@
 import { FormDeliveryError, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
-import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationPluginState, FormDestinationRegistry } from "./types.js";
+import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationPluginState, FormDestinationRegistry } from "@jini-ai/cms/forms";
 
 /**
  * @file The host half of one push-delivery attempt: find the binding's adapter among the loaded

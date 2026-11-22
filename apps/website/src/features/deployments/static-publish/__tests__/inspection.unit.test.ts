@@ -5,7 +5,7 @@ import type { PluginDeployHostKit as DeployHostKit } from '@jini-ai/devops/deplo
 import { createDeployHostKit } from '../../deploy-targets/host-kit.js';
 import { inspectStaticPublish } from '../inspection.js';
 import type { PublishCredentialSource } from '../types.js';
-import type { FormDestinationForm, FormReceiverPort, FormSubmissionsInspection } from '#src/features/form-destinations/types';
+import type { FormDestinationForm, FormReceiverPort, FormSubmissionsInspection } from '@jini-ai/cms/forms';
 
 /** Tests the real provider-inspection boundary using actual host/registry/credential interfaces. */
 function setup({ inspectionError, legacy = false, configured = true }: { inspectionError?: string; legacy?: boolean; configured?: boolean } = {}) {

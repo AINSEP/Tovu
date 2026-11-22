@@ -2,24 +2,6 @@
  * @file Public surface of the form destinations category: where a published static site's form
  * submissions go, contributed by Agent Plugins (`jini-form-destinations.json`). See `./types.ts`.
  */
-export type {
-  FormDeliveryConnectionPort,
-  FormDestinationAddress,
-  FormDestinationCredential,
-  FormDestinationDescriptor,
-  FormDestinationForm,
-  FormDestinationKit,
-  FormDestinationModule,
-  FormDestinationPage,
-  FormDestinationPluginState,
-  FormDestinationPublishInput,
-  FormDestinationRegistry,
-  FormReceiverPlan,
-  FormReceiverPort,
-  FormSubmissionsInspection,
-  LoadedFormDestination,
-  RemoteFormSubmission,
-} from "./types.js";
 export { FORM_DESTINATIONS_FILENAME, loadFormDestinationRegistry, loadFormDestinationRegistryFromSource } from "./registry.js";
 export { FORM_RECEIVER_AUTO, FORM_RECEIVER_NONE, selectFormReceiver, type FormReceiverSelection } from "./select.js";
 export { assertSubmitUrl, rewriteFormActions } from "./rewrite-actions.js";

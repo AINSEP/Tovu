@@ -4,7 +4,7 @@ import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widget
 import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/cms/widgets/html";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
 export type { PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
-import type { LoginProvider } from "../../member-login/types.js";
+import type { LoginProvider } from "@jini-ai/user-management/server";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
 import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";

@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
 import { hasLoginCredentials, resolveLoginCredentials } from "../credentials.js";
-import { MemberLoginError } from "../types.js";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, provider } from "./fixtures.js";
 
 function fixture() {

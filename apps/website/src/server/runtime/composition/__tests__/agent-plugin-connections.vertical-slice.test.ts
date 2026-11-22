@@ -34,7 +34,8 @@ import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
 import { createOAuthFormDeliveryConnectionPort } from "#src/features/api-connections/form-delivery-connection";
-import { loadFormDestinationRegistry, type FormDestinationKit } from "#src/features/form-destinations/index";
+import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
+import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { startConfirmingCall } from "#src/features/agent-plugins/executable-tools/__tests__/fixtures";
 

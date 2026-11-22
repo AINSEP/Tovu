@@ -1,4 +1,4 @@
-import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "./types.js";
+import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "@jini-ai/cms/forms";
 
 /**
  * @file Pulls a form destination's pending submissions into Tovu, page by page, and acknowledges
