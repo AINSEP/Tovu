@@ -1,0 +1,49 @@
+### m3 codex/ex-export-tovu — plants in the LINKED Jini dist that Tovu imports (Jini git tree untouched); restored by byte copy
+== M3-a exportPublicOrigin workspace-setting check negated (ex-export named mutation)
+file: /home/user/Jini/packages/devops/dist/static-export/site/public-origin-policy.js
+17c17
+<     if (evidence.source !== "workspace-setting")
+---
+>     if (!(evidence.source !== "workspace-setting"))
+MUTATED  apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts: ℹ pass 9 ℹ fail 0  
+MUTATED  apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts: ℹ pass 56 ℹ fail 0  
+MUTATED  apps/website/src/features/site-export/__tests__/site-exporter.test.ts: ℹ pass 46 ℹ fail 0  
+MUTATED  apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts: ℹ pass 12 ℹ fail 0  
+restored: byte-identical
+RESTORED apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts: ℹ pass 9 ℹ fail 0 
+RESTORED apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts: ℹ pass 56 ℹ fail 0 
+RESTORED apps/website/src/features/site-export/__tests__/site-exporter.test.ts: ℹ pass 46 ℹ fail 0 
+RESTORED apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts: ℹ pass 12 ℹ fail 0 
+
+== M3-b resolveActiveThemeId not-found catch negated (ex-export named mutation)
+file: /home/user/Jini/packages/cms/dist/presentation/site/active-theme-id.js
+24c24
+<         if (err instanceof PresentationSettingsNotFoundError)
+---
+>         if (!(err instanceof PresentationSettingsNotFoundError))
+MUTATED  apps/website/src/features/theme/__tests__/theme-list-active.test.ts: ℹ pass 2 ℹ fail 1  ✖ theme read authorization precedes the selection read and genuine read failures propagate (5.206612ms)|✖ theme read authorization precedes the selection read and genuine read failures propagate (5.206612ms)|
+MUTATED  apps/website/src/features/theme/__tests__/verify-active-theme.test.ts: ℹ pass 5 ℹ fail 0  
+MUTATED  apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts: ℹ pass 8 ℹ fail 1  ✖ an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler (239.148132ms)|✖ an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler (239.148132ms)|
+MUTATED  apps/website/src/server/runtime/composition/__tests__/create-site-app-theme-override.integration.test.ts: ℹ pass 3 ℹ fail 0  
+restored: byte-identical
+RESTORED apps/website/src/features/theme/__tests__/theme-list-active.test.ts: ℹ pass 3 ℹ fail 0 
+RESTORED apps/website/src/features/theme/__tests__/verify-active-theme.test.ts: ℹ pass 5 ℹ fail 0 
+RESTORED apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts: ℹ pass 9 ℹ fail 0 
+RESTORED apps/website/src/server/runtime/composition/__tests__/create-site-app-theme-override.integration.test.ts: ℹ pass 3 ℹ fail 0 
+
+== M3-c rewriteRenderOrigins keeps every URL (Tovu wiring check: Tovu's static-copy/site-exporter tests bind the Jini module)
+file: /home/user/Jini/packages/devops/dist/static-export/site/public-origin-policy.js
+43c43
+<         const replacement = publicOrigin ?? (/^(?:\/|\\\/)/.test(tail) ? "" : "/");
+---
+>         const replacement = raw;
+MUTATED  apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts: ℹ pass 6 ℹ fail 3  ✖ configured public origin replaces every render origin; exporter layout and root links stay pinned (476.671139ms)|✖ no public origin omits sitemap and feed, removes identity metadata, and keeps root-relative llms and images (340.23062ms)|✖ origin replacement handles remote render authorities, loopback aliases, JSON escaping and origin-only links (1.007928ms)|✖ configured public origin replaces every render origin; exporter layout and root links stay pinned (476.671139ms)|
+MUTATED  apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts: ℹ pass 54 ℹ fail 2  ✖ robots origin policy and ZIP packaging: origin=https://public.example.test, sitemap=true, rules=false (20.327862ms)|✖ robots origin policy and ZIP packaging: origin=https://public.example.test, sitemap=true, rules=true (29.962336ms)|✖ robots origin policy and ZIP packaging: origin=https://public.example.test, sitemap=true, rules=false (20.327862ms)|✖ robots origin policy and ZIP packaging: origin=https://public.example.test, sitemap=true, rules=true (29.962336ms)|
+MUTATED  apps/website/src/features/site-export/__tests__/site-exporter.test.ts: ℹ pass 44 ℹ fail 2  ✖ exportSite: --base-path unset leaves every written byte identical to a plain export (1099.348157ms)|✖ exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed (602.366526ms)|✖ exportSite: --base-path unset leaves every written byte identical to a plain export (1099.348157ms)|✖ exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed (602.366526ms)|
+MUTATED  apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts: ℹ pass 6 ℹ fail 6  ✖ static copy domain omitted controls discovery and SEO (437.259762ms)|✖ static copy domain https://download.example controls discovery and SEO (244.46258ms)|✖ static copy domain https://user.github.io/repo/ controls discovery and SEO (284.69302ms)|✖ publishing discovery uses https://user.github.io/repo/ and derives its prefix from that destination (296.416853ms)|
+restored: byte-identical
+RESTORED apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts: ℹ pass 9 ℹ fail 0 
+RESTORED apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts: ℹ pass 56 ℹ fail 0 
+RESTORED apps/website/src/features/site-export/__tests__/site-exporter.test.ts: ℹ pass 46 ℹ fail 0 
+RESTORED apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts: ℹ pass 12 ℹ fail 0 
+
