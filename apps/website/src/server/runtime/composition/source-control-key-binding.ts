@@ -1,4 +1,4 @@
-import { abortGuardedCredentialRepo } from '#src/features/vendor-credentials/abort-guarded-repo';
+import { abortGuardedCredentialRepo } from '@jini-ai/integrations/vendor-credentials/abort-guarded-repo';
 import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/saved-key-bindings';
 import { createCustomCredential, describeCredentialByLabel, resolveCustomCredentialByLabel, CustomCredentialDuplicateLabelError,
   type CustomCredentialWriteDeps } from '#src/features/custom-credentials/index';

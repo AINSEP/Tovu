@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { abortGuardedCredentialRepo, buildStaticPublishRegistrations, contributeStaticPublishTools, staticPublishDerivedRisk } from "../publish-agent-tools.js";
+import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
+import { buildStaticPublishRegistrations, contributeStaticPublishTools, staticPublishDerivedRisk } from "../publish-agent-tools.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 
 /** abortGuardedCredentialRepo: writes refuse an aborted signal before reaching the store; reads,

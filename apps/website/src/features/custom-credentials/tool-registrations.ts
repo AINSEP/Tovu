@@ -3,7 +3,7 @@ import { orFallback } from '@jini-ai/core/errors/idioms';
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
 export { createCredentialSaveHandlers, createCredentialToolRegistrations };
-import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
+import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";

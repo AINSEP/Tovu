@@ -15,7 +15,7 @@ import { VaultError } from "@jini-ai/core/contracts/vault";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { abortGuardedCredentialRepo } from "#src/features/vendor-credentials/abort-guarded-repo";
+import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import type { VendorCredentialProjectScope } from "#src/features/vendor-credentials/types";
 import { createCustomCredential } from "#src/features/custom-credentials/store";

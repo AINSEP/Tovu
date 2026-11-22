@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { abortGuardedCredentialRepo } from '../../vendor-credentials/abort-guarded-repo.js';
+import { abortGuardedCredentialRepo } from '@jini-ai/integrations/vendor-credentials/abort-guarded-repo';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { vaultRow } from './helpers.js';
 
