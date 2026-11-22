@@ -289,6 +289,15 @@ function failIfShellIsIncomplete(repoRoot: string, shell: ShellEntry, { fs }: St
   fail({ message: `the built shell at ${dir} is incomplete: ${missing} is missing${consequence}. Run \`${shell.buildWith}\` at ${repoRoot} first.` });
 }
 
+/** Refuse a shell build that has its marker but lacks another file the server needs. */
+function failIfShellIsIncomplete(repoRoot: string, shell: ShellEntry, { fs }: StagePorts): void {
+  const dir = path.join(repoRoot, shell.relative);
+  const missing = (shell.requiredFiles ?? []).find((name) => !fs.existsSync(path.join(dir, name)));
+  if (missing === undefined) return;
+  const consequence = shell.missingMeans ? `, so ${shell.missingMeans}` : "";
+  fail(`the built shell at ${dir} is incomplete: ${missing} is missing${consequence}. Run \`${shell.buildWith}\` at ${repoRoot} first.`);
+}
+
 /** Every check that must pass before anything under `staging/` is touched. */
 function assertSourcePreconditions({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): RuntimeManifest {
   const { fs } = ports;

@@ -53,8 +53,8 @@ case "$SANDBOX" in
   *) echo "sandbox must be read-only or workspace-write, got: $SANDBOX" >&2; exit 2 ;;
 esac
 case "$EFFORT" in
-  minimal|low|medium|high|xhigh) ;;
-  *) echo "CODEX_EFFORT must be minimal|low|medium|high|xhigh, got: $EFFORT" >&2; exit 2 ;;
+  minimal|low|medium|high|xhigh|max) ;;
+  *) echo "CODEX_EFFORT must be minimal|low|medium|high|xhigh|max, got: $EFFORT" >&2; exit 2 ;;
 esac
 [ -d "$PROMPT_DIR" ] || { echo "no such prompt dir: $PROMPT_DIR" >&2; exit 2; }
 mkdir -p "$OUT_DIR"
