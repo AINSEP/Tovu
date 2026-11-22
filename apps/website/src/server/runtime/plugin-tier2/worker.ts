@@ -38,8 +38,10 @@ const BUILT_IN_PLUGINS_DIR = path.join(path.dirname(fileURLToPath(import.meta.ur
 function realPath(filePath: string): string {
   try {
     return realpathSync(filePath);
-  } catch {
-    return filePath; // a missing entry fails at import with Node's own plain message
+  } catch (error) {
+    // A missing entry fails at import with Node's own plain message; anything else is a real fault.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return filePath;
+    throw error;
   }
 }
 

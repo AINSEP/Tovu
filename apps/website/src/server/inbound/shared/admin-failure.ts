@@ -75,6 +75,7 @@ export function adminFailureResponse(
   // C115: a full disk is the owner's to fix, not a server incident. Classify it before anything is
   // logged or reported; the backup owner's closed, human-safe message is the whole reply, with no
   // error ID because no incident carries one.
+  // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
   if (options.status === undefined && error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, error: error.message } };
   const { operation = "admin-route" } = options;
   const body = unexpectedAdminBody({ errorId: mintToolErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }), options });
