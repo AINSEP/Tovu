@@ -251,6 +251,9 @@ for (const copy of LOCALIZED) {
           fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
         }
         else {
+          // Unsaved work, so the version recheck after this Save settles keeps the conflict rather
+          // than loading the newer row into a clean editor (tv-bugs3b B2).
+          act(() => controller.setTitle({ next: "Edited title" }));
           port.simulateConcurrentSave({});
           await act(() => controller.save({}));
           expect(controller.saveConflict).not.toBeNull();

@@ -940,8 +940,10 @@ describe("Template picker", () => {
     await user.selectOptions(templateSelect(), "");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2));
     const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body));
+    // A later call is the version recheck after the Save settles (tv-bugs3b B2): a read, never a second write.
+    for (const [, init] of fetchMock.mock.calls.slice(2)) expect((init as RequestInit | undefined)?.method ?? "GET").toBe("GET");
     expect(body.templateChoice).toBe("");
     expect(body.templateChoice).not.toBeNull();
   });

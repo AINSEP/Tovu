@@ -126,8 +126,9 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
       expect(result.current.title, "successful reload adopts the assistant title").toBe("Assistant title");
       expect(result.current.saveConflict, "successful reload clears the Post conflict").toBeNull();
       expect(result.current.recoverableDraft, "successful reload clears recovery work").toBeNull();
-      expect(port.discardAutosaveCalled, "successful reload discards the stored draft").toBe(true);
+      expect(port.discardAutosaveCalled, "the server discard waits behind the in-flight old autosave").toBe(false);
       await act(async () => { refuse({ applied: false }); await oldAutosave; });
+      expect(port.discardAutosaveCalled, "successful reload discards the stored draft once that autosave settles").toBe(true);
       expect(result.current.autosaveStaleBasis, "the old refusal cannot pause autosave again").toBeNull();
     } finally { vi.useRealTimers(); }
   });

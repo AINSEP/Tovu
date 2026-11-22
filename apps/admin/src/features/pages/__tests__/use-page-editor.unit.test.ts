@@ -2273,8 +2273,9 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
       expect(result.current.html, "successful reload adopts the latest body").toBe("<p>Assistant body</p>");
       expect(result.current.saveConflict, "successful reload clears the conflict").toBeNull();
       expect(result.current.recoverableDraft, "successful reload discards the old standing draft").toBeNull();
-      expect(deps.port.discardAutosaveCalled, "the stored draft is discarded").toBe(true);
+      expect(deps.port.discardAutosaveCalled, "the server discard waits behind the in-flight old autosave").toBe(false);
       await act(async () => { refuse({ applied: false }); await oldAutosave; });
+      expect(deps.port.discardAutosaveCalled, "the stored draft is discarded once that autosave settles").toBe(true);
       expect(result.current.autosaveStaleBasis, "an old refusal cannot pause the new basis").toBeNull();
     } finally { vi.useRealTimers(); }
   });
