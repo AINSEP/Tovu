@@ -1,6 +1,6 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
+import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";

@@ -7,7 +7,7 @@ import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFO
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
-import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
+import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 
 const workspaceId = 'gallery-workspace';
 const now = '2026-10-09T00:00:00.000Z';

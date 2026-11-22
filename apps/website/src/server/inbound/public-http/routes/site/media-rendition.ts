@@ -1,5 +1,5 @@
 import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from "#src/platform/media-access-evidence";
-import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "@jini-ai/cms/publish/content/media-references";
+import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";

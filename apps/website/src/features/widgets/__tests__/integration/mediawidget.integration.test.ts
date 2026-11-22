@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
-import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
+import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 import { collectBodyReferences } from '#src/features/publish-content/content-references';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
@@ -131,7 +131,7 @@ test('region HTTP placement normalization keeps content and rejects malformed co
 });
 
 test('shared widget reference scanner merges saved content before member gating and fails closed without its read port', async () => {
-  const { collectPlacedWidgetMediaKeys } = await import('@jini-ai/cms/publish/content/media-references');
+  const { collectPlacedWidgetMediaKeys } = await import('#src/features/publish-content/media-references');
   const bodyJson = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { placementId: 'p', widgetEntryId: 'w', content: { items: [{ slug: 'placed' }] } } }] };
   const savedWidgets = new Map([['w', { items: [{ slug: 'saved' }], layout: 'grid' }]]);
   const refs = collectPlacedWidgetMediaKeys({ bodyJson, savedWidgets });
