@@ -346,7 +346,7 @@ Each XC step must leave `pnpm check:cross-package` with fewer pairs and no new o
 |---|---|---|---|---|
 | SEC-0 | Tovu (read-only report) | parity table: each Tovu screen behaviour (owner MFA, passkeys, recovery codes, sessions, API keys, audit, secret warnings …) → present / missing / different in Jini `admin/security`, with file:line on both sides | 90 | none (tonight) |
 | SEC-1…n | Jini | one step per missing behaviour group, tests first (Jini conformance suite) | ≤120 each | SEC-0 |
-| SEC-T1 | Tovu | mount Jini `SecurityScreen` through `@jini-ai/admin/security/react` with the HTTP adapter at the single `panels.tsx` mount; delete the 39 files; repoint 7 importers in `features/deployment` (8 tests) and `features/settings` | 120 | SEC-1…n, A-shell-lib-3 |
+| SEC-T1 | Tovu | mount the Jini security screen through `@jini-ai/admin/security/react` with the HTTP adapter at the screen's one mount, `apps/admin/src/panel-pages.ts:54`. Repoint the 7 `features/deployment` import lines (`StaticSiteTab.tsx:13`, `api/deployment-api.types.ts:1`, `hooks/publish-credentials-dependencies.hooks.ts:1,2`, `hooks/publish-credentials-port.hooks.ts:1`, `hooks/use-publish-credentials.hooks.ts:6`, `rules.ts:2`) and 15 test importers (deployment 8, settings 3, `lib/__tests__` 3, plugins 1). Delete the 39 files. | 120 | SEC-1…n, A-adm-shell-lib-3 |
 
 ### Lane A — admin screens, shell, transport, roles
 
