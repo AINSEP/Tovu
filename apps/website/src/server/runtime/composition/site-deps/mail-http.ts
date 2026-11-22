@@ -21,7 +21,7 @@ import { createMailSuppressionRepo } from "#src/features/mail/index";
 import { createPluginAccountTokenResolver } from "../../boot/mail-plugin-account-token.js";
 import { createSiteMailer } from "../site-mailer.js";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
-import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness";
+import { formsMailOutboxReady } from "@jini-ai/cms/forms/site/mail-outbox-readiness";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import { readMailSenderSetting } from "#src/features/settings/index";

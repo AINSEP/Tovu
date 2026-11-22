@@ -54,12 +54,13 @@ import type {
 } from "../../features/members/index.js";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
-import type { RemoveMenuFn } from "../../features/navigation/index.js";
+import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
-import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
+import type { FormDeliveryStatusPort } from "../../features/forms/index.js";
+import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";

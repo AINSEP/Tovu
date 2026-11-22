@@ -2,7 +2,7 @@ import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob,
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { buildFormDeliveryForm } from "#src/features/forms/index";
+import { buildFormDeliveryForm } from "@jini-ai/cms/forms/site/form-destination-manifest";
 import { readFormDeliveryBindings } from "#src/features/settings/index";
 
 /**

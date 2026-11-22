@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FormNotificationError, FORM_NOTIFY_DELIVERY_EVENT } from '@jini-ai/cms/forms';
 import { outboxRetryPolicyForEvent } from '../outbox-retry-policies.js';
-import { formsMailOutboxReady } from '#src/features/forms/mail-outbox-readiness';
+import { formsMailOutboxReady } from '@jini-ai/cms/forms/site/mail-outbox-readiness';
 
 test('notification jobs use the external delivery policy and permanent failures are terminal', () => {
   const event = { id: 'n', name: FORM_NOTIFY_DELIVERY_EVENT, workspaceId: 'w', occurredAt: 'now', payload: {} };

@@ -3,7 +3,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Request } from "express";
 
-import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
+import { toAdminFormSubmissionListResponse } from "@jini-ai/cms/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";

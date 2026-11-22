@@ -6,7 +6,7 @@ import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
-import { toAdminFormDefinitionDto } from "#src/server/inbound/admin-http/http/forms";
+import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
 import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { buildFormsRegistrations } from "../tool-registrations.js";

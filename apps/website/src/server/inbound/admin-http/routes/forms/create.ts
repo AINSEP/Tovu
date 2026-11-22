@@ -2,7 +2,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { DuplicateCommandError } from "@jini-ai/cms/core";
-import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
+import { mapFormsWriteError, toAdminFormDefinitionResponse } from "@jini-ai/cms/admin-http/http/forms";
 import { createFormDefinition } from "#src/features/forms/index";
 import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { captureSubmissionEvidence, type HtmlFormDefinitionRecord } from '@jini-ai/cms/forms';
 import { createContactFormResolver } from '@jini-ai/cms/widgets/resolvers';
 import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
-import { buildFormDestinationManifest } from '../form-destination-manifest.js';
+import { buildFormDestinationManifest } from '@jini-ai/cms/forms/site/form-destination-manifest';
 
 const builder: HtmlFormDefinitionRecord = {
   id: 'form', workspaceId: 'ws', name: 'Contact', slug: 'contact', status: 'active', version: 1,
