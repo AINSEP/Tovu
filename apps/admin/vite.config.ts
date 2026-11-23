@@ -165,7 +165,7 @@ export default defineConfig({
       //
       // Paired with `apps/admin/tsconfig.json`'s `paths` + `include` entries. BOTH are required —
       // a tsconfig path satisfies the typechecker and resolves nothing at build time.
-      "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
+      "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/sections.ts"),
       // Fourth instance of the same cross-runtime pattern (2026-09-23, Bug A / interactive-bugs plan
       // Slice A2): the pure marker contract now lives at `@jini-ai/cms/widgets/markers`,
       // so the admin's canvas placeholder describer can read the exact same "which key names this

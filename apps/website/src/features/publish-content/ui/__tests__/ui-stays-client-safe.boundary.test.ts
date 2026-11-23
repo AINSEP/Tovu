@@ -37,7 +37,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
-const UI_ROOT = path.resolve(import.meta.dirname, "..");
+/** The dialog semantics moved to `@jini-ai/cms/publish/content/dialog`; admin and the server tool both
+ *  import them from there, so the browser-safety rules below now guard that package's SOURCE folder
+ *  (resolved through the package, `dist/publish/content/dialog/index.js` -> `src/publish/content/dialog/`). The
+ *  host-kept section table (`../sections.ts`, admin's `@tovu/publish-content-ui` alias) is checked too. */
+const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/publish/content/dialog"))), "../../../../src/publish/content/dialog");
+const HOST_SECTIONS_FILE = path.resolve(import.meta.dirname, "../sections.ts");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
 const REPORT_CONTRACT_SPECIFIER = "@jini-ai/cms/publish/content/report-contract";
 /** The published module behind the specifier; resolved from this test process (Node ESM). */
@@ -113,6 +118,7 @@ function collectUiFiles(dir: string, out: string[]): void {
 const UI_FILES = (() => {
   const out: string[] = [];
   collectUiFiles(UI_ROOT, out);
+  out.push(HOST_SECTIONS_FILE);
   return out;
 })();
 
@@ -159,7 +165,7 @@ test("no file under features/publish-content/ui/ takes a VALUE import on server 
       if (edge.typeOnly) continue;
       const resolved = resolveRelative(file, edge.specifier);
       if (resolved !== null) {
-        if (!resolved.startsWith(`${UI_ROOT}${path.sep}`)) {
+        if (!resolved.startsWith(`${UI_ROOT}${path.sep}`) && resolved !== HOST_SECTIONS_FILE) {
           offenders.push(`${relative(file)} -> ${edge.specifier} (a module outside features/publish-content/ui/)`);
         }
         continue;

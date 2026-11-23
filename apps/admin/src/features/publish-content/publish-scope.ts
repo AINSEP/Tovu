@@ -1,4 +1,5 @@
-import { publishSectionForEntityTypes, type PublishScope, type PublishSection } from "@tovu/publish-content-ui";
+import { publishSectionForEntityTypes, type PublishSection } from "@tovu/publish-content-ui";
+import { type PublishScope } from "@jini-ai/cms/publish/content/dialog";
 
 /**
  * @file `plan-publish-sections-2026-09-25.md` §2 S2 — the pure label rules behind the dialog's title,

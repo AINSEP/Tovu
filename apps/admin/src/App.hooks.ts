@@ -40,7 +40,7 @@ import {
   PUBLISH_CONTENT_CAPABILITY,
   type PublishCriteria,
   type PublishRequestResult,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

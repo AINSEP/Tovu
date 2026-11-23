@@ -9,8 +9,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishContentPlanResult, PublishContentReport } from "../contract.js";
-import { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, reportOnScreen, type PublishContentPhase } from "../phase.js";
+import type { PublishContentPlanResult, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+import {
+  canConfirmPlan,
+  canRequestPlan,
+  confirmationTokenFor,
+  planOnScreen,
+  reportOnScreen,
+  type PublishContentPhase,
+} from "@jini-ai/cms/publish/content/dialog/phase";
 
 const OK_REPORT: PublishContentReport = {
   refused: false,

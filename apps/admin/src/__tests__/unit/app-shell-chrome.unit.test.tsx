@@ -3,7 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { encodePublishCriteriaToQuery } from "@tovu/publish-content-ui";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/dialog";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { agentPageId, App, parseRoute } from "../../App";
