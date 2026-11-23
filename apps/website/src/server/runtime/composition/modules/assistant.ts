@@ -111,7 +111,7 @@ type AssistantRouteDeps = RouteDeps & {
  * healthy request (POST or a fully-read multi-chunk SSE stream), and immediately on a genuine
  * mid-flight disconnect (POST or SSE). Same remedy `@jini-ai/daemon`'s http-kit commit `898303a5`
  * documents for the identical failure. */
-async function relayResponse(upstream: globalThis.Response, req: Request, res: Response): Promise<void> {
+export async function relayResponse(upstream: globalThis.Response, req: Request, res: Response): Promise<void> {
   res.status(upstream.status);
   const contentType = upstream.headers.get("content-type");
   if (contentType) res.setHeader("Content-Type", contentType);
@@ -120,10 +120,14 @@ async function relayResponse(upstream: globalThis.Response, req: Request, res: R
     return;
   }
   const reader = upstream.body.getReader();
-  res.on("close", () => {
+  const cancelUpstream = () => {
     // The downstream connection is closed, so upstream cancellation is best-effort cleanup.
     reader.cancel().catch(() => undefined);
-  });
+  };
+  // Every caller awaits the daemon's response headers before reaching here, so the client may
+  // already be gone: its `"close"` has fired and a listener added now would never run (B128).
+  if (res.destroyed) cancelUpstream();
+  else res.on("close", cancelUpstream);
   try {
     for (;;) {
       const { done, value } = await reader.read();
