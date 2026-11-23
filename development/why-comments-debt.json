@@ -3044,6 +3044,82 @@
     {
       "id": "765fad9bb901",
       "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) beside the conditional referencedBy."
+    },
+    {
+      "id": "8b6faf5a2785",
+      "reason": "Moved with PluginsRouteDeps into runtime/composition/modules/plugins.ts (RT-K1-adm-plugins), where the narrowing/pre-bound-closure note now sits on the type."
+    },
+    {
+      "id": "e3699bc913bf",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/files.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "1535634450f4",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/files.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "c5bb9c09df22",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/list.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "23c7ebcc4535",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/preview.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "9ef2ae4bdc6d",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/preview.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "f4042462a426",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/preview.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "f1e13eee9c72",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/uninstall.ts (RT-K1-adm-plugins) with the spec and its error rungs (shared.ts); host binding notes in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "4c1c1c0c97b4",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "9ade8b715949",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "02d138b24f32",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "2a7732fe55af",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "b8e5888a3d6d",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "de4c805e6af2",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "9a96f1bf7bc3",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/destination.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "15332d9535b5",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/peers.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "63c70c14ab50",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/peers.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "4b5999cbdba2",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/peers.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "47f3adad7117",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/peers.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
     }
   ]
 }
