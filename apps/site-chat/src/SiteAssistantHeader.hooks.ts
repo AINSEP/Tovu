@@ -1,20 +1,15 @@
 import { useMemo } from 'react';
+import { createViewEscapeKeyPort } from '@jini-ai/chat/react/embed';
 import { createSiteChatI18n } from './site-chat-i18n';
 
-/** Bind host copy and consume confirmation Escape before the containing dialog closes. O(1). */
-export function useSiteAssistantHeader({ hasMessages }: { hasMessages: boolean }, { document: page = document } = {}) {
+/** Bind host copy and the page's Escape port (it consumes a confirm Escape before the dialog closes). O(1). */
+export function useSiteAssistantHeader({ hasMessages }: { hasMessages: boolean },
+  { document: page = document, createEscapeKeyPort = createViewEscapeKeyPort }: {
+    document?: Document; createEscapeKeyPort?: typeof createViewEscapeKeyPort;
+  } = {}) {
   return useMemo(() => {
     const { t } = createSiteChatI18n({ document: page });
-    const keyboard = { subscribe: ({ onEscape }: { onEscape: () => void }) => {
-      const view = page.defaultView;
-      const handler = (event: KeyboardEvent) => {
-        if (event.key !== 'Escape') return;
-        event.preventDefault();
-        onEscape();
-      };
-      view?.addEventListener('keydown', handler, true);
-      return () => view?.removeEventListener('keydown', handler, true);
-    } };
+    const keyboard = createEscapeKeyPort({ view: page.defaultView });
     return { t, keyboard, copy: { eyebrow: '', newThread: t('New thread'), cancel: t('Cancel'), discard: t(hasMessages ? 'Discard chat' : 'Discard draft') } };
-  }, [page, hasMessages]);
+  }, [page, hasMessages, createEscapeKeyPort]);
 }

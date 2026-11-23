@@ -6,6 +6,8 @@ import { act, React, createRoot, installDom } from "./react-dom-harness";
 
 // Load the component only after the harness has pinned React and initialized the DOM.
 const { SiteAssistantHeader } = await import("../SiteAssistantHeader");
+const { useSiteAssistantHeader } = await import("../SiteAssistantHeader.hooks");
+const { useSiteAssistantSurface } = await import("../SiteAssistantActivation.hooks");
 
 /**
  * Real `react-dom/client` render into a real JSDOM document, driven with genuine DOM events
@@ -214,6 +216,55 @@ describe("SiteAssistantHeader", () => {
 
     assert.doesNotThrow(() => pressEscape());
     assert.equal(resetCount, 0, "an unmounted component's onReset must never fire");
+  });
+
+  it("Escape during the discard step cancels it and the visitor dialog stays open", () => {
+    // The real host dialog: the same surface hook SiteAssistantWidget uses, which closes on an
+    // Escape whose default is not prevented. The header's port must consume the confirm Escape first.
+    function VisitorDialog() {
+      const [open, setOpen] = React.useState(true);
+      const { panelRef, launcherRef } = useSiteAssistantSurface({ open, setOpen });
+      return React.createElement(React.Fragment, null,
+        React.createElement("div", { ref: launcherRef }, React.createElement("button", { type: "button" }, "Launcher")),
+        React.createElement("div", { role: "dialog", hidden: !open, ref: panelRef },
+          React.createElement(SiteAssistantHeader, { title: "My Site", hasMessages: true, onReset: () => {} }),
+          React.createElement("textarea", { "aria-label": "Question" })));
+    }
+    act(() => {
+      root.render(React.createElement(VisitorDialog));
+    });
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement;
+    clickButton("New thread");
+    const cancel = dom.window.document.activeElement!;
+    assert.equal(cancel.textContent, "Cancel");
+
+    act(() => {
+      cancel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null, "Escape cancels the discard step");
+    assert.equal(dialog.hidden, false, "the same Escape must not also close the visitor dialog");
+
+    act(() => {
+      container.querySelector("textarea")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    assert.equal(dialog.hidden, true, "with no confirm step open, Escape closes the dialog");
+  });
+
+  it("builds its keyboard through the injected Escape-port factory, bound to the page's view", () => {
+    const views: unknown[] = [];
+    const port = { subscribe: () => () => {} };
+    let keyboard: unknown;
+    function Probe() {
+      keyboard = useSiteAssistantHeader({ hasMessages: false }, {
+        createEscapeKeyPort: ({ view }: { view: unknown }) => { views.push(view); return port; },
+      }).keyboard;
+      return null;
+    }
+    act(() => {
+      root.render(React.createElement(Probe));
+    });
+    assert.equal(keyboard, port);
+    assert.deepEqual(views, [dom.window]);
   });
 
   it("renders the copy, close label and keyboard supplied through the injected useSiteAssistantHeaderHook", () => {
