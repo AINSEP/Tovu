@@ -1,11 +1,23 @@
+import { copyThemeFile, nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
+import { hasThemeOriginalLayoutMismatch, type ThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
 import { themeDetailRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-detail";
 import { themeFileDeleteRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-delete";
 import { themeFileGetRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-get";
+import { themeFileCopyRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-copy";
+import { themeFileRenameRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-rename";
+import { themeFileResetRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-reset";
 import { themeFilePutRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-file-put";
 import { themePagePublishRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-page-publish";
 import { themeSaveOriginalRoute } from "@jini-ai/cms/admin-http/routes/themes/explore-save-original";
 import {
   findTheme,
+  isGeneratedThemePath,
+  MAX_THEME_FILE_BYTES,
+  ORIGINAL_LAYOUT_MISMATCH_REFUSAL,
+  restoreBuiltThemeGeneratedTree,
+  themeFileMovePorts,
+  themeOriginalFilePorts,
   listThemeFiles,
   readThemeFile,
   resolveThemeFileWriteScope,
@@ -21,7 +33,7 @@ import {
   type ThemeFileWriteScope,
 } from "#src/features/theme/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { describeThemeDetailFiles, isPutWritable, reloadTheme } from "#src/server/inbound/admin-http/routes/themes/explore";
+import { describeMovedThemeFile, describeThemeDetailFiles, isPutWritable, originalSourceFor, reloadTheme, renameThemeFileOrRefusal } from "#src/server/inbound/admin-http/routes/themes/explore";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
 
 /**
@@ -100,17 +112,61 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, dep
   } }, EXPLORE_MOUNT);
 };
 
-export {
-  registerAdminThemeFileCopyRoute,
-  registerAdminThemeFileRenameRoute,
-  registerAdminThemeFileResetRoute,
-} from "#src/server/inbound/admin-http/routes/themes/explore";
+/** The originals-catalog side of a single-file reset: the resolved original, its layout check and the byte copy. */
+function resetOriginalDeps({ deps }: { deps: ContentRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    resolveOriginalSource: ({ theme }: { theme: DiscoveredTheme }) => originalSourceFor(deps, theme),
+    originalLayoutMismatch: ({ theme, originalSource }: { theme: DiscoveredTheme; originalSource: ThemeOriginalSource }) =>
+      (hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES }) ? ORIGINAL_LAYOUT_MISMATCH_REFUSAL : null),
+    resetFileFromOriginal: ({ theme, originalSource, path }: { theme: DiscoveredTheme; originalSource: ThemeOriginalSource; path: string }) =>
+      resetThemeFileToOriginal({ ports: themeOriginalFilePorts, themeDir: theme.dir, themesRoot: deps.themesDir, originalDir: originalSource.originalDir, originalsRoot: originalSource.originalsRoot, relativePath: path }),
+  };
+}
+
+/** POST — restore file(s) to the pristine copy in the originals catalog (a built theme's generated tree restores whole). */
+export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: themeFileResetRoute, deps: {
+    ...explorePortDeps({ deps }),
+    ...exploreWriteDeps({ deps }),
+    ...resetOriginalDeps({ deps }),
+    restoreGeneratedTree: ({ theme }: { theme: DiscoveredTheme }) => restoreBuiltThemeGeneratedTree({ themeDir: theme.dir, themesRoot: deps.themesDir, manifest: theme.manifest }),
+    isGeneratedThemePath: ({ path }: { path: string }) => isGeneratedThemePath({ relativePath: path }),
+    readThemeFile: ({ theme, path }: { theme: DiscoveredTheme; path: string }) => readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path }),
+    maxThemeFileBytes: MAX_THEME_FILE_BYTES,
+  } }, EXPLORE_MOUNT);
+};
 
 /** POST — save the theme's current files as its stored original (refused when one exists). */
 export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: themeSaveOriginalRoute, deps: {
     ...explorePortDeps({ deps }),
     saveThemeAsOriginal: ({ theme }: { theme: DiscoveredTheme }) => saveThemeAsOriginal({ theme, themesRoot: deps.themesDir, packageThemesRoot: deps.packageThemesDir }),
+  } }, EXPLORE_MOUNT);
+};
+
+/** POST — duplicate one file inside a theme under the next available `name-1`, `name-2`, … suffix. */
+export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: themeFileCopyRoute, deps: {
+    ...explorePortDeps({ deps }),
+    ...exploreWriteDeps({ deps }),
+    isGeneratedThemePath: ({ path }: { path: string }) => isGeneratedThemePath({ relativePath: path }),
+    listThemeFiles: ({ theme }: { theme: DiscoveredTheme }) => themeFilePaths({ deps, theme }),
+    nextAvailableFileName,
+    copyThemeFile: ({ theme, sourcePath, destPath }: { theme: DiscoveredTheme; sourcePath: string; destPath: string }) =>
+      copyThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath }),
+    describeThemeFile: ({ theme, path }: { theme: DiscoveredTheme; path: string }) => describeMovedThemeFile({ deps, theme, relativePath: path }),
+  } }, EXPLORE_MOUNT);
+};
+
+/** POST — rename (move within the same folder) one file inside a theme. */
+export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: themeFileRenameRoute, deps: {
+    ...explorePortDeps({ deps }),
+    checkFileIdentityChange: fileIdentityLock,
+    listThemeFiles: ({ theme }: { theme: DiscoveredTheme }) => themeFilePaths({ deps, theme }),
+    renameThemeFileIfChanged: ({ theme, sourcePath, destPath, name, existingPaths }: { theme: DiscoveredTheme; sourcePath: string; destPath: string; name: string; existingPaths: ReadonlySet<string> }) =>
+      renameThemeFileOrRefusal({ deps, theme, paths: { sourcePath, destPath, name }, existingPaths }),
+    describeThemeFile: ({ theme, path }: { theme: DiscoveredTheme; path: string }) => describeMovedThemeFile({ deps, theme, relativePath: path }),
   } }, EXPLORE_MOUNT);
 };
 

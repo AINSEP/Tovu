@@ -2,9 +2,8 @@ import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { bodyRecord, bodyStringField } from "@jini-ai/cms/admin-http/routes/themes/explore-shared";
 import {
-  bodyRecord,
-  bodyStringField,
   fileExtension,
   reloadTheme,
   renameThemeFileIfChanged,
