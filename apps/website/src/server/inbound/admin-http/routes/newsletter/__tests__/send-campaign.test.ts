@@ -7,7 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { createAdminNewsletterSendCampaignRoute, registerAdminNewsletterSendCampaignRoute } from "../send-campaign.js";
+import { createAdminNewsletterSendCampaignRoute, registerAdminNewsletterSendCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "../deps.js";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";

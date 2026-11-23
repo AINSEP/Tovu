@@ -2,11 +2,9 @@ import { policyCreateRoute } from "@jini-ai/user-management/admin-http/routes/us
 import { roleCreateRoute } from "@jini-ai/user-management/admin-http/routes/users/create-role";
 import { policyDeleteRoute } from "@jini-ai/user-management/admin-http/routes/users/delete-policy";
 import { roleDeleteRoute } from "@jini-ai/user-management/admin-http/routes/users/delete-role";
-import { policyPermissionRemoveRoute } from "@jini-ai/user-management/admin-http/routes/users/remove-policy-permission";
 import { policyUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-policy";
 import { roleUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-role";
 import { policyPermissionWriteRoute } from "@jini-ai/user-management/admin-http/routes/users/write-policy-permission";
-import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "#src/server/inbound/admin-http/routes/users/deps";
 
@@ -18,12 +16,15 @@ import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar 
  * `createUsersModule` (`modules/users.ts`) keeps the registration order and imports these
  * registrars by their old names. `UsersRouteDeps` is read only here, at registration: each mount
  * builds that route's own small deps object. What the specs need from Tovu is injected here: the
- * identity services' deps bag (it binds Tovu's rename port), the owner-wildcard probe and owner
- * floor (Tovu's owner model), and the permissions no role may be granted (the publishing backstop).
+ * identity services' deps bag (it binds Tovu's rename port) and the permissions no role may be
+ * granted (the publishing backstop).
  *
  * Every route here is authorized inside the identity service (`role.manage`), never by the route,
  * so the mount mode is `"direct"`: none of them ever consulted the publishing-credential override.
- * The three list routes (`list-roles`, `list-policies`, `list-policy-permissions`) are not here yet.
+ * Not here yet (still hand-written under `inbound/admin-http/routes/users/`): the three list routes
+ * (`list-roles`, `list-policies`, `list-policy-permissions`) — the authorize port always sends an
+ * `entityType`, which their RBAC call never carried — and `remove-policy-permission`, whose 204 is
+ * pinned as `res.send()` while the JSON mount answers it through `res.json()`.
  */
 
 /** Manual publishing is reserved for the owner and built-in admins: no custom role may carry it. */
@@ -73,13 +74,4 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = ({ a
     ungrantablePermissions: UNGRANTABLE_ROLE_PERMISSIONS, ungrantablePermissionRefusal: UNGRANTABLE_ROLE_PERMISSION_REFUSAL,
   };
   mountAdminJsonRoute({ app, spec: policyPermissionWriteRoute, deps: writeDeps }, mountOptions("routes/users/write-policy-permission"));
-};
-
-export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const removeDeps = {
-    ...accessDeps({ deps }),
-    transactions: { run: ((args) => deps.transactions.run(args)) as UsersRouteDeps["transactions"]["run"] },
-    principalHoldsOwnerWildcard, assertActiveOwnerFloor,
-  };
-  mountAdminJsonRoute({ app, spec: policyPermissionRemoveRoute, deps: removeDeps }, mountOptions("routes/users/remove-policy-permission"));
 };

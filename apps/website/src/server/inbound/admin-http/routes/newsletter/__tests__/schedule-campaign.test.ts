@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminNewsletterScheduleCampaignRoute } from "../schedule-campaign.js";
+import { registerAdminNewsletterScheduleCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { CampaignRecord, NewsletterListRow } from "#src/features/newsletter/types";
 

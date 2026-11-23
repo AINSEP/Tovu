@@ -10,15 +10,15 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { registerAdminNewsletterArchiveListRoute } from "../archive-list.js";
-import { registerAdminNewsletterCreateCampaignRoute } from "../create-campaign.js";
+import { registerAdminNewsletterCreateCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
 import { registerAdminNewsletterCreateSubscriptionRoute } from "../create-subscription.js";
-import { registerAdminNewsletterGetCampaignRoute } from "../get-campaign.js";
-import { registerAdminNewsletterListCampaignsRoute } from "../list-campaigns.js";
+import { registerAdminNewsletterGetCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
+import { registerAdminNewsletterListCampaignsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import { registerAdminNewsletterListListsRoute } from "../list-lists.js";
 import { registerAdminNewsletterListSubscriptionsRoute } from "../list-subscriptions.js";
 import { registerAdminNewsletterRemoveSubscriptionRoute } from "../remove-subscription.js";
 import { registerAdminNewsletterResendConfirmationRoute } from "../resend-confirmation.js";
-import { registerAdminNewsletterSendCampaignRoute } from "../send-campaign.js";
+import { registerAdminNewsletterSendCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 
 /**
