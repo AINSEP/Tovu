@@ -4056,6 +4056,26 @@
     {
       "id": "63a2aed61350",
       "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "56c9406e9c92",
+      "reason": "Moved to Jini @jini-ai/db/src/tools/site-transfer-messages.ts (X-database-transfer-1), reworded neutral: 'Tovu's copy' -> 'Site wording', the descriptor-snapshot path -> 'the host's descriptor snapshot', \"('tovu', 'tovu_')\" -> 'its default schema and per-site prefix'."
+    },
+    {
+      "id": "59805d109232",
+      "reason": "Moved to Jini @jini-ai/db/src/tools/site-db-messages.ts (K5-database-1), reworded neutral ('Tovu' -> 'a host that serves one site'); the Tovu file keeps a rewritten @file explaining its two remaining host-cited fields."
+    },
+    {
+      "id": "3ed3953ea559",
+      "reason": "File deleted (K5-database-transfer-1); the rationale already lives in Jini @jini-ai/db/src/tools/plan-store.ts; the singleton's role is restated at DEFAULT_PLAN_STORE in features/database-transfer/tool-registrations.ts."
+    },
+    {
+      "id": "49fb513691be",
+      "reason": "File deleted (K5-database-transfer-1); the rationale already lives in Jini @jini-ai/db/src/transfer/postgres-target.ts; the application name moved to TRANSFER_APPLICATION_NAME in features/database-transfer/copy-engine.ts with its own doc comment."
+    },
+    {
+      "id": "5a587cdeb4d4",
+      "reason": "Moved to Jini @jini-ai/db/src/__tests__/tools/site-messages.test.ts (X-database-transfer-1), reworded neutral ('Tovu's' -> 'The')."
     }
   ]
 }
