@@ -2,7 +2,9 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
-import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
+import { localSiteLifecycleRoutes } from "@jini-ai/cms/admin-http/routes/sites/local-sites";
+import { LocalSiteError, type LocalSiteSupervisorPort, trashSite, restoreSite, permanentlyDeleteTrashedSite, siteTrashName } from "#src/platform/site-dir/index";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { localSiteSupervisorForHost, warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
 import { activateSiteWithWarmServer } from "#src/features/sites/index";
 import { registerWarmSiteControl } from "../sites/warm-site-control.js";
@@ -359,6 +361,28 @@ function resolveSitesPorts({ deps, sitesWorkspace }: { deps: AdminSitesDeps; sit
     sitePreviews: deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined,
     sitesWorkspace,
   };
+}
+
+export interface LocalSitesRouteDeps extends Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> {
+  localSiteSupervisor?: LocalSiteSupervisorPort;
+  afterTrash?: (required: { base: string; name: string }) => void;
+  isSiteSwitcherEnabled: () => boolean;
+  siteTrash?: { trash: typeof trashSite; restore: typeof restoreSite; remove: typeof permanentlyDeleteTrashedSite };
+}
+
+/** Mount the Jini local-site lifecycle specs (start/stop/trash/restore/delete) over this host's
+ * site-dir layer. Register only handlers; host lifetime belongs to the serving composition.
+ * @complexity O(1).
+ */
+export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: LocalSitesRouteDeps }, _options = {}): void {
+  const siteTrash = deps.siteTrash ?? { trash: trashSite, restore: restoreSite, remove: permanentlyDeleteTrashedSite };
+  const routeDeps = {
+    workspaceId: deps.workspaceId, authorize: deps.authorize, localSiteSupervisor: deps.localSiteSupervisor, siteTrash, siteTrashName,
+    afterTrash: deps.afterTrash,
+    siteSwitchBase: () => resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: deps.isSiteSwitcherEnabled() }),
+    localSiteErrorCode: (error: unknown) => (error instanceof LocalSiteError ? error.code : undefined),
+  };
+  for (const spec of localSiteLifecycleRoutes) mountAdminJsonRoute({ app, spec, deps: routeDeps });
 }
 
 function registerSitesSupportRoutes({ app, ports }: { app: Express; ports: SitesPorts }): void {
