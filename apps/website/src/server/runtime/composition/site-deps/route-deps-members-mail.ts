@@ -37,7 +37,7 @@ import { createShareArchiveReader } from "#src/features/site-backup/import-archi
 import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/unpdf";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import * as importYauzl from "yauzl";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";

@@ -1,5 +1,5 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createTrashScheduler } from "#src/features/trash/scheduler.node";
+import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import assert from "node:assert/strict";
 import test from "node:test";
 

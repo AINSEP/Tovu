@@ -12,7 +12,7 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import type { SiteSharePlanContent } from "../plan-content.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
-import { SiteShareExportFailure } from "../share-export-failure.js";
+import { SiteShareExportFailure } from "@jini-ai/devops/backup/site/share-export-failure";
 import { SiteShareRefusal } from "../share-policy.js";
 
 for (const step of ["prepare", "archive", "delivery"] as const) {

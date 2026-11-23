@@ -1,6 +1,6 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
-import { executeCommitSchema } from "./commit-schema.js";
+import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";

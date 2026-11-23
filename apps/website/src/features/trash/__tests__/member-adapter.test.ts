@@ -28,7 +28,7 @@ import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
 import { trashToolEntityTypes } from "../tool-kinds.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { TRASH_RETENTION_DAYS } from "../ports.js";
+import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 
 const WS = "member-trash-workspace";
 const AT = "2026-10-09T12:00:00.000Z";

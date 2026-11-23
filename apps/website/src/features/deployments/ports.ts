@@ -1,6 +1,6 @@
 import type { HttpClientPort } from "#src/platform/http/index";
 
-import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord, ReleaseRecord } from "./types.js";
+import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord, ReleaseRecord } from "@jini-ai/devops/deploy/site/types";
 
 /**
  * @file The provider-neutral deployment port — the seam every first-party adapter

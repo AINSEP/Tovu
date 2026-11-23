@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createTrashScheduler } from "#src/features/trash/scheduler.node";
+import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
 import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";

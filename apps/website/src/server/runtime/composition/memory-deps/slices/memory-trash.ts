@@ -1,12 +1,13 @@
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { PLUGIN_ENTITY_TYPE, reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import { forgetPluginActivations } from "@jini-ai/plugins/host";
 import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import { composeMemoryTrashAdapters } from "../../memory-deps/slices/trash-adapters.js";
 import { attachFormAttachmentPurge } from "../../memory-deps/slices/form-attachment-purge.js";
 import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { randomUUID } from "node:crypto";
-import { TRASH_RETENTION_DAYS } from "#src/features/trash/index";
+import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 import { composePluginRuntime } from "../../plugin-runtime.js";
 import { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import { InMemoryPostRepo } from "#src/features/post/index";

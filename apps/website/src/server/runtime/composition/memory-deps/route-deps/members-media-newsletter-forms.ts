@@ -11,7 +11,7 @@ import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "#src/features/newsletter/repo.memory";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { executeCommand } from "@jini-ai/cms/core";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { providerOk, providerRejected } from "@jini-ai/core/provider-registry";
 import { createManualDnsProvider, type DnsPlanRequirement, type DnsProvider, type DnsRecord } from "@jini-ai/devops/dns";
-import { DMARC_HINT_PROVIDER_ID, DMARC_HINT_VALUE, withMailRequirements, type MailRequirementsPort } from "../mail-requirements.js";
+import { DMARC_HINT_PROVIDER_ID, DMARC_HINT_VALUE, withMailRequirements, type MailRequirementsPort } from "@jini-ai/devops/dns/site/mail-requirements";
 import { context, fakeAuthoritative, siteRequirement } from "./dns-fakes.js";
 
 /**

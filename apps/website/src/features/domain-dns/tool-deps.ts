@@ -1,7 +1,7 @@
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { AuthoritativeDnsPort, DnsProviderContext, DnsProviderRegistry } from "@jini-ai/devops/dns";
 import type { DomainBindingStore } from "./binding.repo.js";
-import type { MailRequirementsPort } from "./mail-requirements.js";
+import type { MailRequirementsPort } from "@jini-ai/devops/dns/site/mail-requirements";
 import type { SenderDomainVerificationPort } from "../../platform/mail/index.js";
 
 /** Workspace authorization plus the DNS kernel ports built in the composition root. */

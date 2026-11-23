@@ -17,7 +17,7 @@ import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { bindWidgetRemoval } from "#src/features/trash/index";
+import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
 import { createChatRunLedger } from "#src/assistant/index";
 import { createChatStoreFactory } from "#src/assistant/index";
 import { createPeerSiteReads } from "../peer-site-reads.js";
@@ -26,7 +26,7 @@ import { createSqliteConversationToolApprovalStore } from "#src/assistant/persis
 import { createTrashSweep } from "@jini-ai/cms/trash";
 import { getSlugChangeCapture } from "#src/platform/routing/adapter";
 import { postSearchIndexFor } from "#src/features/post/index";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";

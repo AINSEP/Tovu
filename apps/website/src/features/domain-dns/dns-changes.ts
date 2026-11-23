@@ -33,7 +33,7 @@ import {
   type DnsVerification,
 } from "@jini-ai/devops/dns";
 import type { DomainBinding, DomainBindingStatus, DomainBindingStore } from "./binding.repo.js";
-import { withMailRequirements, type DnsRequirementInclude, type MailRequirementsPort } from "./mail-requirements.js";
+import { withMailRequirements, type DnsRequirementInclude, type MailRequirementsPort } from "@jini-ai/devops/dns/site/mail-requirements";
 
 /** Kernel blockers plus the host-level ones found before a plan can be trusted. */
 export interface DomainDnsBlocker {

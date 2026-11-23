@@ -18,7 +18,7 @@ export class SqliteTrashRepo extends SqlTrashRepo {
 }
 
 /**
- * The {@link import("./ports.js").TransactionRunner} over the content db: its storage-kernel
+ * The {@link import("@jini-ai/cms/trash/site/ports").TransactionRunner} over the content db: its storage-kernel
  * transaction (`platform/db/kernel`).
  *
  * A nested call joins the caller's open transaction — posts and redirects wrap "marker write +

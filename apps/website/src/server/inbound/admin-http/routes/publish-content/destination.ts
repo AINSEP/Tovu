@@ -1,8 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, RequestHandler, Response } from "express";
 
-import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
+import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import {
   connectAndRecordDestination,
   disconnectAndForgetDestination,

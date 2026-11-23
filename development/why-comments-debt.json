@@ -3172,6 +3172,14 @@
     {
       "id": "18dcb0327f7d",
       "reason": "Moved verbatim to Jini @jini-ai/cms/widgets/site/media-html-log.ts (Jini codex/ex5-small-jini, X-widgets-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "137f75d8594c",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/types (Jini d2e038d1f), reworded neutral (\"The host's own normalized run status\"); the Tovu file was deleted."
+    },
+    {
+      "id": "4e242caacc1b",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/credential-form header (Jini d2e038d1f), registry path citation reworded to name the host registry in words; the Tovu file was deleted."
     }
   ]
 }

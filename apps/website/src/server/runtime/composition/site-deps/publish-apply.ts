@@ -17,7 +17,7 @@ import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { createPublishContentApplyPort } from "#src/features/publish-content/apply-port";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { rescanThemes } from "#src/features/theme/index";
 import { toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
 

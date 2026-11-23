@@ -20,7 +20,7 @@ import { normalizeDnsName, type DnsInstructions, type DnsVerification, type Name
 import type { SenderDomainVerification, SenderDomainVerificationPort } from "../../platform/mail/index.js";
 import type { DomainBinding, DomainBindingStore } from "./binding.repo.js";
 import { inspectDomainDns, verifyDomainDns, type DnsChangePorts, type DomainDnsBlocker, type DomainDnsPlan } from "./dns-changes.js";
-import { DMARC_HINT_VALUE } from "./mail-requirements.js";
+import { DMARC_HINT_VALUE } from "@jini-ai/devops/dns/site/mail-requirements";
 
 export type MailDnsRecordStatus = "Checking" | "Matches" | "Missing" | "Mismatch" | "Pending" | "Unknown" | "TimedOut";
 

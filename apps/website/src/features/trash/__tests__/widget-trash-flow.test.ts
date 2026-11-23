@@ -1,7 +1,7 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { bindWidgetRemoval } from "../widget-removal.js";
-import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
+import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";

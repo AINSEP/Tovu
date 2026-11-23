@@ -51,7 +51,7 @@ import { SqliteRedirectRepo } from '#src/features/redirects/index';
 import { createSeoDeps } from '#src/features/seo/index';
 import { SqliteWidgetRegionBindingRepo } from '#src/features/widgets/repo.sqlite';
 import { SqliteTrashRepo } from '#src/features/trash/index';
-import { buildTrashRegistry } from '#src/features/trash/index';
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';

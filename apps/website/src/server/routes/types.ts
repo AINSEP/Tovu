@@ -16,7 +16,8 @@ import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import type { RemoveEntity, TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";

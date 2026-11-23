@@ -3,7 +3,7 @@
  * comments moderation through database recovery. Registration order is behaviour. Moved verbatim out of `app.ts`.
  */
 
-import { THEME_ENTITY_TYPE } from "#src/features/trash/index";
+import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { createAgentPluginsModule } from "../modules/agent-plugins.js";
 import { createPluginsModule } from "../modules/plugins.js";

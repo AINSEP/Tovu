@@ -21,9 +21,9 @@
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
-import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
+import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
-import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
+import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashEntityType, TrashItem, TrashRegistry } from "@jini-ai/cms/trash";
 

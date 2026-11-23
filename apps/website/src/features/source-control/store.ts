@@ -336,7 +336,7 @@ function collectDeclaredFields({ value, descriptor }: { value: Record<string, un
 
 /** Non-secret metadata uses the existing credential-free admission check; secrets use token admission. */
 function validateDeclaredField({ value, field, providerId }: {
-  value: unknown; field: import('./credential-form.js').SourceControlCredentialField; providerId: string;
+  value: unknown; field: import('@jini-ai/devops/source-control/site/credential-form').SourceControlCredentialField; providerId: string;
 }, _options = {}): string | undefined {
   if (value === undefined && !field.required) return undefined;
   const text = requireNonEmptyString({ raw: value, field: field.name, providerId });

@@ -2,7 +2,7 @@ import type { rename as renameDirectory } from "node:fs/promises";
 import { createThemeTrashAdapter, type ThemeTrashPorts } from "@jini-ai/cms/themes/files/trash";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
-import { THEME_ENTITY_TYPE } from "#src/features/trash/index";
+import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { findTheme, rescanThemes } from "./theme-discovery.js";

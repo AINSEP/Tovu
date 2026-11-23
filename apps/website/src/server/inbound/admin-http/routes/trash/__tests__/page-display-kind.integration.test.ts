@@ -10,7 +10,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, deletePost, SqlitePostRepo } from "#src/features/post/index";
 import { createPostTrashAdapter } from "#src/features/trash/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
-import { removeEntityWithoutBlocker } from "#src/features/trash/remove-without-blocker";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { TrashRouteDeps } from "../deps.js";
 import { registerAdminTrashListRoute } from "../list.js";

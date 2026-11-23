@@ -11,6 +11,7 @@ import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLIS
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
 import { createFileProvisioning, COMMITTED_JSON_CODEC } from "../../publish-trust/provisioning.js";
 import { describePublishReadiness, siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
+import { PUBLISH_READINESS_COPY } from "../publish-readiness-copy.js";
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -141,7 +142,7 @@ test("the two tools reach the catalog the daemon serves, via the real compositio
 // ---------------------------------------------------------------------------
 
 test("a connected computer is ready", () => {
-  const r = describePublishReadiness({ connectedSiteLabel: "example.com", otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 2 });
+  const r = describePublishReadiness({ connectedSiteLabel: "example.com", otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 2, copy: PUBLISH_READINESS_COPY });
   assert.equal(r.ready, true);
   assert.equal(r.verdict, "ready");
   assert.equal(r.summary, "This computer publishes to example.com.");
@@ -149,13 +150,13 @@ test("a connected computer is ready", () => {
 });
 
 test("a hand-configured destination counts as ready too — it is the same capability", () => {
-  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: ["a.com", "b.com"], candidateUrl: null, publishableTypeCount: 2 });
+  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: ["a.com", "b.com"], candidateUrl: null, publishableTypeCount: 2, copy: PUBLISH_READINESS_COPY });
   assert.equal(r.ready, true);
   assert.equal(r.summary, "This computer publishes to a.com and b.com.");
 });
 
 test("a live site exists but this computer was never connected to it", () => {
-  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: [], candidateUrl: "https://example.com/x", publishableTypeCount: 2 });
+  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: [], candidateUrl: "https://example.com/x", publishableTypeCount: 2, copy: PUBLISH_READINESS_COPY });
   assert.equal(r.ready, false);
   assert.equal(r.verdict, "not-connected");
   assert.match(r.summary, /example\.com/);
@@ -163,7 +164,7 @@ test("a live site exists but this computer was never connected to it", () => {
 });
 
 test("the never-deployed install is an empty state, not a fault", () => {
-  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 2 });
+  const r = describePublishReadiness({ connectedSiteLabel: null, otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 2, copy: PUBLISH_READINESS_COPY });
   assert.equal(r.ready, false);
   assert.equal(r.verdict, "no-live-site");
   assert.equal(r.summary, "There is no live site to publish to yet.");
@@ -171,7 +172,7 @@ test("the never-deployed install is an empty state, not a fault", () => {
 });
 
 test("nothing publishable is checked BEFORE connectedness — it blocks the thing actually asked about", () => {
-  const r = describePublishReadiness({ connectedSiteLabel: "example.com", otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 0 });
+  const r = describePublishReadiness({ connectedSiteLabel: "example.com", otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 0, copy: PUBLISH_READINESS_COPY });
   assert.equal(r.ready, false);
   assert.equal(r.verdict, "nothing-publishable");
 });
@@ -194,7 +195,7 @@ test("no verdict this function can produce teaches a concept or leaks a code", (
     { connectedSiteLabel: null, otherSiteLabels: [], candidateUrl: null, publishableTypeCount: 0 },
   ];
   for (const input of cases) {
-    const r = describePublishReadiness(input);
+    const r = describePublishReadiness({ ...input, copy: PUBLISH_READINESS_COPY });
     for (const [field, value] of Object.entries({ summary: r.summary, missing: r.missing, nextStep: r.nextStep })) {
       if (typeof value === "string") assertReadableByAPerson(value, `${r.verdict}.${field}`);
     }

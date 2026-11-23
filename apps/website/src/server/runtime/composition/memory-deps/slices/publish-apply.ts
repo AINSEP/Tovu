@@ -1,5 +1,6 @@
 import { bindForgetRemovedEntity, bindRemoveEntity, type InMemoryTrashRepo, type TrashPort } from "@jini-ai/cms/trash";
-import { POST_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { POST_ENTITY_TYPE } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
 import { buildContentPublishPorts } from "../../content-publish-ports.js";
 import { rescanThemes, type discoverAllBuiltInThemes } from "#src/features/theme/index";
