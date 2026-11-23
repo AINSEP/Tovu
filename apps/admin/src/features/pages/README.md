@@ -20,6 +20,12 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
   `adminLogger` (`lib/shell-collaborators.ts`); `useWiredEditorHtmlJump` gives
   `@jini-ai/admin/pages/hooks/use-editor-html-jump.hooks` `findEditorBlockOpening`
   (`@jini-ai/ui/html-editor`). Their tests moved with them to `@jini-ai/admin`.
+- `page-editor-i18n.ts` binds `@jini-ai/admin/pages/page-editor-i18n`'s `createPageEditorTranslator`
+  to this app's `COMMON_I18N` and routes the shared editor vocabulary to `features/posts/posts-i18n.ts`'s
+  `t`; its exported `t` is unchanged for every call site.
+- The editor's pure rules come from `@jini-ai/admin/pages/page-editor-rules`; `rules.ts` keeps the link
+  rules (`pageAdminPath`, `pagePublicPath`, `PAGES_RESOURCE`), the theme-backed rules (`pagePickerValue`,
+  `pageEditorSurface`, `themePageRowMenuItems`) and the version-conflict aliases over `lib/version-conflict`.
 
 ## What this feature does not own
 
