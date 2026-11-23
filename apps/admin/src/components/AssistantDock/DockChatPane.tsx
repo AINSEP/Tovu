@@ -1,6 +1,6 @@
 import "@jini-ai/chat/react/styles/chat-settings.css";
-import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
-import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
+import { onTovuSecretRedacted } from "../../lib/shell-collaborators";
+import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
@@ -34,7 +34,8 @@ const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
  * proxied to the daemon) instead of waiting behind the run; an agent that cannot take it mid-run
  * keeps working and the text waits for its next turn. Module scope, like the typed-answer poster.
  */
-const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted: onAdminSecretRedacted });
+const onSecretRedacted = onTovuSecretRedacted;
+const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted });
 type DockState = ReturnType<typeof useAssistantDockState>;
 type PaneProps = Partial<ComponentProps<typeof ChatPane>>;
 
@@ -46,7 +47,7 @@ function chatPaneSessionProps(dock: DockState) {
         sendingLabel: daemonStarting ? t({ key: "Starting assistant…" }) : undefined,
         deliverTypedAnswer: typedAnswerPoster,
         deliverMidRunMessage: midRunMessagePoster,
-        onSecretRedacted: onAdminSecretRedacted,
+        onSecretRedacted,
         runtimeAccess: failureSurface.runtimeAccess,
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
         // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from

@@ -26,14 +26,14 @@ import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
-import { navigate as realNavigate } from "@/lib/router";
-import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
+import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { rememberPostEditorRouteRename } from "../post-editor-route-key";
-import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
+import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
+import { useAgentScreenEntry } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
+import { useExternalEntryRefresh } from "@jini-ai/admin/shell/hooks/use-external-entry-refresh.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,

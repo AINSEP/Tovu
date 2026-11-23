@@ -4,7 +4,7 @@ import type { AdminWebhookSubscription } from "@/features/integrations/api/integ
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT } from "../integrations-i18n";
 import { KEYS, WEBHOOKS_RESOURCE, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";

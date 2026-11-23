@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWiredPageEditor, usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
 import { PAGES_RESOURCE } from "../rules";
 import { prettifyHtml } from "../lib/prettify-html";
@@ -2229,7 +2229,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     let finishRead!: (value: { post: typeof fresh }) => void;
     const read = new Promise<{ post: typeof fresh }>(resolve => { finishRead = resolve; });
     const get = vi.spyOn(deps.port, "getPage").mockReturnValueOnce(read);
-    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [PAGES_RESOURCE] }));
     await act(async () => { finishRead({ post: fresh }); await read; });
     expect(get, "the check settles once during Save").toHaveBeenCalledTimes(1);
     await act(async () => { finishSave(); await saving; });
@@ -2303,7 +2303,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => {
       deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>", title: "Landing v2", templateChoice: "blog-post.html" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
 
     await waitFor(() => expect(result.current.html).toBe("<p>new hero</p>"));
@@ -2327,7 +2327,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => {
       deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
     await waitFor(() => expect(result.current.contentRevision).toBe(startingRevision + 1));
   });
@@ -2340,7 +2340,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => {
       deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
 
     await waitFor(() => expect(result.current.draftHtml).toContain("new hero"));
@@ -2353,7 +2353,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     const startingRevision = result.current.contentRevision;
 
     await act(async () => {
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
       // Flushes the fetch's own promise chain (`fetchLatest` chains TWO `.then`s onto
       // `port.getPage`) so the "nothing happened" assertion below observes the settled state,
       // not a check still in flight.
@@ -2370,13 +2370,13 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     const callsAfterLoad = deps.port.getPageCalls;
 
     await act(async () => {
-      publishContentRefresh(["taxonomy"]);
+      publishContentRefresh({ resources: ["taxonomy"] });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(deps.port.getPageCalls).toBe(callsAfterLoad);
 
     deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
-    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [PAGES_RESOURCE] }));
     await waitFor(() => expect(result.current.title).toBe("Landing v2"));
   });
 
@@ -2394,7 +2394,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => {
       deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
 
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(deps.port.current.version));
@@ -2422,7 +2422,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
         settle = resolve;
       });
 
-    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [PAGES_RESOURCE] }));
     await waitFor(() => expect(settle).toBeTypeOf("function"));
     act(() => result.current.setHtml("<p>typed mid-fetch</p>"));
     await act(async () => {
@@ -2444,7 +2444,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => {
       deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
 
     await waitFor(() => expect(result.current.pendingExternalVersion).toBe(deps.port.current.version));
@@ -2460,7 +2460,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
       deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>", templateChoice: "blog-post.html" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
 
@@ -2483,7 +2483,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
       deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
 
@@ -2497,7 +2497,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     const callsBeforeSecondWrite = deps.port.getPageCalls;
     await act(async () => {
       deps.port.simulateExternalWrite({ patch: { title: "Landing v3" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(deps.port.getPageCalls).toBe(callsBeforeSecondWrite + 1);
@@ -2520,7 +2520,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
       deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
-      publishContentRefresh([PAGES_RESOURCE]);
+      publishContentRefresh({ resources: [PAGES_RESOURCE] });
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
 
@@ -2552,7 +2552,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
       await act(async () => {
         deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
-        publishContentRefresh([PAGES_RESOURCE]);
+        publishContentRefresh({ resources: [PAGES_RESOURCE] });
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(result.current.html).toBe("<p>new hero</p>");
@@ -2962,7 +2962,7 @@ describe("page editor recovery and failure outcomes", () => {
       await waitFor(() => expect(result.current.page).not.toBeNull());
       await act(async () => {
         deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>from assistant</p>" } });
-        publishContentRefresh([PAGES_RESOURCE]);
+        publishContentRefresh({ resources: [PAGES_RESOURCE] });
       });
       await waitFor(() => expect(result.current.html).toBe("<p>from assistant</p>"));
       expect(result.current.page?.version).toBe(HTML_PAGE.version + 1);

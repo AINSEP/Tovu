@@ -2,7 +2,7 @@ import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from 
 import { pluginsApi } from "@/features/plugins/api/plugins-api";
 import { providersApi } from "@/features/providers/api/providers-api";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
 import type { PluginsPort } from "./plugins-port.hooks";
 

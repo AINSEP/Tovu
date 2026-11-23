@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { postEditorRouteKey } from "../post-editor-route-key";

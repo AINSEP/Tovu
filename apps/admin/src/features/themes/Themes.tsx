@@ -5,7 +5,7 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
 import { siteUrl } from "../../lib/site-url";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";

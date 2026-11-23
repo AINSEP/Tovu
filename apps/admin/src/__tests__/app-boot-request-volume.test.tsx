@@ -5,9 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { appShellApiBody } from "./app-shell-api.fixture";
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { createAssistantLastConversationStore } from "../hooks/assistant-chats-dependencies.hooks";
-import { navigate } from "../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 // P18 exercises the real session/cache/shell/dock; routed page I/O is outside this seam.
 vi.mock("../features/ai-assistant", () => ({ AiAssistant: () => <h1>Assistant route</h1> }));

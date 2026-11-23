@@ -2,7 +2,7 @@ import { navigateSourceControlTab } from "./SourceControl.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./source-control-i18n";

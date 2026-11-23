@@ -3,7 +3,7 @@ import { Icon } from "@jini-ai/ui";
 import type { LibraryController } from "./hooks/use-library.hooks";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 /**

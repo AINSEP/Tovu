@@ -2,7 +2,7 @@ import { decodeApiError } from "@jini-ai/protocol";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "../admin-failure-channel";
-import { isPageUnloading } from "../page-lifecycle";
+import { isPageUnloading } from "@jini-ai/admin/shell/lib/page-lifecycle";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "../server-reconnect";
 import { BASE } from "./config";
 

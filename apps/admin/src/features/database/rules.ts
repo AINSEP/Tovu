@@ -4,7 +4,7 @@ import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./database-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Pure logic for the `database` feature — everything that computes a value rather than
  * rendering one. New file: this feature had no `rules.ts` before this migration, since none of its

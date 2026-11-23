@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { McpUiSurfaceCard, useT, type McpUiSurfaceCardProps } from "@jini-ai/chat/react";
 
-import { useOverflowDetection } from "./hooks/useOverflowDetection.hooks";
+import { useOverflowDetection } from "@jini-ai/admin/shell/components/AssistantDock/hooks/useOverflowDetection.hooks";
 import { MessageOverflowModal } from "./MessageOverflowModal";
 
 /**

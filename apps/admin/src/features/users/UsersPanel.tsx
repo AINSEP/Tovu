@@ -1,7 +1,7 @@
 import { createUsersControllerHook } from "./UsersPanel.hooks";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { ServerLabel } from "@/components/status-labels";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import { useWiredUsers } from "./hooks/users-controller.hooks";
 import { defaultUsersPort } from "./hooks/users-dependencies.hooks";
 

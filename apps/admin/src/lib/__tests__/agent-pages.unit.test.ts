@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildAgentPageMap } from "@jini-ai/admin/core";
-import * as router from "../router";
+import * as router from "@jini-ai/admin/shell/lib/router";
 import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages, listAdminAgentScreens } from "../agent-pages";
-import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
+import { resetContentRefreshBus, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
  * @file `agent-pages.ts` — the allowlist behind `page.navigate` (`buildAdminAgentPages`) and the

@@ -4,7 +4,7 @@ import type { ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { createTovuAssistantTransport } from "../assistant-transport";
-import { createStreamActivity } from "../stream-activity";
+import { createStreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 import { flushMicrotasks } from "./assistant-transport.test-helpers";
 
 /**

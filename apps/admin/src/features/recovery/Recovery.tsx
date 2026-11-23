@@ -26,7 +26,7 @@ import {
 } from "./recovery-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
  *

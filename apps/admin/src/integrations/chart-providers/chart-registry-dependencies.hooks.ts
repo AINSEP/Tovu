@@ -1,6 +1,6 @@
 /** The only chart bootstrap client binding; retries and session handling stay in the existing API. */
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { AdminChartProviderSnapshot, ChartRegistryPort } from "./chart-registry-port.hooks";
 
 export const defaultChartRegistryPort: ChartRegistryPort = {

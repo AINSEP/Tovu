@@ -5,7 +5,7 @@ import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { readFileAsBase64 } from "../../media/rules";
 import { t as translate } from "../library-i18n";
 import {

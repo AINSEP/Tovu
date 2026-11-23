@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSettingsSlice, SAVE_DEBOUNCE_MS } from "../use-settings-slice.hooks";
-import { publishSettingsRefresh, subscribeToSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 /**
  * @file The external-refresh half of the slice.
