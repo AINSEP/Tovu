@@ -1,4 +1,4 @@
-import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "./post-read.js";
+import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "@jini-ai/cms/posts/post-read";
 import { ToolInputError } from "@jini-ai/core";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";

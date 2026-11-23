@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import type { Translate } from "@jini-ai/core/text";
-import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useDevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
@@ -126,6 +126,7 @@ function actionsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEdi
 function settingsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEditorReadyScreen["settings"] {
   return {
     hooks: { useTabBarKeyboard },
+    resolveTabBarTabIndex,
     dialog: settingsDialog,
     kindLabel,
     author: ctrl.author,

@@ -58,7 +58,7 @@ test("the sweep catches up fully at start, then reads only since the previous pa
   const outbox = new RecordingOutbox();
   let now = Date.parse(GO_LIVE);
   const { state, timers } = fakeTimers();
-  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => now } }, workspaceId: "ws" }, { timers });
+  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => now } }, workspaceId: "ws", onError: () => {} }, { timers });
   await settle();
   assert.equal(state.ms, POST_GO_LIVE_SWEEP_INTERVAL_MS);
   assert.equal(state.unrefed, true, "never keeps the process alive");
@@ -84,7 +84,7 @@ test("a tick during a pass in flight is skipped, and stop waits for that pass", 
   repo.gate = new Promise<void>((resolve) => { release = resolve; });
   const outbox = new RecordingOutbox();
   const { state, timers } = fakeTimers();
-  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws" }, { timers, intervalMs: 5 });
+  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws", onError: () => {} }, { timers, intervalMs: 5 });
   state.tick?.();
   assert.equal(repo.calls.length, 1, "single-flight");
   const stopped = sweep.stop();
@@ -103,8 +103,8 @@ test("a failed pass reports, keeps its window, and a throwing reporter is swallo
   const errors: unknown[] = [];
   const { state, timers } = fakeTimers();
   const sweep = startPostGoLiveSweep(
-    { deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws" },
-    { timers, onError: ({ error }) => { errors.push(error); throw new Error("reporter broke"); } }
+    { deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws", onError: ({ error }) => { errors.push(error); throw new Error("reporter broke"); } },
+    { timers }
   );
   await settle();
   state.tick?.();
@@ -114,21 +114,16 @@ test("a failed pass reports, keeps its window, and a throwing reporter is swallo
   await sweep.stop();
 });
 
-test("the default reporter logs; a non-positive interval is refused; default timers start and stop", async () => {
+test("the required reporter receives the failure; a non-positive interval is refused; default timers start and stop", async () => {
   const repo = new FakeCandidates();
   repo.failing = true;
-  const logged: unknown[][] = [];
-  const original = console.error;
-  console.error = (...args: unknown[]) => { logged.push(args); };
-  try {
-    const sweep = startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws" });
-    await settle();
-    await sweep.stop();
-  } finally {
-    console.error = original;
-  }
-  assert.match(String(logged[0]?.[0]), /post-go-live-sweep/);
+  const reported: unknown[] = [];
+  const sweep = startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws", onError: ({ error }) => { reported.push(error); } });
+  await settle();
+  await sweep.stop();
+  assert.equal(reported.length, 1);
+  assert.ok(reported[0] instanceof Error);
   for (const intervalMs of [0, -1, 1.5]) {
-    assert.throws(() => startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => 0 } }, workspaceId: "ws" }, { intervalMs }), RangeError);
+    assert.throws(() => startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => 0 } }, workspaceId: "ws", onError: () => {} }, { intervalMs }), RangeError);
   }
 });

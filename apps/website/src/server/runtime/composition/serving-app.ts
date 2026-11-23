@@ -100,7 +100,8 @@ export function createServingApp(
   );
   const candidates = routeDeps.postGoLiveCandidates;
   const postGoLiveSweep = candidates
-    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId }, { tracker: routeDeps.tracker })
+    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId,
+      onError: ({ error }) => console.error("[post-go-live-sweep] sweep failed; retrying after the idle interval", error) }, { tracker: routeDeps.tracker })
     : { stop: async () => {} };
   const themeWatcher = startThemeWatcher({ themesDir: routeDeps.themesDir, refresh: ({ themesDir }) => refreshWatchedThemes({ themes: routeDeps.themes, themesDir }) });
   const webhookDeliveryWorker = startServingWebhookDeliveryWorker(

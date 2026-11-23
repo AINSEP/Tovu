@@ -55,7 +55,7 @@ function sendPageUpdateError({ res, err }: { res: Response; err: unknown }, _opt
   // the same shared envelope, as `posts/update.ts`: one definition of the `code` a client branches
   // on, across every arm that can produce this conflict.
   if (err instanceof PostVersionConflictError) {
-    res.status(409).json(versionConflictEnvelope(err));
+    res.status(409).json(versionConflictEnvelope({ err, outwardErrorMessage: ({ error }) => error.message }));
     return;
   }
   if (err instanceof PostConflictError) {

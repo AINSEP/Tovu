@@ -3,7 +3,7 @@ import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type BeforeSaveHookPort, runBeforeSaveHook, mergeExt } from "@jini-ai/cms/posts/post-before-save";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
+import { persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 
 /** The STRICT slug-uniqueness rule `importPostEntity` (publish) keeps: a slug claimed by any
  * DIFFERENT record, trashed or not, is a conflict. Publish plans its own address clashes —

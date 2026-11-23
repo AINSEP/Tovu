@@ -6,7 +6,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "../post-create.js";
 import { deletePost } from "../post-trash.js";
-import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "../post-read.js";
+import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { updatePost } from "../post-update.js";
 import { PostNotFoundError, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";

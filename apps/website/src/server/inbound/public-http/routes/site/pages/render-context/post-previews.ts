@@ -1,5 +1,5 @@
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
-import { listPublishedPostPreviews } from "#src/features/post/post-read";
+import { listPublishedPostPreviews } from "@jini-ai/cms/posts/post-read";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage } from "#src/features/theme/static-render-previews";

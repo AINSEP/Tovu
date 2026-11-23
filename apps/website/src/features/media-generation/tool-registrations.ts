@@ -434,7 +434,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
   // bare fake); the published enum then falls back to the built-in projection. Every composition
   // root supplies the registry, and the handler always reads it.
   const imageModelIds = registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
-  const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds }) });
+  const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds, mediaAssetReadToolId: "content_read.media_asset" }) });
   const handlers: Record<string, ToolHandler> = {
     media_generate_asset: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });

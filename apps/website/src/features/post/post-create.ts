@@ -5,7 +5,7 @@ import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, merg
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { assertTitleWithinLimit, isJsonObject, isValidPostStatus, resolveBodyFields, normalizePostAuthor, normalizeShowPostAuthor, assertOptionalBoolean, assertPostPresentationFields, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { assertValidExplicitSlug, resolveCreateSlug, releaseTrashedSlug } from "./post-slugs.js";
-import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
+import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 
 export interface CreatePostInput {
   /** Host-selected entry point; never taken from authored content. */

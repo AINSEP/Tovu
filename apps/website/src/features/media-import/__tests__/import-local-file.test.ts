@@ -26,7 +26,7 @@ import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
-const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: FS_FOLDER_READ_RECOVERY });
+const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: FS_FOLDER_READ_RECOVERY, mediaAssetReadToolId: "content_read.media_asset" });
 const LOCAL_IMPORT_MAX_ITEMS = 50;
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 32]), Buffer.from("ftypisom"), Buffer.from([0, 0, 0, 0]), Buffer.from("isomiso2avc1mp41")]);

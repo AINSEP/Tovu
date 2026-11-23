@@ -58,7 +58,7 @@ import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 const LOCAL_FILE_IMPORT_RECOVERY = FS_FOLDER_READ_RECOVERY;
 
 /** This host's media-import catalog: the Jini builder bound to fs-files' root ids and recovery text. */
-export const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: LOCAL_FILE_IMPORT_RECOVERY });
+export const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: LOCAL_FILE_IMPORT_RECOVERY, mediaAssetReadToolId: "content_read.media_asset" });
 
 export interface MediaImportToolDeps {
   tracker?: Tracker;

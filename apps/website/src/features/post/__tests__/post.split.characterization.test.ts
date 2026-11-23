@@ -3,7 +3,7 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { SlugChangeCapture } from "@jini-ai/cms/routing";
 import { createPost } from "../post-create.js";
-import { getAdminPostByIdOrSlug } from "../post-read.js";
+import { getAdminPostByIdOrSlug } from "@jini-ai/cms/posts/post-read";
 import { importPostEntity } from "../post-import.js";
 import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { restorePostForward } from "../post-trash.js";

@@ -7,7 +7,7 @@ import { type SlugChangeCaptureLookup, assertValidExplicitSlug, hasPostBeenPubli
 import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "@jini-ai/cms/posts/post-write-fields";
 import { isAutomaticPostSlug } from "@jini-ai/cms/posts/slug";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
+import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 import { isDeepStrictEqual } from "node:util";
 
 export interface UpdatePostInput {

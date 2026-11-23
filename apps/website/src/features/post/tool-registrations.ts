@@ -1,6 +1,6 @@
 import { updatePost } from "./post-update.js";
 import { restorePostForward, deletePost } from "./post-trash.js";
-import { getAdminPostById, listAdminPosts } from "./post-read.js";
+import { getAdminPostById, listAdminPosts } from "@jini-ai/cms/posts/post-read";
 import { normalizeShowPostAuthor, normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
 import { createPost } from "./post-create.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';

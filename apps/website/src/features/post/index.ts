@@ -1,6 +1,6 @@
-export { classifyStatusTransition } from "./post-write-effects.js";
+export { classifyStatusTransition } from "@jini-ai/cms/posts/post-write-effects";
 export { createPost } from "./post-create.js";
-export { createPublicPostReader, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, findPublishedPostById, findPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts, listPublishedPostPreviews, type PublicPostReaderPort } from "./post-read.js";
+export { createPublicPostReader, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, findPublishedPostById, findPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts, listPublishedPostPreviews, type PublicPostReaderPort } from "@jini-ai/cms/posts/post-read";
 export { deletePost, restorePostForward, type ForgetRemovedPostFn, type RemovePostFn } from "./post-trash.js";
 export { updatePost, type UpdatePostInput } from "./post-update.js";
 export { hasPostBeenPublished, type SlugChangeCaptureLookup } from "./post-slugs.js";

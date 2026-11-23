@@ -11,7 +11,7 @@ import { fetchPublishedPage } from '#src/features/site-inspection/published-page
 import { resolveSitePath } from '#src/features/site-inspection/site-path-policy';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
-import { findPublishedPostBySlug } from "#src/features/post/post-read";
+import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import { isBarePageChoice } from '#src/features/theme/index';
 import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
 import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';

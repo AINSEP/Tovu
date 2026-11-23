@@ -101,7 +101,7 @@ import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
-const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS });
+const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { mediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";

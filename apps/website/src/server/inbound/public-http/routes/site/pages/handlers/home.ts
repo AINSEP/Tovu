@@ -1,7 +1,7 @@
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
 import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
-import { getPublishedPostBySlug, listPublishedPosts } from "#src/features/post/post-read";
+import { getPublishedPostBySlug, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { PostNotFoundError, ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";

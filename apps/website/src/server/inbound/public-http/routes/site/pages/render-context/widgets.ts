@@ -2,7 +2,7 @@ import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.j
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import type { Request } from "express";
 import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
-import { createPublicPostReader } from "#src/features/post/post-read";
+import { createPublicPostReader } from "@jini-ai/cms/posts/post-read";
 // Page readiness reads must not load the assistant tool/runtime barrel.
 import { getPublicAssistantSettings } from "#src/assistant/public-assistant-settings";
 import { resolvePublicAssistantAvailability } from "#src/assistant/public-assistant-availability";

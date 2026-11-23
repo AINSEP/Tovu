@@ -82,7 +82,7 @@ function sendPostUpdateError({ res, err }: { res: Response; err: unknown }, _opt
   if (err instanceof PostVersionConflictError) {
     // Body built by the shared boundary module, not spelled out here, so the `code` a client
     // branches on has exactly one definition across every arm that can produce this conflict.
-    res.status(409).json(versionConflictEnvelope(err));
+    res.status(409).json(versionConflictEnvelope({ err, outwardErrorMessage: ({ error }) => error.message }));
     return;
   }
   if (err instanceof PostConflictError) {

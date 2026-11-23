@@ -1,4 +1,4 @@
-import { getAdminPostById } from "./post-read.js";
+import { getAdminPostById } from "@jini-ai/cms/posts/post-read";
 import { createPost } from "./post-create.js";
 import { AGENT_TOOL_PRINCIPAL_KIND } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";

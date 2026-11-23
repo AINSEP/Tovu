@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { createPost } from "../post-create.js";
-import { findPublishedPostById, findPublishedPostBySlug, getPublishedPostBySlug, listPublishedPostPreviews, listPublishedPosts } from "../post-read.js";
+import { findPublishedPostById, findPublishedPostBySlug, getPublishedPostBySlug, listPublishedPostPreviews, listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { normalizePublishAt } from "@jini-ai/cms/posts/post-write-fields";
 import { PostNotFoundError, PostValidationError, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { updatePost } from "../post-update.js";
