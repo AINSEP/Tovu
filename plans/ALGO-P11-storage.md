@@ -1,4 +1,4 @@
-DESIGN COMPLETE
+DESIGN COMPLETE (R1123: every NEEDS / READY step revised per `reviews/plans1123.md`; see R1123 blocks)
 
 # ALGO-P11 · Storage budget — algorithm design (how each slice works)
 
@@ -97,6 +97,8 @@ For every delete: (a) durably record the intent/eligibility (tombstone file, mar
 
 ## 3 · Built plug-in contracts (ST-4, ST-5, ST-14) — how the rest plugs in
 
+> **R1123 (Codex ST-4, 5, 14: READY).** Consume the built implementations. Pin both mixed-mode arrival orders (`runner.ts` mixed-mode, I-4.x) and queued-stop behaviour. Note for ST-6a: on the ST-4 head `runner.ts:95–98` `start()` **immediately requests a pass**, so hosts call `start()` exactly once and never schedule a separate boot pass.
+
 ### ST-4 · Retention runner (Jini `platform`, built on `codex/st-ready-jini`)
 1. **Data model:** in-memory only. `RetentionPolicy { id, kind: 'cache'|'derived'|'old-copy', measure(), sweep({ now }) }` (`J/platform/src/retention/runner.ts:23-35`); kinds validated at runtime (`:111-118`). Pass queue `{ running?, waiting? }` (`:148-155`).
 2. **Algorithm (as built):** `request({ dryRun })`: stopped → `{status:'stopped'}`; idle → begin; running same mode → join running promise; running other mode → join/create the single `waiting` pass (`:172-183`). `executePass` runs policies **sequentially** in list order, `measure()` on dry run, `sweep({ now: startedAt })` otherwise; each failure becomes `{status:'failed', message}` and `reportError(error, { policyId })` (`:196-230`). `stop()` cancels `waiting` (resolves `stopped`) and awaits `running` (`:184-193`). Scheduled passes use `scheduledDryRun` (`:60-66,89-93`).
@@ -113,6 +115,12 @@ For every delete: (a) durably record the intent/eligibility (tombstone file, mar
 Jini `measure-tree.ts` walks with an anchored no-follow directory port; unknown ≠ 0; symlinks listed, never followed (header `:2-17`). Tovu `measureSiteStorage` maps resolved site paths to categories and classes. **Plug-in rule:** every policy's `measure()` reuses the same category ids, so the dry-run list (ST-15/17) and the storage report (ST-16) name the same rows. **I-14.1** parts add up to the walked total; **I-14.2** symlink not followed; **I-14.3** unreadable = unknown.
 
 ## 4 · ST-7a · SQLite conversion + daily step — AS IMPLEMENTED (Jini `codex/p11-next-jini`)
+
+> **R1123 revision (Codex ST-7a–7c: NEEDS) — supersedes D7a-4's single-sequence Restore and the unbound copy name.**
+> - **Copies bound to DB identity + conversion generation.** Copy name `pre-compact-<db>-g<generation>-<ms>.db` plus a durable sidecar `…db.json` = `{ dbId (meta uuid), devIno, generation, createdAt, sha256 }`, written (fsync) before the marker names the copy. Restore refuses unless the sidecar's `dbId` equals the current DB's `dbId` (or the current DB is absent and the marker names this copy) and `generation` equals the marker's.
+> - **Resumable Restore (journaled in the marker).** `marker.restore = { phase, asideName, copyName, generation }`; each phase is written durably **before** its action: `moving-current` → rename `<db>`, `<db>-wal`, `<db>-shm` to `<db>.aside-g<gen>{,-wal,-shm}` (WAL/SHM move with their own main file, same generation suffix; never left beside a restored file) → `publishing` → copy the verified copy to `<db>.restore-tmp`, fsync, verify sha256, rename to `<db>`, fsync dir (the recovery copy itself stays) → `clearing` → clear the marker. On restart, each phase is idempotent: it checks the post-state (e.g. aside exists and `<db>` absent ⇒ move done) and continues.
+> - **Hold the running claim through close; budget actual filesystems.** `finally { await closeAllHandles(); claim.release(); }` (close strictly before release, ST-7b). Free-space budget uses `statfs` of the DB's directory **and** of the copies directory when they are on different devices. ST-7c's elapsed-time check is a **between-step bound**: each synchronous step runs to completion; the budget is checked before starting the next step (I-7c.4 renamed `stops between steps once the time budget is spent`).
+> - Tests: `crash after each restore phase resumes to a consistent DB` (table-driven over the three phases + "after publish before clear"; mutation: move WAL/SHM after publishing → stale WAL replays onto the restored file → red); **`DB replaced between retries refuses restore`** (dbId mismatch; mutation: skip the dbId check → red); `claim is released only after every handle closes`.
 
 Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), ports in `J/core/src/contracts/storage/sqlite-compaction.ts`.
 
@@ -143,6 +151,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 
 ## 5 · ST-12a · Share expiry field — AS IMPLEMENTED (Tovu `codex/p11-next-tovu`)
 
+> **R1123 revision (Codex ST-12a–12b: NEEDS).** Provenance becomes explicit: share rows gain `origin: 'local' | 'peer'` (migration derives it once from the current `url: null` / no-`storage` heuristic and logs the counts); every later rule reads `origin`, never the heuristic. **Both** download routes — public `site-share.ts` and admin `site-shares.ts` (revoked check at `:129` on merge-13) — refuse `expiresAt <= now` (410 "This share link has expired.") **even before the sweep runs**. See ST-12b R1123 for the admission gate.
+
 1. **Data model:** `SiteShareRecord.expiresAt?: string | null` (`W/features/site-backup/share-registry.ts:26`); choices `SHARE_EXPIRY_DAYS = [7, 30, 90]` + Never (`share-expiry.ts`). Registry clock injected (`share-registry.ts:50`).
 2. **Algorithm:** create: `shareExpiresAt({ days, now })` → ISO or null; other values refused "A share link can expire after 7, 30 or 90 days, or never."; expiry with a non-own-folder provider refused ("Links stored with s3 can't expire yet…"). Serve: `findToken` returns null when `isShareExpired({ row, now })` (`share-registry.ts:109-115`); `isShareExpired` is false for absent/null, true when unparseable or `now >= at`. Nothing is flipped or deleted.
 3. **State machine:** none new; status stays `active`.
@@ -155,6 +165,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 `tovu storage report <dir> [--json]` (`W/cli/commands/storage-report.ts` on p11-next-tovu): no boot, no DB open, no lease, `resolveSiteDatabasePaths({ reserveIdentity: false })`, share folder derived without `mkdir`; plain totals per class. **I-16.1** report never migrates, opens a DB, or creates anything (tree snapshot incl. mtimes identical; mutation `resolveShareDirectory` → red). No defects found against plan; `clean`/`compact` designed in §22.
 
 ## 7 · ST-6a · Wire the runner in the serving process (Tovu)
+
+> **R1123 revision (Codex ST-6a: NEEDS).** Start the runner **once**, after readiness **and** the boot delay: `whenReady.then(() => scheduler.setTimeout(bootDelayMs, () => runner.start()))`. Because `start()` itself requests a pass (`runner.ts:95–98`), the separate "schedule the boot pass" call is deleted. Test `exactly one pass after ready plus the boot delay` (fake scheduler). Mutation: also call `runOnce` at boot → two passes → red.
 
 1. **Data model.** In-memory: one `RetentionRunner` per served site; `AbortController` for the pass; last pass report kept in memory (for ST-15/17 "last cleanup"). Persisted: none (the report line goes to the site server log). New file `W/server/runtime/composition/retention.ts`.
 2. **Algorithm.**
@@ -184,6 +196,11 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 
 ## 8 · ST-6b · Pre-migration copy policy, keep 5 (Tovu binds Jini ST-5)
 
+> **R1123 revision (Codex ST-6b: NEEDS).**
+> - **One cross-process copy fence.** The in-process `opsCopiesMutex` becomes the in-process half of a file fence `<opsDir>/.copies.lock` (Jini `withFileLock`): backup **publishers** (boot migration copy, pre-compaction copy) and the **prune** pass take it exclusively; **Recovery readers** register a reader record `<opsDir>/.copy-readers/<pid>-<startedAt>-<copy>` under the lock and remove it when done. Prune skips any copy with a reader record whose process is alive (pid + start time).
+> - **One retention rule for pre-compaction copies** (replaces both line 140 D7a-3 and step 7 here): keep the newest `pre-compact-<db>-*` per DB indefinitely; remove older ones once older than 7 days; **never** remove a copy named by any marker whose state is not `converted` (in progress, needs-attention, restore).
+> - Tests: `a Recovery reader in another process keeps its copy` (mutation: in-process mutex only → pruned → red); `newest pre-compaction copy survives 7 days`, `copy named by a needs-attention marker survives`.
+
 1. **Data model.** Files only: `<dbdir>/ops/pre-migrations-<ISO>.db` (+ `-wal`/`-shm`) written by `migrateSqliteContentFile` (`W/platform/db/sqlite/content-db.ts:102-117`, name built at `:125-128`, exact matcher at `:131-133`) and the chat DB's equivalent writer. In-memory: `opsCopiesMutex` keyed by resolved ops dir; `heldCopies: Set<path>` registered by Recovery readers.
 2. **Algorithm.**
    - `measure()`: list exact-name copies per DB (same regex as `content-db.ts:133`), sum main+wal+shm; return bytes and count beyond 5.
@@ -205,6 +222,14 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 
 ## 9 · ST-6c · Writer-owned temp roots (Tovu)
 
+> **R1123 revision (Codex ST-6c: NEEDS) — supersedes "the lock is the ownership proof".**
+> - **Generic helper in Jini:** `withOwnedTempRoot` moves to `J/platform/src/fs/owned-temp-root.ts` now (Codex), with all fs/process effects injected; Tovu binds its prefixes.
+> - **Durable ownership marker, separate from the transient lock:** immediately after `mkdtemp(prefix)` the writer writes `<root>/.tovu-owner.json` = `{ ownerPid, ownerStartedAt, purpose, createdAt }` (fsync file + dir). The `.lock` remains a short-lived mutual-exclusion file only.
+> - **The worker holds its own claim:** a child/worker writes `<root>/.claim-<pid>-<startedAt>` at start and removes it at exit; the parent's claim is its marker. A root is eligible for removal only if the marker exists, the owner is dead (pid + start time), **and** no claim file names a live process.
+> - **Real naming:** `mkdtemp(prefix)` appends 6 random characters (`database-transfer-adapters.ts:34`), so the sweep matches `^<registered prefix>[A-Za-z0-9]{6}$` per registered prefix — not `<prefix>-<uuid>`.
+> - **Stale locks never strand a root:** the sweep never deletes a `.lock` it does not hold. Because `withFileLock` at `timeoutMs: 0` can remove a stale lock and then time out before the callback (`file-lock.ts:279–286`), eligibility is judged from the marker + claims (lock state is ignored for dead owners), and the removal itself runs inside the helper's own acquisition on the next pass if this one timed out.
+> - Tests: **«Dead parent with a live worker cannot lose staging»** (mutation: ignore claim files → root removed → red); **«Stale-lock cleanup never strands an eligible root»** (stale lock removed then timeout → next pass removes the root; mutation: old step 7 removes the lock and marks the root done → root stranded → red); `mkdtemp-shaped names are matched; other names are ignored`.
+
 1. **Data model.** Roots in `os.tmpdir()` with **exact** names `^(tovu-import-db|tovu-share-projection|tovu-archive-media|tovu-static-copy|tovu-snapshot|tovu-transfer-chat)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$` and a sibling lock file `<root>.lock` (Jini file-lock JSON: pid, hostname, token, acquiredAt, optional bootId; `file-lock.ts:47-57`). Each writer: `W/features/site-backup/import-database.ts:61-62` (already: lock before `mkdir`, `staleMs: Infinity`), and the other writers in `W/features/site-backup/*` plus `W/server/runtime/composition/database-transfer-adapters.ts:34` (`tovu-transfer-chat-*`, missed by v2 row 25 — check "missed writers").
 2. **Algorithm.**
    - **Writer protocol (every writer adopts it; one helper `withOwnedTempRoot({ prefix, work })`):** 1) `root = tmpdir/<prefix>-<uuid>`; 2) `withFileLock({ lockPath: root + '.lock', run }, { staleMs: Infinity })` — the lock exists **before** `mkdir` (no root without an owner); 3) inside: `mkdir(root, 0o700)` → `work(root)` (including forked children — the parent stays inside `run` until child `close`, as `import-database.ts:77-104` does) → `rm -r root` in `finally`; 4) lock released by `withFileLock`. A root handed to a publisher (e.g. snapshot → share publication) stays inside `run` until publication resolves.
@@ -222,6 +247,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** `withOwnedTempRoot` in `W/platform/temp/owned-root.ts` (Tovu; generic enough to move to `J/platform/src/fs` later — not now, one consumer). Policy gets `{ tmpdir, fileLock, fs, clock }`. Depends on ST-6a.
 
 ## 10 · ST-7b · Run conversion on stopped sites (Tovu)
+
+> **R1123 (Codex ST-7b, see ST-7a R1123):** `finally` becomes `await closeAllHandles(); claim.release();` — a would-be server polling the claim can never open the DB while the maintenance handle is still open. Budget = `statfs` of each real filesystem involved.
 
 1. **Data model.** `<site>/ops/maintenance.json` `{ version: 1, databases: { "content.db": Marker, "chat.db": Marker } }` (atomic write: temp + rename + fsync, read-modify-write only while holding the lease). **Maintenance claim:** the running record gains `purpose: 'serve' | 'maintenance'` (Jini `DirectoryRunningRecord`, `@jini-ai/platform/fs`, additive field; absent = serve).
 2. **Algorithm `compactStoppedSite({ dir, claim, open, markerStore, fs }, { databases = ['content','chat'] })`:**
@@ -241,6 +268,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 
 ## 11 · ST-7c · Daily bounded step (Tovu policy over ST-7a)
 
+> **R1123 (Codex ST-7c):** the 2 s elapsed-time check is a **between-step** bound (a synchronous step is never interrupted); documented in the why-comment and in I-7c.4's renamed test.
+
 1. **Data model:** none new; reads the marker (§10) and the serving process's existing SQLite handles (content kernel source, chat DB handle).
 2. **Algorithm (policy `db-free-pages`, kind `derived` — free pages are not data):**
    - `measure()`: for each converted DB: `freelist_count × page_size`, main and WAL sizes.
@@ -252,6 +281,13 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** policy factory gets `{ databases: [{ db, filePath, marker }] , now }`; imports `@jini-ai/db/sqlite` `incrementalVacuumStep`. Depends on ST-7a + release, ST-6a, ST-7b (markers exist only after conversion).
 
 ## 12 · ST-8a · Chat pin + owner bulk delete (Jini `chat`)
+
+> **R1123 revision (Codex ST-8a–10: NEEDS).**
+> - **Open-chat guard restored and fenced.** Opening a chat registers a DB-backed open lease `chat_open_leases(chat_id, holder_id, expires_at)` (renewed every 30 s while open, TTL 90 s) under the same `chat-slot:<id>` fence as run start, pin and delete. Preview **and** the per-id delete recheck add `AND NOT EXISTS (SELECT 1 FROM chat_open_leases WHERE chat_id = c.id AND expires_at > :now)`. Because it is in the DB, it holds across connections and processes.
+> - **Owner-bound confirmation for selected ids too.** `POST …/delete-selected/preview { ids }` → token bound to `{ principalId, sha256(sorted ids), count, expiresAt }`; `POST …/delete-selected { token }` deletes; an `ids` body without a valid token → 400, nothing deleted.
+> - **Fresh single-use continuation token per committed batch.** `take(token)` consumes it; the batch txn that deletes ≤ 100 chats also stores a **new** token for the remainder and returns it; the old token is dead even if the client retries.
+> - **No automatic owner-chat deletion**; generated-title provenance preserved (ST-9 R1123).
+> - Tests: **«Opened after preview survives across connections»** (connection A previews, connection B opens the chat, A applies → kept; mutation: drop the open-lease predicate → deleted → red); **«Selected-ID mutation without confirmation deletes nothing»** (mutation: accept a raw `ids` body → red); `a continuation token cannot be replayed`.
 
 1. **Data model.**
    - `ai_chats.pinned_at` INTEGER NULL (SQLite) / BIGINT NULL (PG); index `ai_chats_owner_cleanup (scope_id, owner_kind, owner_id, pinned_at, updated_at)`. DDL lives in Jini `CHAT_HISTORY_DDL` (`J/chat/src/store/sqlite/schema.ts:40-`) for fresh bootstraps; Tovu ships the ADR-066 migration (ST-9).
@@ -286,6 +322,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** copy via existing args objects; no product strings.
 
 ## 14 · ST-8c · `attempt_base_json` trim — proof first, then trim (Jini `chat`)
+
+> **R1123 (Codex ST-8c):** stays **report-only** until its reader proof passes. The eventual trim keys on the **full attempt key** `(message_id, attempt_id)` plus the eligibility predicate (terminal, older than the cutoff, not referenced by any reader the proof enumerates) — never `message_id` alone. Test `trim leaves a newer attempt of the same message untouched` (mutation: key by `message_id` → red).
 1. **Data model:** none new; `assistant_run_attempts.attempt_base_json` set to `'[]'`.
 2. **Algorithm.**
    - **Proof (gating deliverable, test file `attempt-base-readers.test.ts`):** enumerate every non-test reader on the bases — Jini: `chat/src/core/durable-runs/ports.ts:24`, `chat/src/server/durable-runs/recover.ts:53,56,142,151,153`, `chat/src/store/runtime/durable-run-store.ts:113,141,395,426,430,508`, `chat/src/store/runtime/kernel.ts:22`; Tovu: `W/server/runtime/composition/modules/assistant-chats.ts:286`, `…/run-finalizer/entry.ts:103,264,265,303`, `recovery-binding.ts:34,61`, `stream.ts:51`, `watch-state.ts:28,72` (re-grep on the then-current head; `ex5-fnd-seams-jini` edits `durable-run-store.ts`). For each reader write one test that drives it with a terminal, past-deadline attempt whose base is `'[]'` and asserts identical observable output to the untrimmed case. Any reader that differs → ST-8c stays report-only (plan row 9).
@@ -297,6 +335,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** policy factory in Jini `chat` (`createAttemptBaseTrimPolicy({ kernel, now })`), registered by Tovu ST-6a only after the proof file is green.
 
 ## 15 · ST-9 · `chat/0004_chat_pinned` + mount (Tovu)
+
+> **R1123 (Codex ST-8a–10):** generated-title provenance is **never taken from the request body**: `source: 'generated'` is set only by the server's title-generator path; an owner rename always writes `manual`. Test `a client cannot mark its own rename as generated` (mutation: honour `body.source` → red). I-9.2 kept.
 1. **Data model:** ADR-066 TS migration `chat/0004_chat_pinned`: `ALTER TABLE ai_chats ADD COLUMN pinned_at INTEGER` (PG `BIGINT`), `CREATE INDEX IF NOT EXISTS ai_chats_owner_cleanup …`. Update registries, `checksums.ts`, `source-digests.ts`, fresh bootstrap `openChatDb` (`W/platform/db/sqlite/chat-db.ts:49-72`), dialect coverage.
 2. **Algorithm:** migration runs inside the runner's transaction (DDL only; **no `VACUUM`, no pragma**). Mount Jini specs in `W/server/runtime/composition/modules/assistant-chats.ts` beside `:329-330`. PATCH: parse `{ title?, pinned? }`; neither → 400 "Nothing to change."; `pinned` must be boolean; both → one transaction: `setPinned` then `rename(…, { source })` keeping `source: body.source === 'generated' ? 'generated' : 'manual'` (`:192-194`); null from either → 404.
 3. **State machine:** schema version 3 → 4.
@@ -306,6 +346,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** Tovu passes owner-bound store factory + `PreviewStore` into Jini specs. Depends on ST-8a + Jini release.
 
 ## 16 · ST-10 · Admin chat list: pin, multi-select delete, "Delete older than" (Tovu)
+
+> **R1123 (Codex ST-10):** the UI's `confirm({count})` step now obtains the server preview token (ST-8a R1123) and sends only the token; required UI hook props unchanged.
 1. **Data model:** client state only.
 2. **Algorithm / 3. State machine (dialog):** `closed → choosing(X: 1 day…1 year, default 90 days) → previewing → preview-shown({count, bytes, kept}) → applying(chunk k/n) → done({deleted, kept[]}) | error(message)`; `expired` → back to `choosing` with "This preview is out of date. Preview again." Delete-selected: `selecting → confirm({count}) → applying → done`.
 4. **Concurrency:** apply button disabled while applying; a second tab's token is separate (one live token per principal → issuing a new one invalidates the older; the older tab gets `expired`).
@@ -314,6 +356,14 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** `@jini-ai/admin` kit, ST-8b component, hook props `useChatCleanup({ preview, apply })` supplied by the panel composition. Depends on ST-9, ST-8b.
 
 ## 17 · ST-11a · Durable media GC protocol (Jini `cms/media`)
+
+> **R1123 revision (Codex ST-11a–11b: NEEDS).**
+> - **Durable reservation until verified publication**, keyed by **physical store and object identity across workspaces**: `blob_reservations(store_id, object_key, workspace_id, purpose, created_ms)` with `store_id` = provider + bucket / `realpath(root)`; inserted **before** bytes are written, deleted in the same txn as the media row insert (verified publication). GC treats a reserved key as owned regardless of workspace.
+> - **Unlink revalidates under one fence:** `lockKey('blob:' + store_id + ':' + key)` held while re-reading the journal ownership row, live refs (all workspaces sharing `store_id`), reservations **and** snapshot/recovery protection, then removing.
+> - **No remote delete that can land after a lock timeout:** remote removal only with a provider **generation-conditional** delete (`ifGenerationMatch` / `If-Match` ETag) using the generation recorded at journaling; the fence is held until the call settles; a timeout leaves the item `unlinking` and the next pass reconciles it with a HEAD (generation compare). Providers without conditional delete stay **report-only**.
+> - **Forms unlinker** excludes only **its own** outbox job id from the owner test (`AND job_id != :self`).
+> - Automatic byte removal is restricted to confirmed purge or proven-disposable data (OWNER-Q-11a changed, below).
+> - Tests: **«Late remote remove cannot erase a replacement»** (delete delayed past a re-upload that creates a new generation → conditional delete gets 412 → replacement intact; mutation: unconditional delete → red); **«Recovery copy published after journaling still protects bytes»** (mutation: check protection only at journaling time → red); `a reservation in workspace B protects a shared-store key during GC in workspace A`; `forms unlinker treats another pending job as an owner`.
 
 **Today (verified):** three phases — tombstone (`blob-gc.ts:202-222`, row `status='tombstoned'`), delete-pass (`:263-295`: grace check, re-check, write `journalRepo` entry, remove blob row), unlink-pass (`:331-360`: per journal entry, if no live blob row → `blobStore.remove` → drop entry). Every phase serializes with the **in-process** `withSha256Lock` only (`:16-21,44`); live-entry and snapshot conjuncts are stubs that answer "unreferenced" (`:59-99`). **Defect:** a second process (CLI import, desktop sidecar, PG multi-instance) can insert a blob row and write the same content-addressed bytes between the unlinker's "no live row" read and `blobStore.remove` → live media loses its bytes.
 
@@ -337,6 +387,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 8. **OWNER-Q-11a:** are bytes of media removed by the existing 60-day Trash TTL (`W/features/trash/ports.ts:33`) eligible for automatic byte removal after the 30-day grace, or only bytes the owner purged by hand? **Recommend eligible** — the Trash TTL is an owner-visible, owner-approved rule ("items in Trash are deleted after 60 days"), the bytes are unreachable after it, and grace adds 30 more days; provenance is still recorded so this can be narrowed later.
 
 ## 18 · ST-11b · `content/0043_blob_gc_journal` + adapter + policy (Tovu)
+
+> **R1123 (Codex ST-11b):** the adapter implements ST-11a's reservation table and fenced revalidation; `hasLiveEntryRefs` stays fail-closed (`true` = keep). Recovery-copy protection is re-read inside the unlink fence, not only at journaling.
 1. **Data model:** ADR-066 migration `content/0043_blob_gc_journal`: table `blob_gc_journal(workspace_id, storage_key, sha256, kind, reason, journaled_at, attempts DEFAULT 0, next_attempt_at, last_error, PRIMARY KEY(workspace_id, storage_key))`; `ALTER TABLE asset_blobs ADD COLUMN purge_reason`. Fresh bootstrap (`W/platform/db/sqlite/fresh-content-db.ts:57-77`), checksums, digests, dialects. No VACUUM (I-9.5 static test covers it).
 2. **Algorithm:** adapter implements `BlobGcJournalPort` on the content kernel. Policy `media-bytes` (kind `old-copy`): `measure()` = sum of sizes of tombstoned + journaled keys (stat; unknown on error) + legacy orphan report; `sweep()` = delete phase then unlink phase (bounded). Tovu probes: `oldestRetainedRecoveryAgeMs = now − min(createdAt of pre-migration copies, pre-compact copies, restore points incl. protected)`; `hasLiveEntryRefs` = real query over the content tables that hold media references (or explicit `true` = keep, until written).
    - **Legacy orphans** (bytes under `uploads/` with no blob row and no journal row) → report-only list, never removed.
@@ -347,6 +399,12 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** depends on ST-11a + Jini release, ST-6a. On `ex4-media-tovu`, `W/platform/db/repos/media-repo.ts` changes — rebase the adapter onto its destination.
 
 ## 19 · ST-12b · Expiry pass, revoked retry, download gates (Tovu)
+
+> **R1123 revision (Codex ST-12a–12b: NEEDS).**
+> - **Durable tombstone before unlink:** write `<id>.expired.tmp` → `fsync` → rename to `<id>.expired` → `fsync(dir)`, then `deleteArtifact`.
+> - **One admission gate through open; stream that handle.** `admitShareDownload({ id })` runs under the `shares:<id>` mutex: lookup → status/`origin`/`expiresAt` check → `open(path)` → release mutex → stream from the returned handle (`createReadStream(null, { fd })`). `site-share.ts:15–18`'s separate lookup + `sendFile` is replaced. Cleanup takes the same mutex before writing the tombstone, so it cannot interleave between check and open. An admitted handle keeps streaming after unlink (POSIX); on Windows the unlink fails while open (`EBUSY`/`EPERM`) and is retried next pass.
+> - Default **Never** and remote expiry excluded (unchanged); peer rows excluded by `origin = 'peer'`.
+> - Tests: **«Expiry between lookup and file open»** (expiry committed while a request waits on the gate → 410, never served; mutation: lookup and open outside one gate → served expired or 404 → red); **«Admitted handle survives cleanup»**; `admin route refuses an expired share before the sweep`.
 1. **Data model.** New create-only tombstone `<shareId>.expired` (content: ISO time), mirroring `<shareId>.revoked` (`share-registry.ts:117-125`); `registry.get`/`list` overlay it as `status: 'expired'` the same way they overlay `.revoked` (`:85-95`) — so a racing whole-record `put` (acknowledge/delivery rewrite) can never resurrect `active`. Status union gains `'expired'`. Artifact `ops/shares/<id>.tovu.zip`. Token reservation files and tombstones kept forever (row 35).
 2. **Algorithm (policy `share-files`, kind `old-copy`):**
    - `measure()`: ZIP bytes of rows that are (a) revoked with ZIP present, (b) past own `expiresAt` with ZIP present.
@@ -363,6 +421,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 8. **OWNER-Q-12b:** after expiry, keep the row visible as "Expired" forever, or hide it after 90 days? **Recommend keep visible** (metadata is tiny; it explains to the owner why a link stopped).
 
 ## 20 · ST-13 · Manual revision thinning (Tovu)
+
+> **R1123 revision (Codex ST-13: NEEDS).** Use the **real** stream lock at `W/features/post/repo.ts:319` for **every writer of a protection reference** (undo references, publish snapshot references) as well as append/delete. The `previous_id` re-pointing is **withdrawn**: `previousId` is returned by append (`:332`), there is no column to update. Thinning is **date-only** (OWNER-Q-13) and deletes only unreferenced rows. Before any deletion code, characterization tests pin the current history reader and undo semantics (`history lists the same entries before and after thinning`, `undo after thinning restores the same content`). New test **«Concurrent protection insert wins or is refused against an already-thinned row»** (mutation: protection writer skips the stream lock → reference to a deleted row → red).
 1. **Data model:** none new; `post_revisions` (incl. HTML Pages, `W/features/pages/html-document-store.ts:113,479`). Protection ports: `{ isPublishedRevision, isRestoreTarget, isUndoReferenced }` injected (each a scoped query; HTML page undo change sets per P1-T2's `page-html` reverter).
 2. **Algorithm:** `preview({ workspaceId, postId, olderThan })` → candidates = revisions with `created_at < olderThan` minus the newest revision minus protected ones → `PreviewStore` token (X6). `apply(token)`: `kernel.transaction{ lockKey('post_revisions:<ws>:<postId>') (same key as appendRevision, `W/features/post/repo.ts:315-318`); recompute protection for each id; delete ids ∈ preview ∩ still-unprotected ∩ not-newest }`. Batch ≤ 500 per post. Scope is always one post/page (explicit; no site-wide thinning).
 3. **State machine:** revision `kept | thinned` (terminal).
@@ -373,12 +433,19 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 8. **OWNER-Q-13:** thin by date only, or also "keep one per day"? **Recommend date only** for v1 (simplest preview to understand).
 
 ## 21 · ST-15 · Storage HTTP + agent tools — split (check 8)
+
+> **R1123 revision (Codex ST-15–18: NEEDS).**
+> - **Three separate capabilities**, each its own route spec and tool id: `storage.report` (read-only), `storage.cleanup` (destructive), `storage.compact` (maintenance). No single `cleanup { dryRun }` spec.
+> - **Server-side confirmation for every destructive owner route and tool**, including selected chats and screenshots: admin routes use the X6 preview token bound to principal + selection; tools use the existing direct card (`confirmation: 'direct'`, `requireHumanConfirm` with `{ emitSurface }` as its second argument). A request without a valid token deletes nothing.
+> - Tests: `cleanup without a confirmed token deletes nothing` (per route and per tool), `report capability cannot mutate`.
 - **ST-15a (Jini `platform`, specs only — no HTTP server code):** route **specs** in a small Jini domain module `J/platform/src/retention/routes.ts` using `defineJsonRoute` (core contract, no Express): `GET storage/report → measure()` and `POST storage/cleanup { dryRun = true } → runner.runOnce({ dryRun })`. Deps: `{ runner, measure }`. Changeset platform minor. (If the layer check refuses `platform` → `core` contracts, put the specs in Tovu instead and say so; do not add a package above domains.)
 - **ST-15b (Tovu):** mount at `/api/admin/storage/*` behind owner role; dry run returns the runner's measured outcomes + ST-14 categories.
 - **ST-15c (Tovu):** tools `site_storage_report` (read, no confirmation) and `site_storage_cleanup` (`class: 'destructive'`, `confirmation: 'always'`, `dryRun` default true). Live run: tool first performs a dry run, the approval card lists categories + bytes, approve → `runOnce({ dryRun: false })`. Any request naming chats/revisions/screenshots/media-in-use → refused "Tovu never deletes your content automatically. Use the Chats/Revisions screens." 
 - **Invariants:** I-15.1 cleanup defaults to dryRun (mutation: default false). I-15.2 content class refused in plain words. I-15.3 approval card raised for live cleanup. I-15.4 owner role only. I-15.5 a dry run during a live pass returns a measurement (runner I-4).
 
 ## 22 · ST-16 · CLI `clean` and `compact` (Tovu; report built)
+
+> **R1123 (Codex ST-16):** the report-only CLI landing is preserved as is. `clean` uses a **no-migration opener** (`openExistingNoMigrate`): if the site's schema version differs from this build's, it refuses with "Open this site in Tovu once to update it, then run clean." and changes nothing (I-16.4 made explicit). `compact` is a separate subcommand behind its own capability.
 1. **Data model:** none new.
 2. **Algorithm:** `tovu storage clean <dir> [--dry-run] [--json]`: `claimSiteRunning({ purpose: 'maintenance' })` → attached → exit 3 "This website is running; clean it from its Storage screen." → open stopped-site handles (writable, **after** the lease) → build the same policy list as ST-6a with those handles → `createRetentionRunner(...).runOnce({ dryRun })` → print outcomes → close handles → release. `compact` → ST-7b `compactStoppedSite`. Exit codes: 0 done, 2 partial (some deferred), 3 running, 1 error (ERR- id printed).
 3. **State machine:** per invocation `claim → open → run → close → release`.
@@ -388,6 +455,8 @@ Files: `J/db/src/sqlite/compaction.ts` (237 lines), `compaction-steps.ts` (62), 
 7. **Wiring:** CLI composition root (as the report command, `.dependency-cruiser.mjs` entry added on p11-next-tovu).
 
 ## 23 · ST-17 · Admin Storage screen (Tovu)
+
+> **R1123 (Codex ST-17):** screenshots and selected chats go through the server preview token (X6 / ST-8a R1123); required UI hook props and release gates stay explicit.
 - **States:** `loading → shown(report) → previewing → preview-shown(outcomes) → cleaning → done(freed, failures) | error`. Bars labelled "Cleaned automatically" / "Yours" / "Shown only"; "Clean up now" always shows the dry-run list first (I-17.1, mutation: skip the dry run); links to Chats (ST-10), Trash, Database (restore points, compaction state incl. needs-attention actions D7a-4), Exports (ST-12b), Screenshots ("Delete older than…" via X6 preview), Revisions (ST-13). Three class labels (I-17.2); last automatic pass time and result from `lastReport` (I-17.3); admin kit + hook props only (I-17.4).
 
 ## 24 · Desktop slices (ST-1a, ST-1, ST-2a, ST-2b, ST-2c, ST-3, ST-18)
@@ -479,6 +548,14 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 
 #### ST-1a · Packaged-Electron measurement (Tovu, **[Mac-only check]**, also run on Windows when available)
 
+> **R1123 revision (Codex ST-1a, 1, 3: NEEDS) — supersedes the two-partition-only probe and the verdict rule.**
+> - **Three discriminating runs under real cache pressure** (each partition's working set > 2 × cap): **U** uncapped, one partition (proves the cache grows past the cap without the switch); **P1** capped, one partition; **P2** capped, two partitions loading concurrently. `cap = GO` iff U exceeds `2 × cap`, P1 ≤ `1.25 × cap`, **each** P2 partition ≤ `1.25 × cap`, **and** the P2 sum > `1.25 × cap` (a shared cap would forbid the sum). If the P2 sum stays ≤ `1.25 × cap`, a per-partition cap and a shared cap cannot be told apart → **INCONCLUSIVE = NO-GO** for the per-partition claim.
+> - **Stable probe origin:** the probe pages are served from a custom scheme registered for the probe session (`tovu-probe://probe/…` via `protocol.handle`), so the origin never depends on a free port. (Old rule "port in use ⇒ next port" is deleted: a new port is a new origin with different storage.)
+> - **Read-only verification:** `/seed` writes cookie, `localStorage.probe` and an IndexedDB row **once, before** the clears; `/verify` only **reads** and reports. Negative control: `/verify` on a fresh partition reports all absent.
+> - **Every clear path is gated on its own measured operation:** `clearOps.clearCache`, `clearOps.clearCodeCaches`, `clearOps.renameAside` each have a GO/NO-GO verdict. The ST-1 boot one-time clear, the ST-1 open-time clear, the ST-1 NO-GO periodic enforcement, and both ST-3 code-cache paths each check their op's verdict; NO-GO disables that path everywhere (OQ-2: ship only measured-safe periodic clears).
+> - **Timed-out work cannot clear after a guest starts:** an open-time clear runs inside the partition acquisition; on the 10 s timeout the open **waits** for the clear promise to settle (Electron clears cannot be cancelled) up to 30 s, then refuses with "Tovu is still tidying this site's cache. Try again in a moment."; the guest is attached only after settlement. Same rule in ST-3 (line 610's "impossible" claim is withdrawn).
+> - Tests: `per-partition cap is GO only when the two-partition sum exceeds one cap` (mutation: old per-partition-only rule → GO on a shared cap → red); **`NO-GO evidence disables both open and boot clears`** (mutation: gate only the switch → red); **`a timed-out clear never runs after a guest attaches`** (fake session resolves after timeout; mutation: continue the open on timeout → red); `verify page writes nothing`.
+
 1. **Data model.**
    - Harness entry `apps/desktop/scripts/measure-partition-cache/main.ts` (Tovu, dev-only, excluded from the shipped bundle by the packaging allow-list), packaged with the *same* Electron version and the same `electron-builder` config as the app (a dedicated `productName` "Tovu Cache Probe" and its own `userData`, so it never touches the owner's profile).
    - Output (committed): `plans/evidence/ST-1a-electron-<ver>-<platform>.json` `{v:1, electron, platform, capBytes, runs:[{partition, writesMb, cacheBytesAfter, codeCacheBytesAfter}], cookieSurvives:{clearCache, clearCodeCaches, rmCacheDirUnheld, rmCodeCacheDirUnheld}, localStorageSurvives:{…}, indexedDbSurvives:{…}, negativeControl:{clearStorageData:{cookieGone:true}}, verdict:{cap:"GO"|"NO-GO", clearOps:"GO"|"NO-GO", reasons:[…]}}`.
@@ -498,6 +575,8 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 
 #### ST-1 · Cache switch + profile-scoped per-partition one-time clear (Tovu) — depends on ST-1a verdict, **ST-2a**, Q7
 
+> **R1123:** see ST-1a R1123 — the boot rename-aside clear, the open-time clear and the NO-GO periodic path each check their own `clearOps` verdict; the open-time timeout waits for settlement before any guest attaches.
+
 1. **Data model.** `maintenance.json` v1 (profile-scoped by location) `{v:1, profile, cache:{capBytes, verdict:"GO"|"NO-GO", evidence:"ST-1a-electron-<ver>-<platform>"}, partitions:{[partition]:{cacheClear:{state:"pending"|"done", capBytes, attempts, lastReason?}}}}`. In memory: nothing beyond the interlock.
 2. **Algorithm.**
    - `applyDesktopCacheLimits({ appendSwitch }, { cacheBytes, verdict })` — called in `D/main/index.ts` right after `applyUserDataDir` (:286-287), before `whenReady` (:1080): `if (verdict.cap === "GO") appendSwitch("disk-cache-size", String(cacheBytes))`. The verdict is a build-time constant generated from the committed evidence for the bundled Electron; missing/mismatched evidence ⇒ `NO-GO` (no switch, no savings claimed — C2.e).
@@ -512,6 +591,12 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 8. **OWNER-Q.** OQ-2: if ST-1a says NO-GO, ship size-triggered clears (2 × 32 MiB) or nothing? *Recommended: size-triggered clears* (they use the same measured cookie-preserving ops; savings reported as "periodic", not a bound).
 
 #### ST-2a · Profile interlock + `acquireSiteSession` + contained root resolver (Jini `desktop-host` + Tovu binding; no deletion)
+
+> **R1123 revision (Codex ST-2a–2c: NEEDS) — supersedes the 5-second abandon rule (here and at the `abandonMs=5000` default), the per-profile fence key, and the post-rename recheck.**
+> - **No live-writer bypass.** A writer record carries `{ pid, processStartedAt, bootId, seq }`; an acquirer breaks a writer **only** on proven death (same `bootId`, and the pid is gone or its start time differs). A frozen `seq` with a live pid (paused, debugged, slow disk) is **never** treated as abandoned: the acquirer waits up to 30 s (OQ-4) then refuses. Cross-cutting X5 ("pid liveness, not heartbeats") now holds for the desktop too.
+> - **Serialized holder-file publication.** One in-process queue (`holderFileQueue`, a promise chain) performs **every** write of the holder file — heartbeat, intent add/remove, `held`, `target` — and each write publishes the **current** in-memory model (seq + 1), so a heartbeat can never publish a snapshot that predates an intent.
+> - **Fence by canonical session root.** The interlock directory is `<realpath(sessionRoot)>/.tovu-interlock/`, not per profile, so profiles configured to share a root share one fence (lines 435/475's "two profiles never share" is narrowed to "two profiles with different canonical roots").
+> - Tests: **«Live paused writer still fences after five seconds»** (pid alive, seq frozen 60 s → acquirer does not break; mutation: reintroduce the 5 s bypass → red); **«Heartbeat cannot erase an intent»** (heartbeat scheduled between the intent's model change and its publish → file still has the intent; mutation: heartbeat writes outside the queue → red); `two profiles sharing a root share one fence`.
 
 1. **Data model.** As in the shared model: `holders/<pid>-<token>.json`, `writer.lock`, `target.json`, `partition-labels.json`; in-memory `held`, `intents`. Ownership: generic mechanism in Jini `J/desktop-host/src/electron/partitions/` (`profile-interlock.ts`, `holder-registry.ts`, `partition-root.ts`, `claim-sources.ts`); Tovu binding `D/desktop-partition-lock.ts` (plan's name) supplies the name pattern, `sitePartition`, strict tracked/catalog readers and messages. Strict updater-presence reader `readPresenceStrict` added to `J/desktop-host/src/electron/updates/instance-presence.ts` (Jini owner on both bases).
 2. **Algorithms.**
@@ -550,6 +635,8 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 
 #### ST-2b · Retirement record in the erase arm only (Tovu binding + Jini ledger)
 
+> **R1123 (Codex ST-2b):** the retirement record gains `quarantine: { asideName, token, srcDevIno } | null` and state `renaming` (between `pending` and `removed`). `invalidateRetirement` moves `pending`/`renaming` records to `invalidated` **without** touching an aside dir — restoration is ST-2c's start-up pass. Terminal records are pruned (OQ-5) **only after** their quarantine is resolved (aside gone or restored); a record whose aside still exists is never pruned.
+
 1. **Data model.** `<profile>/partition-interlock/retired-partitions.json` (durable JSON, `J/platform/src/fs/durable-json.ts`; atomic replace, quarantine on corruption):
    ```
    { v: 1, profile: "<realpath userData>", records: [ {
@@ -578,6 +665,12 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 
 #### ST-2c · Next-start partition pass (Tovu binding + Jini pass) — retired removal + ambiguous cache-only
 
+> **R1123 revision (Codex ST-2c: NEEDS).**
+> - **Persist before rename:** step 6 becomes: write the record's `quarantine = { asideName: P.<token>, token, srcDevIno }` and state `renaming` durably → `setTarget(P)` → re-read holders → `rename(root/P, root/.tovu-removing/P.<token>)`.
+> - **Revalidate all four checks after rename** (holders, tracked strict, catalog strict, `absentForSure`) **plus** a presence re-read and a recomputed c1 `others`; any failure → rename back and mark `kept`.
+> - **Quarantine resolution at start, before any acquisition is allowed:** for each `.tovu-removing/` entry, look up its record by token: `renaming`/`pending` (uncommitted) or `invalidated` → restore to `root/P` if absent, else keep aside and mark `kept` (never delete); `removed` **and** aside `dev:ino` equals `srcDevIno` → delete; no record (pruned or foreign) → restore-or-keep, never delete. Step 4's "delete every entry" is withdrawn.
+> - Test **«Crash after rename plus track invalidation preserves the original jar»** (rename done, tracking invalidates the record, crash before commit → next start restores `root/P` with its cookie DB byte-identical; mutation: sweep deletes all aside entries → red). Companion: `an aside without a record is never deleted`.
+
 1. **Data model.** Reads all shared-model files; writes ledger transitions, `maintenance.json` (ST-1/ST-3 markers), `target.json`, and renames into `Partitions/.tovu-removing/`. Pass report (in memory → log line + ST-18): `{at, result:"done"|"skipped", reason?, removed:[p], cacheCleared:[p], kept:[{p, reason}], skipped:[{name, reason}], bytesFreed}`.
 2. **Algorithm (`runPartitionPass`, called once at boot).** Placement: `runDesktopBoot` (`D/main/boot/boot-sequence.ts:41`) after `reconcileOrphansOnBoot` (`:65`) and before `bootInMode` (`:70`), *not awaited past a 3 s budget* (it continues in the background; A1 fencing covers any open that races it). Steps:
    1. `withPartitionWriter` (lock timeout 2 s ⇒ `skipped(writer-busy)`); `setTarget("*")`.
@@ -601,6 +694,8 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 
 #### ST-3 · Code cache: update launch (unheld) + > 64 MB at open (Tovu binding + Jini maintenance) — depends on ST-2a; uses ST-1a's `clearOps` verdict
 
+> **R1123:** see ST-1a R1123 — **both** the update-launch and the open-time code-cache clear check `clearOps.clearCodeCaches`; the open-time timeout waits for settlement before the guest attaches (the "guest attach during the open-time clear ⇒ impossible" note is withdrawn).
+
 1. **Data model.** `maintenance.json` adds `{lastLaunchVersion, codeCache:{forVersion, pending:[partition]}}`. Open-time threshold `codeCacheMaxBytes = 64 MiB` (Q7). No per-open marker (size-triggered, periodic enforcement only — inventory row 2).
 2. **Algorithms.**
    1. *Update detection:* `isUpdate = desktopLaunchMode({argv}) === "update"` (`D/main/updates/product-telemetry-boot.ts:41-42`) **or** `maintenance.lastLaunchVersion !== app.getVersion()` (OQ-6). On update: `codeCache = {forVersion: version, pending: <all managed candidates>}`; write `lastLaunchVersion` **after** `pending` is persisted.
@@ -614,6 +709,8 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 8. **OWNER-Q.** OQ-6: treat "version changed since last launch" as an update launch too (macOS ShipIt relaunches may not carry `--updated`; NOT-CHECKED in source). *Recommended: yes* (strictly more clears of a re-creatable cache).
 
 #### ST-18 · Desktop Storage sheet (Tovu) — depends on ST-2c, ST-16 report (built); Clean/Compact gated
+
+> **R1123 revision (Codex ST-18: NEEDS).** `itemId` = HMAC(sessionKey, kind + path + `dev:ino`); main stores `{ path, devIno, realpath }` from list time. **Move to Trash** re-resolves, requires `lstat` identity equal to the confirmed `dev:ino` and `realpath` unchanged, then **holds** the tracking fence (no session registration for that partition) and the site running fence (site-not-running claim) from revalidation **through** `shell.trashItem` resolution. Tests: `folder replaced after confirmation is not trashed` (mutation: path-only check → red), `site opened after confirmation is not trashed`. Split per OQ-8: **ST-18a** report sheet, **ST-18b** Move to Trash.
 
 1. **Data model.** No new persisted state except a per-viewer UI preference (last opened section, renderer `localStorage`, try/catch). DTOs in `@tovu/contracts/desktop-storage`: `StorageSheet {generatedAt, sites:[SiteRow], signIns:[SignInRow], otherFolders:[FolderRow], tidy: PassReport|null}`; `SiteRow {itemId, label, siteDir, running, folder: SiteStorageReport|"unknown", desktopData:{automatic:bytes|null, signInData:bytes|null}, actions:{clean:boolean, compact:boolean}}`; `SignInRow {itemId, partition, label, bytes|null, lastUsedAt|null}`; `FolderRow {itemId, kind:"untracked-site"|"backups"|"kept-copy", path, bytes|null}`. `itemId` = HMAC(sessionKey, kind+path) issued by main per listing; main keeps `Map<itemId, resolved>` for 10 minutes — the renderer never sends a path.
 2. **Algorithms.**
@@ -651,3 +748,6 @@ _Drafted by a read-only subagent against the same bases, merged by the coordinat
 - `previous_id` storage in `post_revisions` (ST-13 §20 step 4) was not confirmed as a column; the builder confirms before choosing re-pointing vs contiguous-oldest thinning.
 - Exhaustive list of `tovu-*` temp writers beyond those named in §9 (re-grep `tmpdir()` on the build base).
 - Admin route line `site-shares.ts:141` is cited on `codex/p11-next-tovu`; re-anchor on the build base.
+
+## R1123 · OWNER-Q (P11, consolidated; Codex recommendations adopted)
+6a ship scheduled measurement first (shadow) · 7a offer both confirmed recovery actions once durable resumable Restore (ST-7a R1123) lands · 7b idle conversion on AC only · 8a pinned chats stay excluded · **11a changed: restrict automatic byte removal to confirmed purge or proven-disposable data until TTL eligibility is explicitly approved** · 12b retain Expired metadata · 13 date-only thinning · Desktop OQ-1 1.25× only after the discriminating three-run measurement · OQ-2 ship only measured-safe periodic clears · **OQ-3 gate destructive maintenance on proven exclusion of old binaries; seven days does not establish that** · OQ-4 wait up to 30 s, then refuse · OQ-5 prune terminal proofs only after quarantine resolution · OQ-6 verified version changes · OQ-7 proven sibling exclusion · OQ-8 split ST-18a/b.
