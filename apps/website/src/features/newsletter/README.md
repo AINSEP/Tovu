@@ -4,7 +4,7 @@ The newsletter domain modules now live in `@jini-ai/user-management/newsletter/*
 
 The files in this folder are the Tovu host binding and the modules that have not moved yet. They are:
 
-- **SQL adapters:** `repo.rows.ts`, `repo-subscribers.ts`, `repo.ts`, `repo-sends.ts` and `repo.sqlite.ts`. They are typed against Tovu's `ContentDatabase` and `ContentKernel`.
+- **SQL binding:** `repo.sqlite.ts`. The query bodies live in `@jini-ai/user-management/newsletter/{repo,repo-subscribers,repo-sends,repo.rows}`; this file holds the `SqliteNewsletter…Repo` subclasses the composition root builds from a `ContentKernel` or `ContentDb`.
 - **`deps-builders.ts` and `delivery/tool-registrations.ts`:** they depend on `tool-registrations.ts`.
 - **`agent-tools.ts`, `confirmation.ts`, `subscriptions.ts` and `tool-registrations.ts`:** they are held for a pending bug-fix patch.
 
@@ -12,7 +12,7 @@ The files in this folder are the Tovu host binding and the modules that have not
 
 Tovu binds these values into the Jini modules' deps objects:
 
-- **`campaignRepo`, `listRepo`, `subscriptionRepo` and the other repositories:** the SQLite adapters from `repo.sqlite.ts` in production. Tests and memory deps use `InMemoryNewsletter*Repo` from `@jini-ai/user-management/newsletter/repo.memory`.
+- **`campaignRepo`, `listRepo`, `subscriptionRepo` and the other repositories:** the SQLite adapters from `repo.sqlite.ts` in production. `repo.sqlite.ts` binds the Jini SQL repos' `kernel` (`schemaErasedKernel`), `tables` (`NEWSLETTER_SQL_TABLES`: `newsletter_campaigns`, `newsletter_campaign_revisions` and `NEWSLETTER_TABLE_NAMES`) and the campaign repo's `onUnreadableBody` (`logUnreadableCampaignBody`, a `console.warn` line with the campaign id and revision sequence only). Tests and memory deps use `InMemoryNewsletter*Repo` from `@jini-ai/user-management/newsletter/repo.memory`.
 - **`mailer`:** the host mailer from `#src/platform/mail`. Its type is core's `PositionalMailer`, which is re-exported as `MailerPort`.
 - **`originRegistry`:** the site's verified-origin registry.
 - **`keyring`:** the site keyring. `processUnsubscribe` and `buildUnsubscribeLink` call only `derive`.

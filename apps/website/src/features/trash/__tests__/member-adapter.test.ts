@@ -12,7 +12,8 @@ import { trashMember } from "@jini-ai/user-management/members/trash-member";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
+import { SqlMemberRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
@@ -53,8 +54,8 @@ function harness() {
   }, { retentionDays: TRASH_RETENTION_DAYS });
   const granted = new Set(["member.manage", "content.read"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
-  const members = new SqlMemberRepo(kernel);
-  const sessions = new SqlMemberSessionRepo(kernel);
+  const members = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  const sessions = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
   function seed(id = "member-1", status = "active", fields = "{}") {
     client.prepare(`INSERT INTO members (id, workspace_id, email, status, fields_json, created_at, updated_at, version)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`).run(id, WS, `${id}@example.test`, status, fields, AT, AT);

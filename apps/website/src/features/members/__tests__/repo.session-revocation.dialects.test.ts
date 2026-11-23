@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMemberSessionRepo } from "../repo.js";
+import { SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../repo.sqlite.js";
 import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
 
 /**
@@ -20,7 +21,7 @@ function session(overrides: Partial<MemberSessionRecord> = {}): MemberSessionRec
   return { id: "s1", workspaceId: WS, memberId: "m1", tokenHash: "hash-s1", createdAt: T0, expiresAt: "2026-12-17T00:00:00.000Z", revokedAt: undefined, lastSeenAt: T0, userAgent: "UA/1.0", ip: "203.0.113.9", ...overrides };
 }
 
-describeEachDialect("member session revocation", { tables: ["members", "member_sessions"], make: (kernel: ContentKernel) => new SqlMemberSessionRepo(kernel) }, (makeRepo) => {
+describeEachDialect("member session revocation", { tables: ["members", "member_sessions"], make: (kernel: ContentKernel) => new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })) }, (makeRepo) => {
   test("a save of the same session after it was revoked does not restore it", async () => {
     const sessions = makeRepo();
     const loaded = session();

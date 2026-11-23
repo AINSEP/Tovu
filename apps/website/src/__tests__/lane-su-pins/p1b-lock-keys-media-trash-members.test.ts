@@ -8,7 +8,8 @@ import { trashEntityLockKey } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo } from "#src/features/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import type { AssetBlobRecord, AssetRenditionRecord, MediaRecord } from "@jini-ai/cms/media";
 import { recordingKernel } from "./support/recording-kernel.js";
 
@@ -107,9 +108,9 @@ describe("P1 trash lock keys", () => {
 describe("P1 member lock keys", () => {
   test("magic-link consume is keyed by workspace", async () => {
     const { kernel, keys } = recordingKernel();
-    const links = new SqlMagicLinkTokenRepo(kernel);
+    const links = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel }));
     await links.save({ id: "link-1", workspaceId: WS, memberId: "member-1", purpose: "password_reset", tokenHash: "digest-class-only", createdAt: NOW, expiresAt: "2026-11-18T00:00:00.000Z" });
-    await new SqlMemberRepo(kernel).save({ id: "member-1", workspaceId: WS, email: "m@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
+    await new SqlMemberRepo(memberSqlDeps({ store: kernel })).save({ id: "member-1", workspaceId: WS, email: "m@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
     await links.consume({ workspaceId: WS, id: "link-1", consumedAt: NOW });
     assert.deepEqual(keys, [`members:magic-tokens:${WS}`]);
   });

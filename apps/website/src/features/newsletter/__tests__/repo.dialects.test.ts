@@ -9,9 +9,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
-import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "../repo-sends.js";
-import { SqlNewsletterCampaignRepo } from "../repo.js";
-import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
+import { SqliteNewsletterAudienceSnapshotRepo, SqliteNewsletterCampaignRepo, SqliteNewsletterConfirmationTokenRepo, SqliteNewsletterListRepo, SqliteNewsletterSendRepo, SqliteNewsletterSubscriptionRepo } from "../repo.sqlite.js";
 import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 /**
@@ -40,7 +38,7 @@ function repos(base: ContentKernel) {
   const pending = installFresh(base);
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: new SqlNewsletterCampaignRepo(kernel), lists: new SqlNewsletterListRepo(kernel), subscriptions: new SqlNewsletterSubscriptionRepo(kernel), snapshots: new SqlNewsletterAudienceSnapshotRepo(kernel), sends: new SqlNewsletterSendRepo(kernel), tokens: new SqlNewsletterConfirmationTokenRepo(kernel) };
+  return { kernel, campaigns: new SqliteNewsletterCampaignRepo({ store: kernel }), lists: new SqliteNewsletterListRepo({ store: kernel }), subscriptions: new SqliteNewsletterSubscriptionRepo({ store: kernel }), snapshots: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }), sends: new SqliteNewsletterSendRepo({ store: kernel }), tokens: new SqliteNewsletterConfirmationTokenRepo({ store: kernel }) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
@@ -142,7 +140,7 @@ describeEachDialect(
         const latest = { ...first, bodyJson: { type: "doc", content: [{ text: "Latest" }] } };
         await campaigns.appendRevision(revision(latest));
         await campaigns.incrementCounter({ workspaceId: WS, id: first.id, counter: "delivered", updatedAt: T1 });
-        const reopened = new SqlNewsletterCampaignRepo(kernel);
+        const reopened = new SqliteNewsletterCampaignRepo({ store: kernel });
         const detail = await reopened.findById({ workspaceId: WS, id: first.id });
         assert.deepEqual(detail?.bodyJson, latest.bodyJson);
         assert.equal(detail?.counters.delivered, 1);
@@ -159,10 +157,10 @@ describeEachDialect(
           state_json: dialect === "sqlite" ? "{broken" : JSON.stringify("{broken") })
           .where("campaign_id", "=", c.id).where("workspace_id", "=", WS).execute());
         const queries: string[] = [];
-        const observed = new SqlNewsletterCampaignRepo({ ...kernel, run: work => kernel.run(db => work(db.withPlugin({
+        const observed = new SqliteNewsletterCampaignRepo({ store: { ...kernel, run: work => kernel.run(db => work(db.withPlugin({
           transformQuery({ node }) { queries.push(JSON.stringify(node)); return node; },
           async transformResult({ result }) { return result; },
-        }))) });
+        }))) } });
         const listed = await observed.list({ workspaceId: WS });
         assert.equal(listed.items[0]?.bodyJson, undefined);
         assert.ok(queries.every(query => !query.includes("newsletter_campaign_revisions")), "list must not read then discard bodies");

@@ -3,7 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMemberRepo } from "../repo.js";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../repo.sqlite.js";
 import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
 import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
 import type { MemberRecord } from "@jini-ai/user-management/members/types";
@@ -65,7 +66,7 @@ function listCursorCases(make: () => MemberRepoPort): void {
   });
 }
 
-describeEachDialect("member list cursor", { tables: ["members"], make: (kernel: ContentKernel) => new SqlMemberRepo(kernel) }, (make) => {
+describeEachDialect("member list cursor", { tables: ["members"], make: (kernel: ContentKernel) => new SqlMemberRepo(memberSqlDeps({ store: kernel })) }, (make) => {
   listCursorCases(make);
 });
 

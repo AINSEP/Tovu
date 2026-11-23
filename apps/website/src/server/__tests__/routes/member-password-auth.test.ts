@@ -7,7 +7,8 @@ import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
 import { type MemberRecord } from "@jini-ai/user-management/members/types";
@@ -43,9 +44,9 @@ function harness() {
   const deps: MemberPublicRouteDeps = {
     credentialLifecycle: kernel,
     workspaceId: "member-http", clock, idGen: { newId: () => `id-${++sequence}` },
-    memberRepo: new SqlMemberRepo(kernel), memberSessionRepo: new SqlMemberSessionRepo(kernel),
+    memberRepo: new SqlMemberRepo(memberSqlDeps({ store: kernel })), memberSessionRepo: new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })),
     memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
-    magicLinkRepo: new SqlMagicLinkTokenRepo(kernel), principalRepo: new InMemoryPrincipalRepo({}),
+    magicLinkRepo: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })), principalRepo: new InMemoryPrincipalRepo({}),
     passwordHasher: { hash: async ({ password }) => hash(password), verify: async input => input.hash === hash(input.password) },
     origin: {
       canonicalOrigin: async () => ({ scheme: "https", host: "members.example.test", source: "workspace-setting", verifiedAt: clock.nowIso() }),
@@ -464,9 +465,9 @@ test("createApp uses the staff hasher and admin routes reject a valid member coo
   const kernel = freshSqliteContentKernel();
   t.after(() => kernel.close());
   deps.contentKernel = kernel;
-  deps.memberRepo = new SqlMemberRepo(kernel);
-  deps.memberSessionRepo = new SqlMemberSessionRepo(kernel);
-  deps.magicLinkRepo = new SqlMagicLinkTokenRepo(kernel);
+  deps.memberRepo = new SqlMemberRepo(memberSqlDeps({ store: kernel }));
+  deps.memberSessionRepo = new SqlMemberSessionRepo(memberSqlDeps({ store: kernel }));
+  deps.magicLinkRepo = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel }));
   const member: MemberRecord = { id: "cookie-realm-member", workspaceId: deps.workspaceId,
     email: "realm@example.test", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 };
   await deps.memberRepo.save(member);

@@ -61,7 +61,7 @@ import type {
   SubscriberDirectoryPort,
 } from "@jini-ai/user-management/newsletter/ports";
 import { pauseCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
-import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
+import { DEFAULT_LIST_LIMIT } from "@jini-ai/user-management/newsletter/repo-subscribers";
 import {
   saveSubscription,
   unsubscribeSubscription,

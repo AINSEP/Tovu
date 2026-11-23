@@ -5,7 +5,8 @@ import test from "node:test";
 import { eachDialect } from "../../../platform/db/kernel/__tests__/dialect-matrix.js";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { SqlPrincipalRepo } from "../../identity/repo.js";
-import { SqlMemberRepo, SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberExternalIdentityRepo } from "../../members/repo.js";
+import { SqlMemberRepo, SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../../members/repo.sqlite.js";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { resolveFederatedIdentity, type MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";
@@ -14,8 +15,8 @@ import { cryptoFixture, provider } from "./fixtures.js";
 function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {
   let seq = 0;
   return { clock: cryptoFixture().clock, ids: { newId: () => { seq++; return `id-${seq}`; } },
-    members: new SqlMemberRepo(kernel), sessions: new SqlMemberSessionRepo(kernel), magicLinks: new SqlMagicLinkTokenRepo(kernel),
-    identities: new SqlMemberExternalIdentityRepo({ kernel }), principals: new SqlPrincipalRepo(kernel),
+    members: new SqlMemberRepo(memberSqlDeps({ store: kernel })), sessions: new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })), magicLinks: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })),
+    identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })), principals: new SqlPrincipalRepo(kernel),
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key), reportFailure: () => undefined,
     mailTransport: membersMailTransport,

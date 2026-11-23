@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlMagicLinkTokenRepo } from "#src/features/members/repo";
+import { SqlMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { memberAuthStatements } from "../0034_member_auth.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 
@@ -26,7 +27,7 @@ for (const adapter of eachDialect({ tables: ["member_magic_tokens"], make: db =>
     for (const statement of memberAuthStatements({ dialect: db.dialect }).filter(ddl => ddl.startsWith("ALTER TABLE member_magic_tokens "))) {
       await db.execute(sql.raw(statement));
     }
-    const repo = new SqlMagicLinkTokenRepo(db);
+    const repo = new SqlMagicLinkTokenRepo(memberSqlDeps({ store: db }));
     const token = { id: "new", workspaceId: "w", memberId: "reserved", email: "new@example.com", tokenHash: "newhash", purpose: "signin" as const, createdAt: "2026-10-24", expiresAt: "2026-10-25" };
     await repo.save(token);
     assert.deepEqual(await repo.findByTokenHash({ workspaceId: "w", tokenHash: "newhash" }), { ...token, consumedAt: undefined });

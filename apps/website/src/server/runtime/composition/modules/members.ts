@@ -38,7 +38,8 @@ import type { ServerModuleHandle } from "./types.js";
 // and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
-import { SqlMemberExternalIdentityRepo } from "#src/features/members/repo";
+import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";
@@ -72,7 +73,7 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
       resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }),
       appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
       beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
-    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo({ kernel }),
+    links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel })),
       transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key),
       // The visitor gets only the fixed LOGIN_UNAVAILABLE code; the redacted cause goes to the server log.
       reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } } };
