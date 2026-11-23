@@ -4,7 +4,7 @@ import test from 'node:test';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from './contracts/app-version.ts';
 import { createUpdateCheckNow, registerUpdateCheckIpc } from '@jini-ai/desktop-host/electron/updates';
 import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice } from '@jini-ai/desktop-host/electron/updates';
-import { describeUpdateErrorForLog, plainUpdateError, updateCheckCopy } from './update-check-now.ts';
+import { describeUpdateErrorForLog, plainUpdateError, updateCheckCopy, updateErrorMessage } from './update-check-now.ts';
 
 type CheckResult = Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>;
 
@@ -31,6 +31,7 @@ function harness({ result = Promise.resolve<CheckResult>(null), ...overrides }: 
     log: ({ message }) => { logs.push(message); },
     copy: updateCheckCopy,
     describeErrorForLog: describeUpdateErrorForLog,
+    describeErrorMessage: updateErrorMessage,
     ...overrides,
   };
   return { check: createUpdateCheckNow(deps), updater, notices, logs, prompts, loads: () => loads, checks: () => checks };

@@ -122,10 +122,9 @@ import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
 import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
-import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow } from "../site-child-registry.ts";
+import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow, agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
-import { createKeyedSerializer, createChildEntries } from "@jini-ai/sidecar/supervisor";
-import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
+import { createKeyedSerializer, createChildEntries, createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
@@ -147,7 +146,7 @@ import { createOwnerStoreController, disconnectConfirmation, importConfirmation,
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
 import { createUpdateCheckNow, registerUpdateCheckIpc, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
-import { describeUpdateErrorForLog, updateCheckCopy } from "../update-check-now.ts";
+import { describeUpdateErrorForLog, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from "../contracts/app-version.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
@@ -193,7 +192,6 @@ import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownSe
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
-import { agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
@@ -787,7 +785,7 @@ const updateCheck = createUpdateCheckNow({
   showReadyPrompt: desktopUpdater.showReadyPrompt,
   notify: showDesktopNotice,
   log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
-  copy: updateCheckCopy, describeErrorForLog: describeUpdateErrorForLog,
+  copy: updateCheckCopy, describeErrorForLog: describeUpdateErrorForLog, describeErrorMessage: updateErrorMessage,
 });
 
 /** One native message box: the update check's notices and the legacy shared-key import notice. */

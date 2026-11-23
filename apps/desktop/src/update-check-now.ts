@@ -1,5 +1,5 @@
 import { formatErrorForLog, formatUserFacingError } from '@jini-ai/core';
-import { isNetworkUpdateError, updateErrorMessage } from '@jini-ai/desktop-host/electron/updates';
+import { isNetworkUpdateError } from '@jini-ai/desktop-host/electron/updates';
 import type { UpdateCheckCopy, UpdateCheckOutcome, UpdateNotice, UpdateNoticeArgs } from '@jini-ai/desktop-host/electron/updates';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 /**
@@ -7,6 +7,11 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
  * (one check per click, join while running, look-only with automatic updates off) is Jini's
  * `createUpdateCheckNow` in `@jini-ai/desktop-host/electron/updates`; main wires it with this copy.
  */
+
+/** An updater error's message, or its string form: the text Jini's manual check hands to the notice copy. */
+export function updateErrorMessage({ error }: { error: unknown }, _optionalArgs = {}): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /** Operation guidance for electron-updater errors; diagnostic details are redacted separately. */
 export function plainUpdateError({ message }: { message: string }, { operation = 'check' }: { operation?: 'check' | 'download' } = {}): string {

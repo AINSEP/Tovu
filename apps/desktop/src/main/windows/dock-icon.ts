@@ -1,6 +1,7 @@
 /**
- * @file Host binding for the macOS dock tile's icon: binds the desktop log copy onto Jini
- * `desktop-host/electron/windows`'s best-effort `applyDockIcon`. `main.ts` passes `app.dock` in.
+ * @file Host binding for the macOS dock tile's icon: binds the desktop log copy (and the formatting
+ * of the raw error Jini hands back) onto Jini `desktop-host/electron/windows`'s best-effort
+ * `applyDockIcon`. `main.ts` passes `app.dock` in.
  */
 import { applyDockIcon as applyDockIconBestEffort } from "@jini-ai/desktop-host/electron/windows";
 
@@ -16,7 +17,8 @@ function applyDockIcon(
   { dock, iconPath, log }: { dock: { setIcon(iconPath: string): void } | undefined; iconPath: string; log: (required: { message: string }) => void },
   _optional = {},
 ): void {
-  applyDockIconBestEffort({ dock, iconPath, reportFailure: ({ reason }) => {
+  applyDockIconBestEffort({ dock, iconPath, reportFailure: ({ error }) => {
+    const reason = error instanceof Error ? error.message : String(error);
     log({ message: `tovu desktop: could not set the dock icon (${reason}) — using the default.` });
   } });
 }

@@ -121,6 +121,11 @@ export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
   armExactUrlHeader({ session, urls, header: "X-Tovu-Desktop-Owner-SignIn", value: capability });
 }
 
+/** A transport error's own message as the outcome `reason`; Jini hands the raw error here to format. */
+function transportErrorReason({ error }: { error: Error }): string {
+  return error.message;
+}
+
 /**
  * Redeem a boot token over loopback so the resulting session cookie lands in `deps.session`'s own
  * cookie jar (`exchangeSessionJson` binds it through the session; see its header for why no
@@ -150,7 +155,7 @@ async function redeemBootSession<TSession>(deps: {
   const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   return exchangeSessionJson({
     net: deps.net, session: deps.session, url: new URL(BOOT_SESSION_PATH, origin.origin).toString(),
-    body: JSON.stringify({ token: deps.bootToken }), label: "boot-session",
+    body: JSON.stringify({ token: deps.bootToken }), label: "boot-session", describeError: transportErrorReason,
   });
 }
 
@@ -294,6 +299,7 @@ async function endSiteSession<TSession>(deps: {
   const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   return exchangeSessionRequest({
     net: deps.net, session: deps.session, method: "POST", url: new URL(LOGOUT_PATH, origin.origin).toString(), label: "logout",
+    describeError: transportErrorReason,
   });
 }
 
