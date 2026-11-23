@@ -66,7 +66,7 @@ export interface FakePagesPortOptions {
 }
 
 /**
- * An in-memory {@link AdminPagesPort} for tests — "every port gets a fake" (see
+ * An in-memory {@link PagesPort} for tests — "every port gets a fake" (see
  * `assistant-chats-dependencies.hooks.ts`).
  */
 export function createFakePagesPort(options: FakePagesPortOptions = {}): AdminPagesPort & {

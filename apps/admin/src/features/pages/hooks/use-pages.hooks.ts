@@ -35,11 +35,12 @@ export const pagesEvents: PagesEventsPort = {
 };
 
 /**
- * Binds the real `/api/.../pages` client, `lib/router`'s `navigate`, the filtered content-refresh
- * port and a `t` bound to the real resolved locale — see `pages-dependencies.hooks.ts`. The
- * zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so the Pages screen wiring
- * (`../Pages.tsx`) composes this and a test composes `usePages` with `createFakePagesPort` and a
- * fake `navigate`/`t`.
+ * Binds the real `/api/.../pages` client, `lib/router`'s `navigate`, and a `t` bound to the real
+ * resolved locale (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
+ * `pages-dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` /
+ * `useWiredX()` pair, so `Pages.tsx` composes this and a test composes {@link usePages} with
+ * `createFakePagesPort` and a fake `navigate`/`t`. It also binds the filtered content-refresh port
+ * (`pagesEvents` above).
  */
 export function useWiredPages(): PagesController<AdminPost> {
   const locale = useAdminLocale();

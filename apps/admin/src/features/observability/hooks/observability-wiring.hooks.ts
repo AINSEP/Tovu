@@ -19,20 +19,27 @@ import { observabilityApi } from "../api/observability-api";
  * The zero-argument `useWiredX()` halves of the `useX(dependencies)` / `useWiredX()` pairs.
  */
 
-/** The live Overview port, as a module-level singleton. */
+/** The live implementation, as a module-level singleton — matches `defaultAgentPluginsPort`. This one is the Overview port. */
 export const defaultObservabilityStatusPort = createObservabilityStatusPort({ api: observabilityApi });
 
 /** The live Recent errors port: server logs through the admin client, copy through the browser clipboard. */
 export const defaultRecentServerErrorsPort = createRecentServerErrorsPort({ api: observabilityApi, clipboard: createBrowserViewerClipboard() });
 
-/** Binds the real `system/observability-status` client and the real `useAdminLocale()`. */
+/**
+ * Binds the real `/api/.../system/observability-status` client and the real `useAdminLocale()` —
+ * see `observability-status-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `Observability.tsx` composes this and a test composes {@link useObservabilityStatus} with
+ * `createFakeObservabilityStatusPort`.
+ */
 export function useWiredObservabilityStatus(): ObservabilityStatusController {
   const locale = useAdminLocale();
   const t = (key: string): string => translateObservability({ locale: locale, key: key });
   return useObservabilityStatus({ port: defaultObservabilityStatusPort, locale, t, describeError: describeApiError });
 }
 
-/** Binds the real API client and admin locale for the Recent errors tab. */
+/** Binds the real API client and admin locale — the `useWiredX()` half of the pair. Feeds the Recent errors tab. */
 export function useWiredRecentServerErrors(): RecentServerErrorsController {
   const locale = useAdminLocale();
   const t = useCallback((key: string): string => translateObservability({ locale: locale, key: key }), [locale]);

@@ -1,5 +1,10 @@
 /**
- * @file Host wiring for the Observability screen (`panels.tsx`/`panel-pages.ts` import from HERE).
+ * @file Public surface of the `observability` feature.
+ *
+ * `panels.tsx` imports from HERE, never from a file inside this folder — same feature-boundary
+ * convention `plugins/index.ts`/`security/index.ts` document.
+ *
+ * Host wiring for the Observability screen (`panels.tsx`/`panel-pages.ts` import from HERE).
  *
  * Binds this admin's real values into `@jini-ai/admin`'s Observability: the product name, the
  * API-bound state hooks, the per-row copy hook and tab/URL adapter (both on UI-library helpers the
@@ -20,6 +25,9 @@ import { QueryDevtoolsPanel, useWiredObservabilityStatus, useWiredQueriesTab, us
 
 const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent"> = {
   productName: "Tovu",
+  /** Dependency injection seam for tests — the same convention `AgentPluginsProps.useAgentPluginsHook`
+   *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as
+   *  before. */
   useObservabilityStatusHook: useWiredObservabilityStatus,
   useRecentServerErrorsHook: useWiredRecentServerErrors,
   useRecentErrorItemHook: useRecentErrorItem,

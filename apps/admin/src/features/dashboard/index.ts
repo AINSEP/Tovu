@@ -39,6 +39,7 @@ function publishAll(): void {
 export function Dashboard() {
   return createElement(DashboardScreen, {
     useDashboardHook: useWiredDashboard,
+    // `false` on the live site, which has nowhere to publish to (`publish-availability.store.ts`).
     usePublishToLiveAvailableHook: usePublishToLiveAvailable,
     useRecentActivityDisclosureHook: useRecentActivityDisclosure,
     onPublishAll: publishAll,
