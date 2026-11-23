@@ -1,7 +1,8 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { PERMANENT_DELETE_DANGERS } from "@/lib/assistant-permanent-deletes";
-import { AssistantToggleRow } from "./AssistantToggleRow";
-import { OwnerGrantStatus } from "./OwnerGrantStatus";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
+import { OwnerGrantStatus } from "@jini-ai/admin/screens/assistant-settings/OwnerGrantStatus";
 import { useWiredAdminPermanentDeletes } from "./hooks/use-admin-permanent-deletes.hooks";
 
 type PermanentDeletesController = ReturnType<typeof useWiredAdminPermanentDeletes>;
@@ -44,7 +45,7 @@ export function AdminPermanentDeletes({ t = (key: string) => key, useController 
   const controller = useController({ t });
   const master = permanentDeletesMaster(controller);
   return <section className="assistant-switch assistant-permanent-deletes">
-    <AssistantToggleRow t={t} label={t("Allow permanent deletes from chat")}
+    <AssistantToggleRow t={t} InfoTip={InfoTip} label={t("Allow permanent deletes from chat")}
       info={t("Off by default. Only checked tools are allowed. Each delete still requires a human confirmation of the exact targets. Prefer Trash.")}
       checked={master.checked} disabled={master.disabled}
       onChange={(enabled) => { void controller.setEnabled({ enabled }); }} />

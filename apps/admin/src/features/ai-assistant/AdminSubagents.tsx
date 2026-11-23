@@ -1,7 +1,8 @@
 import { useId } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { AssistantToggleRow } from "./AssistantToggleRow";
-import { OwnerGrantStatus } from "./OwnerGrantStatus";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
+import { OwnerGrantStatus } from "@jini-ai/admin/screens/assistant-settings/OwnerGrantStatus";
 import { useWiredAdminSubagents } from "./hooks/use-admin-subagents.hooks";
 
 type SubagentsController = ReturnType<typeof useWiredAdminSubagents>;
@@ -25,7 +26,7 @@ function AgentToolSources({ controller, disabled, t }: { controller: SubagentsCo
     <div className="assistant-tool-sources">
       <p>{t("Tools provided here")}</p>
       <p className="muted-cell">{t("Tovu and Jini tools, enabled plugin tools, and connected servers.")}</p>
-      {controller.settings?.agents?.map(agent => <AssistantToggleRow key={agent.id} t={t}
+      {controller.settings?.agents?.map(agent => <AssistantToggleRow key={agent.id} t={t} InfoTip={InfoTip}
         label={t(`Also use ${agent.name}'s personal MCP servers.`)}
         info={t(`Loads MCP servers set up in ${agent.name} or this project. Tovu doesn't approve or log them. Applies to ${agent.name}'s other chats on this site.`)}
         checked={controller.settings?.byAgent?.[agent.id]?.capabilities?.userMcp ?? controller.settings?.capabilities?.userMcp ?? false}
@@ -44,7 +45,7 @@ export function AdminSubagents({ t = (key: string) => key, useController = useWi
   const view = subagentsSwitch(controller);
   return <section className="assistant-switch assistant-subagents">
     {/* No agent handle: only the human owner may change the assistant's own tool grant. */}
-    <AssistantToggleRow t={t} label={t("Full CLI access")}
+    <AssistantToggleRow t={t} InfoTip={InfoTip} label={t("Full CLI access")}
       info={t("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are on by default; turn them off here for any agent. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.")}
       checked={view.checked} describedBy={view.ownerOnly || view.lockReason ? ownerNoteId : undefined}
       disabled={view.disabled}
