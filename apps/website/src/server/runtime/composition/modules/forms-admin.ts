@@ -2,15 +2,19 @@ import { formsGetRoute } from "@jini-ai/cms/admin-http/routes/forms/get-by-id";
 import { formsGetSubmissionRoute } from "@jini-ai/cms/admin-http/routes/forms/get-submission";
 import { formsListRoute } from "@jini-ai/cms/admin-http/routes/forms/list";
 import { formsListSubmissionsRoute } from "@jini-ai/cms/admin-http/routes/forms/list-submissions";
+import { FormsPullFailedError, formsPullSubmissionsRoute, type FormsPullSubmissionsInput, type FormsPullSubmissionsRouteDeps } from "@jini-ai/cms/admin-http/routes/forms/pull-submissions";
+import type { FormSubmissionsPullResult } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import { formsProvidersRoute } from "@jini-ai/cms/admin-http/routes/forms/providers";
 import { formsUpdateRoute } from "@jini-ai/cms/admin-http/routes/forms/update";
 import { setFormDefinitionStatus, updateFormDefinition, type FormWriteServiceDeps } from "#src/features/forms/index";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountJsonRoute, type JsonRoutePorts } from "@jini-ai/http-kit";
+import { createAdminJsonRoutePorts, mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";
 import { registerAdminFormsCreateRoute } from "#src/server/inbound/admin-http/routes/forms/create";
 import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/delete-submission";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "#src/server/inbound/admin-http/routes/forms/deps";
-import { registerAdminFormsPullSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/pull-submissions";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -19,9 +23,9 @@ import type { ServerModuleHandle } from "./types.js";
  *
  * Owns the admin registrations (list/create/get-by-id/update/authoring/list-submissions/get-submission/
  * delete-submission, and pull-submissions for form destinations) — moved here verbatim from `app.ts`'s `createApp()`, same registrar function
- * bodies, no behavior change, same relative order. Six of them are Jini route specs
- * (`@jini-ai/cms/admin-http/routes/forms/*`) mounted behind the admin ports; `create`, `authoring`,
- * `delete-submission` and `pull-submissions` are still hand-written Express routes.
+ * bodies, no behavior change, same relative order. Seven of them are Jini route specs
+ * (`@jini-ai/cms/admin-http/routes/forms/*`) mounted behind the admin ports; `create`, `authoring`
+ * and `delete-submission` are still hand-written Express routes.
  *
  * Named distinctly from `src/server/modules/forms.ts` (SPEC-031, already existing), which owns
  * the unrelated Forms-to-webhook-notify-subscriber concern, not HTTP routes — mirrors how
@@ -84,6 +88,27 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app,
   mountAdminJsonRoute({ app, spec: formsGetSubmissionRoute, deps: {
     ...formsPortDeps({ deps }), formDefinitionRepo: deps.formDefinitionRepo, formSubmissionRepo: deps.formSubmissionRepo, formDeliveryStatus: deps.formDeliveryStatus,
   } }, directMountOptions("routes/forms/get-submission"));
+};
+
+/**
+ * The pull route's admin ports. A pull that failed before any published host was read
+ * (`FormsPullFailedError`) keeps its own `forms-pull` copy, logged under the cause and correlated
+ * to the reference the reply repeats; every other failure is the route's generic fallback.
+ */
+function formsPullPorts(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> {
+  const ports = createAdminJsonRoutePorts({ authorization: "direct", failure: { operation: "routes/forms/pull-submissions", code: "INTERNAL_ERROR" } });
+  return { ...ports, onError: ({ res, error }) => {
+    if (!(error instanceof FormsPullFailedError)) { ports.onError?.({ res, error }); return; }
+    sendAdminFailure({ res, error: error.cause }, { operation: "forms-pull",
+      message: "Form submission retrieval stopped before any published host was read.",
+      failure: { action: "Try pulling submissions again. If it still fails, copy details and report this problem.", step: "forms.submissions.pull" },
+    });
+  } };
+}
+
+/** POST forms/submissions/pull behind {@link formsPullPorts}; never consulted the publishing-credential override. */
+export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountJsonRoute<FormsPullSubmissionsInput, FormSubmissionsPullResult, FormsPullSubmissionsRouteDeps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...formsPullSubmissionsRoute, ports: formsPullPorts() }, deps: { ...formsPortDeps({ deps }), formSubmissionsPull: deps.formSubmissionsPull } });
 };
 
 export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle {
