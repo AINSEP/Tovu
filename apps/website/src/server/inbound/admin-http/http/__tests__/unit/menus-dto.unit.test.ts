@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
-import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuDto } from "../../menus.js";
+import { authorizeMenuHtml, parseMenuHtmlAuthoring, toAdminMenuDto } from "@jini-ai/cms/admin-http/http/menus";
 
 const baseMenu = {
   id: "menu-1", workspaceId: "ws-1", slug: "main", title: "Main", status: "published",
@@ -29,15 +28,15 @@ test("parseMenuHtmlAuthoring keeps only the fields that were sent", () => {
   assert.deepEqual(parseMenuHtmlAuthoring({ mode: "html", html: "<b>y</b>", other: 1 }), { mode: "html", html: "<b>y</b>" });
 });
 
-test("authorizeMenuHtmlOrRespond names the menu as entityId only when a menuId is given", async () => {
+test("authorizeMenuHtml names the menu as entityId only when a menuId is given", async () => {
   const calls: unknown[] = [];
-  const deps = { workspaceId: "ws-1", authorize: async (p: unknown) => { calls.push(p); return { allowed: true, reason: "grant" }; } };
+  // The admin authorize port's shape: the port adds the principal and workspace itself.
+  const authorize = async (required: { permission: string; entityType: string }, optional: { entityId?: string } = {}) => { calls.push({ ...required, ...optional }); };
   const authoring = { mode: "html", html: "<i>z</i>" } as never;
-  const { res } = createCapturingResponse();
-  assert.equal(await authorizeMenuHtmlOrRespond({ res: res as never, deps: deps as never, principalId: "p-1", authoring }, { menuId: "menu-1" }), true);
-  assert.equal(await authorizeMenuHtmlOrRespond({ res: res as never, deps: deps as never, principalId: "p-1", authoring }), true);
+  await authorizeMenuHtml({ authorize, authoring }, { menuId: "menu-1" });
+  await authorizeMenuHtml({ authorize, authoring });
   assert.deepEqual(calls, [
-    { principalId: "p-1", permission: MENU_RAW_HTML_PERMISSION, workspaceId: "ws-1", entityType: "menu", entityId: "menu-1" },
-    { principalId: "p-1", permission: MENU_RAW_HTML_PERMISSION, workspaceId: "ws-1", entityType: "menu" },
+    { permission: MENU_RAW_HTML_PERMISSION, entityType: "menu", entityId: "menu-1" },
+    { permission: MENU_RAW_HTML_PERMISSION, entityType: "menu" },
   ]);
 });

@@ -9,7 +9,7 @@ import { migrateFooterPageLinks } from "../migrate-footer-page-links.js";
 import { resolveMenuDoc } from "../index.js";
 import { createMenuPageTargetResolver } from "../page-target-resolver.js";
 import { SqliteMenuRepo } from "../repo.sqlite.js";
-import { toAdminMenuResponse } from "#src/server/inbound/admin-http/http/menus";
+import { toAdminMenuResponse } from "@jini-ai/cms/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
 import { postSearchFor } from "#src/features/post/search-index";
 import { renderHtmlMenu } from "#src/platform/html/menu-render";

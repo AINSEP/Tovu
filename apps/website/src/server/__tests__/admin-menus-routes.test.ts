@@ -9,15 +9,17 @@ import express from "express";
 import { menuVersionConflictError } from "@jini-ai/cms/navigation";
 import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRepoPort } from "@jini-ai/cms/navigation";
-import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
+import type { MenuRouteDeps } from "#src/server/runtime/composition/modules/menus";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminMenuAssignLocationRoute } from "../inbound/admin-http/routes/menus/assign-location.js";
-import { registerAdminMenuCreateRoute } from "../inbound/admin-http/routes/menus/create.js";
-import { registerAdminMenuDeleteRoute } from "../inbound/admin-http/routes/menus/delete.js";
-import { registerAdminMenuGetRoute } from "../inbound/admin-http/routes/menus/get-by-id.js";
-import { registerAdminMenuListRoute } from "../inbound/admin-http/routes/menus/list.js";
-import { registerAdminMenuUpdateTreeRoute } from "../inbound/admin-http/routes/menus/update-tree.js";
+import {
+  registerAdminMenuAssignLocationRoute,
+  registerAdminMenuCreateRoute,
+  registerAdminMenuDeleteRoute,
+  registerAdminMenuGetRoute,
+  registerAdminMenuListRoute,
+  registerAdminMenuUpdateTreeRoute,
+} from "#src/server/runtime/composition/modules/menus";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

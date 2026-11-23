@@ -7,8 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminCommentsGetSettingsRoute } from "../get-settings.js";
-import { registerAdminCommentsPutSettingsRoute } from "../put-settings.js";
+import { registerAdminCommentsGetSettingsRoute, registerAdminCommentsPutSettingsRoute } from "#src/server/runtime/composition/modules/comments-moderation";
 import type { CommentsModerationRouteDeps } from "../deps.js";
 
 /**

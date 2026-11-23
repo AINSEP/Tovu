@@ -6,8 +6,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Comments admin FRONTEND, SPEC-036/037, which is unrelated UI work).
  *
  * Purpose:
- * `moderation-queue.ts`/`moderate.ts` already declare their own narrower `Pick<RouteDeps, ...>`
- * types (`AdminCommentsModerationQueueDeps`/`AdminCommentsModerateDeps`, ADR-031 §6/§9,
+ * The moderation-queue/moderate registrars (`runtime/composition/modules/comments-moderation.ts`,
+ * which mounts the `@jini-ai/cms/admin-http/routes/comments/*` specs) declare their own narrower
+ * `Pick<RouteDeps, ...>` types (`AdminCommentsModerationQueueDeps`/`AdminCommentsModerateDeps`, ADR-031 §6/§9,
  * SPEC-033) — this type is a genuine union of those two plus `get-settings.ts`/`put-settings.ts`'s
  * actual field needs (read directly rather than guessed), mirroring
  * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s/`apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s identical narrowing
