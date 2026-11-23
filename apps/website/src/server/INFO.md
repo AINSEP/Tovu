@@ -54,3 +54,6 @@ Ops (`runtime/composition/modules/core.ts`) registers `/health` and `/healthz` f
 through `mountPublicJsonRoute` (`registerHealthRoute`/`registerHealthzRoute`, `deps: {}`, operations `ops:health`/`ops:healthz`),
 first in the core module as before. `/readyz` stays hand-written in `inbound/public-http/routes/ops/health.ts` because
 `features/deployments/deploy-config.ts` reads the health-check path from that file's `registerReadyzRoute` source.
+Commerce (`runtime/composition/modules/commerce.ts`) exports `registerAdminCommerceStatusRoute`, mounting the Jini
+`commerceStatusRoute` (`"direct"`, operation `routes/commerce/status`) with `readCommerceStatus` from `@jini-ai/commerce` bound
+to `deps.lipay` per request. Production leaves it unmounted, as before; only tests mount it.

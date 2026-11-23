@@ -3140,6 +3140,10 @@
     {
       "id": "0e1a42246f6c",
       "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/pause.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6773262ded2d",
+      "reason": "RT-I2 (RT-K1-adm-commerce): moved with the code to Jini packages/cms/src/admin-http/routes/commerce/status.ts (file header + handler comment) and the Tovu registrar doc, reworded host-neutral; the Tovu file no longer holds the code it explained."
     }
   ]
 }
