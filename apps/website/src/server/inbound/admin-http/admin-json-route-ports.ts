@@ -49,16 +49,16 @@ export type AdminRouteAuthorization = "guarded" | "direct";
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
  */
 export function createAdminJsonRoutePorts(
-  required: { failure?: FailureOptions; authorization?: AdminRouteAuthorization } = {},
+  required: { failure?: FailureOptions; authorization?: AdminRouteAuthorization; workspaceScoped?: boolean } = {},
   _optional: Record<string, never> = {},
 ): JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> {
   return {
-    // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth.
-    // Deployment-level paths (`/api/admin/v1/database/*`, `/recovery/*`) have no `:workspaceId`
-    // and never ran that guard, so an absent param is not a foreign workspace.
+    // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
+    // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
+    // Deployment-level paths (`/api/admin/v1/database/*`, `/recovery/*`) never ran that guard.
     workspace: ({ raw, deps }) => {
-      if (raw.params.workspaceId === undefined) return;
-      if (String(raw.params.workspaceId) !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
+      if (required.workspaceScoped === false) return;
+      if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
     },
     authenticate: ({ res }) => {
       const principal = { ...getAuthedPrincipal(res) };
@@ -116,7 +116,9 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
   optional: { failure?: FailureOptions; authorization?: AdminRouteAuthorization } = {},
 ): void {
-  const ports = optional.failure || optional.authorization ? createAdminJsonRoutePorts(optional) : adminJsonRoutePorts;
+  // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
+  const workspaceScoped = required.spec.path.includes(":workspaceId");
+  const ports = optional.failure || optional.authorization || !workspaceScoped ? createAdminJsonRoutePorts({ ...optional, workspaceScoped }) : adminJsonRoutePorts;
   mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps });
 }
 
