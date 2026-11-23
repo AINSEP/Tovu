@@ -5,11 +5,10 @@ import { ToolInputError } from '@jini-ai/core';
 import { encodeListCursor } from '@jini-ai/core/list-page';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
-import { registerAdminMemberGetRoute } from '../get-by-id.js';
-import { registerAdminMemberListRoute } from '../list.js';
+import { registerAdminMemberGetRoute, registerAdminMemberListRoute } from '#src/server/runtime/composition/modules/members';
 import { registerAdminMemberRequestMagicLinkRoute } from '../request-magic-link.js';
 import { WS, BASE, INTERNAL_CODE, allowed, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMemberDisableRoute } from '../disable.js';
+import { registerAdminMemberDisableRoute } from '#src/server/runtime/composition/modules/members';
 
 const routes: RouteFailureCase[] = [
   { name: 'members get', register: registerAdminMemberGetRoute, method: 'GET', path: `${BASE}/members/member`, failure: {"message": "The members could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load members"} },

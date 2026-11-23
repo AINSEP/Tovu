@@ -34,7 +34,7 @@ import { registerAdminAssistantPermanentDeletesRoutes } from "../../../inbound/a
 import { registerAdminAssistantSubagentsRoutes } from "../../../inbound/admin-http/routes/system/assistant-subagents.js";
 import { registerAdminDeploymentOverviewRoute } from "../../../inbound/admin-http/routes/system/deployment-overview.js";
 import { registerAdminSitesRoutes } from "../../../inbound/admin-http/routes/system/sites.js";
-import { registerAdminSiteProfileRoute } from "../../../inbound/admin-http/routes/site/profile.js";
+import { registerAdminSiteProfileRoute } from "../modules/site.js";
 import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
 import { registerAdminExportSiteRoutes } from "../../../inbound/admin-http/routes/system/export-site.js";
 import { registerAdminCustomCredentialsRoutes } from "../../../inbound/admin-http/routes/system/custom-credentials.js";

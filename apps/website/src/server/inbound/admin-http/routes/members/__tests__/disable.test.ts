@@ -14,7 +14,7 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminMemberDisableRoute } from "../disable.js";
+import { registerAdminMemberDisableRoute } from "#src/server/runtime/composition/modules/members";
 import type { MembersRouteDeps } from "../deps.js";
 import type { MemberRecord } from "#src/features/members/index";
 

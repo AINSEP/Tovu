@@ -1,6 +1,8 @@
 import { registerAuthRoutes, requireAdminSession, type AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import { requirePublishTrust } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "#src/server/inbound/public-http/routes/ops/health";
+import { healthRoute, healthzRoute } from "@jini-ai/cms/public-http/routes/ops/health";
+import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { registerReadyzRoute, type NoDepsRouteRegistrar } from "#src/server/inbound/public-http/routes/ops/health";
 import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
@@ -96,3 +98,18 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
     },
   };
 }
+
+/**
+ * `GET /health` — process liveness, `{ ok: true }` (the Jini `healthRoute` spec). Registered first,
+ * ahead of every body parser and session gate, with no deps. The spec cannot throw, so the visitor
+ * copy below is never sent today; `mountPublicJsonRoute` requires one for an unexpected failure.
+ */
+export const registerHealthRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
+  mountPublicJsonRoute({ app, spec: healthRoute, deps: {}, failure: { operation: "ops:health", visitorError: "The server couldn’t answer the health check." } });
+};
+
+/** `GET /healthz` — ADR-046 Phase 2 (SPEC-030 REQ-08): the same liveness answer as `/health` (the
+ * Jini `healthzRoute` spec, which keeps that requirement's why-comment); see above. */
+export const registerHealthzRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
+  mountPublicJsonRoute({ app, spec: healthzRoute, deps: {}, failure: { operation: "ops:healthz", visitorError: "The server couldn’t answer the health check." } });
+};

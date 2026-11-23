@@ -12,9 +12,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
-import { registerAdminMemberDisableRoute } from "../../inbound/admin-http/routes/members/disable.js";
-import { registerAdminMemberGetRoute } from "../../inbound/admin-http/routes/members/get-by-id.js";
-import { registerAdminMemberListRoute } from "../../inbound/admin-http/routes/members/list.js";
+import { registerAdminMemberDisableRoute, registerAdminMemberGetRoute, registerAdminMemberListRoute } from "#src/server/runtime/composition/modules/members";
 import { registerAdminMemberRequestMagicLinkRoute } from "../../inbound/admin-http/routes/members/request-magic-link.js";
 import type { RouteDeps } from "../../routes/types.js";
 

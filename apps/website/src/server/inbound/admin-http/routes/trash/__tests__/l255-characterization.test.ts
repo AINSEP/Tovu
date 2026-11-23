@@ -4,9 +4,9 @@ import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { MoveToTrashOutcome } from "#src/features/trash/index";
-import type { TrashRouteDeps } from "../deps.js";
-import { registerAdminTrashMoveToTrashRoute } from "../items.js";
-import { registerAdminTrashRestoreRoute } from "../restore.js";
+import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
+import { registerAdminTrashMoveToTrashRoute } from "#src/server/runtime/composition/modules/trash";
+import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/modules/trash";
 
 const now = "2026-10-01T12:00:00.000Z";
 function unexpected(_required: object = {}, _options: object = {}): never { throw new Error("unexpected port call"); }

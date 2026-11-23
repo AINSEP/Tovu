@@ -3,26 +3,13 @@ import type { Express } from "express";
 import type { BootModuleResult, ModuleLifecycleStatus } from "@jini-ai/core/contracts/site/lifecycle-boot-lifecycle";
 import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 
-/** These 3 routes need no `RouteDeps` at all (health is dependency-free; readyz reads the
- * module-level readiness-state singleton) — a narrower type than `RouteRegistrar`, and the shape
- * `modules/core.ts` composes directly (ADR-046 Phase 3). */
+/** `/readyz` needs no `RouteDeps` at all (it reads the module-level readiness-state singleton) — a
+ * narrower type than `RouteRegistrar`, and the shape `modules/core.ts` composes directly (ADR-046
+ * Phase 3). The two liveness probes (`/health`, `/healthz`) are Jini `@jini-ai/cms` route specs now,
+ * mounted by `modules/core.ts`; `/readyz` stays hand-written here because `tovu deploy config`
+ * (`features/deployments/deploy-config.ts`) derives the platform health-check path from the path literal in
+ * this file's `registerReadyzRoute` `app.get` call. */
 export type NoDepsRouteRegistrar = (required: { app: Express }, optional?: Record<string, never>) => void;
-
-export const registerHealthRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
-  app.get("/health", (_req, res) => {
-    res.json({ ok: true });
-  });
-};
-
-/**
- * ADR-046 Phase 2 (SPEC-030 REQ-08) — process liveness only, no dependency checks. Mirrors
- * `/health`'s exact behavior (both remain registered; `/health` is not removed).
- */
-export const registerHealthzRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
-  app.get("/healthz", (_req, res) => {
-    res.json({ ok: true });
-  });
-};
 
 /**
  * ADR-046 Phase 2 (SPEC-030 REQ-09) — 200 when every CRITICAL module in the current readiness

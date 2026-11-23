@@ -19,7 +19,7 @@ import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
-import type { TrashRouteDeps } from "#src/server/inbound/admin-http/routes/trash/deps";
+import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createTrashModule } from "#src/server/runtime/composition/modules/trash";
 

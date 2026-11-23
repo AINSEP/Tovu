@@ -27,7 +27,7 @@ import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./help
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { createTrashModule } from "../runtime/composition/modules/trash.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import type { TrashRouteDeps } from "../inbound/admin-http/routes/trash/deps.js";
+import type { TrashRouteDeps } from "#src/server/runtime/composition/modules/trash";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
