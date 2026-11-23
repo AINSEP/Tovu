@@ -6,7 +6,7 @@ import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { describeApiError } from '../../lib/admin-http/request';
 import { siteUrl } from '../../lib/site-url';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
-import { t as translateSeo } from '@jini-ai/admin/screens/seo/seo-i18n';
+import { t as translateSeo } from '../../features/seo/seo-i18n';
 import { mediaTransport } from './media-ports';
 
 import { interpolate } from '@jini-ai/core/text';

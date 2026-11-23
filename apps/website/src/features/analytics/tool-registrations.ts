@@ -8,9 +8,9 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsSinkPort } from "./index.js";
 import type { NormalizedHit } from "@jini-ai/analytics";
-import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
+import { analyticsAgentToolCatalog } from "./agent-tools.js";
 
 export interface AnalyticsToolDeps { authorize: AuthorizeFn; workspaceId: string; analyticsSink: AnalyticsSinkPort }
 export const analyticsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([

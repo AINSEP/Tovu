@@ -1,6 +1,0 @@
-X-settings-1 mutation: site-timezone.ts ownerTimeZone sourceLayer === -> !== ; site-timezone.unit.test.ts 2 failed | 2 passed (4); restored (cmp identical) 4 passed (4)
-X-analytics-1 mutation: sheet's ports.ts 'first if' does not exist (interfaces + empty classes only); planted agent-tools.ts permission analytics.read -> analytics.write; site-ports.test.ts 1 failed | 1 passed (2); restored (cmp) 2 passed (2)
-X-seo-1 mutation: page-head-contributor.ts first if negated (!ctx.entry -> ctx.entry); page-head-contributor.unit.test.ts 1 failed | 1 passed (2); restored (cmp) 2 passed (2)
-X-site-search-1 mutation: settings.ts first if in readSearchProviderSetting negated (!isSearchProviderId(value) -> isSearchProviderId(value)); site/__tests__/settings.test.ts 3 failed | 1 passed (4); restored (cmp) 4 passed (4)
-A-K2-seo-1 mutations: (named, no if in seo-i18n) es key 'Preview title' renamed -> seo-i18n-parity es 1 failed | 22 passed (23); index.ts tabId !== null -> === null -> Seo.unit 2 failed | 21 passed (23); both restored (cmp) 23 passed
-Tovu wiring check (X-settings-1): planted sourceLayer !== in linked Jini dist settings/site/site-timezone.js -> Tovu features/settings/__tests__/site-timezone.test.ts pass 3 fail 4; restored by byte copy (cmp identical) -> pass 7 fail 0

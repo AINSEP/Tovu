@@ -1,4 +1,4 @@
-import { createSeoPageHeadHook } from "@jini-ai/cms/seo/site/page-head-contributor";
+import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";

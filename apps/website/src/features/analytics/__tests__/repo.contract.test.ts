@@ -9,7 +9,7 @@ import { SqlBufferSink } from "#src/platform/db/repos/analytics-sink";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { createLocalAnalyticsSink } from "../jini-adapters.js";
-import type { AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
+import type { AnalyticsSinkPort } from "../ports.js";
 import type { NormalizedHit } from "@jini-ai/analytics";
 
 /**

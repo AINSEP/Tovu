@@ -4,7 +4,7 @@ import {
   type ClearValueRequired, type ResetNamespaceRequired, type SettingsRepoPort, type SetValueRequired, type SettingsValueWriteOptions,
 } from "@jini-ai/core/settings";
 
-import { enforceFormDeliveryBindingsWrite } from "@jini-ai/cms/settings/site/form-delivery";
+import { enforceFormDeliveryBindingsWrite } from "./form-delivery.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_MAX_LENGTH, SITE_TITLE_NAMESPACE } from "./site-title.js";
 import { parseVisitorToolPolicy, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, VISITOR_TOOLS_WRITE_REASON } from "../../contracts/site-assistant/visitor-tools.js";
 

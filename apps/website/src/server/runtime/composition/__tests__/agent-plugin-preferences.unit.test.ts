@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { InMemorySettingsRepo, SettingsRevisionConflictError, clear, getEffective, set, type SettingDefinitionRecord } from '@jini-ai/core/settings';
-import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '@jini-ai/cms/settings/site/admin-interface';
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { composeAgentPluginPreferences } from '../agent-plugin-service-ports.js';
 
 function fixture() {

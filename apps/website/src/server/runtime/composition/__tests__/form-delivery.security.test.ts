@@ -13,8 +13,7 @@ import { createFormDestinationDeliverer } from "#src/features/form-destinations/
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
-import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
-import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
+import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";

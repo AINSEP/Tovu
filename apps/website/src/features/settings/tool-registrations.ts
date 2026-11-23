@@ -39,7 +39,7 @@ import { buildSettingsRegistrations as buildCmsSettingsRegistrations, AGENT_WRIT
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { DEDICATED_SETTINGS_WRITERS, set } from "./site-title-write.js";
-import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
 
 export { settingsDerivedRisk } from "@jini-ai/core/settings";

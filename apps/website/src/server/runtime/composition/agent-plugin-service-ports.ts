@@ -12,7 +12,7 @@ import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPlu
 import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential-card';
 import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '@jini-ai/cms/settings/site/admin-interface';
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
 import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
 import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';

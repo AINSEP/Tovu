@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemorySettingsRepo, set } from "@jini-ai/core/settings";
-import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
+import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { chartProviderAssetUrl, readAdminChartProviderSnapshot } from "../chart-providers.js";
 
 /** The admin chart-provider projection: asset addresses are workspace-scoped and path-free, the

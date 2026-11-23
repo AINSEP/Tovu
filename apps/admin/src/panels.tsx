@@ -29,7 +29,7 @@ import {
   Authentication,
   Roles,
   SettingsUi,
-  Seo, SeoModuleLoading, useModulePanel,
+  Seo,
   Redirects,
   Plugins,
   AgentPlugins,
@@ -1231,7 +1231,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",

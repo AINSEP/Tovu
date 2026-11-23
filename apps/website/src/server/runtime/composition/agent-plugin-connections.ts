@@ -13,8 +13,7 @@ import type { SetValueRequired } from "@jini-ai/core/settings";
 
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
-import { FormDeliveryBindingsConflictError, writeFormDeliveryBindings } from "#src/features/settings/index";
-import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
+import { FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";

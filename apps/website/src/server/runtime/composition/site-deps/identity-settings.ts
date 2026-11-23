@@ -8,8 +8,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
-import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
-import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
+import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
 import { formatErrorForLog } from "@jini-ai/core";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -20,18 +19,18 @@ import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-ti
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import { ensureAdminInterfaceSettingDefinitions } from "@jini-ai/cms/settings/site/admin-interface";
-import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
+import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
+import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureCommerceSetting } from "../commerce-settings.js";
-import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
-import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
+import { ensureFormDeliverySettings } from "#src/features/settings/index";
+import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
-import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
+import { ensureMailSenderSettings } from "#src/features/settings/index";
 import { ensureSettingDefinitions } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
-import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
-import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
+import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
+import { ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
 import { preserveLegacySiteTitles } from "#src/features/settings/site-title";
 import { resolveOwnerCredentials } from "#src/features/identity/wiring";
@@ -207,7 +206,6 @@ function compositionSiteDisplaySources(
   // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
-    reportFallback: createSiteTimeZoneFallbackReporter(),
     ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
   });
   return { siteDisplayName, siteTimeZone };

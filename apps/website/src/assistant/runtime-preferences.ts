@@ -1,7 +1,7 @@
 /** Per-person assistant runtime preferences (`core.interface`), read fresh for every run launch. */
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 import { orFallback } from "@jini-ai/core/errors/idioms";
-import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";
+import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "../features/settings/admin-interface.js";
 
 export interface AssistantRuntimePreferenceDeps {
   settingsRepo: SettingsRepoPort;

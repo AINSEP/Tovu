@@ -8,7 +8,7 @@ import test from "node:test";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
-import { ensureFormDestinationSetting, readFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
+import { ensureFormDestinationSetting, readFormDestinationSetting } from "../form-destination.js";
 import { createSettingsPrincipalLookup } from "../index.js";
 
 const clock = { nowIso: () => "2026-10-21T00:00:00.000Z", nowMs: () => Date.parse("2026-10-21T00:00:00.000Z") };

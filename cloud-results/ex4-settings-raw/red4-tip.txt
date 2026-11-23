@@ -1,4 +1,0 @@
-apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts | ℹ pass 6 ℹ fail 1  | exit 1
-apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts | ℹ pass 0 ℹ fail 1  | exit 1
-apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts | ℹ pass 0 ℹ fail 1  | exit 1
-apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts | ℹ pass 22 ℹ fail 3  | exit 1

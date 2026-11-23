@@ -22,8 +22,7 @@ import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { resolveShareDirectory } from "../site-paths.js";
-import { resolveSiteTimeZone } from "@jini-ai/cms/settings/site/site-timezone";
-import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
+import { resolveSiteTimeZone } from "#src/features/settings/site-timezone";
 import { rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { selectArtifactStoreProvider } from "#src/features/object-storage/index";
@@ -84,7 +83,7 @@ export function configureSiteSharing(required: ConfigureSiteSharingRequired, _op
           context: async () => {
             const context = await routeDeps.staticSiteContext();
             const creationZone = createSiteCreationTimeZone({ dir: resolvedSiteBinding.dir });
-            const timeZone = await resolveSiteTimeZone({ settingsRepo, reportFallback: createSiteTimeZoneFallbackReporter(), creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
+            const timeZone = await resolveSiteTimeZone({ settingsRepo, creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
             return { ...context, timeZone };
           },
         },

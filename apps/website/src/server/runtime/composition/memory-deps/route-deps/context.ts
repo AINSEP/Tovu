@@ -19,7 +19,7 @@ import type { InMemorySettingsRepo } from "#src/features/settings/index";
 import type { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import type { composePluginRuntime } from "../../plugin-runtime.js";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import type { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
+import type { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import type { memoryPublishContentApplyPort } from "../slices/publish-apply.js";

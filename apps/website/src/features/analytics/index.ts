@@ -29,5 +29,29 @@
  * is `visitorHash`, a daily-rotating, per-site, salted, non-reversible digest (cookie-less,
  * not cross-site, not cross-day). This is the Plausible/Fathom mechanism.
  */
+export type {
+  AggregateDelta,
+  AnalyticsConfigPort,
+  AnalyticsDomainEvent,
+  AnalyticsHooks,
+  AnalyticsRepoPort,
+  AnalyticsSinkCapabilities,
+  AnalyticsSinkPort,
+  IngestDeps,
+  IngestRequired,
+  QueryDeps,
+  QueryRequired,
+  RollupDeps,
+  RollupInput,
+  RollupRequired,
+  RollupResult,
+} from "./ports.js";
+
+export {
+  AnalyticsDisabledError,
+  AnalyticsPiiRejectedError,
+  AnalyticsValidationError,
+  AnalyticsWorkspaceUnresolvedError,
+} from "./ports.js";
 export type { VisitorAnalyticsDeps } from "./contracts.js";
 export { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps } from "./jini-adapters.js";

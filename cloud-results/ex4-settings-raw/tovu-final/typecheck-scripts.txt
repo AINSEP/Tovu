@@ -1,8 +1,0 @@
-
-> tovu@0.1.0 typecheck:scripts
-> tsc -p development/tsconfig.scripts.json --noEmit
-
-development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
-development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
-development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
-exit 2
