@@ -3588,6 +3588,46 @@
     {
       "id": "51d5e9f53a29",
       "reason": "w3-users-sec batch H (X-identity-1/2): moved with the code to Jini packages/user-management/src/identity/username-change-ports.ts; product prefix/paths reworded neutral (\"the host\", K3 prefix injected via createApiKeySecret). Was apps/website/src/features/identity/username-change-ports.ts:5-7."
+    },
+    {
+      "id": "479e83ac9497",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/screens/authentication/Authentication.tsx (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/Authentication.tsx:24-33."
+    },
+    {
+      "id": "6ac966bff5f4",
+      "reason": "w3-users-sec: moved with the code to Jini packages/admin/src/screens/authentication/Authentication.tsx (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/Authentication.tsx:131-140."
+    },
+    {
+      "id": "de41f80394f0",
+      "reason": "w3-users-sec: moved with the code to the host binding apps/admin/src/features/authentication/index.tsx @file header (batch M); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/features/authentication/index.ts:1-4."
+    },
+    {
+      "id": "d09ae0fc378c",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/local-owner-signin.ts:1 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/local-owner-signin.ts:1-1."
+    },
+    {
+      "id": "18237559fe3f",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/owner-mfa-api.ts:4 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/owner-mfa-api.ts:4-6."
+    },
+    {
+      "id": "cfc48a8425d2",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/react/auth/owner-recovery-api.ts:30-45 (batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/admin/src/lib/owner-recovery-api.ts:30-34."
+    },
+    {
+      "id": "a47c35cb78fd",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:115-116."
+    },
+    {
+      "id": "e64cbd7faf4d",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:253-254."
+    },
+    {
+      "id": "3aec5e0a233e",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:295-301."
+    },
+    {
+      "id": "cf8be36297a1",
+      "reason": "w3-users-sec: moved with the code to Jini packages/user-management/src/identity/delete-user-service.ts (createTrashUserService JSDoc ~378-410 for the lock comments; batch L); product name reworded neutral (\"the host\") / module lock reworded factory-owned where applicable. Was apps/website/src/features/identity/delete-user-service.ts:389-392."
     }
   ]
 }
