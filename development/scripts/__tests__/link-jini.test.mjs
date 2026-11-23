@@ -84,3 +84,31 @@ test("link-jini --dry-run changes nothing and a second run is a no-op", () => {
     assert.match(runLink(fixture), /\(0 link\(s\) changed\)/);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
+
+test("link-jini defaults JINI_PACKAGES_DIR to the sibling ../Jini/packages of the repo, not ~/Programming (B057)", () => {
+  const fixture = buildFixture();
+  // A HOME with no Jini checkout: a default rooted in the home directory would find no packages and exit 1.
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "link-jini-home-"));
+  try {
+    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    delete env.JINI_PACKAGES_DIR;
+    execFileSync(process.execPath, [path.join(fixture.repo, "development", "scripts", "link-jini.mjs")], { env, encoding: "utf8" });
+    assert.equal(linkTarget({ repo: fixture.repo, app: ["apps", "admin"], name: "core" }), path.join(fixture.jini, "core"));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("link-jini still honours the JINI_PACKAGES_DIR override over the sibling default (B057)", () => {
+  const fixture = buildFixture();
+  const elsewhere = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "link-jini-elsewhere-")));
+  try {
+    for (const name of ["core", "platform"]) fs.mkdirSync(path.join(elsewhere, name), { recursive: true });
+    runLink({ repo: fixture.repo, jini: elsewhere });
+    assert.equal(linkTarget({ repo: fixture.repo, app: ["apps", "admin"], name: "core" }), path.join(elsewhere, "core"));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(elsewhere, { recursive: true, force: true });
+  }
+});

@@ -5,8 +5,8 @@
  * version ranges in any package.json. Machine-specific and leaves no repo footprint: the only file
  * it writes, `.jini-link-state.json`, is gitignored.
  *
- * Expects Jini's packages directory at `JINI_PACKAGES_DIR` (default
- * `~/Programming/Jini/packages`) — override the env var for a different checkout location.
+ * Expects Jini's packages directory at `JINI_PACKAGES_DIR` (default: the sibling checkout,
+ * `<repo>/../Jini/packages`) — override the env var for a different checkout location.
  *
  * Creates the symlinks directly instead of running `npm link`. `npm link @jini-ai/<name>` rewrites
  * the direct dependency's spec to `file:<path>` in the in-memory tree, and npm then rejects any
@@ -36,13 +36,14 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 
 import { jiniConsumers, repoRoot, stateFile } from "./jini-links.mjs";
 
+// Default is the Jini checkout next to this repo (`<repo>/../Jini/packages`, the layout the file: dependencies
+// of the sibling hosts already assume) — not a path under the home directory, which only one machine has.
 const jiniPackagesDir =
-  process.env.JINI_PACKAGES_DIR || path.join(os.homedir(), "Programming", "Jini", "packages");
+  process.env.JINI_PACKAGES_DIR || path.resolve(repoRoot, "..", "Jini", "packages");
 const dryRun = process.argv.includes("--dry-run");
 
 /** One of "ok" | "missing" | "wrong-link" | "installed-copy" for the entry at `linkPath`. */
