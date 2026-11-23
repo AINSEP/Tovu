@@ -3,9 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
-import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import { useLocalSites } from "../hooks/use-local-sites.hooks";
-import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
+import { resolveLocalSiteCard } from "../Sites.hooks";
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import type { IntervalTimers, VisibilitySource } from "@jini-ai/ui/visible-interval";
@@ -320,7 +319,6 @@ it("card facts protect serving/starting/crashed-with-live-pid and open only read
   expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).action).toBe("start");
   view = resolveLocalSiteCard({ site: { ...site, dir: "/sites/owner" }, snapshot, busyName: null });
   expect(view.serving).toBe(true); expect(view.openUrl).toBe("/admin/"); expect(view.switchEnabled).toBe(false);
-  expect(resolveTrashDeleteDisabled({ id: "x", checked: { x: true }, busyName: "y" })).toBe(true);
 });
 
 it("switching uses confirmation, cancellation and the existing busy/error lifecycle", async () => {
@@ -350,14 +348,4 @@ it("shows the Desktop refusal URL without starting restart polling or changing t
   expect(snapshot.currentSite.name).toBe("owner");
   expect(polling.active.size).toBe(0);
   unmount();
-});
-
-
-it("the shared confirmation modal presents and settles a site switch", async () => {
-  const { result, unmount } = renderHook(() => useSiteConfirm({ t }));
-  let answer!: Promise<boolean>;
-  act(() => { answer = result.current.confirm({ message: "Switch now? Unsaved changes will be lost.", action: "switch" }); });
-  expect(result.current.dialog.open).toBe(true); expect(result.current.dialog.title).toBe("Switch to this site now?");
-  expect(result.current.dialog.confirmLabel).toBe("Switch now"); expect(result.current.dialog.tone).toBe("warning");
-  act(() => result.current.dialog.onConfirm()); expect(await answer).toBe(true); expect(result.current.dialog.open).toBe(false); unmount();
 });

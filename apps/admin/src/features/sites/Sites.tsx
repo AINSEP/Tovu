@@ -1,5 +1,5 @@
 import { AllSitesTab, SiteTrashTab } from "./sites-list-tabs";
-import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
+import { LocalSiteConfirmDialog } from "@jini-ai/admin/screens/sites/LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import type { AdminSitesSnapshot } from "./api/sites-api.types";

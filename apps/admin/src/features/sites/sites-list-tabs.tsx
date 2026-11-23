@@ -10,15 +10,18 @@ import type { Translate } from "@jini-ai/core/text";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import {
+  resolveSiteListItems, resolveSiteSubtitle, resolveSitesEmpty, resolveSitesRowHandles, resolveTrashCardActions,
+} from "@jini-ai/admin/screens/sites/sites-list-rules";
+import {
   buildSiteCardMenuItems, resolveSiteCardMeta, resolveSiteCardTitle, resolveSiteCardView, resolveSiteIsDefault,
-  resolveSiteListItems, resolveSiteRegistrationBadge, resolveSiteRunningTitle, resolveSiteStatusPill, resolveSiteSubtitle,
-  resolveSitesEmpty, resolveSitesRowHandles, resolveTrashCardActions,
+  resolveSiteRegistrationBadge, resolveSiteRunningTitle, resolveSiteStatusPill,
 } from "./Sites.hooks";
 import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
 
 /**
  * @file Binds the shared Sites list tabs (`@jini-ai/admin/screens/sites/*`) to this admin: the card
- * and trash rules from `Sites.hooks.tsx`, the shared site-card kit and hooks, the preview address,
+ * rules from `Sites.hooks.tsx` plus the shared list/trash rules from `@jini-ai/admin/screens/sites/sites-list-rules`,
+ * the shared site-card kit and hooks, the preview address,
  * and the empty-state copy. Markup lives in the package; this file only chooses collaborators.
  */
 

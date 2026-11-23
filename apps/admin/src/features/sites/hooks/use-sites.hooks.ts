@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { useLocalSites, type LocalSitesController } from "./use-local-sites.hooks";
-import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
+import { LOCAL_SITE_CONFIRM_PRESENTATION, useLocalSites, type LOCAL_SITE_CONFIRM_KEYS, type LocalSitesController } from "./use-local-sites.hooks";
+import { useSiteConfirm, type SiteConfirmController } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
 
 import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
@@ -54,7 +54,7 @@ import { type Translate } from '@jini-ai/core/text';
 export interface SitesController {
   localSites?: LocalSitesController;
   /** The modal that answers {@link SitesController.localSites}' Trash/Delete/Switch confirmations. */
-  siteConfirm?: SiteConfirmController;
+  siteConfirm?: SiteConfirmController<keyof typeof LOCAL_SITE_CONFIRM_KEYS>;
   /** `undefined` until the first successful load — the view renders its loading state. */
   snapshot: AdminSitesSnapshot | undefined;
   /** {@link SitesController.snapshot}'s rows in render order (serving first, then by name), or an
@@ -272,7 +272,7 @@ function useSiteActivation({ port, writes: sitesWrites }: { port: SitesPort; wri
 
 export function useSites(port: SitesPort, t: Translate): SitesController {
   const list = useSitesSnapshot({ port });
-  const siteConfirm = useSiteConfirm({ t });
+  const siteConfirm = useSiteConfirm({ t, presentation: LOCAL_SITE_CONFIRM_PRESENTATION });
   const localSites = useLocalSites({ port, snapshot: list.data, t }, { confirm: siteConfirm.confirm });
   const writes: SitesWrites = { createMutation: useCreateSiteMutation({ port }), activateMutation: useActivateSiteMutation({ port }) };
   const create = useSiteCreate({ port, t, snapshot: list.data, writes });

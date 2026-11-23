@@ -7,6 +7,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 
 import { KEYS, SERVING_CHAT_WARNING_KEY, siteWriteErrorKey } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
+import type { SiteConfirmPresentation } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 const nativeConfirm = ({ message }: { message: string }, _optional = {}) => window.confirm(message);
@@ -17,6 +18,15 @@ export const LOCAL_SITE_CONFIRM_KEYS = {
   "stop-serving": "Stop {name} and move this address to {target}? {target} restarts here, and anything running on either site stops.",
 };
 type ConfirmableAction = keyof typeof LOCAL_SITE_CONFIRM_KEYS;
+
+/** Title, confirm label and tone per confirmable action; the body is the controller's own message.
+ *  This admin's copy for `useSiteConfirm` (`@jini-ai/admin/screens/sites/use-site-confirm.hooks`). */
+export const LOCAL_SITE_CONFIRM_PRESENTATION: Record<ConfirmableAction, SiteConfirmPresentation> = {
+  trash: { titleKey: "Move site to Trash?", confirmKey: "Move to Trash", tone: "danger" },
+  delete: { titleKey: "Delete site permanently?", confirmKey: "Delete permanently", tone: "danger" },
+  switch: { titleKey: "Switch to this site now?", confirmKey: "Switch now", tone: "warning" },
+  "stop-serving": { titleKey: "Stop this site?", confirmKey: "Stop", tone: "warning" },
+};
 
 /** Whether an action asks the operator first (Trash, permanent delete, Switch now). */
 function isConfirmable(action: AdminLocalSiteAction): action is ConfirmableAction {
