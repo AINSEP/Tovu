@@ -4,7 +4,7 @@ import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
-import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
+import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "@jini-ai/platform/mail";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {

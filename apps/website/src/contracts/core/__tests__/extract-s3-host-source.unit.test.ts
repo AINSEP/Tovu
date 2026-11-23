@@ -13,7 +13,8 @@ test('F5 boot mail catalog drops the named unused imports', () => {
   const source = read('server/runtime/boot/mail-provider-catalog.ts');
   for (const name of ['credentialSecrets', 'safeMailProviderText', 'JiniHttpClientPort', 'PluginCredentialCard']) assert.doesNotMatch(source, new RegExp('\\b' + name + '\\b'));
   assert.doesNotMatch(source, /type MailProviderRegistry,/);
-  assert.doesNotMatch(read('platform/mail/purpose-scoped-mailer.ts'), /JiniMailerPort/);
+  // The positional purpose gate moved to Jini; its JiniMailerPort check moved with it
+  // (packages/platform/src/mail/__tests__/positional-purpose-gate.test.ts).
 });
 
 test('F5 active credential-card shim binds direct find/load exports and keeps only its required reader factory', () => {

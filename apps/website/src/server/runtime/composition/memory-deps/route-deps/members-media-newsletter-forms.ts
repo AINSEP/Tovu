@@ -1,6 +1,6 @@
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "#src/features/members/index";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
-import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
@@ -58,7 +58,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     // SPEC-022 REQ-09/REQ-10 — see deps.ts's identical wiring for the rationale. This hermetic
     // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
     // inert here — existing tests are unaffected (INV-06).
-    mailer: wrapMailerWithPurposeGate({
+    mailer: wrapPositionalMailerWithPurposeGate({
       inner: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: logConsoleMail }).create({ credential: { token: "" }, kit: {} as never }) }),
       mode: resolveRuntimeMode(),
       durableOutboxReady: () => false,

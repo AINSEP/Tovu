@@ -108,8 +108,6 @@
     "apps/website/src/features/mail-status/provider-operations.ts -> apps/website/src/features/project-keys/service.ts",
     "apps/website/src/features/mail-status/provider-tool-registrations.ts -> apps/website/src/features/agent-plugins/tool-registrations.ts",
     "apps/website/src/features/mail-status/provider-tool-registrations.ts -> apps/website/src/features/custom-credentials/plugin-credential-card.ts",
-    "apps/website/src/features/mail/feedback-sources.ts -> apps/website/src/features/custom-credentials/index.ts",
-    "apps/website/src/features/mail/site-feedback-route.ts -> apps/website/src/features/custom-credentials/index.ts",
     "apps/website/src/features/media-generation/media-provider-registry.ts -> apps/website/src/features/agent-plugins/lifecycle.ts",
     "apps/website/src/features/media-generation/provider-credential-save.ts -> apps/website/src/features/media/provider-credential-store.ts",
     "apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/media/provider-credential-store.ts",

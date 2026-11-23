@@ -15,5 +15,3 @@ export {
   type SmtpTransport,
 } from "./adapters/smtp.nodemailer.js";
 
-export type { MailProviderControl } from "./mail-status.js";
-export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";

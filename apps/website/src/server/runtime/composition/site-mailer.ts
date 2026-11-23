@@ -1,6 +1,6 @@
 import { createHostMailer } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
-import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
+import { createMailPurposeGateProbe } from "@jini-ai/platform/mail";
 import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
 import { SettingsRevisionConflictError, type AuthorizeFn, type SettingsRepoPort, type SetValueRequired } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
@@ -38,7 +38,7 @@ export interface SiteMailer extends ResolvedMailer {
   operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity"> & {
     mailLaneReady: ResolvedMailer["laneReady"];
     mailSenderDomainVerification: ResolvedMailer["senderDomainVerification"];
-    mailPurposeGate: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+    mailPurposeGate: import("@jini-ai/platform/mail").MailPurposeGateProbe;
   };
   /** Sets both lanes to `id` as `principalId`, then drops cached mailers and status; the caller already
    *  checked `checkProvider` and got approval. A failed write throws and changes nothing. */

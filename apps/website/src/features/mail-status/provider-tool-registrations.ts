@@ -6,7 +6,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { MailProviderControl } from "../../platform/mail/index.js";
+import type { MailProviderControl } from "@jini-ai/platform/mail";
 import type { MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";

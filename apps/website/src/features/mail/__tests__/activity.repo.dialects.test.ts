@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
-import { createMailActivityRepo } from "../activity.repo.js";
-import { createMailAttemptObserver } from "../attempts.repo.js";
-import { MAIL_ACTIVITY_RETENTION_MS } from "../retention.js";
+import { createMailActivityRepo } from "@jini-ai/platform/mail/sql";
+import { createMailAttemptObserver } from "@jini-ai/platform/mail/sql";
+import { MAIL_ACTIVITY_RETENTION_MS } from "@jini-ai/platform/mail/sql";
 
 /**
  * @file The activity projection (email phase 4) on SQLite and PGlite: derived outcome and use,

@@ -10,7 +10,7 @@ import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort, MailStatusReport } from "@jini-ai/platform/mail";
-import type { MailProviderControl } from "../../platform/mail/index.js";
+import type { MailProviderControl } from "@jini-ai/platform/mail";
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
 import { activateMailProvider, checkMailProvider } from "./provider-operations.js";

@@ -29,8 +29,8 @@ import { SqliteWebhookDeliveryRepo } from "#src/platform/db/sqlite/webhook-repo.
 import { SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
-import { createMailActivityRepo } from "#src/features/mail/activity.repo";
-import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
+import { createMailActivityRepo } from "@jini-ai/platform/mail/sql";
+import { createMailSuppressionAdminRepo } from "@jini-ai/platform/mail/sql";
 import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
@@ -38,7 +38,7 @@ import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/doc
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import * as importYauzl from "yauzl";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
-import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 
@@ -109,7 +109,7 @@ export function routeDepsMembersMail(required: RouteDepsMembersMailRequired, _op
     // ahead of this object literal) is the boot-time-resolved real-or-console adapter — see
     // `resolve-mailer.ts`'s own header for the hosted-API/SMTP/console resolution order and the
     // disclosed startup race.
-    mailer: wrapMailerWithPurposeGate({
+    mailer: wrapPositionalMailerWithPurposeGate({
       inner: resolvedMailer.mailer,
       mode: runtimeMode,
       durableOutboxReady: mailDurableOutboxReady,
