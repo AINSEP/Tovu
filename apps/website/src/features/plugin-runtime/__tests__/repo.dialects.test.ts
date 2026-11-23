@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { PluginActivationRecord } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import { sqlitePluginActivationRepoFor } from "../repo.sqlite.js";
 
 /**

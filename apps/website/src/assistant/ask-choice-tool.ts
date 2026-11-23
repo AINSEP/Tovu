@@ -12,7 +12,8 @@ import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
 import { addCustomAnswerFields, customAnswerExchanges, mergeCustomAnswer, withCustomAnswerReveal, type CustomAnswerCall } from "./ask-choice-custom-answer.js";
 import { requireAccessApprover } from "../contracts/core/human-confirm.js";
 import type { ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
-import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { askOnce } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 /**
  * @file A production tool that lets the assistant ask the administrator a real question — a single

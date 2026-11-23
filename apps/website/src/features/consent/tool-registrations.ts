@@ -1,9 +1,9 @@
 /** @file Consent tools share the HTTP service and Jini's held confirmation lifecycle. */
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { ToolContributor } from '@jini-ai/core';
 import { approvalToolHandler } from '#src/contracts/core/human-confirm';
-import { toolMetadata } from '#src/contracts/core/tool-metadata/consent';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/consent';
 import type { SiteConsentService } from './service.js';
 import { readConsentRequest, consentRevisionToken } from './request.js';
 import { parseConsentConfig } from './validation.js';

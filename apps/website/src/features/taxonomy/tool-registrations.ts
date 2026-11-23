@@ -1,5 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { type Clock } from "@jini-ai/core/primitives";
 /**
  * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044), the host binding: the ten
@@ -25,7 +25,8 @@ import {
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toSlug } from "../../platform/html/slug.js";
 import type { PostRepoPort } from "../post/index.js";
 import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "./content-targets.js";

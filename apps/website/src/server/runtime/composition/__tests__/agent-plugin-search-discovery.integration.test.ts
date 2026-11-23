@@ -5,7 +5,7 @@ import { createContributionRegistry } from "@jini-ai/core";
 
 import { createByokToolSurface } from "#src/assistant/index";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { registerInstalledExtensionTools } from "#src/server/runtime/composition/installed-extension-tools";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";

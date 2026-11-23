@@ -1,4 +1,4 @@
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 
 /** Server-owned hook activation polling. The registry is process-local, while durable row
  * revisions can be changed by another server/client. Polling reuses those revisions instead

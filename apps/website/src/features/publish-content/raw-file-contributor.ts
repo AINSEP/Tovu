@@ -7,7 +7,7 @@ import { BackstopRefusal, checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } fr
 import { normalizeMode } from "./file-tree-policy.js";
 import type { RawFileInverse, RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION, contentHash } from "./content-hash.js";
+import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
 
 function sha(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }

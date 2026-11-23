@@ -6,7 +6,8 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
-import { InMemoryPluginActivationRepo, type PluginActivationRecord, type PluginConflict, type PluginSourcePolicyPort, type RemovePluginFn } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo, type PluginSourcePolicyPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/host/node";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";

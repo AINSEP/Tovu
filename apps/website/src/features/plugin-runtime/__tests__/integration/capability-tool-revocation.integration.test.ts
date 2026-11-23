@@ -5,7 +5,8 @@ import test from "node:test";
 import { createToolRegistry, type Principal, type ToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import { setPluginEnabled } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { registerEnabledPluginCapabilityTools } from "../../capability-tool-registrations.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";

@@ -1,4 +1,4 @@
-import type { ToolAccessChange } from '@jini-ai/daemon';
+import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { assistantDaemonToken } from '../../lifecycle/assistant-daemon-connection.js';
 import { getAgentDaemonUrl } from '../../lifecycle/agent-daemon-port.js';
 import type { DaemonCallOptions } from './assistant-daemon-client.js';

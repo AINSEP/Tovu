@@ -97,7 +97,7 @@ export function delegatedToolErrorDisclosure(required: Record<string, never>, op
   return daemonErrorDisclosure(failurePorts(options), required);
 }
 export interface AssistantToolExecutorDeps {
-  readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
+  readonly prepareGuidance?: import("@jini-ai/core/contracts/site/daemon").PrepareToolGuidance;
   readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore;
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
   readonly toolFailures?: RedactedToolFailuresDeps;

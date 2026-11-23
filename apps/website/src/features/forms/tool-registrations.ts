@@ -13,7 +13,7 @@ import {
 } from "@jini-ai/core";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import {
   buildFormsToolRegistrations,
   duplicateFormDefinition,
@@ -24,8 +24,8 @@ import {
   type FormsPackageToolDeps,
   type FormSubmissionRepoPort,
 } from "@jini-ai/cms/forms";
-import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
-import { toolMetadata } from "../../contracts/core/tool-metadata/forms.js";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/forms";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import type { FormDeliveryStatusPort } from "./delivery-status.js";
 import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";

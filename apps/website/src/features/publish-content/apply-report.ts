@@ -14,7 +14,7 @@ import {
 } from "./apply-run.js";
 import { readBackstopMetadata } from "./backstop-service.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
-import { contentHash } from "./content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
 import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";

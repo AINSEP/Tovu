@@ -13,7 +13,7 @@ import {
 } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { PERMANENT_DELETE_SPECS, permanentDeleteAgentToolCatalog, type PermanentDeleteToolId } from "./agent-tools.js";

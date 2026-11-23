@@ -1,5 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import type { ToolAccessChange } from '@jini-ai/daemon';
+import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { lowerAssistantToolAccess } from './assistant-tool-access-lowering.js';
 import type { ByokToolSurface } from "#src/assistant/byok-tool-surface";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";

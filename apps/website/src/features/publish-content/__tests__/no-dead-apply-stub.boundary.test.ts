@@ -13,7 +13,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const { createRouteDeps, createApp } = await import("#src/server/runtime/composition/app");
     const { stageBundle } = await import("@jini-ai/cms/publish/transfer");
     const { planImport } = await import("../planner.js");
-    const { contentHash, CONTENT_HASH_VERSION } = await import("../content-hash.js");
+    const { contentHash, CONTENT_HASH_VERSION } = await import("@jini-ai/cms/publish/content/content-hash");
     const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("@jini-ai/cms/publish/transfer");
     const { getPublishContentRunStatus } = await import("../run-repo.js");
     const { initSite } = await import("#src/server/runtime/composition/site-dir");

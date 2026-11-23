@@ -6,9 +6,9 @@ import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 import express, { type RequestHandler } from 'express';
 import {
-  createPluginContributionRegistry, InMemoryPluginActivationRepo,
-  type PluginActivationRepoPort, type PluginContributionRegistry, type PluginContributionsSnapshot,
+  createPluginContributionRegistry, InMemoryPluginActivationRepo, type PluginContributionRegistry,
 } from '@jini-ai/plugins/host';
+import type { PluginActivationRepoPort, PluginContributionsSnapshot } from '@jini-ai/core/contracts/site/plugins-host';
 import { type PluginRouteContribution, type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { createRouteDeps } from '../../../../runtime/composition/app.js';
 import type { RouteDeps } from '../../../../routes/types.js';

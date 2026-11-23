@@ -5,8 +5,7 @@ import { attachedOnlyVault } from "./attached-vault.js";
 import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 
-import type { ProviderKeyUsage } from "@jini-ai/plugins/host";
-export type { ProviderKeyUsage, ProviderWriteResult } from "@jini-ai/plugins/host";
+import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 export const providerKeyId = ({ pluginId }: { pluginId: string }, _optional = {}) => `plugin-state:${pluginId}:provider.config`;
 
 export const providerPluginOf = ({ keyId }: { keyId: string }, _optional = {}) => /^plugin-state:([a-z0-9-]+):provider\.config$/.exec(keyId)?.[1];

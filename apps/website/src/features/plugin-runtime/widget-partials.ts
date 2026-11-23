@@ -1,6 +1,7 @@
 /** Product binding: plugin admission belongs to Jini's host; placement uses the shared
  * partial marker parser/expander. No CMS widget registry or resolver is replaced. */
-import { renderPluginWidgetFragments, type PluginContributionRegistry, type PluginActivationRepoPort } from '@jini-ai/plugins/host';
+import { renderPluginWidgetFragments, type PluginContributionRegistry } from '@jini-ai/plugins/host';
+import type { PluginActivationRepoPort } from '@jini-ai/core/contracts/site/plugins-host';
 import { markersOfType, PARTIAL_MARKER_TYPE } from '@jini-ai/cms/widgets/markers';
 import { validateServerWidgetFragment } from '@jini-ai/cms/widgets/html';
 import { expandPartials } from "@jini-ai/cms/widgets/markers";

@@ -1,13 +1,13 @@
 /** Tovu catalogs, cards and host effects bind the portable @jini-ai/plugins/host/tools lifecycle. */
 import { pluginManagementToolIds } from './plugin-tool-ids.js';
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import type { PluginExportCatalogPort } from '../../contracts/headless/plugin-export-catalog.js';
 import type { OperatorLocaleDeps, PluginHostPort, AgentPluginLayout, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from '@jini-ai/core/contracts/events';
 import type { RememberedApprovalPort, ToolContributor, ToolRegistration } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/plugins/host';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
+import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/core/contracts/site/plugins-host';
 import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugins/host/node';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginProviderFacesPort } from './service-ports.js';

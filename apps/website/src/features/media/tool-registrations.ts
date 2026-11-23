@@ -3,13 +3,13 @@ import { withChatPreview } from "./chat-preview.js";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
 export type { MediaPublicUrlDeps } from "./contracts.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 
 import type { ToolContributor } from "@jini-ai/core";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps } from "@jini-ai/cms/media";
-import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";

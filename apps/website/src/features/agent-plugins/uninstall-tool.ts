@@ -1,7 +1,7 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";

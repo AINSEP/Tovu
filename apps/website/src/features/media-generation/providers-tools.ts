@@ -13,7 +13,8 @@ import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } 
 import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-providers/catalog';
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
-import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from '@jini-ai/core';
 import { getMediaProviderCredentials, type MediaProviderCredentialRepoPort } from '../media/provider-credential-store.js';
 import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';

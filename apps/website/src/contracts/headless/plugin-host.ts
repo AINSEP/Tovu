@@ -2,7 +2,7 @@
 import type { PluginIdentityCandidate, PluginLookupPort } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledInput as AgentPluginEnableInput, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
 import type { AccessApprovalResource, ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { UninstallAgentPluginRequired as JiniUninstallRequired, UninstallAgentPluginOptional, UninstallAgentPluginResult } from '@jini-ai/agent-plugins/lifecycle';

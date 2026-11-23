@@ -1,4 +1,5 @@
-import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell } from "@jini-ai/node-adapters/process";
+import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
@@ -22,6 +23,9 @@ import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSit
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
 import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 export interface DesktopAgentServiceOptions {
   readonly spawn?: NodeDaemonProcessOptions["spawn"];

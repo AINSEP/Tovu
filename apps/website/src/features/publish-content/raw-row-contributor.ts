@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { BackstopRefusal, checkRawTable, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import type { RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
 
 export function rawRowId({ table, pk }: { table: string; pk: Readonly<Record<string, RawValue>> }, _optional = {}): string {

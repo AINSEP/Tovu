@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createContributionRegistry, type ToolContributor, type DerivedToolContributor } from '@jini-ai/core';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { createHttpClient } from '#src/platform/http/client';
 import type { HttpRequest } from '#src/platform/http/ports';
 import type { PinnedPeer } from '@jini-ai/core/contracts/runtime';

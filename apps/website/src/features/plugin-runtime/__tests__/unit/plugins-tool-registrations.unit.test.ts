@@ -5,7 +5,7 @@ import test from "node:test";
 import { AgentPluginLinkedError } from "../../../agent-plugins/provider-plugin-link.js";
 import { ToolInputError } from "@jini-ai/core";
 import { AgentPluginActivationsUnreadableError, AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
-import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 
 import type { AgentPluginLayout } from "../../../../contracts/headless/index.js";
 import type { AssistantToolRegistryDeps } from "../../../../assistant/tool-registrations.js";

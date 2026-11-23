@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry, type ToolContributor, type DerivedToolContributor } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createCommerceServer, type CheckoutDeps, type PayOrderDeps } from "@jini-ai/commerce";
 import { buildRegistrations, buildCommerceCatalogRegistrations } from "@jini-ai/commerce/tools";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";

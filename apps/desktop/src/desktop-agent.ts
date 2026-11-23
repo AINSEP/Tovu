@@ -40,7 +40,8 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, create
 import { delegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
 import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
-import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
@@ -51,6 +52,9 @@ import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagent
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
 import type { HostSignals } from "@tovu/contracts/host-signals";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 /** The one identity every desktop-agent tool call acts as: the local operator. */
 const DESKTOP_OPERATOR: Principal = Object.freeze({ id: "desktop-operator", roles: Object.freeze(["owner"]) });

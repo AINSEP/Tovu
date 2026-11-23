@@ -1,6 +1,6 @@
 import { toolMetadata } from "../../contracts/core/tool-metadata/image-transform.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";

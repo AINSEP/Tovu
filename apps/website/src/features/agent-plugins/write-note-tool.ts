@@ -6,7 +6,7 @@ import type { AgentToolDefinition, ToolHandler } from "@jini-ai/core";
 import type { AgentPluginLayout } from "./layout.js";
 import { type OperatorLocaleDeps } from "../../contracts/headless/index.js";
 import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 
 export { WRITE_PLUGIN_NOTE, pluginNoteRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";

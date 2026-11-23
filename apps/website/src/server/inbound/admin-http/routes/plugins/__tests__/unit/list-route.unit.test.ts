@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { createPluginSourcePolicy, type PluginActivationRecord, type PluginConflict } from "@jini-ai/plugins/host";
+import { createPluginSourcePolicy } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord, PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord, PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import { registerPluginsListRoute, type PluginsListRouteDeps } from "../../list.js";
 

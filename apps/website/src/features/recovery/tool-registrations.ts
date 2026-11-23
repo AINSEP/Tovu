@@ -30,7 +30,8 @@ import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPl
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {

@@ -1,7 +1,7 @@
 import { ToolInputError, type ToolHandler } from '@jini-ai/core';
 import { nowIso } from '@jini-ai/core/primitives';
 import { requireToolPermission, adaptLegacyAuthorize } from '@jini-ai/cms/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { plan, confirm, execute, PlanStaleError, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';

@@ -1,5 +1,5 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { nodeFileLock } from "@jini-ai/node-adapters/fs";
 import { createPluginModuleImporter, createPluginRuntimeCore, type PluginRuntimeCoreBindings, type PluginRuntimeSource, type PluginRuntimeText } from "@jini-ai/plugins/host/node";
@@ -8,7 +8,7 @@ import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import type { DeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import type { ExtensionClaim } from "@jini-ai/plugins/host";
 import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";

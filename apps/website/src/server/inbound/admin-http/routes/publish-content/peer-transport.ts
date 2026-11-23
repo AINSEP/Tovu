@@ -21,7 +21,8 @@ import {
   canPublishToLive,
   PUBLISH_FROM_LIVE_SITE_CODE,
   PUBLISH_FROM_LIVE_SITE_ERROR,
-} from "#src/features/publish-content/live-site-policy";
+} from "@jini-ai/cms/publish/content/live-site-policy";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
@@ -263,7 +264,7 @@ async function peerGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "param
  *  (`live-site-policy.ts`). Runs before {@link peerGuard} — nothing about the caller changes the answer. */
 async function peerPushGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
   const { deps, req, res } = input;
-  if (!canPublishToLive()) {
+  if (!canPublishToLive({ resolveRuntimeMode })) {
     res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
     return null;
   }

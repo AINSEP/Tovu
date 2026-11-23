@@ -3,7 +3,7 @@ import { renderA2uiSurface } from "@jini-ai/agentic/render-surface";
 
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 /**
  * @file A general-purpose "draw whatever you want" tool. Unlike `demo-a2ui-tool.ts` (a scripted,

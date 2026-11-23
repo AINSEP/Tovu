@@ -9,14 +9,15 @@
 import { withToolMetadata, type ToolContributor, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import {
   buildWebhooksToolRegistrations,
   webhooksDerivedRisk,
   type WebhooksDeleteSteps,
   type WebhooksPackageToolDeps,
 } from "@jini-ai/integrations/webhooks/tools";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";

@@ -36,7 +36,7 @@ import {
   type FederatedCardOffers,
 } from "@jini-ai/mcp/federation/approvals";
 import { notConfirmedResult, approvalToolHandler, type HumanConfirmSpec } from "../contracts/core/human-confirm.js";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
 import { toJiniConversationApprovalStore, toJiniToolApprovalRepo } from "./external-mcp-tool-approval-adapters.js";
 import type { FederatedPolicyConfirmationRequest, FederationDeps } from "./mcp-federation/registrations.js";

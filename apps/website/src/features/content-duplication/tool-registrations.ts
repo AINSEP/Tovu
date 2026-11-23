@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/content-duplication.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/content-duplication';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Maps `agent-tools.ts`'s single `content_duplicate` catalog entry onto every resource
@@ -41,10 +41,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 
-import type {
-  DuplicateResourceHandler,
-  DuplicateResourceHandlerContributor,
-} from "../../assistant/tool-contributions.js";
+import type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";

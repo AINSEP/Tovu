@@ -4,7 +4,7 @@ import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secret
 import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { normalizePeerBaseUrl } from "./peer-url.js";
+import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import type { SealedSecret } from "#src/features/webhooks/index";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 

@@ -32,7 +32,7 @@ import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
 import { createPublishContentApplyPort } from "../apply-port.js";
-import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
+import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";

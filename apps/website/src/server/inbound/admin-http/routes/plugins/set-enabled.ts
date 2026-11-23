@@ -4,7 +4,8 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
-import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled, type PluginActivationRecord } from "@jini-ai/plugins/host";
+import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import { PluginLoadError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";

@@ -2,12 +2,12 @@ import type { Express } from "express";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
-import type { RemovePluginFn } from "@jini-ai/plugins/host";
+import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —
@@ -29,7 +29,7 @@ export interface PluginsRouteDeps {
   /** Existing provider/assistant-face owner, bound by the site composition. */
   providerFaces?: Pick<import('#src/features/plugin-runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
   /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */
-  tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   /** Records the owner's enable as the site plugin's approved capability set (consent gap, 2026-10-12). */
   pluginSource?: Pick<import('@jini-ai/plugins/host/node').PluginSourcePort, "recordApproval">;

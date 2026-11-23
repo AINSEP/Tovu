@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, symlink, rm } from "node:fs/promis
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { contentHash } from "../content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { BackstopRefusal } from "../backstop-policy.js";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";

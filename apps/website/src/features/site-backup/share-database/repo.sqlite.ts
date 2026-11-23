@@ -19,7 +19,8 @@ import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf,
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
-import { declareDataModule, type DataModuleDecl, type TableDecl } from "@jini-ai/db/data-modules";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl, TableDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row>;

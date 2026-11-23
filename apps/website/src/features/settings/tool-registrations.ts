@@ -37,7 +37,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { buildSettingsRegistrations as buildCmsSettingsRegistrations, AGENT_WRITE_CONFIRMATION_SETTINGS, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { DEDICATED_SETTINGS_WRITERS, set } from "./site-title-write.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";

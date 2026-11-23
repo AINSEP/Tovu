@@ -124,16 +124,16 @@ import type {
 } from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
-import type { RemovePluginFn } from "@jini-ai/plugins/host";
+import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
+import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
@@ -751,9 +751,9 @@ export interface ObservabilityDeps {
    * How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Hermetic roots supply the no-provider facade. */
-  tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   /** Public event admission follows visitor consent, independent of admin usage telemetry. */
-  visitorTracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  visitorTracker?: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   observabilityEnabled?: () => boolean;
   flushTelemetry?: () => Promise<void>;
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
