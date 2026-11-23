@@ -101,3 +101,10 @@ header of the removed `ports.ts` carried these notes (kept verbatim):
 > delivery.ts documents why the following envelopeStore.save remains safe for both adapter forms.
 > listBySubscription orders newest-first by createdAt/id before applying the limit.
 > Integration-secret persistence is a seam for outbound connectors, not ownership of their runtime.
+
+## Wiring (delivery)
+
+The delivery binding is owned by `@jini-ai/integrations/webhooks/site/delivery`. Tovu injects its wire
+header names (`TOVU_WEBHOOK_HEADERS` in `wire-headers.ts`: `tovu-signature`, `tovu-delivery-id`,
+`tovu-event-id` — byte-identical wire values) as `deps.headers` in
+`server/runtime/composition/webhook-delivery-worker.ts`; `__tests__/delivery.test.ts` pins them on the wire.

@@ -5,7 +5,8 @@ import {
   adaptWebhookHttpClient,
   enqueueDelivery,
   processDueDeliveries,
-} from "../delivery.js";
+} from "@jini-ai/integrations/webhooks/site/delivery";
+import { TOVU_WEBHOOK_HEADERS } from "../wire-headers.js";
 import { computeBackoffMs, MAX_DELIVERY_ATTEMPTS } from "@jini-ai/integrations/webhooks";
 import { RecordingHttpClient } from "../http.memory.js";
 import {
@@ -155,6 +156,7 @@ test("processDueDeliveries signs, POSTs, and marks a successful attempt delivere
       envelopeStore: rig.envelopeStore,
       httpClient,
       signer,
+      headers: TOVU_WEBHOOK_HEADERS,
       clock: rig.clock,
     },
   });
@@ -225,6 +227,7 @@ test("a non-2xx response schedules a backoff retry rather than dead-lettering im
       envelopeStore: rig.envelopeStore,
       httpClient,
       signer,
+      headers: TOVU_WEBHOOK_HEADERS,
       clock: rig.clock,
     },
   };
@@ -264,7 +267,7 @@ for (const status of [199, 204, 299, 301, 302, 404]) {
     });
     const httpClient = new RecordingHttpClient({ responses: [{ status, headers: {}, bodyText: "" }] });
     const result = await processDueDeliveries({
-      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, clock: rig.clock },
+      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, headers: TOVU_WEBHOOK_HEADERS, clock: rig.clock },
     });
     const successful = status >= 200 && status < 300;
     assert.deepEqual(result, { delivered: successful ? 1 : 0, failed: successful ? 0 : 1, dead: 0, processed: 1 });
@@ -286,7 +289,7 @@ for (const message of ["connection reset", "request timed out"]) {
     });
     const httpClient = new RecordingHttpClient({ responses: [() => { throw new Error(message); }] });
     const result = await processDueDeliveries({
-      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, clock: rig.clock },
+      deps: { deliveryRepo: rig.deliveryRepo, subscriptionRepo: rig.subscriptionRepo, envelopeStore: rig.envelopeStore, httpClient, signer, headers: TOVU_WEBHOOK_HEADERS, clock: rig.clock },
     }, { random: () => 0 });
     assert.equal(result.failed, 1);
     assert.equal(result.delivered, 0);
@@ -338,6 +341,7 @@ test("repeated failures exhaust maxAttempts and transition the delivery to dead"
           envelopeStore: rig.envelopeStore,
           httpClient,
           signer,
+          headers: TOVU_WEBHOOK_HEADERS,
           clock: rig.clock,
         },
       },
@@ -405,6 +409,7 @@ test("a throwing beforeDispatch hook fails the attempt (retry) and never reaches
         envelopeStore: rig.envelopeStore,
         httpClient,
         signer,
+        headers: TOVU_WEBHOOK_HEADERS,
         clock: rig.clock,
       },
     },
@@ -464,6 +469,7 @@ test("an explicit beforeDispatch veto (send: false) also fails closed without di
         envelopeStore: rig.envelopeStore,
         httpClient,
         signer,
+        headers: TOVU_WEBHOOK_HEADERS,
         clock: rig.clock,
       },
     },
@@ -533,6 +539,7 @@ test("hooks run in priority order and a later hook sees an earlier hook's redact
         envelopeStore: rig.envelopeStore,
         httpClient,
         signer,
+        headers: TOVU_WEBHOOK_HEADERS,
         clock: rig.clock,
       },
     },
@@ -611,6 +618,7 @@ test("a subscription paused after enqueue fails the attempt without dispatching"
       envelopeStore: rig.envelopeStore,
       httpClient,
       signer,
+      headers: TOVU_WEBHOOK_HEADERS,
       clock: rig.clock,
     },
   });
@@ -663,6 +671,7 @@ test("a claimed row whose subscription was hard-removed from the repo fails (sub
       envelopeStore: rig.envelopeStore,
       httpClient,
       signer,
+      headers: TOVU_WEBHOOK_HEADERS,
       clock: rig.clock,
     },
   });
@@ -711,6 +720,7 @@ test("a claimed row with no recorded envelope fails (envelope-store gap)", async
       envelopeStore: rig.envelopeStore,
       httpClient,
       signer,
+      headers: TOVU_WEBHOOK_HEADERS,
       clock: rig.clock,
     },
   });

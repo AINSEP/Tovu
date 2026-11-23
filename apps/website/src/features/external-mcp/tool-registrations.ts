@@ -34,7 +34,7 @@ import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord, SaveExternalMc
 import type { ExternalMcpToolDeps } from "./deps.js";
 import { EXTERNAL_MCP_MANAGE_PERMISSION } from "@jini-ai/mcp/external/agent-tools";
 import { externalMcpAgentToolCatalog } from "./external-mcp-host-copy.js";
-import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAVE_TOOL_ID, type ExternalMcpSaveInput } from "./save-form.js";
+import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAVE_TOOL_ID, type ExternalMcpSaveInput } from "@jini-ai/mcp/external/save-form";
 
 /**
  * @file Wires `agent-tools.ts`'s 5-entry External MCP catalog to real handlers — the domain's own
@@ -612,7 +612,7 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
         requireKnownMcpSave({ routeDeps, record, input: buildSaveExternalMcpServerInputFromFormParams({ params: { ...save, enabled: save.enabled ?? true }, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id }) });
         return { save, expected: record ? externalMcpAccessSnapshot({ record }) : null, isUpdate: existing !== undefined, locale, principalId: ctx.principal.id };
       },
-      form: ({ prep }) => buildExternalMcpSaveForm({ save: prep.save, isUpdate: prep.isUpdate }),
+      form: ({ prep }) => buildExternalMcpSaveForm({ save: prep.save, isUpdate: prep.isUpdate, appName: "tovu-external-mcp-save" }),
       save: ({ values, prep, signal }) => saveSubmittedExternalMcpConfiguration({ routeDeps, surfaces, values, ...prep, signal }),
       result: ({ prep, run }) => externalMcpSaveResult({ run, locale: prep.locale }, { validationField }),
       outcome: ({ prep, run }) => {

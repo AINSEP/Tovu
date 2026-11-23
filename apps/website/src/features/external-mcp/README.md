@@ -34,3 +34,9 @@ bound `externalMcpAgentToolCatalog`, `externalMcpOperationsToolCatalog`, `readSe
 `externalMcpOperationsHost`, which every `contributeExternalMcpOperationsTools` caller spreads into its
 services (`tool-catalog-manifest.ts`). `EXTERNAL_MCP_MANAGE_PERMISSION`, `ExternalMcpOperations` and
 the operations builders are imported from `@jini-ai/mcp/external/*` directly.
+
+## Wiring (save form)
+
+The `external_mcp_save` form builder is owned by `@jini-ai/mcp/external/save-form`. Tovu injects its
+MCP-UI app name (`appName: "tovu-external-mcp-save"`) at the card registration in
+`tool-registrations.ts`.

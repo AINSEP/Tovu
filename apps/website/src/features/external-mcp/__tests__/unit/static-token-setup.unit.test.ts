@@ -12,7 +12,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { buildExternalMcpRegistrations, contributeExternalMcpTools } from "../../tool-registrations.js";
 import { externalMcpAgentToolCatalog } from "../../external-mcp-host-copy.js";
-import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "../../save-form.js";
+import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "@jini-ai/mcp/external/save-form";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

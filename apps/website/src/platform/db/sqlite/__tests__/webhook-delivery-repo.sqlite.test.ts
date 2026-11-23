@@ -7,7 +7,8 @@ import test from "node:test";
 import { openContentDb } from "../content-db.js";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
-import { processDueDeliveries } from "#src/features/webhooks/delivery";
+import { processDueDeliveries } from "@jini-ai/integrations/webhooks/site/delivery";
+import { TOVU_WEBHOOK_HEADERS } from "#src/features/webhooks/wire-headers";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -420,7 +421,7 @@ test("an accepted webhook POST replays after lost settlement with a stable ID an
     return { status: 204, headers: {}, bodyText: "" };
   } };
   const deps = { deliveryRepo: repo, envelopeStore: repo, subscriptionRepo: rig.subscriptionRepo,
-    signer: rig.signer, clock: rig.clock, httpClient };
+    signer: rig.signer, headers: TOVU_WEBHOOK_HEADERS, clock: rig.clock, httpClient };
   try {
     try {
       await repo.enqueue({ record: makeDelivery() }, { envelope: makeEnvelope() });

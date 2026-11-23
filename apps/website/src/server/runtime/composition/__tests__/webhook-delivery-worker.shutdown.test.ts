@@ -6,7 +6,8 @@ import test from "node:test";
 
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
-import { processDueDeliveries } from "#src/features/webhooks/delivery";
+import { processDueDeliveries } from "@jini-ai/integrations/webhooks/site/delivery";
+import { TOVU_WEBHOOK_HEADERS } from "#src/features/webhooks/wire-headers";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -155,6 +156,7 @@ test("a receiver trickling bytes forever is cut off by the total deadline throug
     envelopeStore: site.deps.webhookDeliveryRepo,
     httpClient,
     signer: site.deps.webhookSigner,
+    headers: TOVU_WEBHOOK_HEADERS,
     clock: site.deps.clock,
   } }, { batchSize: 1, requestTotalDeadlineMs: 60 });
 
