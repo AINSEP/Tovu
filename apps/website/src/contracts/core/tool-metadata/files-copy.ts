@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from './approval-policy.js';
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** One copy recipe surface; site files reuse the exact-batch fs writer approval exchange. */
 export const toolMetadata = {

@@ -2784,6 +2784,14 @@
     {
       "id": "ac059ae80d3e",
       "reason": "Moved to Jini @jini-ai/cms/posts/post-before-save.ts (landed T-post-1.J; Tovu copy deleted by T-post-1.T); product SDK name reworded to the host SDK, rest identical."
+    },
+    {
+      "id": "4a80b78d2f91",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts RouteRefusalError doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's error mappings'); the Tovu class it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "73584ff700c8",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
     }
   ]
 }

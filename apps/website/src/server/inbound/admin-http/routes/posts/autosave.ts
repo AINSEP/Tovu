@@ -2,7 +2,8 @@ import type { Response } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
-import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
