@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "@/panels";
 import { Placeholder } from "@/components/Placeholder";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { Authentication } from "../index";
 
 /**
@@ -23,6 +24,7 @@ describe("Authentication", () => {
           params: {},
           query: new URLSearchParams(),
           Placeholder,
+          useAdminLocaleHook: useHostAdminLocale,
         })}
       </>,
     );

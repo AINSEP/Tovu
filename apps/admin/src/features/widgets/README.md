@@ -24,3 +24,10 @@ Host dictionary coverage stays in `__tests__/widgets-i18n.unit.test.ts`; actual 
 config translation, picker/placement and route wiring stay in
 `integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx`. Coordinator runs these and the
 unchanged shared-component suites, then checks all four screens in Chrome before release.
+
+## Wiring
+
+**Locale (P12 #6.T).** `WidgetsLibrary`/`WidgetRegions`/`WidgetRegionEditor`/`WidgetInstanceEditor` (index.ts) and `WidgetsModuleLoading`/`createHostWidgetsModule` (`integrations/jini-admin/widgets-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext`; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

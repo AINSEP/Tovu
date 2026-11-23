@@ -2,6 +2,7 @@ import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { FormsList } from "../index";
 import { AdminModulesContext, createHostAdminScope } from "../../../integrations/jini-admin/modules.hooks";
 
@@ -26,7 +27,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 function renderScreen(node: React.ReactElement) {
-  const runtime = createHostAdminScope({ permissions: ['*'] });
+  const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useHostAdminLocale });
   scopes.push(runtime);
   return render(<FetchQueryProvider><AdminModulesContext.Provider value={runtime}>{node}</AdminModulesContext.Provider></FetchQueryProvider>);
 }
@@ -107,7 +108,7 @@ describe("Created / Updated column — host locale wiring", () => {
       return fetchMock(input, init);
     });
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    renderScreen(<FormsList />);
+    renderScreen(<FormsList useAdminLocaleHook={useHostAdminLocale} />);
 
     expect(await screen.findByRole("columnheader", { name: "Erstellt / Aktualisiert" })).toBeInTheDocument();
     const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];

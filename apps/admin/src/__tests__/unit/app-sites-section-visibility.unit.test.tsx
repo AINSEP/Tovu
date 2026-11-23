@@ -18,6 +18,9 @@ import { sitesApi } from "../../features/sites/api/sites-api";
 import type { AdminUser } from "../../features/auth/api/auth-api.types";
 import { ApiError } from "../../lib/admin-http/request";
 import { getNav } from "../../nav";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file The Sites section exists only on a deployment that owns site switching from the admin.
@@ -115,7 +118,7 @@ async function renderAt(path: string) {
   window.history.replaceState(null, "", path);
   const { container } = render(
     <FetchQueryProvider>
-      <App />
+      <App useAdminLocaleHook={useAdminLocaleHook} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });

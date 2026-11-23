@@ -21,6 +21,16 @@ The factory owns the stages; tests for them live in Jini. Feature API factories 
 host module; converting each to an injected bound operation is a per-feature follow-up (not credited
 to #4).
 
+**Admin locale (P12 #6).** `hooks/admin-locale-dependencies.hooks.ts` binds Jini's `useAdminLocale`
+ONCE as `useHostAdminLocale` (live port: `loadLanguage` + the namespace-filtered refresh bus fed by
+both the local save and the `lib/settings-events.ts` SSE feed; `useAdminBootScope`; the ui
+fetch-query hooks; `["settings", "core.language"]`; `DEFAULT_LOCALE`). That same function sits in
+`adminKit.hooks.useAdminLocale` and is passed by `main.tsx` to `<App>`'s required
+`useAdminLocaleHook`, which flows to the shell locale, the early Login, `PanelRenderContext` (route
+loading copy, Placeholder, the nine module mounts) and `AdminModulesProvider` -> `useAdminModules` ->
+`createHostAdminScope` -> the five module factories. `useWiredAdminLocale` (`hooks/use-admin-locale.hooks.ts`)
+stays for the direct consumers not yet converted; both share one cache key.
+
 ## Routing
 
 Path-based, via `src/lib/router.ts`. URLs are real paths — `/admin/settings`, not

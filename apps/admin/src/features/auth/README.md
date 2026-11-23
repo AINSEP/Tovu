@@ -16,3 +16,10 @@ The login screen — rendered by `App.tsx` before the admin shell mounts, not a 
 
 `Login.tsx` has **no unit test**. Treat a change here as unverified until you have driven it in a
 browser.
+
+## Wiring
+
+**Locale (P12 #6.T).** `Login` take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `App.tsx`'s `AdminShell` passes it to the early Login mount; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

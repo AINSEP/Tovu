@@ -8,12 +8,15 @@ import { postsApi } from "../../features/posts/api/posts-api";
 import { settingsApi } from "../../lib/admin-http/settings-api";
 import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file The live bug, 2026-08-17: `useAdminSession` only ever checked auth ONCE, at boot
  * (`/auth/me` on mount) — a session that goes invalid mid-tab (expiry, revoke, or the server
  * restarting and dropping in-memory state) left `user` stuck non-null forever, so `App.tsx`'s
- * `if (!user) return <Login .../>` gate never re-fired. Every OTHER screen's own `request()` call
+ * `if (!user) return <Login useAdminLocaleHook={useAdminLocaleHook} .../>` gate never re-fired. Every OTHER screen's own `request()` call
  * (source control, deployments, assistant, recovery — reported live, all at once) just kept
  * 401ing silently instead, each one "loading forever" with no explanation. The fix: `lib/api.ts`'s
  * `request()` now notifies a shared `onUnauthenticated` listener set on any real 401, and
@@ -60,7 +63,7 @@ it.each([false, true])("settings 401 after a site switch shows login without boo
   function SessionGate() {
     const session = useAdminSession({}, { subscribeSettingsChanges: () => () => {} });
     if (session.checking) return <div>Loading Tovu…</div>;
-    if (!session.user) return <Login onLogin={session.handleLogin} />;
+    if (!session.user) return <Login useAdminLocaleHook={useAdminLocaleHook} onLogin={session.handleLogin} />;
     return <div>Signed in as {session.user.id}</div>;
   }
   render(<SessionGate />);

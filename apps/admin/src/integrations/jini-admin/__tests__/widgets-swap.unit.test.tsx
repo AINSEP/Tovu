@@ -20,6 +20,12 @@ import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
+import { useHostAdminLocale } from '@/hooks/admin-locale-dependencies.hooks';
+
+/** Fixed-locale fake for tests that only exercise the permission gate. */
+const useEnLocaleHook: UseAdminLocaleHook = () => 'en';
+
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
   cleanup();
@@ -33,23 +39,22 @@ const widget: AdminWidget = { id: 'w9', workspaceId: 'ws1', slug: 'footer-note',
   status: 'active', widgetType: 'text', config: { body: 'Hello' }, updatedAt: new Date(0).toISOString(), version: 1 };
 
 /** Real module/controllers plus memory API; retained config/picker/publish components are real. */
-function fixture({ useLocale = () => 'en' }: { useLocale?: (() => string) | null } = {}) {
+function fixture({ useLocale = () => 'en' }: { useLocale?: UseAdminLocaleHook } = {}) {
   const api = createMemoryWidgetsApi({ widgets: [widget],
     regions: [{ workspaceId: 'ws1', regionKey: 'footer', areaEntryId: 'a1', updatedAt: widget.updatedAt, placementCount: 0 }],
     areas: { footer: { area: { id: 'a1', workspaceId: 'ws1', regionKey: 'footer', updatedAt: widget.updatedAt, version: 1 }, placements: [] } },
   });
-  const runtime = createHostAdminScope({ permissions: ['*'] }, {
+  const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, {
     widgetsPorts: { widgetsApi: api, widgetsEvents, widgetsNavigation },
-    ...(useLocale === null ? {} : { useWidgetsLocaleHook: useLocale }),
   });
   scopes.push(runtime);
   const node = (children: ReactNode) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}>{children}</AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
-  return { api, runtime, node };
+  return { api, runtime, node, useAdminLocaleHook: useLocale };
 }
 
 describe('Jini widgets host switch', () => {
   it.each([[[]], [['media.read']], [['widgets.*']], [['*']]] as const)('retains four pages without a client permission gate for %j', permissions => {
-    const runtime = createHostAdminScope({ permissions });
+    const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: useEnLocaleHook });
     scopes.push(runtime);
     expect(runtime.admin.describe().pages.filter(page => page.id.startsWith('widgets.')).map(page => [page.id, page.path, page.visible, page.permissions])).toEqual([
       ['widgets.library', '/widgets', true, []], ['widgets.editor', '/widgets/:widgetId', true, []],
@@ -59,8 +64,8 @@ describe('Jini widgets host switch', () => {
 
   it('mounts the library loading notice, row handles, create route and publish contribution', async () => {
     setPublishToLiveAvailable({ next: true });
-    const { node } = fixture();
-    render(node(<WidgetsLibrary />));
+    const { node, useAdminLocaleHook } = fixture();
+    render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
     expect(screen.getByText('Loading widgets…')).toHaveClass('notice');
     expect(await screen.findByRole('heading', { name: 'Widgets' })).toHaveClass('page-title');
     expect(screen.getByRole('link', { name: 'Reusable footer' })).toHaveAttribute('href', '/admin/widgets/footer-note');
@@ -72,8 +77,8 @@ describe('Jini widgets host switch', () => {
   // Retained from WidgetsLibrary.unit: real locale/dictionary wiring, not just injected strings.
   it("labels the create-type select and its options in the admin's locale", async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ data: [{ key: 'locale', value: 'es' }] }), { headers: { 'content-type': 'application/json' } })));
-    const { node } = fixture({ useLocale: null });
-    render(node(<WidgetsLibrary />));
+    const { node, useAdminLocaleHook } = fixture({ useLocale: useHostAdminLocale });
+    render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
     const select = await screen.findByRole('combobox', { name: 'Tipo de widget a crear' });
     expect(within(select).getAllByRole('option').map(o => o.textContent)).toEqual([
       'Multimedia', 'Galería', 'Texto', 'Enlaces sociales', 'Entradas recientes', 'Menú', 'Formulario de contacto',
@@ -82,8 +87,8 @@ describe('Jini widgets host switch', () => {
 
   // Retained from WidgetInstanceEditor.unit: ConfigFields has its OWN shared dictionary.
   it("threads a Spanish locale into the nested WidgetConfigFields via a SECOND t bound to shared-components-i18n, not this screen's own widgets-i18n t", async () => {
-    const { node } = fixture({ useLocale: () => 'es' });
-    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" />));
+    const { node, useAdminLocaleHook } = fixture({ useLocale: () => 'es' });
+    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByLabelText('Texto')).toBeInTheDocument();
     expect(screen.queryByLabelText('Text')).not.toBeInTheDocument();
   });
@@ -104,14 +109,14 @@ describe('Jini widgets host switch', () => {
 
   it('refreshes locale without remounting a loaded editor or losing unsaved title/config', async () => {
     let locale = 'en';
-    const { api, node } = fixture({ useLocale: () => locale });
+    const { api, node, useAdminLocaleHook } = fixture({ useLocale: () => locale });
     const read = vi.spyOn(api, 'getWidget');
-    const view = render(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} />));
+    const view = render(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
     const title = await screen.findByLabelText('Widget title');
     const body = screen.getByLabelText('Text');
     fireEvent.change(title, { target: { value: 'Unsaved footer' } });
     fireEvent.change(body, { target: { value: 'Unsaved body' } });
-    locale = 'es'; view.rerender(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} />));
+    locale = 'es'; view.rerender(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByLabelText('Texto')).toBe(body);
     expect(title).toHaveValue('Unsaved footer');
     expect(body).toHaveValue('Unsaved body');
@@ -120,9 +125,9 @@ describe('Jini widgets host switch', () => {
 
   it('forwards new-editor type and navigates a created widget to its slug', async () => {
     const user = userEvent.setup();
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const create = vi.spyOn(api, 'createWidget');
-    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" />));
+    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" useAdminLocaleHook={useAdminLocaleHook} />));
     // A new editor paints immediately; awaited gestures flush its effect-owned controller.
     const title = await screen.findByLabelText('Widget title');
     await user.type(title, 'New footer');
@@ -133,9 +138,9 @@ describe('Jini widgets host switch', () => {
   });
 
   it('binds a new region and retains the host regions route', async () => {
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const bind = vi.spyOn(api, 'bindWidgetRegion');
-    render(node(<WidgetRegions />));
+    render(node(<WidgetRegions useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByRole('link', { name: 'footer' })).toHaveAttribute('href', '/admin/widgets/regions/footer');
     fireEvent.change(screen.getByPlaceholderText('e.g. footer'), { target: { value: ' sidebar ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Bind region' }));
@@ -150,9 +155,9 @@ describe('Jini widgets host switch', () => {
     const user = userEvent.setup();
     vi.stubGlobal('fetch', vi.fn(async (url: RequestInfo | URL) => new Response(JSON.stringify(String(url).includes('/settings/effective')
       ? { data: [{ key: 'locale', value: 'en' }] } : { widgets: [widget] }), { headers: { 'content-type': 'application/json' } })));
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const save = vi.spyOn(api, 'mutateWidgetRegionPlacements');
-    render(node(<WidgetRegionEditor regionKey="footer" />));
+    render(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
     await user.click(await screen.findByRole('button', { name: '+ Add widget' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('combobox', { name: 'Existing Text widgets' }));
@@ -167,9 +172,9 @@ describe('Jini widgets host switch', () => {
   });
 
   it('refreshes only the mounted library resource and unsubscribes on unmount', async () => {
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const read = vi.spyOn(api, 'listWidgets');
-    const view = render(node(<WidgetsLibrary />));
+    const view = render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
     await screen.findByRole('heading', { name: 'Widgets' });
     act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(read).toHaveBeenCalledTimes(1);
@@ -181,12 +186,12 @@ describe('Jini widgets host switch', () => {
   });
 
   it('replaces a raw id bookmark with its loaded slug without adding history', async () => {
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const id = '550e8400-e29b-41d4-a716-446655440000';
     api.widgets[0]!.id = id;
     window.history.replaceState(null, '', `/admin/widgets/${id}`);
     const length = window.history.length;
-    render(node(<WidgetInstanceEditor widgetId={id} widgetType={null} />));
+    render(node(<WidgetInstanceEditor widgetId={id} widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
     await screen.findByDisplayValue('Reusable footer');
     await waitFor(() => expect(window.location.pathname).toBe('/admin/widgets/footer-note'));
     expect(window.history.length).toBe(length);
@@ -194,17 +199,17 @@ describe('Jini widgets host switch', () => {
 
   it('keeps an unsaved region draft through locale changes and unrelated refreshes', async () => {
     let locale = 'en';
-    const { api, node } = fixture({ useLocale: () => locale });
+    const { api, node, useAdminLocaleHook } = fixture({ useLocale: () => locale });
     const area = (await api.getWidgetRegion({ regionKey: 'footer' })).area;
     await api.mutateWidgetRegionPlacements({ regionKey: 'footer', baseVersion: area.version,
       placements: [{ placementId: 'p1', widgetEntryId: 'w9', enabled: true }] });
     const read = vi.spyOn(api, 'getWidgetRegion');
     const save = vi.spyOn(api, 'mutateWidgetRegionPlacements');
-    const view = render(node(<WidgetRegionEditor regionKey="footer" />));
+    const view = render(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
     const enabled = await screen.findByRole('checkbox', { name: 'Enabled' });
     fireEvent.click(enabled);
     expect(enabled).not.toBeChecked();
-    locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" />));
+    locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
     act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(view.container.querySelector('input[type="checkbox"]')).toBe(enabled);
     expect(enabled).not.toBeChecked();
