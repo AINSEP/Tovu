@@ -2952,6 +2952,30 @@
     {
       "id": "45e6f55a7076",
       "reason": "The removed paragraph explained why RedirectRouteDeps was reused from its unusual admin-http/http/redirects.ts location; that file moved to Jini and the type now lives in this module, so the location note is obsolete. The rest of the header is kept."
+    },
+    {
+      "id": "73959d9d4ff5",
+      "reason": "Moved with the file to Jini @jini-ai/admin/screens/auth/hooks/login-port.hooks.ts (ex6-users batch C); host doc paths reworded to name the host's wired-hooks convention, why kept."
+    },
+    {
+      "id": "4c4e33425613",
+      "reason": "users-api.types.ts deleted in favour of its existing core owner @jini-ai/core/contracts/site/user-management-react AdminIdentityUser (ex6-users batch D); the canRename field there already carries the same why (host refusal for accounts whose bootstrap identity cannot follow a rename)."
+    },
+    {
+      "id": "5058c130677d",
+      "reason": "Moved with the test to Jini packages/admin/src/shell/lib/__tests__/boot-token-fragment.unit.test.ts (ex6-users batch C); plan paths reworded neutral, why kept."
+    },
+    {
+      "id": "db354693756a",
+      "reason": "Moved with the file to Jini @jini-ai/admin/shell/lib/boot-token-fragment.ts (ex6-users batch C); product name and host paths reworded to 'the host', why kept."
+    },
+    {
+      "id": "f072ce6db3da",
+      "reason": "Moved with the test to Jini packages/user-management/src/identity/__tests__/boot-session-token.test.ts (ex6-users batch A), why kept."
+    },
+    {
+      "id": "4437cb64646c",
+      "reason": "Moved with the file to Jini @jini-ai/user-management/identity/boot-session-token.ts (ex6-users batch A); product name and TOVU_DESKTOP_* env mentions in comments reworded to 'the host', why kept."
     }
 ]
 }
