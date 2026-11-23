@@ -14,10 +14,14 @@ Reference implementation (read these before converting anything):
 | Jini | `packages/cms/src/admin-http/routes/menus/shared.ts` | per-family guards: authorize, error ladder, actor id, path param |
 | Jini | `packages/cms/src/admin-http/routes/menus/{create,update-tree}.ts` | body refusal in `parse`, injected host policy |
 | Jini | `packages/cms/src/admin-http/routes/menus/delete.ts` | an injected host collaborator (`trashMenu`) |
-| Jini | `packages/cms/src/admin-http/http/menus.ts` | DTO helper moved verbatim (no host types) |
+| Jini | `packages/cms/src/admin-http/http/menus.ts` | serializers only, object arguments (no host types, no DTO declarations) |
+| Jini | `packages/core/src/contracts/site/cms-menus.ts` | the wire DTO declarations, shared by the serializer and the admin client (§2.1) |
 | Jini | `packages/cms/src/admin-http/routes/menus/__tests__/*` | spec unit tests (written first) |
 | Tovu | `apps/website/src/server/runtime/composition/modules/menus.ts` | registrars: build small deps, mount |
-| Tovu | `apps/website/src/server/inbound/admin-http/admin-json-route-ports.ts` | host ports (workspace 404, principal, 403, 500) |
+| Tovu | `apps/website/src/server/inbound/admin-http/admin-json-route-ports.ts` | host ports (workspace 404, principal, 403, 500); mount options `authorizationByPermission`, `deferMissingPrincipal` |
+
+> **Corrected by `reviews/rv1123e.md`** (Tovu `c20f88365`, Jini `c73309b4`). A family converted from the
+> earlier text (Tovu `582db5967`) applies [the migration checklist](#migration-for-families-converted-before-582db5967).
 
 ## 1. Before → after
 
@@ -82,7 +86,7 @@ export const menuGetRoute = defineJsonRoute<{ menuId: string }, AdminMenuEnvelop
 export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
     { app, spec: menuGetRoute, deps: { ...menuPortDeps({ deps }), menuRepo: deps.menuRepo } },
-    mountOptions("routes/menus/get-by-id", "direct"),
+    mountOptions({ operation: "routes/menus/get-by-id", authorization: "direct" }),
   );
 };
 ```
@@ -95,10 +99,13 @@ export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ app, deps }, _op
 | `getAuthedPrincipal(res)` | gone — the host `authenticate` port; the spec reads `context?.id` only when it needs an actor (`menuActorId`) |
 | `authorizeOrRespond(...)` | `await authorize({ permission, entityType }, { entityId })` + mount `"guarded"` |
 | `authorizeDirectOrRespond(...)` | same call + mount `"direct"` (never switch a route between the two in a move) |
+| **each** `authorize…OrRespond` call | **its own** `authorize` call in the spec — never merge two checks into one. Parity is per call: same permission, entity type, `entityId` presence and decision source as that hand-written call |
+| two calls in one route with different modes | mount default = the first call's mode; `authorizationByPermission: { [<PERMISSION_CONSTANT>]: "<other mode>" }` for the other (menus update-tree: `direct` + raw-HTML `guarded`) |
 | by-id route `entityId: id` | pass `{ entityId }` scope; id-free routes (list, create, import) pass no scope |
-| `res.status(400).json({ error })` before auth | `rejectRoute({ status: 400, error })` **inside `parse`** (keeps the 400-before-auth order) |
+| conditional `...(id ? { entityId: id } : {})` | the same condition in the spec: `id ? { entityId: id } : {}` (an empty id sends **no** key) |
+| `res.status(400).json({ error })` before auth | `rejectRoute({ status: 400, error })` **inside `parse`** + mount `deferMissingPrincipal: true` (keeps the 400-before-session order; see §6.2) |
 | `res.status(4xx).json({ error[, code] })` in `try` | `rejectRoute({ status, error[, code] })`, or a per-family mapping table (`rejectMenuError`) |
-| `instanceof` ladder in `catch` | ordered mapping list per route, subclass before superclass (`MENU_VERSION_CONFLICT` before `MENU_CONFLICT`); unmapped → rethrow |
+| `instanceof` ladder in `catch` | ordered mapping list per route, subclass before superclass; unmapped → rethrow. Keep the **wire** pair exact: menus' lost compare-and-set answers status `409` with body code `"VERSION_CONFLICT"`; `MENU_VERSION_CONFLICT` is only the Jini mapping constant's name and never appears on the wire. List its rung before `MENU_CONFLICT` (plain `409`, no code), which it extends |
 | `sendAdminFailure(..., { operation, code })` | rethrow; mount with `failure: { operation, code }` — the **same operation string**, it picks the user-facing 500 copy |
 | `res.status(201).json(x)` | `defineJsonRoute(spec, { successStatus: 201 })` + `ok({ value: x })` |
 | `res.json(x)` | `ok({ value: x })` |
@@ -128,8 +135,24 @@ Rules:
   (`normalizeMenuHtml?`) becomes a required route dep: the host decides, explicitly.
 - `workspaceId` + `authorize` are the two port fields; the spec reads `workspaceId` itself, `authorize`
   only reaches it through the `authorize` handle argument (`AdminJsonRoutePortDeps` adds it at mount).
-- Function shape everywhere: `fn(required, _optional = {})`; ≤ 80 lines; complexity ≤ 10. A long
-  `catch` ladder becomes a mapping table, not a longer function.
+- Function shape everywhere: `fn(required, _optional = {})` — **object arguments, never positional**,
+  including small helpers (`toAdminMenuDto({ menu })`, `menuIdParam({ params })`, the host's
+  `mountOptions({ operation, authorization }, { … })`); ≤ 80 lines; complexity ≤ 10. A long `catch`
+  ladder becomes a mapping table, not a longer function.
+
+### 2.1 Wire DTOs live in neutral Core
+
+- The DTO **declarations** (response bodies, envelope interfaces, the unions they carry) go to
+  `@jini-ai/core/contracts/site/<pkg>-<family>.ts` (menus: `cms-menus.ts`), with the export triple and
+  `jini.entries` `"universal"` row in `packages/core/package.json`. Core imports no feature package, so a
+  union from the feature (e.g. `NavTarget`) is restated structurally; a compile-time parity test in the
+  feature package pins both directions (`Same<A, B>` in `cms/src/admin-http/http/__tests__/menus.test.ts`).
+- The **serializers** (`to<Family>Dto`, envelope builders, body field readers) stay in the feature package
+  (`@jini-ai/<pkg>/admin-http/http/<family>.ts`), importing the declarations from Core. No re-export of
+  the Core types from the feature entry (no re-export shells).
+- The Tovu admin client (`apps/admin/src/features/<family>/api/*-api.types.ts`) consumes the Core
+  declarations instead of mirroring them; editor-only shapes (menus: the draft `AdminMenuTarget`) stay in
+  the client, and a Core DTO that must carry one is generic over it (`AdminMenuDto<Target>`).
 
 ## 3. How the host mounts it
 
@@ -143,10 +166,22 @@ function <family>PortDeps({ deps }: { deps: <Family>RouteDeps }, _o: Record<stri
 export const registerAdmin<X>Route: <Family>RouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
     { app, spec: <x>Route, deps: { ...<family>PortDeps({ deps }), <field>: deps.<field>, <policy>: <TOVU_CONSTANT> } },
-    { authorization: "direct" | "guarded", failure: { operation: "routes/<family>/<file>", code: "INTERNAL_ERROR" } },
+    // object arguments, never positional; every key below is optional and defaults to the old behaviour
+    {
+      authorization: "direct" | "guarded",                                    // the route's first/only check
+      failure: { operation: "routes/<family>/<file>", code: "INTERNAL_ERROR" },
+      authorizationByPermission: { [<TOVU_PERMISSION_CONSTANT>]: "guarded" }, // ONLY if a second check had the other mode
+      deferMissingPrincipal: true,                                            // ONLY if the route refused a bad body before reading the session
+    },
   );
 };
 ```
+
+When to opt into `deferMissingPrincipal`: the hand-written route returned a body/param 400 **before**
+`getAuthedPrincipal(res)` (menus: create, update-tree, assign-location — not list, get-by-id, delete). The
+spec must then call `authorize` before any side effect, since that is where the missing principal now
+fails closed (500, `getAuthedPrincipal`'s message). A route that read the session first keeps the default,
+so its missing-session 500 still comes before parse.
 
 - Keep every `registerAdmin…Route` export name and the module's registration order: the route-table
   pin (`create-app-route-table.pin.test.ts`) must not change (mounted handlers are `<anonymous>`, as before).
@@ -154,7 +189,8 @@ export const registerAdmin<X>Route: <Family>RouteRegistrar = ({ app, deps }, _op
 - Non-JSON routes (streams, uploads, HTML, SSE, static, redirects-as-302) do **not** use this template:
   they are core `ServerRoute` factories mounted through `@jini-ai/http-kit/node-bridge` `createNodeDispatcher`.
 - Host ports (`admin-json-route-ports.ts`) are shared composition: a family conversion never edits them.
-  If a family needs a port change, stop and raise it — the pilot needed one (§6.2), now done for all.
+  If a family needs a port change, stop and raise it — the pilot needed two mount options (§6.2, §6.3),
+  now available to every family as per-mount opt-ins.
 
 ## 4. Tests every converted route must have
 
@@ -215,16 +251,20 @@ Tovu 1 RED (`menu get: … missing slug falls back to the unnormalized id`). Res
 
 1. **Body refusals live in `parse` and throw `rejectRoute`.** A returned `err(...)` gains a `code` the
    host never sent; a thrown refusal keeps the flat body. (Precedent: `redirects/import.ts`.)
-2. **Authenticate before parse.** `mountJsonRoute` runs workspace → authenticate → parse → handle. The
-   hand-written write routes validated the body before reading the session, and two menus wire tests
-   pinned that (no-session + bad body ⇒ 400). Fixed once for every family: http-kit's `authenticate`
-   may return `undefined`; Tovu's port defers the missing session to `authorize`, which fails closed with
-   `getAuthedPrincipal`'s message and the same redacted 500.
-3. **`"direct"` vs `"guarded"` is per mount, not per check.** Menus update-tree asked the menu permission
-   `direct` and the raw-HTML permission `guarded` (`authorizeOrRespond`). One mount mode now covers both,
-   so update-tree's HTML check is RBAC-only. This differs only for a publishing credential whose RBAC
-   allows `admin.menus.update` but whose grant differs on raw HTML. No test pinned it; recorded, not
-   silently changed. A family with mixed modes per route: list each one in the report.
+2. **Authenticate before parse — deferral is a per-mount opt-in.** `mountJsonRoute` runs workspace →
+   authenticate → parse → handle. http-kit's `authenticate` may return `undefined`; Tovu's port does so
+   **only** on a mount with `deferMissingPrincipal: true`, and `authorize` then fails closed with
+   `getAuthedPrincipal`'s message and the same redacted 500. Opt in only for routes with a legacy
+   parse-first refusal (§3); every other mount keeps failing in `authenticate`, before parse, as before.
+   Pin both at the wire: no session + malformed body ⇒ the old 400; no session + valid body ⇒ 500 and
+   no side effect (`admin-menus-routes.test.ts` "deferral is per mount").
+3. **`"direct"` vs `"guarded"` is per authorization call.** Menus update-tree asks `admin.menus.update`
+   `direct` (RBAC only) and the raw-HTML permission `guarded` (a publishing grant answers when present).
+   The spec keeps two `authorize` calls; the mount sets `authorization: "direct"` plus
+   `authorizationByPermission: { [MENU_RAW_HTML_PERMISSION]: "guarded" }`. Pin it with a wire test whose
+   grant and RBAC **disagree** on each permission (`admin-menus-routes.test.ts` "publishing grant"), and
+   run mutation `update-html-use-direct-rbac` (drop the override ⇒ RED). A family with mixed modes in one
+   route does the same, and lists each call's mode in the report.
 4. **Keep the operation string.** `failure.operation` selects the user-facing 500 copy (`"The menus could
    not be loaded."`). Copy it verbatim from the old `sendAdminFailure` call.
 5. **Read `deps.authorize` lazily** in the port deps (`(p) => deps.authorize(p)`), because tests reassign it.
@@ -240,12 +280,17 @@ Family: <family>   Step(s): RT-K1-adm-<family>-N   Jini pkg: @jini-ai/<pkg>
 [ ] Spec per route: defineJsonRoute, own <Name>RouteDeps (Pick'd), no RouteDeps, no Tovu import,
     no express/node:/kysely in a "universal" entry, fn <= 80 lines, complexity <= 10, _optional pads
 [ ] Per-family shared.ts: authorize<Family>, error mapping tables (subclass first), actor id, param reader
-[ ] DTO helper moved verbatim to admin-http/http/<family>.ts (drop the host deps/registrar types)
+[ ] One spec `authorize` call per hand-written check; per call: permission, entityType, entityId presence
+    (incl. conditional omission), decision source ("direct"/"guarded"/override) match the old call
+[ ] Wire DTO declarations in @jini-ai/core/contracts/site/<pkg>-<family>.ts + parity test (§2.1);
+    serializers in admin-http/http/<family>.ts with object args; admin client types consume Core
+[ ] Object arguments everywhere (helpers, serializers, host mountOptions); no positional calls
 [ ] Host policy, Node helpers and host services injected as REQUIRED deps; values bound in the registrar
 [ ] package.json: exports triple + jini.entries (runtime) + jini.isolation.entries (domain); changeset (patch)
 [ ] Jini: build, `pnpm guard`, `pnpm api:update` then `api:check`, `pnpm typecheck`, package vitest
 [ ] Tovu: delete sources; modules/<family>.ts mounts with small deps; same registrar names + order;
-    "direct"/"guarded" and failure.operation copied per route
+    "direct"/"guarded" and failure.operation copied per route; authorizationByPermission only for a
+    mixed-mode route; deferMissingPrincipal only for parse-first routes (both pinned at the wire)
 [ ] Tovu tests: imports repointed only; moved-helper tests replaced by wire tests (named in report)
 [ ] Tovu: `npm run typecheck`; family tests + redirects-auth + admin-json-route-ports tests; route-table pin diff == base
 [ ] Mutations M1 + M2 RED on both sides, restored + cmp
@@ -349,6 +394,33 @@ real throughput limit, not file overlap.
   registrars, which stay in Tovu (composition). Same choice the redirects lane made.
 - **`MenuRouteDeps`/`MenuRouteRegistrar` moved to `modules/menus.ts`** (the sheet deletes their old file,
   `http/menus.ts`). They describe the host's bag, so they stay host-side.
-- **Two shared seams changed once for all families** (§6.2): http-kit `JsonRoutePorts.authenticate` may
+- **Shared seams changed once for all families** (§6.2, §6.3): http-kit `JsonRoutePorts.authenticate` may
   return `undefined` (Jini, with test + changeset); Tovu `admin-json-route-ports.ts` defers a missing
-  session to `authorize`.
+  session to `authorize` **only on a mount that opts in** (`deferMissingPrincipal`), and answers one
+  permission from another source with `authorizationByPermission`.
+
+## Migration for families converted before 582db5967
+
+A family branched from the uncorrected template (Tovu `582db5967` / Jini `28ce682b`) merges the fix
+commits at the next combine, then applies this checklist. Fix commits to merge (each is small and
+separate): Jini `3638b1fd` (update-tree auth parity), `04b2ebf9` (Core menus DTOs), `2729295d`
+(CMS object args), `c73309b4` (README); Tovu `069155845` (port options), `f3d023419` (menus mounts +
+wire tests), `8e668087a` (admin client types), `c20f88365` (why-comments).
+
+```
+[ ] Merge the fix commits; resolve `mountOptions` in modules/<family>.ts to the object form
+    mountOptions({ operation, authorization }, { authorizationByPermission?, deferMissingPrincipal? })
+[ ] Missing-principal deferral is no longer global. For each of your mounts: if the hand-written route
+    returned a 400 before getAuthedPrincipal(res), add `deferMissingPrincipal: true`; otherwise add nothing.
+    Without this, a no-session + malformed-body wire test answers 500 instead of its old 400.
+[ ] Add the two deferral wire pins per opted-in route (malformed ⇒ old 400; valid ⇒ 500, no side effect)
+[ ] Re-audit authorization per hand-written call: one spec `authorize` call each; mixed modes in one route
+    ⇒ `authorizationByPermission` on the mount + a grant-vs-RBAC wire test + a named mutation
+[ ] Conditional entityId (`...(id ? { entityId } : {})`) reproduced exactly in the spec
+[ ] Positional helper signatures → object args with `_optional = {}` pads; update every caller (Jini + Tovu tests)
+[ ] Move your wire DTO declarations to @jini-ai/core/contracts/site/<pkg>-<family>.ts (§2.1); feature
+    serializers import them; no re-export from the feature entry; admin client types consume them
+[ ] Error ladders: status/code pairs checked against the hand-written route's body, not the constant names
+[ ] Jini: build, guard, api:update + api:check (Core + feature baselines), changeset; Tovu: typecheck,
+    family + admin-json-route-ports tests, route-table pin diff == base, why-comments ok
+```
