@@ -2772,6 +2772,22 @@
     {
       "id": "73584ff700c8",
       "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "d9e31b808ee7",
+      "reason": "SH-3 (ex2-holds-tovu) deletes the credential-set re-export sets/host.ts shell this @file header described; its importers (two tests) now import @jini-ai/integrations/credentialed-http/sets directly, so the shim explanation has nothing left to attach to."
+    },
+    {
+      "id": "0c06b99197a0",
+      "reason": "SH-3 (ex2-holds-tovu) deletes the credential-set re-export sets/store.ts shell this @file header described; its importers (two tests) now import @jini-ai/integrations/credentialed-http/sets directly, so the shim explanation has nothing left to attach to."
+    },
+    {
+      "id": "3fbb1fba1ea5",
+      "reason": "SH-3 (ex2-holds-tovu) deletes the credential-set re-export sets/vault-repo.ts shell this @file header described; its importers (two tests) now import @jini-ai/integrations/credentialed-http/sets directly, so the shim explanation has nothing left to attach to."
+    },
+    {
+      "id": "a52372a5ad70",
+      "reason": "SH-3 (ex2-holds-tovu, owner-approved): extract-s8-c1-source-scan.test.ts no longer reads the deleted sets/ shells; its @file now says the moved Jini code is scanned and the shells must be absent. The old clause about the Tovu sets/ files importing only @jini-ai/core described files that no longer exist."
     }
   ]
 }
