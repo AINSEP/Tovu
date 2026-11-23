@@ -28,6 +28,7 @@ What stays here:
 | `useTransferTranslate` | `useSiteTransferTranslate` |
 | `useSitesAvailable` | `useSitesSectionAvailable` |
 | `SiteExportTab`, `SiteImportTab` | the Sites feature's own tabs (`features/sites`) |
+| `navigate` | `navigate` from `@jini-ai/admin/shell/lib/router` |
 | `handleLabels` | `IMPORT_EXPORT_HANDLE_LABELS` — the Export/Import tabs' agent labels; product copy (`.tovu.zip`) |
 
 `useGitBackup` takes the port and `describeApiError` (from `lib/admin-http/request`) as fields of

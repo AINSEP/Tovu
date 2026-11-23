@@ -4,6 +4,7 @@ import { ImportExport } from "@jini-ai/admin/screens/import-export/ImportExport"
 import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "@/features/sites";
 import { IMPORT_EXPORT_HANDLE_LABELS, ImportExportPanel } from "../ImportExportPanel";
 import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
@@ -27,7 +28,7 @@ function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAv
   return render(
     <ImportExport
       tabId={tabId} useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={() => sitesAvailable}
-      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS}
+      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS} navigate={navigate}
     />,
   );
 }
