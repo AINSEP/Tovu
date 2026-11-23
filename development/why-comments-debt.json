@@ -2888,6 +2888,102 @@
     {
       "id": "e3e72647b3a2",
       "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host CLI command reworded neutral."
+    },
+    {
+      "id": "4038db5b2226",
+      "reason": "P12 #6.T F6.4 reverses the 2026-08-12 'deliberately not hook-injected' ruling this test header cited: Placeholder now takes the host locale hook as a REQUIRED prop (approval reviews/approve-P12-cutplan2.md F6.4), so the explanation describes code that no longer exists."
+    },
+    {
+      "id": "62ced0c1fed7",
+      "reason": "P12 #6.T F6.4 (approved): Placeholder's live-hook default is removed and the hook is a required prop; the 'deliberately NOT hook-injected' ruling is reversed by the approval, so this explanation is obsolete."
+    },
+    {
+      "id": "5165f24e1463",
+      "reason": "Moved with the stage to Jini (P12 #4.J, F4.1): the unparseable-vs-null sentinel reasoning lives at core/transport/http.ts UNPARSEABLE_BODY and parseJsonBody docs, which the factory reuses."
+    },
+    {
+      "id": "e6d974eb500e",
+      "reason": "Moved to Jini (P12 #4.J): the rejected-fetch translation (TypeError only, AbortError rethrown, cause kept) is documented at core/transport/http.ts throwTranslatedFetchFailure, shared by createAdminHttp; Tovu's 'Tovu API' copy stays in request.ts messages.unreachable."
+    },
+    {
+      "id": "be361ab64e90",
+      "reason": "Moved to Jini (P12 #4.J): the cross-realm DOMException name check lives at core/transport/http.ts errorName ('Timeout DOMExceptions can come from another realm')."
+    },
+    {
+      "id": "6ee99d63563c",
+      "reason": "Obsolete with the move (P12 #4.J): this explained an in-file complexity split of the catch block; the classification now lives once in core/transport/http.ts throwTranslatedFetchFailure."
+    },
+    {
+      "id": "4561bac89ec9",
+      "reason": "Moved to Jini (P12 #4.J): the pagehide-cancellation reason is at core/transport/http.ts throwTranslatedFetchFailure ('A navigation cancels in-flight fetches with this same TypeError after pagehide')."
+    },
+    {
+      "id": "45699d2b2e49",
+      "reason": "Moved to Jini (P12 #4.J): caller-signal precedence is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts fetchBounded ('A caller's signal owns cancellation and its own deadline')."
+    },
+    {
+      "id": "c83224534c56",
+      "reason": "Moved to Jini (P12 #4.J): buildFetchInit and its merge-order doc moved to Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit (same-origin + JSON default, headers merge onto the default, caller type wins); its test imports the Jini owner."
+    },
+    {
+      "id": "1f79daa9af52",
+      "reason": "Moved to Jini (P12 #4.J): the case-insensitive Content-Type reason is in Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit's doc ('in any letter case ... two values would be sent joined with a comma')."
+    },
+    {
+      "id": "e2e6fbe036cb",
+      "reason": "Moved to Jini (P12 #4.J): parse stage and its null-vs-unparseable reason live at core/transport/http.ts parseJsonBody."
+    },
+    {
+      "id": "9e6b2e7b08a3",
+      "reason": "Moved to Jini (P12 #4.J): the 401+UNAUTHENTICATED-only rule is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('a relayed vendor 401 does not'); host ordering (reset before notify) is documented at request.ts adminHttp composition."
+    },
+    {
+      "id": "536cc7622121",
+      "reason": "Moved (P12 #4.J/T): the three-failure-mode reasoning is split between Jini @jini-ai/admin shell/lib/admin-http/request.ts responseError doc and the request.ts composition doc (Vite proxy bare 500, 2026-08-06 debugging hour, redaction of the requestFailed copy)."
+    },
+    {
+      "id": "edff0256ccff",
+      "reason": "Moved to Jini (P12 #4.J): the single-seam/onOk-on-success-only contract is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('onOk runs just before resolve') and the factory file header."
+    },
+    {
+      "id": "133bc7cc0dfc",
+      "reason": "Reworded in place (P12 #4.T): requestOnce is now a bound export with its own doc in request.ts ('One send through the seam, no restart retry')."
+    },
+    {
+      "id": "73d663a2fee7",
+      "reason": "Moved to Jini (P12 #4.J): the upstream-refused mark is documented on the CreateAdminHttpPorts.isUpstreamRefused port in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "89e2703e5b79",
+      "reason": "Moved to Jini (P12 #4.J): the per-instance refused-error WeakSet is documented on Context.upstreamRefused in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "ef1d3c398c7e",
+      "reason": "Moved to Jini (P12 #4.J): retry policy doc lives at Jini @jini-ai/admin shell/lib/admin-http/request.ts rideOutRestart ('sends exactly once more. Reads always retry; writes only when provably undelivered or retryWrites')."
+    },
+    {
+      "id": "1f5e257eed8d",
+      "reason": "Moved to Jini (P12 #4.J): the generation-captured-before-send reason is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "b7b914d063db",
+      "reason": "Moved to Jini (P12 #4.J): 'only the FINAL failure is reported' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "dfaf4e4bc9f0",
+      "reason": "Moved in place (P12 #4.T): the 4xx-is-the-caller's reason is now on request.ts reportFailure port binding ('A 4xx is the caller's to explain')."
+    },
+    {
+      "id": "ebe41cb8bdf9",
+      "reason": "Moved to Jini (P12 #4.J): 'Notice effects must never replace the caller's original rejection' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported."
+    },
+    {
+      "id": "a8c92bf88454",
+      "reason": "Moved in place (P12 #4.T): the provider-URL cookie reason is now the AdminApiBasePath doc in request.ts."
+    },
+    {
+      "id": "b169dfcdd8bc",
+      "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
     }
-]
+  ]
 }
