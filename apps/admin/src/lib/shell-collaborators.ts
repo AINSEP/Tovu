@@ -20,6 +20,10 @@ import { createOwnerMfaPort } from "@jini-ai/admin/shell/lib/owner-mfa-api";
 import { createOwnerPasskeyPorts } from "@jini-ai/admin/shell/lib/owner-passkey-api";
 import { createOwnerRecoveryFailure, createOwnerRecoveryPort } from "@jini-ai/admin/shell/lib/owner-recovery-api";
 import { readInitialSession } from "@jini-ai/user-management/session-bootstrap";
+import { createStandingDraftLocalBackup } from "@jini-ai/ui/panel-kit";
+import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
+import { createTypedAnswerPoster, type DeliverTypedAnswer } from "@jini-ai/chat/react";
+import { createA2uiActionPoster as createChatA2uiActionPoster, type CreateA2uiActionPosterOptions } from "@jini-ai/chat/transports/http";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ApiError, authenticatedAdminRequest, describeApiError, requestOnce } from "./admin-http/request";
 import { WORKSPACE_ID } from "./admin-http/config";
@@ -87,3 +91,46 @@ export const { settings: ownerPasskeySettingsPort, signIn: ownerPasskeySignInPor
 export const ownerRecoveryPort = createOwnerRecoveryPort({ http: adminRequestOnceOps });
 /** Recovery failures keep the server's explanation and redact with Tovu's secret-redaction vocabulary. */
 export const ownerRecoveryFailure = createOwnerRecoveryFailure({ describeError: describeApiError, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
+
+/** The standing-draft editor's local backup of refused work. The exact storage prefix is retained so
+ *  refused work parked before extraction stays recoverable; storage failures remain best-effort. */
+export const standingDraftLocalBackup = createStandingDraftLocalBackup({
+  keyPrefix: "tovu.admin.standing-draft-backup.", getStorage: () => localStorage,
+}, {});
+
+/**
+ * The question tool that opted in to typed answers. Spelled here because the admin cannot import
+ * the website's tool registrations; registered in `apps/website/src/assistant/tool-registrations.ts`.
+ */
+export const ASK_CHOICE_TOOL_ID = "assistant_ask_choice";
+
+/** Tovu mounts the MCP-UI route behind the admin-session-gated prefix, same as `mcpUiToolCaller`. */
+export const ADMIN_MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
+
+/**
+ * Binds `@jini-ai/chat/react`'s generic `createTypedAnswerPoster` to Tovu's own question tool and
+ * admin route, for `ChatPane`'s `deliverTypedAnswer` in `AssistantDock.tsx`. Text the operator types
+ * while the agent waits on an `assistant_ask_choice` card then answers that card instead of queueing
+ * behind the run (where it would only go out after the question expired, as a second paid run).
+ *
+ * The server half is `apps/website/src/assistant/mcp-ui-tool-calls-route.ts`'s Shape 3: a body with
+ * a non-blank `__typedAnswer` and no exchange id is routed to the one open `assistant_ask_choice`
+ * exchange of the session's principal — 202 when delivered, 409 `SURFACE_NOT_PENDING` when nothing
+ * is waiting. Same-origin, session cookie, Tovu's question tool.
+ *
+ * @param deps.fetch - The browser's fetch in production; a hand-written fake in tests.
+ * @complexity O(1) per call — one request.
+ */
+export function createAdminTypedAnswerPoster({ fetch }: { fetch: typeof globalThis.fetch }, options: UserTextRedactionOptions = {}): DeliverTypedAnswer {
+  return createTypedAnswerPoster(
+    { baseUrl: "", fetch, toolName: ASK_CHOICE_TOOL_ID },
+    { path: ADMIN_MCP_UI_TOOL_CALLS_PATH, onSecretRedacted: onTovuSecretRedacted, ...options },
+  );
+}
+
+/** Host route/cookie wiring for A2UI card actions; Jini owns exchange addressing and delivery outcomes. */
+export function createA2uiActionPoster({ baseUrl }: { baseUrl: string }, options: CreateA2uiActionPosterOptions = {}) {
+  return createChatA2uiActionPoster({ baseUrl, path: options.path ?? "/api/admin/v1/a2ui/actions", fetch: (url, init) => fetch(url, init),
+    reportFailure: ({ args }) => console.error(...args),
+  }, { timeoutMs: options.timeoutMs, headers: options.headers });
+}

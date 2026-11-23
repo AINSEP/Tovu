@@ -157,7 +157,7 @@ export function postVersionConflictMessage(conflict: PostSaveConflict): string {
  * them, and what actually resumes autosaving.
  *
  * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
- * refused draft into browser storage (`lib/standing-draft-local-backup.ts`), but that mirror is
+ * refused draft into browser storage (`lib/shell-collaborators.ts`'s `standingDraftLocalBackup`), but that mirror is
  * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
  * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
  * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.

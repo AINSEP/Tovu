@@ -300,3 +300,20 @@ are bound the same way: `classifyCredentialSubmitError` and `readInitialAdminSes
 `ownerPasskeySettingsPort`, `ownerPasskeySignInPort`, `ownerRecoveryPort` (via `requestOnce`) plus
 `ownerRecoveryFailure` (via `describeApiError` + `TOVU_ERROR_REDACTION_OPTIONS`). Types and
 `SUBAGENT_DANGERS` come from the Jini modules.
+
+**Failure reporter, standing-draft backup and chat posters (w3-fnd-lib23).** `src/lib/admin-failure-channel.ts`
+is now only Tovu's composition of `@jini-ai/admin/shell/lib/admin-failure-reporter`'s
+`createAdminFailureReporter`: it injects the panel-kit failure channel, `ADMIN_FAILURE_VOCABULARY`,
+`TOVU_ERROR_REDACTION_OPTIONS`, the `Tovu Admin <version>` label, `decodeApiError` and the
+`AGENT_DAEMON_PARKED`/`AGENT_DAEMON_UNAVAILABLE` codes, and exports the bound values under their
+existing names (`isClipboardRefusal` is imported from Jini directly). Its request-stack integration
+tests stay here; the rule tests live in Jini. `lib/shell-collaborators.ts` now also binds
+`standingDraftLocalBackup` (Jini's `createStandingDraftLocalBackup` with the retained
+`tovu.admin.standing-draft-backup.` prefix), `createAdminTypedAnswerPoster` (Tovu's question tool +
+MCP-UI route) and `createA2uiActionPoster` (Tovu's A2UI action route); the former single-binding
+files and the `sse-frames.ts` re-export (importers now read `@tovu/assistant-run-events`) are gone.
+`assistant-transport-ag-ui.ts` stays a host module: it only binds Jini chat's `createAgUiRunClient`
+to Tovu's AG-UI route, `tovu.*` event names and toggle key, and needs `@ag-ui/client`. `durable-run-subscription.ts`
+stays because its engine half (`followDurableRun`) lives in `@jini-ai/chat/transports/http`, which
+`@jini-ai/admin` does not depend on; the residual run-route ports belong beside it in chat.
+

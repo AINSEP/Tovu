@@ -11,9 +11,10 @@ import {
   useT,
 } from "@jini-ai/chat/react";
 import { createSystemClock } from "@jini-ai/platform/system";
-import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
-import { AgentFailureCard } from "../AgentFailureCard";
-import { hasAgentFailureNotice } from "../AgentFailureCard.hooks";
+import { createA2uiActionPoster } from "../../../lib/shell-collaborators";
+import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
+import { hasAgentFailureNotice, useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
@@ -153,7 +154,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.
     registry.register({ name: "slow_running", renderer: (props) => createElement(SlowRunNoticeCard, { ...props, useTHook: useT }) }),
-    registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, props) }, { terminalNotice: hasAgentFailureNotice }),
+    registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, { ...props, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS }) }, { terminalNotice: hasAgentFailureNotice }),
     // What the operator sent mid-run, drawn as their own transcript row where the agent
     // got it. Jini's `registerMidRunUserMessageRenderer` only targets the global registry, so this
     // repeats its two lines (component + slot key) against the owned one.

@@ -5,7 +5,8 @@ import type { AdminMenu, AdminMenuItem, AdminMenuMode } from "@jini-ai/admin/scr
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
-import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { isClipboardRefusal } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
