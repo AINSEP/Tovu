@@ -1,0 +1,3213 @@
+TAP version 13
+# (node:4189) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: shared media buffers are deduplicated before collecting the next theme
+ok 1 - shared media buffers are deduplicated before collecting the next theme
+  ---
+  duration_ms: 39.333733
+  type: 'test'
+  ...
+# Subtest: unique retained bytes stop collection at the cap before another theme or ZIP runs
+ok 2 - unique retained bytes stop collection at the cap before another theme or ZIP runs
+  ---
+  duration_ms: 4.241178
+  type: 'test'
+  ...
+# (node:4190) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a prepare exception keeps its actual step when collected by a later job poll
+ok 3 - a prepare exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 13.213287
+  type: 'test'
+  ...
+# Subtest: a archive exception keeps its actual step when collected by a later job poll
+ok 4 - a archive exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 7.589577
+  type: 'test'
+  ...
+# Subtest: a delivery exception keeps its actual step when collected by a later job poll
+ok 5 - a delivery exception keeps its actual step when collected by a later job poll
+  ---
+  duration_ms: 1.977681
+  type: 'test'
+  ...
+# Subtest: a create without a wait budget waits for a quick export and returns the ZIP-only share
+ok 6 - a create without a wait budget waits for a quick export and returns the ZIP-only share
+  ---
+  duration_ms: 18.672546
+  type: 'test'
+  ...
+# Subtest: a full share with prepared credential warnings refuses before delivery or registration
+ok 7 - a full share with prepared credential warnings refuses before delivery or registration
+  ---
+  duration_ms: 4.139366
+  type: 'test'
+  ...
+# Subtest: archive progress reaches its totals: buffered files plus the database, and the planned bytes
+ok 8 - archive progress reaches its totals: buffered files plus the database, and the planned bytes
+  ---
+  duration_ms: 8.78005
+  type: 'test'
+  ...
+# Subtest: a share plan without a database is refused before delivery
+ok 9 - a share plan without a database is refused before delivery
+  ---
+  duration_ms: 2.692831
+  type: 'test'
+  ...
+# Subtest: static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling
+ok 10 - static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling
+  ---
+  duration_ms: 55.029312
+  type: 'test'
+  ...
+# Subtest: a static export with captured credential content saves a private ZIP requiring acknowledgement
+ok 11 - a static export with captured credential content saves a private ZIP requiring acknowledgement
+  ---
+  duration_ms: 19.117241
+  type: 'test'
+  ...
+# Subtest: static backend refuses unknown selections before rendering and unusable captures without creating a ZIP
+ok 12 - static backend refuses unknown selections before rendering and unusable captures without creating a ZIP
+  ---
+  duration_ms: 7.908449
+  type: 'test'
+  ...
+# Subtest: theme none offers only Current site and preserves both legacy and picked unstyled exports
+ok 13 - theme none offers only Current site and preserves both legacy and picked unstyled exports
+  ---
+  duration_ms: 28.048053
+  type: 'test'
+  ...
+# Subtest: static completion discloses omitted discovery only without a request domain (none)
+ok 14 - static completion discloses omitted discovery only without a request domain (none)
+  ---
+  duration_ms: 9.657968
+  type: 'test'
+  ...
+# Subtest: static completion discloses omitted discovery only without a request domain (https://download.example)
+ok 15 - static completion discloses omitted discovery only without a request domain (https://download.example)
+  ---
+  duration_ms: 10.482313
+  type: 'test'
+  ...
+# Subtest: static options show installed display titles while keeping theme IDs
+ok 16 - static options show installed display titles while keeping theme IDs
+  ---
+  duration_ms: 0.623277
+  type: 'test'
+  ...
+# Subtest: a backup and a share export never collect a share catalog, in any scope
+ok 17 - a backup and a share export never collect a share catalog, in any scope
+  ---
+  duration_ms: 20.780463
+  type: 'test'
+  ...
+# Subtest: Duplicate never copies the folders that hold a share catalog
+ok 18 - Duplicate never copies the folders that hold a share catalog
+  ---
+  duration_ms: 0.189516
+  type: 'test'
+  ...
+# Subtest: the publish backstop refuses a share catalog file at any depth
+ok 19 - the publish backstop refuses a share catalog file at any depth
+  ---
+  duration_ms: 0.429076
+  type: 'test'
+  ...
+# Subtest: peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in
+ok 20 - peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in
+  ---
+  duration_ms: 120.846969
+  type: 'test'
+  ...
+# Subtest: delivery selection prefers connected live, falls back to object storage then ZIP, and pins revoke binding
+ok 21 - delivery selection prefers connected live, falls back to object storage then ZIP, and pins revoke binding
+  ---
+  duration_ms: 0.802616
+  type: 'test'
+  ...
+# Subtest: backend revoke resolves local rows without a delivery and disables exactly once
+ok 22 - backend revoke resolves local rows without a delivery and disables exactly once
+  ---
+  duration_ms: 15.039125
+  type: 'test'
+  ...
+# Subtest: a failed peer verification removes the remote upload and keeps the source row failed
+ok 23 - a failed peer verification removes the remote upload and keeps the source row failed
+  ---
+  duration_ms: 15.957306
+  type: 'test'
+  ...
+# Subtest: no delivery returns a private ZIP download and a clear link-setup message
+ok 24 - no delivery returns a private ZIP download and a clear link-setup message
+  ---
+  duration_ms: 9.572092
+  type: 'test'
+  ...
+# Subtest: peer deletion treats only 404 as already absent and never sends an invalid artifact path
+ok 25 - peer deletion treats only 404 as already absent and never sends an invalid artifact path
+  ---
+  duration_ms: 0.609072
+  type: 'test'
+  ...
+# Subtest: no expiry by default
+ok 26 - no expiry by default
+  ---
+  duration_ms: 12.112466
+  type: 'test'
+  ...
+# Subtest: peer-uploaded row without URL or storage still served
+ok 27 - peer-uploaded row without URL or storage still served
+  ---
+  duration_ms: 7.665985
+  type: 'test'
+  ...
+# Subtest: an owner-chosen expiry stops the public link after its own date and deletes nothing
+ok 28 - an owner-chosen expiry stops the public link after its own date and deletes nothing
+  ---
+  duration_ms: 6.701308
+  type: 'test'
+  ...
+# Subtest: the owner's choices are Never, 7, 30 or 90 days; anything else is refused in plain words
+ok 29 - the owner's choices are Never, 7, 30 or 90 days; anything else is refused in plain words
+  ---
+  duration_ms: 1.283813
+  type: 'test'
+  ...
+# Subtest: a link stored with another provider cannot carry an expiry yet; nothing is written
+ok 30 - a link stored with another provider cannot carry an expiry yet; nothing is written
+  ---
+  duration_ms: 5.900051
+  type: 'test'
+  ...
+# Subtest: an unreadable expiry fails closed: the public link is not served
+ok 31 - an unreadable expiry fails closed: the public link is not served
+  ---
+  duration_ms: 12.404397
+  type: 'test'
+  ...
+# Subtest: archive refusal names preserve ordinary text and truncate without splitting astral characters
+ok 32 - archive refusal names preserve ordinary text and truncate without splitting astral characters
+  ---
+  duration_ms: 2.003653
+  type: 'test'
+  ...
+# Subtest: unsafe archive-path refusals bound names and strip invisible controls
+ok 33 - unsafe archive-path refusals bound names and strip invisible controls
+  ---
+  duration_ms: 2.362005
+  type: 'test'
+  ...
+# Subtest: archive names containing replacement tokens cannot re-expand raw names in a refusal
+ok 34 - archive names containing replacement tokens cannot re-expand raw names in a refusal
+  ---
+  duration_ms: 0.52697
+  type: 'test'
+  ...
+# Subtest: 'agent-plugins/ws/w/data/x' is a known private location and is excluded
+ok 35 - 'agent-plugins/ws/w/data/x' is a known private location and is excluded
+  ---
+  duration_ms: 0.283069
+  type: 'test'
+  ...
+# Subtest: 'agent-plugins/ws/w/staging' is a known private location and is excluded
+ok 36 - 'agent-plugins/ws/w/staging' is a known private location and is excluded
+  ---
+  duration_ms: 0.100816
+  type: 'test'
+  ...
+# Subtest: 'agent-plugins/ws/w/p/data' is a known private location and is excluded
+ok 37 - 'agent-plugins/ws/w/p/data' is a known private location and is excluded
+  ---
+  duration_ms: 0.150735
+  type: 'test'
+  ...
+# Subtest: 'agent-plugins/ws/w/p/memory/x' is a known private location and is excluded
+ok 38 - 'agent-plugins/ws/w/p/memory/x' is a known private location and is excluded
+  ---
+  duration_ms: 0.106264
+  type: 'test'
+  ...
+# Subtest: 'uploads/chat-attachments' is a known private location and is excluded
+ok 39 - 'uploads/chat-attachments' is a known private location and is excluded
+  ---
+  duration_ms: 0.079254
+  type: 'test'
+  ...
+# Subtest: 'uploads/chat-attachments/a.png' is a known private location and is excluded
+ok 40 - 'uploads/chat-attachments/a.png' is a known private location and is excluded
+  ---
+  duration_ms: 0.16609
+  type: 'test'
+  ...
+# Subtest: 'Uploads/Chat-Attachments/a.png' is a known private location and is excluded
+ok 41 - 'Uploads/Chat-Attachments/a.png' is a known private location and is excluded
+  ---
+  duration_ms: 0.213019
+  type: 'test'
+  ...
+# Subtest: 'themes/chat.db' is a known private location and is excluded
+ok 42 - 'themes/chat.db' is a known private location and is excluded
+  ---
+  duration_ms: 0.252362
+  type: 'test'
+  ...
+# Subtest: 'settings/chat.db-wal' is a known private location and is excluded
+ok 43 - 'settings/chat.db-wal' is a known private location and is excluded
+  ---
+  duration_ms: 0.102102
+  type: 'test'
+  ...
+# Subtest: 'settings/chat.db.bak' is a known private location and is excluded
+ok 44 - 'settings/chat.db.bak' is a known private location and is excluded
+  ---
+  duration_ms: 0.070691
+  type: 'test'
+  ...
+# Subtest: 'plugins/a/package/src/data/x' is ordinary content and is kept
+ok 45 - 'plugins/a/package/src/data/x' is ordinary content and is kept
+  ---
+  duration_ms: 0.205364
+  type: 'test'
+  ...
+# Subtest: 'plugins/a/package/data/x' is ordinary content and is kept
+ok 46 - 'plugins/a/package/data/x' is ordinary content and is kept
+  ---
+  duration_ms: 0.110703
+  type: 'test'
+  ...
+# Subtest: 'plugins/a/package/1.0.0/data/x' is ordinary content and is kept
+ok 47 - 'plugins/a/package/1.0.0/data/x' is ordinary content and is kept
+  ---
+  duration_ms: 0.095887
+  type: 'test'
+  ...
+# Subtest: 'plugins/a/package/lib/memory/x' is ordinary content and is kept
+ok 48 - 'plugins/a/package/lib/memory/x' is ordinary content and is kept
+  ---
+  duration_ms: 0.044829
+  type: 'test'
+  ...
+# Subtest: 'agent-plugins/ws/w/p/q/data' is ordinary content and is kept
+ok 49 - 'agent-plugins/ws/w/p/q/data' is ordinary content and is kept
+  ---
+  duration_ms: 0.043306
+  type: 'test'
+  ...
+# Subtest: 'uploads/chat-attachmentsx' is ordinary content and is kept
+ok 50 - 'uploads/chat-attachmentsx' is ordinary content and is kept
+  ---
+  duration_ms: 0.069496
+  type: 'test'
+  ...
+# Subtest: 'themes/chat.dbx' is ordinary content and is kept
+ok 51 - 'themes/chat.dbx' is ordinary content and is kept
+  ---
+  duration_ms: 0.04485
+  type: 'test'
+  ...
+# Subtest: 'themes/site/index.html' is ordinary content and is kept
+ok 52 - 'themes/site/index.html' is ordinary content and is kept
+  ---
+  duration_ms: 0.050762
+  type: 'test'
+  ...
+# Subtest: a '.git' segment retains its inclusion/refusal policy
+ok 53 - a '.git' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.401463
+  type: 'test'
+  ...
+# Subtest: a 'node_modules' segment retains its inclusion/refusal policy
+ok 54 - a 'node_modules' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.069922
+  type: 'test'
+  ...
+# Subtest: a '.publish-staging' segment retains its inclusion/refusal policy
+ok 55 - a '.publish-staging' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.047286
+  type: 'test'
+  ...
+# Subtest: a '.publish-previous' segment retains its inclusion/refusal policy
+ok 56 - a '.publish-previous' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.042463
+  type: 'test'
+  ...
+# Subtest: a '.storage-secret.json' segment retains its inclusion/refusal policy
+ok 57 - a '.storage-secret.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.036711
+  type: 'test'
+  ...
+# Subtest: a '.DS_Store' segment retains its inclusion/refusal policy
+ok 58 - a '.DS_Store' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.045254
+  type: 'test'
+  ...
+# Subtest: a '_share' segment retains its inclusion/refusal policy
+ok 59 - a '_share' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.044223
+  type: 'test'
+  ...
+# Subtest: a 'mcp.json' segment retains its inclusion/refusal policy
+ok 60 - a 'mcp.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.031214
+  type: 'test'
+  ...
+# Subtest: a '.npmrc' segment retains its inclusion/refusal policy
+ok 61 - a '.npmrc' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.030929
+  type: 'test'
+  ...
+# Subtest: a '.netrc' segment retains its inclusion/refusal policy
+ok 62 - a '.netrc' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.091844
+  type: 'test'
+  ...
+# Subtest: a '.fs-custom-root.json' segment retains its inclusion/refusal policy
+ok 63 - a '.fs-custom-root.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.125118
+  type: 'test'
+  ...
+# Subtest: a '.share-private' segment retains its inclusion/refusal policy
+ok 64 - a '.share-private' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.11786
+  type: 'test'
+  ...
+# Subtest: a 'my-credentials.txt' segment retains its inclusion/refusal policy
+ok 65 - a 'my-credentials.txt' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.04302
+  type: 'test'
+  ...
+# Subtest: a 'vault' segment retains its inclusion/refusal policy
+ok 66 - a 'vault' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.031514
+  type: 'test'
+  ...
+# Subtest: a 'keyring.json' segment retains its inclusion/refusal policy
+ok 67 - a 'keyring.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.037704
+  type: 'test'
+  ...
+# Subtest: a 'site-key' segment retains its inclusion/refusal policy
+ok 68 - a 'site-key' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.032023
+  type: 'test'
+  ...
+# Subtest: a 'private-key' segment retains its inclusion/refusal policy
+ok 69 - a 'private-key' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.033748
+  type: 'test'
+  ...
+# Subtest: a 'private_key.txt' segment retains its inclusion/refusal policy
+ok 70 - a 'private_key.txt' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.031417
+  type: 'test'
+  ...
+# Subtest: a 'privatekey' segment retains its inclusion/refusal policy
+ok 71 - a 'privatekey' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.031967
+  type: 'test'
+  ...
+# Subtest: a 'id_rsa' segment retains its inclusion/refusal policy
+ok 72 - a 'id_rsa' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.035068
+  type: 'test'
+  ...
+# Subtest: a 'id_dsa.pub' segment retains its inclusion/refusal policy
+ok 73 - a 'id_dsa.pub' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.031657
+  type: 'test'
+  ...
+# Subtest: a 'id_ecdsa' segment retains its inclusion/refusal policy
+ok 74 - a 'id_ecdsa' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.032628
+  type: 'test'
+  ...
+# Subtest: a 'id_ed25519' segment retains its inclusion/refusal policy
+ok 75 - a 'id_ed25519' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.037042
+  type: 'test'
+  ...
+# Subtest: a 'cert.pem' segment retains its inclusion/refusal policy
+ok 76 - a 'cert.pem' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.033668
+  type: 'test'
+  ...
+# Subtest: a 'tls.key' segment retains its inclusion/refusal policy
+ok 77 - a 'tls.key' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.032496
+  type: 'test'
+  ...
+# Subtest: a 'cert.p12' segment retains its inclusion/refusal policy
+ok 78 - a 'cert.p12' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.082183
+  type: 'test'
+  ...
+# Subtest: a 'cert.pfx' segment retains its inclusion/refusal policy
+ok 79 - a 'cert.pfx' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.045727
+  type: 'test'
+  ...
+# Subtest: a 'cert.pem.bak' segment retains its inclusion/refusal policy
+ok 80 - a 'cert.pem.bak' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.034631
+  type: 'test'
+  ...
+# Subtest: a 'tls.key-old' segment retains its inclusion/refusal policy
+ok 81 - a 'tls.key-old' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.046388
+  type: 'test'
+  ...
+# Subtest: a 'x.db' segment retains its inclusion/refusal policy
+ok 82 - a 'x.db' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.066532
+  type: 'test'
+  ...
+# Subtest: a 'x.sqlite' segment retains its inclusion/refusal policy
+ok 83 - a 'x.sqlite' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.046579
+  type: 'test'
+  ...
+# Subtest: a 'x.sqlite3' segment retains its inclusion/refusal policy
+ok 84 - a 'x.sqlite3' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.040868
+  type: 'test'
+  ...
+# Subtest: a 'x.db-wal' segment retains its inclusion/refusal policy
+ok 85 - a 'x.db-wal' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.039168
+  type: 'test'
+  ...
+# Subtest: a '.mcp.json' segment retains its inclusion/refusal policy
+ok 86 - a '.mcp.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.073069
+  type: 'test'
+  ...
+# Subtest: a '.mcp.local.json' segment retains its inclusion/refusal policy
+ok 87 - a '.mcp.local.json' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.040368
+  type: 'test'
+  ...
+# Subtest: a 'restore-point-1' segment retains its inclusion/refusal policy
+ok 88 - a 'restore-point-1' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.04512
+  type: 'test'
+  ...
+# Subtest: a 'superseded-1' segment retains its inclusion/refusal policy
+ok 89 - a 'superseded-1' segment retains its inclusion/refusal policy
+  ---
+  duration_ms: 0.044536
+  type: 'test'
+  ...
+# Subtest: 'mcp.json' below an installed package root is package content
+ok 90 - 'mcp.json' below an installed package root is package content
+  ---
+  duration_ms: 0.087007
+  type: 'test'
+  ...
+# Subtest: 'jini-credential-schemes.json' below an installed package root is package content
+ok 91 - 'jini-credential-schemes.json' below an installed package root is package content
+  ---
+  duration_ms: 0.036211
+  type: 'test'
+  ...
+# Subtest: 'nested/dir/MCP.json' below an installed package root is package content
+ok 92 - 'nested/dir/MCP.json' below an installed package root is package content
+  ---
+  duration_ms: 0.036702
+  type: 'test'
+  ...
+# Subtest: private credential names below a package root stay included
+ok 93 - private credential names below a package root stay included
+  ---
+  duration_ms: 0.051202
+  type: 'test'
+  ...
+# Subtest: a credential-like name below an installed package root is package content (__tests__/credential-card.test.mjs)
+ok 94 - a credential-like name below an installed package root is package content (__tests__/credential-card.test.mjs)
+  ---
+  duration_ms: 0.054458
+  type: 'test'
+  ...
+# Subtest: a credential-like name below an installed package root is package content (src/vault.js)
+ok 95 - a credential-like name below an installed package root is package content (src/vault.js)
+  ---
+  duration_ms: 0.063681
+  type: 'test'
+  ...
+# Subtest: a credential-like name below an installed package root is package content (docs/keyring.md)
+ok 96 - a credential-like name below an installed package root is package content (docs/keyring.md)
+  ---
+  duration_ms: 0.044937
+  type: 'test'
+  ...
+# Subtest: a credential-like name below an installed package root is package content (docs/private-key-setup.md)
+ok 97 - a credential-like name below an installed package root is package content (docs/private-key-setup.md)
+  ---
+  duration_ms: 0.03842
+  type: 'test'
+  ...
+# Subtest: a credential-like name outside an installed package root stays included (plugins/p/__tests__/credential-card.test.mjs)
+ok 98 - a credential-like name outside an installed package root stays included (plugins/p/__tests__/credential-card.test.mjs)
+  ---
+  duration_ms: 0.052461
+  type: 'test'
+  ...
+# Subtest: a credential-like name outside an installed package root stays included (agent-plugins/ws/w/p/__tests__/credential-card.test.mjs)
+ok 99 - a credential-like name outside an installed package root stays included (agent-plugins/ws/w/p/__tests__/credential-card.test.mjs)
+  ---
+  duration_ms: 0.035818
+  type: 'test'
+  ...
+# Subtest: a credential-like name outside an installed package root stays included (agent-plugins/ws/w/credential/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/x)
+ok 100 - a credential-like name outside an installed package root stays included (agent-plugins/ws/w/credential/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/x)
+  ---
+  duration_ms: 0.035796
+  type: 'test'
+  ...
+# Subtest: a credential-like name outside an installed package root stays included (agent-plugins/ws/w/p/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/credential-card.test.mjs)
+ok 101 - a credential-like name outside an installed package root stays included (agent-plugins/ws/w/p/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/credential-card.test.mjs)
+  ---
+  duration_ms: 0.033315
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (certs/tls.pem)
+ok 102 - every other suspicious-name rule still refuses below a package root (certs/tls.pem)
+  ---
+  duration_ms: 0.077718
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (keys/deploy.key)
+ok 103 - every other suspicious-name rule still refuses below a package root (keys/deploy.key)
+  ---
+  duration_ms: 0.037981
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (.git/config)
+ok 104 - every other suspicious-name rule still refuses below a package root (.git/config)
+  ---
+  duration_ms: 0.060907
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (node_modules/x/index.js)
+ok 105 - every other suspicious-name rule still refuses below a package root (node_modules/x/index.js)
+  ---
+  duration_ms: 0.230023
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (data.db)
+ok 106 - every other suspicious-name rule still refuses below a package root (data.db)
+  ---
+  duration_ms: 0.070647
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (id_rsa)
+ok 107 - every other suspicious-name rule still refuses below a package root (id_rsa)
+  ---
+  duration_ms: 0.037071
+  type: 'test'
+  ...
+# Subtest: every other suspicious-name rule still refuses below a package root (.mcp.json)
+ok 108 - every other suspicious-name rule still refuses below a package root (.mcp.json)
+  ---
+  duration_ms: 0.034531
+  type: 'test'
+  ...
+# Subtest: a .env file below a package root stays included
+ok 109 - a .env file below a package root stays included
+  ---
+  duration_ms: 0.092962
+  type: 'test'
+  ...
+# Subtest: the content scan retains a PEM private key inside a package file
+ok 110 - the content scan retains a PEM private key inside a package file
+  ---
+  duration_ms: 3.815394
+  type: 'test'
+  ...
+# Subtest: the content scan retains a provider key inside a package file
+ok 111 - the content scan retains a provider key inside a package file
+  ---
+  duration_ms: 0.530237
+  type: 'test'
+  ...
+# Subtest: a bundled package file this build ships byte for byte keeps its credential-like name
+ok 112 - a bundled package file this build ships byte for byte keeps its credential-like name
+  ---
+  duration_ms: 0.783235
+  type: 'test'
+  ...
+# Subtest: a forged package-shaped credentials.json holding a password stays included (no inventory)
+ok 113 - a forged package-shaped credentials.json holding a password stays included (no inventory)
+  ---
+  duration_ms: 0.288104
+  type: 'test'
+  ...
+# Subtest: a forged package-shaped credentials.json holding a password stays included (a digest this build never shipped)
+ok 114 - a forged package-shaped credentials.json holding a password stays included (a digest this build never shipped)
+  ---
+  duration_ms: 0.142099
+  type: 'test'
+  ...
+# Subtest: a file a verified package root does not list gets every name rule and the full scan
+ok 115 - a file a verified package root does not list gets every name rule and the full scan
+  ---
+  duration_ms: 0.332845
+  type: 'test'
+  ...
+# Subtest: a listed file whose bytes differ from the build's gets the ordinary rules
+ok 116 - a listed file whose bytes differ from the build's gets the ordinary rules
+  ---
+  duration_ms: 0.635094
+  type: 'test'
+  ...
+# Subtest: an opaque credentials.gz under a forged root stays included by name; the scanner never decodes it
+ok 117 - an opaque credentials.gz under a forged root stays included by name; the scanner never decodes it
+  ---
+  duration_ms: 0.841221
+  type: 'test'
+  ...
+# Subtest: package manifest names stay exempt by name below any package root; their bytes get the full scan
+ok 118 - package manifest names stay exempt by name below any package root; their bytes get the full scan
+  ---
+  duration_ms: 0.248857
+  type: 'test'
+  ...
+# Subtest: the inventory is keyed by the digest the seeder's own packer gives each bundled source folder
+ok 119 - the inventory is keyed by the digest the seeder's own packer gives each bundled source folder
+  ---
+  duration_ms: 52.062017
+  type: 'test'
+  ...
+# Subtest: a missing bundled source root verifies nothing
+ok 120 - a missing bundled source root verifies nothing
+  ---
+  duration_ms: 2.136474
+  type: 'test'
+  ...
+# Subtest: credential-looking ancestor names stay included
+ok 121 - credential-looking ancestor names stay included
+  ---
+  duration_ms: 0.221879
+  type: 'test'
+  ...
+# Subtest: a package exemption name outside any package root stays included
+ok 122 - a package exemption name outside any package root stays included
+  ---
+  duration_ms: 0.100941
+  type: 'test'
+  ...
+# Subtest: the trusted database projection path is exempt from the tree-path deny list
+ok 123 - the trusted database projection path is exempt from the tree-path deny list
+  ---
+  duration_ms: 0.5582
+  type: 'test'
+  ...
+# Subtest: an ordinary portable path passes
+ok 124 - an ordinary portable path passes
+  ---
+  duration_ms: 0.723076
+  type: 'test'
+  ...
+# Subtest: a tree-path refusal is reported with its reason ("themes/content.db")
+ok 125 - a tree-path refusal is reported with its reason ("themes/content.db")
+  ---
+  duration_ms: 0.424541
+  type: 'test'
+  ...
+# Subtest: a tree-path refusal is reported with its reason ("themes\\\\a.txt")
+ok 126 - a tree-path refusal is reported with its reason ("themes\\\\a.txt")
+  ---
+  duration_ms: 0.126107
+  type: 'test'
+  ...
+# Subtest: a tree-path refusal is reported with its reason ("themes/\\u0000")
+ok 127 - a tree-path refusal is reported with its reason ("themes/\\u0000")
+  ---
+  duration_ms: 0.110172
+  type: 'test'
+  ...
+# Subtest: a tree-path refusal is reported with its reason ("themes/x/x/x/x/x/x/x/x/)
+ok 128 - a tree-path refusal is reported with its reason ("themes/x/x/x/x/x/x/x/x/)
+  ---
+  duration_ms: 0.723654
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a:b")
+ok 129 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a:b")
+  ---
+  duration_ms: 0.296944
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/100%")
+ok 130 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/100%")
+  ---
+  duration_ms: 0.343209
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/é")
+ok 131 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/é")
+  ---
+  duration_ms: 0.368649
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/ﬁle")
+ok 132 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/ﬁle")
+  ---
+  duration_ms: 0.172192
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a<b")
+ok 133 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a<b")
+  ---
+  duration_ms: 0.129283
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a>b")
+ok 134 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a>b")
+  ---
+  duration_ms: 0.166761
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a\\"b")
+ok 135 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a\\"b")
+  ---
+  duration_ms: 0.221047
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a|b")
+ok 136 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a|b")
+  ---
+  duration_ms: 0.217554
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a?b")
+ok 137 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a?b")
+  ---
+  duration_ms: 0.118103
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a*b")
+ok 138 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a*b")
+  ---
+  duration_ms: 0.123453
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/con")
+ok 139 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/con")
+  ---
+  duration_ms: 0.101255
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/CON.txt")
+ok 140 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/CON.txt")
+  ---
+  duration_ms: 0.097395
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/prn")
+ok 141 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/prn")
+  ---
+  duration_ms: 0.153786
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/aux.md")
+ok 142 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/aux.md")
+  ---
+  duration_ms: 0.12446
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/nul")
+ok 143 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/nul")
+  ---
+  duration_ms: 0.087945
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/com1")
+ok 144 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/com1")
+  ---
+  duration_ms: 0.084361
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/lpt9.x")
+ok 145 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/lpt9.x")
+  ---
+  duration_ms: 0.088093
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x.")
+ok 146 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x.")
+  ---
+  duration_ms: 0.09233
+  type: 'test'
+  ...
+# Subtest: a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x /y")
+ok 147 - a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x /y")
+  ---
+  duration_ms: 0.10516
+  type: 'test'
+  ...
+# Subtest: control characters refuse without being echoed ("themes/a\\u0001")
+ok 148 - control characters refuse without being echoed ("themes/a\\u0001")
+  ---
+  duration_ms: 0.158284
+  type: 'test'
+  ...
+# Subtest: control characters refuse without being echoed ("themes/a")
+ok 149 - control characters refuse without being echoed ("themes/a")
+  ---
+  duration_ms: 0.235664
+  type: 'test'
+  ...
+# Subtest: a near-miss spelling stays portable ("themes/console")
+ok 150 - a near-miss spelling stays portable ("themes/console")
+  ---
+  duration_ms: 0.16251
+  type: 'test'
+  ...
+# Subtest: a near-miss spelling stays portable ("themes/com0")
+ok 151 - a near-miss spelling stays portable ("themes/com0")
+  ---
+  duration_ms: 0.12416
+  type: 'test'
+  ...
+# Subtest: a near-miss spelling stays portable ("themes/x.y")
+ok 152 - a near-miss spelling stays portable ("themes/x.y")
+  ---
+  duration_ms: 0.078307
+  type: 'test'
+  ...
+# Subtest: a near-miss spelling stays portable ("themes/ x")
+ok 153 - a near-miss spelling stays portable ("themes/ x")
+  ---
+  duration_ms: 0.068123
+  type: 'test'
+  ...
+# Subtest: plain content bytes are secret-free
+ok 154 - plain content bytes are secret-free
+  ---
+  duration_ms: 0.162287
+  type: 'test'
+  ...
+# Subtest: a provider key format stays included
+ok 155 - a provider key format stays included
+  ---
+  duration_ms: 0.374138
+  type: 'test'
+  ...
+# Subtest: a provider key inside binary bytes stays included
+ok 156 - a provider key inside binary bytes stays included
+  ---
+  duration_ms: 0.234828
+  type: 'test'
+  ...
+# Subtest: a credential reference in content (not code) stays included
+ok 157 - a credential reference in content (not code) stays included
+  ---
+  duration_ms: 0.296052
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/index.js)
+ok 158 - a credential reference in code is allowed (plugins/p/index.js)
+  ---
+  duration_ms: 0.238689
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/index.MJS)
+ok 159 - a credential reference in code is allowed (plugins/p/index.MJS)
+  ---
+  duration_ms: 0.141325
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/a.cjs)
+ok 160 - a credential reference in code is allowed (plugins/p/a.cjs)
+  ---
+  duration_ms: 0.095439
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/a.ts)
+ok 161 - a credential reference in code is allowed (plugins/p/a.ts)
+  ---
+  duration_ms: 0.107021
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/a.tsx)
+ok 162 - a credential reference in code is allowed (plugins/p/a.tsx)
+  ---
+  duration_ms: 0.085434
+  type: 'test'
+  ...
+# Subtest: a credential reference in code is allowed (plugins/p/a.jsx)
+ok 163 - a credential reference in code is allowed (plugins/p/a.jsx)
+  ---
+  duration_ms: 0.076865
+  type: 'test'
+  ...
+# Subtest: translated credential labels in a verified package file are allowed
+ok 164 - translated credential labels in a verified package file are allowed
+  ---
+  duration_ms: 0.238155
+  type: 'test'
+  ...
+# Subtest: the package payload relaxation matches the package root case-insensitively
+ok 165 - the package payload relaxation matches the package root case-insensitively
+  ---
+  duration_ms: 0.318577
+  type: 'test'
+  ...
+# Subtest: the same labels in an unverified package-shaped file get the full scan
+ok 166 - the same labels in an unverified package-shaped file get the full scan
+  ---
+  duration_ms: 0.173519
+  type: 'test'
+  ...
+# Subtest: a provider key in an installed package payload stays included
+ok 167 - a provider key in an installed package payload stays included
+  ---
+  duration_ms: 0.200148
+  type: 'test'
+  ...
+# Subtest: aliases fold case, compatibility forms, sharp-s and final sigma onto one key
+ok 168 - aliases fold case, compatibility forms, sharp-s and final sigma onto one key
+  ---
+  duration_ms: 0.15768
+  type: 'test'
+  ...
+# Subtest: a claim validates its path first
+ok 169 - a claim validates its path first
+  ---
+  duration_ms: 0.400368
+  type: 'test'
+  ...
+# Subtest: a claim records every ancestor spelling and the file key
+ok 170 - a claim records every ancestor spelling and the file key
+  ---
+  duration_ms: 0.36165
+  type: 'test'
+  ...
+# Subtest: a directory claim records spellings but no file key
+ok 171 - a directory claim records spellings but no file key
+  ---
+  duration_ms: 0.211925
+  type: 'test'
+  ...
+# Subtest: the same directory spelling may be claimed twice and hold files
+ok 172 - the same directory spelling may be claimed twice and hold files
+  ---
+  duration_ms: 0.49544
+  type: 'test'
+  ...
+# Subtest: two spellings of one ancestor are refused as aliases
+ok 173 - two spellings of one ancestor are refused as aliases
+  ---
+  duration_ms: 0.334746
+  type: 'test'
+  ...
+# Subtest: a path below an already-claimed file is a file/directory collision
+ok 174 - a path below an already-claimed file is a file/directory collision
+  ---
+  duration_ms: 0.334035
+  type: 'test'
+  ...
+# Subtest: a file over an already-claimed directory is a duplicate
+ok 175 - a file over an already-claimed directory is a duplicate
+  ---
+  duration_ms: 0.247938
+  type: 'test'
+  ...
+# Subtest: the same file claimed twice is a duplicate
+ok 176 - the same file claimed twice is a duplicate
+  ---
+  duration_ms: 0.198127
+  type: 'test'
+  ...
+# Subtest: a sibling sharing a name prefix is not a collision
+ok 177 - a sibling sharing a name prefix is not a collision
+  ---
+  duration_ms: 0.195887
+  type: 'test'
+  ...
+# Subtest: only notes and learned plugin memory travel, with the same credential scan
+ok 178 - only notes and learned plugin memory travel, with the same credential scan
+  ---
+  duration_ms: 0.521278
+  type: 'test'
+  ...
+# Subtest: runtime artifact contract: upload/anonymous verify/delete/confirmed absence; unrelated objects survive
+ok 179 - runtime artifact contract: upload/anonymous verify/delete/confirmed absence; unrelated objects survive
+  ---
+  duration_ms: 60.190097
+  type: 'test'
+  ...
+# Subtest: failed deletion never reports success, and the token is disabled before the provider is called
+ok 180 - failed deletion never reports success, and the token is disabled before the provider is called
+  ---
+  duration_ms: 13.854926
+  type: 'test'
+  ...
+# Subtest: changing the default storage cannot delete objects in a different bucket
+ok 181 - changing the default storage cannot delete objects in a different bucket
+  ---
+  duration_ms: 11.847759
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("share/<token>/site.tovu.zip")
+ok 182 - an invalid artifact key is refused before any I/O ("share/<token>/site.tovu.zip")
+  ---
+  duration_ms: 3.636863
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f)
+ok 183 - an invalid artifact key is refused before any I/O ("_share/0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f)
+  ---
+  duration_ms: 1.316582
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+ok 184 - an invalid artifact key is refused before any I/O ("_share/<token>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+  ---
+  duration_ms: 0.996462
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaa/site.tovu.zip")
+ok 185 - an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaa/site.tovu.zip")
+  ---
+  duration_ms: 0.892509
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>a/site.tovu.zip")
+ok 186 - an invalid artifact key is refused before any I/O ("_share/<token>a/site.tovu.zip")
+  ---
+  duration_ms: 1.017699
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaa7/site.tovu.zip")
+ok 187 - an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaa7/site.tovu.zip")
+  ---
+  duration_ms: 0.799564
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaaé/site.tovu.zip")
+ok 188 - an invalid artifact key is refused before any I/O ("_share/aaaaaaaaaaaaaaaé/site.tovu.zip")
+  ---
+  duration_ms: 0.735704
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/-site.tovu.zip")
+ok 189 - an invalid artifact key is refused before any I/O ("_share/<token>/-site.tovu.zip")
+  ---
+  duration_ms: 0.786508
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/Site.tovu.zip")
+ok 190 - an invalid artifact key is refused before any I/O ("_share/<token>/Site.tovu.zip")
+  ---
+  duration_ms: 1.231007
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/site.zip")
+ok 191 - an invalid artifact key is refused before any I/O ("_share/<token>/site.zip")
+  ---
+  duration_ms: 1.2768
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/ssssssssssssssssssssssssssssssss)
+ok 192 - an invalid artifact key is refused before any I/O ("_share/<token>/ssssssssssssssssssssssssssssssss)
+  ---
+  duration_ms: 0.90245
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/a/b.tovu.zip")
+ok 193 - an invalid artifact key is refused before any I/O ("_share/<token>/a/b.tovu.zip")
+  ---
+  duration_ms: 0.750335
+  type: 'test'
+  ...
+# Subtest: an invalid artifact key is refused before any I/O ("_share/<token>/site.tovu.zip\\n")
+ok 194 - an invalid artifact key is refused before any I/O ("_share/<token>/site.tovu.zip\\n")
+  ---
+  duration_ms: 0.71146
+  type: 'test'
+  ...
+# Subtest: the longest valid artifact file stem is accepted
+ok 195 - the longest valid artifact file stem is accepted
+  ---
+  duration_ms: 1.526348
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (http://share.example.test)
+ok 196 - a public origin that is not a bare HTTPS origin is refused (http://share.example.test)
+  ---
+  duration_ms: 0.846667
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (https://user@share.example.test)
+ok 197 - a public origin that is not a bare HTTPS origin is refused (https://user@share.example.test)
+  ---
+  duration_ms: 0.886033
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (https://:pw@share.example.test)
+ok 198 - a public origin that is not a bare HTTPS origin is refused (https://:pw@share.example.test)
+  ---
+  duration_ms: 0.820183
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (https://share.example.test/sub)
+ok 199 - a public origin that is not a bare HTTPS origin is refused (https://share.example.test/sub)
+  ---
+  duration_ms: 1.590821
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (https://share.example.test/?a=1)
+ok 200 - a public origin that is not a bare HTTPS origin is refused (https://share.example.test/?a=1)
+  ---
+  duration_ms: 1.397083
+  type: 'test'
+  ...
+# Subtest: a public origin that is not a bare HTTPS origin is refused (https://share.example.test/\#x)
+ok 201 - a public origin that is not a bare HTTPS origin is refused (https://share.example.test/\#x)
+  ---
+  duration_ms: 0.759973
+  type: 'test'
+  ...
+# Subtest: T48: an unparseable public origin raises a typed STORAGE_SETUP refusal
+ok 202 - T48: an unparseable public origin raises a typed STORAGE_SETUP refusal
+  ---
+  duration_ms: 0.977813
+  type: 'test'
+  ...
+# Subtest: the runtime delivery names the server provider and binds to its registry directory
+ok 203 - the runtime delivery names the server provider and binds to its registry directory
+  ---
+  duration_ms: 1.964105
+  type: 'test'
+  ...
+# Subtest: verification sends one credential-free HEAD with bounded timeouts and redirects refused
+ok 204 - verification sends one credential-free HEAD with bounded timeouts and redirects refused
+  ---
+  duration_ms: 1.234231
+  type: 'test'
+  ...
+# Subtest: a URL other than the delivery's own artifact URL is not verified and sends nothing
+ok 205 - a URL other than the delivery's own artifact URL is not verified and sends nothing
+  ---
+  duration_ms: 0.818264
+  type: 'test'
+  ...
+# Subtest: an absent artifact is confirmed by HTTP 404
+ok 206 - an absent artifact is confirmed by HTTP 404
+  ---
+  duration_ms: 0.821824
+  type: 'test'
+  ...
+# Subtest: an absent artifact is confirmed by HTTP 410
+ok 207 - an absent artifact is confirmed by HTTP 410
+  ---
+  duration_ms: 0.691686
+  type: 'test'
+  ...
+# Subtest: an absent artifact is not confirmed by any other status
+ok 208 - an absent artifact is not confirmed by any other status
+  ---
+  duration_ms: 0.771815
+  type: 'test'
+  ...
+# Subtest: a present artifact is confirmed by a 200 public attachment of the expected size
+ok 209 - a present artifact is confirmed by a 200 public attachment of the expected size
+  ---
+  duration_ms: 0.819791
+  type: 'test'
+  ...
+# Subtest: a bare or case-folded attachment disposition is accepted (attachment)
+ok 210 - a bare or case-folded attachment disposition is accepted (attachment)
+  ---
+  duration_ms: 0.780583
+  type: 'test'
+  ...
+# Subtest: a bare or case-folded attachment disposition is accepted (ATTACHMENT;filename=x)
+ok 211 - a bare or case-folded attachment disposition is accepted (ATTACHMENT;filename=x)
+  ---
+  duration_ms: 0.854486
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by a non-200 status
+ok 212 - a present artifact is not confirmed by a non-200 status
+  ---
+  duration_ms: 0.874475
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by a different content-length
+ok 213 - a present artifact is not confirmed by a different content-length
+  ---
+  duration_ms: 0.781366
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by a cacheable response
+ok 214 - a present artifact is not confirmed by a cacheable response
+  ---
+  duration_ms: 0.684133
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by a sniffable response
+ok 215 - a present artifact is not confirmed by a sniffable response
+  ---
+  duration_ms: 6.39344
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by an indexable response
+ok 216 - a present artifact is not confirmed by an indexable response
+  ---
+  duration_ms: 1.034494
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by an inline disposition
+ok 217 - a present artifact is not confirmed by an inline disposition
+  ---
+  duration_ms: 0.782357
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by an attachment-prefixed token
+ok 218 - a present artifact is not confirmed by an attachment-prefixed token
+  ---
+  duration_ms: 0.793394
+  type: 'test'
+  ...
+# Subtest: a present artifact is not confirmed by no disposition
+ok 219 - a present artifact is not confirmed by no disposition
+  ---
+  duration_ms: 0.747506
+  type: 'test'
+  ...
+# Subtest: a runtime upload of a new token receives the artifact and returns its public URL
+ok 220 - a runtime upload of a new token receives the artifact and returns its public URL
+  ---
+  duration_ms: 33.040276
+  type: 'test'
+  ...
+# Subtest: a repeated runtime upload of the same artifact is idempotent
+ok 221 - a repeated runtime upload of the same artifact is idempotent
+  ---
+  duration_ms: 7.419506
+  type: 'test'
+  ...
+# Subtest: a runtime upload refuses an invalid key
+ok 222 - a runtime upload refuses an invalid key
+  ---
+  duration_ms: 1.244519
+  type: 'test'
+  ...
+# Subtest: a runtime upload refuses a token already naming different bytes
+ok 223 - a runtime upload refuses a token already naming different bytes
+  ---
+  duration_ms: 8.082114
+  type: 'test'
+  ...
+# Subtest: a runtime upload refuses a token already owned by another site
+ok 224 - a runtime upload refuses a token already owned by another site
+  ---
+  duration_ms: 4.20405
+  type: 'test'
+  ...
+# Subtest: a runtime delete disables and removes only this site's matching row
+ok 225 - a runtime delete disables and removes only this site's matching row
+  ---
+  duration_ms: 11.475851
+  type: 'test'
+  ...
+# [site-share] runtime share delivery is misconfigured; falling back to object storage or a private ZIP. { code: 'STORAGE_SETUP' }
+# [site-share] runtime share delivery is misconfigured; falling back to object storage or a private ZIP. { code: 'STORAGE_SETUP' }
+# Subtest: a runtime delete of an unknown key (or another site's row) changes nothing
+ok 226 - a runtime delete of an unknown key (or another site's row) changes nothing
+  ---
+  duration_ms: 9.045246
+  type: 'test'
+  ...
+# Subtest: a runtime delete refuses an invalid key
+ok 227 - a runtime delete refuses an invalid key
+  ---
+  duration_ms: 1.210476
+  type: 'test'
+  ...
+# Subtest: the peer delivery names the server provider and binds to the peer base URL
+ok 228 - the peer delivery names the server provider and binds to the peer base URL
+  ---
+  duration_ms: 0.286699
+  type: 'test'
+  ...
+# Subtest: a peer upload PUTs the archive to the remote workspace's artifact route and returns the peer URL
+ok 229 - a peer upload PUTs the archive to the remote workspace's artifact route and returns the peer URL
+  ---
+  duration_ms: 0.64938
+  type: 'test'
+  ...
+# Subtest: a peer upload refuses an invalid key before any request
+ok 230 - a peer upload refuses an invalid key before any request
+  ---
+  duration_ms: 0.184955
+  type: 'test'
+  ...
+# Subtest: a peer delete sends DELETE to the artifact route
+ok 231 - a peer delete sends DELETE to the artifact route
+  ---
+  duration_ms: 0.201647
+  type: 'test'
+  ...
+# Subtest: a peer delete treats a 404 as already deleted
+ok 232 - a peer delete treats a 404 as already deleted
+  ---
+  duration_ms: 1.969269
+  type: 'test'
+  ...
+# Subtest: a peer delete propagates any other peer failure
+ok 233 - a peer delete propagates any other peer failure
+  ---
+  duration_ms: 0.23745
+  type: 'test'
+  ...
+# Subtest: a peer delete refuses an invalid key before any request
+ok 234 - a peer delete refuses an invalid key before any request
+  ---
+  duration_ms: 0.115695
+  type: 'test'
+  ...
+# Subtest: peer verification checks the peer URL anonymously, never through the peer credential
+ok 235 - peer verification checks the peer URL anonymously, never through the peer credential
+  ---
+  duration_ms: 0.277894
+  type: 'test'
+  ...
+# Subtest: peer verification refuses the runtime origin's URL for the same key
+ok 236 - peer verification refuses the runtime origin's URL for the same key
+  ---
+  duration_ms: 0.108836
+  type: 'test'
+  ...
+# Subtest: selection prefers a connected peer and does not consult OBJECT_STORE
+ok 237 - selection prefers a connected peer and does not consult OBJECT_STORE
+  ---
+  duration_ms: 0.174448
+  type: 'test'
+  ...
+# Subtest: selection keeps the peer when the saved binding is its base URL
+ok 238 - selection keeps the peer when the saved binding is its base URL
+  ---
+  duration_ms: 0.053842
+  type: 'test'
+  ...
+# Subtest: selection falls back to the runtime delivery when no peer is connected
+ok 239 - selection falls back to the runtime delivery when no peer is connected
+  ---
+  duration_ms: 0.100595
+  type: 'test'
+  ...
+# Subtest: selection falls back to the runtime delivery when the peer connection fails
+ok 240 - selection falls back to the runtime delivery when the peer connection fails
+  ---
+  duration_ms: 0.074104
+  type: 'test'
+  ...
+# Subtest: T48: an invalid runtime origin falls back to object storage or private ZIP delivery
+ok 241 - T48: an invalid runtime origin falls back to object storage or private ZIP delivery
+  ---
+  duration_ms: 2.098503
+  type: 'test'
+  ...
+# Subtest: a skipped runtime delivery logs one warning with its refusal code and never the configured origin
+ok 242 - a skipped runtime delivery logs one warning with its refusal code and never the configured origin
+  ---
+  duration_ms: 1.458287
+  type: 'test'
+  ...
+# Subtest: selection skips a peer bound elsewhere and takes the runtime delivery matching the saved binding
+ok 243 - selection skips a peer bound elsewhere and takes the runtime delivery matching the saved binding
+  ---
+  duration_ms: 0.123564
+  type: 'test'
+  ...
+# Subtest: a saved server binding matching neither peer nor runtime selects nothing and never OBJECT_STORE
+ok 244 - a saved server binding matching neither peer nor runtime selects nothing and never OBJECT_STORE
+  ---
+  duration_ms: 0.109315
+  type: 'test'
+  ...
+# Subtest: a saved server provider without any server delivery selects nothing
+ok 245 - a saved server provider without any server delivery selects nothing
+  ---
+  duration_ms: 0.097688
+  type: 'test'
+  ...
+# Subtest: with no provider, a runtime bound elsewhere falls through to OBJECT_STORE
+ok 246 - with no provider, a runtime bound elsewhere falls through to OBJECT_STORE
+  ---
+  duration_ms: 0.08368
+  type: 'test'
+  ...
+# Subtest: with no provider and no server delivery, OBJECT_STORE is selected
+ok 247 - with no provider and no server delivery, OBJECT_STORE is selected
+  ---
+  duration_ms: 0.126206
+  type: 'test'
+  ...
+# Subtest: an empty provider is treated as no provider
+ok 248 - an empty provider is treated as no provider
+  ---
+  duration_ms: 0.059658
+  type: 'test'
+  ...
+# Subtest: a saved OBJECT_STORE provider skips the server deliveries
+ok 249 - a saved OBJECT_STORE provider skips the server deliveries
+  ---
+  duration_ms: 0.073093
+  type: 'test'
+  ...
+# Subtest: a saved OBJECT_STORE binding that differs selects nothing
+ok 250 - a saved OBJECT_STORE binding that differs selects nothing
+  ---
+  duration_ms: 0.040461
+  type: 'test'
+  ...
+# Subtest: a saved provider the site's object store does not resolve to selects nothing (the server deliveries are not consulted)
+ok 251 - a saved provider the site's object store does not resolve to selects nothing (the server deliveries are not consulted)
+  ---
+  duration_ms: 0.049237
+  type: 'test'
+  ...
+# Subtest: no configured OBJECT_STORE selects nothing
+ok 252 - no configured OBJECT_STORE selects nothing
+  ---
+  duration_ms: 0.056362
+  type: 'test'
+  ...
+# Subtest: a failed OBJECT_STORE credential resolution selects nothing
+ok 253 - a failed OBJECT_STORE credential resolution selects nothing
+  ---
+  duration_ms: 0.067075
+  type: 'test'
+  ...
+# Subtest: a runtime-delivered share still revokes after its site folder is moved, delivery removed
+ok 254 - a runtime-delivered share still revokes after its site folder is moved, delivery removed
+  ---
+  duration_ms: 46.105761
+  type: 'test'
+  ...
+# Subtest: populated undeclared plugin tables still refuse by name beside declared tables
+ok 255 - populated undeclared plugin tables still refuse by name beside declared tables
+  ---
+  duration_ms: 713.29377
+  type: 'test'
+  ...
+# Subtest: import refuses tampered portable plugin DDL and private plugin tables
+ok 256 - import refuses tampered portable plugin DDL and private plugin tables
+  ---
+  duration_ms: 8691.016535
+  type: 'test'
+  ...
+# Subtest: import refuses a portable row owned by a workspace the archive does not contain
+ok 257 - import refuses a portable row owned by a workspace the archive does not contain
+  ---
+  duration_ms: 3514.146108
+  type: 'test'
+  ...
+# Subtest: preparation reports failed snapshot without sanitizing or reading media
+ok 258 - preparation reports failed snapshot without sanitizing or reading media
+  ---
+  duration_ms: 594.322787
+  type: 'test'
+  ...
+# Subtest: preparation without settings regenerates portable defaults and preserves watermark
+ok 259 - preparation without settings regenerates portable defaults and preserves watermark
+  ---
+  duration_ms: 606.617839
+  type: 'test'
+  ...
+# Subtest: portable settings retain only safe provenance values and never host credentials or identity
+ok 260 - portable settings retain only safe provenance values and never host credentials or identity
+  ---
+  duration_ms: 689.650337
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON {
+ok 261 - settings refuse non-object JSON {
+  ---
+  duration_ms: 723.561292
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON null
+ok 262 - settings refuse non-object JSON null
+  ---
+  duration_ms: 626.281657
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON []
+ok 263 - settings refuse non-object JSON []
+  ---
+  duration_ms: 587.785438
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON 42
+ok 264 - settings refuse non-object JSON 42
+  ---
+  duration_ms: 675.243082
+  type: 'test'
+  ...
+# Subtest: settings refuse non-object JSON "name"
+ok 265 - settings refuse non-object JSON "name"
+  ---
+  duration_ms: 690.067464
+  type: 'test'
+  ...
+# Subtest: oversized settings refuse before JSON parsing
+ok 266 - oversized settings refuse before JSON parsing
+  ---
+  duration_ms: 568.058744
+  type: 'test'
+  ...
+# Subtest: linked required content causes a named refusal instead of silently omitting the file
+ok 267 - linked required content causes a named refusal instead of silently omitting the file
+  ---
+  duration_ms: 539.593835
+  type: 'test'
+  ...
+# Subtest: media missing refuses before archive creation
+ok 268 - media missing refuses before archive creation
+  ---
+  duration_ms: 594.524172
+  type: 'test'
+  ...
+# Subtest: media negative size refuses before archive creation
+ok 269 - media negative size refuses before archive creation
+  ---
+  duration_ms: 630.375311
+  type: 'test'
+  ...
+# Subtest: media fractional size refuses before archive creation
+ok 270 - media fractional size refuses before archive creation
+  ---
+  duration_ms: 587.595746
+  type: 'test'
+  ...
+# Subtest: media non-finite size refuses before archive creation
+ok 271 - media non-finite size refuses before archive creation
+  ---
+  duration_ms: 510.180099
+  type: 'test'
+  ...
+# Subtest: media changed length refuses before archive creation
+ok 272 - media changed length refuses before archive creation
+  ---
+  duration_ms: 520.355915
+  type: 'test'
+  ...
+# Subtest: media changed hash refuses before archive creation
+ok 273 - media changed hash refuses before archive creation
+  ---
+  duration_ms: 584.364161
+  type: 'test'
+  ...
+# Subtest: media must have a size-aware store
+ok 274 - media must have a size-aware store
+  ---
+  duration_ms: 600.335049
+  type: 'test'
+  ...
+# Subtest: Library document size 0 refuses before reading bytes
+ok 275 - Library document size 0 refuses before reading bytes
+  ---
+  duration_ms: 671.82608
+  type: 'test'
+  ...
+# Subtest: Library document size 52428801 refuses before reading bytes
+ok 276 - Library document size 52428801 refuses before reading bytes
+  ---
+  duration_ms: 535.571875
+  type: 'test'
+  ...
+# Subtest: duplicate media references fetch once and preserve the source bytes
+ok 277 - duplicate media references fetch once and preserve the source bytes
+  ---
+  duration_ms: 613.434981
+  type: 'test'
+  ...
+# Subtest: settings removed after collection refuse as stale instead of returning a partial share
+ok 278 - settings removed after collection refuse as stale instead of returning a partial share
+  ---
+  duration_ms: 609.99652
+  type: 'test'
+  ...
+# Subtest: media cap is enforced from reported size before fetching the blob
+ok 279 - media cap is enforced from reported size before fetching the blob
+  ---
+  duration_ms: 672.725949
+  type: 'test'
+  ...
+# Subtest: an already-aborted signal stops before the snapshot is taken
+ok 280 - an already-aborted signal stops before the snapshot is taken
+  ---
+  duration_ms: 4.907064
+  type: 'test'
+  ...
+# Subtest: a snapshot failure is refused with the snapshot's own message
+ok 281 - a snapshot failure is refused with the snapshot's own message
+  ---
+  duration_ms: 2.296336
+  type: 'test'
+  ...
+# Subtest: the sanitizer receives the snapshot bytes and the caller's signal
+ok 282 - the sanitizer receives the snapshot bytes and the caller's signal
+  ---
+  duration_ms: 22.98141
+  type: 'test'
+  ...
+# Subtest: a projected database over the expanded cap is refused before media is read
+ok 283 - a projected database over the expanded cap is refused before media is read
+  ---
+  duration_ms: 40.818638
+  type: 'test'
+  ...
+# Subtest: a skipped site file is refused by name with its reason
+ok 284 - a skipped site file is refused by name with its reason
+  ---
+  duration_ms: 8.088246
+  type: 'test'
+  ...
+# Subtest: the plan lists collected non-settings files and buffers regenerated settings
+ok 285 - the plan lists collected non-settings files and buffers regenerated settings
+  ---
+  duration_ms: 11.359954
+  type: 'test'
+  ...
+# Subtest: an abort before a media fetch stops the media loop
+ok 286 - an abort before a media fetch stops the media loop
+  ---
+  duration_ms: 4.448322
+  type: 'test'
+  ...
+# Subtest: repeated media keys are fetched and buffered once
+ok 287 - repeated media keys are fetched and buffered once
+  ---
+  duration_ms: 15.311655
+  type: 'test'
+  ...
+# Subtest: a media key that is not a safe path is refused
+ok 288 - a media key that is not a safe path is refused
+  ---
+  duration_ms: 11.873242
+  type: 'test'
+  ...
+# Subtest: a blob store that cannot report sizes is refused
+ok 289 - a blob store that cannot report sizes is refused
+  ---
+  duration_ms: 7.198571
+  type: 'test'
+  ...
+# Subtest: media missing from the blob store is refused by key
+ok 290 - media missing from the blob store is refused by key
+  ---
+  duration_ms: 16.729663
+  type: 'test'
+  ...
+# Subtest: a reported media size of -1 is refused
+ok 291 - a reported media size of -1 is refused
+  ---
+  duration_ms: 6.204914
+  type: 'test'
+  ...
+# Subtest: a reported media size of 1.5 is refused
+ok 292 - a reported media size of 1.5 is refused
+  ---
+  duration_ms: 6.227104
+  type: 'test'
+  ...
+# Subtest: a Library document blob of 0 bytes is refused
+ok 293 - a Library document blob of 0 bytes is refused
+  ---
+  duration_ms: 6.308541
+  type: 'test'
+  ...
+# Subtest: a Library document blob of 52428801 bytes is refused
+ok 294 - a Library document blob of 52428801 bytes is refused
+  ---
+  duration_ms: 6.182933
+  type: 'test'
+  ...
+# Subtest: an empty blob that is not a document is shared
+ok 295 - an empty blob that is not a document is shared
+  ---
+  duration_ms: 11.006066
+  type: 'test'
+  ...
+# Subtest: a blob over the ordinary-file cap is refused from its reported size
+ok 296 - a blob over the ordinary-file cap is refused from its reported size
+  ---
+  duration_ms: 4.966604
+  type: 'test'
+  ...
+# Subtest: a blob whose bytes differ in length from its reported size is refused
+ok 297 - a blob whose bytes differ in length from its reported size is refused
+  ---
+  duration_ms: 6.153152
+  type: 'test'
+  ...
+# Subtest: a blob whose hash differs from the database is refused
+ok 298 - a blob whose hash differs from the database is refused
+  ---
+  duration_ms: 18.779211
+  type: 'test'
+  ...
+# Subtest: a blob whose hash matches the database is shared
+ok 299 - a blob whose hash matches the database is shared
+  ---
+  duration_ms: 12.139516
+  type: 'test'
+  ...
+# Subtest: a config without a string name falls back to the site folder name
+ok 300 - a config without a string name falls back to the site folder name
+  ---
+  duration_ms: 8.05304
+  type: 'test'
+  ...
+# Subtest: site meta keeps only well-formed provenance values
+ok 301 - site meta keeps only well-formed provenance values
+  ---
+  duration_ms: 6.935443
+  type: 'test'
+  ...
+# Subtest: site meta drops negative, fractional and non-scalar provenance values
+ok 302 - site meta drops negative, fractional and non-scalar provenance values
+  ---
+  duration_ms: 3.481893
+  type: 'test'
+  ...
+# Subtest: a settings file over 2 MiB is refused before it is read
+ok 303 - a settings file over 2 MiB is refused before it is read
+  ---
+  duration_ms: 6.642298
+  type: 'test'
+  ...
+# Subtest: a settings file containing { is refused as not a JSON object
+ok 304 - a settings file containing { is refused as not a JSON object
+  ---
+  duration_ms: 3.246099
+  type: 'test'
+  ...
+# Subtest: a settings file containing null is refused as not a JSON object
+ok 305 - a settings file containing null is refused as not a JSON object
+  ---
+  duration_ms: 3.630348
+  type: 'test'
+  ...
+# Subtest: a settings file containing [] is refused as not a JSON object
+ok 306 - a settings file containing [] is refused as not a JSON object
+  ---
+  duration_ms: 3.183302
+  type: 'test'
+  ...
+# Subtest: a settings file containing 42 is refused as not a JSON object
+ok 307 - a settings file containing 42 is refused as not a JSON object
+  ---
+  duration_ms: 3.132146
+  type: 'test'
+  ...
+# Subtest: a settings file changed after collection is refused as a stale plan
+ok 308 - a settings file changed after collection is refused as a stale plan
+  ---
+  duration_ms: 4.671985
+  type: 'test'
+  ...
+# Subtest: regenerated settings that tip the share over the expanded cap are refused
+ok 309 - regenerated settings that tip the share over the expanded cap are refused
+  ---
+  duration_ms: 35.560625
+  type: 'test'
+  ...
+# Subtest: revoke: unknown or another site's shareId is NOT_FOUND and leaves the other site's export live
+ok 310 - revoke: unknown or another site's shareId is NOT_FOUND and leaves the other site's export live
+  ---
+  duration_ms: 23.185591
+  type: 'test'
+  ...
+# Subtest: revoke twice is idempotent: same revokedAt, token stays dead, no error
+ok 311 - revoke twice is idempotent: same revokedAt, token stays dead, no error
+  ---
+  duration_ms: 12.335321
+  type: 'test'
+  ...
+# Subtest: revoke of a remote export disables the link first; without its original storage it fails, then a retry deletes and verifies
+ok 312 - revoke of a remote export disables the link first; without its original storage it fails, then a retry deletes and verifies
+  ---
+  duration_ms: 17.713327
+  type: 'test'
+  ...
+# Subtest: revoke reports DELETE_FAILED when the remote copy is still reachable after delete
+ok 313 - revoke reports DELETE_FAILED when the remote copy is still reachable after delete
+  ---
+  duration_ms: 19.966481
+  type: 'test'
+  ...
+# Subtest: import refuses corrupt uploads (not a ZIP, truncated, empty) without registering or staging a site
+    # Subtest: not a zip
+    ok 1 - not a zip
+      ---
+      duration_ms: 12.274602
+      type: 'test'
+      ...
+    # Subtest: truncated
+    ok 2 - truncated
+      ---
+      duration_ms: 16.131149
+      type: 'test'
+      ...
+    # Subtest: central directory only
+    ok 3 - central directory only
+      ---
+      duration_ms: 17.066575
+      type: 'test'
+      ...
+    # Subtest: empty
+    ok 4 - empty
+      ---
+      duration_ms: 15.386212
+      type: 'test'
+      ...
+    1..4
+ok 314 - import refuses corrupt uploads (not a ZIP, truncated, empty) without registering or staging a site
+  ---
+  duration_ms: 622.511417
+  type: 'test'
+  ...
+# Subtest: export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block
+ok 315 - export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block
+  ---
+  duration_ms: 3632.159146
+  type: 'test'
+  ...
+# Subtest: export of populated undeclared lipay tables refuses by name with a clear next step; empty ones do not block
+ok 316 - export of populated undeclared lipay tables refuses by name with a clear next step; empty ones do not block
+  ---
+  duration_ms: 3101.438874
+  type: 'test'
+  ...
+# Subtest: export leaves the source's publish history destinations untouched and never carries them
+ok 317 - export leaves the source's publish history destinations untouched and never carries them
+  ---
+  duration_ms: 656.718619
+  type: 'test'
+  ...
+# Subtest: receiver rejects unsafe filenames before reserving a token
+ok 318 - receiver rejects unsafe filenames before reserving a token
+  ---
+  duration_ms: 4.035949
+  type: 'test'
+  ...
+# Subtest: receiver compensates writeArtifact failure without making a token public
+ok 319 - receiver compensates writeArtifact failure without making a token public
+  ---
+  duration_ms: 3.83765
+  type: 'test'
+  ...
+# Subtest: receiver compensates put failure without making a token public
+ok 320 - receiver compensates put failure without making a token public
+  ---
+  duration_ms: 3.797864
+  type: 'test'
+  ...
+# Subtest: cancelled export disables and deletes the local artifact before delivery
+ok 321 - cancelled export disables and deletes the local artifact before delivery
+  ---
+  duration_ms: 8.222996
+  type: 'test'
+  ...
+# Subtest: failed delivery retains a retryable locator when delete throws
+ok 322 - failed delivery retains a retryable locator when delete throws
+  ---
+  duration_ms: 8.7454
+  type: 'test'
+  ...
+# Subtest: failed delivery retains a retryable locator when purge unverified
+ok 323 - failed delivery retains a retryable locator when purge unverified
+  ---
+  duration_ms: 8.733587
+  type: 'test'
+  ...
+# Subtest: upload exception without a URL reaches incident handling and still deletes remote bytes
+ok 324 - upload exception without a URL reaches incident handling and still deletes remote bytes
+  ---
+  duration_ms: 6.793756
+  type: 'test'
+  ...
+# Subtest: a concurrent revoke during upload cannot publish a working token
+ok 325 - a concurrent revoke during upload cannot publish a working token
+  ---
+  duration_ms: 14.007408
+  type: 'test'
+  ...
+# Subtest: failed local-runtime verification never remotely deletes through its own registry
+ok 326 - failed local-runtime verification never remotely deletes through its own registry
+  ---
+  duration_ms: 8.687998
+  type: 'test'
+  ...
+# Subtest: revoke preserves the tombstone if deleting the local ZIP fails, and retry completes
+ok 327 - revoke preserves the tombstone if deleting the local ZIP fails, and retry completes
+  ---
+  duration_ms: 8.889997
+  type: 'test'
+  ...
+# Subtest: revoke checks provider as well as binding and skips URL verification when none was uploaded
+ok 328 - revoke checks provider as well as binding and skips URL verification when none was uploaded
+  ---
+  duration_ms: 8.935875
+  type: 'test'
+  ...
+# Subtest: registry validates identifiers, preserves immutable claims, scopes history and sorts newest first
+ok 329 - registry validates identifiers, preserves immutable claims, scopes history and sorts newest first
+  ---
+  duration_ms: 16.64898
+  type: 'test'
+  ...
+# Subtest: registry does not hide corrupt metadata or filesystem failures as a missing export
+ok 330 - registry does not hide corrupt metadata or filesystem failures as a missing export
+  ---
+  duration_ms: 11.030587
+  type: 'test'
+  ...
+# Subtest: backend refuses unknown jobs and concurrent exports, resumes only for the same principal
+ok 331 - backend refuses unknown jobs and concurrent exports, resumes only for the same principal
+  ---
+  duration_ms: 10.349215
+  type: 'test'
+  ...
+# Subtest: backend resolves a saved remote locator and leaves a revoked row when resolution fails
+ok 332 - backend resolves a saved remote locator and leaves a revoked row when resolution fails
+  ---
+  duration_ms: 8.298675
+  type: 'test'
+  ...
+# Subtest: delivery selection pins the runtime binding and rejects unsupported providers without touching object storage
+ok 333 - delivery selection pins the runtime binding and rejects unsupported providers without touching object storage
+  ---
+  duration_ms: 2.639151
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin http://public.example
+ok 334 - runtime delivery rejects non-origin http://public.example
+  ---
+  duration_ms: 1.362657
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://user@public.example
+ok 335 - runtime delivery rejects non-origin https://user@public.example
+  ---
+  duration_ms: 1.245685
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://:password@public.example
+ok 336 - runtime delivery rejects non-origin https://:password@public.example
+  ---
+  duration_ms: 1.564588
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/path
+ok 337 - runtime delivery rejects non-origin https://public.example/path
+  ---
+  duration_ms: 1.464209
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/?x=1
+ok 338 - runtime delivery rejects non-origin https://public.example/?x=1
+  ---
+  duration_ms: 1.093281
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/\#fragment
+ok 339 - runtime delivery rejects non-origin https://public.example/\#fragment
+  ---
+  duration_ms: 1.146878
+  type: 'test'
+  ...
+# Subtest: runtime adapter rejects key/URL tampering and verifies every anonymous download header
+ok 340 - runtime adapter rejects key/URL tampering and verifies every anonymous download header
+  ---
+  duration_ms: 9.907226
+  type: 'test'
+  ...
+# Subtest: ordinary file cap applies independently of total expanded bytes
+ok 341 - ordinary file cap applies independently of total expanded bytes
+  ---
+  duration_ms: 0.398271
+  type: 'test'
+  ...
+# Subtest: zip surfaces encoding failures, translates size refusals, detects stale files and increments progress
+ok 342 - zip surfaces encoding failures, translates size refusals, detects stale files and increments progress
+  ---
+  duration_ms: 6.597394
+  type: 'test'
+  ...
+# Subtest: portable paths enforce depth, private-file omissions, content scanning and collisions
+ok 343 - portable paths enforce depth, private-file omissions, content scanning and collisions
+  ---
+  duration_ms: 2.331142
+  type: 'test'
+  ...
+# Subtest: backend reports archive progress without starting a second ZIP and keeps verified links private
+ok 344 - backend reports archive progress without starting a second ZIP and keeps verified links private
+  ---
+  duration_ms: 17.619728
+  type: 'test'
+  ...
+# Subtest: backend cancels a waiting caller and releases its active lane after preparation settles
+ok 345 - backend cancels a waiting caller and releases its active lane after preparation settles
+  ---
+  duration_ms: 7.547335
+  type: 'test'
+  ...
+# Subtest: registry propagates broken directory/tombstone errors instead of treating them as absent
+ok 346 - registry propagates broken directory/tombstone errors instead of treating them as absent
+  ---
+  duration_ms: 8.820626
+  type: 'test'
+  ...
+# Subtest: ZIP refuses an oversized manifest before encoding and preserves non-Error encoder failures
+ok 347 - ZIP refuses an oversized manifest before encoding and preserves non-Error encoder failures
+  ---
+  duration_ms: 8.866923
+  type: 'test'
+  ...
+# Subtest: get rethrows a non-ENOENT failure reading the share's metadata
+ok 348 - get rethrows a non-ENOENT failure reading the share's metadata
+  ---
+  duration_ms: 11.362551
+  type: 'test'
+  ...
+# Subtest: get rethrows a non-ENOENT failure reading the revoked marker instead of reporting the share active
+ok 349 - get rethrows a non-ENOENT failure reading the revoked marker instead of reporting the share active
+  ---
+  duration_ms: 5.75783
+  type: 'test'
+  ...
+# Subtest: list rethrows when the registry path exists but is not a directory
+ok 350 - list rethrows when the registry path exists but is not a directory
+  ---
+  duration_ms: 6.839462
+  type: 'test'
+  ...
+# Subtest: findToken rethrows a non-ENOENT failure reading the token index
+ok 351 - findToken rethrows a non-ENOENT failure reading the token index
+  ---
+  duration_ms: 2.479182
+  type: 'test'
+  ...
+# Subtest: reserveToken surfaces a registry directory that cannot be created
+ok 352 - reserveToken surfaces a registry directory that cannot be created
+  ---
+  duration_ms: 2.534855
+  type: 'test'
+  ...
+# Subtest: disable rethrows a non-EEXIST failure writing the revoked marker
+ok 353 - disable rethrows a non-EEXIST failure writing the revoked marker
+  ---
+  duration_ms: 5.195675
+  type: 'test'
+  ...
+# Subtest: deleteArtifact rethrows a non-ENOENT failure and ignores a missing artifact
+ok 354 - deleteArtifact rethrows a non-ENOENT failure and ignores a missing artifact
+  ---
+  duration_ms: 2.947039
+  type: 'test'
+  ...
+# Subtest: a minted share token is 16 ASCII letters and two mints differ
+ok 355 - a minted share token is 16 ASCII letters and two mints differ
+  ---
+  duration_ms: 6.058244
+  type: 'test'
+  ...
+# Subtest: the token alphabet is exactly the 52 ASCII letters
+ok 356 - the token alphabet is exactly the 52 ASCII letters
+  ---
+  duration_ms: 0.229871
+  type: 'test'
+  ...
+# Subtest: the token shape accepts 16 letters and rejects 64-hex, 15/17 letters, a digit and a non-ASCII letter
+ok 357 - the token shape accepts 16 letters and rejects 64-hex, 15/17 letters, a digit and a non-ASCII letter
+  ---
+  duration_ms: 0.257937
+  type: 'test'
+  ...
+# Subtest: an old 64-hex token is never found, even with its token index and record still on disk
+ok 358 - an old 64-hex token is never found, even with its token index and record still on disk
+  ---
+  duration_ms: 4.337722
+  type: 'test'
+  ...
+# Subtest: a token differing only in letter case never resolves, even where the disk folds case
+ok 359 - a token differing only in letter case never resolves, even where the disk folds case
+  ---
+  duration_ms: 5.178143
+  type: 'test'
+  ...
+# Subtest: share code awareness is restricted to code extensions
+ok 360 - share code awareness is restricted to code extensions
+  ---
+  duration_ms: 6.074685
+  type: 'test'
+  ...
+# Subtest: verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict
+ok 361 - verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict
+  ---
+  duration_ms: 2.479697
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-import-b-SIFZWZ/sites/portable/agent-plugins/ws/workspace-local
+# Subtest: A production preparation → public download → B import preserves content: inSite
+ok 362 - A production preparation → public download → B import preserves content: inSite
+  ---
+  duration_ms: 6434.716971
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-import-b-HDgcWL/sites/portable/agent-plugins/ws/workspace-local
+# Subtest: A production preparation → public download → B import preserves content: appData
+ok 363 - A production preparation → public download → B import preserves content: appData
+  ---
+  duration_ms: 6087.869854
+  type: 'test'
+  ...
+# Subtest: production export keeps literal credentials and the complete hashed plugin package
+ok 364 - production export keeps literal credentials and the complete hashed plugin package
+  ---
+  duration_ms: 566.378303
+  type: 'test'
+  ...
+# Subtest: production export retains dotted OAuth tokens in a post
+ok 365 - production export retains dotted OAuth tokens in a post
+  ---
+  duration_ms: 565.96945
+  type: 'test'
+  ...
+# Subtest: production export retains dotted OAuth tokens in a page
+ok 366 - production export retains dotted OAuth tokens in a page
+  ---
+  duration_ms: 1035.508555
+  type: 'test'
+  ...
+# Subtest: share refusal preserves an optional underlying cause
+ok 367 - share refusal preserves an optional underlying cause
+  ---
+  duration_ms: 0.886876
+  type: 'test'
+  ...
+# Subtest: the share file name ../x.tovu.zip is refused before the token is reserved
+ok 368 - the share file name ../x.tovu.zip is refused before the token is reserved
+  ---
+  duration_ms: 8.643339
+  type: 'test'
+  ...
+# Subtest: the share file name Site.tovu.zip is refused before the token is reserved
+ok 369 - the share file name Site.tovu.zip is refused before the token is reserved
+  ---
+  duration_ms: 2.141921
+  type: 'test'
+  ...
+# Subtest: the share file name site.zip is refused before the token is reserved
+ok 370 - the share file name site.zip is refused before the token is reserved
+  ---
+  duration_ms: 2.002294
+  type: 'test'
+  ...
+# Subtest: the share file name -site.tovu.zip is refused before the token is reserved
+ok 371 - the share file name -site.tovu.zip is refused before the token is reserved
+  ---
+  duration_ms: 1.720572
+  type: 'test'
+  ...
+# Subtest: a received artifact is stored with its hash and the given storage locator
+ok 372 - a received artifact is stored with its hash and the given storage locator
+  ---
+  duration_ms: 6.252838
+  type: 'test'
+  ...
+# Subtest: an artifact the registry cannot write is removed and the write error is rethrown
+ok 373 - an artifact the registry cannot write is removed and the write error is rethrown
+  ---
+  duration_ms: 248.178599
+  type: 'test'
+  ...
+# Subtest: a share named "My Site!" is filed as my-site.tovu.zip
+ok 374 - a share named "My Site!" is filed as my-site.tovu.zip
+  ---
+  duration_ms: 5.079799
+  type: 'test'
+  ...
+# Subtest: a share named "中文" is filed as site.tovu.zip
+ok 375 - a share named "中文" is filed as site.tovu.zip
+  ---
+  duration_ms: 4.553097
+  type: 'test'
+  ...
+# Subtest: a share named "--x--" is filed as x.tovu.zip
+ok 376 - a share named "--x--" is filed as x.tovu.zip
+  ---
+  duration_ms: 4.090106
+  type: 'test'
+  ...
+# Subtest: a share named "aaaaaaaaaaa is filed as aaaaaaaaaaaaaaaaaaaa
+ok 377 - a share named "aaaaaaaaaaa is filed as aaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 3.922979
+  type: 'test'
+  ...
+# Subtest: a share without delivery stays a local, URL-less artifact
+ok 378 - a share without delivery stays a local, URL-less artifact
+  ---
+  duration_ms: 3.716264
+  type: 'test'
+  ...
+# Subtest: a share cancelled after it was received is disabled, its ZIP deleted and the export refused
+ok 379 - a share cancelled after it was received is disabled, its ZIP deleted and the export refused
+  ---
+  duration_ms: 5.89842
+  type: 'test'
+  ...
+# Subtest: a delivered share uploads with download headers, verifies anonymously and publishes its URL
+ok 380 - a delivered share uploads with download headers, verifies anonymously and publishes its URL
+  ---
+  duration_ms: 7.259308
+  type: 'test'
+  ...
+# Subtest: a delivery without a binding records no binding
+ok 381 - a delivery without a binding records no binding
+  ---
+  duration_ms: 5.630175
+  type: 'test'
+  ...
+# Subtest: an upload that cannot be verified anonymously is purged and refused
+ok 382 - an upload that cannot be verified anonymously is purged and refused
+  ---
+  duration_ms: 6.325914
+  type: 'test'
+  ...
+# Subtest: a share revoked during upload is refused as revoked
+ok 383 - a share revoked during upload is refused as revoked
+  ---
+  duration_ms: 9.823078
+  type: 'test'
+  ...
+# Subtest: a failed upload is recorded failed and its unexpected error reaches incident handling
+ok 384 - a failed upload is recorded failed and its unexpected error reaches incident handling
+  ---
+  duration_ms: 4.275126
+  type: 'test'
+  ...
+# Subtest: a failed delivery whose remote deletion fails is refused as a cleanup failure
+ok 385 - a failed delivery whose remote deletion fails is refused as a cleanup failure
+  ---
+  duration_ms: 5.376795
+  type: 'test'
+  ...
+# Subtest: a failed delivery whose the purge cannot be verified is refused as a cleanup failure
+ok 386 - a failed delivery whose the purge cannot be verified is refused as a cleanup failure
+  ---
+  duration_ms: 5.05626
+  type: 'test'
+  ...
+# Subtest: a failed delivery to this server's own share folder deletes nothing remotely
+ok 387 - a failed delivery to this server's own share folder deletes nothing remotely
+  ---
+  duration_ms: 8.559179
+  type: 'test'
+  ...
+# Subtest: a failed delivery to another server's share folder is deleted remotely
+ok 388 - a failed delivery to another server's share folder is deleted remotely
+  ---
+  duration_ms: 14.448132
+  type: 'test'
+  ...
+# Subtest: revoking an unknown share is refused as not found
+ok 389 - revoking an unknown share is refused as not found
+  ---
+  duration_ms: 4.017938
+  type: 'test'
+  ...
+# Subtest: a local ZIP that cannot be deleted is refused after the token is disabled
+ok 390 - a local ZIP that cannot be deleted is refused after the token is disabled
+  ---
+  duration_ms: 18.319598
+  type: 'test'
+  ...
+# Subtest: a share without remote storage is revoked locally
+ok 391 - a share without remote storage is revoked locally
+  ---
+  duration_ms: 13.215662
+  type: 'test'
+  ...
+# Subtest: a share in this server's own share folder needs no delivery to revoke
+ok 392 - a share in this server's own share folder needs no delivery to revoke
+  ---
+  duration_ms: 21.626384
+  type: 'test'
+  ...
+# Subtest: a share in another server's share folder needs its delivery to revoke
+ok 393 - a share in another server's share folder needs its delivery to revoke
+  ---
+  duration_ms: 33.816082
+  type: 'test'
+  ...
+# Subtest: a remote share revoked with no delivery is refused until its storage is configured
+ok 394 - a remote share revoked with no delivery is refused until its storage is configured
+  ---
+  duration_ms: 22.719238
+  type: 'test'
+  ...
+# Subtest: a remote share revoked with another provider is refused until its storage is configured
+ok 395 - a remote share revoked with another provider is refused until its storage is configured
+  ---
+  duration_ms: 13.814526
+  type: 'test'
+  ...
+# Subtest: a remote share revoked with another binding is refused until its storage is configured
+ok 396 - a remote share revoked with another binding is refused until its storage is configured
+  ---
+  duration_ms: 15.210127
+  type: 'test'
+  ...
+# Subtest: a remote share is deleted and its published URL verified absent
+ok 397 - a remote share is deleted and its published URL verified absent
+  ---
+  duration_ms: 8.931308
+  type: 'test'
+  ...
+# Subtest: a remote share without a published URL is verified at its stored URL
+ok 398 - a remote share without a published URL is verified at its stored URL
+  ---
+  duration_ms: 11.079652
+  type: 'test'
+  ...
+# Subtest: a remote share with no URL at all is deleted without verification
+ok 399 - a remote share with no URL at all is deleted without verification
+  ---
+  duration_ms: 4.835966
+  type: 'test'
+  ...
+# Subtest: a remote share whose deletion fails is refused as unverified
+ok 400 - a remote share whose deletion fails is refused as unverified
+  ---
+  duration_ms: 4.866805
+  type: 'test'
+  ...
+# Subtest: a remote share whose the purge is not verified is refused as unverified
+ok 401 - a remote share whose the purge is not verified is refused as unverified
+  ---
+  duration_ms: 4.100235
+  type: 'test'
+  ...
+# Subtest: a valid plugin ships only its manifest and integrity files, never data/, memory or strays
+ok 402 - a valid plugin ships only its manifest and integrity files, never data/, memory or strays
+  ---
+  duration_ms: 58.51735
+  type: 'test'
+  ...
+# Subtest: two retained versions export only the latest, or the pinned one
+ok 403 - two retained versions export only the latest, or the pinned one
+  ---
+  duration_ms: 385.544241
+  type: 'test'
+  ...
+# Subtest: a plugin whose only version has a missing or corrupt manifest ships nothing, and the note names it
+ok 404 - a plugin whose only version has a missing or corrupt manifest ships nothing, and the note names it
+  ---
+  duration_ms: 35.083999
+  type: 'test'
+  ...
+# Subtest: a pin to a version that is not installed ships nothing rather than another version
+ok 405 - a pin to a version that is not installed ships nothing rather than another version
+  ---
+  duration_ms: 6.904029
+  type: 'test'
+  ...
+# Subtest: a package file that no longer matches its integrity hash keeps the whole plugin out
+ok 406 - a package file that no longer matches its integrity hash keeps the whole plugin out
+  ---
+  duration_ms: 9.365805
+  type: 'test'
+  ...
+# Subtest: a package file deleted or replaced by a symlink after install keeps the whole plugin out
+ok 407 - a package file deleted or replaced by a symlink after install keeps the whole plugin out
+  ---
+  duration_ms: 6.782031
+  type: 'test'
+  ...
+# Subtest: flat and tier folders are not installed plugins: nothing ships and the note names them
+ok 408 - flat and tier folders are not installed plugins: nothing ships and the note names them
+  ---
+  duration_ms: 5.024869
+  type: 'test'
+  ...
+# Subtest: a FIFO where a manifest goes neither hangs the export nor ships the plugin
+ok 409 - a FIFO where a manifest goes neither hangs the export nor ships the plugin
+  ---
+  duration_ms: 11.347009
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of src/data/default.json after the check refuses the export instead of shipping it
+ok 410 - a same-size, same-mtime swap of src/data/default.json after the check refuses the export instead of shipping it
+  ---
+  duration_ms: 12.144658
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of jini.plugin.json after the check refuses the export instead of shipping it
+ok 411 - a same-size, same-mtime swap of jini.plugin.json after the check refuses the export instead of shipping it
+  ---
+  duration_ms: 9.516672
+  type: 'test'
+  ...
+# Subtest: a package folder replaced by a symlink keeps the plugin out, even when the bytes match
+ok 412 - a package folder replaced by a symlink keeps the plugin out, even when the bytes match
+  ---
+  duration_ms: 6.876177
+  type: 'test'
+  ...
+# Subtest: a package folder replaced by a symlink after the check refuses the export, even when the bytes match
+ok 413 - a package folder replaced by a symlink after the check refuses the export, even when the bytes match
+  ---
+  duration_ms: 10.714459
+  type: 'test'
+  ...
+# Subtest: export snapshots the database into the injected private folder, never the source site, and leaves nothing behind
+ok 414 - export snapshots the database into the injected private folder, never the source site, and leaves nothing behind
+  ---
+  duration_ms: 191.822404
+  type: 'test'
+  ...
+# Subtest: the private snapshot folder is removed even when the capture fails
+ok 415 - the private snapshot folder is removed even when the capture fails
+  ---
+  duration_ms: 155.667362
+  type: 'test'
+  ...
+# Subtest: a missing snapshot root refuses with the caller-safe message and captures nothing
+ok 416 - a missing snapshot root refuses with the caller-safe message and captures nothing
+  ---
+  duration_ms: 161.83556
+  type: 'test'
+  ...
+# Subtest: backup maxFiles boundary at limit -1
+ok 417 - backup maxFiles boundary at limit -1
+  ---
+  duration_ms: 2.254983
+  type: 'test'
+  ...
+# Subtest: backup maxTotalBytes boundary at limit -1
+ok 418 - backup maxTotalBytes boundary at limit -1
+  ---
+  duration_ms: 0.249959
+  type: 'test'
+  ...
+# Subtest: backup maxFiles boundary at limit +0
+ok 419 - backup maxFiles boundary at limit +0
+  ---
+  duration_ms: 0.172856
+  type: 'test'
+  ...
+# Subtest: backup maxTotalBytes boundary at limit +0
+ok 420 - backup maxTotalBytes boundary at limit +0
+  ---
+  duration_ms: 0.076729
+  type: 'test'
+  ...
+# Subtest: backup maxFiles boundary at limit +1
+ok 421 - backup maxFiles boundary at limit +1
+  ---
+  duration_ms: 0.235798
+  type: 'test'
+  ...
+# Subtest: backup maxTotalBytes boundary at limit +1
+ok 422 - backup maxTotalBytes boundary at limit +1
+  ---
+  duration_ms: 0.170674
+  type: 'test'
+  ...
+# Subtest: backup skips and reports an oversized disk file while retaining limit-1 and the exact limit
+ok 423 - backup skips and reports an oversized disk file while retaining limit-1 and the exact limit
+  ---
+  duration_ms: 0.350189
+  type: 'test'
+  ...
+# Subtest: export retains every file, skips identical bundled bytes, and scans changed/custom files
+ok 424 - export retains every file, skips identical bundled bytes, and scans changed/custom files
+  ---
+  duration_ms: 32.965961
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding
+ok 425 - a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding
+  ---
+  duration_ms: 14.064225
+  type: 'test'
+  ...
+# Subtest: a linked directory for themes/static/site/index.html after planning refuses even with matching bytes
+ok 426 - a linked directory for themes/static/site/index.html after planning refuses even with matching bytes
+  ---
+  duration_ms: 7.978488
+  type: 'test'
+  ...
+# Subtest: a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding
+ok 427 - a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding
+  ---
+  duration_ms: 8.152553
+  type: 'test'
+  ...
+# Subtest: a linked directory for overrides/site/index.html after planning refuses even with matching bytes
+ok 428 - a linked directory for overrides/site/index.html after planning refuses even with matching bytes
+  ---
+  duration_ms: 6.789411
+  type: 'test'
+  ...
+# Subtest: root v2 inventory matches every actual entry and its mapped path
+ok 429 - root v2 inventory matches every actual entry and its mapped path
+  ---
+  duration_ms: 10.000981
+  type: 'test'
+  ...
+# Subtest: stale disk files and unsafe aliases refuse before encoding
+ok 430 - stale disk files and unsafe aliases refuse before encoding
+  ---
+  duration_ms: 3.965875
+  type: 'test'
+  ...
+# Subtest: limits refuse and credential-looking files stay included before encoding
+ok 431 - limits refuse and credential-looking files stay included before encoding
+  ---
+  duration_ms: 4.680039
+  type: 'test'
+  ...
+# Subtest: v2 requires the database and portable settings
+ok 432 - v2 requires the database and portable settings
+  ---
+  duration_ms: 1.041196
+  type: 'test'
+  ...
+# Subtest: cancellation and encoder failures preserve their error
+ok 433 - cancellation and encoder failures preserve their error
+  ---
+  duration_ms: 2.159236
+  type: 'test'
+  ...
+# Subtest: buffered files, then the database, then disk files, then the manifest reach the encoder once
+ok 434 - buffered files, then the database, then disk files, then the manifest reach the encoder once
+  ---
+  duration_ms: 4.847091
+  type: 'test'
+  ...
+# Subtest: each archived entry keeps its exact bytes
+ok 435 - each archived entry keeps its exact bytes
+  ---
+  duration_ms: 3.727868
+  type: 'test'
+  ...
+# Subtest: the manifest inventories every entry with its size and sha256, in archive order
+ok 436 - the manifest inventories every entry with its size and sha256, in archive order
+  ---
+  duration_ms: 3.854086
+  type: 'test'
+  ...
+# Subtest: a plan without a database is refused with the exact v2 message before encoding
+ok 437 - a plan without a database is refused with the exact v2 message before encoding
+  ---
+  duration_ms: 3.203173
+  type: 'test'
+  ...
+# Subtest: progress counts every archived entry and its bytes, not the manifest
+ok 438 - progress counts every archived entry and its bytes, not the manifest
+  ---
+  duration_ms: 5.034005
+  type: 'test'
+  ...
+# Subtest: the plan's expanded caps are checked before any path claim or read
+ok 439 - the plan's expanded caps are checked before any path claim or read
+  ---
+  duration_ms: 0.339168
+  type: 'test'
+  ...
+# Subtest: an unsafe path is refused before any entry is scanned
+ok 440 - an unsafe path is refused before any entry is scanned
+  ---
+  duration_ms: 0.639784
+  type: 'test'
+  ...
+# Subtest: a file at the manifest path is refused as a duplicate
+ok 441 - a file at the manifest path is refused as a duplicate
+  ---
+  duration_ms: 0.303928
+  type: 'test'
+  ...
+# Subtest: a buffered file and the database at the same path are refused as a duplicate
+ok 442 - a buffered file and the database at the same path are refused as a duplicate
+  ---
+  duration_ms: 0.243625
+  type: 'test'
+  ...
+# Subtest: credential-shaped bytes stay included with a warning
+ok 443 - credential-shaped bytes stay included with a warning
+  ---
+  duration_ms: 1.010846
+  type: 'test'
+  ...
+# Subtest: a disk file that changed since the plan is refused as stale
+ok 444 - a disk file that changed since the plan is refused as stale
+  ---
+  duration_ms: 3.541715
+  type: 'test'
+  ...
+# Subtest: an already-aborted signal stops at the first entry
+ok 445 - an already-aborted signal stops at the first entry
+  ---
+  duration_ms: 0.482485
+  type: 'test'
+  ...
+# Subtest: an aborted signal stops before encoding even when the plan has no disk files
+ok 446 - an aborted signal stops before encoding even when the plan has no disk files
+  ---
+  duration_ms: 0.40997
+  type: 'test'
+  ...
+# Subtest: a live signal lets the share encode
+ok 447 - a live signal lets the share encode
+  ---
+  duration_ms: 0.652437
+  type: 'test'
+  ...
+# Subtest: a manifest over 2 MiB is refused before encoding
+ok 448 - a manifest over 2 MiB is refused before encoding
+  ---
+  duration_ms: 9.948
+  type: 'test'
+  ...
+# Subtest: a manifest of exactly 2 MiB is accepted
+ok 449 - a manifest of exactly 2 MiB is accepted
+  ---
+  duration_ms: 11.378241
+  type: 'test'
+  ...
+# Subtest: the file cap counts the manifest itself after every entry is scanned
+ok 450 - the file cap counts the manifest itself after every entry is scanned
+  ---
+  duration_ms: 179.545156
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap
+ok 451 - an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap
+  ---
+  duration_ms: 0.761103
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Too many entries.') is reported as the archive cap
+ok 452 - an encoder size failure ('Too many entries.') is reported as the archive cap
+  ---
+  duration_ms: 0.406441
+  type: 'test'
+  ...
+# Subtest: an encoder size failure ('Archive too LARGE') is reported as the archive cap
+ok 453 - an encoder size failure ('Archive too LARGE') is reported as the archive cap
+  ---
+  duration_ms: 0.272927
+  type: 'test'
+  ...
+# Subtest: any other encoder Error propagates unchanged
+ok 454 - any other encoder Error propagates unchanged
+  ---
+  duration_ms: 0.293241
+  type: 'test'
+  ...
+# Subtest: a non-Error encoder failure propagates unchanged, even if it mentions a limit
+ok 455 - a non-Error encoder failure propagates unchanged, even if it mentions a limit
+  ---
+  duration_ms: 0.410373
+  type: 'test'
+  ...
+# Subtest: a packaged theme outside the site shares its reviewed bytes (linked bundle: false)
+ok 456 - a packaged theme outside the site shares its reviewed bytes (linked bundle: false)
+  ---
+  duration_ms: 22.254154
+  type: 'test'
+  ...
+# Subtest: a packaged theme outside the site shares its reviewed bytes (linked bundle: true)
+ok 457 - a packaged theme outside the site shares its reviewed bytes (linked bundle: true)
+  ---
+  duration_ms: 17.641455
+  type: 'test'
+  ...
+# Subtest: all share routes including static export require authentication, site-backup.push and the correct workspace
+ok 458 - all share routes including static export require authentication, site-backup.push and the correct workspace
+  ---
+  duration_ms: 594.505898
+  type: 'test'
+  ...
+# [theme] static page 'inactive-picker/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'inactive-picker/theme-only' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [site/pages] GET /:slug failed (slug=welcome) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=about) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-themes-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-plugins-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=plugin-api) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=self-hosting) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=the-weight-of-type) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=slow-mornings) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=blog) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [theme] static page 'tovu-starter/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'tovu-starter/theme-only' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [site/pages] GET /:slug failed (slug=welcome) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=about) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-themes-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-plugins-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=plugin-api) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=self-hosting) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=the-weight-of-type) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=slow-mornings) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=blog) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [theme] static page 'inactive-picker/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'inactive-picker/theme-only' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [site/pages] GET /:slug failed (slug=welcome) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=about) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-themes-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-plugins-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=plugin-api) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=self-hosting) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=the-weight-of-type) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=slow-mornings) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=blog) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [theme] static page 'tovu-starter/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] static page 'tovu-starter/theme-only' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [site/pages] GET /:slug failed (slug=welcome) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=about) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-themes-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=how-plugins-work) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=plugin-api) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=self-hosting) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=the-weight-of-type) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=slow-mornings) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# [site/pages] GET /:slug failed (slug=blog) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:181:10)
+#     at renderMissingTemplatePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:235:48)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:159:12)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+# Subtest: HTTP and tool selected exports deliver inactive HTML and shared public media without activating themes
+ok 459 - HTTP and tool selected exports deliver inactive HTML and shared public media without activating themes
+  ---
+  duration_ms: 1339.49305
+  type: 'test'
+  ...
+# Subtest: public captures need an original grant and a still-active proof; receipt evidence never leaves
+ok 460 - public captures need an original grant and a still-active proof; receipt evidence never leaves
+  ---
+  duration_ms: 1.648458
+  type: 'test'
+  ...
+# Subtest: public analytics has no legacy boolean-consent fallback or dependency on owner telemetry
+ok 461 - public analytics has no legacy boolean-consent fallback or dependency on owner telemetry
+  ---
+  duration_ms: 0.359862
+  type: 'test'
+  ...
+1..461
+# tests 465
+# suites 0
+# pass 465
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50963.737544

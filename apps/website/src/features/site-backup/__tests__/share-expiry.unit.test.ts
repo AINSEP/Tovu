@@ -14,6 +14,9 @@ import { SHARE_EXPIRY_DAYS, isShareExpired, shareExpiresAt } from "../share-expi
 import { SiteShareRegistry, newShareIdentity } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, type ShareDelivery } from "../share-service.js";
 import { SiteShareRefusal } from "../share-policy.js";
+import { createSiteShareBackend } from "../share-backend.js";
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import type { SiteSharePlanContent } from "../plan-content.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const ZIP = Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
@@ -88,4 +91,21 @@ test("an unreadable expiry fails closed: the public link is not served", async t
   const registry = await registryAt(t, clock);
   const row = await createSiteShare({ registry, site: "ws", name: "Shop", archive: ZIP }, { expiresAt: "not a date" });
   assert.equal(await registry.findToken({ token: row.token, file: row.file }), null);
+});
+
+function planContent(): SiteSharePlanContent {
+  return { profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
+    database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }],
+    skipped: [], scopeNotes: {}, totalBytes: 19, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" };
+}
+
+test("the backend records the owner's choice from its own clock, and Never when none is given", async t => {
+  const registry = await registryAt(t, { now: Date.now() });
+  const now = Date.parse("2026-12-01T00:00:00.000Z");
+  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => planContent(), zip: zipFolderFiles, delivery: async () => undefined }, { now: () => now });
+  const chosen = await backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 90 }) as { expiresAt?: string | null };
+  assert.equal(chosen.expiresAt, "2027-03-01T00:00:00.000Z");
+  const never = await backend.create({ principalId: "owner", signal: new AbortController().signal }) as { expiresAt?: string | null };
+  assert.equal(never.expiresAt ?? null, null);
+  await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal, expiresInDays: 14 }), SiteShareRefusal);
 });
