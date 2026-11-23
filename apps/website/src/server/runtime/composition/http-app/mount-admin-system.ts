@@ -32,11 +32,10 @@ import { assistantDaemonRestartRoute, type AdminAssistantDaemonDeps } from "@jin
 import { restartAssistantDaemon as restartAssistantDaemonReal } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
 import { registerAdminAssistantSubagentsRoutes } from "../../../inbound/admin-http/routes/system/assistant-subagents.js";
-import { registerAdminDeploymentOverviewRoute } from "../../../inbound/admin-http/routes/system/deployment-overview.js";
+import { registerAdminDeploymentOverviewRoute, registerAdminExportSiteRoutes } from "../modules/system-deploy.js";
 import { registerAdminSitesRoutes } from "../modules/sites.js";
 import { registerAdminSiteProfileRoute } from "../../../inbound/admin-http/routes/site/profile.js";
 import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
-import { registerAdminExportSiteRoutes } from "../../../inbound/admin-http/routes/system/export-site.js";
 import { registerAdminCustomCredentialsRoutes } from "../modules/system-credentials.js";
 import { registerAdminCredentialCopyRoutes } from "../../../inbound/admin-http/routes/system/credential-copy.js";
 import { registerAdminPublishCredentialsRoutes } from "../modules/system-credentials.js";

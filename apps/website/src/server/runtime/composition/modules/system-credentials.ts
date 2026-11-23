@@ -3,12 +3,13 @@ import { publishCredentialCreateRoute } from "@jini-ai/cms/admin-http/routes/sys
 import { publishCredentialDeleteRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/delete";
 import { publishCredentialUpdateRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/update";
 import { publishCredentialVerifyRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/verify";
-import { mountJsonRoute, type JsonRoutePorts } from "@jini-ai/http-kit";
+import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 
 import {
   customCredentialCreateRoute, customCredentialDeleteRoute, customCredentialListRoute, customCredentialUpdateRoute,
-  type CredentialRoutePrincipal,
+  type CredentialRoutePrincipal, type CustomCredentialView,
 } from "@jini-ai/cms/admin-http/routes/system/custom-credentials";
+import type { PublishCredentialView } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/shared";
 
 import {
   sourceControlCreateRoute, sourceControlDeleteRoute, sourceControlListRoute, sourceControlProvidersRoute, sourceControlUpdateRoute,
@@ -161,6 +162,16 @@ function credentialKindPorts(options: ReturnType<typeof directFailure>): JsonRou
 
 const credentialKindOf = (principal: CredentialRoutePrincipal) => credentialKindByPrincipal.get(principal);
 
+/** `mountAdminJsonRoute`, but behind {@link credentialKindPorts}. The ports read only the two port
+ *  fields, so widening them to the route's full deps type is sound. */
+function mountWithCredentialKind<Input, Output, Deps>(
+  { app, spec, deps }: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
+  options: ReturnType<typeof directFailure>,
+): void {
+  const ports = credentialKindPorts(options) as JsonRoutePorts<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>;
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...spec, ports }, deps });
+}
+
 // ── custom ──────────────────────────────────────────────────────────────────────────────────────
 
 export type AdminCustomCredentialsDeps = Pick<
@@ -196,8 +207,9 @@ async function prepareCustomInvalidation(deps: AdminCustomCredentialsDeps) {
   if (!deps.loadDeployTargets || !cache) return undefined;
   const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
   if (!registry) return undefined;
-  return (change: { before?: CustomCredentialSummary; after?: CustomCredentialSummary }) =>
-    invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache, ...change });
+  // The spec hands back the summaries the store returned, unchanged; the view type only names what it reads.
+  return (change: { before?: CustomCredentialView; after?: CustomCredentialView }) =>
+    invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache, ...(change as { before?: CustomCredentialSummary; after?: CustomCredentialSummary }) });
 }
 
 /** The fields every custom mount shares; each is read per request. */
@@ -218,19 +230,19 @@ export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Expre
   const readDeps = customReadDeps(deps);
   const writeDeps = customWriteDeps(deps);
   const base = customBase(deps, readDeps);
-  mountJsonRoute({ app, spec: { ...customCredentialListRoute, ports: credentialKindPorts(options) }, deps: {
+  mountWithCredentialKind({ app, spec: customCredentialListRoute, deps: {
     ...base, credentialKindOf, copy: SHARED_KEYS_COPY,
     listInventory: ({ workspaceId }) => listCustomCredentialInventory({ deps: readDeps, workspaceId }),
-  } });
+  } }, options);
   mountAdminJsonRoute({ app, spec: customCredentialCreateRoute, deps: {
     ...base,
-    createCredential: (input) => createCustomCredential(writeDeps, input as Parameters<typeof createCustomCredential>[1]),
+    createCredential: (input) => createCustomCredential(writeDeps, input as unknown as Parameters<typeof createCustomCredential>[1]),
   } }, options);
-  mountJsonRoute({ app, spec: { ...customCredentialUpdateRoute, ports: credentialKindPorts(options) }, deps: {
+  mountWithCredentialKind({ app, spec: customCredentialUpdateRoute, deps: {
     ...base, credentialKindOf,
     updateCredential: ({ input, allowSharedKeyReplacement }) =>
       updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement }, input as UpdateCustomCredentialInput),
-  } });
+  } }, options);
   mountAdminJsonRoute({ app, spec: customCredentialDeleteRoute, deps: {
     ...base, deleteCredential: (target) => deleteCustomCredential(readDeps, target),
   } }, options);
@@ -304,8 +316,9 @@ function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPu
 /** The deploy-target registry is loaded before every write, then each change re-checks its hosts. */
 async function preparePublishInvalidation(deps: AdminPublishCredentialsDeps) {
   const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
-  return (change: { before?: PublishCredentialSummary; after?: PublishCredentialSummary }) =>
-    invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, ...change });
+  // The spec hands back the summaries the store returned, unchanged; the view type only names what it reads.
+  return (change: { before?: PublishCredentialView; after?: PublishCredentialView }) =>
+    invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, ...(change as { before?: PublishCredentialSummary; after?: PublishCredentialSummary }) });
 }
 
 /** Same registration order as before: list, create, update, verify, delete. */
