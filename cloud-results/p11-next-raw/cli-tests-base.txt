@@ -1,0 +1,2059 @@
+TAP version 13
+# Subtest: tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc
+ok 1 - tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc
+  ---
+  duration_ms: 6464.969699
+  type: 'test'
+  ...
+# Subtest: tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions
+ok 2 - tovu introspect --format mcp: exits 0 and prints valid MCP tool definitions
+  ---
+  duration_ms: 6617.359205
+  type: 'test'
+  ...
+# Subtest: tovu introspect --format <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+ok 3 - tovu introspect --format <bad>: rejected as VALIDATION (exit 2), not a silent fallback
+  ---
+  duration_ms: 6884.267031
+  type: 'test'
+  ...
+# Subtest: adopt writes both markers for a marker-less site and reports the derived stamp
+ok 4 - adopt writes both markers for a marker-less site and reports the derived stamp
+  ---
+  duration_ms: 679.030923
+  type: 'test'
+  ...
+# Subtest: adopt --dry-run previews the markers and writes nothing
+ok 5 - adopt --dry-run previews the markers and writes nothing
+  ---
+  duration_ms: 624.897023
+  type: 'test'
+  ...
+# Subtest: adopt on a fully adopted directory is an idempotent no-op
+ok 6 - adopt on a fully adopted directory is an idempotent no-op
+  ---
+  duration_ms: 580.911785
+  type: 'test'
+  ...
+# Subtest: adopt refuses a partially adopted directory and writes nothing
+ok 7 - adopt refuses a partially adopted directory and writes nothing
+  ---
+  duration_ms: 557.419962
+  type: 'test'
+  ...
+# Subtest: adopt completes a key-only .site-meta.json in place and keeps config.json
+ok 8 - adopt completes a key-only .site-meta.json in place and keeps config.json
+  ---
+  duration_ms: 563.769261
+  type: 'test'
+  ...
+# Subtest: adopt --dry-run on a key-only meta previews the completion and leaves the file as it was
+ok 9 - adopt --dry-run on a key-only meta previews the completion and leaves the file as it was
+  ---
+  duration_ms: 733.392975
+  type: 'test'
+  ...
+# Subtest: a no-content.db refusal is relabelled adopt: and names the sibling .db files it declined to guess at
+ok 10 - a no-content.db refusal is relabelled adopt: and names the sibling .db files it declined to guess at
+  ---
+  duration_ms: 4.511531
+  type: 'test'
+  ...
+# Subtest: a no-content.db refusal without sibling databases carries no candidate list (dry run too)
+ok 11 - a no-content.db refusal without sibling databases carries no candidate list (dry run too)
+  ---
+  duration_ms: 2.590019
+  type: 'test'
+  ...
+# Subtest: a non-refusal error (an invalid --name) propagates unchanged
+ok 12 - a non-refusal error (an invalid --name) propagates unchanged
+  ---
+  duration_ms: 724.680351
+  type: 'test'
+  ...
+# Subtest: any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list
+ok 13 - any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list
+  ---
+  duration_ms: 10.328302
+  type: 'test'
+  ...
+# Subtest: the CLI and server share the bundled plugin source root
+ok 14 - the CLI and server share the bundled plugin source root
+  ---
+  duration_ms: 0.746752
+  type: 'test'
+  ...
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: the default token check refuses a plugin the bundled root does not provide, without probing
+ok 15 - the default token check refuses a plugin the bundled root does not provide, without probing
+  ---
+  duration_ms: 68.064949
+  type: 'test'
+  ...
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: token-sign-in defaults to the bundled root and stdout
+ok 16 - token-sign-in defaults to the bundled root and stdout
+  ---
+  duration_ms: 65.824466
+  type: 'test'
+  ...
+# Subtest: renders the generator's config to stdout and its operator notes to stderr
+ok 17 - renders the generator's config to stdout and its operator notes to stderr
+  ---
+  duration_ms: 17.048623
+  type: 'test'
+  ...
+# Subtest: keeps the product's Chromium note when cwd has deployment inputs but no overlays
+ok 18 - keeps the product's Chromium note when cwd has deployment inputs but no overlays
+  ---
+  duration_ms: 22.614242
+  type: 'test'
+  ...
+# Subtest: the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env)
+ok 19 - the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env)
+  ---
+  duration_ms: 5.448647
+  type: 'test'
+  ...
+# Subtest: a site that cannot be resolved still renders, without TOVU_SITE_ID, and says why on stderr
+ok 20 - a site that cannot be resolved still renders, without TOVU_SITE_ID, and says why on stderr
+  ---
+  duration_ms: 5.894552
+  type: 'test'
+  ...
+# Subtest: --out writes the rendered file and reports where
+ok 21 - --out writes the rendered file and reports where
+  ---
+  duration_ms: 10.31194
+  type: 'test'
+  ...
+# Subtest: without --region the generator receives an empty region and refuses to assume one
+ok 22 - without --region the generator receives an empty region and refuses to assume one
+  ---
+  duration_ms: 5.53185
+  type: 'test'
+  ...
+# Subtest: a missing or unknown --target is refused with the loaded ids
+ok 23 - a missing or unknown --target is refused with the loaded ids
+  ---
+  duration_ms: 19.049868
+  type: 'test'
+  ...
+# Subtest: a refused generator is explained on stderr before the target is rejected
+ok 24 - a refused generator is explained on stderr before the target is rejected
+  ---
+  duration_ms: 8.176286
+  type: 'test'
+  ...
+# Subtest: by default the rendered config goes to stdout
+ok 25 - by default the rendered config goes to stdout
+  ---
+  duration_ms: 5.107277
+  type: 'test'
+  ...
+# Subtest: --site <name> picks which local site's id is stamped, and stderr says which site it was
+ok 26 - --site <name> picks which local site's id is stamped, and stderr says which site it was
+  ---
+  duration_ms: 37.869664
+  type: 'test'
+  ...
+# Subtest: a site id that is not a short token (a newline, quotes, a long string) is never stamped into the config
+ok 27 - a site id that is not a short token (a newline, quotes, a long string) is never stamped into the config
+  ---
+  duration_ms: 5.1895
+  type: 'test'
+  ...
+# Subtest: with the split bundled plugins, --target help follows plugin-id order
+ok 28 - with the split bundled plugins, --target help follows plugin-id order
+  ---
+  duration_ms: 7.88505
+  type: 'test'
+  ...
+# Subtest: formatTargetOptionHelp: joins one, two, and many ids
+ok 29 - formatTargetOptionHelp: joins one, two, and many ids
+  ---
+  duration_ms: 0.381754
+  type: 'test'
+  ...
+# Subtest: CLI help discovers all contributing packages through the same bundled source selector
+ok 30 - CLI help discovers all contributing packages through the same bundled source selector
+  ---
+  duration_ms: 26.438256
+  type: 'test'
+  ...
+# Subtest: commander success commander.helpDisplayed omits diagnostics
+ok 31 - commander success commander.helpDisplayed omits diagnostics
+  ---
+  duration_ms: 1.407721
+  type: 'test'
+  ...
+# Subtest: commander success commander.help omits diagnostics
+ok 32 - commander success commander.help omits diagnostics
+  ---
+  duration_ms: 0.211035
+  type: 'test'
+  ...
+# Subtest: commander success commander.version omits diagnostics
+ok 33 - commander success commander.version omits diagnostics
+  ---
+  duration_ms: 0.084443
+  type: 'test'
+  ...
+# Subtest: commander commander.missingArgument preserves usage property presence
+ok 34 - commander commander.missingArgument preserves usage property presence
+  ---
+  duration_ms: 0.162659
+  type: 'test'
+  ...
+# Subtest: commander commander.invalidArgument preserves usage property presence
+ok 35 - commander commander.invalidArgument preserves usage property presence
+  ---
+  duration_ms: 0.079416
+  type: 'test'
+  ...
+# Subtest: commander commander.excessArguments preserves usage property presence
+ok 36 - commander commander.excessArguments preserves usage property presence
+  ---
+  duration_ms: 0.105248
+  type: 'test'
+  ...
+# Subtest: commander commander.unknownOption preserves usage property presence
+ok 37 - commander commander.unknownOption preserves usage property presence
+  ---
+  duration_ms: 0.064134
+  type: 'test'
+  ...
+# Subtest: commander commander.unknownCommand preserves usage property presence
+ok 38 - commander commander.unknownCommand preserves usage property presence
+  ---
+  duration_ms: 0.054055
+  type: 'test'
+  ...
+# Subtest: commander commander.missingMandatoryOptionValue preserves usage property presence
+ok 39 - commander commander.missingMandatoryOptionValue preserves usage property presence
+  ---
+  duration_ms: 0.168141
+  type: 'test'
+  ...
+# Subtest: commander commander.optionMissingArgument preserves usage property presence
+ok 40 - commander commander.optionMissingArgument preserves usage property presence
+  ---
+  duration_ms: 0.250509
+  type: 'test'
+  ...
+# Subtest: commander commander.futureCode preserves usage property presence
+ok 41 - commander commander.futureCode preserves usage property presence
+  ---
+  duration_ms: 0.07609
+  type: 'test'
+  ...
+# Subtest: maps PLUGIN_REFUSED/PluginInstallError: detail by class
+ok 42 - maps PLUGIN_REFUSED/PluginInstallError: detail by class
+  ---
+  duration_ms: 0.071476
+  type: 'test'
+  ...
+# Subtest: maps VALIDATION/ValidationError: detail by class
+ok 43 - maps VALIDATION/ValidationError: detail by class
+  ---
+  duration_ms: 0.084384
+  type: 'test'
+  ...
+# Subtest: maps INIT_DIR_NOT_EMPTY/InitDirNotEmptyError: detail by class
+ok 44 - maps INIT_DIR_NOT_EMPTY/InitDirNotEmptyError: detail by class
+  ---
+  duration_ms: 0.03127
+  type: 'test'
+  ...
+# Subtest: maps SITE_DIR_INVALID/SiteDirInvalidError: detail by class
+ok 45 - maps SITE_DIR_INVALID/SiteDirInvalidError: detail by class
+  ---
+  duration_ms: 0.032585
+  type: 'test'
+  ...
+# Subtest: maps SITE_NEWER_THAN_RUNTIME/SiteNewerThanRuntimeError: detail by class
+ok 46 - maps SITE_NEWER_THAN_RUNTIME/SiteNewerThanRuntimeError: detail by class
+  ---
+  duration_ms: 0.034826
+  type: 'test'
+  ...
+# Subtest: maps SITE_CORRUPT/SiteCorruptError: detail by class
+ok 47 - maps SITE_CORRUPT/SiteCorruptError: detail by class
+  ---
+  duration_ms: 0.083862
+  type: 'test'
+  ...
+# Subtest: maps PORT_IN_USE/PortInUseError: detail by class
+ok 48 - maps PORT_IN_USE/PortInUseError: detail by class
+  ---
+  duration_ms: 0.081357
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_OUTPUT_NOT_EMPTY/Error: detail by class
+ok 49 - maps EXPORT_OUTPUT_NOT_EMPTY/Error: detail by class
+  ---
+  duration_ms: 0.060285
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_INCOMPLETE/ExportIncompleteError: detail by class
+ok 50 - maps EXPORT_INCOMPLETE/ExportIncompleteError: detail by class
+  ---
+  duration_ms: 0.044957
+  type: 'test'
+  ...
+# Subtest: maps EXPORT_BLOCKED_PENDING_RECOVERY/ExportBlockedPendingRecoveryError: detail by class
+ok 51 - maps EXPORT_BLOCKED_PENDING_RECOVERY/ExportBlockedPendingRecoveryError: detail by class
+  ---
+  duration_ms: 0.038595
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/InternalError: detail by class
+ok 52 - maps INTERNAL/InternalError: detail by class
+  ---
+  duration_ms: 0.105848
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/Error: detail by class
+ok 53 - maps INTERNAL/Error: detail by class
+  ---
+  duration_ms: 0.036871
+  type: 'test'
+  ...
+# Subtest: maps INTERNAL/detail by class
+ok 54 - maps INTERNAL/detail by class
+  ---
+  duration_ms: 0.030839
+  type: 'test'
+  ...
+# Subtest: repair refusal NOT_A_DIRECTORY uses its typed reason
+ok 55 - repair refusal NOT_A_DIRECTORY uses its typed reason
+  ---
+  duration_ms: 0.100832
+  type: 'test'
+  ...
+# Subtest: repair refusal MARKER_ALREADY_EXISTS uses its typed reason
+ok 56 - repair refusal MARKER_ALREADY_EXISTS uses its typed reason
+  ---
+  duration_ms: 0.038501
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_MISSING uses its typed reason
+ok 57 - repair refusal CONTENT_DB_MISSING uses its typed reason
+  ---
+  duration_ms: 0.034822
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_UNMIGRATED uses its typed reason
+ok 58 - repair refusal CONTENT_DB_UNMIGRATED uses its typed reason
+  ---
+  duration_ms: 0.033463
+  type: 'test'
+  ...
+# Subtest: repair refusal CONTENT_DB_DIVERGED uses its typed reason
+ok 59 - repair refusal CONTENT_DB_DIVERGED uses its typed reason
+  ---
+  duration_ms: 0.034189
+  type: 'test'
+  ...
+# Subtest: an error name cannot impersonate a domain class
+ok 60 - an error name cannot impersonate a domain class
+  ---
+  duration_ms: 0.052073
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=/requested)
+ok 61 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=/requested)
+  ---
+  duration_ms: 302.051721
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/, basePath=/requested)
+ok 62 - export result and CLI explain path precedence (publicUrl=https://export.example/, basePath=/requested)
+  ---
+  duration_ms: 183.974821
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=)
+ok 63 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=)
+  ---
+  duration_ms: 233.856473
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=undefined)
+ok 64 - export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=undefined)
+  ---
+  duration_ms: 169.781667
+  type: 'test'
+  ...
+# Subtest: export result and CLI explain path precedence (publicUrl=undefined, basePath=/requested)
+ok 65 - export result and CLI explain path precedence (publicUrl=undefined, basePath=/requested)
+  ---
+  duration_ms: 165.330019
+  type: 'test'
+  ...
+# Subtest: exportSite preserves and exports srcset candidates with base path '/my-repo'
+ok 66 - exportSite preserves and exports srcset candidates with base path '/my-repo'
+  ---
+  duration_ms: 390.465664
+  type: 'test'
+  ...
+# Subtest: exportSite preserves and exports srcset candidates with base path ''
+ok 67 - exportSite preserves and exports srcset candidates with base path ''
+  ---
+  duration_ms: 276.403953
+  type: 'test'
+  ...
+# Subtest: export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle
+ok 68 - export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle
+  ---
+  duration_ms: 9.363121
+  type: 'test'
+  ...
+# Subtest: export: dropped references are printed as warnings without failing a completed export
+ok 69 - export: dropped references are printed as warnings without failing a completed export
+  ---
+  duration_ms: 3.16356
+  type: 'test'
+  ...
+# Subtest: export reports all failures and warnings honestly, honors flags, and closes after an incomplete export
+ok 70 - export reports all failures and warnings honestly, honors flags, and closes after an incomplete export
+  ---
+  duration_ms: 2.438544
+  type: 'test'
+  ...
+# Subtest: export refuses pending migration recovery before crawling and closes even without composed boot work
+ok 71 - export refuses pending migration recovery before crawling and closes even without composed boot work
+  ---
+  duration_ms: 2.117669
+  type: 'test'
+  ...
+# Subtest: export with only failed assets reports an incomplete export and closes the boot
+ok 72 - export with only failed assets reports an incomplete export and closes the boot
+  ---
+  duration_ms: 3.452047
+  type: 'test'
+  ...
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [commerce] Commerce configuration is missing. Restore the configured payment account and deployed HTTPS origin before accepting checkout.
+# [site/pages] GET / failed TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at prepareStaticTierHtml (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts:115:20)
+#     at finishStaticTierDocument (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts:82:27)
+#     at serveStaticThemeIndex (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts:179:26)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+#     at async serveHomePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/home.ts:126:5)
+# [site/pages] GET /:slug failed (slug=blog) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at renderViaTemplate (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts:164:45)
+#     at renderTemplateBranchIfEligible (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts:121:10)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+#     at async handler (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/slug-routes.ts:116:28)
+# [site/pages] GET /:slug failed (slug=tovu-export-404-check) TypeError: RegExp.escape is not a function
+#     at resolveSlotMarker (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:40:69)
+#     at resolve (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:70:65)
+#     at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+#     at resolveSlots (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:66:10)
+#     at expandPartials (/home/user/Jini/packages/cms/src/widgets/markers/expand-partials.ts:94:10)
+#     at prepareStaticTierHtml (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts:115:20)
+#     at finishStaticTierDocument (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts:82:27)
+#     at handlePostNotFoundOnSlugRoute (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post-not-found.ts:36:30)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+#     at async handlePostNotFoundInSlugCatch (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post-not-found.ts:74:5)
+# tovu export: skipped (no-favicon-or-manifest-route): Tovu has no /favicon.ico or web-app-manifest route today — nothing to export for either convention
+# tovu export: FAILED route / (home): expected 200, got 500
+# tovu export: FAILED route /blog (page): expected 200, got 500
+# tovu export: FAILED route /tovu-export-404-check (not-found): expected a 4xx response for the 404 probe, got 500
+# tovu export: warning: 37 theme file(s) were never referenced by a rendered page and were not exported (template shells, build/preview artifacts, and anything a theme's own JS builds a path to at runtime all look identical from here):
+#   - NOTICE.md
+#   - assets/fonts/geist-LICENSE.txt
+#   - assets/fonts/geist-mono-var.woff2
+#   - assets/fonts/geist-var.woff2
+#   - assets/logo.png
+#   - assets/logo@2x.png
+#   - assets/vendor/kuinetic/LICENSE
+#   - assets/vendor/kuinetic/README.md
+#   - assets/vendor/kuinetic/kuinetic.all.min.js
+#   - css/theme.css
+#   - icons/apple-touch-icon.png
+#   - icons/favicon-16x16.png
+#   - icons/favicon-32x32.png
+#   - icons/favicon.ico
+#   - icons/icon-192.png
+#   - icons/icon-512.png
+#   - icons/maskable-icon-192.png
+#   - icons/maskable-icon-512.png
+#   - manifest.webmanifest
+#   - render/pages/listing-default.html
+#   - render/pages/pages-blank.html
+#   - render/pages/pages-default.html
+#   - render/pages/posts-default.html
+#   - render/pages/posts-sidebar.html
+#   - render/partials/footer-minimal.html
+#   - render/partials/footer.html
+#   - render/partials/nav.html
+#   - screenshots/index-light.png
+#   - screenshots/index.png
+#   - scripts/docs-sidebar.js
+#   - scripts/docs-toc.js
+#   - scripts/main.js
+#   - scripts/theme-toggle.js
+#   - scripts/vendor/lightbox.js
+#   - theme.json
+#   - tokens.json
+#   - tokens.light.json
+# Subtest: exports a fresh site to static files with the default boot, composition and close
+not ok 73 - exports a fresh site to static files with the default boot, composition and close
+  ---
+  duration_ms: 1426.599828
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/export-command-real-site.unit.test.ts:1:405'
+  failureType: 'testCodeFailure'
+  error: 'export finished with 3 failed route(s) and 0 failed asset(s) — see stderr above'
+  code: 'ERR_TEST_FAILURE'
+  name: 'ExportIncompleteError'
+  stack: |-
+    assertExportComplete (/home/user/Tovu/apps/website/src/cli/commands/export.ts:104:11)
+    runExportCommand (/home/user/Tovu/apps/website/src/cli/commands/export.ts:185:5)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/unit/export-command-real-site.unit.test.ts:24:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: export waits for both boot work before closing
+ok 74 - export waits for both boot work before closing
+  ---
+  duration_ms: 1.7613
+  type: 'test'
+  ...
+# Subtest: export closes the boot and partially composed store when composition fails
+ok 75 - export closes the boot and partially composed store when composition fails
+  ---
+  duration_ms: 2.097859
+  type: 'test'
+  ...
+# Subtest: export composes against the site's own content database with the booted store and site paths
+ok 76 - export composes against the site's own content database with the booted store and site paths
+  ---
+  duration_ms: 1.673721
+  type: 'test'
+  ...
+# Subtest: the export CLI parses --public-url as the optional destination
+ok 77 - the export CLI parses --public-url as the optional destination
+  ---
+  duration_ms: 4.258894
+  type: 'test'
+  ...
+# Subtest: export forwards the optional public destination (omitted) to the export owner
+ok 78 - export forwards the optional public destination (omitted) to the export owner
+  ---
+  duration_ms: 5.510197
+  type: 'test'
+  ...
+# Subtest: export forwards the optional public destination (https://export.example/docs/) to the export owner
+ok 79 - export forwards the optional public destination (https://export.example/docs/) to the export owner
+  ---
+  duration_ms: 1.74212
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to http://export.example
+ok 80 - export applies the admin export owner's public-origin policy to http://export.example
+  ---
+  duration_ms: 275.368776
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to https://localhost
+ok 81 - export applies the admin export owner's public-origin policy to https://localhost
+  ---
+  duration_ms: 149.279771
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to https://127.0.0.1
+ok 82 - export applies the admin export owner's public-origin policy to https://127.0.0.1
+  ---
+  duration_ms: 139.723809
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to https://user@export.example
+ok 83 - export applies the admin export owner's public-origin policy to https://user@export.example
+  ---
+  duration_ms: 130.460916
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to https://export.example/?x=1
+ok 84 - export applies the admin export owner's public-origin policy to https://export.example/?x=1
+  ---
+  duration_ms: 151.438197
+  type: 'test'
+  ...
+# Subtest: export applies the admin export owner's public-origin policy to https://export.example/\#fragment
+ok 85 - export applies the admin export owner's public-origin policy to https://export.example/\#fragment
+  ---
+  duration_ms: 130.486073
+  type: 'test'
+  ...
+# Subtest: bare usage writes complete help to stdout before exiting with zero
+ok 86 - bare usage writes complete help to stdout before exiting with zero
+  ---
+  duration_ms: 1.589854
+  type: 'test'
+  ...
+# Subtest: unknown-command usage writes complete help only to stderr and does not exit
+ok 87 - unknown-command usage writes complete help only to stderr and does not exit
+  ---
+  duration_ms: 0.20379
+  type: 'test'
+  ...
+# Subtest: import rejects invalid before stdin
+ok 88 - import rejects invalid before stdin
+  ---
+  duration_ms: 1.699903
+  type: 'test'
+  ...
+# Subtest: import rejects https://user@admin.example before stdin
+ok 89 - import rejects https://user@admin.example before stdin
+  ---
+  duration_ms: 0.185016
+  type: 'test'
+  ...
+# Subtest: import rejects https://:password@admin.example before stdin
+ok 90 - import rejects https://:password@admin.example before stdin
+  ---
+  duration_ms: 0.198897
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/path before stdin
+ok 91 - import rejects https://admin.example/path before stdin
+  ---
+  duration_ms: 0.081418
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/?q=1 before stdin
+ok 92 - import rejects https://admin.example/?q=1 before stdin
+  ---
+  duration_ms: 0.13539
+  type: 'test'
+  ...
+# Subtest: import rejects https://admin.example/\#hash before stdin
+ok 93 - import rejects https://admin.example/\#hash before stdin
+  ---
+  duration_ms: 0.085467
+  type: 'test'
+  ...
+# Subtest: import rejects ftp://admin.example before stdin
+ok 94 - import rejects ftp://admin.example before stdin
+  ---
+  duration_ms: 0.211914
+  type: 'test'
+  ...
+# Subtest: import rejects http://localhost before stdin
+ok 95 - import rejects http://localhost before stdin
+  ---
+  duration_ms: 2.780488
+  type: 'test'
+  ...
+# Subtest: import rejects http://192.0.2.1 before stdin
+ok 96 - import rejects http://192.0.2.1 before stdin
+  ---
+  duration_ms: 0.480324
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin {
+ok 97 - import rejects non-object stdin {
+  ---
+  duration_ms: 0.586595
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin null
+ok 98 - import rejects non-object stdin null
+  ---
+  duration_ms: 0.203986
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin []
+ok 99 - import rejects non-object stdin []
+  ---
+  duration_ms: 0.080021
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin false
+ok 100 - import rejects non-object stdin false
+  ---
+  duration_ms: 0.058519
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin 1
+ok 101 - import rejects non-object stdin 1
+  ---
+  duration_ms: 0.053723
+  type: 'test'
+  ...
+# Subtest: import rejects non-object stdin "text"
+ok 102 - import rejects non-object stdin "text"
+  ---
+  duration_ms: 0.133303
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 9
+ok 103 - import rejects invalid authorization 9
+  ---
+  duration_ms: 0.164523
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 1
+ok 104 - import rejects invalid authorization 1
+  ---
+  duration_ms: 0.063122
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 13
+ok 105 - import rejects invalid authorization 13
+  ---
+  duration_ms: 0.089115
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 7
+ok 106 - import rejects invalid authorization 7
+  ---
+  duration_ms: 0.078391
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 11
+ok 107 - import rejects invalid authorization 11
+  ---
+  duration_ms: 0.101056
+  type: 'test'
+  ...
+# Subtest: import rejects invalid authorization 4104
+ok 108 - import rejects invalid authorization 4104
+  ---
+  duration_ms: 0.078797
+  type: 'test'
+  ...
+# Subtest: import requires workspace before stdin
+ok 109 - import requires workspace before stdin
+  ---
+  duration_ms: 0.09898
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes null
+ok 110 - import https://admin.example preserves/normalizes null
+  ---
+  duration_ms: 0.697131
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes false
+ok 111 - import https://admin.example preserves/normalizes false
+  ---
+  duration_ms: 0.178823
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes 0
+ok 112 - import https://admin.example preserves/normalizes 0
+  ---
+  duration_ms: 0.105495
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes "done"
+ok 113 - import https://admin.example preserves/normalizes "done"
+  ---
+  duration_ms: 0.064291
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {}
+ok 114 - import https://admin.example preserves/normalizes {}
+  ---
+  duration_ms: 0.115462
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {"setupUrl":4}
+ok 115 - import https://admin.example preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.063549
+  type: 'test'
+  ...
+# Subtest: import https://admin.example preserves/normalizes {"setupUrl":"/owner"}
+ok 116 - import https://admin.example preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.082163
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes null
+ok 117 - import http://127.0.0.1:3010 preserves/normalizes null
+  ---
+  duration_ms: 0.090463
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes false
+ok 118 - import http://127.0.0.1:3010 preserves/normalizes false
+  ---
+  duration_ms: 0.105099
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes 0
+ok 119 - import http://127.0.0.1:3010 preserves/normalizes 0
+  ---
+  duration_ms: 0.186689
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes "done"
+ok 120 - import http://127.0.0.1:3010 preserves/normalizes "done"
+  ---
+  duration_ms: 0.082635
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {}
+ok 121 - import http://127.0.0.1:3010 preserves/normalizes {}
+  ---
+  duration_ms: 0.075853
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":4}
+ok 122 - import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.059886
+  type: 'test'
+  ...
+# Subtest: import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":"/owner"}
+ok 123 - import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.13414
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes null
+ok 124 - import http://[::1]:3010 preserves/normalizes null
+  ---
+  duration_ms: 0.733317
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes false
+ok 125 - import http://[::1]:3010 preserves/normalizes false
+  ---
+  duration_ms: 0.082479
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes 0
+ok 126 - import http://[::1]:3010 preserves/normalizes 0
+  ---
+  duration_ms: 0.099162
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes "done"
+ok 127 - import http://[::1]:3010 preserves/normalizes "done"
+  ---
+  duration_ms: 0.074054
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {}
+ok 128 - import http://[::1]:3010 preserves/normalizes {}
+  ---
+  duration_ms: 0.073374
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {"setupUrl":4}
+ok 129 - import http://[::1]:3010 preserves/normalizes {"setupUrl":4}
+  ---
+  duration_ms: 0.05588
+  type: 'test'
+  ...
+# Subtest: import http://[::1]:3010 preserves/normalizes {"setupUrl":"/owner"}
+ok 130 - import http://[::1]:3010 preserves/normalizes {"setupUrl":"/owner"}
+  ---
+  duration_ms: 0.057855
+  type: 'test'
+  ...
+# Subtest: import accepts an external setup URL (reported, not fixed)
+ok 131 - import accepts an external setup URL (reported, not fixed)
+  ---
+  duration_ms: 0.154658
+  type: 'test'
+  ...
+# Subtest: import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged
+ok 132 - import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged
+  ---
+  duration_ms: 43.541801
+  type: 'test'
+  ...
+# Subtest: piped input: only the first line is the connection string and nothing is printed
+ok 133 - piped input: only the first line is the connection string and nothing is printed
+  ---
+  duration_ms: 2.215003
+  type: 'test'
+  ...
+# Subtest: piped input with no newline and empty input both resolve to the whole (possibly empty) text
+ok 134 - piped input with no newline and empty input both resolve to the whole (possibly empty) text
+  ---
+  duration_ms: 0.942219
+  type: 'test'
+  ...
+# Subtest: a terminal is prompted once, the typed value is not echoed, and the prompt line is closed
+ok 135 - a terminal is prompted once, the typed value is not echoed, and the prompt line is closed
+  ---
+  duration_ms: 2.165167
+  type: 'test'
+  ...
+# Subtest: init refuses shared Postgres stdin for createInputStdin before reading
+ok 136 - init refuses shared Postgres stdin for createInputStdin before reading
+  ---
+  duration_ms: 1.779228
+  type: 'test'
+  ...
+# Subtest: init refuses shared Postgres stdin for agentPluginTokensStdin before reading
+ok 137 - init refuses shared Postgres stdin for agentPluginTokensStdin before reading
+  ---
+  duration_ms: 0.206966
+  type: 'test'
+  ...
+# Subtest: init none checks before creation and seals after success output
+ok 138 - init none checks before creation and seals after success output
+  ---
+  duration_ms: 586.617325
+  type: 'test'
+  ...
+# Subtest: init tokens checks before creation and seals after success output
+ok 139 - init tokens checks before creation and seals after success output
+  ---
+  duration_ms: 624.358463
+  type: 'test'
+  ...
+# Subtest: init envelope checks before creation and seals after success output
+ok 140 - init envelope checks before creation and seals after success output
+  ---
+  duration_ms: 542.004344
+  type: 'test'
+  ...
+# Subtest: init empty-envelope checks before creation and seals after success output
+ok 141 - init empty-envelope checks before creation and seals after success output
+  ---
+  duration_ms: 513.712511
+  type: 'test'
+  ...
+# Subtest: defaults to the raw commander manifest as pretty JSON plus a newline
+ok 142 - defaults to the raw commander manifest as pretty JSON plus a newline
+  ---
+  duration_ms: 1.322921
+  type: 'test'
+  ...
+# Subtest: --format mcp reshapes the manifest into MCP tool definitions
+ok 143 - --format mcp reshapes the manifest into MCP tool definitions
+  ---
+  duration_ms: 0.498415
+  type: 'test'
+  ...
+# Subtest: an unknown --format is refused without printing
+ok 144 - an unknown --format is refused without printing
+  ---
+  duration_ms: 0.507362
+  type: 'test'
+  ...
+# Subtest: without an injected output it writes to stdout
+ok 145 - without an injected output it writes to stdout
+  ---
+  duration_ms: 0.428002
+  type: 'test'
+  ...
+# Subtest: introspectProgram: reads real commands/arguments/options off the live Command tree
+ok 146 - introspectProgram: reads real commands/arguments/options off the live Command tree
+  ---
+  duration_ms: 1.800408
+  type: 'test'
+  ...
+# Subtest: toMcpTools: reshapes the manifest into MCP tool definitions, one per command, prefixed tovu_
+ok 147 - toMcpTools: reshapes the manifest into MCP tool definitions, one per command, prefixed tovu_
+  ---
+  duration_ms: 0.452005
+  type: 'test'
+  ...
+# Subtest: introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed
+ok 148 - introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed
+  ---
+  duration_ms: 0.234308
+  type: 'test'
+  ...
+# Subtest: toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate)
+ok 149 - toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate)
+  ---
+  duration_ms: 0.135858
+  type: 'test'
+  ...
+# Subtest: toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it
+ok 150 - toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it
+  ---
+  duration_ms: 0.281607
+  type: 'test'
+  ...
+# Subtest: a dry run plans every entry and writes nothing, not even a transaction
+ok 151 - a dry run plans every entry and writes nothing, not even a transaction
+  ---
+  duration_ms: 1.220644
+  type: 'test'
+  ...
+# Subtest: apply writes only the new entries, non-default and project-owned, in one transaction
+ok 152 - apply writes only the new entries, non-default and project-owned, in one transaction
+  ---
+  duration_ms: 0.321595
+  type: 'test'
+  ...
+# Subtest: a vault refusal mid-apply rejects the whole import; the transaction owns the rollback
+ok 153 - a vault refusal mid-apply rejects the whole import; the transaction owns the rollback
+  ---
+  duration_ms: 0.381195
+  type: 'test'
+  ...
+# Subtest: the same id with the same metadata and decrypted payload is already imported; apply writes nothing
+ok 154 - the same id with the same metadata and decrypted payload is already imported; apply writes nothing
+  ---
+  duration_ms: 0.188289
+  type: 'test'
+  ...
+# Subtest: the same id with a different secret, metadata or identity is a conflict and stays untouched
+ok 155 - the same id with a different secret, metadata or identity is a conflict and stays untouched
+  ---
+  duration_ms: 0.433109
+  type: 'test'
+  ...
+# Subtest: a taken name (same kind, provider and label) is a conflict; another provider or kind is not
+ok 156 - a taken name (same kind, provider and label) is a conflict; another provider or kind is not
+  ---
+  duration_ms: 0.280491
+  type: 'test'
+  ...
+# Subtest: media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet
+ok 157 - media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet
+  ---
+  duration_ms: 0.116874
+  type: 'test'
+  ...
+# Subtest: site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner
+ok 158 - site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner
+  ---
+  duration_ms: 0.156438
+  type: 'test'
+  ...
+# Subtest: every recorded site destination is reported pending: grants keep a copy, revocations may still hold one
+ok 159 - every recorded site destination is reported pending: grants keep a copy, revocations may still hold one
+  ---
+  duration_ms: 0.331638
+  type: 'test'
+  ...
+# Subtest: an empty snapshot is the empty report and touches nothing
+ok 160 - an empty snapshot is the empty report and touches nothing
+  ---
+  duration_ms: 0.337386
+  type: 'test'
+  ...
+# Subtest: plugin group declares install folder, site, yes, replace and integrity write
+ok 161 - plugin group declares install folder, site, yes, replace and integrity write
+  ---
+  duration_ms: 4.356146
+  type: 'test'
+  ...
+# Subtest: CLI install cancel: real disk, no import, closes store
+ok 162 - CLI install cancel: real disk, no import, closes store
+  ---
+  duration_ms: 25.12541
+  type: 'test'
+  ...
+# Subtest: CLI install yes: real disk, no import, closes store
+ok 163 - CLI install yes: real disk, no import, closes store
+  ---
+  duration_ms: 48.022095
+  type: 'test'
+  ...
+# Subtest: CLI install changed: real disk, no import, closes store
+ok 164 - CLI install changed: real disk, no import, closes store
+  ---
+  duration_ms: 20.543094
+  type: 'test'
+  ...
+# Subtest: integrity reads jini.plugin.json and writes only the canonical manifest
+ok 165 - integrity reads jini.plugin.json and writes only the canonical manifest
+  ---
+  duration_ms: 14.400719
+  type: 'test'
+  ...
+# Subtest: integrity reads tovu.plugin.json and writes only the canonical manifest
+ok 166 - integrity reads tovu.plugin.json and writes only the canonical manifest
+  ---
+  duration_ms: 4.784595
+  type: 'test'
+  ...
+# Subtest: integrity prefers the canonical manifest and never falls back from malformed canonical JSON
+ok 167 - integrity prefers the canonical manifest and never falls back from malformed canonical JSON
+  ---
+  duration_ms: 11.547735
+  type: 'test'
+  ...
+# Subtest: plugin integrity without --write prints the digests to stdout and writes nothing
+ok 168 - plugin integrity without --write prints the digests to stdout and writes nothing
+  ---
+  duration_ms: 5.770516
+  type: 'test'
+  ...
+# Subtest: plugin integrity --write without any manifest fails and leaves no staged file behind
+ok 169 - plugin integrity --write without any manifest fails and leaves no staged file behind
+  ---
+  duration_ms: 7.908857
+  type: 'test'
+  ...
+# Subtest: plugin integrity --write removes its staged file when the manifest cannot be replaced
+ok 170 - plugin integrity --write removes its staged file when the manifest cannot be replaced
+  ---
+  duration_ms: 7.783839
+  type: 'test'
+  ...
+# Subtest: terminal consent answer "y" -> true
+ok 171 - terminal consent answer "y" -> true
+  ---
+  duration_ms: 1.564592
+  type: 'test'
+  ...
+# Subtest: terminal consent answer " YES " -> true
+ok 172 - terminal consent answer " YES " -> true
+  ---
+  duration_ms: 0.679343
+  type: 'test'
+  ...
+# Subtest: terminal consent answer "n" -> false
+ok 173 - terminal consent answer "n" -> false
+  ---
+  duration_ms: 0.370117
+  type: 'test'
+  ...
+# Subtest: terminal consent answer "" -> false
+ok 174 - terminal consent answer "" -> false
+  ---
+  duration_ms: 0.400532
+  type: 'test'
+  ...
+# Subtest: terminal consent answer "yess" -> false
+ok 175 - terminal consent answer "yess" -> false
+  ---
+  duration_ms: 0.39906
+  type: 'test'
+  ...
+# Subtest: terminal consent refuses a non-interactive input without asking
+ok 176 - terminal consent refuses a non-interactive input without asking
+  ---
+  duration_ms: 0.197694
+  type: 'test'
+  ...
+# Subtest: CLI install without --yes or an injected confirm refuses on a non-interactive stdin, writing the warning to stdout
+ok 177 - CLI install without --yes or an injected confirm refuses on a non-interactive stdin, writing the warning to stdout
+  ---
+  duration_ms: 21.01056
+  type: 'test'
+  ...
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: install into a real site: default opener, <site>/plugins by default, TOVU_PLUGINS_DIR when set
+ok 178 - install into a real site: default opener, <site>/plugins by default, TOVU_PLUGINS_DIR when set
+  ---
+  duration_ms: 596.163017
+  type: 'test'
+  ...
+# [migrations] vault coverage site-assistant: rows=0, envelopes=0
+# [migrations] vault coverage personal-execution: rows=0, envelopes=0
+# [migrations] vault coverage media-provider: rows=0, envelopes=0
+# [migrations] vault coverage custom: rows=0, envelopes=0
+# [migrations] vault coverage publish-peer: rows=0, envelopes=0
+# [migrations] vault coverage database-destination: rows=0, envelopes=0
+# [migrations] vault coverage vendor: rows=0, envelopes=0
+# [migrations] vault coverage source-control: rows=0, envelopes=0
+# [migrations] vault coverage mcp-env: rows=0, envelopes=0
+# [migrations] vault coverage mcp-auth: rows=0, envelopes=0
+# vault boot coverage {
+#   green: true,
+#   flagged: [],
+#   kinds: {
+#     'site-assistant': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'personal-execution': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'media-provider': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'publish-peer': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'database-destination': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     vendor: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'source-control': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-env': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'mcp-auth': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     'api-connection': {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     },
+#     custom: {
+#       rows: 0,
+#       envelopes: 0,
+#       attempted: 0,
+#       succeeded: 0,
+#       dropped: 0,
+#       blocked: 0,
+#       legacyRemaining: 0,
+#       unopenable: 0
+#     }
+#   }
+# }
+# Subtest: install into a real PGlite site opens its content store rather than a SQLite handle
+ok 179 - install into a real PGlite site opens its content store rather than a SQLite handle
+  ---
+  duration_ms: 4845.251066
+  type: 'test'
+  ...
+# Subtest: without --site the install opens the resolved default site root
+ok 180 - without --site the install opens the resolved default site root
+  ---
+  duration_ms: 7.333608
+  type: 'test'
+  ...
+# Subtest: import forwards --server/--workspace and refuses a non-origin before reading stdin
+ok 181 - import forwards --server/--workspace and refuses a non-origin before reading stdin
+  ---
+  duration_ms: 14.317735
+  type: 'test'
+  ...
+# Subtest: init forwards --storage to the storage parser
+ok 182 - init forwards --storage to the storage parser
+  ---
+  duration_ms: 1.501743
+  type: 'test'
+  ...
+# Subtest: storage move forwards --to and refuses a non-postgres target
+ok 183 - storage move forwards --to and refuses a non-postgres target
+  ---
+  duration_ms: 1.276294
+  type: 'test'
+  ...
+# Subtest: plugin integrity forwards the package folder
+ok 184 - plugin integrity forwards the package folder
+  ---
+  duration_ms: 4.408433
+  type: 'test'
+  ...
+# Subtest: plugin install forwards --site and opens that site first
+ok 185 - plugin install forwards --site and opens that site first
+  ---
+  duration_ms: 1.752694
+  type: 'test'
+  ...
+# Subtest: adopt forwards the folder and refuses one that does not exist
+ok 186 - adopt forwards the folder and refuses one that does not exist
+  ---
+  duration_ms: 1.443102
+  type: 'test'
+  ...
+# Subtest: export forwards the folder and refuses a missing site
+ok 187 - export forwards the folder and refuses a missing site
+  ---
+  duration_ms: 3.329451
+  type: 'test'
+  ...
+# Subtest: sites move-home forwards the folder and refuses one outside the former default home
+ok 188 - sites move-home forwards the folder and refuses one outside the former default home
+  ---
+  duration_ms: 6.477617
+  type: 'test'
+  ...
+# Subtest: site rename rejects path traversal before touching the sites home
+ok 189 - site rename rejects path traversal before touching the sites home
+  ---
+  duration_ms: 1.526657
+  type: 'test'
+  ...
+# Subtest: site rename requires both folder names
+ok 190 - site rename requires both folder names
+  ---
+  duration_ms: 1.163795
+  type: 'test'
+  ...
+# Subtest: sites move-home also accepts --projects-path and still refuses a folder outside the former default home
+ok 191 - sites move-home also accepts --projects-path and still refuses a folder outside the former default home
+  ---
+  duration_ms: 6.245039
+  type: 'test'
+  ...
+# Subtest: theme validate forwards --profile
+ok 192 - theme validate forwards --profile
+  ---
+  duration_ms: 1.116632
+  type: 'test'
+  ...
+# Subtest: theme normalize-build forwards --primary-stylesheet
+ok 193 - theme normalize-build forwards --primary-stylesheet
+  ---
+  duration_ms: 0.993739
+  type: 'test'
+  ...
+# Subtest: theme migrate forwards the folder to the migrator, which refuses one with no theme.json
+ok 194 - theme migrate forwards the folder to the migrator, which refuses one with no theme.json
+  ---
+  duration_ms: 1.632519
+  type: 'test'
+  ...
+# Subtest: theme generate-index forwards the folder and --json, skipping a folder that is not a theme
+ok 195 - theme generate-index forwards the folder and --json, skipping a folder that is not a theme
+  ---
+  duration_ms: 2.381337
+  type: 'test'
+  ...
+# Subtest: theme sync-originals forwards --json
+ok 196 - theme sync-originals forwards --json
+  ---
+  duration_ms: 1.509168
+  type: 'test'
+  ...
+# [agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+# Subtest: agent-plugins token-sign-in prints the sign-in list
+ok 197 - agent-plugins token-sign-in prints the sign-in list
+  ---
+  duration_ms: 103.762502
+  type: 'test'
+  ...
+# Subtest: introspect forwards --format over the live command tree
+ok 198 - introspect forwards --format over the live command tree
+  ---
+  duration_ms: 2.196038
+  type: 'test'
+  ...
+# Subtest: commander's own error output is suppressed; an unknown option surfaces only as a thrown CommanderError
+ok 199 - commander's own error output is suppressed; an unknown option surfaces only as a thrown CommanderError
+  ---
+  duration_ms: 2.031412
+  type: 'test'
+  ...
+# Subtest: removes a fixture tree containing read-only nested directories
+ok 200 - removes a fixture tree containing read-only nested directories
+  ---
+  duration_ms: 5.552436
+  type: 'test'
+  ...
+# Subtest: a missing fixture tree is a no-op
+ok 201 - a missing fixture tree is a no-op
+  ---
+  duration_ms: 0.179011
+  type: 'test'
+  ...
+# Subtest: reset command passes the hidden password and explicit env username without assuming admin
+ok 202 - reset command passes the hidden password and explicit env username without assuming admin
+  ---
+  duration_ms: 1.645288
+  type: 'test'
+  ...
+# Subtest: mismatching confirmation never opens a writable store
+ok 203 - mismatching confirmation never opens a writable store
+  ---
+  duration_ms: 0.308769
+  type: 'test'
+  ...
+# Subtest: CLI preserves the specific redacted cause without exposing the supplied password or Tovu keys
+ok 204 - CLI preserves the specific redacted cause without exposing the supplied password or Tovu keys
+  ---
+  duration_ms: 5.693974
+  type: 'test'
+  ...
+# Subtest: runServeCommand's body actually CALLS pinServedSiteDirIntoEnv, not just imports/defines it
+ok 205 - runServeCommand's body actually CALLS pinServedSiteDirIntoEnv, not just imports/defines it
+  ---
+  duration_ms: 0.87862
+  type: 'test'
+  ...
+# Subtest: sanity: the exact call-site text is not also the primitive's own declaration line (a regex that matched both would prove nothing)
+ok 206 - sanity: the exact call-site text is not also the primitive's own declaration line (a regex that matched both would prove nothing)
+  ---
+  duration_ms: 0.197197
+  type: 'test'
+  ...
+# Subtest: runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })
+ok 207 - runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })
+  ---
+  duration_ms: 0.107281
+  type: 'test'
+  ...
+# Subtest: runServeCommand's body passes the resolved host into app.listen(port, host)
+not ok 208 - runServeCommand's body passes the resolved host into app.listen(port, host)
+  ---
+  duration_ms: 2.461054
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:3240'
+  failureType: 'testCodeFailure'
+  error: "runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts to Node's own all-interfaces default, undoing the loopback default."
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:113:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: program.ts registers --host and threads it into runServeCommand's input
+ok 209 - program.ts registers --host and threads it into runServeCommand's input
+  ---
+  duration_ms: 0.196933
+  type: 'test'
+  ...
+# Subtest: the BR-07 shutdown uses the shared bounded store close with the composition and boot work
+not ok 210 - the BR-07 shutdown uses the shared bounded store close with the composition and boot work
+  ---
+  duration_ms: 3.322214
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:4317'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.ok(body.includes("closeStoreOnShutdown({"))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:136:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# (node:13616) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# tovu serve: warning: listening on 0.0.0.0; this site is reachable from other machines on your network (--host/TOVU_HOST)
+# tovu serve: warning: listening on all interfaces; this site is reachable from other machines on your network (--host/TOVU_HOST)
+# Subtest: runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting
+ok 211 - runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting
+  ---
+  duration_ms: 5047.420378
+  type: 'test'
+  ...
+# (node:13628) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: server boot schedules cleanup once without waiting and warns on cleanup failure
+ok 212 - server boot schedules cleanup once without waiting and warns on cleanup failure
+  ---
+  duration_ms: 5126.732787
+  type: 'test'
+  ...
+# Subtest: pinServedSiteDirIntoEnv points the site root at the directory this invocation was told to serve
+ok 213 - pinServedSiteDirIntoEnv points the site root at the directory this invocation was told to serve
+  ---
+  duration_ms: 4.886235
+  type: 'test'
+  ...
+# Subtest: pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves
+ok 214 - pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves
+  ---
+  duration_ms: 0.416091
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory
+ok 215 - tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory
+  ---
+  duration_ms: 3.162282
+  type: 'test'
+  ...
+# Subtest: the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone
+ok 216 - the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone
+  ---
+  duration_ms: 0.421733
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal
+ok 217 - tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal
+  ---
+  duration_ms: 0.33329
+  type: 'test'
+  ...
+# Subtest: tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable
+ok 218 - tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable
+  ---
+  duration_ms: 0.39564
+  type: 'test'
+  ...
+# Subtest: a switcher-chosen boot is untouched — the default dev boot keeps site switching enabled
+ok 219 - a switcher-chosen boot is untouched — the default dev boot keeps site switching enabled
+  ---
+  duration_ms: 1.291802
+  type: 'test'
+  ...
+# Subtest: pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists
+ok 220 - pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists
+  ---
+  duration_ms: 0.997495
+  type: 'test'
+  ...
+# Subtest: serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db
+ok 221 - serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db
+  ---
+  duration_ms: 12.808044
+  type: 'test'
+  ...
+# Subtest: rename forwards folder names and prints the committed paths, including Windows separators
+ok 222 - rename forwards folder names and prints the committed paths, including Windows separators
+  ---
+  duration_ms: 1.217962
+  type: 'test'
+  ...
+# Subtest: a refused or rolled-back rename emits no success output
+ok 223 - a refused or rolled-back rename emits no success output
+  ---
+  duration_ms: 0.448079
+  type: 'test'
+  ...
+# Subtest: refuses every target except postgres before touching anything
+ok 224 - refuses every target except postgres before touching anything
+  ---
+  duration_ms: 1.344302
+  type: 'test'
+  ...
+# Subtest: --storage-env must be a variable name and must be set
+ok 225 - --storage-env must be a variable name and must be set
+  ---
+  duration_ms: 0.411533
+  type: 'test'
+  ...
+# Subtest: --storage-env moves with the trimmed env value and keeps the env reference as the secret
+ok 226 - --storage-env moves with the trimmed env value and keeps the env reference as the secret
+  ---
+  duration_ms: 0.635687
+  type: 'test'
+  ...
+# Subtest: without --storage-env the prompted connection string is trimmed and sealed in the site
+ok 227 - without --storage-env the prompted connection string is trimmed and sealed in the site
+  ---
+  duration_ms: 0.212196
+  type: 'test'
+  ...
+# Subtest: an empty prompted connection string is refused
+ok 228 - an empty prompted connection string is refused
+  ---
+  duration_ms: 0.200782
+  type: 'test'
+  ...
+# Subtest: by default the summary lines go to stdout
+ok 229 - by default the summary lines go to stdout
+  ---
+  duration_ms: 0.496576
+  type: 'test'
+  ...
+# Subtest: generate-index resolves a relative path, writes a portability page and prints its exact destination
+not ok 230 - generate-index resolves a relative path, writes a portability page and prints its exact destination
+  ---
+  duration_ms: 10.427322
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts:1:1808'
+  failureType: 'testCodeFailure'
+  error: 'RegExp.escape is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    injectTokenStyleBlock (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:133:73)
+    buildStaticPortabilityIndex (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:196:10)
+    generateStaticPortabilityIndex (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:227:16)
+    runThemeGenerateIndexCommand (/home/user/Tovu/apps/website/src/cli/commands/theme/generate-index.ts:32:18)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts:46:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: generate-index JSON reports the exact written path and still writes the file
+not ok 231 - generate-index JSON reports the exact written path and still writes the file
+  ---
+  duration_ms: 7.202384
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts:2:202'
+  failureType: 'testCodeFailure'
+  error: 'RegExp.escape is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    injectTokenStyleBlock (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:133:73)
+    buildStaticPortabilityIndex (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:196:10)
+    generateStaticPortabilityIndex (/home/user/Tovu/apps/website/src/features/theme/static-portability-index.ts:227:16)
+    runThemeGenerateIndexCommand (/home/user/Tovu/apps/website/src/cli/commands/theme/generate-index.ts:32:18)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts:57:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+  ...
+# Subtest: generate-index reports a load failure (human) as a skip with exit code one
+ok 232 - generate-index reports a load failure (human) as a skip with exit code one
+  ---
+  duration_ms: 2.615004
+  type: 'test'
+  ...
+# Subtest: generate-index reports a load failure (JSON) as a skip with exit code one
+ok 233 - generate-index reports a load failure (JSON) as a skip with exit code one
+  ---
+  duration_ms: 1.475124
+  type: 'test'
+  ...
+# Subtest: generate-index skips a valid declarative theme without creating a portability page
+ok 234 - generate-index skips a valid declarative theme without creating a portability page
+  ---
+  duration_ms: 4.274499
+  type: 'test'
+  ...
+# Subtest: migrate dry-run names the staged output and says the original theme directory is untouched
+ok 235 - migrate dry-run names the staged output and says the original theme directory is untouched
+  ---
+  duration_ms: 14.242699
+  type: 'test'
+  ...
+# Subtest: a failed migration dry-run prints validator and loader findings, sets exit one and preserves the original files
+ok 236 - a failed migration dry-run prints validator and loader findings, sets exit one and preserves the original files
+  ---
+  duration_ms: 13.597943
+  type: 'test'
+  ...
+# Subtest: normalize-build rejects an empty comma-separated page list before changing any files
+ok 237 - normalize-build rejects an empty comma-separated page list before changing any files
+  ---
+  duration_ms: 3.202173
+  type: 'test'
+  ...
+# Subtest: validate uses the requested profile: author advice becomes a publish error
+ok 238 - validate uses the requested profile: author advice becomes a publish error
+  ---
+  duration_ms: 13.958322
+  type: 'test'
+  ...
+# Subtest: validate accepts install and rejects unread runtime fields while retaining polish warnings
+ok 239 - validate accepts install and rejects unread runtime fields while retaining polish warnings
+  ---
+  duration_ms: 7.988605
+  type: 'test'
+  ...
+# Subtest: passes the theme folder and its basename id, and forwards --dry-run
+ok 240 - passes the theme folder and its basename id, and forwards --dry-run
+  ---
+  duration_ms: 1.453659
+  type: 'test'
+  ...
+# Subtest: successful outcomes print one line and leave the exit code alone
+ok 241 - successful outcomes print one line and leave the exit code alone
+  ---
+  duration_ms: 0.359342
+  type: 'test'
+  ...
+# Subtest: a failure lists its reason, validator and load errors, the staged output, and exits 1
+ok 242 - a failure lists its reason, validator and load errors, the staged output, and exits 1
+  ---
+  duration_ms: 0.248066
+  type: 'test'
+  ...
+# Subtest: a bare failure points at the errors below instead of inventing a reason
+ok 243 - a bare failure points at the errors below instead of inventing a reason
+  ---
+  duration_ms: 0.099255
+  type: 'test'
+  ...
+# Subtest: --json prints the raw result, failures included, and still exits 1 on failure
+ok 244 - --json prints the raw result, failures included, and still exits 1 on failure
+  ---
+  duration_ms: 0.114295
+  type: 'test'
+  ...
+# Subtest: prints a per-theme summary and writes each theme's original
+ok 245 - prints a per-theme summary and writes each theme's original
+  ---
+  duration_ms: 9.431394
+  type: 'test'
+  ...
+# Subtest: --json prints the generator result
+ok 246 - --json prints the generator result
+  ---
+  duration_ms: 5.529247
+  type: 'test'
+  ...
+# Subtest: says so when there are no shipped themes, writing to stdout by default
+ok 247 - says so when there are no shipped themes, writing to stdout by default
+  ---
+  duration_ms: 1.144359
+  type: 'test'
+  ...
+# Subtest: validate defaults to the author profile and prints VALID with no finding sections
+ok 248 - validate defaults to the author profile and prints VALID with no finding sections
+  ---
+  duration_ms: 1.35905
+  type: 'test'
+  ...
+# Subtest: validate lists errors and warnings, with a path only when the finding has one, and exits 1 when invalid
+ok 249 - validate lists errors and warnings, with a path only when the finding has one, and exits 1 when invalid
+  ---
+  duration_ms: 0.27757
+  type: 'test'
+  ...
+# Subtest: validate --json prints the raw result; an unknown profile is refused before validating
+ok 250 - validate --json prints the raw result; an unknown profile is refused before validating
+  ---
+  duration_ms: 0.487652
+  type: 'test'
+  ...
+# Subtest: normalize-build defaults --pages to index.html and summarises moves, rewrites and discards
+ok 251 - normalize-build defaults --pages to index.html and summarises moves, rewrites and discards
+  ---
+  duration_ms: 0.480031
+  type: 'test'
+  ...
+# Subtest: normalize-build trims the --pages list, omits an empty discard line, and --json prints the raw result
+ok 252 - normalize-build trims the --pages list, omits an empty discard line, and --json prints the raw result
+  ---
+  duration_ms: 0.287162
+  type: 'test'
+  ...
+# Subtest: normalize-build refuses a missing stylesheet or an empty page list before touching the folder
+ok 253 - normalize-build refuses a missing stylesheet or an empty page list before touching the folder
+  ---
+  duration_ms: 0.192121
+  type: 'test'
+  ...
+# Subtest: normalize-build writes its summary to stdout by default
+ok 254 - normalize-build writes its summary to stdout by default
+  ---
+  duration_ms: 0.411449
+  type: 'test'
+  ...
+1..254
+# tests 254
+# suites 0
+# pass 249
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 67135.172756
