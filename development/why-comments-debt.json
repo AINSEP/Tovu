@@ -3728,6 +3728,94 @@
     {
       "id": "73760a47ae02",
       "reason": "Earlier revision of the Cookie Consent screen @file; the screen moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (ex7-settings-sec, A-K2-consent-1), same comment as 8ea383294621 with the engine specifier now @jini-ai/cookie-consent/react and the host-supplied ConsentScreenUi noted; why kept."
+    },
+    {
+      "id": "5a5439d44e0b",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/external-mcp-i18n.ts (A-K2-settings-1); the @file header travelled with the dictionary, now also naming the {productName} token and the locales-a/-b/-c split; the product name -> 'the host's product name' (K3); why kept."
+    },
+    {
+      "id": "9870608a732b",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/external-mcp-i18n.ts (A-K2-settings-1), the bound-translator doc above `t`; only the common-dictionary identifier changed (COMMON_I18N -> ADMIN_COMMON_I18N); why kept."
+    },
+    {
+      "id": "bf76246c7aca",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts (A-K2-settings-1), the @file header of useExternalMcpOAuthConnect; the product-prefixed callback message type and route file are now 'the host's callback message type' / 'the host's routes/oauth/callback-page.ts' (K3); why kept."
+    },
+    {
+      "id": "8031cb712009",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts (A-K2-settings-1), the useExternalMcpOAuthConnect doc; same text plus @param input.port and @param input.callbackMessageType, which the host now supplies; why kept."
+    },
+    {
+      "id": "a19caff567a8",
+      "reason": "Moved to Jini packages/analytics/src/site/config.settings.ts (K5-analytics-1), the @file header of the core.analytics.* registrar; only 'Tovu has no outbound telemetry sink' -> 'the host has no outbound telemetry sink'; why kept."
+    },
+    {
+      "id": "8096f6fb7ff2",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/region-plugins.ts, the toRegionResolvers doc; the host's legacy TOVU_CONSENT_REGION_HEADER setting name -> 'the host's older consent-region-header setting'; why kept."
+    },
+    {
+      "id": "4e7e7dd7e006",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/tool-registrations.ts, the buildConsentRegistrations doc; same text, the @example now passes `{ siteConsent, host }` because the host's approval lifecycle and request contract are injected as `deps.host`; why kept."
+    },
+    {
+      "id": "c5de2dd24b44",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/publish-content.ts, the @file header of redirect's publish-content contribution; the natural-key and 'not a factory default' sections are verbatim, the opening now says the repo publish-handler factory is host-injected (createRepoPublishHandler) instead of citing the host's repo-handler.ts and type-registry.ts import-cycle note; why kept."
+    },
+    {
+      "id": "f4e47e588e5d",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the @file header of the redirects host binding; same first sentence, the host's tool metadata and read vocabulary are now injected through RedirectsToolHostPolicy instead of imported from the host's contracts; why kept."
+    },
+    {
+      "id": "44ac1ceac8f3",
+      "reason": "Moved to Jini packages/cms/src/redirects/tool-registrations.ts, the RedirectsPackageToolDeps doc (the structural route-deps slice, ex-RedirectsToolDeps); reworded host-neutral (no host server/routes/types RouteDeps reference), same no-back-edge rationale; why kept."
+    },
+    {
+      "id": "7fd104b948f9",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the buildRedirectsRegistrations doc; the old positional signature and default surface store were deleted (the builder now takes { deps, toolMetadata, hostReads }), so the 'pinned by existing callers' sentence went with them and the doc now says no handler reads the assistant surfaces; why kept."
+    },
+    {
+      "id": "b0f3b75f5d1a",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/tool-registrations.ts, the contributeRedirectsTools doc; same Stage 2 (2026-08-17) rationale, the host's composition-root file path -> 'the host composition root's tool-catalog manifest', and the contributor now takes the injected metadata and read vocabulary; why kept."
+    },
+    {
+      "id": "0916718df2c3",
+      "reason": "Documented the host settings barrel's `export { resolveSiteTitle } from \"./site-title.js\"`; the resolver moved to Jini packages/cms/src/settings/site/site-title.ts and the host barrel no longer re-exports it (renderers import it from the package), so the line it sat above is gone."
+    },
+    {
+      "id": "35cc8bf63110",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-timezone.ts, the resolveSiteTimeZone doc; same text, the failure clause now says the failed read is reported with fixed text (no error message) after the redaction change; file is in the concurrent settings batch, so no verbatim edit was made there; why kept."
+    },
+    {
+      "id": "b7affb1838a7",
+      "reason": "Obsolete: it justified importing set from @jini-ai/core/settings instead of the host barrel (the barrel's `set` came from site-title-write.ts, which imported this file). Jini packages/cms/src/settings/site/site-title.ts has no value import of the ledger functions at all (they arrive through deps), and says so in its replacement comment above the import."
+    },
+    {
+      "id": "729aaf961d27",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the @file header (SPEC-050); same text, 'LEGACY_SITE_TITLE' -> the host-supplied `legacySiteTitle` arg, with a new paragraph saying the legacy title is host product copy; file is in the concurrent settings batch, so no verbatim edit was made there; why kept."
+    },
+    {
+      "id": "d610e7c11ba8",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the preserveLegacySiteTitles doc; same text, '{@link LEGACY_SITE_TITLE}' -> `input.legacySiteTitle` (the host now supplies the title); why kept."
+    },
+    {
+      "id": "bb3275078026",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the SiteDisplayNameSource.read doc; same text, '{@link LEGACY_SITE_TITLE}' -> 'the host's legacy title'; why kept."
+    },
+    {
+      "id": "ad4c8d6a6507",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title.ts, the resolveSiteTitle doc; same text and tier list, every '{@link LEGACY_SITE_TITLE}' -> `deps.legacySiteTitle` (host-supplied through ResolveSiteTitleDeps); why kept."
+    },
+    {
+      "id": "749563fa88f8",
+      "reason": "Moved to Jini packages/search/src/site/access.ts, the SearchMemberContext comment; the host's `members` feature type reference -> 'the host's member context'; why kept."
+    },
+    {
+      "id": "4494a804603e",
+      "reason": "Moved to Jini packages/search/src/site/access.ts, the createCmsSearchAccessPort doc; same text plus the generic-over-DB note and the @example now passing `isLiveAt` and `resolveMemberAccess`, which the host injects; why kept."
+    },
+    {
+      "id": "e765877a789e",
+      "reason": "Moved to Jini packages/search/src/site/cms-document-source.ts, the createCmsSearchDocumentSources doc; same text plus the generic-over-DB note and the @example now passing the host-injected `isLiveAt`, `resolveMemberAccess`, `postPublicPath` and `toSearchText`; why kept."
     }
   ]
 }
