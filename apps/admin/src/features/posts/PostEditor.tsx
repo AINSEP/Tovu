@@ -5,7 +5,7 @@ import { PostEditorHeader } from "./editor/header/PostEditorHeader";
 import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
 import { PostPreview } from "./editor/preview/PostPreview";
-import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
+import { PostEditorTemplateModalGate } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
 import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
 import { PostDeleteConfirmDialog } from "@jini-ai/admin/posts/editor/PostDeleteConfirmDialog";
 import { PostEditorBody } from "./editor/PostEditorBody";

@@ -12,7 +12,9 @@ import type { PostEditorHeader } from "../editor/header/PostEditorHeader";
 import type { PostEditorNotices } from "../editor/notices/PostEditorNotices";
 import type { PostEditorSlugCollisionWarning } from "../editor/notices/PostEditorSlugCollisionWarning";
 import type { PostPreview } from "../editor/preview/PostPreview";
-import type { PostEditorTemplateModalGate } from "../editor/template/PostEditorTemplateModalGate";
+import type { PostEditorTemplateModalGateProps } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
+import { TemplateSourceModal } from "@/components/TemplateSource/TemplateSourceModal";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { VIEW_TABS } from "../editor/view-bar/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
@@ -49,7 +51,7 @@ export interface PostEditorReadyScreen {
   savedPanels: ComponentProps<typeof PostSavedPanels>;
   unchangedSave: { open: boolean; pending: boolean; onConfirm: () => void; onCancel: () => void };
   deleteDialog: ComponentProps<typeof PostDeleteConfirmDialog>;
-  templateGate: ComponentProps<typeof PostEditorTemplateModalGate>;
+  templateGate: PostEditorTemplateModalGateProps<ThemeTier>;
 }
 
 /** The screen's three states: nothing yet, a load failure with no post to show, or the editor. */
@@ -206,6 +208,7 @@ function dialogBundles({ ctrl, post, kindLabel }: ReadyInput): Pick<PostEditorRe
       onClose: ctrl.onCloseTemplateModal,
       confirmLeave: ctrl.confirmLeave,
       t: ctrl.t,
+      TemplateSourceModal,
     },
   };
 }

@@ -2,7 +2,7 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useId } from "react";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { type TermPickerController } from "./hooks/use-term-picker.hooks";
+import { type TermPickerController } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-picker.hooks";
 import { useWiredTermPicker } from "./taxonomy-wired.hooks";
 import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 

@@ -5,7 +5,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
+import { useTaxonomy } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 import { useWiredTaxonomy } from "../taxonomy-wired.hooks";
 import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import { KEYS, TAXONOMY_RESOURCE } from "@jini-ai/admin/screens/taxonomy/rules";
@@ -363,7 +363,7 @@ describe("useTaxonomy — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
 
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
 
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     expect(result.current.taxonomies).toEqual([GROUP]);
@@ -373,7 +373,7 @@ describe("useTaxonomy — injected port", () => {
   it("surfaces a non-Error delete rejection on the page banner instead of treating it as already gone", async () => {
     const base = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
     const port = { ...base, trashTerm: () => Promise.reject("socket closed") };
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.requestDeleteTerm(TERM_A));
     await act(() => result.current.confirmDeleteTerm());
@@ -385,7 +385,7 @@ describe("useTaxonomy — injected port", () => {
   it("a taxonomy delete refused as having children lands in deleteTaxonomyBlocked for that taxonomy", async () => {
     const base = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
     const port = { ...base, trashTaxonomy: () => Promise.reject(new ApiError({ message: "has children", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { count: 3 } })) };
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
     await act(() => result.current.confirmDeleteTaxonomy());
@@ -397,7 +397,7 @@ describe("useTaxonomy — injected port", () => {
       groups: [GROUP],
       onTrashTermBlocked: () => ({ count: 2 }),
     });
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTerm(TERM_A));
@@ -435,7 +435,7 @@ describe("useTaxonomy — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-created taxonomy appears without a reload", async () => {
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
 
     // The assistant's tool call landing server-side. The screen has no way to know it happened.
@@ -449,7 +449,7 @@ describe("useTaxonomy — content refresh bus", () => {
 
   it("refreshes on a notification that names taxonomy, and ignores one that names only other resources", async () => {
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
-    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k, taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
 
     port.groups.push(NEW_GROUP);
@@ -470,7 +470,7 @@ describe("useTaxonomy — content refresh bus", () => {
     const renderedRowCounts: number[] = [];
     const { result } = renderHook(
       () => {
-        const controller = useTaxonomy(port, "en", (k) => k, taxonomyHostKit);
+        const controller = useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit });
         renderedRowCounts.push(controller.taxonomies?.length ?? 0);
         return controller;
       },
@@ -495,7 +495,7 @@ describe("useTaxonomy — content refresh bus", () => {
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [GROUP] });
     const listSpy = vi.spyOn(port, "listTaxonomies");
     function Subscriber() {
-      useTaxonomy(port, "en", (k) => k, taxonomyHostKit);
+      useTaxonomy({ port, locale: "en", t: (k) => k, kit: taxonomyHostKit });
       return null;
     }
     function Reader() {

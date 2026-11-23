@@ -62,7 +62,7 @@ function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional
     res.status(400).json({ error: err.message, code: err.code });
     return;
   }
-  const live = entityNotLiveResponse({ err });
+  const live = entityNotLiveResponse({ err, outwardErrorMessage: ({ error }) => error.message });
   if (live) {
     res.status(live.status).json(live.body);
     return;

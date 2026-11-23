@@ -45,7 +45,7 @@ type Handler = (req: Request, res: Response, deps: EmailTemplateDeps) => Promise
 
 /** Maps an operation failure onto its HTTP shape, mirroring `pages/update-html.ts`'s codes. */
 function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  const live = entityNotLiveResponse({ err });
+  const live = entityNotLiveResponse({ err, outwardErrorMessage: ({ error }) => error.message });
   if (live) {
     res.status(live.status).json(live.body);
     return;

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomy } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { Taxonomy } from "../Taxonomy";
-import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
+import { useTaxonomy } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";
 import { TAXONOMY_DICT } from "../taxonomy-i18n";
@@ -27,7 +27,7 @@ describe("taxonomy Copy HTML embed", () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [category, tags].map((taxonomy) => ({ taxonomy, terms: [] })) });
-    render(<Taxonomy useTaxonomyHook={() => useTaxonomy(port, "en", (key) => key, taxonomyHostKit)} />, { wrapper });
+    render(<Taxonomy useTaxonomyHook={() => useTaxonomy({ port, locale: "en", t: (key) => key, kit: taxonomyHostKit })} />, { wrapper });
     const buttons = await screen.findAllByRole("button", { name: "Copy HTML embed" });
     await user.click(buttons[0]);
     expect(writeText).toHaveBeenLastCalledWith(`<div data-embed-config='{"type":"taxonomy","id":"Categories","mode":"html"}'></div>`);

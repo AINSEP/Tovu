@@ -2,9 +2,9 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useMergeTermSection, type MergeTermSectionController, type MergeTermSectionOptions } from "@jini-ai/admin/screens/taxonomy/hooks/use-merge-term-section.hooks";
 import { useNewTaxonomyForm, type NewTaxonomyFormController, type NewTaxonomyFormOptions } from "@jini-ai/admin/screens/taxonomy/hooks/use-new-taxonomy-form.hooks";
 import { useNewTermForm, type NewTermFormController, type NewTermFormOptions } from "@jini-ai/admin/screens/taxonomy/hooks/use-new-term-form.hooks";
-import { useTaxonomy, type TaxonomyController } from "./hooks/use-taxonomy.hooks";
+import { useTaxonomy, type TaxonomyController } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 import { useTermDetailPanel, type TermDetailPanelController, type TermDetailPanelOptions } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-detail-panel.hooks";
-import { useTermPicker, type TermPickerController, type TermPickerTarget } from "./hooks/use-term-picker.hooks";
+import { useTermPicker, type TermPickerController, type TermPickerTarget } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-picker.hooks";
 import { t as translate } from "./taxonomy-i18n";
 import {
   defaultMergeTermSectionPort,
@@ -79,7 +79,7 @@ export function useWiredMergeTermSection(options: MergeTermSectionOptions): Merg
 export function useWiredTaxonomy(): TaxonomyController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useTaxonomy(defaultTaxonomyPort, locale, t, taxonomyHostKit);
+  return useTaxonomy({ port: defaultTaxonomyPort, locale, t, kit: taxonomyHostKit });
 }
 
 /**
@@ -90,5 +90,5 @@ export function useWiredTaxonomy(): TaxonomyController {
  */
 export function useWiredTermPicker(props: TermPickerTarget): TermPickerController {
   const locale = useAdminLocale();
-  return useTermPicker(props, { port: defaultTermPickerPort, locale, kit: taxonomyHostKit });
+  return useTermPicker({ target: props, port: defaultTermPickerPort, locale, kit: taxonomyHostKit });
 }

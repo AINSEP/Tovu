@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TermPicker } from "../TermPicker";
-import { useTermPicker, type TermPickerController } from "../hooks/use-term-picker.hooks";
+import { useTermPicker, type TermPickerController } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-picker.hooks";
 import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
@@ -73,7 +73,7 @@ async function renderRealPickerInForm() {
   const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
   let ctrl!: TermPickerController;
   function useHook(target: { contentType: string; contentId: string }) {
-    ctrl = useTermPicker(target, { port, locale: "en", kit: taxonomyHostKit });
+    ctrl = useTermPicker({ target, port, locale: "en", kit: taxonomyHostKit });
     return ctrl;
   }
   render(<FetchQueryProvider><form onSubmit={onSubmit}>

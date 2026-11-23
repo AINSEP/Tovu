@@ -77,7 +77,7 @@ interface MediaUpdateErrorResponse {
  * @complexity O(1) — four `instanceof` checks.
  */
 function mapMediaUpdateError({ err }: { err: unknown }, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
-  const live = entityNotLiveResponse({ err });
+  const live = entityNotLiveResponse({ err, outwardErrorMessage: ({ error }) => error.message });
   if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
   if (err instanceof MediaValidationError) return { status: 400, body: { error: err.message } };

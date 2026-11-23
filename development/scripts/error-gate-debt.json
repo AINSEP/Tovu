@@ -265,11 +265,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1

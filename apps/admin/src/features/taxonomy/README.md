@@ -27,7 +27,7 @@ as module-level singletons, plus `taxonomyHostKit` — this host's `taxonomy-i18
 `ApiError`/`describeApiError` and admin failure channel — and `createTaxonomyBlockedError` (the real
 `ApiError` the fake taxonomy port throws for a blocked delete). `taxonomy-wired.hooks.ts` binds each
 `@jini-ai/admin` taxonomy hook to `useAdminLocale()`, its live port and the kit (`useWiredX`);
-`Taxonomy.tsx`/`TermPicker.tsx` mount those. `hooks/use-taxonomy.hooks.ts` and
-`hooks/use-term-picker.hooks.ts` stay here until they are split under Jini's 80-line function
-limit; they already take the kit. Tests compose the Jini hooks with the in-memory `createFake*Port`s
+`Taxonomy.tsx`/`TermPicker.tsx` mount those. Every hook (including `useTaxonomy` and
+`useTermPicker`, now split into sub-hooks inside `@jini-ai/admin`) takes one object
+`{ options | target, port, locale, kit }` (`useTaxonomy` adds the bound `t`). Tests compose the Jini hooks with the in-memory `createFake*Port`s
 from `@jini-ai/admin/screens/taxonomy/hooks/*-dependencies.hooks`.
