@@ -3,7 +3,7 @@ import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh"
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { authorizeChangeFeed } from "../preview-feed-access.js";
+import { authorizeChangeFeed } from "@jini-ai/cms/admin-http/routes/settings/preview-feed-access";
 
 test("theme editor without settings.read can subscribe to theme notifications only", async () => {
   const calls: string[] = [];

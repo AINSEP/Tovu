@@ -1,5 +1,5 @@
 import type { DocNodeHandlerRequired } from "./doc-render-contract.js";
-import { isObject } from "../value-readers.js";
+import { isObject } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { tryRenderRefImage, mediaNodeStyleOverride } from "./media-ref.js";
 import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { mediaPlaceholder } from "../media-placeholder.js";
@@ -10,7 +10,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
 import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { renderVideoTag } from "@jini-ai/cms/widgets/media-tags";
-import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
+import { MEDIA_PLAYBACK_COPY } from "@jini-ai/cms/public-http/http/site/render/media-playback-copy";
 
 /**
  * D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a

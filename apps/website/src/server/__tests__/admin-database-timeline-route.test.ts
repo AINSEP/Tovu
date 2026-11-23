@@ -10,7 +10,7 @@ import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert
 import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseTimelineRoute } from "../inbound/admin-http/routes/database/timeline.js";
+import { registerAdminDatabaseTimelineRoute } from "../runtime/composition/modules/database-recovery.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
