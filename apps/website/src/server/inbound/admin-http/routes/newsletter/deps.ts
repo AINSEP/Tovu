@@ -24,7 +24,7 @@ import type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   SubscriberDirectoryPort,
-} from "#src/features/newsletter/index";
+} from "#src/features/newsletter/ports";
 import type { CampaignWriteServiceDeps } from "#src/features/newsletter/campaign-write-service";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import type { HookRegistry } from "#src/features/newsletter/hooks";

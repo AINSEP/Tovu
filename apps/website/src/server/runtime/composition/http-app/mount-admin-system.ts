@@ -23,7 +23,8 @@ import { observabilityStatusRoute, observabilityTestErrorRoute } from "@jini-ai/
 import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
 import { serverLogsRoute } from "@jini-ai/cms/admin-http/routes/system/server-logs";
 import { processServerLogSource } from "#src/features/server-logs/process-source";
-import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogFilters, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
+import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
+import type { ServerLogFilters } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { registerAdminMailStatusRoute } from "../../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminMailProviderRoutes } from "../../../inbound/admin-http/routes/system/mail-providers.js";
 import { registerAdminMailDnsRoutes } from "../../../inbound/admin-http/routes/system/mail-dns.js";

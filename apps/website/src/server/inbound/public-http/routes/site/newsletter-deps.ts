@@ -21,7 +21,7 @@ import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "#src/features/newsletter/index";
+} from "#src/features/newsletter/ports";
 import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
 
 export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {

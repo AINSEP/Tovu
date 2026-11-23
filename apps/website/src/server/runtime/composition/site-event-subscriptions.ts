@@ -7,7 +7,7 @@ import { hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyL
 import { SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
 import { withSha256Lock } from "#src/features/media/index";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "#src/features/newsletter/send-pipeline";
-import type { SendBatchJob } from "#src/features/newsletter/index";
+import type { SendBatchJob } from "#src/features/newsletter/ports";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createFormsModule } from "./modules/forms.js";

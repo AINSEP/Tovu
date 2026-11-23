@@ -1,5 +1,5 @@
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
-import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/index";
+import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/errors";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

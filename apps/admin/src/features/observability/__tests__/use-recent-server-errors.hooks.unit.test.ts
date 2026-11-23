@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminServerLogs } from "@jini-ai/admin/screens/observability/api/observability-api.types";
+import type { ServerLogsResult } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { createFakeRecentServerErrorsPort } from "@jini-ai/admin/screens/observability/hooks/recent-server-errors-dependencies.hooks";
 import { defaultRecentServerErrorsPort, useWiredRecentServerErrors } from "../hooks/observability-wiring.hooks";
@@ -9,7 +9,7 @@ import { RECENT_ERRORS_LIMIT, useRecentServerErrors } from "@jini-ai/admin/scree
 
 /** @file Injected-port behavior and the wired hook's real API/locale composition. */
 
-const LOGS: AdminServerLogs = {
+const LOGS: ServerLogsResult = {
   entries: [
     { seq: 1, at: "2026-10-05T12:00:01.000Z", level: "error", source: "server", message: "older" },
     { seq: 2, at: "2026-10-05T12:00:02.000Z", level: "error", source: "daemon", message: "newer\n  at stack" },
@@ -54,7 +54,7 @@ describe("useRecentServerErrors", () => {
   });
 
   it("keeps an unformattable timestamp visible instead of dropping the row", async () => {
-    const logs: AdminServerLogs = { ...LOGS, entries: [{ ...LOGS.entries[0], at: "invalid-timestamp" }], matched: 1 };
+    const logs: ServerLogsResult = { ...LOGS, entries: [{ ...LOGS.entries[0], at: "invalid-timestamp" }], matched: 1 };
     const port = createFakeRecentServerErrorsPort({ logs });
     const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
 
@@ -113,7 +113,7 @@ describe("useRecentServerErrors", () => {
 
   it("groups repeats into one row with summary, shortened-path segments and copy text", async () => {
     const message = "[assistant] daemon unreachable\nTypeError: fetch failed\n    at f (/Users/me/Tovu/apps/website/src/a.ts:1:2)";
-    const logs: AdminServerLogs = {
+    const logs: ServerLogsResult = {
       entries: [
         { seq: 1, at: "2026-10-05T12:00:01.000Z", level: "error", source: "server", message },
         { seq: 2, at: "2026-10-05T12:00:02.000Z", level: "error", source: "server", message: "other" },

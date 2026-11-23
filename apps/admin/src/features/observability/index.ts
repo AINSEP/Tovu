@@ -16,6 +16,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import "@jini-ai/admin/screens/observability/observability.css";
 import "@jini-ai/admin/screens/observability/recent-errors.css";
 import { Observability as ObservabilityScreen, type ObservabilityProps } from "@jini-ai/admin/screens/observability/Observability";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { observabilityApi } from "./api/observability-api";
@@ -36,6 +37,18 @@ const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent">
   readToolGaps: () => observabilityApi.getToolGaps(),
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
   useObservabilityTabHook: useObservabilityTab,
+  useAdminKitValuesHook: useAdminKitValues,
+  /** This admin's page chrome — the same `.page-header` markup Secrets/AiAssistant use, and the shell's
+   *  `settings-ui-section--page-flow` modifier (see its own comment in the admin stylesheet). */
+  layoutClassNames: {
+    page: "page",
+    header: "page-header",
+    headerText: "page-header-text",
+    kicker: "page-kicker",
+    title: "page-title",
+    description: "page-description",
+    section: "settings-ui-section settings-ui-section--page-flow",
+  },
 };
 
 /** Operations > Observability, bound to this admin. */

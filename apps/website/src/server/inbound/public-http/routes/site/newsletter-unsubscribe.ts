@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
-import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/index";
+import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/errors";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";

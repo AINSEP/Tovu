@@ -3,7 +3,7 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
-import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
+import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/errors";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
