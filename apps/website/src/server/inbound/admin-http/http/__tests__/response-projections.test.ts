@@ -4,7 +4,7 @@ import test from "node:test";
 import { toApiKeyIssueResponse, toApiKeyPrincipalResponse } from "../api-keys.js";
 import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionResponse } from "../integrations.js";
 import { toAdminMediaListResponse, toAdminMediaResponse } from "../media.js";
-import { toAdminMemberResponse } from "../members.js";
+import { toAdminMemberResponse } from "@jini-ai/cms/admin-http/http/members";
 import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "../users.js";
 import { toAdminWorkspaceResponse } from "../workspace.js";
 

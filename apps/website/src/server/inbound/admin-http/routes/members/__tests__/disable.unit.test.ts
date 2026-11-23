@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { MemberValidationError } from "#src/features/members/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMemberDisableRoute } from "../disable.js";
+import { registerAdminMemberDisableRoute } from "#src/server/runtime/composition/modules/members";
 import type { MembersRouteDeps } from "../deps.js";
 
 /**

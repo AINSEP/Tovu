@@ -28,3 +28,8 @@ still precedes the missing-session 500, as in the hand-written routes; `authoriz
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+Members (`runtime/composition/modules/members.ts`) mount `@jini-ai/cms/admin-http/routes/members/{list,get-by-id,disable,delete}`
+and inject the disable write service (bound to `toMembersWriteServiceDeps(deps)` per request), the `trashMember` move
+(bound to `memberRepo`, `removeMember`, `clock`) and `classifyMemberError` (the `features/members` error classes); list and
+get-by-id mount `"direct"`, disable and delete `"guarded"`, as before. `request-magic-link` (and `routes/members/deps.ts`)
+stays hand-written: its 429 carries a `Retry-After` header a Jini route refusal cannot carry yet.

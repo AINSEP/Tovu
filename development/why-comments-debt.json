@@ -2988,6 +2988,30 @@
     {
       "id": "0a60dc7d8e68",
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
+    },
+    {
+      "id": "8f6e268b33bd",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (file header), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0f850ced9a22",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (list envelope doc), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3c411589e4bc",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (toAdminMemberResponse doc), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4d280764260c",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/delete.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "310201198951",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/get-by-id.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e5ed0973dd76",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
     }
   ]
 }

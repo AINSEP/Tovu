@@ -1,7 +1,7 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
 import express from "express";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
+import { registerAdminMemberDeleteRoute } from "#src/server/runtime/composition/modules/members";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { buildMembersRegistrations } from "#src/features/members/tool-registrations";
 import { trashMember } from "#src/features/members/trash-member";

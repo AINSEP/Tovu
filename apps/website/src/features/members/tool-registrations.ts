@@ -114,7 +114,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 
 /**
  * Projects a `MemberRecord` into the model-facing shape used by every Members tool — mirrors
- * `apps/website/src/server/inbound/admin-http/http/members.ts`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
+ * `@jini-ai/cms/admin-http/http/members`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
  * admin UI already shows a human) MINUS `workspaceId` (the agent is already scoped to one
  * workspace it cannot change, the same reasoning content-types'/Forms' `to*View` apply) and MINUS
  * `note`/`fields` (the admin response itself already withholds the operator-only note and the raw
