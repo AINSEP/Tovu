@@ -8,7 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterListCampaignsRoute } from "#src/server/runtime/composition/modules/newsletter";
-import { registerAdminNewsletterListSubscriptionsRoute } from "../list-subscriptions.js";
+import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { CampaignRecord, SubscriptionRow } from "#src/features/newsletter/types";
 

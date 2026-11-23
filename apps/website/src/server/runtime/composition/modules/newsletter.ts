@@ -1,33 +1,36 @@
-import { registerAdminNewsletterArchiveListRoute } from "#src/server/inbound/admin-http/routes/newsletter/archive-list";
-import { registerAdminNewsletterCreateListRoute } from "#src/server/inbound/admin-http/routes/newsletter/create-list";
-import { registerAdminNewsletterCreateSubscriptionRoute } from "#src/server/inbound/admin-http/routes/newsletter/create-subscription";
-import { registerAdminNewsletterImportSubscriptionsRoute } from "#src/server/inbound/admin-http/routes/newsletter/import-subscriptions";
-import { registerAdminNewsletterListListsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-lists";
-import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-subscriptions";
-import { registerAdminNewsletterRemoveSubscriptionRoute } from "#src/server/inbound/admin-http/routes/newsletter/remove-subscription";
-import { registerAdminNewsletterResendConfirmationRoute } from "#src/server/inbound/admin-http/routes/newsletter/resend-confirmation";
 import { registerPublicNewsletterConfirmRoute } from "#src/server/inbound/public-http/routes/site/newsletter-confirm";
 import type { NewsletterPublicRouteDeps } from "#src/server/inbound/public-http/routes/site/newsletter-deps";
 import { registerPublicNewsletterUnsubscribeRoute } from "#src/server/inbound/public-http/routes/site/newsletter-unsubscribe";
 import { describeRequestFailure } from "@jini-ai/core";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
+import { newsletterArchiveListRoute } from "@jini-ai/cms/admin-http/routes/newsletter/archive-list";
 import { newsletterCancelCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/cancel-campaign";
 import { newsletterCreateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/create-campaign";
+import { newsletterCreateListRoute } from "@jini-ai/cms/admin-http/routes/newsletter/create-list";
+import { newsletterCreateSubscriptionRoute } from "@jini-ai/cms/admin-http/routes/newsletter/create-subscription";
 import { newsletterGetCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/get-campaign";
+import { newsletterImportSubscriptionsRoute } from "@jini-ai/cms/admin-http/routes/newsletter/import-subscriptions";
 import { newsletterListCampaignsRoute } from "@jini-ai/cms/admin-http/routes/newsletter/list-campaigns";
+import { newsletterListListsRoute } from "@jini-ai/cms/admin-http/routes/newsletter/list-lists";
 import { newsletterListSendLogRoute } from "@jini-ai/cms/admin-http/routes/newsletter/list-send-log";
+import { newsletterListSubscriptionsRoute } from "@jini-ai/cms/admin-http/routes/newsletter/list-subscriptions";
 import { newsletterPauseCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/pause-campaign";
+import { newsletterRemoveSubscriptionRoute } from "@jini-ai/cms/admin-http/routes/newsletter/remove-subscription";
+import { newsletterResendConfirmationRoute } from "@jini-ai/cms/admin-http/routes/newsletter/resend-confirmation";
 import { newsletterResumeCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/resume-campaign";
 import { newsletterScheduleCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/schedule-campaign";
 import { newsletterSendCampaignRoute, type NewsletterSendPipeline } from "@jini-ai/cms/admin-http/routes/newsletter/send-campaign";
 import { newsletterSendTestCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/send-test-campaign";
 import { newsletterUpdateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/update-campaign";
 import { cancelCampaign, saveCampaign, scheduleCampaign } from "#src/features/newsletter/campaign-write-service";
+import { issueConfirmationToken } from "#src/features/newsletter/confirmation";
 import { newsletterErrorResponse } from "#src/features/newsletter/http-error-responses";
+import { archiveList, saveList } from "#src/features/newsletter/lists";
 import { authorizeSend, claimBatch, freezeAudience, pauseCampaign, resumeCampaign, sendTestCampaign, type SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import { importSubscriptions, saveSubscription, unsubscribeSubscription } from "#src/features/newsletter/subscriptions";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { toCampaignWriteServiceDeps, toSendPipelineDeps, type NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
+import { toCampaignWriteServiceDeps, toConfirmationDeps, toListsDeps, toSendPipelineDeps, toSubscriptionsDeps, toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -83,7 +86,7 @@ export function createNewsletterModule(deps: {
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
- * K1 (RT-K1-adm-newsletter): the eleven campaign + send-log routes are Jini route specs
+ * K1 (RT-K1-adm-newsletter): all nineteen admin routes (campaigns, send-log, lists, subscriptions) are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/newsletter/*`) mounted behind the admin ports. `NewsletterRouteDeps`
  * is read only here, at registration: each mount builds that route's own small deps object. The
  * newsletter domain is this host's, so every service a spec calls (campaign-write-service,
@@ -218,4 +221,71 @@ export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, d
   const deps = routeDeps as NewsletterRouteDeps;
   const sendLogDeps = { ...newsletterBaseDeps({ deps }), newsletterCampaignRepo: deps.newsletterCampaignRepo, newsletterSendRepo: deps.newsletterSendRepo };
   mountAdminJsonRoute({ app, spec: newsletterListSendLogRoute, deps: sendLogDeps }, NEWSLETTER_MOUNT);
+};
+
+/** `lists.ts`'s functions with the lists deps bundle bound per call, as the routes built it. */
+function listWriteDeps({ deps }: { deps: NewsletterRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    saveList: (input: Parameters<typeof saveList>[0]["input"]) => saveList({ deps: toListsDeps(deps), input }),
+    archiveList: (input: Parameters<typeof archiveList>[0]["input"]) => archiveList({ deps: toListsDeps(deps), input }),
+  };
+}
+
+/** `subscriptions.ts`'s and `confirmation.ts`'s functions, each with the deps bundle its hand-written route
+ *  built (the unsubscribe bundle differs from the create/import one), bound per call so the bundle is only
+ *  assembled when the route actually reaches the service. */
+function subscriptionWriteDeps({ deps }: { deps: NewsletterRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    saveSubscription: (input: Parameters<typeof saveSubscription>[0]["input"]) => saveSubscription({ deps: toSubscriptionsDeps(deps), input }),
+    importSubscriptions: (input: Parameters<typeof importSubscriptions>[0]["input"]) => importSubscriptions({ deps: toSubscriptionsDeps(deps), input }),
+    unsubscribeSubscription: (input: Parameters<typeof unsubscribeSubscription>[0]["input"]) => unsubscribeSubscription({ deps: toUnsubscribeSubscriptionDeps(deps), input }),
+    issueConfirmationToken: (input: Parameters<typeof issueConfirmationToken>[0]["input"]) => issueConfirmationToken({ deps: toConfirmationDeps(deps), input }),
+  };
+}
+
+export const registerAdminNewsletterListListsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterListListsRoute, deps: { ...newsletterBaseDeps({ deps }), newsletterListRepo: deps.newsletterListRepo } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterCreateListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterCreateListRoute, deps: { ...newsletterBaseDeps({ deps }), saveList: listWriteDeps({ deps }).saveList } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterArchiveListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterArchiveListRoute, deps: { ...newsletterBaseDeps({ deps }), archiveList: listWriteDeps({ deps }).archiveList } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterListSubscriptionsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterListSubscriptionsRoute, deps: { ...newsletterBaseDeps({ deps }), newsletterSubscriptionRepo: deps.newsletterSubscriptionRepo } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterCreateSubscriptionRoute, deps: { ...newsletterBaseDeps({ deps }), saveSubscription: subscriptionWriteDeps({ deps }).saveSubscription } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  mountAdminJsonRoute({ app, spec: newsletterImportSubscriptionsRoute, deps: { ...newsletterBaseDeps({ deps }), importSubscriptions: subscriptionWriteDeps({ deps }).importSubscriptions } }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  const removeDeps = { ...newsletterBaseDeps({ deps }), newsletterSubscriptionRepo: deps.newsletterSubscriptionRepo, unsubscribeSubscription: subscriptionWriteDeps({ deps }).unsubscribeSubscription };
+  mountAdminJsonRoute({ app, spec: newsletterRemoveSubscriptionRoute, deps: removeDeps }, NEWSLETTER_MOUNT);
+};
+
+export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
+  const deps = routeDeps as NewsletterRouteDeps;
+  const resendDeps = {
+    ...newsletterBaseDeps({ deps }),
+    newsletterSubscriptionRepo: deps.newsletterSubscriptionRepo,
+    newsletterSubscriberDirectory: deps.newsletterSubscriberDirectory,
+    issueConfirmationToken: subscriptionWriteDeps({ deps }).issueConfirmationToken,
+  };
+  mountAdminJsonRoute({ app, spec: newsletterResendConfirmationRoute, deps: resendDeps }, NEWSLETTER_MOUNT);
 };
