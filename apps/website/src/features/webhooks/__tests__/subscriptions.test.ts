@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import {
   createSubscription,
   deleteSubscription,
@@ -16,7 +17,7 @@ function makeDeps(overrides: Partial<WebhookSubscriptionDeps> = {}): WebhookSubs
   let counter = 0;
   return {
     clock: { nowIso: () => "2026-07-10T00:00:00.000Z" },
-    repo: new InMemoryWebhookSubscriptionRepo(),
+    repo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     idGenerator: { newId: () => `sub-${++counter}` },
     isAllowedTarget: async () => true,
     ...overrides,
@@ -73,7 +74,7 @@ test("createSubscription rejects an empty topic list after normalization", async
 });
 
 test("updateSubscription overwrites label/targetUrl/topics and bumps updatedAt", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deps = makeDeps({ repo });
   const { subscription: created } = await createSubscription({ deps, input: baseInput });
 
@@ -136,7 +137,7 @@ test("updateSubscription on an unknown id throws WebhookSubscriptionNotFoundErro
 });
 
 test("pauseSubscription toggles active <-> paused", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deps = makeDeps({ repo });
   const { subscription: created } = await createSubscription({ deps, input: baseInput });
 
@@ -154,7 +155,7 @@ test("pauseSubscription toggles active <-> paused", async () => {
 });
 
 test("pauseSubscription rejects a disabled subscription", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deps = makeDeps({ repo });
   const { subscription: created } = await createSubscription({ deps, input: baseInput });
   await deleteSubscription({ deps, input: { workspaceId: "workspace-1", id: created.id } });
@@ -166,7 +167,7 @@ test("pauseSubscription rejects a disabled subscription", async () => {
 });
 
 test("deleteSubscription soft-disables rather than removing the row", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deps = makeDeps({ repo });
   const { subscription: created } = await createSubscription({ deps, input: baseInput });
 

@@ -13,8 +13,6 @@ import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
  * driver, the `core.mail.*` settings read, the boot-time settle and the refusal copy below.
  */
 
-export type { ConfiguredMailSender, MailSenderIdentityPort } from "@jini-ai/platform/mail";
-
 /** Thrown when a delivering mailer is active but the site has no sender address configured. */
 export class SenderIdentityNotConfiguredError extends JiniSenderIdentityNotConfiguredError {
   constructor(required: { workspaceId: string; driver: string }, _optional: Record<string, never> = {}) {

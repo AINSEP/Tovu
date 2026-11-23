@@ -16,7 +16,8 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
@@ -31,7 +32,7 @@ function makeRouteDeps(options: { allow?: boolean; allowEgress?: boolean } = {})
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     originRegistry: {
       isAllowedEgressTarget: async () => options.allowEgress ?? true,

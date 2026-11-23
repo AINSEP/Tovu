@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { evaluateLaunchGate, type LaunchGateDeps } from "../launch-gate.js";
-import type { MailerCapabilities } from "#src/platform/mail/index";
+import type { MailerCapabilities } from "@jini-ai/platform/mail";
 
 const WS = "ws-1";
 

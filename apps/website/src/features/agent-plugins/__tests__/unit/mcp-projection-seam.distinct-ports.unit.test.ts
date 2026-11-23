@@ -12,15 +12,19 @@ import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mc
 import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { composeAgentPluginMcp, composePluginProviderFaces } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
 import { createTovuPluginHost, type TovuPluginHostDeps } from '../../../../server/runtime/composition/plugin-host.js';
-import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
+import { agentPluginMcpProjections, withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
-import { loadAgentPluginConnectionStatuses } from '../../connection-status.js';
+import { loadAgentPluginConnectionStatuses as loadWithPorts } from '@jini-ai/agent-plugins/connect';
 import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
 import { forceRemove } from '../fixtures/force-remove.js';
 import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
+
+/** The host binds its canonical projection pair when a caller carries none (the former connection-status shim's job). */
+const loadAgentPluginConnectionStatuses = (required: Parameters<typeof withAgentPluginMcpPorts>[0] & Omit<Parameters<typeof loadWithPorts>[0], 'projections'>) =>
+  loadWithPorts(withAgentPluginMcpPorts(required));
 
 // S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.
 const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };

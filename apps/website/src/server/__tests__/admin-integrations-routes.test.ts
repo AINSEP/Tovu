@@ -5,7 +5,8 @@ import test from "node:test";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import express from "express";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/index.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
@@ -97,7 +98,7 @@ type IntegrationsTestDeps = ReturnType<typeof createRouteDeps> & IntegrationsRou
 function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
   const deps: IntegrationsTestDeps = {
     ...createRouteDeps(),
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
   };
 
@@ -420,7 +421,7 @@ test("integrations routes: delete's `req.params.workspaceId ?? \"\"` fallback --
 test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback -- forced via a direct handler call with subscriptionId omitted -- falls through to deleteSubscription with id:\"\", which 404s with the not-found message for an empty id", async () => {
   const deps: IntegrationsRouteDeps = {
     ...createRouteDeps(),
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };

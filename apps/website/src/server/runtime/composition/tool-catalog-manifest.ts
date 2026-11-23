@@ -644,7 +644,7 @@ function installCredentialSaveTools(contributions: AssistantToolContributions) {
             ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider, tracker: originalDeps.tracker, userId: `site:${originalDeps.workspaceId}` }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),
-        } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
+        } satisfies import("@jini-ai/agent-plugins/connect").CredentialSaveAdapters;
       };
       const projectKeys = originalDeps.projectKeys;
       return buildCredentialSaveRegistrations({

@@ -27,8 +27,6 @@ export const API_CONNECTIONS_FILENAME = "jini-connections.json";
 /** This host's client-setting namespace: every plugin's client settings are named `TOVU_<PLUGIN>_OAUTH_<RUNTIME>_CLIENT_*`. */
 const CLIENT_NAMESPACE = "TOVU_";
 
-export type { ApiConnectionClientConfig, ApiConnectionDeclaration, ApiConnectionHooksModule } from "@jini-ai/integrations/api-connections";
-
 /** A declared, trusted connection ready for the host to build a service around. */
 export interface DeclaredApiConnection {
   readonly pluginId: string;

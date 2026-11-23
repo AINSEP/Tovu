@@ -2,9 +2,9 @@ import {
   createSenderDomainVerification as createJiniSenderDomainVerification,
   type MailProviderCallContext,
   type SenderDomainVerificationDeps as JiniSenderDomainVerificationDeps,
+  type SenderDomainVerificationPort,
 } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { SenderDomainVerificationPort } from "#src/platform/mail/index";
 
 /**
  * @file The sender domain's state at the active transactional provider (its own `domainStatus`),

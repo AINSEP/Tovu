@@ -3488,6 +3488,18 @@
     {
       "id": "319b30ec56cf",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
+    },
+    {
+      "id": "fb946c94c7e9",
+      "reason": "Header of the deleted features/agent-plugins/connection-status.ts compatibility shim (ex7 batch G): the shim is gone, callers use @jini-ai/agent-plugins/connect directly and bind the host projection pair through agentPluginMcpPortsOf / withAgentPluginMcpPorts, whose own docs keep the rationale."
+    },
+    {
+      "id": "2894da9cc44e",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts header (ex7 batch D, K5-webhooks-1.J); host path citations reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "d44542584760",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts (ex7 batch D); the type name now reads DeliveryEnvelopeStorePort (the host alias was dropped), rest identical."
     }
   ]
 }

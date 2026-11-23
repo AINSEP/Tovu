@@ -24,8 +24,8 @@ import type { Clock } from "@jini-ai/core/primitives";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../../agent-plugins/lifecycle.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/index.js";
-import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "../../host.js";
-import type { PluginHttp } from "@jini-ai/integrations/api-connections";
+import { createApiConnectionHost, type ApiConnectionHost } from "../../host.js";
+import type { ApiConnectionRuntime, PluginHttp } from "@jini-ai/integrations/api-connections";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 import { trackStartingBrowser, type StartingBrowser } from "./starting-browser.js";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";

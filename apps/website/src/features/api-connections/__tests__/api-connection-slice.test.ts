@@ -23,7 +23,7 @@ import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createCustomCredential, deleteCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, updateCustomCredential } from "../../custom-credentials/index.js";
-import { byoClientLabel } from "../byo-client.js";
+import { byoClientLabel } from "@jini-ai/integrations/api-connections";
 import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { runApiConnectionConnect } from "../connect.js";

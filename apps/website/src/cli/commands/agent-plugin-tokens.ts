@@ -1,3 +1,5 @@
+import type { TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
+
 import { readStdinOrRefuse } from "./stdin-input.js";
 import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
 import { composePluginCredentials } from "../../server/runtime/composition/agent-plugin-service-ports.js";
@@ -10,7 +12,7 @@ import {
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
 } from "../../features/agent-plugins/new-site-agent-plugin-tokens.js";
-import { checkAgentPluginAccessToken, type TokenCheckOutcome } from "../../features/agent-plugins/token-sign-in.js";
+import { checkAgentPluginAccessToken } from "../../features/agent-plugins/token-sign-in.js";
 import { sealPendingAgentPluginTokensForNewSite } from "../../server/runtime/composition/pending-agent-plugin-tokens.js";
 
 /**

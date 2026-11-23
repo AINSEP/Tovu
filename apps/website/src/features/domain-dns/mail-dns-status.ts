@@ -17,7 +17,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import type { DomainRecordRequirement, DomainRequirement } from "@jini-ai/core/provider-registry";
 import { normalizeDnsName, type DnsInstructions, type DnsVerification, type NameserverObservation, type PropagationState, type RecordVerification } from "@jini-ai/devops/dns";
-import type { SenderDomainVerification, SenderDomainVerificationPort } from "../../platform/mail/index.js";
+import type { SenderDomainVerification, SenderDomainVerificationPort } from "@jini-ai/platform/mail";
 import type { DomainBinding, DomainBindingStore } from "./binding.repo.js";
 import { inspectDomainDns, verifyDomainDns, type DnsChangePorts, type DomainDnsBlocker, type DomainDnsPlan } from "./dns-changes.js";
 import { DMARC_HINT_VALUE } from "@jini-ai/devops/dns/site/mail-requirements";
