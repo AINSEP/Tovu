@@ -181,13 +181,15 @@ function mountDelegatedRoutes({ app, lifecycle, toolExecutor, resolvePrincipal, 
 // omitting it silently disables the gateway rather than silently widening it.
 // `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
 // lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
-// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
-// would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
-// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text.
-// Built as a variable, not an inline literal: `describeInternalError` is newer than the published
-// @jini-ai/http-kit 0.3.7 types, and a non-literal argument is not excess-property-checked, so this
-// compiles against both. Against 0.3.7 at runtime the option is inert (bare 500s return) until
-// Tovu's http-kit range is bumped to the release that ships it.
+// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure the route
+// would answer with a bare `500 INTERNAL_ERROR` (timed-out, cancelled, a throwing executor or
+// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text. Both are live: the route is
+// `@jini-ai/daemon/http`'s, whose deps declare them.
+// An unknown tool id never reaches either: with `toolRegistry` set, the route itself answers
+// `404 UNKNOWN_TOOL` in plain words ("There is no tool named …", closest names when it has them)
+// before `resolvePrincipal` or the executor runs (B091/B092).
+// Built as a named variable because `agent-daemon-server.tool-family.integration.test.ts` evaluates
+// this exact initializer on the real route; that test pins the unknown-tool answer.
 const delegatedToolRouteDeps = {
   lifecycle,
   toolExecutor,

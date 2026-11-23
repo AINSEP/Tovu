@@ -63,4 +63,16 @@ for (const requireReadOnly of [true, false]) {
     const result = await bareCall(host, { toolId: "content_reed", requireReadOnly });
     assert.deepEqual(result, { ok: false, error: { code: "UNKNOWN_TOOL", message: "There is no tool named \"content_reed\". Find tools with search_tools." } });
   });
+
+  // B091/B092: an id the model copied with its MCP client prefix is answered in plain words by the
+  // route itself (404 UNKNOWN_TOOL, closest names), never as a 500 for the error describer to word,
+  // and nothing is resolved or run.
+  test(`${gateway}: an unknown MCP-prefixed id gets the plain unknown-tool sentence before any principal or executor`, async () => {
+    const host = fixture();
+    const result = await bareCall(host, { toolId: "mcp__jini__content_read.menu", requireReadOnly });
+    assert.deepEqual(result, { ok: false, error: { code: "UNKNOWN_TOOL",
+      message: "There is no tool named \"mcp__jini__content_read.menu\". Find tools with search_tools." } });
+    assert.deepEqual(host.principalCalls, []);
+    assert.deepEqual(host.executorCalls, []);
+  });
 }
