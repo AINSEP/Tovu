@@ -12,14 +12,15 @@ import { runImportSiteCommand } from "./commands/import-site.js";
 import { OWNER_STORE_ACTIONS, runOwnerStoreCommand } from "./commands/owner-store.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
 import { runSiteRenameCommand } from "./commands/site-rename.js";
-import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
 import { runThemeMigrateCommand } from "./commands/theme/migrate.js";
 import { runThemeNormalizeBuildCommand } from "./commands/theme/normalize-build.js";
 import { runThemeSyncOriginalsCommand } from "./commands/theme/sync-originals.js";
 import { runThemeValidateCommand } from "./commands/theme/validate.js";
-import { introspectProgram } from "./introspect.js";
+import { printIntrospection } from "@jini-ai/cli/introspection";
+import { ValidationError } from "../platform/site-dir/index.js";
+import { introspectProgram, TOVU_TOOL_PREFIX } from "./introspect.js";
 
 const JSON_SUMMARY_DESCRIPTION = "print the full machine-readable result instead of a human-readable summary";
 function registerSiteCommands(program: Command): void {
@@ -292,8 +293,16 @@ export function createProgram(): Command {
     .command("introspect")
     .description("output a machine-readable JSON description of this CLI's own commands and options (for programmatic/agent callers, e.g. Tovu-Runner)")
     .option("--format <format>", 'output format: "commander" (raw command/option shape) or "mcp" (MCP tool definitions)', "commander")
-    .action(async (options: { format?: string }) => {
-      await runIntrospectCommand({ manifest: introspectProgram(program), format: options.format });
+    .action((options: { format?: string }) => {
+      // Output port bound at this composition edge; an unknown format throws Tovu's ValidationError,
+      // which `cli/errors.ts` maps to exit 2 — the formatter never maps exit codes itself.
+      printIntrospection({
+        manifest: introspectProgram(program),
+        format: options.format,
+        toolNamePrefix: TOVU_TOOL_PREFIX,
+        output: ({ message }) => { process.stdout.write(message); },
+        invalid: ({ message }) => new ValidationError({ message }),
+      });
     });
 
   return program;

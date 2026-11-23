@@ -12,6 +12,9 @@ import type { Command } from "commander";
 import { introspectProgram as introspectCliProgram, toMcpTools as cliManifestToMcpTools } from "@jini-ai/cli/introspection";
 import type { CliManifest, McpToolDefinition } from "@jini-ai/cli/introspection";
 
+/** Tovu's MCP tool-name prefix (separator included): `tovu init` becomes `tovu_init`. */
+export const TOVU_TOOL_PREFIX = "tovu_";
+
 export type { CliManifest, IntrospectedArgument, IntrospectedCommand, IntrospectedOption, McpToolDefinition } from "@jini-ai/cli/introspection";
 
 /**
@@ -32,5 +35,5 @@ export function introspectProgram(program: Command): CliManifest {
  * @complexity O(c + f) for c commands and f argument/option fields.
  */
 export function toMcpTools(manifest: CliManifest): McpToolDefinition[] {
-  return cliManifestToMcpTools({ manifest, toolNamePrefix: "tovu_" });
+  return cliManifestToMcpTools({ manifest, toolNamePrefix: TOVU_TOOL_PREFIX });
 }

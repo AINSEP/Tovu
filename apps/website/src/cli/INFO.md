@@ -12,3 +12,6 @@ and desktop staging, so it stays the composition root.
   order is plugin-install → commander parser (`createParserClassifier`) → `site-dir`, then the coded
   classes, then INTERNAL. `createTovuCliOutcomeMapper({}, { siteDirClassifier })` exists so tests can
   prove that order.
+- `program.ts`'s `introspect` action calls `@jini-ai/cli/introspection` `printIntrospection` with the
+  live manifest, `TOVU_TOOL_PREFIX` (`introspect.ts`), a stdout output port and a `ValidationError`
+  factory; the `--format` refusal text is built by Jini and asserted by Tovu's unit test.

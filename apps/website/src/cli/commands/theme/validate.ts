@@ -12,7 +12,7 @@ import {
  * @file `tovu theme validate <dir> --profile <author|publish|install> [--json]` —
  * `validate-theme-package.ts`'s CLI surface. Wires parsed argv to the real validator and formats its
  * result; all VALUE-level validation (`--profile` outside the known set) is this module's own job,
- * matching `runIntrospectCommand`'s identical `--format` pattern (`cli/commands/introspect.ts`).
+ * matching `printIntrospection`'s identical `--format` pattern (`@jini-ai/cli/introspection`, bound in `cli/program.ts`).
  *
  * Architectural role:
  * `cli` layer, formats stdout only — never maps errors to exit codes itself (`cli/errors.ts`'s job
