@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { navigate } from "../../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 /**
  * @file The side effect behind `WorkspaceRedirect.tsx` — split out so that `.tsx` file carries no

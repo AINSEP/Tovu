@@ -6,7 +6,7 @@ import { encodePublishCriteriaToQuery } from "@tovu/publish-content-ui";
 
 import { useAdminAssistantAvailability, useAdminSession, usePublishCriteriaDeepLink, useScreenshotAnnouncement } from "../../App.hooks";
 import { closePublishRequest, usePublishRequest } from "../../features/publish-content/hooks/publish-request.store";
-import { publishScreenshotCaptured, resetScreenshotCapturedBus } from "../../lib/agent-screenshot-bus";
+import { publishScreenshotCaptured, resetScreenshotCapturedBus } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 
 /**
  * @file `App.hooks.ts`'s small single-purpose hooks, each against its own public contract: the

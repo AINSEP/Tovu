@@ -7,7 +7,7 @@ import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { currentRoutePath, installInternalLinkInterceptor } from "@/lib/router";
+import { currentRoutePath, installInternalLinkInterceptor } from "@jini-ai/admin/shell/lib/router";
 
 /**
  * @file Regression test for this batch's RowMenu wiring on `Posts.tsx` — representative test for

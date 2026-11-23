@@ -4,7 +4,7 @@ import { integrationsApi } from "../../features/integrations/api/integrations-ap
 import type { AdminPost } from "../../features/posts/api/posts-api.types";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
-import * as router from "../router";
+import * as router from "@jini-ai/admin/shell/lib/router";
 
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState({}, "", "/admin"); });
 

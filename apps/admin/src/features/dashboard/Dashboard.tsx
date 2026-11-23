@@ -1,6 +1,6 @@
 import type { AdminPost } from "../posts/api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
-import { adminHref } from "../../lib/router";
+import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
@@ -11,7 +11,7 @@ import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Admin landing screen — markup only.
  *

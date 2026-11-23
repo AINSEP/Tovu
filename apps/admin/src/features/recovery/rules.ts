@@ -2,7 +2,7 @@ import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } 
 import { t } from "./recovery-i18n";
 
 import { interpolate, localeEntry, formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
  * rendering one. Follows the convention `features/posts/rules.ts` establishes: no React, no

@@ -4,7 +4,7 @@ import { useContext, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { AdminFetchQueryAdapterContext } from "@/lib/fetch-query/adapter-context";
+import { AdminFetchQueryAdapterContext } from "@jini-ai/admin/shell/lib/fetch-query/adapter-context";
 import { useQueriesTab, useWiredQueriesTab, type QueriesIdentityPort } from "../hooks/use-queries-tab.hooks";
 
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;

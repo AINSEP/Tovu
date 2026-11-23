@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { IntegrationsRedirect } from "../IntegrationsRedirect";
 import { useIntegrationsRedirect } from "../hooks/use-integrations-redirect.hooks";
-import { useRouteLocation } from "@/lib/router";
+import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 
 afterEach(() => window.history.replaceState(null, "", "/"));
 

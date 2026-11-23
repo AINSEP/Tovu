@@ -1,7 +1,7 @@
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { AdminThemes } from "../admin-themes";
 import { t } from "../admin-themes/admin-themes-i18n";
 import { IntegrationsRedirect } from "../integrations";

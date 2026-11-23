@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type ChatPaneAgentSelection } from "@jini-ai/chat/react";
+import { resolveChatPaneSelection, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { readAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
-import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
+import { isSelectionNormalizationEcho } from "@jini-ai/admin/shell/components/AssistantDock/local-cli-selection-echo";
 import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection, localCliSelectionFromConfig } from "../execution-config-write";
 
 type LocalCliPickerState = {
@@ -27,7 +27,7 @@ function applyLocalCliPickerChange(
   const { localCliSelectionRef, touchedRef, pickGeneration, syncedSelection, normalizationRef, persistRef, setLocalCliSelection } = state;
   // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
   // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
-  if (isSelectionNormalizationEcho({ current: localCliSelectionRef.current, incoming: selection, agents: readAgentsSnapshot() })) {
+  if (isSelectionNormalizationEcho({ current: localCliSelectionRef.current, incoming: selection, agents: readAgentsSnapshot(), resolveChatPaneSelection })) {
     normalizationRef.current = { key: syncedSelection.current, selection };
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);

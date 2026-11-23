@@ -23,9 +23,9 @@ import { extractResumeCapableAgentIds, getResumeCapableAgentIds, resetResumeCapa
 import { useRuntimeAccess } from "../hooks/runtime-access.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
-import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
+import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { ReactNode } from "react";
-import { publishAssistantDockState, resetAssistantDockBus } from "@/lib/assistant-dock-bus";
+import { publishAssistantDockState, resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,

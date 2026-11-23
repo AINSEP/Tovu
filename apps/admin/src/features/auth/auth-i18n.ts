@@ -1,4 +1,4 @@
-import { translationEntry } from "../../lib/translation-entry";
+import { translationEntry } from "@jini-ai/admin/shell/lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';

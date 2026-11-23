@@ -1,5 +1,6 @@
+import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "../../lib/shell-collaborators";
 import { render, renderHook, waitFor } from "@testing-library/react";
-import { useCmsSidebarLabelTooltips } from "../../hooks/use-cms-sidebar-label-tooltips.hooks";
+import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";
@@ -16,7 +17,7 @@ it("expanded sidebar labels wrap at word boundaries and Soon badges stay whole",
   expect(badge).toMatch(/flex-shrink:\s*0;/);
 });
 
-function Tooltips() { useCmsSidebarLabelTooltips({}); return null; }
+function Tooltips() { useCmsSidebarLabelTooltips(SIDEBAR_TOOLTIP_ITEMS, { ownsTitle: sidebarOwnsTitle }); return null; }
 
 it("tooltips keep the full translated label and follow a locale change without shortening text", async () => {
   const view = render(<nav id="admin-sidebar"><a className="cms-item" href="/admin"><span>Megfigyelhetőség</span></a><Tooltips /></nav>);
@@ -35,7 +36,7 @@ it("restores existing titles and removes added titles when the hook unmounts", a
     <a className="cms-item" href="/admin/no-label">No span</a>
   </nav>);
   const [pages, posts, empty, noLabel] = view.container.querySelectorAll("a");
-  const hook = renderHook(() => useCmsSidebarLabelTooltips({ navId: "custom-sidebar" }, { doc: document }));
+  const hook = renderHook(() => useCmsSidebarLabelTooltips({ ...SIDEBAR_TOOLTIP_ITEMS, navId: "custom-sidebar" }, { doc: document, ownsTitle: sidebarOwnsTitle }));
   expect(pages!.title).toBe("Pages");
   expect(posts!.title).toBe("Posts");
   expect(empty!.hasAttribute("title")).toBe(false);
@@ -55,7 +56,7 @@ it("does nothing when the requested sidebar does not exist", () => {
   link.title = "Unrelated title";
   link.innerHTML = "<span>Unrelated label</span>";
   doc.body.append(link);
-  const hook = renderHook(() => useCmsSidebarLabelTooltips({ navId: "missing" }, { doc }));
+  const hook = renderHook(() => useCmsSidebarLabelTooltips({ ...SIDEBAR_TOOLTIP_ITEMS, navId: "missing" }, { doc, ownsTitle: sidebarOwnsTitle }));
   hook.unmount();
   expect(link.title).toBe("Unrelated title");
 });

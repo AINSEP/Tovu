@@ -2752,6 +2752,58 @@
     {
       "id": "73584ff700c8",
       "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "976572e23f18",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/components/AssistantDock/local-cli-selection-echo.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "7845972902ca",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/components/Select/Select.hooks.tsx (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "fa87c967afca",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/components/Select/Select.hooks.tsx (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "a05294d0dadc",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/components/Select/Select.hooks.tsx (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "c0275b9dc849",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "f6c0c1088e81",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/addons-routes.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "9527c2d08782",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/admin-boot-scope.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "b4e1b0761927",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/agent-screen-context.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "9f31a1adaa90",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/agent-screenshot-bus.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "9802f4e3bb53",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/fetch-query/adapter-context.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "19d37cdc628e",
+      "reason": "Replaced by the existing Jini twin @jini-ai/core/admin-runtime querySuffix (same behaviour, its own doc); every importer repointed (ex5-fnd-kit, A-adm-shell-lib-2)."
+    },
+    {
+      "id": "24163aac3875",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/router.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "28f706b8b49b",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/router.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
     }
-  ]
+]
 }

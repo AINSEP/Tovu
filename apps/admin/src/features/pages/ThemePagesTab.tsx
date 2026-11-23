@@ -4,7 +4,7 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { useState, type ReactNode } from "react";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { siteUrl } from "../../lib/site-url";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";

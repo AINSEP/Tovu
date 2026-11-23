@@ -9,7 +9,7 @@ import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPick
 import { t as sharedComponentsT } from '../../components/shared-components-i18n';
 import { serverLabel } from '../../components/status-labels';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
-import { slugRedirectPath } from '../../lib/slug-redirect-path';
+import { slugRedirectPath } from '@jini-ai/admin/shell/lib/slug-redirect-path';
 import { createWidgetsTranslator } from './widgets-ports';
 
 /** ConfigFields owns a DIFFERENT dictionary from screen copy. Resolve the current module locale

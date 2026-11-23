@@ -1,7 +1,7 @@
-import { LINE_ICON } from "../../components/line-icon";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { type Translate, resolveActiveTabId } from '@jini-ai/core/text';
 /**

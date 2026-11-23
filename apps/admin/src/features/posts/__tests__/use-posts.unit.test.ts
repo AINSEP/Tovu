@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { settingsApi } from "@/features/settings/api/settings-api";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
 import { POSTS_RESOURCE } from "../rules";
@@ -495,11 +495,11 @@ describe("usePosts — content refresh bus", () => {
     port.posts.push(TRANSLATED_POST);
 
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.posts).toEqual([POST]);
 
-    act(() => publishContentRefresh([POSTS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [POSTS_RESOURCE] }));
     await waitFor(() => expect(result.current.posts).toEqual([POST, TRANSLATED_POST]));
   });
 

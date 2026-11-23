@@ -5,7 +5,7 @@ import { ApiError } from "../admin-http/request";
 import { loadExecutionConfig } from "../execution-settings";
 import { loadInterface, loadLanguage } from "../settings-tabs";
 import { defaultAdminLocalePort } from "../../hooks/admin-locale-dependencies.hooks";
-import { publishSettingsRefresh, resetSettingsRefreshBus, subscribeToSettingsRefresh } from "../settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 /** Real loaders → real settings API → stubbed fetch, matching the request-volume measurement.
  * Deferred responses keep reads concurrent without timers or mocking the behavior under test. */

@@ -5,7 +5,7 @@ import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";

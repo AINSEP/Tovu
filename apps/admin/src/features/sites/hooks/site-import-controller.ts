@@ -1,5 +1,5 @@
 import { describeApiError } from "@/lib/admin-http/request";
-import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
+import { requestAssistantPrompt } from "@jini-ai/admin/shell/lib/assistant-prompt-bus";
 import { liveImportPrompt, validWebsiteAddress } from "./site-transfer-rules";
 import type { passwordProblemFor } from "./site-transfer-rules";
 import type { SiteImportController, useSiteImport } from "./use-site-transfer.hooks";

@@ -3,7 +3,7 @@ import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { CachedLoader } from "@jini-ai/core/fetch";
-import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { isAbortError, retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "@/lib/execution-settings";
 import type { DockExecutionConfigPort } from "./execution-config.hooks";

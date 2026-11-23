@@ -2,7 +2,7 @@ import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fe
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { describeApiError } from "../rules";
 import { defaultAiAssistantPort } from "./ai-assistant-dependencies.hooks";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";

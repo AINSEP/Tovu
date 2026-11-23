@@ -215,7 +215,7 @@ it("a resolved explore id is authoritative for alias and empty theme props", asy
 
 it("explore save nonce and content notifications leave reload ownership to the durable feed", async () => {
   const { useThemeExplorePreview } = await import("../hooks/use-theme-explore-preview.hooks");
-  const { publishContentRefresh } = await import("@/lib/content-refresh-bus");
+  const { publishContentRefresh } = await import("@jini-ai/admin/shell/lib/content-refresh-bus");
   const h = renderHook(({ previewNonce }) => useThemeExplorePreview({
     themeId: "resolved", detail: { id: "resolved" },
     files: [{ path: "pages/index.html", label: "index", kind: "page" } as never],
