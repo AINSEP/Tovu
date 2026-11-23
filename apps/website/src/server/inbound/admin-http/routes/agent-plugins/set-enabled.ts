@@ -37,7 +37,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
  * (`features/plugin-runtime/tool-registrations.ts`) reports exactly that asymmetry to the model.
  *
  * ---------------------------------------------------------------------------
- * Why this does NOT go through `executeCommand`, unlike `routes/plugins/set-enabled.ts`
+ * Why this does NOT go through `executeCommand`, unlike `@jini-ai/cms/admin-http/routes/plugins/set-enabled`
  * ---------------------------------------------------------------------------
  * The `.tovu-plugin` family's identical operation is `executeCommand`-wrapped because its
  * activation is a database row with a `PluginActivationRecord` repo, a `plugin-activation` entity
@@ -56,7 +56,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
  * gateway checks, and the same helper `list.ts` uses one door over for `admin.plugins.read`.
  *
  * ---------------------------------------------------------------------------
- * Divergence from `routes/plugins/set-enabled.ts`: `enabled` is validated, not coerced
+ * Divergence from `@jini-ai/cms/admin-http/routes/plugins/set-enabled`: `enabled` is validated, not coerced
  * ---------------------------------------------------------------------------
  * That route reads `Boolean(req.body?.enabled)`, so a request that omits the field, or sends
  * `"false"`, silently means "disable". For a toggle whose off-state refuses assistant runs, a

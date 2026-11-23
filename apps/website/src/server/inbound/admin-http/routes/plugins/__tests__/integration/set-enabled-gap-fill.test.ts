@@ -12,7 +12,7 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo, PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
-import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
+import { registerPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 

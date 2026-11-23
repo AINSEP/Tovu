@@ -3,19 +3,21 @@ import type { Express } from "express";
 import { pluginFilesRoute } from "@jini-ai/cms/admin-http/routes/plugins/files";
 import { pluginListRoute } from "@jini-ai/cms/admin-http/routes/plugins/list";
 import { pluginPreviewRunRoute, pluginPreviewStatusRoute } from "@jini-ai/cms/admin-http/routes/plugins/preview";
+import { pluginSetEnabledRoute, type PluginSetEnabledInput } from "@jini-ai/cms/admin-http/routes/plugins/set-enabled";
 import { pluginUninstallRoute, type PluginUninstallInput } from "@jini-ai/cms/admin-http/routes/plugins/uninstall";
 import {
-  PluginAlreadyInTrashError, PluginEnabledError, PluginHookFailedError, PluginNotFoundError, PluginNotUninstallableError,
-  toAdminPluginResponse, uninstallPlugin,
+  PluginAlreadyInTrashError, PluginConflictError, PluginEnabledError, PluginHookFailedError, PluginIncompatibleError, PluginInvalidError,
+  PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin,
 } from "@jini-ai/plugins/host";
-import { PLUGIN_PACKAGE_FILE_LIMITS, PluginPackagePathError } from "@jini-ai/plugins/host/node";
+import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
+import { ToolAccessLoweringError } from "#src/contracts/core/tool-access-change";
+import { lowerPluginToolAccess } from "#src/features/plugin-runtime/lower-tool-access";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { registerChartProviderRoutes } from "#src/server/inbound/admin-http/routes/plugins/chart-providers";
 import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";
 import { localPluginInstaller, type LocalInstallerDeps } from "#src/server/inbound/admin-http/routes/plugins/local-installer";
 import { registerPluginProviderSettingsRoutes } from "#src/server/inbound/admin-http/routes/plugins/provider-settings";
-import { registerPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/plugins/set-enabled";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -127,6 +129,41 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps 
   mountAdminJsonRoute({ app, spec: pluginUninstallRoute, deps: uninstallDeps }, mountOptions("routes/plugins/uninstall"));
 };
 
+/** The owner's enable of a site plugin is its approved capability set; a host without a plugin
+ *  source (or a record without a manifest) records nothing. @complexity O(capabilities). */
+async function recordSiteApproval({ deps, record }: { deps: Pick<PluginsRouteDeps, "pluginSource">; record: PluginDiscoveryRecord }, _optional: Record<string, never> = {}): Promise<void> {
+  if (record.manifest && deps.pluginSource) await deps.pluginSource.recordApproval({ id: record.id, capabilities: pluginCapabilitySet({ manifest: record.manifest }) }, {});
+}
+
+/**
+ * `PLUGIN_SET_ENABLED` (PATCH). The gateway (`executeCommand`) asks the RAW host authorizer with the
+ * activation entity and answers its own 403, so `authorizeCommand` is `deps.authorize` read per
+ * request — not the port's entity-dropping wrapper. The port authorizer is never asked, so the mount
+ * is `"direct"` (the hand-written route never consulted a publishing credential's grant either).
+ */
+export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const setEnabledDeps = {
+    ...pluginPortDeps({ deps }), clock: deps.clock, idGen: deps.idGen, changeSets: deps.changeSets, outbox: deps.outbox,
+    authorizeCommand: (params: Parameters<PluginsRouteDeps["authorize"]>[0]) => deps.authorize(params),
+    pluginActivationRepo: deps.pluginActivationRepo, discoverPlugins: () => deps.discoverPlugins(),
+    setPluginEnabled: ({ discovery, input }: { discovery: readonly PluginDiscoveryRecord[]; input: PluginSetEnabledInput }) => setPluginEnabled({
+      deps: { clock: deps.clock, repo: deps.pluginActivationRepo, discovery, onEnabled: deps.onPluginEnabled, onDisabled: deps.onPluginDisabled },
+      input,
+    }),
+    onPluginEnabled: (pluginId: string) => deps.onPluginEnabled(pluginId),
+    onPluginDisabled: (pluginId: string) => deps.onPluginDisabled(pluginId),
+    recordApproval: ({ record }: { record: PluginDiscoveryRecord }) => recordSiteApproval({ deps, record }),
+    lowerToolAccess: ({ pluginId }: { pluginId: string }) =>
+      lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {}),
+    tracker: deps.tracker, toAdminPluginResponse,
+    setEnabledErrors: {
+      toolAccessLowering: ToolAccessLoweringError, install: PluginInstallError, notFound: PluginNotFoundError, incompatible: PluginIncompatibleError,
+      invalid: PluginInvalidError, conflict: PluginConflictError, load: PluginLoadError,
+    },
+  };
+  mountAdminJsonRoute({ app, spec: pluginSetEnabledRoute, deps: setEnabledDeps }, { ...mountOptions("routes/plugins/set-enabled"), authorization: "direct" });
+};
+
 /** `PLUGIN_PREVIEW_STATUS` (GET) then `PLUGIN_PREVIEW` (POST), same order as before. The hook-failure
  *  body stays the host's (`http/plugin-hook-error.ts` logs the plugin's own error, redacted). */
 export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -140,11 +177,11 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps },
 };
 
 /**
- * K1 (RT-K1-adm-plugins): list, files, uninstall and preview (status + run) are Jini route specs
+ * K1 (RT-K1-adm-plugins): list, set-enabled, files, uninstall and preview (status + run) are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/plugins/*`) mounted behind the admin ports; `RouteDeps` is read only
  * here. `@jini-ai/cms` does not depend on `@jini-ai/plugins`, so the plugin mechanisms and the error
  * classes each ladder maps are injected from here. Still hand-written (non-JSON or host-session
- * bound): chart-providers, install, provider-settings; set-enabled not yet converted.
+ * bound): chart-providers, install, provider-settings.
  */
 /**
  * @file The `plugins` server module (SPEC-005, ADR-005-ARCH) — ADR-046 Phase 3 server-module

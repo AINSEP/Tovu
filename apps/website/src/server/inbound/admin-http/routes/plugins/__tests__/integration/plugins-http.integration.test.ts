@@ -11,7 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { registerPluginsListRoute } from "#src/server/runtime/composition/modules/plugins";
-import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
+import { registerPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 

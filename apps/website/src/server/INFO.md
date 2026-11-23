@@ -38,6 +38,10 @@ Publish-content (`modules/publish-content-transport.ts`) mounts the peer and des
 `"guarded"`; plugins (`modules/plugins.ts`) mounts list/files/uninstall/preview `"guarded"` and
 injects `pluginHookFailedBody` (stays in Tovu until lane L1 moves it). Both drop the spec's
 `entityType` before `deps.authorize`, because those hand-written routes never sent one.
+Plugins set-enabled mounts `"direct"` and binds `deps.authorize` raw and lazily as
+`authorizeCommand` (the cms `executeCommand` gateway names the `plugin-activation` entity itself),
+plus the pre-bound `setPluginEnabled`, `lowerPluginToolAccess`, `recordSiteApproval` and the
+`ToolAccessLoweringError` + plugins host error classes.
 Still hand-written: routes that read `res.locals.authCredentialKind` or the publish-trust grant
 (publish-content import/backstop/bundle-create/export/capabilities/peer-transport, plugins
 provider-settings) — they need that context on the admin JSON ports — and the byte/stream/upload
