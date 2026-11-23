@@ -1,7 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useCopyToClipboard } from "@jini-ai/ui";
 
-import type { RecentServerErrorsController } from "./use-recent-server-errors.hooks";
+import type { RecentServerErrorsController } from "@jini-ai/admin/screens/observability/hooks/use-recent-server-errors.hooks";
 
 /**
  * @file State for ONE row of the Recent errors list: whether its full message is shown, and its

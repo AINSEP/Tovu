@@ -1,7 +1,7 @@
 import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createFakeRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
+import { createFakeRecentServerErrorsPort } from "@jini-ai/admin/screens/observability/hooks/recent-server-errors-dependencies.hooks";
 import { useRecentErrorItem } from "../hooks/use-recent-error-item.hooks";
 
 /** @file One Recent errors row's state — disclosure and Copy feedback — against the fake port. */

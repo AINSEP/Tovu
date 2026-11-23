@@ -1,13 +1,13 @@
 import { expect, it } from 'vitest';
 import { t as pluginCopy } from '../plugins-i18n';
-import { t as monitoringCopy } from '../../observability/observability-i18n';
+import { t as monitoringCopy } from '@jini-ai/admin/screens/observability/observability-i18n';
 import { t as securityCopy } from '../../security/security-i18n';
 import { SHARED_COMPONENTS_DICT } from '../../../components/shared-components-i18n';
 
 it('category examples remain translated across every shipped locale', () => {
   const keys = [
     [pluginCopy, 'Install from a repository or a .zip link.'],
-    [monitoringCopy, 'Monitoring integrations are planned. Tovu does not fetch, configure, or send data to any provider yet.'],
+    [monitoringCopy, 'Monitoring integrations are planned. {product} does not fetch, configure, or send data to any provider yet.'],
     [monitoringCopy, 'Where a monitoring connection will live.'],
     [securityCopy, 'Optional — some providers use more than one API host for the same account (e.g. api.example.test and secondary-api.example.test). One per line, or comma-separated.'],
   ] as const;

@@ -1,10 +1,11 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminServerLogs } from "@/features/observability/api/observability-api.types";
-import { ApiError } from "@/lib/admin-http/request";
-import { createFakeRecentServerErrorsPort, defaultRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
-import { RECENT_ERRORS_LIMIT, useRecentServerErrors, useWiredRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
+import type { AdminServerLogs } from "@jini-ai/admin/screens/observability/api/observability-api.types";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { createFakeRecentServerErrorsPort } from "@jini-ai/admin/screens/observability/hooks/recent-server-errors-dependencies.hooks";
+import { defaultRecentServerErrorsPort, useWiredRecentServerErrors } from "../hooks/observability-wiring.hooks";
+import { RECENT_ERRORS_LIMIT, useRecentServerErrors } from "@jini-ai/admin/screens/observability/hooks/use-recent-server-errors.hooks";
 
 /** @file Injected-port behavior and the wired hook's real API/locale composition. */
 
@@ -55,7 +56,7 @@ describe("useRecentServerErrors", () => {
   it("keeps an unformattable timestamp visible instead of dropping the row", async () => {
     const logs: AdminServerLogs = { ...LOGS, entries: [{ ...LOGS.entries[0], at: "invalid-timestamp" }], matched: 1 };
     const port = createFakeRecentServerErrorsPort({ logs });
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.rows).toHaveLength(1);
@@ -94,7 +95,7 @@ describe("useRecentServerErrors", () => {
 
   it("asks for error lines only, capped, and returns rows newest first", async () => {
     const port = createFakeRecentServerErrorsPort({ logs: LOGS });
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(port.queries).toEqual([{ level: "error", limit: RECENT_ERRORS_LIMIT }]);
@@ -124,7 +125,7 @@ describe("useRecentServerErrors", () => {
       capturing: true,
     };
     const port = createFakeRecentServerErrorsPort({ logs });
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const [row, other] = result.current.rows;
@@ -142,7 +143,7 @@ describe("useRecentServerErrors", () => {
 
   it("hands the port to the rows as their clipboard and keeps rows stable across re-renders", async () => {
     const port = createFakeRecentServerErrorsPort({ logs: LOGS });
-    const { result, rerender } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result, rerender } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     const rows = result.current.rows;
     rerender();
@@ -154,7 +155,7 @@ describe("useRecentServerErrors", () => {
   it("starts loading with no rows while the read is pending", () => {
     const port = createFakeRecentServerErrorsPort();
     port.getServerLogs = () => new Promise(() => {});
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
     expect(result.current.loading).toBe(true);
     expect(result.current.rows).toEqual([]);
     expect(result.current.logs).toBeNull();
@@ -162,7 +163,7 @@ describe("useRecentServerErrors", () => {
 
   it("surfaces a failed read as error and stops loading", async () => {
     const port = createFakeRecentServerErrorsPort({ failWith: new ApiError({ message: "principal 'x' is not authorized for 'system.read'", status: 403 }) });
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toContain("not authorized for 'system.read'");
     expect(result.current.rows).toEqual([]);
@@ -170,7 +171,7 @@ describe("useRecentServerErrors", () => {
 
   it("refresh reads again", async () => {
     const port = createFakeRecentServerErrorsPort({ logs: LOGS });
-    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    const { result } = renderHook(() => useRecentServerErrors({ describeError: describeApiError, port, locale: "en", t }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.refresh());
     await waitFor(() => expect(port.queries).toHaveLength(2));

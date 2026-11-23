@@ -2,10 +2,10 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { Observability } from "../Observability";
-import { createFakeRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
-import type { ObservabilityStatusController } from "../hooks/use-observability-status.hooks";
-import type { RecentServerErrorRow, RecentServerErrorsController } from "../hooks/use-recent-server-errors.hooks";
+import { Observability } from "..";
+import { createFakeRecentServerErrorsPort } from "@jini-ai/admin/screens/observability/hooks/recent-server-errors-dependencies.hooks";
+import type { ObservabilityStatusController } from "@jini-ai/admin/screens/observability/hooks/use-observability-status.hooks";
+import type { RecentServerErrorRow, RecentServerErrorsController } from "@jini-ai/admin/screens/observability/hooks/use-recent-server-errors.hooks";
 
 /** @file The Recent errors tab, driven through both hook seams — no fetch, no real port. */
 
