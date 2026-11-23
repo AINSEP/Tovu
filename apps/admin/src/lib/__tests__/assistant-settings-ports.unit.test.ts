@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { assistantPermanentDeletesPort } from "../assistant-permanent-deletes";
+import { assistantPermanentDeletesPort } from "../shell-collaborators";
 import { assistantSubagentsPort, SUBAGENT_DANGERS } from "../assistant-subagents";
 
 /**

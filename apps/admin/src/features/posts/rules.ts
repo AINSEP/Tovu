@@ -3,7 +3,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
 import type { AdminPost } from "./api/posts-api.types";
-import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import type {
   StandingDraftAutosaveInput,

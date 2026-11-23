@@ -285,3 +285,11 @@ Their labels render `jini-field-label`; `src/styles.css` gives
 `.jini-post-publishing__field > .jini-field-label` the shared `.field-label` face, and the post
 layout rules (`styles.css`, `styles/editor.css`) target the `jini-*` class. Pinned by
 `src/__tests__/unit/post-field-label-css.unit.test.ts`.
+
+`@jini-ai/admin/shell/lib/{version-conflict,stored-credential-endpoint,visitor-tools,assistant-permanent-deletes}`
+own the stale-version classifiers, stored-key probe rules and the two assistant settings ports.
+`src/lib/shell-collaborators.ts` binds them once to this app's session client: `isVersionConflict`,
+`readVersionConflict`, `describeProbeError`, `createProbeErrorDescriber` (via the `ApiError` guard),
+`visitorToolsPort` and `assistantPermanentDeletesPort` (via `authenticatedAdminRequest` + `WORKSPACE_ID`).
+Import those bound values from there; constants and types come from the Jini modules, and the
+permanent-delete tool list/dangers/namespace from `@tovu/headless`.

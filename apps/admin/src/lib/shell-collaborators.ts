@@ -7,6 +7,12 @@ import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { browserStreamPorts, type BrowserStreamPorts } from "@jini-ai/admin/shell/lib/browser-stream";
 import { onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
+import { createVersionConflict } from "@jini-ai/admin/shell/lib/version-conflict";
+import { createProbeErrorDescribers } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { createVisitorToolsPort } from "@jini-ai/admin/shell/lib/visitor-tools";
+import { createAssistantPermanentDeletesPort } from "@jini-ai/admin/shell/lib/assistant-permanent-deletes";
+import { ApiError, authenticatedAdminRequest } from "./admin-http/request";
+import { WORKSPACE_ID } from "./admin-http/config";
 
 /** The admin app's logger: core's console logger describes caught errors instead of printing them raw. */
 export const adminLogger = createConsoleLogger({ prefix: "[admin]" });
@@ -30,3 +36,17 @@ export function onTovuSecretRedacted(signal: Parameters<typeof onAdminSecretReda
  *  measured name-only tooltip (the one host exception). */
 export const SIDEBAR_TOOLTIP_ITEMS = { itemSelector: "a.cms-item" } as const;
 export const sidebarOwnsTitle = ({ link }: { link: Element }): boolean => link.getAttribute("href")?.endsWith("/sites") ?? false;
+
+/** The admin client's request-error guard: the same `instanceof ApiError` its `createAdminHttp` ports use. */
+const isAdminApiError = (required: { error: unknown }): required is { error: ApiError } => required.error instanceof ApiError;
+
+/** The stale-version 409 classifiers, bound to the admin client's `ApiError`. */
+export const { isVersionConflict, readVersionConflict } = createVersionConflict({ isRequestError: isAdminApiError });
+
+/** The stored-key probe-error wording, bound to the admin client's `ApiError`. */
+export const { describeProbeError, createProbeErrorDescriber } = createProbeErrorDescribers({ isRequestError: isAdminApiError });
+
+/** The assistant settings ports, sent through the admin session client's authenticated request. */
+const adminRequestOps = { authenticatedAdminRequest };
+export const visitorToolsPort = createVisitorToolsPort({ http: adminRequestOps, workspaceId: WORKSPACE_ID });
+export const assistantPermanentDeletesPort = createAssistantPermanentDeletesPort({ http: adminRequestOps, workspaceId: WORKSPACE_ID });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@/lib/assistant-permanent-deletes";
+import { PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@tovu/headless";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { AI_ASSISTANT_DICT, t } from "../ai-assistant-i18n";
 

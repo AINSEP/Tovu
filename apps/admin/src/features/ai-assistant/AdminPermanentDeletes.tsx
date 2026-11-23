@@ -1,5 +1,5 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { PERMANENT_DELETE_DANGERS } from "@/lib/assistant-permanent-deletes";
+import { PERMANENT_DELETE_DANGERS } from "@tovu/headless";
 import { AssistantToggleRow } from "./AssistantToggleRow";
 import { OwnerGrantStatus } from "./OwnerGrantStatus";
 import { useWiredAdminPermanentDeletes } from "./hooks/use-admin-permanent-deletes.hooks";

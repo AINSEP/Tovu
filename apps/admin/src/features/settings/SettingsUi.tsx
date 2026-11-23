@@ -135,7 +135,7 @@ import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scro
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
-import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
+import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
 import { aiAgentPanelDictionaries } from "./settings-execution-i18n";
 import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
 import { t as tInterfaceCopy } from "./settings-interface-i18n";
