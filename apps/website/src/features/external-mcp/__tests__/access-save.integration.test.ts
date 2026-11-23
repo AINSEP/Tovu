@@ -213,3 +213,44 @@ for (const phase of ['prepare', 'save'] as const) test(`approver read failures a
   }
   assert.deepEqual(await f.repo.findByServerId(key), f.original);
 });
+
+// B200: the save card's error mapper used to say "no longer current" for EVERY ToolInputError, which
+// hid unrelated, fixable causes (a catalog with no verified tool listing, an unverifiable approver)
+// behind a stale-card message. Only the stale-version case may say it; the rest pass their own text.
+test('configuration save with no verified tool listing reports that reason, not "no longer current"', async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  f.forgetCatalog();
+  f.answer({ url: f.original.url, label: 'Updated source' });
+  const result = await pending as { saved: boolean; message?: string };
+  assert.equal(result.saved, false);
+  assert.match(result.message ?? '', /no verified tool listing/);
+  assert.doesNotMatch(result.message ?? '', /no longer current/);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('configuration save whose approver check rejects passes that plain text through, not "no longer current"', async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  f.revokeApprover();
+  f.answer({ url: f.original.url, label: 'Updated source' });
+  const result = await pending as { saved: boolean; message?: string };
+  assert.equal(result.saved, false);
+  assert.equal(result.message, 'Signed-in access approver revoked');
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('configuration save of a source that changed while the card was open still says it is no longer current', async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  const changed = { ...f.original, url: 'https://other.example.test/mcp' };
+  await f.repo.upsert(changed);
+  f.answer({ url: f.original.url, label: 'Updated source' });
+  const result = await pending as { saved: boolean; message?: string };
+  assert.equal(result.saved, false);
+  assert.match(result.message ?? '', /no longer current/);
+  assert.deepEqual(await f.repo.findByServerId(key), changed);
+});

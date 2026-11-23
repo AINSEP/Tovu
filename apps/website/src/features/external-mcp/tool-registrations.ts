@@ -512,6 +512,13 @@ function requireKnownMcpSave({ routeDeps, record, input }: {
   requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access });
 }
 
+/**
+ * The reviewed connection/access snapshot no longer matches the stored row. A distinct class keeps the
+ * save card's "no longer current" wording to this one cause: every other `ToolInputError` on the save
+ * path (no verified tool listing, an unverifiable approver, ...) has its own fixable reason to show.
+ */
+class StaleExternalMcpSaveError extends ToolInputError {}
+
 /** Re-read the identity and access reviewed by the person before the configuration writer.
  * @complexity O(a+w) snapshot bytes; one existing source-row read, no credential unsealing. */
 async function currentMcpSaveRecord({ routeDeps, id, expected }: {
@@ -519,7 +526,7 @@ async function currentMcpSaveRecord({ routeDeps, id, expected }: {
 }): Promise<ExternalMcpServerRecord | null> {
   const current = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
   const snapshot = current ? externalMcpAccessSnapshot({ record: current }) : null;
-  if (JSON.stringify(snapshot) !== JSON.stringify(expected)) throw new ToolInputError({ message: 'This connection or its access changed while the card was open. Request its connection card again. Nothing was saved.' });
+  if (JSON.stringify(snapshot) !== JSON.stringify(expected)) throw new StaleExternalMcpSaveError({ message: 'This connection or its access changed while the card was open. Request its connection card again. Nothing was saved.' });
   return current;
 }
 
@@ -624,7 +631,9 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
       },
     }, { uriHost: "tovu", frameSize: ["100%", "640px"], safeError: err => {
       if (err instanceof ForbiddenError) return 'Your permission to save this connection changed. Reopen the chat in your signed-in admin session. Nothing was saved.';
-      if (err instanceof ToolInputError) return 'This connection or your access approval is no longer current. Review the connection and its allowed tools in Settings → External MCP, then request the card again. Nothing was saved.';
+      if (err instanceof StaleExternalMcpSaveError) return 'This connection or your access approval is no longer current. Review the connection and its allowed tools in Settings → External MCP, then request the card again. Nothing was saved.';
+      // Any other input error already carries its own plain-words reason; the engine redacts exact secrets.
+      if (err instanceof ToolInputError) return err.message;
       if (err instanceof ToolAccessLoweringError) return err.message;
       if (err instanceof ExternalMcpValidationError) {
         validationField = err.field;
