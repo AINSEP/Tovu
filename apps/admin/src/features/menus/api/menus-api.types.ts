@@ -16,13 +16,15 @@ export interface AdminMenuTarget {
  *  `@jini-ai/cms` answers exactly these, so the client no longer restates them. Only the target stays
  *  editor-specific: {@link AdminMenuTarget} is the editor's draft shape (one record, every kind's
  *  fields optional) that a node carries while the author is still filling it in. */
+/** Mirrors Jini `NavItemAttrs` (`packages/cms/src/navigation/types.ts:104-115`) — presentational,
+ *  kept separate from `target` so the render model can pass them through without interpreting them. */
 export type AdminMenuItemAttrs = AdminMenuAttrsDto;
 
 export type AdminMenuItem = AdminMenuItemDto<AdminMenuTarget>;
 
-/** `mode` (Jini `NavMenuDoc.mode`): `"html"` renders `html` at the theme's menu marker instead of
- *  the item tree; absent on a menu never switched, which means `"items"`. `html` is the author's own
- *  markup, stored parse5-balanced and kept while the menu is in items mode. */
+/** Authoring mode (Jini `NavMenuDoc.mode`): `"html"` renders {@link AdminMenu.html} at the theme's
+ *  menu marker instead of the item tree. Absent on a menu never switched, which means `"items"`. */
+/** The author's own menu markup, stored parse5-balanced; kept while the menu is in items mode. */
 export type AdminMenu = AdminMenuDto<AdminMenuTarget>;
 
 export type AdminMenuMode = CoreAdminMenuMode;

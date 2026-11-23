@@ -2988,6 +2988,14 @@
     {
       "id": "0a60dc7d8e68",
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
+    },
+    {
+      "id": "153f32528336",
+      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
+    },
+    {
+      "id": "cecd3ebf4521",
+      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
     }
   ]
 }
