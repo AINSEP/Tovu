@@ -1,0 +1,5 @@
+
+> tovu@0.1.0 check:complexity
+> node --import tsx development/scripts/check-src-complexity-drift.ts
+
+check:complexity — ok: 0 entries (0 cyclomatic, 0 cognitive).

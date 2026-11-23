@@ -1,0 +1,20 @@
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts: ✖ runServeCommand's body passes the resolved host into app.listen(port, host)
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts: ✖ the BR-07 shutdown uses the shared bounded store close with the composition and boot work
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts: ✖ Auto suggests only relevant bundled plugins: Design a new theme for this site
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts: ✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything.
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts: ✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts: ✖ Auto suggests only relevant bundled plugins: Import my old WordPress site
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts: ✖ bundled ui-ux-design has a valid manifest and is on the seeded-enabled list
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts: ✖ ui-ux-design seeds correctly for new site
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts: ✖ ui-ux-design seeds correctly for operator disabled
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts: ✖ ui-ux-design seeds correctly for untouched disabled seed
+apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts: ✖ site migration skips files and invalid workspace folders, deduplicates active id and returns its result
+apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts: ✖ plugin schema failures keep kernel diagnostics private and log them with secrets redacted
+apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts: ✖ BYOK attachment refusals stay 400 while preparation faults become redacted incidents
+apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts: ✖ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory
+apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts: ✖ golden: every pinned hash matches the committed table
+apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts: ✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts: ✖ an approved enable missing its snapshot cannot provision connections
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts: ✖ an approved enable reports the failed server and redacted reason to the owner
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts: ✖ every bundled agent and site package declares a distinct publisher identity and discovery terms
+development/scripts/__tests__/bundled-agent-plugin-selection.test.ts: ✖ the composed bundled id set is pinned, and no id ships from both content and a package

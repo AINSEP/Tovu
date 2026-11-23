@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { mediaApi } from "../../features/media/api/media-api";
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../../lib/admin-http/settings-api";
 import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";

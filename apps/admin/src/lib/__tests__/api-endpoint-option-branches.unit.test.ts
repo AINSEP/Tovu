@@ -12,7 +12,7 @@ import { databaseApi } from "../../features/database/api/database-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../admin-http/settings-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { ApiError } from "../admin-http/request";
