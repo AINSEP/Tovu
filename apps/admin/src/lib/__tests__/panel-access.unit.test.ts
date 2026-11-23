@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -145,7 +146,8 @@ const SERVER_EVIDENCE: Record<string, string> = {
   database: `${ROUTES}/database/timeline.ts`,
   recovery: `${ROUTES}/recovery/status.ts`,
   deployment: `${ROUTES}/system/deployment-overview.ts`,
-  observability: `${ROUTES}/system/observability-status.ts`,
+  // The observability-status route is a Jini spec now; its permission literal ships in the package.
+  observability: "@jini-ai/cms/admin-http/routes/system/observability-status",
   email: `${ROUTES}/system/mail-status.ts`,
   settings: `${ROUTES}/settings/get-effective.ts`,
   consent: `${ROUTES}/consent/routes.ts`,
@@ -171,7 +173,9 @@ describe("panel permission ids match the server's checks", () => {
   it.each(gated.map((panel) => [panel.id, panel.anyOfPermissions ?? []] as const))(
     "%s declares only ids its server route checks",
     (panelId, permissions) => {
-      const source = readFileSync(resolve(here, SERVER_EVIDENCE[panelId] ?? ""), "utf8");
+      const evidence = SERVER_EVIDENCE[panelId] ?? "";
+      const file = evidence.startsWith("@jini-ai/") ? createRequire(import.meta.url).resolve(evidence) : resolve(here, evidence);
+      const source = readFileSync(file, "utf8");
       for (const permission of permissions) expect(source).toMatch(new RegExp(`["']${permission.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`));
     },
   );
