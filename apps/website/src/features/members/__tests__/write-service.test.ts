@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
+import type { MailerCapabilities } from "@jini-ai/platform/mail";
 import type {
-  MailerCapabilities,
   MailerPort,
   MailerSendOptions,
   MailerSendResult,

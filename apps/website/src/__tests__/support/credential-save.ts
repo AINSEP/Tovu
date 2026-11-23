@@ -1,5 +1,6 @@
 import type { ToolRegistration } from '@jini-ai/core';
-import { buildCredentialSaveRegistrations, type CredentialSaveAdapters } from '../../features/custom-credentials/credential-save-tool.js';
+import type { CredentialSaveAdapters } from '@jini-ai/agent-plugins/connect';
+import { buildCredentialSaveRegistrations } from '../../features/custom-credentials/credential-save-tool.js';
 
 /** Bind only the domain under test; an accidental cross-kind dispatch fails loudly. */
 export function credentialSaveFixtureRegistrations(

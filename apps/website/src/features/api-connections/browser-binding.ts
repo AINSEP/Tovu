@@ -6,7 +6,6 @@
 import { serialize } from "cookie";
 import { createSignInHandoffs as createRuntimeSignInHandoffs, type SignInHandoffs } from "@jini-ai/integrations/api-connections";
 import { apiConnectionOAuthCapabilities } from "./oauth-bindings.js";
-export type { SignInHandoffs } from "@jini-ai/integrations/api-connections";
 
 /** Old signature; binds Tovu's real OAuth capabilities (pending store, state generator) to Jini's hand-off factory. */
 export function createSignInHandoffs(
