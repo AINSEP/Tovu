@@ -26,11 +26,16 @@ its server-scope key carries `{productName}`, filled from `integrations/jini-adm
 `app-i18n`'s `t` and `settings-capabilities-i18n`'s `t`), and `ExternalMcpRemoveConfirmDialog`
 (`ExternalMcpSettingsPanel.tsx` passes `components/ConfirmActionDialog` as `ConfirmDialog` and
 `rules.ts`'s `buildExternalMcpRemoveConfirmCopy` as `buildCopy`; `__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx`
-stays here as the host-integration test of that binding).
+stays here as the host-integration test of that binding), and `UserInterfaceSettingsPanel`
+(`SettingsUi.tsx` passes `hooks/use-user-interface-tab.hooks.ts`'s `useUserInterfaceTab` as the required
+`useUserInterfaceTabHook` and imports `user-interface-settings.css`; the switch renders
+`jini-settings-interface-switch` / `-switch-knob`, which `styles.css` paints by appending them to the
+`.agent-plugin-switch` selector lists — `integrations/jini-admin/__tests__/jini-class-host-css.unit.test.ts`
+holds them to the same declarations; `__tests__/UserInterfaceSettingsPanel.unit.test.tsx` stays here as the
+host-integration test of that binding).
 Still here (blocked): `ai-agent-presentation.ts` and `hooks/use-ai-agent-presentation.hooks.ts` (`ExecutionPort` /
 `DetectedAgent` / `ExecutionConfig` from `@jini-ai/ui` have no admin-kit or Core owner), `ExternalMcpSettingsPanel.hooks.tsx`
-(`useWiredSourceConfigAddForm` from `@jini-ai/ui`), `UserInterfaceSettingsPanel.tsx` (its switch paints through
-the global `.agent-plugin-switch` rules in `styles.css`), `hooks/use-user-interface-tab.hooks.ts` and
+(`useWiredSourceConfigAddForm` from `@jini-ai/ui`), `hooks/use-user-interface-tab.hooks.ts` (the host binding above) and
 `hooks/use-admin-appearance-settings.hooks.ts` (this app's `lib/settings-tabs` types and its own hooks).
 
 ## History: `features/settings-raw`'s `Settings.tsx` (deleted)

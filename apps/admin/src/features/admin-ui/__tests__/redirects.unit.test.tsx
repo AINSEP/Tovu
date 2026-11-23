@@ -5,7 +5,7 @@ import { ADMIN_PANELS } from "../../../panels";
 import { parseRoute } from "../../../App";
 import { Placeholder } from "../../../components/Placeholder";
 // Load the real lazy route before timing its redirect effects.
-import "../index";
+import "../AdminUi";
 
 // Both AdminUi and the registry's Suspense fallback read locale without a fetch-query provider here.
 vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en", useWiredAdminLocale: () => "en" }));

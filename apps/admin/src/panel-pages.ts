@@ -15,7 +15,7 @@ import { lazy } from "react";
 export const Skills = lazy(() => import("./features/skills/Skills").then(module => ({ default: module.Skills })));
 export const Themes = lazy(() => import("./features/themes").then(module => ({ default: module.Themes })));
 export const ThemeExplore = lazy(() => import("./features/themes").then(module => ({ default: module.ThemeExplore })));
-export const AdminUi = lazy(() => import("./features/admin-ui").then(module => ({ default: module.AdminUi })));
+export const AdminUi = lazy(() => import("./features/admin-ui/AdminUi").then(module => ({ default: module.AdminUi })));
 export const Dashboard = lazy(() => import("./features/dashboard").then(module => ({ default: module.Dashboard })));
 export const ImportExport = lazy(() => import("./features/import-export").then(module => ({ default: module.ImportExport })));
 export const CookieConsent = lazy(() => import("./integrations/jini-admin/consent-screen").then(module => ({ default: module.CookieConsent })));

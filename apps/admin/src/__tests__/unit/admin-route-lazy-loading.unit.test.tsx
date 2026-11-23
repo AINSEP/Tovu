@@ -13,7 +13,7 @@ const EAGER_MODULES = [...EAGER_BRIDGES, "forms"];
 const ROUTE_FEATURES = [
   { modulePath: "../../features/skills/Skills", moduleId: "skills", exports: ["Skills"] },
   { modulePath: "../../features/themes", moduleId: "themes", exports: ["Themes", "ThemeExplore"] },
-  { modulePath: "../../features/admin-ui", moduleId: "admin-ui", exports: ["AdminUi"] },
+  { modulePath: "../../features/admin-ui/AdminUi", moduleId: "admin-ui", exports: ["AdminUi"] },
   { modulePath: "../../features/dashboard", moduleId: "dashboard", exports: ["Dashboard"] },
   { modulePath: "../../features/import-export", moduleId: "import-export", exports: ["ImportExport"] },
   { modulePath: "../../integrations/jini-admin/consent-screen", moduleId: "consent", exports: ["CookieConsent"] },

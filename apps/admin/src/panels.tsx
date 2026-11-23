@@ -1128,7 +1128,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["settings.read"],
     // Administration, beside Settings (owner, 2026-10-21; the 2026-10-19 debate leaned Marketing, a
     // one-line move). Same `?tab=` convention as `deployment`/`settings`: the deployment gate's
-    // "Fix now" choice links to `/consent?tab=overview` (`features/consent/service.ts`).
+    // "Fix now" choice links to `/consent?tab=overview` (`@jini-ai/cookie-consent/site/service`).
     render: (ctx, _options = {}) => <CookieConsent tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Cookie Consent",

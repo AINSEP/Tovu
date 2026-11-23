@@ -125,4 +125,22 @@ describe('host CSS for the Jini screens keeps the generic look', () => {
       [['.btn-secondary'], [buttonShape, `${scope} .jini-btn-secondary`]],
     ]);
   });
+
+  it('settings User Interface switch (styles.css, appended to the .agent-plugin-switch lists)', () => {
+    const sw = '.jini-settings-interface-switch';
+    const knob = '.jini-settings-interface-switch-knob';
+    expectParity('src/styles.css', [
+      [['.agent-plugin-switch'], [sw]],
+      [['.agent-plugin-switch-knob'], [knob]],
+      [['.agent-plugin-switch:focus-visible'], [`${sw}:focus-visible`]],
+      [['.agent-plugin-switch[aria-checked="true"]'], [`${sw}[aria-checked="true"]`]],
+      [['.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob'], [`${sw}[aria-checked="true"] ${knob}`]],
+      [['.agent-plugin-switch:hover:not(:disabled)'], [`${sw}:hover:not(:disabled)`]],
+      [['.agent-plugin-switch:disabled'], [`${sw}:disabled`]],
+    ]);
+    // The reduced-motion stop and the phone tap ring sit inside @media blocks, which the rule map skips.
+    const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8');
+    expect(css).toMatch(/\.agent-plugin-switch,\s*\.jini-settings-interface-switch,\s*\.agent-plugin-switch-knob,\s*\.jini-settings-interface-switch-knob,[^{]*\{\s*transition: none;/);
+    expect(css).toContain(':is(.agent-plugin-switch, .jini-settings-interface-switch, .theme-explore-switch,');
+  });
 });
