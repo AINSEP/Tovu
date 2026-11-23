@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
 import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "./import-export-links";
 import { resolveImportExportTabId, resolveImportExportTabs, type ImportExportTabId } from "./import-export-tabs";

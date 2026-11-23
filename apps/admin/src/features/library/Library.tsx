@@ -6,7 +6,7 @@ import { FileDropzone, Icon, Toast } from "@jini-ai/ui";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
 import { useWiredLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "./hooks/use-library.hooks";
 import {
@@ -20,7 +20,7 @@ import {
 } from "./rules";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Library screen (`/admin/library`) — markup only; state lives in
  * `hooks/use-library.hooks.ts`. Private documents for this site that the assistant can read

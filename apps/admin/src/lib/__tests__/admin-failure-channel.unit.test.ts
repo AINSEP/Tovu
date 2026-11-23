@@ -6,7 +6,7 @@ import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
-import { setAdminDraftIdentity } from "../admin-draft-identity";
+import { setAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import { serverReconnect } from "../server-reconnect";
 
 beforeEach(() => { adminFailureChannel.reset(); setAdminDraftIdentity({ id: "owner" }); });

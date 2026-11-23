@@ -10,7 +10,7 @@ import { seoEvents } from '../seo-ports';
 import { SeoMediaPickerSlot, SeoModuleLoading } from '../seo-module.hooks';
 import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
 import { tovuKit } from '../kit';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
@@ -150,12 +150,12 @@ describe('Jini SEO host switch', () => {
     await screen.findByRole('heading', { name: 'SEO' });
     // Settings can paint before the controller's subscription effect has attached.
     await waitFor(() => expect(subscribe).toHaveBeenCalledTimes(1));
-    act(() => publishContentRefresh(['media']));
+    act(() => publishContentRefresh({ resources: ['media'] }));
     expect(load).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['seo']));
+    act(() => publishContentRefresh({ resources: ['seo'] }));
     await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['seo']));
+    act(() => publishContentRefresh({ resources: ['seo'] }));
     expect(load).toHaveBeenCalledTimes(2);
   });
 

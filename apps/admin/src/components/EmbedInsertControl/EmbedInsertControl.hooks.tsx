@@ -2,7 +2,7 @@ import { t as translateForEmbedInsertControl } from "../shared-components-i18n";
 import type { WidgetPickerPort } from "../WidgetPickerDialog/widget-picker-port.hooks";
 import { useState } from "react";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
-import { uniqueId } from "../../lib/unique-id";
+import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 
 /**
  * @file `EmbedInsertControl`'s own state — the menu open/closed flag, the Media-picker-open flag,

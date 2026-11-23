@@ -7,7 +7,7 @@ import { widgetsApi } from "../features/widgets/api/widgets-api";
 import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
-import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "./widget-embed-placement-content";
+import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "@jini-ai/admin/shell/lib/widget-embed-placement-content";
 
 /**
  * @file State, the widget fetch and handlers for `WidgetEmbedNodeView` (`widget-embed-extension.tsx`),

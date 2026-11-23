@@ -7,7 +7,7 @@ import { Database } from "../Database";
 import type { TimelineSectionController } from "../hooks/use-timeline-section.hooks";
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
 import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 
 /**
@@ -46,7 +46,7 @@ import type { AdminLedgerRow } from "@/features/database/api/database-api.types"
  * explicitly, which always wins.
  */
 
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
 
 const { timelineRef, migrateForwardRef, schemaStateRef } = vi.hoisted(() => ({
   timelineRef: { current: null as unknown },

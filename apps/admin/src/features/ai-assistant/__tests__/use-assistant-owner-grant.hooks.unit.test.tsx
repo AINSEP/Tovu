@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "../hooks/use-assistant-owner-grant.hooks";
-import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 type TestGrant = { enabled: boolean; canEdit: boolean; scope: string };
 type Write = Omit<TestGrant, "canEdit"> & { riskAcknowledged: boolean };

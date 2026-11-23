@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InterfaceConfig } from "../../lib/settings-tabs";
-import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import {
   resolveAdminLayoutClassName,
   useInterfacePreferences,

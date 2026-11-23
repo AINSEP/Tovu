@@ -8,7 +8,7 @@ import {
   surfaceIdOf,
   useRoutedA2uiSurfaceCard,
 } from "../hooks/use-routed-a2ui-surface-card.hooks";
-import { resetPlaygroundRenderTargetBus } from "@/lib/playground-render-target-bus";
+import { resetPlaygroundRenderTargetBus } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 /**
  * @file Direct coverage of `surfaceIdOf`/`latestSurfaceIdIn`, the pure helpers

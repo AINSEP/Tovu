@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { useRouteLocation } from "@/lib/router";
+import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { resolveActiveTab, useMediaTabs } from "../hooks/use-media-tabs.hooks";
 
 afterEach(() => window.history.replaceState(null, "", "/"));

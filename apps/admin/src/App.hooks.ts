@@ -2,7 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
-import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
+import { setAdminDraftIdentity, getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
@@ -10,7 +10,7 @@ import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom"
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
-import { adminFrontendTabId, publishAdminPageSurface } from "./lib/admin-frontend-session";
+import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
@@ -20,8 +20,8 @@ import {
   renderAdminScreenshotCanvas,
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
-import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
-import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
+import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
+import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
@@ -42,12 +42,14 @@ import {
   type PublishRequestResult,
 } from "@tovu/publish-content-ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { openTabEventSource } from "./lib/tab-event-source";
-import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
-import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
-import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
+import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
+import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "./nav";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -590,7 +592,7 @@ export function useChatDockLayout(): UseChatDockLayout {
     function onKeyDown(e: KeyboardEvent) {
       // The composer consumes Escape to dismiss its palette; keep the containing dock open.
       // An open modal (a confirm dialog) or menu (Chats, gear) owns its Escape too: one press closes only it.
-      if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document })) setChatOpen(false);
+      if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document, orFallbackSync })) setChatOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -890,7 +892,7 @@ export function useAgentPageBridge(
     const bridge = createBridge({ baseUrl: "", fetch,
       headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }),
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
-      openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
+      openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }, { ports: adminBrowserStreamPorts() }),
     }, {
       page: createDriverPagePort({ driver: pageDriver }),
       preparePageInput: pageNavigation.preparePageInput,

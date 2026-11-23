@@ -7,7 +7,7 @@ import { FormsList, FormEditor } from '../../../features/forms';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { formsEvents } from '../forms-ports';
 import { formsCatalog } from '../forms-catalog-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
@@ -96,12 +96,12 @@ describe('Jini Forms host switch', () => {
     const view = render(node(<FormsList />));
     await screen.findByRole('link', { name: 'Contact' });
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
-    act(() => publishContentRefresh(['media']));
+    act(() => publishContentRefresh({ resources: ['media'] }));
     expect(list).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['forms']));
+    act(() => publishContentRefresh({ resources: ['forms'] }));
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['forms']));
+    act(() => publishContentRefresh({ resources: ['forms'] }));
     expect(list).toHaveBeenCalledTimes(2);
   });
 });

@@ -5,7 +5,7 @@ import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
 import { MEDIA_RESOURCE, visibleMediaError } from "../rules";
@@ -536,11 +536,11 @@ describe("useMedia — content refresh bus", () => {
 
     port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.media).toHaveLength(1);
 
-    act(() => publishContentRefresh([MEDIA_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [MEDIA_RESOURCE] }));
     await waitFor(() => expect(result.current.media).toHaveLength(2));
   });
 

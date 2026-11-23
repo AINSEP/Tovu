@@ -6,7 +6,7 @@ import {
   getPlaygroundRenderTarget,
   resetPlaygroundRenderTargetBus,
   subscribeToPlaygroundRenderTarget,
-} from "@/lib/playground-render-target-bus";
+} from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 let unsubscribe = () => {};
 beforeEach(() => resetPlaygroundRenderTargetBus());

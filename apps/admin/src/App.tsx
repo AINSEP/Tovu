@@ -1,12 +1,12 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
-import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
+import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "./components/SitesSidebarNav";
-import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
+import { useAdminDocumentLocale } from "@jini-ai/admin/shell/hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
-import { AdminBootScopeContext } from "./lib/admin-boot-scope";
+import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { useMemo, type ReactNode } from "react";
 import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } from "./App.chrome";
@@ -17,29 +17,32 @@ import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } fro
 import { Toast } from "@jini-ai/ui";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
-import { useRouteLocation } from "./lib/router";
+import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
-import { resolveAddonsRoute } from "./lib/addons-routes";
-import { resolveImportExportRoute } from "./lib/import-export-routes";
+import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
+import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
+import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
+import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "./lib/shell-collaborators";
 import { IntegrationsRedirect } from "./features/integrations";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
-import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
+import { translateAdminNavGroups } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
-import { useDrawerActiveItemCentring } from "./hooks/use-drawer-active-item-centring.hooks";
-import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
+import { useDrawerActiveItemCentring } from "@jini-ai/admin/shell/hooks/use-drawer-active-item-centring.hooks";
+import { useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
 import { useAdminTelemetry } from "./hooks/use-admin-telemetry.hooks";
-import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
+import { useSidebarEmptyClickToggle } from "@jini-ai/admin/shell/hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
 import { ChatFab } from "./components/ChatFab/ChatFab";
-import { useListTableCellLabels } from "./hooks/use-list-table-cell-labels.hooks";
-import { useDockAutoRail } from "./hooks/use-dock-auto-rail.hooks";
+import { useListTableCellLabels } from "@jini-ai/admin/shell/hooks/use-list-table-cell-labels.hooks";
+import { useDockAutoRail } from "@jini-ai/admin/shell/hooks/use-dock-auto-rail.hooks";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
 import { closePublishRequest, usePublishRequest } from "./features/publish-content/hooks/publish-request.store";
 import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
@@ -145,7 +148,7 @@ export function parseRoute({ routePath }: { routePath: string }, _options: Recor
 
   // Sites' old Export/Import tabs first: their new home is not under Add-ons, and the redirect has to
   // win before `renderRoute`'s Sites gate would send the route to the dashboard.
-  const moved = resolveImportExportRoute({ routePath }) ?? resolveAddonsRoute({ routePath });
+  const moved = resolveImportExportRoute({ routePath, policy: IMPORT_EXPORT_ROUTE_POLICY }) ?? resolveAddonsRoute({ routePath, policy: ADDONS_ROUTE_POLICY });
   return { ...matchRoute({ routePath: moved.matchPath, panels: ADMIN_PANELS }), redirectPath: moved.redirectPath };
 }
 
@@ -296,7 +299,7 @@ function SidebarLogoutButton({
 function SidebarLabelTooltips({
   useCmsSidebarLabelTooltipsHook = useCmsSidebarLabelTooltips }: {
   useCmsSidebarLabelTooltipsHook?: typeof useCmsSidebarLabelTooltips; } = {}) {
-  useCmsSidebarLabelTooltipsHook({});
+  useCmsSidebarLabelTooltipsHook(SIDEBAR_TOOLTIP_ITEMS, { ownsTitle: sidebarOwnsTitle });
   return null;
 }
 
@@ -522,12 +525,15 @@ function useShellRoute({ user, checking }: { user: AdminUser | null; checking: b
 
 /** Drawer, link interceptor, and the assistant dock layout with the rail it folds the nav into. */
 function useShellDockChrome(
-  { routePath, useDrawer, useLinkInterceptor, useChatDock }: { routePath: string; useDrawer: typeof useSidebarDrawer; useLinkInterceptor: typeof useInternalLinkInterceptor; useChatDock: typeof useChatDockLayout },
+  { routePath, useDrawer, useLinkInterceptor, useChatDock, useDrawerCentring, useDockRail }: {
+    routePath: string; useDrawer: typeof useSidebarDrawer; useLinkInterceptor: typeof useInternalLinkInterceptor; useChatDock: typeof useChatDockLayout;
+    useDrawerCentring: typeof useDrawerActiveItemCentring; useDockRail: typeof useDockAutoRail;
+  },
   _options = {},
 ) {
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
   // The phone drawer opens with the current page's item in its vertical middle (owner, 2026-10-07).
-  useDrawerActiveItemCentring({ open: sidebarOpen });
+  useDrawerCentring({ open: sidebarOpen });
   useLinkInterceptor();
 
   // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
@@ -535,14 +541,17 @@ function useShellDockChrome(
   const dock = useChatDock();
   // Nav expanded + dock open in a 901–1171px window left a phone-width page: fold the nav to its
   // rail while the dock is open there (see the hook's doc for the rule and the mechanism).
-  const dockRail = useDockAutoRail({ dockOpen: dock.chatOpen });
+  const dockRail = useDockRail({ dockOpen: dock.chatOpen });
   return { sidebarOpen, setSidebarOpen, dock, dockRail };
 }
 
-function useShellContent({ useAgentBridge }: { useAgentBridge: typeof useAgentPageBridge }, _options = {}) {
+function useShellContent(
+  { useAgentBridge, useTableLabels }: { useAgentBridge: typeof useAgentPageBridge; useTableLabels: typeof useListTableCellLabels },
+  _options = {},
+) {
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
-  useListTableCellLabels({ root: contentEl ?? null });
+  useTableLabels({ root: contentEl ?? null, tableSelector: "table.list-table" });
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.ts`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const screenshot = useScreenshotAnnouncement();
@@ -602,7 +611,7 @@ function buildShellNav(
     panels: ADMIN_PANELS,
     permissions: effectivePermissions,
   });
-  const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups });
+  const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups, translate: translateAdminNavLabel });
   const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
   return { navGroups, navSoonLabel };
 }
@@ -669,12 +678,19 @@ function AdminShell({
   useShellRouteHook = useShellRoute,
   useShellDockChromeHook = useShellDockChrome,
   useShellContentHook = useShellContent,
+  useDrawerCentring = useDrawerActiveItemCentring,
+  useDockRail = useDockAutoRail,
+  useTableLabels = useListTableCellLabels,
   useShellLocaleHook = useShellLocale,
   useCollapsibleNavGroupLabelsHook = useCollapsibleNavGroupLabels, ...props }: (AppProps & { session: ReturnType<typeof useAdminSession> }) & {
   useShellAvailabilityHook?: typeof useShellAvailability;
   useShellRouteHook?: typeof useShellRoute;
   useShellDockChromeHook?: typeof useShellDockChrome;
   useShellContentHook?: typeof useShellContent;
+  /** Injectable seams for the drawer centring, dock auto-rail and table-label hooks (Jini shell hooks). */
+  useDrawerCentring?: typeof useDrawerActiveItemCentring;
+  useDockRail?: typeof useDockAutoRail;
+  useTableLabels?: typeof useListTableCellLabels;
   useShellLocaleHook?: typeof useShellLocale;
   useCollapsibleNavGroupLabelsHook?: typeof useCollapsibleNavGroupLabels; }) {
   const useDrawer = resolveDrawerHook({ override: props.useDrawer });
@@ -687,8 +703,8 @@ function AdminShell({
   const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
   const { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection } = useShellAvailabilityHook({ user, logout });
   const { routePath, route } = useShellRouteHook({ user, checking });
-  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock });
-  const shellContent = useShellContentHook({ useAgentBridge });
+  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock, useDrawerCentring, useDockRail });
+  const shellContent = useShellContentHook({ useAgentBridge, useTableLabels });
   const { navLocale, interfacePreferences } = useShellLocaleHook();
   const { navGroups, navSoonLabel } = buildShellNav({ sidebarSiteSection, effectivePermissions, navLocale });
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });

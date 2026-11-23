@@ -1,4 +1,8 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { fakeAdminKit } from "@jini-ai/admin/react/testing-kit";
+import { closeLightboxDialog, openLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -29,6 +33,12 @@ vi.mock("@jini-ai/chat/react", () => ({
 }));
 
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
+
+// MessageOverflowModal reads its lightbox helpers from the admin kit: the real ones, the rest faked
+// (this file mocks the chat package, so the host's full kit cannot load here).
+const kit = fakeAdminKit({ values: { openLightboxDialog, closeLightboxDialog } });
+const KitWrapper = ({ children }: { children: ReactNode }) => <AdminKitProvider kit={kit}>{children}</AdminKitProvider>;
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: KitWrapper });
 
 const baseProps = {
   name: "mcp-ui",

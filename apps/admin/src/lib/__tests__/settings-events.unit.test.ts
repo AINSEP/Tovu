@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import * as settingsRefreshBus from "../settings-refresh-bus";
+import * as settingsRefreshBus from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { subscribeToSettingsChanges } from "../settings-events";
 
 /**
