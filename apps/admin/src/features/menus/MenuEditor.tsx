@@ -7,7 +7,7 @@ import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-
 import { useMenuItemRemove } from "@jini-ai/admin/screens/menus/MenuEditor.hooks";
 import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields";
 import type { MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
-import { useMenuTargetEditor } from "@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks";
+import { useMenuPageLinkFields, useMenuTargetEditor } from "@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks";
 import { type Translate } from '@jini-ai/core/text';
 
 /**
@@ -263,7 +263,7 @@ function ItemRow(props: MenuItemFieldProps & {
           </select>
         </label>
         {targetController.isPage
-          ? <MenuPageLinkFields item={item} path={path} pages={pages} onChange={onChange} t={t} />
+          ? <MenuPageLinkFields item={item} path={path} pages={pages} onChange={onChange} t={t} useMenuPageLinkFields={useMenuPageLinkFields} />
           : <MenuItemTargetFields item={item} path={path} onChange={onChange} t={t} />}
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
             and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}
