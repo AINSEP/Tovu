@@ -131,7 +131,7 @@ describe("useThemeExploreFullscreen — dismiss paths", () => {
     expect(result.current.fullscreen).toBe(false);
   });
 
-  it("handleFullscreenBackdropClick closes only when the click target is the dialog itself", () => {
+  it("handleFullscreenBackdropClick closes only for a dialog-targeted click outside the dialog box", () => {
     const dialog = makeDialogStub({ withNativeDialog: true });
     const { result } = renderHook(() => useHookWithDialog(dialog));
     act(() => result.current.setFullscreen(true));
@@ -142,8 +142,16 @@ describe("useThemeExploreFullscreen — dismiss paths", () => {
     );
     expect(result.current.fullscreen).toBe(true);
 
+    // B137: the dialog's own padding is the dialog element — inside its box must NOT close.
+    dialog.getBoundingClientRect = () => ({ left: 100, top: 100, right: 400, bottom: 300, x: 100, y: 100,
+      width: 300, height: 200, toJSON: () => ({}) });
     act(() =>
-      result.current.handleFullscreenBackdropClick({ target: dialog } as unknown as MouseEvent<HTMLDialogElement>)
+      result.current.handleFullscreenBackdropClick({ target: dialog, clientX: 110, clientY: 110 } as unknown as MouseEvent<HTMLDialogElement>)
+    );
+    expect(result.current.fullscreen).toBe(true);
+
+    act(() =>
+      result.current.handleFullscreenBackdropClick({ target: dialog, clientX: 500, clientY: 50 } as unknown as MouseEvent<HTMLDialogElement>)
     );
     expect(result.current.fullscreen).toBe(false);
   });

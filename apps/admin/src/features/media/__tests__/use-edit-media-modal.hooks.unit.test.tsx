@@ -36,6 +36,13 @@ function Harness({ open, mode, onClose, alreadyOpen = false, onNativeOpen, onNat
   </dialog>;
 }
 
+/** jsdom lays nothing out; give the dialog a real box so inside/outside clicks mean something. */
+function stubBox(dialog: HTMLElement): HTMLElement {
+  dialog.getBoundingClientRect = () => ({ left: 100, top: 100, right: 400, bottom: 300, x: 100, y: 100,
+    width: 300, height: 200, toJSON: () => ({}) });
+  return dialog;
+}
+
 describe.each<DialogMode>(["native-methods", "fallback"])("edit dialog lifecycle: %s", (mode) => {
   // F2.1/F6.2: deleting the close branch or ignoring false->true must fail on DOM state.
   it("opens, stays open on unchanged props, closes, and can reopen", () => {
@@ -74,9 +81,21 @@ describe.each<DialogMode>(["native-methods", "fallback"])("edit dialog lifecycle
     await user.click(screen.getByRole("button", { name: "Dialog content" }));
     expect(first).not.toHaveBeenCalled();
     rerender(<Harness open mode={mode} onClose={second} />);
-    await user.click(screen.getByRole("dialog", { name: "Edit media" }));
+    // A backdrop click is a dialog-targeted click OUTSIDE the dialog's box (B137).
+    const dialog = stubBox(screen.getByRole("dialog", { name: "Edit media" }));
+    fireEvent.click(dialog, { clientX: 500, clientY: 50 });
     expect(first).not.toHaveBeenCalled();
     expect(second.mock.calls).toEqual([[]]);
+  });
+
+  // B137: the dialog's own padding is the dialog element, so a target-only check closed the modal
+  // (losing the draft) on a click inside it. Mutation `target-equals-dialog` must fail here.
+  it("keeps the modal open for a click on the dialog's own padding, inside its box", () => {
+    const onClose = vi.fn();
+    render(<Harness open mode={mode} onClose={onClose} />);
+    const dialog = stubBox(screen.getByRole("dialog", { name: "Edit media" }));
+    fireEvent.click(dialog, { clientX: 110, clientY: 110 });
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   // F3.1: this tests the cancel EVENT handler, not native Escape-key routing, which needs

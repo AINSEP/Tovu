@@ -1,5 +1,6 @@
 import type { dispatchPublishToggle as dispatchThemePublishToggle, ThemeExplorePublishState } from "./hooks/use-theme-explore.hooks";
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
+import { isDialogBackdropClick } from "../../lib/dialog-backdrop-click";
 
 /**
  * @file `ThemeExplore.tsx`'s fullscreen-preview `<dialog>` lifecycle, split out per the
@@ -90,7 +91,9 @@ export function useThemeExploreFullscreen(): ThemeExploreFullscreenController {
   }
 
   function handleFullscreenBackdropClick(e: MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) closeFullscreen();
+    // Target AND point: the dialog's padding is the dialog element too, so target alone closed on
+    // a click inside the box (B137).
+    if (isDialogBackdropClick({ dialog: dialogRef.current, event: e })) closeFullscreen();
   }
 
   return {

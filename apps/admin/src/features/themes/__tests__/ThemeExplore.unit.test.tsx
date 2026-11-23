@@ -403,7 +403,12 @@ describe("fullscreen preview", () => {
     await user.click(screen.getByRole("button", { name: /view preview fullscreen/i }));
 
     const dialog = document.querySelector("dialog.theme-explore-preview-dialog")!;
-    fireEvent.click(dialog);
+    // jsdom lays nothing out: give the dialog a box, then click outside it (the backdrop) — B137.
+    dialog.getBoundingClientRect = () => ({ left: 100, top: 100, right: 400, bottom: 300, x: 100, y: 100,
+      width: 300, height: 200, toJSON: () => ({}) });
+    fireEvent.click(dialog, { clientX: 110, clientY: 110 });
+    expect(dialog.hasAttribute("open"), "a click on the dialog's own padding must not close it").toBe(true);
+    fireEvent.click(dialog, { clientX: 500, clientY: 50 });
     expect(dialog.hasAttribute("open")).toBe(false);
   });
 

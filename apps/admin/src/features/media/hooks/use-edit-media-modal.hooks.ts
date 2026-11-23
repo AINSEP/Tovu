@@ -1,6 +1,8 @@
 import { openLightboxDialog, closeLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
+import { isDialogBackdropClick } from "../../../lib/dialog-backdrop-click";
+
 /**
  * @file `EditMediaModal`'s native `<dialog>` lifecycle — the metadata edit form used to render as
  * a full-width `.card` pushing the grid down (`Media.tsx`'s own header comment has the history);
@@ -25,8 +27,8 @@ export interface EditMediaModalController {
    *  rather than left to the browser's own close — the lifecycle effect below is the single source
    *  of truth for open/closed, driven by `open`. */
   handleNativeCancel: (e: SyntheticEvent<HTMLDialogElement>) => void;
-  /** A `<dialog>`'s own box is sized to its content, not the viewport — a click landing on the
-   *  `<dialog>` element itself (not one of its children) is a click on the backdrop area. */
+  /** Closes only for a click on the backdrop: targeted at the `<dialog>` itself AND outside its box.
+   *  The dialog's own padding is the dialog element too, so the target alone is not enough (B137). */
   handleBackdropClick: (e: MouseEvent<HTMLDialogElement>) => void;
 }
 
@@ -59,7 +61,7 @@ export function useEditMediaModal(open: boolean, onClose: () => void): EditMedia
   }
 
   function handleBackdropClick(e: MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) onClose();
+    if (isDialogBackdropClick({ dialog: dialogRef.current, event: e })) onClose();
   }
 
   return { dialogRef, handleNativeCancel, handleBackdropClick };
