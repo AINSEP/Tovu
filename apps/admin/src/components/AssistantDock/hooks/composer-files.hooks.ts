@@ -44,7 +44,9 @@ const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
 export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
   return useMemo(
     () =>
-      createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
+      // Why: the global is read per request (not captured here at memo time) so a `window.fetch` patched
+      // later — a test double or an auth wrapper installed after mount — is still the one used.
+      createDaemonAttachmentUploader({ baseUrl: "", fetch: (input, init) => globalThis.fetch(input, init) }, {
         maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
         maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
       }),
