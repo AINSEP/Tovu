@@ -19,15 +19,14 @@ import {
   mediaFillsPreview,
   mediaUploadAccept,
   mediaUploadLabel,
-  MEDIA_GRID_SIZES,
-  parseMediaGridSize,
-  type MediaGridSize,
+  MEDIA_GRID_SIZE_STORAGE_KEY,
   type MediaShape,
   mediaShapeBadges,
   type MediaOrderBy,
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
-import { useMediaGridSize } from "./hooks/use-media-grid-size.hooks";
+import { useMediaGridSize } from "@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks";
+import { MEDIA_GRID_SIZES, parseMediaGridSize, type MediaGridSize } from "@jini-ai/admin/screens/media/grid-size";
 import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
@@ -1224,7 +1223,7 @@ function MediaLibraryPanel(
     t,
     locale,
   } = props;
-  const [gridSize, setGridSize] = useMediaGridSize();
+  const [gridSize, setGridSize] = useMediaGridSize({ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY });
 
   return (
     <>

@@ -1,6 +1,9 @@
 {
   "version": 1,
   "allow": [
+    { "id": "204a0379b225", "reason": "Moved to Jini @jini-ai/cms/media/site-generation/agent-tools.ts with the catalog builder; header kept, product name and host paths reworded neutrally (N2)." },
+    { "id": "2400f5ca847f", "reason": "Subject deleted: the pre-bound mediaGenerationAgentToolCatalog constant is gone; Jini cannot import the media-providers catalogue, so host call sites bind IMAGE_MODEL_IDS (see media INFO.md Wiring)." },
+    { "id": "434a6d54ed2f", "reason": "Moved to Jini @jini-ai/cms/media/site/view-image-tool.ts with the module; host file paths reworded neutrally (N2)." },
     {
       "id": "010687fc2a46",
       "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."

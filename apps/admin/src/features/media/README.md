@@ -24,3 +24,6 @@ The media library behind the sidebar's **Content → Media** entry.
   kit (`useAdminKitValues()`, provided by `main.tsx`'s `<AdminKitProvider kit={adminKit}>`) and
   passes them, with `open`/`onClose`, as required args to
   `@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks`'s `useEditMediaModal`.
+- `Media.tsx` calls `@jini-ai/admin/screens/media/hooks/use-media-grid-size.hooks`'s `useMediaGridSize`
+  with `{ storageKey: MEDIA_GRID_SIZE_STORAGE_KEY }` — the product storage key stays in `rules.ts`; the
+  sizes and `parseMediaGridSize` come from `@jini-ai/admin/screens/media/grid-size`.
