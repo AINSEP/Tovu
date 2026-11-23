@@ -130,7 +130,8 @@ export function wireFormsAndSearch(required: WireFormsAndSearchRequired, _option
  * Site search's "is this provider plugin on?" check. Activations live in the WORKSPACE folder
  * (`forWorkspace(...).root`, as `app.ts` and the publish-credentials wiring read them); the site-level
  * root has no activations file, so reading it there left a disabled provider plugin still active
- * for search writes and queries (B211). Fail closed: an unreadable file is `undetermined`, never active.
+ * for search writes and queries (B211).
+ * Fail closed: an unreadable activations file is `undetermined`, never active.
  */
 export function bindSearchPluginActivity(required: {
   lifecycle: Pick<ReturnType<typeof composeAgentPluginBootstrap>["agentPluginLifecycle"], "resolveAgentPluginActivation">;

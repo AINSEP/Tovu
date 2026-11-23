@@ -3320,6 +3320,174 @@
     {
       "id": "c0b4e36cf4db",
       "reason": "Moved to Jini @jini-ai/integrations/webhooks/sql/webhook-repo.ts (S6b, Jini 95688ca4); host path citations reworded to name the host binding."
+    },
+    {
+      "id": "048288a493f0",
+      "reason": "Doc of the deleted Tovu useSelectDropdown single-object adapter hook (Select.hooks.tsx gone); Select now hands the injected useDropdown straight to @jini-ai/ui/admin-widgets' two-object signature and Select.tsx's doc says there is no adapter in between."
+    },
+    {
+      "id": "58562110b6e5",
+      "reason": "Doc of Select's old useDropdown-splitting wrapper; Select.tsx now forwards its props to the package Select unchanged, and its rewritten doc explains that pass-through."
+    },
+    {
+      "id": "13540a1c24c5",
+      "reason": "Moved to Jini @jini-ai/admin/screens/menus/__tests__/MenuEditor.remove-hook.unit.test.tsx (ex5 menus slice); first line verbatim, second now points at the recursive descendant count pinned in the same file."
+    },
+    {
+      "id": "5b0f20c0032b",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyRuntimeMode (C0b); host file path dropped (\"the host's resolveRuntimeMode()\")."
+    },
+    {
+      "id": "948a8ed9c97a",
+      "reason": "Split by C0b: the AdminSiteKeyState type moved to Jini @jini-ai/core/contracts/site/site-key.ts with a neutral doc (mirrors the host's server-side SiteKeyState, carries no runtime values); the ADMIN_SITE_KEY_STATES tuple stays in sites-api.types.ts with a rewritten doc naming the three-way parity test."
+    },
+    {
+      "id": "bdec9a2f1155",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyStatus (C0b); api.revealSiteKey() pointer reworded to \"the host's explicit reveal action (AdminRevealedSiteKey)\"."
+    },
+    {
+      "id": "0f8f3201b1dc",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyStatus.state (C0b); \"Site-key plan §A.6\" reworded to \"The host's site-key state\"."
+    },
+    {
+      "id": "c9804fe532f7",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminGeneratedSiteKey (C0b); useSiteKey/api.revealSiteKey() names reworded to \"the admin's generate()\" and \"the reveal call (AdminRevealedSiteKey)\"."
+    },
+    {
+      "id": "82f501713e41",
+      "reason": "Moved to Jini @jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks.ts (kit B5), reworded neutral (\"a host item with its own measured tooltip\"); the Sites exception and its doc now live in Tovu lib/shell-collaborators.ts (sidebarOwnsTitle)."
+    },
+    {
+      "id": "837768a6f567",
+      "reason": "Moved to Jini @jini-ai/admin/shell/hooks/use-external-entry-refresh.hooks.ts (A-K2-shell-hooks-1); header kept, plus a note that the host supplies useSettlementGeneration as a required input."
+    },
+    {
+      "id": "19652ffbd7bd",
+      "reason": "Header rewritten in place (C0b): the parity test now spans three copies (Core AdminSiteKeyState in @jini-ai/core/contracts/site/site-key, the host ADMIN_SITE_KEY_STATES tuple, the website SiteKeyState), so the old two-way \"hand-declared mirror in lib/api.ts\" rationale is obsolete; the new header explains both checks."
+    },
+    {
+      "id": "739693743214",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/addons-routes.ts resolveAddonsRoute (rv-g FIX 2); Add-ons/Integrations/Webhooks names reworded to the host policy (\"policy.legacyDefaults\"); the Tovu-specific default is documented on ADDONS_ROUTE_POLICY in Tovu lib/addons-routes.ts."
+    },
+    {
+      "id": "9594d587b21d",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/addons-routes.ts stablePanelPath (rv-g FIX 2); `/addons/...` reworded to `/<section>/...`."
+    },
+    {
+      "id": "fc6314dbaa6d",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/addons-routes.ts legacyRedirectPath (rv-g FIX 2); \"Add-ons\" dropped from the wording."
+    },
+    {
+      "id": "9eb453256215",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/admin-nav-i18n.ts translateAdminNavGroups (rv-g FIX 1/3); translateAdminNavLabel reworded to \"the injected translate\"."
+    },
+    {
+      "id": "fa03fc716543",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/content-refresh-bus.ts publishContentRefresh (A-K2-0a); @param resources renamed input.resources for the named-object arg."
+    },
+    {
+      "id": "613f8bb670e9",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/escape-owned-by-inner-layer.ts isEscapeOwnedByInnerLayer (A-K2-0a); adds @param input.orFallbackSync for the injected guarded call."
+    },
+    {
+      "id": "91ac4d18262d",
+      "reason": "Moved to Jini @jini-ai/admin/shell/lib/import-export-routes.ts resolveImportExportRoute (kit B5); \"old Sites export/import link\" reworded to \"old moved-tab link\" with a policy-driven example; Tovu's table is documented on IMPORT_EXPORT_ROUTE_POLICY in Tovu lib/addons-routes.ts."
+    },
+    {
+      "id": "40b21fd98641",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/handoff/index.ts (desktop FIX-4, AX-121), reworded neutral (\"a guest page's hand-off to a screen of the host's own app window\"); Tovu's Import-tab specifics stay in contracts/import-handoff.ts."
+    },
+    {
+      "id": "c6c0f45feb0e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/handoff/index.ts (AX-121); \"sites home\" reworded to \"app\" BrowserWindow."
+    },
+    {
+      "id": "1b1b5051b19f",
+      "reason": "The refusal constant moved to Tovu contracts/import-handoff.ts as IMPORT_HANDOFF_SENDER_REFUSED (AX-121), documented there as the host refusal copy bound into @jini-ai/desktop-host/electron/handoff's registerHandoffForwarding."
+    },
+    {
+      "id": "5048b9e533b6",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/handoff/index.ts registerHandoffForwarding (AX-121); params reworded (windows, parse, senderRefused) for the neutral signature."
+    },
+    {
+      "id": "748d4940e5b2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/spellcheck-menu.ts (DT-desktop-1, AX-98); header kept with an added ## Wiring paragraph for the injected labels/menuBuilder."
+    },
+    {
+      "id": "ab084b75caed",
+      "reason": "Pointer comment in the deleted Tovu webview-guest-policy.ts adapter (D15, AX-92); Tovu now calls @jini-ai/desktop-host/electron/navigation-policy/webview-guest-policy.ts directly, where the rationale it pointed to lives."
+    },
+    {
+      "id": "967b5ba12de0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/webview-guest-policy.ts applyGuestWebPreferences (D15, AX-92); the Tovu adapter is gone and Jini's doc covers the required preload and mutation."
+    },
+    {
+      "id": "6eae9b0f7688",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/webview-guest-policy.ts applyGuestWebPreferences (D15, AX-92); the D-10 note reworded neutral (\"assign a trusted preload rather than deleting it: embedded admin guests need the same narrow bridge as standalone windows\")."
+    },
+    {
+      "id": "3bc20ef8b10e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/webview-guest-policy.ts admitGuestSource (D15, AX-92); \"predicate failures prevent attachment\" plus an inline why-comment on refusing before attach."
+    },
+    {
+      "id": "a03c14ab164a",
+      "reason": "Pointer comment in the deleted Tovu window-bounds-store.ts (D15, AX-92); the geometry rationale lives in @jini-ai/desktop-host/electron/usability/window-bounds-store.ts, and Tovu main/windows/window-bounds-json-store.ts documents the JSON binding."
+    },
+    {
+      "id": "1d3258ad8b29",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/usability/window-bounds-store.ts readWindowBounds (D15, AX-92); \"corrupt cache must degrade to the safe centered default\" kept as an inline comment; Tovu window-bounds-json-store.ts header restates it."
+    },
+    {
+      "id": "5a0636b7d46f",
+      "reason": "Now Tovu main/windows/window-bounds-json-store.ts writeWindowBounds (D15, AX-92), reworded \"Persist bounds for the next launch; filesystem errors propagate\"; Jini @jini-ai/desktop-host/electron/usability/window-bounds-store.ts says \"Write failures propagate\"."
+    },
+    {
+      "id": "1876f26d8d77",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/usability/window-bounds-store.ts boundsOnScreen (D15, AX-92); 100px default, stray-sliver and current-displays rationale kept across its doc and inline comment."
+    },
+    {
+      "id": "081b724e578a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/usability/window-bounds-store.ts resolveWindowBounds (D15, AX-92); the unplugged-monitor rationale moved into that file's header."
+    },
+    {
+      "id": "fd4aea6b181a",
+      "reason": "Header of the deleted Tovu window-navigation-policy.ts adapter (D15, AX-92); Tovu binds @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts directly, whose header holds the navigation rationale."
+    },
+    {
+      "id": "4cff1be49182",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts isSameOrigin (D15, AX-92), reworded \"Compare parsed, non-opaque origins; malformed URLs fail closed\"."
+    },
+    {
+      "id": "a8da10c4facf",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts isExternalBrowserUrl (D15, AX-92); the host-predicate adapter is gone, and Jini documents the HTTP(S)-only rule."
+    },
+    {
+      "id": "83f9c3710d45",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts installAppWindowNavigationPolicy (D15, AX-92), reworded \"against the initial app origin\"."
+    },
+    {
+      "id": "5f0ca10cbd38",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts renderer-file policy (D15, AX-92); \"sites-home file\" reworded to \"the renderer file itself\"."
+    },
+    {
+      "id": "14462d9e2a4f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/navigation-policy/window-navigation-policy.ts installGuestWindowOpenPolicy (D15, AX-92), reworded \"Deny every in-guest popup; forward permitted browser links through the supplied host port\"."
+    },
+    {
+      "id": "525fc7502ab6",
+      "reason": "Moved to Jini @jini-ai/cms/comments/site/ip-hash-salt.ts resolveCommentsIpHashSalt (X-comments-1); warn is now a required host sink, so @param optional.warn became required.warn."
+    },
+    {
+      "id": "a6409eb26155",
+      "reason": "Moved to Jini @jini-ai/cms/entries/site/contracts.ts isCollectionListLayout (ex5 entries); `value` reworded to `required.value` with a note on why the predicate narrows the passed object."
+    },
+    {
+      "id": "f3e6bc470516",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/original-bytes.ts readStoredBytes (X-media-1); adds the host-supplied errorPrefix to the doc and example."
+    },
+    {
+      "id": "319b30ec56cf",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
     }
   ]
 }
