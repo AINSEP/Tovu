@@ -44,3 +44,9 @@ Skills (`runtime/composition/modules/skills.ts`, which now holds `SkillsRouteDep
 the booted `skillLayout`/`siteBinding` per call, `readPluginPackageFiles` + `PLUGIN_PACKAGE_FILE_LIMITS`, `SKILL_STATE_FILE`, the
 install-service functions, `buildSkillToolRegistrations` with `withExtensionApprovalPolicy`, and `instanceof SkillInputError`.
 `routes/skills/list.ts` stays hand-written: it answers `ETag`/`304` with `Cache-Control`.
+Integrations (`runtime/composition/modules/integrations-admin.ts`, which keeps `IntegrationsRouteDeps`,
+`IntegrationsRouteRegistrar` and the egress-deps builder `toWebhookSubscriptionDeps`) mounts
+`@jini-ai/cms/admin-http/routes/integrations/{list,create,pause,delete,deliveries}`; create and pause `"guarded"`, list,
+delete and deliveries `"direct"`. Each registrar binds `#src/features/webhooks` (`createSubscription`, `pauseSubscription`,
+`deleteSubscription` plus the validation/not-found matchers) at request time; the dev-mode `"user-local"` owner placeholder
+is bound in the create registrar.
