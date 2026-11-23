@@ -318,3 +318,17 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## bugs-medium (Tovu `codex/bugs-medium-tovu`, Jini `codex/bugs-medium-jini`, 2026-11-23)
+
+MED rows of `plans/P8-triaged-backlog.md`, fixed test-first on the merge-13 (Tovu) / merge-14 (Jini) bases.
+Full table: `cloud-results/bugs-medium.md`.
+
+- `B146` — FIXED-ON-BRANCH (Jini): webhook update defaults `expectedVersion` to the version it read.
+- `B166` — FIXED-ON-BRANCH (Jini): copy-plan store caps plans per principal.
+- `B060` — FIXED-ON-BRANCH (Jini): sharp transforms never enlarge a small source.
+- `B016` — FIXED-ON-BRANCH (Jini): Resend send passes Jini's `{ request }` shape too (plugin 0.2.4).
+- `B176` — PARTIAL-ON-BRANCH: with consent unbound, the public confirm link shows a plain 503 page
+  ("This subscription link can’t be confirmed right now. Ask the site owner.") instead of a 500, and
+  the token stays unused. Still OPEN: tokens and confirmation emails are still issued while unbound
+  (changing that touches every subscribe path and their tests; left for a design call).

@@ -52,3 +52,29 @@ for (const [path, register, title, message] of [
     assert.doesNotMatch(String(capture.jsonBody), /private/);
   });
 }
+
+// B176: while the site has no consent binding, an otherwise valid confirm link must show the visitor
+// a plain page (not an error ID) and leave the token unused so it still works once consent is bound.
+test('/newsletter/confirm with consent unbound shows a plain page and keeps the token usable', async t => {
+  const logs = t.mock.method(console, 'error', () => {});
+  const saved: unknown[] = [];
+  const app = express();
+  registerPublicNewsletterConfirmRoute({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
+    newsletterConfirmationTokenRepo: {
+      findByTokenHash: async () => ({ id: 'tok', workspaceId: 'ws', subscriptionId: 'sub', tokenHash: 'h', purpose: 'newsletter_subscription_confirm',
+        createdAt: '2026-10-27T00:00:00.000Z', expiresAt: '2026-10-29T00:00:00.000Z', consumedAt: null }),
+      save: async (row: unknown) => { saved.push(row); },
+    },
+    newsletterSubscriptionRepo: { findById: async () => ({ id: 'sub', subscriberId: 'subscriber', status: 'pending', source: 'form' }) },
+    membersConsentCapability: null,
+    clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
+  }) });
+  const { res, capture } = createCapturingResponse();
+  Object.assign(res, { type: () => res, send: (html: string) => { capture.jsonBody = html; return res; } });
+  await extractRouteHandler(app, 'get', '/newsletter/confirm')({ query: { token: 'raw' } }, res);
+  assert.equal(capture.statusCode, 503);
+  assert.match(String(capture.jsonBody), /This subscription link can’t be confirmed right now\. Ask the site owner\./);
+  assert.doesNotMatch(String(capture.jsonBody), /Error ID/);
+  assert.deepEqual(saved, []);
+  assert.equal(logs.mock.calls.length, 0);
+});
