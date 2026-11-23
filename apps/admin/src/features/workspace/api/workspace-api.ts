@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
-import type { AdminWorkspace } from "./workspace-api.types";
+import type { AdminWorkspaceResponse as AdminWorkspace } from "@jini-ai/core/contracts/site/cms-workspace";
 
 /** The admin API calls of the workspace feature. */
 export const workspaceApi = {

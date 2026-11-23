@@ -6,7 +6,7 @@ import { adminKit } from '../integrations/jini-kits';
 import type { ReactNode } from 'react';
 import type { AdminPost } from '@/features/posts/api/posts-api.types';
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
-import type { AdminWorkspace } from '@/features/workspace/api/workspace-api.types';
+import type { AdminWorkspaceResponse as AdminWorkspace } from '@jini-ai/core/contracts/site/cms-workspace';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';
 import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
@@ -81,7 +81,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     expect(savedBasis).toBe(4);
   });
   it('reopens workspace fields from the fresh read and retains an edited draft', async () => {
-    const workspace: AdminWorkspace = { id: 'ws1', name: 'Cached workspace', slug: 'cached', createdAt: '2026-10-01T00:00:00Z' };
+    const workspace: AdminWorkspace = { id: 'ws1', name: 'Cached workspace', slug: 'cached', createdAt: '2026-10-01T00:00:00Z', version: 1 };
     const port = createFakeWorkspacePort({ workspace });
     let current!: ReturnType<typeof useWorkspace>;
     function Probe() { current = useWorkspace({ port }); return null; }

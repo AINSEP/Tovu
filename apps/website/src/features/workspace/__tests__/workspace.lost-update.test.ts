@@ -20,7 +20,7 @@ describeEachDialect("workspace lost update", { tables: ["workspaces"], make: (ke
     assert.ok(saved);
     assert.equal(saved.name, "First");
     assert.equal(saved.version, 2);
-    assert.equal(toAdminWorkspaceResponse(saved).version, 2);
+    assert.equal(toAdminWorkspaceResponse({ workspace: saved }).version, 2);
   });
 
   test("a conditional update of a missing workspace is refused", async () => {

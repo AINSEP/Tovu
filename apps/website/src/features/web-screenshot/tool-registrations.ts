@@ -34,7 +34,7 @@ export function buildWebScreenshotRegistrations(
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [WEB_SCREENSHOT_TOOL_ID]: async (ctx) => {
-      const input = readWebScreenshotInput(requireInputRecord({ input: ctx.input }));
+      const input = readWebScreenshotInput({ input: requireInputRecord({ input: ctx.input }) });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WEB_SCREENSHOT_PERMISSION }, { entityType: "web-page" });
       return service.screenshot({ input, ...(openOwnSite ? { openOwnSite } : {}), ...(saveCaptureFiles ? { saveCaptureFiles } : {}) }, ctx.signal ? { signal: ctx.signal } : {});
     },

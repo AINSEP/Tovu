@@ -2,15 +2,14 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
 
 import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
-import type { WorkspacePort } from "./workspace-port.hooks";
+import type { WorkspacePort } from "@jini-ai/admin/screens/workspace/hooks/workspace-port.hooks";
+import type { WorkspaceController } from "@jini-ai/admin/screens/workspace/Workspace";
 
-import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Workspace screen does, so `Workspace.tsx` is only markup.
  *
@@ -18,7 +17,7 @@ import { type Translate } from '@jini-ai/core/text';
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
  * outside `features/workspace` needs it.
  *
- * `deps.port` is injected (see `workspace-port.hooks.ts`) rather than reaching for `lib/api`'s
+ * `deps.port` is injected (see `@jini-ai/admin/screens/workspace/hooks/workspace-port.hooks`) rather than reaching for `lib/api`'s
  * `api` directly — the same `useX(dependencies)` / `useWiredX()` split `redirects`/`widgets`/
  * `plugins`/`members` use.
  *
@@ -34,26 +33,6 @@ import { type Translate } from '@jini-ai/core/text';
 
 export interface WorkspaceDependencies {
   port: WorkspacePort;
-}
-
-export interface WorkspaceController {
-  /** `null` until the initial load settles — the caller renders a loading state. */
-  workspace: AdminWorkspace | null;
-  error: string | null;
-  name: string;
-  setName: (name: string) => void;
-  slug: string;
-  setSlug: (slug: string) => void;
-  saving: boolean;
-  saveError: string | null;
-  saved: boolean;
-  onSave: (e: React.FormEvent) => Promise<void>;
-  /** Bound translator — `key` already resolved against the caller's locale, so `Workspace.tsx`
-   *  never imports `useAdminLocale`/`workspace-i18n` itself. See this file's header. */
-  t: Translate;
-  /** Raw resolved locale — `Workspace.tsx`'s local `WorkspaceFormStatus` subcomponent takes
-   *  `locale` directly rather than a bound translator. See this file's header. */
-  locale: string;
 }
 
 /**

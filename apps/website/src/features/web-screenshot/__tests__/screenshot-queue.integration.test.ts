@@ -74,7 +74,7 @@ test('delegated HTTP screenshot single calls return images instead of HTTP 400 b
 
 test('cancelling a queued screenshot does not release a running capture or block its successor', async () => {
   const h = fixture({ holdFirst: true });
-  const call = (n: number, signal?: AbortSignal) => h.service.screenshot({ input: readWebScreenshotInput({ url: `https://example.com/${n}` }) }, { signal });
+  const call = (n: number, signal?: AbortSignal) => h.service.screenshot({ input: readWebScreenshotInput({ input: { url: `https://example.com/${n}` } }) }, { signal });
   const first = call(1);
   await h.entered.promise;
   const controller = new AbortController();
@@ -92,7 +92,7 @@ test('cancelling a queued screenshot does not release a running capture or block
 
 test('expired queued callers cannot capture later or let a successor overlap the active capture', async () => {
   const h = fixture({ holdFirst: true });
-  const call = (n: number) => h.service.screenshot({ input: readWebScreenshotInput({ url: `https://example.com/${n}` }) });
+  const call = (n: number) => h.service.screenshot({ input: readWebScreenshotInput({ input: { url: `https://example.com/${n}` } }) });
   const first = call(1);
   await h.entered.promise;
   const expired = assert.rejects(call(2), /waited 60000 ms/);

@@ -5,7 +5,7 @@ import test from "node:test";
 import sharp from "sharp";
 import { ToolInputError } from "@jini-ai/core";
 
-import { createScreenshotTileEncoder } from "../screenshot-image.js";
+import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
 import {
   captureRelativePaths,
   createWebScreenshotService,
@@ -78,8 +78,8 @@ const factsOf = (result: Envelope) => JSON.parse(result.content[0]!.text!) as Re
 const imagesOf = (result: Envelope) => result.content.slice(1);
 
 test("input: exactly one of url/sitePath, a known viewport, a bounded integer waitMs, a boolean fullPage", () => {
-  assert.deepEqual(readWebScreenshotInput({ url: "https://example.com/about#team" }), { target: { kind: "url", url: "https://example.com/about" }, viewport: "desktop", fullPage: false, waitMs: 1200 });
-  assert.deepEqual(readWebScreenshotInput({ sitePath: "/", viewport: "mobile", fullPage: true, waitMs: 0 }), { target: { kind: "site", path: "/" }, viewport: "mobile", fullPage: true, waitMs: 0 });
+  assert.deepEqual(readWebScreenshotInput({ input: { url: "https://example.com/about#team" } }), { target: { kind: "url", url: "https://example.com/about" }, viewport: "desktop", fullPage: false, waitMs: 1200 });
+  assert.deepEqual(readWebScreenshotInput({ input: { sitePath: "/", viewport: "mobile", fullPage: true, waitMs: 0 } }), { target: { kind: "site", path: "/" }, viewport: "mobile", fullPage: true, waitMs: 0 });
   const refusals: Array<[Record<string, unknown>, RegExp]> = [
     [{ url: 42 }, /absolute http\(s\) URL/],
     [{ url: "" }, /absolute http\(s\) URL/],
@@ -106,7 +106,7 @@ test("input: exactly one of url/sitePath, a known viewport, a bounded integer wa
     [{ url: "https://a.example", fullPage: "yes" }, /fullPage must be a boolean/],
   ];
   for (const [input, message] of refusals) {
-    assert.throws(() => readWebScreenshotInput(input), (error: unknown) => error instanceof ToolInputError && message.test(error.message) && error.message.startsWith("web_screenshot_page: "), JSON.stringify(input).slice(0, 80));
+    assert.throws(() => readWebScreenshotInput({ input }), (error: unknown) => error instanceof ToolInputError && message.test(error.message) && error.message.startsWith("web_screenshot_page: "), JSON.stringify(input).slice(0, 80));
   }
 });
 
@@ -115,7 +115,7 @@ test("viewport presets reach the capture port with their exact sizes, and each c
   const service = createWebScreenshotService({ ports: ports(capture) });
   const sizes: Record<string, [number, number]> = {};
   for (const viewport of ["desktop", "tablet", "mobile"] as const) {
-    const result = await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", viewport }) });
+    const result = await service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", viewport } }) });
     const images = imagesOf(result);
     assert.equal(images.length, 1);
     assert.equal(images[0]!.mimeType, "image/jpeg");
@@ -134,7 +134,7 @@ test("viewport presets reach the capture port with their exact sizes, and each c
 test("result shape: one JSON text block of facts, then the image blocks; public pages are flagged untrusted", async () => {
   const events: WebScreenshotEvent[] = [];
   const capture = fakeCapture((request) => shotFor(request, { finalUrl: "https://www.example.com/", status: 200, title: "Example Domain", blockedRequests: 3 }));
-  const result = await createWebScreenshotService({ ports: ports(capture, events) }).screenshot({ input: readWebScreenshotInput({ url: "https://example.com/" }) });
+  const result = await createWebScreenshotService({ ports: ports(capture, events) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/" } }) });
   assert.deepEqual(result.content.map((block) => block.type), ["text", "image"]);
   assert.deepEqual(factsOf(result), {
     requestedUrl: "https://example.com/", finalUrl: "https://www.example.com/", status: 200, title: "Example Domain",
@@ -147,7 +147,7 @@ test("result shape: one JSON text block of facts, then the image blocks; public 
 
 test("size caps: a full page is captured to at most 8000px and returned as <=1600px tiles, flagged truncated", async () => {
   const capture = fakeCapture(async (request) => ({ ...(await shotFor(request)), pageHeight: 12_000, capturedHeight: 4000, png: await solidPng(1280, 4000) }));
-  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", fullPage: true }) });
+  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", fullPage: true } }) });
   assert.equal(capture.requests[0]!.maxPageHeightPx, MAX_FULL_PAGE_HEIGHT_PX);
   assert.equal(capture.requests[0]!.fullPage, true);
   const facts = factsOf(result);
@@ -160,7 +160,7 @@ test("size caps: a full page is captured to at most 8000px and returned as <=160
 
 test("waitMs is passed through as the settle time", async () => {
   const capture = fakeCapture((request) => shotFor(request));
-  await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", waitMs: 3000 }) });
+  await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", waitMs: 3000 } }) });
   assert.equal(capture.requests[0]!.settleMs, 3000);
 });
 
@@ -179,7 +179,7 @@ test("queueing: four callers wait in FIFO order with only one capture at a time"
   });
   const events: WebScreenshotEvent[] = [];
   const service = createWebScreenshotService({ ports: ports(capture, events) });
-  const call = (n: number) => service.screenshot({ input: readWebScreenshotInput({ url: `https://example.com/${n}` }) });
+  const call = (n: number) => service.screenshot({ input: readWebScreenshotInput({ input: { url: `https://example.com/${n}` } }) });
   const calls = [call(1), call(2), call(3), call(4)];
   for (let index = 0; index < 4; index += 1) {
     while (releases.length === 0) await new Promise((resolve) => setImmediate(resolve));
@@ -197,8 +197,8 @@ test("a failed capture does not block the queue for the next caller", async () =
     return shotFor(request);
   });
   const service = createWebScreenshotService({ ports: ports(capture) });
-  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ url: "https://nope.example/" }) }), /could not load https:\/\/nope\.example \(ERR_NAME_NOT_RESOLVED\)/);
-  assert.equal(imagesOf(await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/" }) })).length, 1);
+  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://nope.example/" } }) }), /could not load https:\/\/nope\.example \(ERR_NAME_NOT_RESOLVED\)/);
+  assert.equal(imagesOf(await service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/" } }) })).length, 1);
 });
 
 test("capture failures become caller-safe ToolInputErrors that name the origin, never an address", async () => {
@@ -212,7 +212,7 @@ test("capture failures become caller-safe ToolInputErrors that name the origin, 
   for (const [error, message] of cases) {
     const events: WebScreenshotEvent[] = [];
     const service = createWebScreenshotService({ ports: ports(fakeCapture(async () => { throw error; }), events) });
-    await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ url: "https://intranet.example/admin" }) }), (thrown: unknown) => thrown instanceof ToolInputError && message.test(thrown.message) && !thrown.message.includes("/opt/x"));
+    await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://intranet.example/admin" } }) }), (thrown: unknown) => thrown instanceof ToolInputError && message.test(thrown.message) && !thrown.message.includes("/opt/x"));
     assert.equal(events[0]!.outcome, error.kind);
   }
 });
@@ -222,7 +222,7 @@ test("own site: the injected loopback origin is the ONLY allowlisted origin, the
   const openOwnSite = async () => { opened.push("open"); return { origin: "http://127.0.0.1:53142", close: async () => { opened.push("close"); } } };
   const capture = fakeCapture((request) => shotFor(request, { finalUrl: "http://127.0.0.1:53142/about/?x=1" }));
   const service = createWebScreenshotService({ ports: ports(capture) });
-  const result = await service.screenshot({ input: readWebScreenshotInput({ sitePath: "/about/?x=1", viewport: "mobile" }), openOwnSite });
+  const result = await service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/about/?x=1", viewport: "mobile" } }), openOwnSite });
   assert.equal(capture.requests[0]!.url, "http://127.0.0.1:53142/about/?x=1");
   assert.deepEqual(capture.requests[0]!.allowedOrigins, ["http://127.0.0.1:53142"]);
   const facts = factsOf(result);
@@ -233,22 +233,22 @@ test("own site: the injected loopback origin is the ONLY allowlisted origin, the
   assert.deepEqual(opened, ["open", "close"]);
 
   const failing = createWebScreenshotService({ ports: ports(fakeCapture(async () => { throw new PageCaptureError({ kind: "failed", message: "ERR_CONNECTION_RESET" }); })) });
-  await assert.rejects(failing.screenshot({ input: readWebScreenshotInput({ sitePath: "/" }), openOwnSite }), /could not load this site/);
+  await assert.rejects(failing.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/" } }), openOwnSite }), /could not load this site/);
   assert.deepEqual(opened, ["open", "close", "open", "close"], "the loopback server must be closed on failure too");
 });
 
 test("own site without a host opener is refused with a pointer to url", async () => {
   const service = createWebScreenshotService({ ports: ports(fakeCapture((request) => shotFor(request))) });
-  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ sitePath: "/" }) }), /cannot render this site's own pages here/);
+  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/" } }) }), /cannot render this site's own pages here/);
 });
 
 test("an aborted call that is still waiting in the queue never starts a capture", async () => {
   let release!: () => void;
   const capture = fakeCapture(async (request) => { await new Promise<void>((resolve) => { release = resolve; }); return shotFor(request); });
   const service = createWebScreenshotService({ ports: ports(capture) });
-  const first = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/1" }) });
+  const first = service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/1" } }) });
   const controller = new AbortController();
-  const second = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/2" }) }, { signal: controller.signal });
+  const second = service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/2" } }) }, { signal: controller.signal });
   // MOVE: observe rejection before aborting and yielding, so node:test never sees an unhandled rejection.
   const secondRejected = assert.rejects(second, { name: "AbortError" });
   controller.abort();
@@ -260,8 +260,8 @@ test("an aborted call that is still waiting in the queue never starts a capture"
 });
 
 test("themeId: accepted with sitePath only, format-checked, and absent from the input when not passed", () => {
-  assert.deepEqual(readWebScreenshotInput({ sitePath: "/about", themeId: "luvira-copy" }), { target: { kind: "site", path: "/about" }, viewport: "desktop", fullPage: false, waitMs: 1200, themeId: "luvira-copy" });
-  assert.equal("themeId" in readWebScreenshotInput({ sitePath: "/" }), false);
+  assert.deepEqual(readWebScreenshotInput({ input: { sitePath: "/about", themeId: "luvira-copy" } }), { target: { kind: "site", path: "/about" }, viewport: "desktop", fullPage: false, waitMs: 1200, themeId: "luvira-copy" });
+  assert.equal("themeId" in readWebScreenshotInput({ input: { sitePath: "/" } }), false);
   const refusals: Array<[Record<string, unknown>, RegExp]> = [
     [{ url: "https://a.example/", themeId: "luvira-copy" }, /themeId only applies to sitePath/],
     [{ sitePath: "/", themeId: "" }, /themeId must be an installed theme's id/],
@@ -269,7 +269,7 @@ test("themeId: accepted with sitePath only, format-checked, and absent from the 
     [{ sitePath: "/", themeId: 42 }, /themeId must be an installed theme's id/],
   ];
   for (const [input, message] of refusals) {
-    assert.throws(() => readWebScreenshotInput(input), (error: unknown) => error instanceof ToolInputError && message.test(error.message), JSON.stringify(input));
+    assert.throws(() => readWebScreenshotInput({ input }), (error: unknown) => error instanceof ToolInputError && message.test(error.message), JSON.stringify(input));
   }
 });
 
@@ -277,8 +277,8 @@ test("own site with themeId: the opener is asked for that theme and the facts na
   const asked: Array<{ themeId?: string }> = [];
   const openOwnSite = async (_required: {} = {}, optional: { themeId?: string } = {}) => { asked.push(optional); return { origin: "http://127.0.0.1:53142", close: async () => {} }; };
   const service = createWebScreenshotService({ ports: ports(fakeCapture((request) => shotFor(request))) });
-  const themed = factsOf(await service.screenshot({ input: readWebScreenshotInput({ sitePath: "/", themeId: "luvira-copy" }), openOwnSite }));
-  const active = factsOf(await service.screenshot({ input: readWebScreenshotInput({ sitePath: "/" }), openOwnSite }));
+  const themed = factsOf(await service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/", themeId: "luvira-copy" } }), openOwnSite }));
+  const active = factsOf(await service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/" } }), openOwnSite }));
   assert.deepEqual(asked, [{ themeId: "luvira-copy" }, {}]);
   assert.equal(themed.themeId, "luvira-copy");
   assert.equal("themeId" in active, false, "no themeId fact when the active theme rendered");
@@ -286,12 +286,12 @@ test("own site with themeId: the opener is asked for that theme and the facts na
 
 test("capture file names: UTC date folder, time, a slug of the page, the viewport, the theme, and a tile number only when tiled", () => {
   const at = Date.parse("2026-10-08T09:05:07.042Z");
-  assert.deepEqual(captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ url: "https://www.Example.com/About/Team?x=1" }), count: 1 }), ["2026-10-08/090507-042-www-example-com-about-team-desktop.jpg"]);
-  assert.deepEqual(captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ sitePath: "/", viewport: "mobile", themeId: "luvira-copy" }), count: 2 }), [
+  assert.deepEqual(captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ input: { url: "https://www.Example.com/About/Team?x=1" } }), count: 1 }), ["2026-10-08/090507-042-www-example-com-about-team-desktop.jpg"]);
+  assert.deepEqual(captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ input: { sitePath: "/", viewport: "mobile", themeId: "luvira-copy" } }), count: 2 }), [
     "2026-10-08/090507-042-site-mobile-theme-luvira-copy-1.jpg",
     "2026-10-08/090507-042-site-mobile-theme-luvira-copy-2.jpg",
   ]);
-  const [long] = captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ sitePath: `/${"a".repeat(300)}` }), count: 1 });
+  const [long] = captureRelativePaths({ capturedAtMs: at, input: readWebScreenshotInput({ input: { sitePath: `/${"a".repeat(300)}` } }), count: 1 });
   assert.ok(long!.length < 120, long);
 });
 
@@ -299,7 +299,7 @@ test("captures are saved: each returned JPEG is written once and the facts list 
   const written: Array<{ relPath: string; bytes: Buffer }> = [];
   const saveCaptureFiles = async ({ files }: { files: ReadonlyArray<{ relPath: string; bytes: Buffer }> }) => { written.push(...files); return files.map((file) => `/sites/demo/.captures/${file.relPath}`); };
   const capture = fakeCapture(async (request) => ({ ...(await shotFor(request)), pageHeight: 3000, capturedHeight: 3000, png: await solidPng(1280, 3000) }));
-  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", fullPage: true }), saveCaptureFiles });
+  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", fullPage: true } }), saveCaptureFiles });
   const images = imagesOf(result);
   assert.equal(images.length, 2);
   assert.deepEqual(written.map((file) => file.relPath), ["2026-10-08/120000-000-example-com-desktop-1.jpg", "2026-10-08/120000-000-example-com-desktop-2.jpg"]);
@@ -309,7 +309,7 @@ test("captures are saved: each returned JPEG is written once and the facts list 
 
 test("a failed save never fails the screenshot: the images still come back with an empty savedFiles and the reason", async () => {
   const saveCaptureFiles = async () => { throw Object.assign(new Error("EACCES: permission denied, open '/x'"), { code: "EACCES" }); };
-  const result = await createWebScreenshotService({ ports: ports(fakeCapture((request) => shotFor(request))) }).screenshot({ input: readWebScreenshotInput({ url: "https://example.com/" }), saveCaptureFiles });
+  const result = await createWebScreenshotService({ ports: ports(fakeCapture((request) => shotFor(request))) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/" } }), saveCaptureFiles });
   assert.equal(imagesOf(result).length, 1);
   const facts = factsOf(result);
   assert.deepEqual(facts.savedFiles, []);
@@ -318,10 +318,10 @@ test("a failed save never fails the screenshot: the images still come back with 
 
 
 test("cookie dismissal is explicitly validated and forwarded to screenshot capture", async () => {
-  assert.throws(() => readWebScreenshotInput({ url: "https://example.com/", dismissCookieBanners: "yes" }), /dismissCookieBanners must be a boolean/);
+  assert.throws(() => readWebScreenshotInput({ input: { url: "https://example.com/", dismissCookieBanners: "yes" } }), /dismissCookieBanners must be a boolean/);
   const capture = fakeCapture(request => shotFor(request));
   const service = createWebScreenshotService({ ports: ports(capture) });
-  for (const dismissCookieBanners of [undefined, false, true]) await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", ...(dismissCookieBanners === undefined ? {} : { dismissCookieBanners }) }) });
+  for (const dismissCookieBanners of [undefined, false, true]) await service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", ...(dismissCookieBanners === undefined ? {} : { dismissCookieBanners }) } }) });
   assert.deepEqual(capture.requests.map(request => request.dismissCookieBanners), [undefined, false, true]);
 });
 
@@ -336,13 +336,13 @@ test("forwards a live cancellation signal and preserves unexpected capture error
     async close() {},
   };
   const service = createWebScreenshotService({ ports: { ...ports(capture), observe: undefined } });
-  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/" }) }, { signal: controller.signal }),
+  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/" } }) }, { signal: controller.signal }),
     error => error === failure);
 });
 
 test("a save failure without an error code retains the image and gives the generic write reason", async () => {
   const service = createWebScreenshotService({ ports: ports(fakeCapture(request => shotFor(request))) });
-  const result = await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/" }),
+  const result = await service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/" } }),
     saveCaptureFiles: async () => { throw new Error("disk offline"); } });
   assert.equal(imagesOf(result).length, 1);
   assert.deepEqual(factsOf(result).savedFiles, []);
@@ -352,7 +352,7 @@ test("a save failure without an error code retains the image and gives the gener
 test("an encoder returning no tiles produces empty dimensions and no image blocks", async () => {
   const capture = fakeCapture(request => shotFor(request));
   const service = createWebScreenshotService({ ports: { ...ports(capture), encodeTiles: async () => [] } });
-  const result = await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", fullPage: true }) });
+  const result = await service.screenshot({ input: readWebScreenshotInput({ input: { url: "https://example.com/", fullPage: true } }) });
   const facts = factsOf(result);
   assert.deepEqual([facts.width, facts.height, facts.images, facts.truncated], [0, 0, [], false]);
   assert.deepEqual(imagesOf(result), []);
@@ -363,7 +363,7 @@ test("own-site final locations outside its origin or without URL syntax are reta
     let closed = 0;
     const capture = fakeCapture(request => shotFor(request, { finalUrl }));
     const service = createWebScreenshotService({ ports: { ...ports(capture), observe: undefined } });
-    const result = await service.screenshot({ input: readWebScreenshotInput({ sitePath: "/" }),
+    const result = await service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: "/" } }),
       openOwnSite: async () => ({ origin: "http://127.0.0.1:53142", close: async () => { closed++; } }) });
     assert.equal(factsOf(result).finalPath, finalUrl);
     assert.equal(closed, 1);
@@ -372,7 +372,7 @@ test("own-site final locations outside its origin or without URL syntax are reta
 
 test("a capture URL without any ASCII slug characters uses the page file-name fallback", () => {
   assert.deepEqual(captureRelativePaths({ capturedAtMs: Date.parse("2026-10-08T12:00:00.000Z"),
-    input: readWebScreenshotInput({ url: "http://[::]/" }), count: 1 }), ["2026-10-08/120000-000-page-desktop.jpg"]);
+    input: readWebScreenshotInput({ input: { url: "http://[::]/" } }), count: 1 }), ["2026-10-08/120000-000-page-desktop.jpg"]);
 });
 
 test("the service refuses an off-origin site path even when a caller bypasses input parsing", async () => {
@@ -406,7 +406,7 @@ test("an own-site queue wait expires after sixty seconds without starting a capt
     timeouts.push(onTimeout);
     return () => { cancelled++; };
   } } });
-  const call = { input: readWebScreenshotInput({ sitePath: "/" }),
+  const call = { input: readWebScreenshotInput({ input: { sitePath: "/" } }),
     openOwnSite: async () => ({ origin: "http://127.0.0.1:53142", close: async () => {} }) };
   const pending = service.screenshot(call);
   await entered;
@@ -435,10 +435,10 @@ test('input option validation preserves precedence, integer bounds and explicit 
     ...[NaN, Infinity, -Infinity, -1, 5001, 0.5, '0'].map(waitMs => [{ sitePath: '/', waitMs }, 'waitMs must be'] as [Record<string, unknown>, string]),
   ];
   for (const [input, message] of invalid) {
-    assert.throws(() => readWebScreenshotInput(input), (error: unknown) => error instanceof ToolInputError && error.message.includes(message));
+    assert.throws(() => readWebScreenshotInput({ input }), (error: unknown) => error instanceof ToolInputError && error.message.includes(message));
   }
   for (const waitMs of [0, 5000]) {
-    assert.deepEqual(readWebScreenshotInput({ sitePath: '/', waitMs, dismissCookieBanners: false }), {
+    assert.deepEqual(readWebScreenshotInput({ input: { sitePath: '/', waitMs, dismissCookieBanners: false } }), {
       target: { kind: 'site', path: '/' }, viewport: 'desktop', fullPage: false, waitMs, dismissCookieBanners: false,
     });
   }
@@ -452,7 +452,7 @@ test('result assembly reports capture before encoding and closes the own-site se
     ...ports(capture), observe: () => { order.push('captured'); },
     encodeTiles: async () => { order.push('encode'); throw failure; },
   } });
-  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ sitePath: '/' }),
+  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ input: { sitePath: '/' } }),
     openOwnSite: async () => ({ origin: 'http://127.0.0.1:53142', close: async () => { order.push('close'); } }),
     saveCaptureFiles: async () => { order.push('save'); return []; },
   }), error => error === failure);
@@ -474,7 +474,7 @@ test('off-origin site-path refusal leaks the opened server (reported, not fixed)
 test("a capture that came back with a note (e.g. a still-animating page) passes the note to the caller", async () => {
   const note = "page was still animating near the 20 s deadline; captured the current frame";
   const capture = fakeCapture((request) => shotFor(request, { note }));
-  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ url: "https://resend.com/" }) });
+  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ input: { url: "https://resend.com/" } }) });
   assert.equal(factsOf(result).note, note);
   assert.equal(result.content.filter((block) => block.type === "image").length, 1);
 });

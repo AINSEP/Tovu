@@ -1,10 +1,10 @@
-import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
+import type { AdminWorkspaceResponse as AdminWorkspace } from "@jini-ai/core/contracts/site/cms-workspace";
 import { workspaceApi } from "@/features/workspace/api/workspace-api";
-import type { WorkspacePort } from "./workspace-port.hooks";
+import type { WorkspacePort } from "@jini-ai/admin/screens/workspace/hooks/workspace-port.hooks";
 
 /**
  * @file The only place under `features/workspace` that reaches `lib/api` — see
- * `workspace-port.hooks.ts` for why the split exists.
+ * `@jini-ai/admin/screens/workspace/hooks/workspace-port.hooks` for why the split exists.
  */
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
@@ -23,6 +23,7 @@ const DEFAULT_FAKE_WORKSPACE: AdminWorkspace = {
   name: "Fake Workspace",
   slug: "fake-workspace",
   createdAt: new Date(0).toISOString(),
+  version: 1,
 };
 
 /**

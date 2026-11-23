@@ -1,10 +1,10 @@
-import type { AdminWorkspace } from "./api/workspace-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { t } from "./workspace-i18n";
 
 /**
  * @file Pure logic for the `workspace` feature — everything that computes a value rather than
- * rendering one. See `features/posts/rules.ts`'s file header for the standing convention this
+ * rendering one. The dirty-form rule moved with the screen to `@jini-ai/admin/screens/workspace/rules`;
+ * the error-code overrides below are this install's copy, so they stay here. See `features/posts/rules.ts`'s file header for the standing convention this
  * follows.
  */
 
@@ -27,15 +27,4 @@ export function describeApiError({ e, fallback, locale }: { e: unknown; fallback
     if (e.code === "VALIDATION_ERROR") return e.message || t({ locale: locale, key: "Please correct the highlighted fields." });
   }
   return describeApiErrorDefault({ e, fallback });
-}
-
-/**
- * Whether the rename form's draft `name`/`slug` differ from the persisted workspace — drives
- * whether the Save button is enabled and whether a stale "Saved." label is suppressed after a
- * further edit.
- *
- * @complexity Time/space: O(1).
- */
-export function isWorkspaceDirty({ workspace, name, slug }: { workspace: AdminWorkspace; name: string; slug: string }, _options = {}): boolean {
-  return name !== workspace.name || slug !== workspace.slug;
 }

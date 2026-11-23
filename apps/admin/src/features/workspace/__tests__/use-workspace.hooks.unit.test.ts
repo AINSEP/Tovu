@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
+import type { AdminWorkspaceResponse as AdminWorkspace } from "@jini-ai/core/contracts/site/cms-workspace";
 import { createFakeWorkspacePort } from "../hooks/workspace-dependencies.hooks";
 import { useWiredWorkspace, useWorkspace } from "../hooks/use-workspace.hooks";
 
@@ -70,6 +70,7 @@ const WORKSPACE: AdminWorkspace = {
   name: "My Site",
   slug: "my-site",
   createdAt: "2026-08-01T00:00:00.000Z",
+  version: 1,
 };
 
 beforeEach(() => {
