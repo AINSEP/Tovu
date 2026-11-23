@@ -12,7 +12,7 @@ import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 
 import type { AdminPublishExecutionMode } from "../security/api/security-api.types";
 import type { AdminPublishTargetField, AdminStaticPublishPreview, AdminStaticPublishTargetId } from "./api/deployment-api.types";
-import type { AdminExportRunSnapshot } from "../import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 import { t } from "./deployment-i18n";
 import {

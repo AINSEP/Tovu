@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

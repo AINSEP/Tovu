@@ -5036,6 +5036,114 @@
     {
       "id": "359c472e4c4c",
       "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTable (dui, AX-79), extended: '; stateless, so the host owns polling and Stop' added."
+    },
+    {
+      "id": "d374ddea4c24",
+      "reason": "Moved to Jini @jini-ai/admin/src/core/ports/import-export.ts (A-K2-import-export-1), reworded neutral: the website route file path became \"the server export route\", meaning kept."
+    },
+    {
+      "id": "bb2e8ab6a638",
+      "reason": "Moved to Jini @jini-ai/admin/src/core/ports/import-export.ts (A-K2-import-export-1), reworded neutral: the website route file path became \"the server export route\", meaning kept."
+    },
+    {
+      "id": "fcee1fe44980",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "6868e531a17f",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "073175ac0dd8",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "9b67d0a9c815",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "7d5cb2685bf9",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "88d62cbcad7d",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/git-backup-rules.ts (A-K2-import-export-1), reworded neutral: `backup-service.ts`'s became \"the server backup service's\"."
+    },
+    {
+      "id": "609642317d74",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), reworded neutral: host route/file names became \"the host's site-backup routes\" and \"the site-transfer section\"; notes the live port stays in the host."
+    },
+    {
+      "id": "48ac1a99adfb",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), reworded neutral: `backup-service.ts` became \"the server backup service\"."
+    },
+    {
+      "id": "6ca81ae50d0e",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "9dfd903de406",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "b05ce9248c97",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "bf07d6e9829c",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "e58453ccacd2",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/git-backup-port.hooks.ts (A-K2-import-export-1), verbatim."
+    },
+    {
+      "id": "55971ef0fa4d",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "3017c83b8dcd",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "1ed3cd10712a",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "f72ea8b0f1e3",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "9c062d2d04aa",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "8f3a1d00d768",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "fe494668b597",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "391b6333d7c4",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-git-backup.hooks.ts (A-K2-import-export-1), verbatim (header gains a host-seam paragraph)."
+    },
+    {
+      "id": "08e614334143",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-import-export.hooks.ts (A-K2-import-export-1), reworded neutral: `useWiredSites` became \"the Sites screen's wired hook\"."
+    },
+    {
+      "id": "956881ce14cc",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/hooks/use-import-export.hooks.ts (A-K2-import-export-1), reworded neutral: host file/hook names became \"the host's site-section availability hook\" and \"the app root\"."
+    },
+    {
+      "id": "3fa47e44755f",
+      "reason": "Moved to Jini @jini-ai/admin/src/screens/import-export/import-export-i18n.ts (A-K2-import-export-1), reworded neutral: `site-transfer-i18n.ts` / `useSiteTransferTranslate` became \"the site-transfer dictionary\" / \"the host's site-transfer translator\"; adds the per-locale split note."
+    },
+    {
+      "id": "65f763f37ee5",
+      "reason": "Kept in Tovu apps/admin/src/features/import-export/hooks/import-export-dependencies.hooks.ts (useSiteTransferTranslate host binding, A-K2-import-export-1), verbatim; the new file is untracked so the checker does not see it yet."
     }
   ]
 }

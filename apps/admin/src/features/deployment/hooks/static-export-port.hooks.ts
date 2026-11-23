@@ -1,4 +1,4 @@
-import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
 /**
  * @file What `useStaticExport` needs from the outside world, as an interface rather than a direct

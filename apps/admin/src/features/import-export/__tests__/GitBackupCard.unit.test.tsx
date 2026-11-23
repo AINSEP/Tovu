@@ -3,9 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
-import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "../git-backup-rules";
-import { createFakeGitBackupPort, defaultGitBackupPort, type GitBackupPlan, type GitBackupPort } from "../hooks/git-backup-port.hooks";
-import { useGitBackup, useWiredGitBackup } from "../hooks/use-git-backup.hooks";
+import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "@jini-ai/admin/screens/import-export/git-backup-rules";
+import { createFakeGitBackupPort, type GitBackupPlan, type GitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
+import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
+import { GIT_BACKUP_HOST, defaultGitBackupPort, useWiredGitBackup } from "../hooks/git-backup-dependencies.hooks";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 /**
@@ -23,7 +24,7 @@ function connection(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 const PLAN: GitBackupPlan = { planned: true, planId: "plan-1", repository: "me/site-backups", branch: "main", folder: "mysite", folderExists: true, fileCount: 12, totalSize: "3.4 MB", skipped: [{ path: "big.mov" }] };
 
 function Harness({ port, maxPushPolls }: { port: GitBackupPort; maxPushPolls?: number }) {
-  return <GitBackupCard controller={useGitBackup({ port, t }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} />;
+  return <GitBackupCard controller={useGitBackup({ port, t, host: GIT_BACKUP_HOST }, maxPushPolls === undefined ? {} : { maxPushPolls })} t={t} />;
 }
 
 function fillForm(owner = "me", repo = "site-backups") {
@@ -191,7 +192,7 @@ describe("useGitBackup guards", () => {
     const plan = vi.fn(() => new Promise<GitBackupPlan>((resolve) => { release = () => resolve(PLAN); }));
     const push = vi.fn();
     let controller!: ReturnType<typeof useGitBackup>;
-    function Probe() { controller = useGitBackup({ port: createFakeGitBackupPort({ listConnections: async () => [connection()], plan, push }), t }); return null; }
+    function Probe() { controller = useGitBackup({ port: createFakeGitBackupPort({ listConnections: async () => [connection()], plan, push }), t, host: GIT_BACKUP_HOST }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     await act(async () => { await controller.pushBackup(); });
@@ -219,7 +220,7 @@ describe("useGitBackup guards", () => {
       plan: async () => PLAN,
       push: async () => { pushes += 1; if (pushes === 2) unmount(); return { pushed: false as const, inProgress: true as const, planId: "plan-1", progress: { filesDone: 1, filesTotal: 2 } }; },
     });
-    function Probe() { controller = useGitBackup({ port, t }); return null; }
+    function Probe() { controller = useGitBackup({ port, t, host: GIT_BACKUP_HOST }); return null; }
     unmount = render(<Probe />).unmount;
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
@@ -232,7 +233,7 @@ describe("useGitBackup guards", () => {
     let controller!: ReturnType<typeof useGitBackup>;
     let reject!: (error: Error) => void;
     const port = createFakeGitBackupPort({ listConnections: async () => [connection()], plan: () => new Promise((_resolve, rejectPlan) => { reject = rejectPlan; }) });
-    function Probe() { controller = useGitBackup({ port, t }); return null; }
+    function Probe() { controller = useGitBackup({ port, t, host: GIT_BACKUP_HOST }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
     act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
