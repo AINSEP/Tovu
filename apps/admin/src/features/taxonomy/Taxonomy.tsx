@@ -2,6 +2,7 @@ import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/
 import { useState } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { TaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
@@ -756,6 +757,7 @@ function namespaceList({
               <div className="page-actions">
               <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
               <TaxonomyRowMenu
+                useTaxonomyRowMenuHook={useTaxonomyRowMenu}
                 portalContainer={menuPortalContainer}
                 triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", () => group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
@@ -866,6 +868,7 @@ function namespaceList({
                           precedent to follow here. */}
                       <span onClick={(e) => e.stopPropagation()}>
                         <TaxonomyRowMenu
+                          useTaxonomyRowMenuHook={useTaxonomyRowMenu}
                           portalContainer={menuPortalContainer}
                           triggerLabel={t('Actions for term "{name}"').replace("{name}", () => term.name)}
                           agentHandle={`${termHandle}-menu`}
