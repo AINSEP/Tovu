@@ -150,7 +150,7 @@ const FIT_SLACK_PX = 1;
  * pane is wider than the phone breakpoint and every control already shows.
  */
 function measurePrimaryFit({ toolbar, widthCache }: { toolbar: HTMLElement; widthCache: number[] }, _options: Record<string, never> = {}): number | null {
-  const more = toolbar.querySelector<HTMLElement>(".tb-more");
+  const more = toolbar.querySelector<HTMLElement>("[data-toolbar-more]");
   if (!more || more.offsetWidth === 0) return null;
   toolbar.querySelectorAll<HTMLElement>("[data-tb-rank]").forEach((control) => {
     if (control.offsetWidth > 0) widthCache[Number(control.dataset.tbRank)] = control.offsetWidth;
@@ -186,7 +186,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
     if (!toolbar || typeof ResizeObserver !== "function") return undefined;
     const observer = new ResizeObserver(remeasure);
     observer.observe(toolbar);
-    toolbar.querySelectorAll(".tb-more, [data-tb-rank]").forEach((control) => observer.observe(control));
+    toolbar.querySelectorAll("[data-toolbar-more], [data-tb-rank]").forEach((control) => observer.observe(control));
     return () => observer.disconnect();
   }, [toolbar, remeasure]);
 

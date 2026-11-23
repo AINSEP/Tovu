@@ -15,7 +15,7 @@ import type { TaxonomyRouteDeps } from "../deps.js";
  * S10 (web-high fix plan, 2026-09-24): assigning terms to a trashed post/page is refused with
  * 409 and the guard's own code, not a 500 or a silent join.
  */
-function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
+function buildApp(postRepo: TaxonomyRouteDeps["postRepo"], jsonBodies: unknown[] = []): express.Express {
   // The same SQLite adapters `createRouteDeps` composes (the CMS package's in-memory taxonomy/term
   // repos lack the host's `findForTrash`/`findAnyById` reads `TaxonomyRouteDeps` requires).
   const db = openContentDb(":memory:");
@@ -35,6 +35,13 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
 
   const app = express();
   app.use(express.json());
+  // Records every `res.json` body: Express strips a 204 body on the wire, so only this proves the
+  // empty success response skipped the JSON path entirely.
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    const json = res.json.bind(res);
+    res.json = (body: unknown) => { jsonBodies.push(body); return json(body); };
+    next();
+  });
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
@@ -80,4 +87,22 @@ test("assign-terms: a trashed page is refused with 409 ENTITY_IN_TRASH", async (
     code: "ENTITY_IN_TRASH",
     error: "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.",
   });
+});
+
+test("assign-terms: an empty assignment to a live post answers 204 with no body and never calls res.json", async (t) => {
+  const postRepo = {
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) =>
+      workspaceId === "ws-1" && id === "p1" ? { id, workspaceId, kind: "post", deletedAt: null } : null,
+  } as any;
+  const jsonBodies: unknown[] = [];
+  const baseUrl = await startTestServer(buildApp(postRepo, jsonBodies), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ contentType: "post", contentId: "p1", termIds: [] }),
+  });
+  assert.equal(res.status, 204, await res.clone().text());
+  assert.equal(await res.text(), "");
+  assert.equal(res.headers.get("content-type"), null);
+  assert.deepEqual(jsonBodies, []);
 });

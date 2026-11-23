@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { ToolbarOverflowMenu } from "@jini-ai/admin/posts/editor/toolbar/ToolbarOverflowMenu";
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { primaryControlsThatFit, usePostEditorUi, usePostPreviewIframeEscape, usePostSettingsDialog, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
@@ -150,7 +151,7 @@ it("measures a narrow toolbar and marks only the controls that fit as primary", 
     return button;
   });
   const more = document.createElement("button");
-  more.className = "tb-more";
+  more.dataset.toolbarMore = "";
   sized(more, () => 44);
   toolbar.append(more);
   document.body.append(toolbar);
@@ -172,6 +173,38 @@ it("measures a narrow toolbar and marks only the controls that fit as primary", 
   vi.unstubAllGlobals();
 });
 
+it("finds the real Jini overflow toggle at phone width and demotes what no longer fits beside it", () => {
+  // Pins the component/hook contract: the hook must locate the button `ToolbarOverflowMenu` actually
+  // renders. Reject: the hook queries a selector the button no longer carries (e.g. the old `.tb-more`
+  // class), so More reads as hidden and all six controls stay primary, wrapping More off the row.
+  vi.stubGlobal("ResizeObserver", undefined);
+  const toolbar = document.createElement("div");
+  toolbar.style.paddingLeft = toolbar.style.paddingRight = "8px";
+  toolbar.style.columnGap = "2px";
+  [44, 44, 44, 44, 44, 60].forEach((width, rank) => {
+    const button = document.createElement("button");
+    button.dataset.tbRank = String(rank);
+    Object.defineProperty(button, "offsetWidth", { value: width });
+    toolbar.append(button);
+  });
+  document.body.append(toolbar);
+  const host = document.createElement("span");
+  toolbar.append(host);
+  render(<ToolbarOverflowMenu overflow={{ open: false, toggle: () => {} }} t={(text: string) => text} />, { container: host });
+  Object.defineProperty(host.querySelector("button")!, "offsetWidth", { value: 44 });
+  Object.defineProperty(toolbar, "clientWidth", { value: 280 });
+  const { result, unmount } = renderHook(() => useToolbarOverflow());
+  try {
+    act(() => result.current.toolbarRef(toolbar));
+    expect(Array.from({ length: 6 }, (_, rank) => result.current.slot({ rank: rank })["data-tb"]))
+      .toEqual(["primary", "primary", "primary", "primary", undefined, undefined]);
+  } finally {
+    unmount();
+    toolbar.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
 it("retains the chosen settings tab when the dialog is reopened", () => {
   const { result } = renderHook(() => usePostSettingsDialog());
   expect([result.current.open, result.current.tab]).toEqual([false, "author"]);
@@ -190,7 +223,7 @@ it.each(["absent", "hidden"])("keeps all controls primary when More is %s and Re
     const toolbar = document.createElement("div");
     if (visibility === "hidden") {
       const more = document.createElement("button");
-      more.className = "tb-more";
+      more.dataset.toolbarMore = "";
       toolbar.append(more); // jsdom reports offsetWidth 0, as display:none does in the browser.
     }
     const { result, unmount } = renderHook(() => useToolbarOverflow());
@@ -211,7 +244,7 @@ it("measures an initially hidden control on its first appearance with no column 
     toolbar.style.columnGap = "normal";
     Object.defineProperty(toolbar, "clientWidth", { value: 101 });
     const more = document.createElement("button");
-    more.className = "tb-more";
+    more.dataset.toolbarMore = "";
     Object.defineProperty(more, "offsetWidth", { value: 40 });
     const control = document.createElement("button");
     control.dataset.tbRank = "0";

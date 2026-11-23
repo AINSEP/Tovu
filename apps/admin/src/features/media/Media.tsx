@@ -33,6 +33,7 @@ import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "@jini-ai/admin/screens/media/hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
@@ -706,7 +707,11 @@ interface EditMediaModalProps {
  * `key` has the full incident writeup).
  */
 function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEditMediaModal, t }: EditMediaModalProps) {
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook(item !== null, onCancel);
+  // The Jini hook takes the native-dialog helpers as required args; bind them from the host kit here.
+  const { openLightboxDialog, closeLightboxDialog } = useAdminKitValues();
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useEditMediaModalHook({
+    open: item !== null, onClose: onCancel, openLightboxDialog, closeLightboxDialog,
+  });
 
   return (
     <dialog

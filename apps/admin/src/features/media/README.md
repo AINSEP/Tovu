@@ -15,3 +15,10 @@ The media library behind the sidebar's **Content → Media** entry.
 ## Notes for anyone editing here
 
 `Media.tsx` has a unit test (`__tests__/Media.unit.test.tsx`).
+
+## Wiring
+
+- `Media.tsx`'s `EditMediaModal` binds `openLightboxDialog` / `closeLightboxDialog` from the host
+  kit (`useAdminKitValues()`, provided by `main.tsx`'s `<AdminKitProvider kit={adminKit}>`) and
+  passes them, with `open`/`onClose`, as required args to
+  `@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks`'s `useEditMediaModal`.

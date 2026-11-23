@@ -548,7 +548,7 @@ describe("PostEditor — toolbar overflow geometry", () => {
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
       configurable: true,
       get(this: HTMLElement) {
-        if (this.classList.contains("tb-more")) return MORE_WIDTH;
+        if (this.hasAttribute("data-toolbar-more")) return MORE_WIDTH;
         if (this.hasAttribute("data-tb-rank")) return CONTROL_WIDTH;
         return 0;
       },
@@ -632,8 +632,8 @@ describe("PostEditor — toolbar overflow geometry", () => {
     // toolbar's is the live one whose first target is the toolbar, and there must be exactly one.
     const live = FakeResizeObserver.instances.filter((observer) => !observer.disconnected && observer.observed[0]?.classList.contains("editor-toolbar"));
     expect(live).toHaveLength(1);
-    const targets = live[0]!.observed.map((el) => (el.classList.contains("editor-toolbar") ? "toolbar" : el.classList.contains("tb-more") ? "more" : `rank${el.getAttribute("data-tb-rank")}`));
-    // `querySelectorAll(".tb-more, [data-tb-rank]")` is document order: the ranked controls sit in
+    const targets = live[0]!.observed.map((el) => (el.classList.contains("editor-toolbar") ? "toolbar" : el.hasAttribute("data-toolbar-more") ? "more" : `rank${el.getAttribute("data-tb-rank")}`));
+    // `querySelectorAll("[data-toolbar-more], [data-tb-rank]")` is document order: the ranked controls sit in
     // the formatting groups, More is the button after the last group.
     expect(targets).toEqual(["toolbar", "rank0", "rank1", "rank2", "rank3", "rank4", "rank5", "more"]);
     expect(container.querySelector(".editor-toolbar")).toBe(live[0]!.observed[0]);

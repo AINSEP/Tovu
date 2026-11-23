@@ -2544,20 +2544,20 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    and only marks as many ranked controls `primary` as fit beside More; the rest join the overflow.
    The row's slack is spread between its items (auto margins resolve per flex line, so only the top
    row spreads; the overflow rows stay packed left), keeping B flush left and More flush right. */
-.editor-toolbar .tb-more { display: none; }
+.editor-toolbar .jini-post-toolbar__more { display: none; }
 @container admin-content (max-width: 620px) {
   .editor-toolbar { gap: 2px; }
   .editor-toolbar .grp { display: contents; }
   .editor-toolbar .grp > *, .editor-toolbar-count { order: 1; }
   .editor-toolbar .grp > [data-tb="primary"] { order: 0; }
-  .editor-toolbar .tb-more { display: inline-grid; order: 0; margin-left: auto; }
+  .editor-toolbar .jini-post-toolbar__more { display: inline-grid; order: 0; margin-left: auto; }
   .editor-toolbar .grp > [data-tb="primary"]:not([data-tb-rank="0"]) { margin-left: auto; }
   .editor-toolbar .tb-btn, .editor-toolbar .jini-post-toolbar__btn { white-space: nowrap; }
   .editor-toolbar:not([data-more-open="true"]) .grp > :not([data-tb="primary"]),
   .editor-toolbar:not([data-more-open="true"]) .editor-toolbar-count { display: none; }
   .editor-toolbar[data-more-open="true"] { position: static; }
   .editor-toolbar[data-more-open="true"]::after { content: ""; order: 0; flex-basis: 100%; height: 0; margin-block: 2px; border-top: 1px solid var(--border); }
-  .editor-toolbar[data-more-open="true"] .tb-more { background: var(--surface); border-color: var(--border); }
+  .editor-toolbar[data-more-open="true"] .jini-post-toolbar__more { background: var(--surface); border-color: var(--border); }
   /* Open, the count wraps onto its own last row; pushed right there it sat under the floating chat
      button (owner 2026-10-16: the FAB covered "910 characters"). Left, it starts the row instead. */
   .editor-toolbar[data-more-open="true"] .editor-toolbar-count { margin-left: 0; }

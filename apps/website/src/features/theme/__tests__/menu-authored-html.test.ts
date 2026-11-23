@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "@jini-ai/cms/navigation";
+import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
 import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderStaticPage } from "../static-render.js";

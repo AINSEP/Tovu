@@ -39,6 +39,7 @@ function buildApp(
   app: express.Express;
   applyModerationCalls: Array<Record<string, unknown>>;
   purgeCalls: Array<Record<string, unknown>>;
+  jsonBodies: unknown[];
 } {
   const applyModerationCalls: Array<Record<string, unknown>> = [];
   const purgeCalls: Array<Record<string, unknown>> = [];
@@ -61,12 +62,20 @@ function buildApp(
   };
   const app = express();
   app.use(express.json());
+  // Records every `res.json` body so a no-content success can be proven to skip JSON entirely:
+  // Express strips a 204 body on the wire, so the status alone cannot tell the two paths apart.
+  const jsonBodies: unknown[] = [];
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    const json = res.json.bind(res);
+    res.json = (body: unknown) => { jsonBodies.push(body); return json(body); };
+    next();
+  });
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
   registerAdminCommentsModerateRoutes({ app, deps });
-  return { app, applyModerationCalls, purgeCalls };
+  return { app, applyModerationCalls, purgeCalls, jsonBodies };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -295,6 +304,18 @@ test("moderate: applyModeration 'conflict' result -> 409, WITH currentVersion", 
   const body = (await res.json()) as { error: string; currentVersion?: number };
   assert.equal(body.error, "conflict");
   assert.equal(body.currentVersion, 5);
+});
+
+test("moderate: a 204 success ends the response with no body and never calls res.json", async (t) => {
+  const { app, jsonBodies } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  for (const action of ["approve", "purge"]) {
+    const res = await fetch(`${baseUrl}${BASE}/c1/${action}`, { method: "POST" });
+    assert.equal(res.status, 204, action);
+    assert.equal(await res.text(), "", action);
+    assert.equal(res.headers.get("content-type"), null, action);
+  }
+  assert.deepEqual(jsonBodies, []);
 });
 
 test("moderate/purge: success -> 204; note ternary both ways; not-found -> 404", async (t) => {
