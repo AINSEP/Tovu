@@ -1,6 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
 export { contributeVisitorTools, type VisitorToolsToolDeps } from "./visitor-tools-registrations.js";
-export { contributeUiLocalesTools } from "./ui-locales-tool.js";
+import { buildUiLocalesRegistrations, uiLocalesDerivedRisk, type UiLocalesToolDeps } from "@jini-ai/cms/settings/site/ui-locales-tool";
+import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { withToolMetadata } from '@jini-ai/core';
 import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/index.js";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/index.js";
@@ -145,4 +146,20 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
  */
 export function contributeSettingsTools(): ToolContributor<SettingsToolDeps, AssistantSurfaceDeps> {
   return { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk };
+}
+
+/**
+ * Supplies locale discovery under its own domain, preserving the package-owned settings tools.
+ * The package tool is neutral: the host binds its offered admin locales (`ADMIN_LOCALES`, product
+ * copy shared with the selector) and its tool metadata (search vocabulary, approval) here.
+ * @returns A contributor installed at both assistant composition roots.
+ * @complexity O(1).
+ * @example registerToolContributor(contributeUiLocalesTools())
+ */
+export function contributeUiLocalesTools(): ToolContributor<Omit<UiLocalesToolDeps, "locales">, unknown> {
+  return {
+    domain: "settings-ui-locales",
+    build: (deps) => withToolMetadata({ registrations: buildUiLocalesRegistrations({ ...deps, locales: ADMIN_LOCALES }), metadata: toolMetadata }),
+    risk: uiLocalesDerivedRisk,
+  };
 }

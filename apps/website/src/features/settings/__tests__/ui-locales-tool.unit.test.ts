@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "#src/contracts/core/commands/index";
-import { contributeUiLocalesTools } from "../ui-locales-tool.js";
+import { contributeUiLocalesTools } from "../tool-registrations.js";
+import { toolMetadata } from "#src/contracts/core/tool-metadata/settings";
 
 const context = (input?: unknown): ToolExecutionContext => ({
   executionId: "exec", principal: { id: "operator" }, run: { id: "run" }, input,
@@ -75,6 +76,8 @@ test("registration is read-only with derived risk none and an empty closed schem
   assert.equal(tool.descriptor.readOnly, true);
   assert.equal(risk.get("settings_list_ui_locales"), "none");
   assert.deepEqual(tool.descriptor.inputSchema, { type: "object", properties: {}, additionalProperties: false });
+  // The package tool is neutral; this host binding owns the search vocabulary and approval policy.
+  assert.deepEqual(tool.descriptor.metadata, toolMetadata.settings_list_ui_locales);
   const { description } = tool.descriptor;
   assert.ok(description, "the tool must describe itself");
   assert.match(description, /public.*content/i);
