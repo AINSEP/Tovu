@@ -60,3 +60,6 @@ to `deps.lipay` per request. Production leaves it unmounted, as before; only tes
 Site profile (`runtime/composition/modules/site.ts`, mounted from `http-app/mount-admin-system.ts`) mounts the Jini
 `siteProfileRoute` (`"direct"`, operation `routes/site/profile`), binding `buildSiteProfile(toSiteProfileDeps(deps))` and the
 `SITE_PROFILE_SECTION_NAMES`/`MAX_PAGE_ITEMS` constants.
+Redirects (`modules/redirects.ts`) now mounts all seven redirects routes as Jini specs; `registerAdminRedirectCreateRoute`
+mounts `redirectCreateRoute` `"guarded"` (the publishing-credential override honoured, as `authorizeOrRespond` did) with
+failure operation `routes/redirects/shared`.
