@@ -1,4 +1,4 @@
-DESIGN COMPLETE
+DESIGN COMPLETE (R1123: T1–T4 revised per `reviews/plans1123.md`; see the R1123 block under each step)
 
 **Merged by the coordinator (Software Architect role; `AI-Dev-Shop/agents/software-architect/skills.md` loaded) from a read-only subagent draft; key anchors re-checked 11-23 (`site-import-backend.ts:39`, `import-backend-steps.ts:119–120`, `import-registry.ts:8,95–97,125`, `W/server/inbound/shared/admin-failure.ts:70,123`).** Design only; no production code.
 
@@ -43,6 +43,13 @@ Read with `git show <ref>:<path>`. Tovu base `origin/integ/merge-13-2026-11-22` 
 ---
 
 ## P5-T1 · Payload namespace and case 4a "no history scan"
+
+> **R1123 revision (Codex: NEEDS) — supersedes §2 steps 66–78 where they differ.**
+> 1. **Exact, contained entries only.** A root entry is a move candidate iff its name matches exactly `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(upload\.zip|upload\.json|stage)$`, `lstat` shows a regular file (`.zip`/`.json`) or a directory (`.stage`) — **never a symlink** — and `realpath(root/name)`'s parent equals `realpath(root)`. Everything else is ignored (never moved, never removed).
+> 2. **Both source and destination exist → verify identity or refuse.** Files: equal size **and** equal SHA-256 (streamed, injected `hashFile`) → remove the source. Stage dirs: equal manifest (`relpath, type, size, sha256` for every entry, bounded 10 000 entries) → remove the source. Otherwise **refuse without removal**: both copies stay, the id is written to `<ws>/payloads/.conflicts.json` (durable writer), the marker is **not** published, the upload reports `IMPORT_PAYLOAD_CONFLICT` ("This upload has two different copies on disk, so Tovu kept both. Upload the file again."). The old "destination wins: `rm root/name`" rule is deleted.
+> 3. **Durable marker publication.** Ports `writeFile`, `fsyncFile`, `rename`, `fsyncDir` are injected (required; the Windows binding's `fsyncDir` is a documented no-op). Publication: write `.namespace-v1.tmp` = `{"v":1,"rootMtimeMs":<root mtime after the moves>}` → `fsyncFile` → `rename` to `.namespace-v1` → `fsyncDir(root)`. The marker is trusted only if it **parses** with `v === 1`; an empty/unparsable marker (crash before fsync on a filesystem that reorders) → migration reruns (it is idempotent by rules 1–2).
+> 4. **Legacy writers after the marker (version-compatible layout, Codex OWNER-Q5 alternative).** Old binaries cannot be blocked by new code, so the new reader stays compatible: (a) by-id lookups (`get`, claim, `consumeUpload`) check `payloads/<id>.*` **then** the exact root name (`exists`, no `readdir`); a root hit is moved into `payloads/` under the lock before use; (b) at each lock acquisition, `stat(root).mtimeMs !== marker.rootMtimeMs` → one bounded exact-name pass (rule 1) moves new legacy entries and republishes the marker with the new mtime; unchanged mtime → no `readdir` (I4 still holds).
+> - Tests (written first): **«Interrupted migration with conflicting destinations preserves both copies»** (mutation: old destination-wins `rm` → source gone → red); **«Legacy writer after marker publication is still claimable and swept»** (old-layout write after marker → claim succeeds, entry moved; mutation: drop the root-name fallback → `UPLOAD_NOT_FOUND` → red); `a symlinked or out-of-root entry is never moved`; `an unparsable marker reruns the migration`.
 
 ### 1. Data model
 - No SQL in T1. Directory layout (owner: Jini `@jini-ai/devops` logic, Tovu binds `<ws>`):
@@ -130,6 +137,14 @@ Two processes (site server plus `tovu import-local`): serialized by `.import.loc
 ---
 
 ## P5-T2 · Indexed store behind the registry (cases 2 and 4b)
+
+> **R1123 revision (Codex: NEEDS) — supersedes the sweep SQL, the admit order and the expiry write order below.**
+> - **`last_sweep_ms` is initialized and upserted.** Schema setup runs `INSERT OR IGNORE INTO meta(key, value) VALUES ('last_sweep_ms', '0')`; the sweep writes `INSERT INTO meta(key, value) VALUES ('last_sweep_ms', :now) ON CONFLICT(key) DO UPDATE SET value = excluded.value`.
+> - **`replay` is `WITHOUT ROWID` → composite key, no `rowid`.** New index `CREATE INDEX IF NOT EXISTS replay_by_age ON replay(accepted_ms)`; bounded delete: `DELETE FROM replay WHERE (principal_id, request_id) IN (SELECT principal_id, request_id FROM replay WHERE accepted_ms + 31536000000 <= :sweepClock ORDER BY accepted_ms LIMIT 500)`. (`imports` is a rowid table and keeps its loop.)
+> - **Admit order:** replay lookup → **upload preflight** (exists, owned by this principal, not expired, not consumed; for `url` sources: budget) → conflict → atomic insert (fence) → consume. A preflight refusal commits **no** fence. If consume still fails after the commit (raced expiry), one txn marks the row `failed` (`UPLOAD_GONE`) **and** deletes its fence row, so a retry is admitted.
+> - **Expiry write order:** `expireOwnerSetups` commits `put({ …row, status: 'failed', reason: 'owner-setup-expired' })` **first**, then removes `payloads/<id>.stage`. A crash between leaves an orphan stage, which the T1 orphan sweep removes (stage without a non-terminal row).
+> - **Forward clock jumps (OWNER-Q11):** destructive sweeps use `sweepClock = min(now, evidenceMs + 30 d)` where `evidenceMs = max(last_sweep_ms, MAX(imports.created_ms), MAX(replay.accepted_ms))`; `now < last_sweep_ms` (regression) → skip destructive work. A jump of years past the latest evidence cannot free a recent fence; real elapsed time with new writes advances `evidenceMs`.
+> - Tests: **I8 exact boundary** — fence conflicts at `accepted + 365 d − 1 ms` and is freed at **exactly** `accepted + 365 d` (mutation: `<` for `<=` → exact test red). **I17 exact deadline** — owner setup at **exactly** the deadline fails "Owner setup expired" and its stage is removed after the failed row is durable (mutations: `<` for `<=`; rm before put with a crash injected → row still `needs-owner` with no stage → red). **I12** adds one principal with **60** rows sharing one `created_ms` (page 50) → no duplicates/skips. **I29** `replay key on a WITHOUT ROWID table is swept in bounded batches` (mutation: `rowid` query → SQL error → red). **I30** `clock jumped two years past the latest write does not free a one-day-old fence`. **I31** `preflight refusal commits no fence`. Replay assertions use the **public shape** (`state`, original `siteId`) as `import-history-retention.unit.test.ts:27–54` does.
 
 ### 1. Data model
 File `<ws>/site-imports.db` (plus `-wal`/`-shm`), mode 0600. It is opened through the host's `SqliteSyncOpener`. Pragmas on every open, in this order: `journal_mode = WAL`, `synchronous = FULL`, `busy_timeout = 5000`, `foreign_keys = ON`. If `journal_mode` returns something other than `wal` (a network volume), proceed: the import lock already serializes writers. Migration name `site-imports-v1`, `PRAGMA user_version = 1`.
@@ -381,6 +396,12 @@ Jini files in `J/devops/src/backup/site/import-index/`, each one job, functions 
 
 ## P5-T3 · Backfill and interruption (case 3)
 
+> **R1123 revision (Codex: NEEDS).**
+> - **Validate every allocation field recovery reads.** `validateLegacyRow` gains `validateAllocation(creation)` covering each field `reconcileInterruptedImports` reads (builder pins the list from that function before coding; at minimum `siteId` uuid, `siteDir` contained under the sites root, `slug` `^[a-z0-9-]{1,63}$`, `allocatedAt` finite). Malformed → the row is **preserved verbatim** (file untouched, cutover blocked as today) and recovery never acts on that allocation.
+> - **Preserve durable sites committed before the ready write.** Recovery of a `creating` row first checks durable publication (site registry entry present **and** the site's `content.db` carries the same `siteId`) → mark the import `ready` (complete) and keep the site; only an unpublished allocation is rolled back.
+> - **Separate failure injection** for the in-DB marker (`meta.backfill_complete`, inside the backfill txn) and the external state file write (after commit): injection points `beforeCommit`, `afterCommitBeforeState`, `stateWriteFails`, each with its own test.
+> - Tests: **I32** `crash immediately after site publication with the allocation persisted keeps the site and completes the import` (mutation: treat every `creating` as failed and release the allocation → site removed → red); **I33** `malformed allocation is preserved and never recovered`; I18 split into the three injection points above.
+
 ### 1. Data model
 - It reuses the T2 tables. `meta.cutover_at` (ms), `meta.db_id` (uuid) and `meta.backfill_count` are written in the **same** transaction as the rows.
 - Legacy input: `<ws>/<uuid>.json` (`SiteImportRecord`).
@@ -475,6 +496,25 @@ A malformed-but-parseable row (for example `status: "done"` or `createdAt: "x"`)
 
 ## P5-T4 · Rollback, fail-closed and case 5
 
+> **R1123 revision (Codex: NEEDS) — supersedes "Absent means `legacy`" and the lock-free repair writes below.**
+> - **Independent evidence of indexed authority.** The DB's `meta` table gains `authority` (`'backfill' | 'indexed'`) and `generation` (integer). `markIndexedWrite`'s first indexed write txn sets `authority='indexed'` and `generation = state.generation` **in the same txn as the row**; the external state file (`mode`, `generation`, `db_id`) is still written durably **before** that txn.
+> - **Durable initialization.** The first locked open by a P5 build writes the state file `{ mode: 'legacy', generation: 0 }` durably (temp + fsync + rename + dir fsync) **before** any cutover can start.
+> - **Mode resolution (fail closed on inconsistency):**
+>
+> | state file | DB | result |
+> |---|---|---|
+> | absent | absent | `legacy` (pre-P5 or fresh) |
+> | absent | present, `authority='indexed'` | **refused `IMPORT_HISTORY_STATE_MISSING`** |
+> | absent | present, no indexed authority | `legacy` (cutover never wrote) |
+> | `indexed` | absent / corrupt / `db_id` mismatch | refused |
+> | any | `meta.generation ≠ state.generation` | **refused `IMPORT_HISTORY_GENERATION_MISMATCH`** |
+> | unreadable | — | refused `IMPORT_HISTORY_MISSING` |
+>
+> - **Lock-free reads are pure.** `resolveMode({ access: 'read' })` never renames, migrates, backfills, moves a corrupt file aside or writes rollback/state; it returns a mode or a refusal. All repair runs only under the lock with `access: 'write'`.
+> - **Stale handles.** The registry caches `{ handle, dev, ino, dbId }`; every lock acquisition `stat`s the DB path; a changed `dev:ino` → close the old handle, reopen, re-verify `db_id` + generation before use.
+> - **Snapshot retirement completes only on a fresh empty enumeration:** each pass removes ≤ 200 `^<uuid>\.json$` files; `legacyRetiredAt` is written only when a **new** `readdir` after the deletions finds zero matches.
+> - Tests: **«Missing authority record after indexed write refuses legacy»** (delete the state file after one indexed write → refused; mutation: absent ⇒ legacy → red); **«Read racing pre-write rollback performs no writes»** (fs spy on the read path during a held-lock rollback: 0 write/rename/unlink; mutation: read path moves a corrupt DB aside → red); **«201 records retire across two passes»** (first pass not marked, second marked; mutation: mark after the first pass → red); `generation mismatch refuses`; `replaced DB file is reopened and re-verified`.
+
 ### 1. Data model
 - `<ws>/import-index.state.json`, written as durable JSON at 0600. It sits **outside the DB**. Its name does not match `^<uuid>\.json$`, so neither legacy nor old builds treat it as a record.
 ```json
@@ -566,3 +606,6 @@ A crash mid-way resumes on the next tidy. This is automatic retention policy (ow
 - `OWNER-Q5:` Old-build downgrade? **Rec:** (a) accept with a release note, as the owner said "the desktop app just updates". A freeze cannot be enforced on a binary that predates it, and T1 already makes old builds fail closed on pending payloads. Cutover must not be enabled until the owner confirms (Codex T4).
 - `OWNER-Q6:` Legacy snapshot retirement point? **Rec:** `cutoverAt + 30 days`, in indexed mode, run from `tidy`, with P11 deciding when `tidy` runs. By then every legacy terminal row is outside visible history, and its fence already lives in SQLite.
 - `OWNER-Q10:` Default `cutoverPolicy`? **Rec:** `"enable"` once OQ5 is answered. Ship T4 with `"rollback"` as the default until then, so T1–T3 can land with no cutover in the field.
+
+## R1123 · OWNER-Q (P5, consolidated; Codex recommendations adopted)
+Q1 land the K5 registry/backend moves first · Q2 lock-free **read-only** snapshots once mode selection is safe (T4 R1123) · Q3 keep the internal array API during migration, external reads paged · Q4 upload metadata stays JSON with the T2 preflight and T1 recovery rules · **Q5** old binaries cannot be blocked by new code → keep the version-compatible layout (T1 R1123 rule 4) and keep cutover disabled until no supported old binary remains · Q6 retire after 30 days with resumable batching · Q7 minimal replay outcome · Q8 HTTP 400 · Q9 defer repair; an approval card if added · Q10 default `rollback` until the downgrade and authority gates pass · Q11 skip destructive sweeps on clock regression; clamp forward jumps to evidence + 30 days (T2 R1123).
