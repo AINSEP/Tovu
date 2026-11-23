@@ -1,12 +1,15 @@
 import { StrictMode } from "react";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicyPermission } from "@jini-ai/core/contracts/site/user-management-react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
 import { defaultRolesPort } from "../hooks/roles-dependencies.hooks";
-import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
+import { useRoles } from "@jini-ai/admin/roles/hooks/use-roles.hooks";
+import { useWiredRoles } from "../hooks/use-wired-roles.hooks";
+import { ROLES_API_ERRORS } from "../roles-host-binding";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**
  * @file `useRoles` — the "Roles & Permissions" screen's entire state machine, extracted so it is
@@ -504,7 +507,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("retains a written permission's resource type when listing the open policy", async () => {
     const port = createFakeRolesPort({}, { policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
@@ -524,7 +527,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("loads roles and policies through the injected port, without touching fetch", async () => {
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     expect(result.current.roles).toEqual([ROLE]);
@@ -534,7 +537,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onCreateRole writes through the injected port and the list reflects the new role", async () => {
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.setRoleName("New Role"));
@@ -551,7 +554,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onCreatePolicy stores the name and description, clears both fields, and reloads", async () => {
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => {
       result.current.setPolicyName("New Policy");
@@ -570,7 +573,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onCreatePolicy keeps both fields and reports a failed create", async () => {
     const port = createFakeRolesPort({}, { policies: [POLICY], createPolicyError: new Error("create denied") });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => {
       result.current.setPolicyName("New Policy");
@@ -590,7 +593,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const { description: _description, ...fields } = POLICY;
     const policy = { ...fields, id: "p2", name: "No description" };
     const port = createFakeRolesPort({}, { policies: [POLICY, policy] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).not.toBeNull());
     act(() => result.current.startEditPolicy(POLICY));
     expect(result.current.editingPolicyDescription).toBe("d");
@@ -602,7 +605,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onSavePolicy persists both edited fields, closes the edit row, and reloads", async () => {
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => result.current.startEditPolicy(POLICY));
     act(() => {
@@ -619,7 +622,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onSavePolicy keeps the edit row and both drafts on failure", async () => {
     const port = createFakeRolesPort({}, { policies: [POLICY], updatePolicyError: new Error("update denied") });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => result.current.startEditPolicy(POLICY));
     act(() => {
@@ -637,7 +640,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onDeleteRole removes the pending role through the injected port", async () => {
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.setPendingRoleDelete(ROLE));
@@ -665,7 +668,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],
     });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     expect(result.current.permissionRows).toEqual([]);
@@ -681,7 +684,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],
     });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
@@ -699,7 +702,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW, other],
     });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
@@ -722,7 +725,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       initialPolicyPermissions: [PERMISSION_ROW],
       removePermissionError: new Error("boom"),
     });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
@@ -742,7 +745,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       policies: [POLICY],
       writePermissionError: new Error("boom"),
     });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.setPermissionInput("content.write"));
@@ -762,7 +765,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         initialPolicyPermissions: [PERMISSION_ROW],
       });
       const removeSpy = vi.spyOn(port, "removePolicyPermission");
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
       act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
@@ -779,7 +782,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         policies: [POLICY],
         initialPolicyPermissions: [PERMISSION_ROW, other],
       });
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
       await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
@@ -798,7 +801,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     it("is a no-op with nothing pending", async () => {
       const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
       const removeSpy = vi.spyOn(port, "removePolicyPermission");
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
       await act(async () => {
@@ -815,7 +818,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         initialPolicyPermissions: [PERMISSION_ROW],
         removePermissionError: new Error("boom"),
       });
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
       await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
@@ -847,7 +850,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         });
       });
 
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
       await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
       await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
@@ -902,7 +905,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       });
     });
 
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     // Open POLICY's panel, then switch to `otherPolicy`'s before POLICY's load resolves.
@@ -946,7 +949,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     port.listPolicyPermissions = ({ policyId }) => policyId === POLICY.id
       ? new Promise((_resolve, reject) => { rejectOld = reject; })
       : listPermissions({ policyId });
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).not.toBeNull());
     act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
     await act(async () => result.current.togglePermissionForm({ policyId: otherPolicy.id }));
@@ -970,7 +973,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.updateRole = vi.fn(() => new Promise<{ role: typeof ROLE }>((resolve) => { resolveA = resolve; }));
 
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.startEditRole(ROLE));
@@ -998,7 +1001,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, policyB] });
     port.updatePolicy = vi.fn(() => new Promise<{ policy: typeof POLICY }>((resolve) => { resolveA = resolve; }));
 
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.startEditPolicy(POLICY));
@@ -1028,7 +1031,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.deleteRole = vi.fn(() => new Promise<void>((resolve) => { resolveA = resolve; }));
 
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     act(() => result.current.setPendingRoleDelete(ROLE));
@@ -1058,7 +1061,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, otherPolicy] });
     port.writePolicyPermission = vi.fn(() => new Promise<{ policyPermission: unknown }>((resolve) => { resolveA = resolve; }));
 
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
     await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
@@ -1107,7 +1110,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         },
       );
 
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
       await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));
@@ -1154,7 +1157,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
         });
       });
 
-      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
       let p!: Promise<void>;
@@ -1193,7 +1196,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
           </StrictMode>
         );
       }
-      const { result } = renderHook(() => useRoles({ port }), { wrapper: strictWrapper });
+      const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper: strictWrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
 
       await act(async () => result.current.togglePermissionForm({ policyId: POLICY.id }));

@@ -338,7 +338,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`]);
@@ -352,7 +352,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;
@@ -374,7 +374,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;

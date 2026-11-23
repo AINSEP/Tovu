@@ -358,8 +358,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    width and fall back to one column below ~29rem — and a row of two is what reads as a form
    rather than a spreadsheet at this measure. (0,2,0) so it beats the (0,1,0) base rule wherever
    the bundler puts this file. */
-.form-measure { max-width: var(--form-measure); }
-.form-measure.integrations-form label { max-width: none; }
+.form-measure, .jini-roles-form-measure { max-width: var(--form-measure); }
+.form-measure.integrations-form label, .jini-roles-form-measure.jini-roles-integrations-form label { max-width: none; }
 /* Workspace's ID/Created chips (`.settings-layer-grid` inside the form) span the measured box so
    the `auto-fit` grid has a width to fit into — see the Workspace bullet above. */
 .form-measure.integrations-form > .settings-layer-grid { align-self: stretch; }
@@ -1318,7 +1318,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll, .jini-roles-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Empty state — a list with zero rows (Media with nothing uploaded yet) gets a real message
    instead of a header row floating over blank white space. */
@@ -1889,9 +1889,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    banner (amber warning / red error) still carries that tone as its text color: the owner asked for
    the box gone, not the visual weight a real, disclosed limitation like this one still needs. */
 .notice.recovery-plain-notice { background: transparent; border: none; box-shadow: var(--jini-panel-shadow-flat); padding: 0; border-radius: 0; margin: 0; }
-.list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-.list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
-.list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.list-table, .jini-roles-list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.list-table th, .list-table td, .jini-roles-list-table th, .jini-roles-list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
+.list-table th, .jini-roles-list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 /* Posts list's sortable "Updated" column header (2026-08-10) — a `<button>` sitting inside a
    `<th>`, not a `<td>`, so the row-action reset above (`.list-table td button...`) does not reach
    it; this rule inherits the `<th>`'s own type treatment instead of the default filled-primary
@@ -1904,7 +1904,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   cursor: pointer;
 }
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
-.list-table tbody tr:last-child td { border-bottom: none; }
+.list-table tbody tr:last-child td, .jini-roles-list-table tbody tr:last-child td { border-bottom: none; }
 /* DataTable's `rowDetail`: the record and its full-width line read as one row. */
 .list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
 .list-table .list-table-detail > td { padding-block-start: 0; }
@@ -2036,10 +2036,10 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .status-warning { background: var(--warning-bg); color: var(--warning); }
 .status-neutral { background: var(--surface-3); color: var(--muted); }
 /* `.jini-menu-page-link-unavailable`: `@jini-ai/admin` `MenuPageLinkFields`'s "Page not published" hint. */
-.muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
-.integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.muted-cell, .jini-roles-muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
+.integrations-form, .jini-roles-integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 /* Same consolidation as `.login-card label` above. */
-.integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
+.integrations-form label, .jini-roles-integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
 /* Roles.tsx `PolicyPermissionList` — a bare `<ul>`/`<li>` with no rule of its own here, so the
    `<code>`, optional `(resourceType)` span, and Remove button ran together in normal inline flow
    with zero gap between them (visual QA, 2026-08-31). Same `list-style: none; margin: 0; padding:

@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicy, AdminRole } from "@jini-ai/core/contracts/site/user-management-react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { PolicyRow, type PolicyPermissionController, type PolicyRowController } from "../PolicyRow";
-import { Roles } from "../Roles";
-import { RolesSection, type RoleCreateFormController, type RoleRowController } from "../RolesSection";
-import { useRoles, type RolesController } from "../hooks/use-roles.hooks";
+import { PolicyRow, type PolicyPermissionController, type PolicyRowController } from "@jini-ai/admin/roles/PolicyRow";
+import { Roles } from "../index";
+import { RolesSection, type RoleCreateFormController, type RoleRowController } from "@jini-ai/admin/roles/RolesSection";
+import { useRoles, type RolesController } from "@jini-ai/admin/roles/hooks/use-roles.hooks";
+import { ROLES_API_ERRORS } from "../roles-host-binding";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
 import { t as realT } from "@jini-ai/admin/roles/roles-i18n";
 
@@ -462,7 +464,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
 
   it("creates a policy without an optional description and clears its form", async () => {
     const port = createFakeRolesPort({});
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([]));
     act(() => result.current.setPolicyName("Reader"));
     const event = new Event("submit", { cancelable: true });
@@ -483,7 +485,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const deletePolicy = port.deletePolicy;
     port.deleteRole = async id => { await pending.promise; return deleteRole(id); };
     port.deletePolicy = async id => { await pending.promise; return deletePolicy(id); };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).toEqual([CUSTOM_ROLE]));
     act(() => { if (kind === "role") result.current.setPendingRoleDelete(CUSTOM_ROLE); else result.current.setPendingPolicyDelete(CUSTOM_POLICY); });
     let deletion!: Promise<void>;
@@ -504,7 +506,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
       if (unavailable) throw new Error("policy store unavailable");
       return listPermissions(id);
     };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY]));
     act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     await waitFor(() => expect(result.current.rowError).toBe("policy store unavailable"));
@@ -528,7 +530,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const updatePolicy = port.updatePolicy;
     port.updateRole = async input => { await (input.roleId === CUSTOM_ROLE.id ? first : second).promise; return updateRole(input); };
     port.updatePolicy = async (target, options) => { await (target.policyId === CUSTOM_POLICY.id ? first : second).promise; return updatePolicy(target, options); };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.roles).toEqual([CUSTOM_ROLE, roleB]));
     act(() => {
       if (kind === "role") { result.current.startEditRole(CUSTOM_ROLE); result.current.setEditingRoleName("First renamed"); }
@@ -562,7 +564,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const deletePolicy = port.deletePolicy;
     port.deleteRole = async input => { await (input.roleId === CUSTOM_ROLE.id ? first : second).promise; return deleteRole(input); };
     port.deletePolicy = async input => { await (input.policyId === CUSTOM_POLICY.id ? first : second).promise; return deletePolicy(input); };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
     act(() => { if (kind === "role") result.current.setPendingRoleDelete(CUSTOM_ROLE); else result.current.setPendingPolicyDelete(CUSTOM_POLICY); });
     let pendingFirst!: Promise<void>;
@@ -586,7 +588,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const pending = gate();
     const remove = port.removePolicyPermission;
     port.removePolicyPermission = async input => { await pending.promise; return remove(input); };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY]));
     act(() => result.current.setPendingPermissionRemove({ policyId: CUSTOM_POLICY.id, row: PERMISSION_ROW }));
     let removal!: Promise<void>;
@@ -607,7 +609,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     const second = gate();
     const write = port.writePolicyPermission;
     port.writePolicyPermission = async (input, options) => { await (input.policyId === CUSTOM_POLICY.id ? first : second).promise; return write(input, options); };
-    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    const { result } = renderHook(() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
     act(() => result.current.togglePermissionForm({ policyId: CUSTOM_POLICY.id }));
     await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
@@ -639,7 +641,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
     });
     render(
       <FetchQueryProvider>
-        <Roles tabId={POLICIES_TAB} useRolesHook={() => useRoles({ port })} />
+        <Roles tabId={POLICIES_TAB} useRolesHook={() => useRoles({ port, errors: ROLES_API_ERRORS, useAdminLocale })} />
       </FetchQueryProvider>,
     );
 
