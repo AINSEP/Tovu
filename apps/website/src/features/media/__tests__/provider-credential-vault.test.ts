@@ -9,7 +9,7 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import type { MediaProviderCredentialRecord } from "../provider-credential-store.js";
+import type { MediaProviderCredentialRecord } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { MediaProviderCredentialVaultRepo, mediaProviderVault, mediaVaultRecord, mediaVaultScope } from "../provider-credential-vault.js";
 
 /**

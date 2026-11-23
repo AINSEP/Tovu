@@ -63,8 +63,6 @@ import { toSlug } from "../../platform/html/slug.js";
 import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
 import { capSubmissionFieldLengths } from "@jini-ai/cms/forms";
 
-export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
-
 /** The admin editor uses this slug for its create screen. */
 // The editor's formId === "new" guard would render a blank create form at a saved form's own URL.
 // Reserve it at the shared write boundary so agent-tool creation cannot bypass a UI-only check.
@@ -138,8 +136,7 @@ export interface SubmitFormDeps extends Omit<PackageSubmitDeps, "dispatcher" | "
   files?: FormFileStorage;
 }
 /** Trusted request-bound evidence; never supplied by public form answers. */
-export type { FormAnalyticsProvenance } from "./analytics-provenance.js";
-import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
+import type { FormAnalyticsProvenance } from "@jini-ai/cms/forms/site/analytics-provenance";
 export interface SubmitFormRequired { deps: SubmitFormDeps; input: SubmitFormInput; }
 
 /** One attempt store per submission store: the same process-lifetime scope the store has. */

@@ -15,7 +15,7 @@ import {
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
-import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
+import { defaultEditFieldsDialogPort } from "../collections-host-ports";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

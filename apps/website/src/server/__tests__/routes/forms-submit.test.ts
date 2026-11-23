@@ -9,7 +9,7 @@ import express from "express";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
 import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";

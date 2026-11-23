@@ -52,7 +52,7 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
     start: () => {
       if (deps.fileCleanup) void registerFormAttachmentCleanup({ bus: deps.bus, ...deps.fileCleanup });
       void deps.bus.subscribe<{ workspaceId: string; formDefinitionId: string; deliveryMode?: string;
-        analyticsProvenance?: import('#src/features/forms/index').FormAnalyticsProvenance }>({
+        analyticsProvenance?: import('@jini-ai/cms/forms/site/analytics-provenance').FormAnalyticsProvenance }>({
         eventName: "form.submission.received",
         handler: async (event) => {
           const proof = event.payload.analyticsProvenance;

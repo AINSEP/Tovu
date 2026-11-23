@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { EditFieldsDialog } from "../EditFieldsDialog";
-import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
+import { createFakeEditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 

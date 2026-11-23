@@ -16,7 +16,7 @@ import {
   contributeMediaViewImageTools,
   mediaViewImageDerivedRisk,
   type MediaViewImageToolDeps,
-} from "../view-image-tool.js";
+} from "@jini-ai/cms/media/site/view-image-tool";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ToolRegistration } from '@jini-ai/core';
-import { mediaViewImageAgentToolCatalog } from '../../features/media/view-image-tool.js';
+import { mediaViewImageAgentToolCatalog } from '@jini-ai/cms/media/site/view-image-tool';
 import { catalog as mediaViewVideoAgentToolCatalog } from '../../features/media/view-video-tool.js';
 import { webScreenshotAgentToolCatalog } from '../../features/web-screenshot/agent-tools.js';
 import { demoImageAgentToolCatalog } from '../demo-image-tool.js';

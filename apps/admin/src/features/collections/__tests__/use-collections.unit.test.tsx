@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeCollectionsPort } from "../hooks/collections-dependencies.hooks";
+import { createFakeCollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-dependencies.hooks";
 import { useCollections, useWiredCollections } from "../hooks/use-collections.hooks";
 
 /**

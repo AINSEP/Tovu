@@ -7,7 +7,7 @@ import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/in
 import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { postPreviewAgentToolCatalog } from "#src/features/post/preview-tool";
 import { pagesAgentToolCatalog } from "#src/features/pages/agent-tools";
-import { mediaViewImageAgentToolCatalog } from "#src/features/media/view-image-tool";
+import { mediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
 import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
 import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/agent-tools";

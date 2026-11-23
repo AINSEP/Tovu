@@ -29,16 +29,16 @@ import {
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
   type BlobStorePort,
-  type MediaProviderCredentialRepoPort,
   type MediaRecord,
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
+import type { MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
-import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for
@@ -478,7 +478,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
-    catalogModule: "features/media-generation/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/media/site-generation/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: mediaGenerationDerivedRisk,

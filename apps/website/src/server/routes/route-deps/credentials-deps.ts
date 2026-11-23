@@ -9,7 +9,7 @@ import type { CustomCredentialSetRepoPort } from "../../../features/custom-crede
 import type { HttpClientPort } from "../../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../../features/vendor-credentials/index.js";
-import type { MediaProviderCredentialRepoPort } from "../../../features/media/index.js";
+import type { MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import type { ExternalMcpServerRepoPort, DeviceAuthorizationStore, ExternalMcpOAuthService } from "../../../features/external-mcp/contracts.js";
 import type { ExternalMcpToolApprovalRepoPort } from "../../../assistant/mcp-services.js";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";

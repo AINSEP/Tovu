@@ -6,7 +6,7 @@ import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
-import { defaultCollectionsPort } from "./collections-dependencies.hooks";
+import { defaultCollectionsPort } from "../collections-host-ports";
 import type { CollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-port.hooks";
 
 /**

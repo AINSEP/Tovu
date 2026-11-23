@@ -117,7 +117,6 @@ export { uploadMedia } from "@jini-ai/cms/media";
 export type { MediaRecord } from "@jini-ai/cms/media";
 
 export type {
-  MediaProviderCredentialRepoPort,
   MediaProviderCredentialResolveDeps,
   ResolvedMediaProviderCredential,
 } from "./provider-credential-store.js";

@@ -33,7 +33,9 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { buildMediaGenerationRegistrations, contributeMediaGenerationTools, type MediaGenerationToolDeps } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
+const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS });
 import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";

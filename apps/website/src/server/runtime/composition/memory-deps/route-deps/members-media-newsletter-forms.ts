@@ -15,7 +15,7 @@ import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-witho
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { executeCommand } from "@jini-ai/cms/core";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { InMemoryDatabaseLedgerRepo, InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 

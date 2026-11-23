@@ -260,5 +260,4 @@ export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPub
   return { domain: "media", build: buildMediaRegistrationsForTovu, risk: mediaDerivedRisk };
 }
 
-export { contributeMediaViewImageTools } from "./view-image-tool.js";
 export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

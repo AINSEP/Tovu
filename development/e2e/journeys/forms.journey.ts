@@ -17,7 +17,7 @@ test.afterEach(async () => { await cleanup.cleanup({}); });
  *
  * Public, no-login submission is INTENDED (owner, 2026-10-04): a form on a public page must accept
  * strangers. So the stress cases here are the abuse ones: honeypot spam, the per-(IP, form) rate
- * limit (5 / 60 s, burst 0, `features/forms/rate-limit-profile.ts`), a spoofed X-Forwarded-For not
+ * limit (5 / 60 s, burst 0, `@jini-ai/cms/forms/site/rate-limit-profile`), a spoofed X-Forwarded-For not
  * resetting it, double submit, oversized and unknown fields, markup in answers, and an anonymous
  * caller never reading submissions back.
  *

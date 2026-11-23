@@ -99,10 +99,12 @@ import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-to
 import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
-import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
+const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS });
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
-import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
+import { mediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
 import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";

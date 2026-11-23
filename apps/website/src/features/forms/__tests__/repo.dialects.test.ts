@@ -7,7 +7,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { FormSlugConflictError } from "@jini-ai/cms/forms";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
+import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";
 import { submitForm } from "#src/features/forms/index";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";

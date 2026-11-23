@@ -14,7 +14,7 @@ import {
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../collections-i18n";
-import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
+import { defaultNewContentTypeDialogPort } from "../collections-host-ports";
 import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";
 
 /**

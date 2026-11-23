@@ -9,7 +9,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
+import { createFakeCollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
 
 /**

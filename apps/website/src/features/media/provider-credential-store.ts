@@ -1,5 +1,4 @@
-export type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlan, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
-import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";

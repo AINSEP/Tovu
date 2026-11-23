@@ -11,7 +11,7 @@ import { navigate as defaultNavigate } from "@jini-ai/admin/shell/lib/router";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
-import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
+import { defaultCollectionEntryEditorPort } from "../collections-host-ports";
 import type { CollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-port.hooks";
 
 /**
