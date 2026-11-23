@@ -1,4 +1,4 @@
-__FIRSTLINE__
+PARTIAL 0a44b54ca 4cbe36b8a4: 5 lanes held for owner decisions or over-45-min FIXes (ex4-settings J+T, ex4-security J+T, bugs-medium-tovu, visitor-chat-tovu, p11-next J+T); the rest is merged and green vs base except 3 Jini log-safety rows and 2 user-management boundary tests (both listed under New bugs). FILES LEFT 2,486 → 2,269 (−217; excl. themes 2,375 → 2,158)
 
 # combine-15 (2026-11-23): Jini + Tovu `integ/merge-15-2026-11-23`
 
@@ -19,7 +19,7 @@ Measured with `plans/P9-data/tools/scan.mjs` + `plan.mjs` (from `origin/plan/wha
 | tree | moving | shells | **FILES LEFT** (all areas) | **excl. themes** (`theme` + `adm-themes`) |
 |---|---|---|---|---|
 | base (Tovu merge-13 `f7185f153a`) | 2,483 | 3 | **2,486** | **2,375** |
-| final (`__TOVU_SHA__`) | 2,269 | 0 | **2,269** | **2,158** |
+| final (`4cbe36b8a4`) | 2,269 | 0 | **2,269** | **2,158** |
 | **delta** | −214 | −3 | **−217** | **−217** |
 
 The theme-area files stay at 111. Themes stay in Tovu, and no theme file moved.
@@ -62,10 +62,99 @@ Column key: FIX ap = applied, st = already fixed on the current head (dropped as
 **Theme freeze (deploy and media FIX 2):** 14 theme files differ from base, all by import lines only. One was restored to base (`DeclaredScript` ← `@jini-ai/cookie-consent`). The other 13 import modules that the lanes moved or deleted: trash constants (deploy), `content-hash` (inject), the media content-type store (media), `PublicThemeResources`/`ThemeSlotDescriptor`/`Tracker` (seams) and `AssistantSurfaceDeps` (inject). Reverting them would mean re-creating banned re-export shells or undoing those lanes. **Owner call:** accept the import repoints, or hold those cutovers.
 
 ## Gates (base diff; base = combine-14 Jini final / combine-13 Tovu final, both equal to these bases)
-__GATES__
+Jini, final at `0a44b54ca` (base outputs = combine-14 `gates-final/`, whose content equals this base):
+
+| gate | base | final |
+|---|---|---|
+| `pnpm -r build` | 0 (0 `error TS`) | **0** (0 `error TS`) |
+| typecheck + scripts tsc | 0 / 0 | **0 / 0** |
+| `pnpm guard` | 0 | **0** |
+| `pnpm api:check` | 0 (695 entries) | **0** (973 entries, 18,359 symbols; baselines regenerated in `ff3ac5cec`) |
+| size (`SIZE_BASE_REF=4902a6a1a`) | 1 (base rows) | **1, identical rows** |
+| complexity | 1 (4 rows) | **1, the same 4 rows** (2 merge-made rows split away) |
+| hooks | 0 | **0**, with 2 debt rows (required-prop hooks the checker can't see; see New bugs 6) |
+| why-comments `--base 4902a6a1a` | 0 | **0** (11 lost headers restored; 3 debt rows where the code is gone) |
+| log-safety | 1 | **1, plus 3 NEW rows** (cms entity-not-live, restore-points, redirects/shared; see New bugs 5) |
+| error gate | 0 | **0** |
+| `check:cross-package` (no declaration snapshot) | XP1 39 / XP2 33 / XP4 760 / XP5 6 | **XP1 36 / XP2 33 / XP4 760 / XP5 5** (improved). XP3 is snapshot-only "required" noise (2050 → 2102, scales with file count) and was not evaluated |
+| `guard:plugins` | 0 | **0** |
+
+Tovu, final at `4cbe36b8a4` (base = combine-13 `final-*` outputs):
+
+| gate | base | final |
+|---|---|---|
+| typecheck (+e2e) | 0 | **0** |
+| admin tsc | 0 | **0** |
+| desktop tsc ×4 | 0 | **0 ×4** |
+| typecheck:tests | 0 | **0** |
+| typecheck:scripts | 2 | **2, identical** |
+| boundaries | 0 | **0** |
+| hooks | 0 | **0** |
+| errors | 0 | **0** |
+| complexity | 0 | **0** (one merge-made row split away in `delete-user-service.ts`) |
+| worker-import-graph | 26/26 | **pass** |
+| size | 1 | **1**: the same 4 base rows, each one line longer (`dev-auth` 509, `assistant-byok` 532, `usePageEditor` 385, `usePostEditor` 411; the last two come from kit FIX 3's required hook input) |
+| why-comments | 1, 80 open | **1, 78 open, all in the base list**; 42 "moved to Jini / gone" debt rows, each with its reason |
+| architecture | 1 | **1**: propagation 3.29 → **3.26**, deep-import edges 2812 → 2638, 3 base cross-feature edges gone, 1 new (`entries/unreadable-owner-entries-repair` → `trash/registry`, the deploy-restored registry) |
+
 
 ## Tests
-__TESTS__
+**Jini** (`npm run test`, every changed package, `--maxWorkers=3`):
+- **Green:**
+  - admin 3609/3609
+  - core 3022/3022
+  - agent-plugins 2207 (2 skipped)
+  - http-kit 761/761
+  - db 963/963
+  - daemon 4857 (1 skipped)
+  - plugins 1037/1037
+  - desktop-host 832 (1 skipped)
+  - devops 1383/1383
+  - platform 3400 (6 skipped)
+  - diagnostics 1090/1090
+  - node-adapters 38/38
+  - server 469
+  - mcp 1894/1894
+  - cookie-consent 221/221
+  - ui 8820/8820
+  - sidecar 408
+  - protocol 795/795
+  - capability-providers 198/198
+  - registry 392/392
+  - plugin-catalog 68/68
+  - artifacts 242/242
+  - infra 147/147
+  - chat 4496 (13 skipped), with one PGlite hook timeout under load; the file re-ran green alone (12/12)
+- **cms: 12 failed / 5281.**
+  - 1 is BASE-RED: `forms/package-boundary`, the version pin.
+  - 11 timed out at 5000 ms under load (average load ~14).
+  - Those same 11 files pass 111/111 when re-run alone with `--testTimeout=60000`. No assertion failed.
+- **integrations: 1 pglite timeout under load.** The file passes 14/14 alone.
+- **user-management: 1351/1353, 2 NEW reds.** Both are `runtime-boundary` tests; see New bugs 4.
+
+**Tovu node** (one process per file, 4 in parallel, 300 s watchdog). The set is all 311 changed tests plus 1,578 direct importers of changed production files.
+- **Result:** 1,889 files, 23,284 pass / 186 fail. 1,811 files are fully green.
+- **72 red files are BASE-RED.** Each was re-run at base: Tovu merge-13 worktree linked to a Jini merge-14 build, with the same or more failures there. Mostly postgres (no server here), plus the known golden/outbox/plugin-host rows.
+- **The 6 new or worse files are all resolved:**
+  - `seo-og-image-crawlability`: a real Jini regression from bugs-medium B060. Fixed in `@jini-ai/cms` media and now 2/2 (mutation went red).
+  - `moved-tools.golden`: an intended B190 schema change, so the pin was updated. Now 1/1.
+  - `mcp-ui-allowlist-completeness`: the deploy move hid a tool-id constant. The scanner now resolves `@jini-ai` exports. Now 10/1; the 1 is the BASE-RED sentinel.
+  - `mail-engine-adoption`: the test fake versus B016's intended dual request shape. Now 3/3.
+  - `adopt-command` and `export-command`: watchdog only. Alone they pass 15/15 (341 s) and 6/6.
+
+**Tovu admin** (full vitest):
+- 867 files: 14,522 pass / 7 fail.
+- The 2 `panel-access` fails were NEW (routes moved into Jini cms). Fixed: 45/45, mutation red.
+- The 5 remaining fails are in 3 BASE-RED files: JiniMediaPicker.hooks, admin-literal-copy, credential-input-autocomplete. The base had 4 red files; `dictionary-lookup-sinks` is now green.
+
+**Tovu desktop:** 113/113 (worker run after D15).
+
+**Mutations:** every behaviour-changing FIX recorded a named mutation that went red and was restored byte-exact. The plants are listed in the branch table above.
+
+**Notes**
+- **Artifacts:** a checkpoint commit (`68e8647e60`) accidentally added `chat.db*` and `ops/*.db-*`. The very next commit, `d3d674941e`, removed them. They are not in the final tree; the history keeps them because force-push is not allowed.
+- **Held-branch patch:** `cloud-results/combine-15-held/bugs-medium-B176-B201.patch` (apply with `git apply` after the owner decision).
+
 
 ## New bugs found
 1. **Tier-2 import allowlist silently off** (security, fixed here). The ex2-holds Tovu worker passed `importPolicy` where the reworked Jini API ignores it, so Tier-2 plugins could import `node:fs`, `child_process` or npm packages. Jini also derived the content-analyzer root as `built-ins/`. Both are fixed and pinned (see the table).
