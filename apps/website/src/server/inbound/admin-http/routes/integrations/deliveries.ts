@@ -14,7 +14,8 @@ const MAX_DELIVERIES_PAGE_SIZE = 200;
 function resolvePageSize({ rawLimit }: { rawLimit: unknown }, _optional = {}): number {
   const parsed = Number(rawLimit);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_DELIVERIES_PAGE_SIZE;
-  return Math.min(Math.floor(parsed), MAX_DELIVERIES_PAGE_SIZE);
+  // B149: floor(0.5) is 0, a zero-row page. Clamp the floored value up to the documented minimum of 1.
+  return Math.min(Math.max(Math.floor(parsed), 1), MAX_DELIVERIES_PAGE_SIZE);
 }
 
 /**

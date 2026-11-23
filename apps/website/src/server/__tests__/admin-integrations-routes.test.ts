@@ -492,6 +492,24 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
   assert.equal(row?.lastDelivery?.status, "failed");
 });
 
+test("integrations routes: B149 a fractional ?limit= below 1 is clamped up to one row, never a zero-row page", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ label: "Endpoint", targetUrl: "https://example.com/hooks", topics: ["*"] }),
+  });
+  const { subscription } = (await created.json()) as { subscription: { id: string } };
+  for (const [id, createdAt] of [["d-1", "2026-07-10T00:00:00.000Z"], ["d-2", "2026-07-10T02:00:00.000Z"]] as const) {
+    await deps.webhookDeliveryRepo.enqueue({ record: makeDelivery({ id, eventId: `event-${id}`, subscriptionId: subscription.id, createdAt }) });
+  }
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/deliveries?limit=0.5`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const { deliveries } = (await res.json()) as { deliveries: Array<{ id: string }> };
+  assert.deepEqual(deliveries.map((d) => d.id), ["d-2"]);
+});
+
 test("integrations routes: deliveries endpoint returns the log newest-first and 404s for an unknown subscription", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
