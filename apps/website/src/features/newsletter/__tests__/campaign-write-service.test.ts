@@ -359,3 +359,13 @@ test("saveCampaign: an omitted preheader creates null and clears a prior preview
   const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id });
   assert.deepEqual(revisions[2], { workspaceId: WS, campaignId: created.campaign.id, seq: 3, state: edited.campaign, actorId: "actor-2", recordedAt: clock.nowIso() });
 });
+
+// B177: an archived list is retired; new campaigns must not target it.
+test("saveCampaign: an archived list is refused in plain words", async () => {
+  const deps = makeMemoryDeps();
+  await deps.listRepo.save({ id: "list-old", workspaceId: WS, name: "Old", slug: "old", isDefault: false, status: "archived", createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await assert.rejects(
+    saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: { ...validFields, listId: "list-old" } } }),
+    (error: unknown) => error instanceof NewsletterValidationError && error.reason === "archived" && error.message === "This list is archived.",
+  );
+});

@@ -280,3 +280,13 @@ test("importSubscriptions: a dependency failure is reported at its index and pro
   assert.deepEqual((await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 10 })).items, result.created);
   assert.deepEqual(deps.sentEmails.map((email) => email.to.email), ["b@b.test"]);
 });
+
+// B177: an archived list is retired; nobody may be subscribed to it (single or bulk), and no email goes out.
+test("saveSubscription and importSubscriptions refuse an archived list before any write or email", async () => {
+  const deps = makeDeps();
+  await deps.listRepo.save({ id: "list-old", workspaceId: WS, name: "Old", slug: "old", isDefault: false, status: "archived", createdAt: NOW, updatedAt: NOW });
+  const archived = (error: unknown) => error instanceof NewsletterValidationError && error.reason === "archived" && error.message === "This list is archived.";
+  await assert.rejects(saveSubscription({ deps, input: { workspaceId: WS, listId: "list-old", subscriberId: "subscriber-1", source: "admin" } }), archived);
+  await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-old", subscribers: [{ subscriberId: "subscriber-1", source: "import" }] } }), archived);
+  assert.equal(deps.sentEmails.length, 0);
+});

@@ -14,6 +14,7 @@ import {
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
 } from "./errors.js";
+import { refuseArchivedList } from "./lists.js";
 import type {
   MembersConsentCapability,
   NewsletterListRepoPort,
@@ -45,6 +46,7 @@ export async function saveSubscription(required: {
   if (!list) {
     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
   }
+  refuseArchivedList({ list });
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
@@ -145,6 +147,7 @@ export async function importSubscriptions(required: {
   if (!list) {
     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
   }
+  refuseArchivedList({ list });
 
   const created: SubscriptionRow[] = [];
   const failed: { index: number; code: string; message: string }[] = [];

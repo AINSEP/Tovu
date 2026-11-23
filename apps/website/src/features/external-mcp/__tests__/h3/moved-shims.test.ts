@@ -27,7 +27,7 @@ test("Tovu's own names keep their arity and bindings", () => {
   const error = oldOAuth.createExternalMcpReauthRequiredError({ serverId: "docs" });
   assert.ok(error instanceof oldOAuth.ExternalMcpReauthRequiredError);
   assert.equal(error.settingsLink, oldOAuth.externalMcpSettingsDeepLink({ serverId: "docs" }));
-  assert.equal(oldOAuth.externalMcpSettingsDeepLink({ serverId: "a b" }), "/settings/external-mcp?server=a%20b");
+  assert.equal(oldOAuth.externalMcpSettingsDeepLink({ serverId: "a b" }), "/addons/integrations?tab=external-mcp&server=a%20b");
 });
 
 test("no moved body is left in the old files", () => {

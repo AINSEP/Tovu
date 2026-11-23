@@ -12,7 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { UUID } from "@jini-ai/core/primitives";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
-import { NewsletterConfirmTokenInvalidError } from "./errors.js";
+import { NewsletterConfirmTokenInvalidError, NewsletterConsentUnavailableError } from "./errors.js";
 import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
@@ -157,7 +157,7 @@ export async function consumeConfirmationToken(required: {
   if (!subscription) throw new NewsletterConfirmTokenInvalidError({ message: "subscription was not found", reason: "not_found" });
 
   if (!deps.consentCapability) {
-    throw new Error(
+    throw new NewsletterConsentUnavailableError(
       "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)"
     );
   }

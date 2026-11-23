@@ -410,3 +410,22 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
 - `B233` stale collection sort — `WidgetConfigFields.hooks.tsx` is changed by `codex/ex5-collections-tovu`.
 - `C043` tier-2 import allowlist — `plugin-tier2/worker.ts` is changed by `codex/ex2-holds-tovu`, which already
   carries a C043 import policy and `worker-import-allowlist.integration.test.ts`.
+
+## bugs-medium (Tovu `codex/bugs-medium-tovu`, Jini `codex/bugs-medium-jini`, 2026-11-23)
+
+MED rows of `plans/P8-triaged-backlog.md`, fixed test-first on the merge-13 (Tovu) / merge-14 (Jini) bases.
+Full table: `cloud-results/bugs-medium.md`.
+
+- `B146` — FIXED-ON-BRANCH (Jini): webhook update defaults `expectedVersion` to the version it read.
+- `B166` — FIXED-ON-BRANCH (Jini): copy-plan store caps plans per principal.
+- `B060` — FIXED-ON-BRANCH (Jini): sharp transforms never enlarge a small source.
+- `B016` — FIXED-ON-BRANCH (Jini): Resend send passes Jini's `{ request }` shape too (plugin 0.2.4).
+- `B176` — PARTIAL-ON-BRANCH: with consent unbound, the public confirm link shows a plain 503 page
+  ("This subscription link can’t be confirmed right now. Ask the site owner.") instead of a 500, and
+  the token stays unused. Still OPEN: tokens and confirmation emails are still issued while unbound
+  (changing that touches every subscribe path and their tests; left for a design call).
+- `B177` — FIXED-ON-BRANCH: campaign saves/schedules and single/bulk subscriptions refuse an archived
+  list ("This list is archived.", `NewsletterValidationError` reason `archived`).
+- `B201` — FIXED-ON-BRANCH: the External MCP reauth deep link points at `/addons/integrations?tab=external-mcp&server=<id>`.
+- `B237` — FIXED-ON-BRANCH: WebMCP script injection finds `</body>` case-insensitively on the original HTML.
+- `B165` — FIXED-ON-BRANCH: site import checks only the derived slug (trimmed), so names ending in "." or a space import.

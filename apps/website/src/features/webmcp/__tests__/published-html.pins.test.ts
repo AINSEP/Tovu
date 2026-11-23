@@ -53,3 +53,12 @@ test('opt-out removes repeated mixed-case attributes in templates without editin
   assert.equal(cleaned, expected);
   assert.equal(injectPublishedWebMcp({ html: cleaned, enabled: false }), expected);
 });
+
+// B237: `"İ".toLowerCase()` is two UTF-16 units, so an index taken from the lowercased copy landed
+// past the real `</body>` and split the page's own text.
+test("a capital İ before </body> does not shift where the script is injected", () => {
+  const html = "<html><body><p>İstanbul İzmir</p></BODY></html>";
+  const out = injectPublishedWebMcp({ html, enabled: true });
+  assert.ok(out.startsWith("<html><body><p>İstanbul İzmir</p><script "), out.slice(0, 80));
+  assert.ok(out.endsWith("</script></BODY></html>"), out.slice(-60));
+});

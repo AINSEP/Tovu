@@ -88,6 +88,10 @@ export class NewsletterLaunchGateBlockedError extends Error {
   }
 }
 
+/** No Members consent binding yet (ADR-PIPE-011). Named so the public confirm page can show the
+ * visitor a plain "not right now" page instead of a 500 with an error ID (B176). */
+export class NewsletterConsentUnavailableError extends Error {}
+
 /** errors.spec.md §3: `{ reason: 'expired'|'already_consumed'|'not_found' }`. */
 export class NewsletterConfirmTokenInvalidError extends Error {
   public readonly reason: "expired" | "already_consumed" | "not_found";
