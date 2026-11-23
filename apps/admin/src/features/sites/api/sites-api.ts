@@ -1,7 +1,8 @@
 import { adminFailureChannel } from "../../../lib/admin-failure-channel";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminGeneratedSiteKey, AdminImportedSiteKey, AdminLocalSiteAction, AdminRevealedSiteKey, AdminSiteActivation, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminSitesSnapshot, AdminStartedFreshSiteKey, AdminTokenSignInPlugin, SitesUserConfig, SitesUserConfigPatch } from "./sites-api.types";
+import type { AdminGeneratedSiteKey, AdminImportedSiteKey, AdminRevealedSiteKey, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminStartedFreshSiteKey } from "@jini-ai/core/contracts/site/site-key";
+import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminLocalSiteAction, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin, SitesUserConfig, SitesUserConfigPatch } from "./sites-api.types";
 
 /** The admin API calls of the sites feature. */
 export const sitesApi = {
@@ -65,7 +66,7 @@ export const sitesApi = {
   revealSiteKey: () =>
     request<AdminRevealedSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/reveal` }, { init: { method: "POST" } }),
   /** Makes sure this site has the RIGHT key, never a second one (2026-09-29): resolves `200`
-   *  `already-active`/`recovered` or `201` `created` ({@link AdminSiteKeyGenerateOutcome}).
+   *  `already-active`/`recovered` or `201` `created` (`AdminSiteKeyGenerateOutcome`).
    *  Refusals are `409 {error, detail}`, nothing written, thrown as an `ApiError` whose `.message`
    *  is the code and whose `.body.detail` is a plain-words sentence: `KEY_DEPENDENT_DATA` (saved
    *  credentials need a key that is not here), `KEY_MISMATCH` (the key here is not the one they

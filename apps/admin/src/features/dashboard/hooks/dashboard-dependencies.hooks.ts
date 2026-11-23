@@ -1,4 +1,4 @@
-import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteKeyState } from "@jini-ai/core/contracts/site/site-key";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import { themesApi } from "@/features/themes/api/themes-api";
