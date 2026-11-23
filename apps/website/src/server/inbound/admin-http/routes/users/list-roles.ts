@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { toAdminRoleResponse } from "#src/server/inbound/admin-http/http/users";
+import { toAdminRoleResponse } from "@jini-ai/user-management/admin-http/http/users";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { UsersRouteRegistrar } from "./deps.js";

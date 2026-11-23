@@ -12,7 +12,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminNewsletterCancelCampaignRoute } from "../cancel-campaign.js";
+import { registerAdminNewsletterCancelCampaignRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { CampaignRecord } from "#src/features/newsletter/types";
 

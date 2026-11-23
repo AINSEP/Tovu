@@ -11,11 +11,11 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserListRoute } from "../list.js";
-import { registerAdminUserUpdateRoute } from "../update.js";
-import { registerAdminUserEnableRoute } from "../enable.js";
-import { registerAdminUserDisableRoute } from "../disable.js";
-import { registerAdminUserCreateRoute } from "../create.js";
+import { registerAdminUserListRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserUpdateRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserEnableRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserDisableRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserCreateRoute } from "#src/server/runtime/composition/modules/users";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createUser } from "@jini-ai/user-management/server";
 

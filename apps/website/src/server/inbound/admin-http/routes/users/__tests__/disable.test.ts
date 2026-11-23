@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserDisableRoute } from "../disable.js";
+import { registerAdminUserDisableRoute } from "#src/server/runtime/composition/modules/users";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createUser, createSessionForPrincipal, validateSession } from "@jini-ai/user-management/server";
 import { IdentityValidationError } from "@jini-ai/user-management";

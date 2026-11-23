@@ -1,6 +1,6 @@
 import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { registerAdminUserListRoute } from "../list.js";
+import { registerAdminUserListRoute } from "#src/server/runtime/composition/modules/users";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -14,13 +14,13 @@ import { bindTrashUserForTool } from "#src/server/runtime/composition/trash-user
 import { withUserTrashAdminOverride } from "#src/server/runtime/composition/trash-user-admin-override";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { registerAdminUserDisableRoute } from "../disable.js";
-import { registerAdminUserDeleteRoute } from "../delete.js";
-import { registerAdminUserResetPasswordRoute } from "../reset-password.js";
-import { registerAdminUserUpdateRoute } from "../update.js";
-import { registerAdminUserEnableRoute } from "../enable.js";
-import { registerAdminRoleDeleteRoute } from "../delete-role.js";
-import { registerAdminRoleUpdateRoute } from "../update-role.js";
+import { registerAdminUserDisableRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserDeleteRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserResetPasswordRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserUpdateRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminUserEnableRoute } from "#src/server/runtime/composition/modules/users";
+import { registerAdminRoleDeleteRoute } from "#src/server/runtime/composition/modules/users-access";
+import { registerAdminRoleUpdateRoute } from "#src/server/runtime/composition/modules/users-access";
 
 const workspaceId = "account-protections";
 const base = "/api/admin/v1/workspaces/:workspaceId/users";

@@ -11,7 +11,6 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteImportRoutes } from "../../routes/system/site-imports.js";
 import { registerAdminRecoveryRestoreRoutes, sendRecoveryError } from "../../routes/recovery/restore.js";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { newsletterErrorToResponse } from "../newsletter.js";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
@@ -123,7 +122,6 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse({ err }, options),
   widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
   peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),

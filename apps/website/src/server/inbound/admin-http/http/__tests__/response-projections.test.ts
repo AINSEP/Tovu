@@ -5,7 +5,7 @@ import { toApiKeyIssueResponse, toApiKeyPrincipalResponse } from "../api-keys.js
 import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionResponse } from "../integrations.js";
 import { toAdminMediaListResponse, toAdminMediaResponse } from "../media.js";
 import { toAdminMemberResponse } from "../members.js";
-import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "../users.js";
+import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "@jini-ai/user-management/admin-http/http/users";
 import { toAdminWorkspaceResponse } from "../workspace.js";
 
 // F1.2/F4.1: independent literal wire contracts; adding a record spread or dropping a field
