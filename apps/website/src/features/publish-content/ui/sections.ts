@@ -12,21 +12,7 @@
  * its own dictionary (`dashboard-i18n.ts`). Pure data, no runtime dependency (see `index.ts`).
  */
 
-export interface PublishSection {
-  /** Stable id a list page names its button by, e.g. `<PublishSectionButton section="forms" />`. */
-  readonly section: string;
-  /** Everything this section's button sends — the dialog's `scope.entityTypes`, verbatim. */
-  readonly entityTypes: readonly string[];
-  /** Button label and the section-scoped dialog's title. */
-  readonly labelKey: string;
-  /** The section-scoped dialog's description line. */
-  readonly descriptionKey: string;
-  /** Friendly name per entity type, shown in the dialog's type column. */
-  readonly typeLabelKeys: Readonly<Record<string, string>>;
-  /** The same names, plural — the dialog's counted lines ("Forms (7) can't publish yet…"). Same keys
-   *  as `typeLabelKeys`, enforced by `section()`'s signature. */
-  readonly typePluralLabelKeys: Readonly<Record<string, string>>;
-}
+import type { PublishSection } from "@jini-ai/core/contracts/site/ui-sections";
 
 export const PUBLISH_SECTIONS = [
   section({ id: "pages", labelKey: "Publish pages", descriptionKey: "Sends your pages to the live site.", typeLabelKeys: { page: "Page" }, typePluralLabelKeys: { page: "Pages" } }),

@@ -11,7 +11,7 @@ import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, me
 import { useSitePower } from './use-site-power.hooks.js';
 import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
 import { createDesktopResources } from '../desktop-resources.ts';
-import type { ProcessUsage } from '@jini-ai/platform/process';
+import type { ProcessUsage } from '@jini-ai/core/contracts/site/platform-process';
 
 Object.assign(globalThis, { React });
 installDom();

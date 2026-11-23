@@ -5,7 +5,7 @@ import {
   createNodeDurableJsonPorts,
   salvageJsonPrefix as recoverJsonPrefix,
 } from "@jini-ai/platform/fs/durable-json";
-import type { FileLockOptions, JsonFileRead, QuarantineNotice } from "@jini-ai/platform/fs/durable-json";
+import type { FileLockOptions, JsonFileRead, QuarantineNotice } from "@jini-ai/core/contracts/site/fs-durable-json";
 
 /** Bind native effects and Tovu notices to one file. @complexity O(1). */
 function desktopJsonFile({ filePath }: { filePath: string }, _optional = {}) {

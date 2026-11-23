@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError } from "@/lib/admin-http/request";
 import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "../hooks/site-key-port.hooks";

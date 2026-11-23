@@ -1,5 +1,5 @@
 /** Desktop OS adapter for the reviewed batched footprint read; no per-process probes. */
-import type { ProcessPrivateMemory, ProcessUsage } from '@jini-ai/platform/process';
+import type { ProcessPrivateMemory, ProcessUsage } from '@jini-ai/core/contracts/site/platform-process';
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { applyElectronMemoryReadings, type ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { MemoryMetric, ResourceProcess } from './contracts/resources.ts';

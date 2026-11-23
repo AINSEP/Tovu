@@ -1,7 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
