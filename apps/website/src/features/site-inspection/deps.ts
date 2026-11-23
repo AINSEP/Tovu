@@ -5,7 +5,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 
-import type { LiveOriginSourceDeps } from "./live-url.js";
+import type { LiveOriginSourceDeps } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { ADMIN_SCREENS } from "./admin-screens.generated.js";
 import type { InspectionFailureReporter } from "@jini-ai/cms/site-inspection/section-collector";
 import type { SiteCapabilitiesDeps, SiteCapabilityToolRow } from "@jini-ai/cms/site-inspection/site-capabilities";

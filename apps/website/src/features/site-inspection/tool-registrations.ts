@@ -1,10 +1,11 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/site-inspection.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import type { HttpClientPort } from "#src/platform/http/index";
+import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { readPageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
-import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./live-url.js";
+import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveEgressRefusal } from "@jini-ai/diagnostics/web-evidence/live-url";
+import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
@@ -146,7 +147,11 @@ function readSections<N extends string>(input: Record<string, unknown>, vocabula
   return raw as N[];
 }
 
-export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: FetchLiveUrlDeps): ToolRegistration[] {
+/** The live-fetch collaborators a composition supplies; this module binds the URL-space and egress policy. */
+type HostLiveUrlDeps = Omit<FetchLiveUrlDeps, "reservedSegments" | "isEgressRefusal">;
+const isEgressRefusal: LiveEgressRefusal = (error): error is EgressRefusedError => error instanceof EgressRefusedError;
+
+export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps, liveDeps?: HostLiveUrlDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     site_get_profile: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input ?? {} });
@@ -173,7 +178,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
       if (input.origin !== undefined && typeof input.origin !== "string") throw new ToolInputError({ message: "fetch_live_url: origin must be a known HTTPS origin string." });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
       if (!liveDeps) throw new ToolInputError({ message: "fetch_live_url: the guarded live HTTP client is not wired on this host." });
-      return fetchLiveUrl(liveDeps, { path, origin: input.origin as string | undefined, ...options });
+      return fetchLiveUrl({ ...liveDeps, reservedSegments: RESERVED_SEGMENTS, isEgressRefusal }, { path, origin: input.origin as string | undefined, ...options });
     },
     fetch_published_page: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -207,7 +212,7 @@ export function contributeSiteInspectionTools(httpClient?: HttpClientPort): Tool
     domain: "site-inspection",
     build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {
       httpClient,
-      listKnownOrigins: () => listKnownLiveOrigins(deps),
+      listKnownOrigins: () => listKnownLiveOrigins({ ...deps, selectConnectedDestination }),
       observeFetch: event => console.info(JSON.stringify({
         timestamp: new Date().toISOString(), level: "info", service: "site-inspection",
         message: "fetch_live_url", context: event,
