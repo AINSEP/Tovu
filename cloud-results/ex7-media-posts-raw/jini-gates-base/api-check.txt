@@ -1,0 +1,11 @@
+
+> jini@ api:check /tmp/claude-0/jini-base
+> node --import tsx ./scripts/check-api-surface.ts
+
+[api] @jini-ai/cms
+  changed export  ./media#ImageEncodeInput
+  changed export  ./media/site/original-bytes#readStoredBytes
+[api] @jini-ai/platform
+  changed export  ./object-store/site/setting#ensureMediaObjectStoreSetting
+  changed export  ./object-store/site/setting#readMediaObjectStoreSetting
+[api] checked 40 packages, 863 entries, 18002 symbols
