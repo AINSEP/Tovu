@@ -13,8 +13,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminRedirectListRoute } from "../list.js";
-import type { RedirectRouteDeps } from "#src/server/inbound/admin-http/http/redirects";
+import { registerAdminRedirectListRoute } from "#src/server/runtime/composition/modules/redirects";
+import type { RedirectRouteDeps } from "#src/server/runtime/composition/modules/redirects";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/redirects`;

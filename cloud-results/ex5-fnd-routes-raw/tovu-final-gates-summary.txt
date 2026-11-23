@@ -1,0 +1,19 @@
+HEAD 16de005f4
+size exit=1 secs=24
+boundaries exit=0 secs=30
+admin-tsc exit=2 secs=37
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-live-verify exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=7
+desktop-tsc-main exit=0 secs=18
+typecheck exit=0 secs=50
+hooks exit=0 secs=1
+worker-import-graph exit=0 secs=21
+errors exit=0 secs=25
+complexity exit=0 secs=29
+typecheck-scripts exit=2 secs=25
+why-comments exit=1 secs=0
+typecheck-tests exit=0 secs=58
+architecture exit=1 secs=75
+route-table-pin exit=1 secs=7
+DONE
