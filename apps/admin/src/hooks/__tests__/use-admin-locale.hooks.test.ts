@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { createFakeAdminLocalePort, DEFAULT_LOCALE } from "../admin-locale-dependencies.hooks";
-import type { AdminLocalePort } from "../admin-locale-port.hooks";
+import type { AdminLocalePort } from "@jini-ai/admin/shell/hooks/admin-locale-port.hooks";
 import { useAdminLocale, useWiredAdminLocale } from "../use-admin-locale.hooks";
 
 /**

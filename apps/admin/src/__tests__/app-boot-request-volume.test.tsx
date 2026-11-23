@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { appShellApiBody } from "./app-shell-api.fixture";
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { createAssistantLastConversationStore } from "../hooks/assistant-chats-dependencies.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 

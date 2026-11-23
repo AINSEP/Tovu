@@ -3,7 +3,7 @@ import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useEffect } from "react";
 
 import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
-import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 
 /**

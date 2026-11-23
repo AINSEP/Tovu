@@ -15,7 +15,7 @@ import type {
 } from "./hooks/use-source-control-credentials.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Providers tab — `SourceControl.tsx`'s one tab today, and this feature's actual content.
  * Three always-visible rows — GitHub, GitLab, Bitbucket, in that order (GitHub is the one that

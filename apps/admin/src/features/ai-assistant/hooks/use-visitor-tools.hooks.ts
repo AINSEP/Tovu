@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import {
   VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, visitorToolsPort,
   type VisitorToolLimits, type VisitorToolMode, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView,

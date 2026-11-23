@@ -5,7 +5,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { useMessagesChangeHandler } from "../hooks/messages-change.hooks";
 import { resetContentRefreshBus, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 /**
  * @file `useMessagesChangeHandler` — the one publisher that fires when an assistant run finishes.

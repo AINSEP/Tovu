@@ -20,7 +20,7 @@ import {
 } from "./rules";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Library screen (`/admin/library`) — markup only; state lives in
  * `hooks/use-library.hooks.ts`. Private documents for this site that the assistant can read

@@ -6,7 +6,7 @@ import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
 import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
-import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 afterEach(cleanup);

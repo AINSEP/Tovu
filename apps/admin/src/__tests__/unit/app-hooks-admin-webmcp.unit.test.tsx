@@ -6,7 +6,7 @@ import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
 import { PAGE_CAPABILITIES, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
-import { adminFrontendTabId, subscribeToAdminPageSurfaces } from "../../lib/admin-frontend-session";
+import { adminFrontendTabId, subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 // Inject the transport factory; no module replacement or network is needed for page registration.

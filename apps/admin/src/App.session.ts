@@ -11,7 +11,7 @@ import {
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 /** @file The pure (non-hook) pieces of `useAdminSession` in `App.hooks.ts`: session reads, sign-in and sign-out. */
 

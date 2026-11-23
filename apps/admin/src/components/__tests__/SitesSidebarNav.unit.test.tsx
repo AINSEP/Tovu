@@ -7,7 +7,7 @@ import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { useCmsSidebarLabelTooltips } from "@/hooks/use-cms-sidebar-label-tooltips.hooks";
+import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "../SitesSidebarNav";
 
 const groups: AdminNavGroup[] = [{ items: [{ id: "sites", label: "Sites", href: "/sites", icon: "", order: 1 }] }];

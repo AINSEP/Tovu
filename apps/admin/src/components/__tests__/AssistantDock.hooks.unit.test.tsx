@@ -6,7 +6,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import { onUnauthenticated } from "../../lib/admin-http/request";
-import { adminFrontendTabId } from "../../lib/admin-frontend-session";
+import { adminFrontendTabId } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 
 /**
  * @file `AssistantDock.hooks.tsx` — the three extracted hooks (`useExecutionConfig`,
@@ -40,7 +40,7 @@ const { settingsRefreshListeners } = vi.hoisted(() => ({
   settingsRefreshListeners: [] as Array<(scope: readonly string[] | null) => void>,
 }));
 
-vi.mock("../../lib/settings-refresh-bus", () => ({
+vi.mock("@jini-ai/admin/shell/lib/settings-refresh-bus", () => ({
   publishSettingsRefresh: vi.fn(),
   subscribeToSettingsRefresh: vi.fn((listener: (scope: readonly string[] | null) => void) => {
     settingsRefreshListeners.push(listener);
@@ -117,7 +117,7 @@ import {
   loadExecutionConfig,
   saveExecutionConfig,
 } from "../../lib/execution-settings";
-import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { localCliSelectionFromConfig } from "../AssistantDock/execution-config-write";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";

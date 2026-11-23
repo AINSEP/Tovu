@@ -1,5 +1,5 @@
 import { render, renderHook, waitFor } from "@testing-library/react";
-import { useCmsSidebarLabelTooltips } from "../../hooks/use-cms-sidebar-label-tooltips.hooks";
+import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";

@@ -16,9 +16,9 @@ import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 import { unchangedSaveHandlers } from "@jini-ai/admin/shell/lib/unchanged-save-warning";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
-import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
+import { useAgentScreenEntry } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
 import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import {
   useStandingDraftAutosave,

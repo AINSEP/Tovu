@@ -4,7 +4,7 @@ import { type ExecutionConfig } from "@jini-ai/ui";
 import { useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { CachedLoader } from "@jini-ai/core/fetch";
-import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { isAbortError, retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { EXECUTION_NAMESPACE, loadAdminExecutionCredential, loadExecutionConfig } from "@/lib/execution-settings";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";

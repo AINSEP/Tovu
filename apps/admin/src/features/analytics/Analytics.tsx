@@ -4,7 +4,7 @@ import { adminHref } from "@jini-ai/admin/shell/lib/router";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
  *

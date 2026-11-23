@@ -10,7 +10,7 @@ import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom"
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
-import { adminFrontendTabId, publishAdminPageSurface } from "./lib/admin-frontend-session";
+import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
@@ -43,7 +43,7 @@ import {
 } from "@tovu/publish-content-ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "./lib/tab-event-source";
-import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";

@@ -31,8 +31,8 @@ import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { rememberPostEditorRouteRename } from "../post-editor-route-key";
 import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useAgentScreenEntry } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import {
   useStandingDraftAutosave,

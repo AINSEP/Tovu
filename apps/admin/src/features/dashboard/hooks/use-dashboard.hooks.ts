@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { useFetchQuery, useInvalidate, type QueryResult } from "@jini-ai/ui/fetch-query";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { describeApiError } from "@/lib/admin-http/request";

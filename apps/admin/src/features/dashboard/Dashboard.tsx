@@ -11,7 +11,7 @@ import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Admin landing screen — markup only.
  *

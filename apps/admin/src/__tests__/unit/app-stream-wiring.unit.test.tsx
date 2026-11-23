@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from "vitest";
 import { useAdminSession, useAgentPageBridge } from "../../App.hooks";
-import { adminFrontendTabId } from "../../lib/admin-frontend-session";
+import { adminFrontendTabId } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { FrontendSessionBridge, createFrontendSessionBridge } from "@jini-ai/chat/react";
 

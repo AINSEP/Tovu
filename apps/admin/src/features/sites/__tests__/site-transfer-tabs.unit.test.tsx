@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The tabs take the viewer's zone from the admin boundary; a getter lets one test pick a zone.
 const viewerZone = vi.hoisted(() => ({ value: "UTC" }));
-vi.mock("@/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZONE() { return viewerZone.value; } }));
+vi.mock("@jini-ai/admin/shell/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZONE() { return viewerZone.value; } }));
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ApiError } from "@/lib/admin-http/request";

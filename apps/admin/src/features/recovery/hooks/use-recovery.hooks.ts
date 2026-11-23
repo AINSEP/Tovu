@@ -7,7 +7,7 @@ import type { AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery
 import { describeApiError } from "@/lib/admin-http/request";
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t } from "../recovery-i18n";

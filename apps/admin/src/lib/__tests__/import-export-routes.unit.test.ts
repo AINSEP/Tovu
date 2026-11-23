@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseRoute } from "../../App";
-import { resolveImportExportRoute } from "../import-export-routes";
+import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
 
 describe("resolveImportExportRoute (owner, 2026-10-25: Sites → Export/Import moved to Import & Export)", () => {
   it.each(["export", "import"])("sends /sites?tab=%s to the Import & Export tab", (tab) => {

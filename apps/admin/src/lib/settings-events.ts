@@ -23,7 +23,7 @@
  * ordinary network retries still belong to the same native EventSource.
  */
 import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
-import { publishSettingsRefresh } from "./settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { startBrowserStream, type BrowserStreamPorts } from "./browser-stream";
 import { adminStreamActivity, type StreamActivity } from "./stream-activity";
 

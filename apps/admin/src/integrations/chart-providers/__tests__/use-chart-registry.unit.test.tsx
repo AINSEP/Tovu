@@ -4,7 +4,7 @@ import { afterEach, expect, it } from "vitest";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { ChartProvider } from "@jini-ai/core/contracts/charts";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeChartRegistryPort } from "../chart-registry-dependencies.hooks";
 import { useAdminChartRegistry } from "../use-chart-registry.hooks";

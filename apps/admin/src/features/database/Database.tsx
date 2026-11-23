@@ -17,7 +17,7 @@ import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
 import { formatTimestamp, resolveActiveTabId } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
  * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`@jini-ai/ui/tab-strip`)

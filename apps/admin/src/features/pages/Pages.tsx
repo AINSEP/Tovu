@@ -24,7 +24,7 @@ import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.h
 import { ThemePagesTab } from "./ThemePagesTab";
 
 import { type Translate, formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Pages list screen — markup only.
  *

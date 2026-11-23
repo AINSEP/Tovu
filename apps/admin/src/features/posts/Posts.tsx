@@ -18,7 +18,7 @@ import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 import { formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Posts list screen — markup only.
  *

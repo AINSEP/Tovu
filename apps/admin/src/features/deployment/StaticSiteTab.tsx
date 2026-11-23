@@ -38,7 +38,7 @@ import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hook
 import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
 import { formatTimestamp, interpolate, splitOnPlaceholders, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 function PublishFailureNotice({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
   if (controller.publishFailure) return <ErrorNotice failure={controller.publishFailure} t={translate} className="save-error" />;
   return controller.publishError ? <p className="save-error" role="alert">{controller.publishError}</p> : null;

@@ -7,9 +7,9 @@ import {
   readAgentScreenContext,
   resetAgentScreenContext,
   type AgentScreenEntry,
-} from "../agent-screen-context";
+} from "@jini-ai/admin/shell/lib/agent-screen-context";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
-import { useAgentScreenEntry, useAgentScreenRoute } from "@/hooks/use-agent-screen-context.hooks";
+import { useAgentScreenEntry, useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
 
 /**
  * @file The admin screen the assistant is told about with every message (2026-09-16 owner report:
