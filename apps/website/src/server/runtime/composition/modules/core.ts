@@ -3,7 +3,7 @@ import { requirePublishTrust } from "#src/server/inbound/admin-http/publish-trus
 import { healthRoute, healthzRoute } from "@jini-ai/cms/public-http/routes/ops/health";
 import { mountPublicJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerReadyzRoute, type NoDepsRouteRegistrar } from "#src/server/inbound/public-http/routes/ops/health";
-import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";
+import { registerPublishTrustHandshakeRoutes } from "./publish-trust.js";
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
