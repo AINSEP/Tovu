@@ -3144,6 +3144,34 @@
     {
       "id": "6773262ded2d",
       "reason": "RT-I2 (RT-K1-adm-commerce): moved with the code to Jini packages/cms/src/admin-http/routes/commerce/status.ts (file header + handler comment) and the Tovu registrar doc, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "78a2d385271e",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "232967daf85d",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0ce25813ca15",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7e149ea203d9",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1efe97ec203d",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "64804bc1bce8",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1cc38dfc6029",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
     }
   ]
 }

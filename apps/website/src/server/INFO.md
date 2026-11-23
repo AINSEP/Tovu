@@ -57,3 +57,6 @@ first in the core module as before. `/readyz` stays hand-written in `inbound/pub
 Commerce (`runtime/composition/modules/commerce.ts`) exports `registerAdminCommerceStatusRoute`, mounting the Jini
 `commerceStatusRoute` (`"direct"`, operation `routes/commerce/status`) with `readCommerceStatus` from `@jini-ai/commerce` bound
 to `deps.lipay` per request. Production leaves it unmounted, as before; only tests mount it.
+Site profile (`runtime/composition/modules/site.ts`, mounted from `http-app/mount-admin-system.ts`) mounts the Jini
+`siteProfileRoute` (`"direct"`, operation `routes/site/profile`), binding `buildSiteProfile(toSiteProfileDeps(deps))` and the
+`SITE_PROFILE_SECTION_NAMES`/`MAX_PAGE_ITEMS` constants.

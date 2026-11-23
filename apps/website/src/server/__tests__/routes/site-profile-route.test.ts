@@ -5,7 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 import express from "express";
-import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
+import { registerAdminSiteProfileRoute } from "#src/server/runtime/composition/modules/site";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
 import { externalMcpVaultEnvelope } from "../../../features/external-mcp/external-mcp-vault.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
