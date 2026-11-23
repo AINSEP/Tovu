@@ -6,12 +6,17 @@ custody. **Storage, rollup, dashboards, goals, and export are a separate, later 
 Round-2 fold) and are NOT implemented in this module yet.
 
 The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jini-ai/analytics`
-(see `development/DELETED-CODE.md`). Tovu owns its privacy/HKDF presets and port converters in
-`jini-adapters.ts`; the Jini package owns normalization, policy enforcement and the local buffer.
+(see `development/DELETED-CODE.md`). The port converters and privacy preset moved to
+`@jini-ai/analytics/site/jini-adapters`; Tovu keeps its HKDF wire context (`salt-context.ts`, a
+hash input that must stay byte-identical) and its forward-failure console line
+(`warn.ts#reportAnalyticsForwardFailure`), both injected as REQUIRED `AnalyticsIngestRouteDeps` fields
+(`saltContext`, `reportForwardFailure`) at `server/runtime/composition/http-app/visitor-submit.ts`.
+The Jini package owns normalization, policy enforcement and the local buffer.
 
 ## Responsibilities
 
-- Derive the daily-rotating, per-workspace analytics salt on demand, never persisting it (`salt.ts`).
+- Derive the daily-rotating, per-workspace analytics salt on demand, never persisting it (`@jini-ai/analytics/site/salt`, with
+  the host's `salt-context.ts#analyticsSaltContext` injected).
 - Normalize raw per-request signals (IP, User-Agent) into a salted `visitorHash` plus coarse
   device/browser/os classes, and discard the raw inputs at that boundary — they never reach any
   returned object (`@jini-ai/analytics#normalizeIngestContext`).
@@ -19,7 +24,7 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
   `AnalyticsPiiRejectedError`).
 - Compose workspace resolution, DNT/GPC/exclusion policy checks, PII rejection, and sink hand-off
   into a single ingest entry point (`@jini-ai/analytics#ingestHit`).
-- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`jini-adapters.ts#createLocalAnalyticsSink`, backed by `@jini-ai/analytics#LocalBufferSink`)
+- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`@jini-ai/analytics/site/jini-adapters#createLocalAnalyticsSink`, backed by `@jini-ai/analytics#LocalBufferSink`)
   and a durable SQLite adapter for real composition (`platform/db/sqlite/analytics-sink.sqlite.ts#SqliteBufferSink`,
   ADR-046 Phase 1, final capability slice — the raw hit buffer now survives a restart).
 
@@ -53,7 +58,7 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
 
 `contracts.ts` (`VisitorAnalyticsDeps`, `BrowserAnalyticsSource`) moved to
 `@jini-ai/analytics/site/contracts`; the `index.ts` barrel that re-exported it beside
-`jini-adapters.ts` was deleted, so callers import `#src/features/analytics/jini-adapters` and
+`jini-adapters.ts` was deleted, so callers import `@jini-ai/analytics/site/jini-adapters` and
 the Jini specifier directly. The barrel's type-model notes are kept here:
 
 The type model behind these ports lives in `@jini-ai/analytics`; this host persists it as follows.
@@ -76,7 +81,7 @@ not cross-site, not cross-day). This is the Plausible/Fathom mechanism.
 
 - **`KeyringPort` mismatch (Round-2 audit blocker).** `src/webhooks/ports.ts`'s `KeyringPort`
   is signing-specific (`deriveSigningSecret`) and cannot serve generic salt derivation yet.
-  `salt.ts#deriveDailySalt` therefore takes a raw `analyticsSeed` string instead of calling
+  `@jini-ai/analytics/site/salt#deriveDailySalt` therefore takes a raw `analyticsSeed` string instead of calling
   `KeyringPort` — see the `TODO` in that file. Rewire once a corrected, generic
   `KeyringPort.derive()` ships.
 - **Session-id v1 simplification.** The Jini engine buckets by a fixed 30-minute

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAnalyticsForwarderRegistry, type AnalyticsHooks as EngineHooks, type AnalyticsSiteConfig, type NormalizedHit } from "@jini-ai/analytics";
+import { createAnalyticsForwardLimiter, createAnalyticsForwarderRegistry, type AnalyticsHooks as EngineHooks, type AnalyticsSiteConfig, type NormalizedHit } from "@jini-ai/analytics";
+import { createAnalyticsIngestBinding, createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
 import { cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks, type AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
 
 import { analyticsProviderRouteDeps } from "#src/server/runtime/composition/analytics-providers";
-import { warnAnalytics } from "../warn.js";
+import { analyticsSaltContext } from "../salt-context.js";
+import { reportAnalyticsForwardFailure, warnAnalytics } from "../warn.js";
 
 /**
  * @file The host analytics warn reporter keeps the console output byte-identical to the
@@ -57,4 +59,20 @@ test("analyticsProviderRouteDeps wires the host reporter into forwarders and hoo
     ["[analytics] analytics sink 'x' is not installed; hits stay in the built-in sink only"],
     ["[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw"],
   ]);
+});
+
+test("reportAnalyticsForwardFailure writes the pre-extraction forward-failure console line", async (t) => {
+  const logged: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { logged.push(args); });
+  const sink = createLocalAnalyticsSink({});
+  const { deps: bound } = createAnalyticsIngestBinding({ deps: {
+    clock: {} as never, ids: {} as never, sink, config: {} as never, resolveWorkspaceForHost: () => "ws-1", analyticsSeed: "seed",
+    saltContext: analyticsSaltContext, reportForwardFailure: reportAnalyticsForwardFailure,
+  } }, {
+    limiter: createAnalyticsForwardLimiter({}, { maxInFlight: 0 }),
+    forwarders: [{ id: "v", context: { workspaceId: "ws-1", mode: "live" }, forwarder: { forward: async () => { throw new Error("must not run"); } } }],
+  });
+  await bound.sink.accept({ hit: hit() });
+  assert.deepEqual(sink.all().map((h) => h.path), ["/a"]);
+  assert.deepEqual(logged, [["[analytics] forward to 'v' dropped: too many vendor calls in flight"]]);
 });

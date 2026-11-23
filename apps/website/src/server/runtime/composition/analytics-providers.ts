@@ -6,7 +6,7 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import type { AnalyticsForwarderCredential } from "@jini-ai/analytics";
 import { ANALYTICS_PROVIDERS_TTL_MS, cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "@jini-ai/analytics/site/forwarding";
 import { warnAnalytics } from "#src/features/analytics/warn";
-import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
+import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { readSiteVisitorConsent } from "../../inbound/public-http/middleware/site-cookie-consent.js";

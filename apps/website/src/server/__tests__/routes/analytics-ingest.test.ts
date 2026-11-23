@@ -9,8 +9,10 @@ import express from "express";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { AnalyticsConfigPort } from "@jini-ai/analytics/site/ports";
 import type { AnalyticsSiteConfig } from "@jini-ai/analytics";
-import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
-import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
+import type { AnalyticsIngestRouteDeps } from "@jini-ai/analytics/site/jini-adapters";
+import { analyticsSaltContext } from "#src/features/analytics/salt-context";
+import { reportAnalyticsForwardFailure } from "#src/features/analytics/warn";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
 
 /**
@@ -66,6 +68,8 @@ function makeDeps(overrides: Partial<AnalyticsIngestRouteDeps> = {}): { deps: An
     config: makeConfigPort(makeConfig()),
     resolveWorkspaceForHost: async (host: string) => (host === "example.com" ? "workspace-1" : null),
     analyticsSeed: ANALYTICS_SEED,
+    saltContext: analyticsSaltContext,
+    reportForwardFailure: reportAnalyticsForwardFailure,
     ...overrides,
   };
   return { deps, sink };
