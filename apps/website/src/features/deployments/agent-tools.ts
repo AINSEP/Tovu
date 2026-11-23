@@ -118,7 +118,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_export_status",
     description:
-      "Reports the status of the most recent (or currently running) static-site export started by deployment_trigger_export: 'idle' (never run in this process), 'running', 'completed', or 'errored'. Poll this after triggering an export, since the trigger itself returns before the export finishes. On 'completed', reports route/asset success and failure counts, every failed route/asset with its reason, and any base-path rewrite warning; ok is true only when every ROUTE exported successfully (asset failures are still reported but do not flip ok — check counts.assetsFailed separately).",
+      "Reports the status of the most recent (or currently running) static-site export started by deployment_trigger_export: 'idle' (never run in this process), 'running', 'completed', or 'errored'. Poll this after triggering an export, since the trigger itself returns before the export finishes. On 'completed', reports route/asset success and failure counts, every failed route/asset with its reason, and any base-path rewrite warning; ok is true only when every ROUTE and every ASSET exported successfully (one failed asset flips ok to false exactly like a failed route; counts.assetsFailed and the failed-asset list say which).",
     sideEffects: "none",
     authorization: { permission: "system.read" },
     inputSchema: NO_INPUT_SCHEMA,
