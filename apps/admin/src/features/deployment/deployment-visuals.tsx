@@ -1,4 +1,4 @@
-import { LINE_ICON } from "../../components/line-icon";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 import { Icon } from "@jini-ai/ui";
 
 import type { DeploymentCapability } from "./rules";

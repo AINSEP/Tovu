@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
-import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import {
   VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE,
   type VisitorToolConfigureInput, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView,

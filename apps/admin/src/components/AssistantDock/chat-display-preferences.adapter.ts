@@ -1,6 +1,6 @@
 /** Host composition for the dock's preferences: shared ledger rules, real API adapter and settings feed. */
 import { loadNamespaceValues, saveChangedEntries } from "@/lib/ledger-slice";
-import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { CHAT_DISPLAY_NAMESPACE, loadChatDisplayPreferences, saveChatDisplayPreferences, type ChatDisplayLedgerPort } from "./chat-display-preferences";
 import { useChatDisplayPreferences as usePreferences, type ChatDisplayPreferencesController, type ChatDisplayPreferencesPort } from "./hooks/use-chat-display-preferences.hooks";
 

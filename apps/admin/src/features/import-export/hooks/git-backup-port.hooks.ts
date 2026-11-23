@@ -1,6 +1,6 @@
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/api/source-control-api";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 
 /**

@@ -5,7 +5,7 @@ import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { pluginsApi } from "@/features/plugins/api/plugins-api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
  * @file `usePlugins` driven against the injected `PluginsPort`, no `fetch` stub and no
@@ -528,7 +528,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
       const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
       await waitFor(() => expect(result.current.plugins).toHaveLength(1));
       port.listPlugins = async () => { throw new Error("refresh offline"); };
-      act(() => publishContentRefresh(["plugins"]));
+      act(() => publishContentRefresh({ resources: ["plugins"] }));
       await waitFor(() => expect(result.current.error).toBe("refresh offline"));
     } finally {
       resetContentRefreshBus();

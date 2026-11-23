@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { CONTENT_ANALYZER_PLUGIN_ID, type PluginPreviewRequest } from "../rules";
 import type { ContentAnalysisPort, PluginPreviewResponse } from "./content-analysis-port.hooks";
 

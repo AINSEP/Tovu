@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { useAdminAppearance, useSettingsAppearance } from "../use-admin-appearance.hooks";
 import { useAdminAppearanceSnapshot } from "../use-admin-appearance-snapshot.hooks";
 import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE, DEFAULT_INTERFACE } from "../../lib/settings-tabs";
-import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { applyAdminThemeToDocument } from "../../admin-themes/apply";
 import { useAdminThemeDocument, useAdminThemePicker, useAdminThemeState } from "../../admin-themes/use-admin-theme.hooks";
 import { adminThemeAccent } from "../../lib/settings-tabs";

@@ -2,7 +2,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { dropInFlightSettingsReads } from "@/lib/settings-effective-reads";
+import { dropInFlightSettingsReads } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import { useAnalytics, useWiredAnalytics } from "../hooks/use-analytics.hooks";
 import { createFakeAnalyticsPort } from "../hooks/analytics-dependencies.hooks";
 

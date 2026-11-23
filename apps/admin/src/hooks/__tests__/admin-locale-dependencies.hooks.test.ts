@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { defaultAdminLocalePort } from "../admin-locale-dependencies.hooks";
 
 /**

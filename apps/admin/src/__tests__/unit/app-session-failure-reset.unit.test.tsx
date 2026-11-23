@@ -3,7 +3,7 @@ import { afterEach, expect, it } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { useAdminSession } from "../../App.hooks";
 import { adminFailureChannel } from "../../lib/admin-failure-channel";
-import { setAdminDraftIdentity } from "../../lib/admin-draft-identity";
+import { setAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 
 const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try again.", step: "Loading pages", cause: "Safe report" });
 afterEach(() => { adminFailureChannel.reset(); setAdminDraftIdentity({ id: null }); });

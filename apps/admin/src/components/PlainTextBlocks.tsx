@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-import { toPlainTextBlocks } from "@/lib/plain-text-blocks";
+import { toPlainTextBlocks } from "@jini-ai/admin/shell/lib/plain-text-blocks";
 
 /**
  * Author prose with its paragraphs, line breaks and `- ` bullets kept (see `toPlainTextBlocks`).

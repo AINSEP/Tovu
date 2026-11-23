@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SeoTransportPort, SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import { ApiError } from '../../../lib/admin-http/request';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { createSeoHostPorts, createSeoTranslator, describeSeoHostError, seoEvents, seoSessionGrants, seoSitemapTransport, seoImageTransport } from '../seo-ports';
 import { siteUrl } from '../../../lib/site-url';
 
@@ -94,13 +94,13 @@ describe('SEO host ports', () => {
   it('filters refresh resources, retains unknown scope and disposes subscriptions', () => {
     const onRefresh = vi.fn();
     const dispose = seoEvents.subscribe({ onRefresh });
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(onRefresh).not.toHaveBeenCalled();
-    publishContentRefresh(['seo']);
+    publishContentRefresh({ resources: ['seo'] });
     publishContentRefresh();
     expect(onRefresh).toHaveBeenCalledTimes(2);
     dispose();
-    publishContentRefresh(['seo']);
+    publishContentRefresh({ resources: ['seo'] });
     expect(onRefresh).toHaveBeenCalledTimes(2);
   });
 });

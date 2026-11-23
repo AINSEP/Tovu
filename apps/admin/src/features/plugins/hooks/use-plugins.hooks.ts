@@ -5,7 +5,7 @@ import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";

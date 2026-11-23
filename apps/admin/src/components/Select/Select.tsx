@@ -1,6 +1,6 @@
 import "../../styles/select.css";
 import { Select as PackageSelect, resolveSelectTriggerLabel as resolvePackageLabel, type SelectOption, type SelectProps as PackageProps } from "@jini-ai/ui/admin-widgets";
-import { useSelectDropdown } from "./Select.hooks";
+import { useSelectDropdown } from "@jini-ai/admin/shell/components/Select/Select.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export type { SelectOption } from "@jini-ai/ui/admin-widgets";
