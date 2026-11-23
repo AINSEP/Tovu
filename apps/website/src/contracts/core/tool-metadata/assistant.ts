@@ -1,6 +1,6 @@
 import type { ToolMetadataById } from '@jini-ai/core';
 import { assistantHistoryToolMetadata } from '@jini-ai/chat/core';
-import type { ToolApprovalPolicy } from './approval-policy.js';
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** assistant registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {

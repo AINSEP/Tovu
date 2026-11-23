@@ -1,0 +1,41 @@
+# ex2-tovu-halves mutations (raw)
+
+## M1 (K4-i18n-common.T): delete es 'Save: "Guardar",' in linked Jini packages/admin/dist/core/i18n-common-base.js (= src/core/i18n-common-base.ts es.Save)
+     × ships the exact same key set across every locale block 8ms
+     × falls back to COMMON_I18N when the feature dictionary has no entry for the key 1ms
+     × keeps the product-named notice out of the package and in this app 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > COMMON_I18N: cross-locale key parity > ships the exact same key set across every locale block
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > createDictionaryTranslator > falls back to COMMON_I18N when the feature dictionary has no entry for the key
+ FAIL  src/lib/__tests__/i18n-common.unit.test.ts > COMMON_I18N: composition over ADMIN_COMMON_I18N > keeps the product-named notice out of the package and in this app
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 20 passed (23)
+restored by byte copy; cmp identical
+
+## M2 (K4-seam-1.T): catalog rule 'theme-activation' -> 'theme-activate' in apps/website/src/contracts/core/tool-metadata/theme.ts (catalog keeps generic core type via as const satisfies; host specialization at projection)
+root tsc --noEmit:
+apps/website/src/contracts/core/tool-metadata/index.ts(135,22): error TS2322: Type '{ readonly theme_get_preview_switcher: { readonly search: { readonly keywords: "theme preview switcher banner demo i
+restored by byte copy; cmp identical; root tsc 0 after
+
+## M3 (RT-K1-0.T, named): linked Jini packages/core/dist/errors/route-refusal.js rejectRoute drops 'if (required.code !== undefined) body.code = required.code;' (Tovu consumers of @jini-ai/core/errors/route-refusal)
+rc pass fail file (head before mutation: parity 46/0, subagents 17/0, op-validation 8/0, permanent-deletes 5/0)
+1 33 13 apps/website/src/server/inbound/admin-http/routes/settings/__tests__/json-route-parity.unit.test.ts
+1 15 2 apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-subagents.test.ts
+0 5 0 apps/website/src/server/inbound/admin-http/routes/system/__tests__/assistant-permanent-deletes.test.ts
+1 4 4 apps/website/src/server/__tests__/routes/settings-register-definitions-op-validation.test.ts
+restored by byte copy; cmp identical
+
+## M3b (RT-K1-0.T, wiring): linked Jini packages/cms/dist/admin-http/limits.js cap 1024*1024 -> 1024*1024+1
+(head before: body-size-limit 6/0)
+1 5 1 apps/website/src/server/inbound/shared/__tests__/body-size-limit.test.ts
+restored by byte copy; cmp identical
+
+## M4 (A-K2-0a.T, named): apps/admin/src/integrations/jini-kits.ts binds chat's translator as the kit UI translator (hooks: { ..., useT: useChatT } with import { useT as useChatT } from '@jini-ai/chat/react')
+admin tsc:
+vitest:
+     × supplies the UI translator, never chat's 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+Note: admin tsc stays 0 under this mutation (both translators share a type); only the new identity test catches the swap.
+restored by byte copy; cmp identical

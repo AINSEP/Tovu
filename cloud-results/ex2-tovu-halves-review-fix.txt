@@ -1,0 +1,95 @@
+### final: admin i18n+parity set (59 files)
+ Test Files  2 failed | 57 passed (59)
+      Tests  2 failed | 1348 passed (1350)
+   Start at  23:19:52
+   Duration  46.07s (transform 32.81s, setup 7.20s, import 68.03s, tests 14.92s, environment 36.15s)
+
+ FAIL  src/lib/__tests__/admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy
+ FAIL  src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consumed only through its own translator
+
+### base 3aed69a07: same set
+ Test Files  2 failed | 57 passed (59)
+      Tests  2 failed | 1347 passed (1349)
+   Start at  23:20:46
+   Duration  45.52s (transform 31.18s, setup 7.30s, import 68.13s, tests 15.41s, environment 36.33s)
+
+ FAIL  src/lib/__tests__/admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy
+ FAIL  src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consumed only through its own translator
+
+### mutation M1 (Jini dist: drop es Save) 
+     × ships the exact same key set across every locale block 7ms
+     × falls back to COMMON_I18N when the feature dictionary has no entry for the key 1ms
+     × keeps the product-named notice out of the package and in this app 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed | 21 passed (24)
+
+### gate exit codes base | final
+admin-tsc 0	admin-tsc 0
+typecheck:tests 2	typecheck:tests 2
+check:size 1	check:size 1
+check:complexity 0	check:complexity 0
+check:why-comments 1	check:why-comments 1
+check:boundaries 0	check:boundaries 0
+check:errors 0	check:errors 0
+check:hooks 0	check:hooks 0
+
+### set
+src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx
+src/__tests__/unit/app-i18n.unit.test.ts
+src/components/AssistantDock/__tests__/admin-empty-state-i18n.unit.test.ts
+src/components/AssistantDock/__tests__/assistant-dock-dict-i18n.unit.test.ts
+src/components/AssistantDock/__tests__/assistant-dock-i18n.unit.test.ts
+src/components/AssistantDock/__tests__/daemon-starting-label-i18n.unit.test.ts
+src/components/__tests__/shared-components-i18n.unit.test.ts
+src/features/ai-assistant/__tests__/ai-assistant-i18n.unit.test.ts
+src/features/ai-assistant/__tests__/byok-no-key-message-i18n.unit.test.tsx
+src/features/analytics/__tests__/analytics-i18n.unit.test.ts
+src/features/auth/__tests__/auth-i18n.unit.test.ts
+src/features/authentication/__tests__/authentication-i18n.unit.test.ts
+src/features/collections/__tests__/collections-i18n.unit.test.ts
+src/features/comments/__tests__/comments-i18n.unit.test.ts
+src/features/consent/__tests__/consent-i18n.unit.test.tsx
+src/features/content-analysis/__tests__/content-analysis-i18n.unit.test.ts
+src/features/dashboard/__tests__/dashboard-i18n.unit.test.ts
+src/features/database/__tests__/database-i18n.unit.test.tsx
+src/features/deployment/__tests__/deployment-i18n.unit.test.ts
+src/features/email/__tests__/email-i18n.unit.test.ts
+src/features/forms/__tests__/forms-field-settings-i18n.unit.test.ts
+src/features/forms/__tests__/forms-i18n.unit.test.ts
+src/features/forms/__tests__/forms-leave-guard-i18n.unit.test.ts
+src/features/integrations/__tests__/integrations-i18n.unit.test.tsx
+src/features/media/__tests__/media-i18n.unit.test.ts
+src/features/menus/__tests__/menus-i18n.unit.test.ts
+src/features/observability/__tests__/observability-i18n.unit.test.ts
+src/features/pages/__tests__/page-editor-i18n.unit.test.ts
+src/features/pages/__tests__/pages-i18n.unit.test.ts
+src/features/playground/__tests__/playground-i18n.unit.test.ts
+src/features/plugins/__tests__/plugins-i18n.unit.test.ts
+src/features/posts/__tests__/posts-i18n.unit.test.ts
+src/features/providers/__tests__/providers-i18n.unit.test.ts
+src/features/recovery/__tests__/recovery-i18n.unit.test.tsx
+src/features/redirects/__tests__/redirects-i18n.unit.test.tsx
+src/features/roles/__tests__/roles-i18n.unit.test.ts
+src/features/security/__tests__/security-i18n.unit.test.ts
+src/features/security/__tests__/site-key-copy.i18n.unit.test.tsx
+src/features/seo/__tests__/seo-i18n-parity.unit.test.ts
+src/features/settings/__tests__/settings-execution-i18n.unit.test.ts
+src/features/settings/__tests__/settings-i18n.unit.test.ts
+src/features/settings/__tests__/settings-memory-i18n.unit.test.ts
+src/features/sites/__tests__/sites-i18n.unit.test.ts
+src/features/skills/__tests__/skill-install-i18n.unit.test.tsx
+src/features/skills/__tests__/skills-page-i18n.unit.test.tsx
+src/features/source-control/__tests__/source-control-i18n.unit.test.ts
+src/features/taxonomy/__tests__/taxonomy-i18n.unit.test.ts
+src/features/themes/__tests__/themes-i18n.unit.test.ts
+src/features/trash/__tests__/trash-i18n.unit.test.ts
+src/features/widgets/__tests__/widgets-i18n.unit.test.ts
+src/lib/__tests__/admin-literal-copy.unit.test.ts
+src/lib/__tests__/admin-nav-i18n.unit.test.ts
+src/lib/__tests__/descriptor-i18n.unit.test.ts
+src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts
+src/lib/__tests__/i18n-common.unit.test.ts
+src/lib/__tests__/panel-access-parity.unit.test.ts
+src/lib/__tests__/site-key-state-parity.unit.test.ts
+src/lib/__tests__/untranslated-copy.unit.test.ts
+src/lib/__tests__/version-conflict.unit.test.ts
