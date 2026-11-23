@@ -176,23 +176,23 @@
 .page > .editor-action-row + .post-preview-surface > .post-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
 .page > .editor-action-row:has(+ .post-preview-surface) > .post-settings-trigger { margin-right: 37px; }
 
-/* Content analysis card (`features/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
+/* Content analysis card (`@jini-ai/admin/screens/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
    above the Categories & Tags box in the post editor. Reuses `.card`, `.dash-stat-*` type styles
    and the `.status` pills; only the layout below is its own. The stats are NOT `.dash-stat` boxes:
    those are link cards with a hover lift, and nothing here is clickable. */
-.content-analysis { margin-top: var(--space-4); }
-.content-analysis-stats {
+.jini-content-analysis { margin-top: var(--space-4); }
+.jini-content-analysis-stats {
   list-style: none; margin: var(--space-4) 0; padding: 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-3);
 }
-.content-analysis-stat { display: flex; flex-direction: column; gap: var(--space-1); }
-.content-analysis-stat .dash-stat-value { font-size: 1.5rem; }
-.content-analysis-list {
+.jini-content-analysis-stat { display: flex; flex-direction: column; gap: var(--space-1); }
+.jini-content-analysis-stat .dash-stat-value { font-size: 1.5rem; }
+.jini-content-analysis-list {
   list-style: none; margin: var(--space-2) 0 var(--space-4); padding: 0;
   display: flex; flex-direction: column; gap: var(--space-2);
 }
-.content-analysis-toc-level { margin-inline-end: var(--space-2); font-size: var(--text-2xs); font-weight: 600; color: var(--muted); }
-.content-analysis-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.jini-content-analysis-toc-level { margin-inline-end: var(--space-2); font-size: var(--text-2xs); font-weight: 600; color: var(--muted); }
+.jini-content-analysis-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 
 /*
  * Edit post / Edit page layout (owner, 2026-10-10). Built for the post editor, then carried over

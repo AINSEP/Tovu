@@ -55,7 +55,7 @@ function sendPluginPreviewError({ res, err }: { res: Response; err: unknown }, _
  * @file `PLUGIN_PREVIEW` — `POST /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview`
  * (AW-7 Tier 2, 2026-10-04). Runs ONE enabled plugin's `content.entry.beforeSave` filter on a draft
  * and returns that plugin's validated fields, without saving anything: the post editor's "Analyze
- * now" (`apps/admin/src/features/content-analysis/`). Generic — any plugin with an attached filter.
+ * now" (Jini `@jini-ai/admin/screens/content-analysis`). Generic — any plugin with an attached filter.
  *
  * Structured like `files.ts`: authorize, run discovery, call a pre-bound mechanism, map its typed
  * error. Gated on `content.write`, the permission editing a post needs, and authorized BEFORE the id
