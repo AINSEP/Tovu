@@ -8,7 +8,8 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../external-mcp/external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../../external-mcp/external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";

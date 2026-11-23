@@ -13,7 +13,7 @@ import { admitPublish, type RevocationRead } from "#src/features/publish-trust/r
 import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
-import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**

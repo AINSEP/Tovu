@@ -8,7 +8,8 @@ import { createApiConnectionVault } from '../../api-connections/vault-stores.js'
 import { createSharedOAuthOwnerStorage } from '../../api-connections/shared-owner.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { fakeAttachments } from '../../project-keys/__tests__/helpers.js';
-import { createExternalMcpOAuthService, createDeviceAuthorizationStore } from '../external-mcp-oauth.js';
+import { createExternalMcpOAuthService } from '../external-mcp-oauth.js';
+import { createDeviceAuthorizationStore } from '@jini-ai/integrations/api-connections/hosted-mcp';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from '../external-mcp-store.js';
 import { toResolvedFederatedConnections } from '@jini-ai/mcp/federation/hosted';

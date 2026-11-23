@@ -13,10 +13,8 @@ import {
   type ProcessDueDeliveriesResult,
   type WebhookSourceEvent,
 } from "@jini-ai/integrations/webhooks";
-import type { WebhookDeliveryRepoPort, HttpClientPort } from "./ports.js";
-
-export { computeBackoffMs, MAX_DELIVERY_ATTEMPTS, WebhookDeliveryVetoedError } from "@jini-ai/integrations/webhooks";
-export type { EnqueueDeliveryOptional, ProcessDueDeliveriesOptional, ProcessDueDeliveriesResult, WebhookSourceEvent } from "@jini-ai/integrations/webhooks";
+import type { WebhookDeliveryRepoPort } from "@jini-ai/integrations/webhooks";
+import type { HttpClientPort } from "../../platform/http/ports.js";
 
 export interface EnqueueDeliveryDeps extends Omit<JiniEnqueueDeps, "deliveryRepo" | "clock"> {
   deliveryRepo: WebhookDeliveryRepoPort;

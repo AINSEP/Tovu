@@ -22,9 +22,6 @@ export const externalMcpVaultPorts: HostedMcpVaultPorts = {
   } }).metaParsers,
 };
 
-export const externalMcpVaultEnvelope = hosted.externalMcpVaultEnvelope;
-export const deleteExternalMcpVaultEnvelope = hosted.deleteExternalMcpVaultEnvelope;
-
 export function externalMcpVaultRecord(
   input: { sealed: SealedSecret; identity: Identity; kind: Kind }, _options = {},
 ): VaultRecord {

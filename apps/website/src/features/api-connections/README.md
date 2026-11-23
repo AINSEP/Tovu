@@ -160,3 +160,8 @@ a binding at the new account is an explicit binding edit.
 (`plugin-state-bindings.ts`) into Jini's `createAgentPluginStateStore`. It forwards nothing:
 callers take `PLUGIN_STATE_UNAVAILABLE_MESSAGE` from `./plugin-state-bindings.js` and the
 `AgentPluginStateStore` type from `@jini-ai/agent-plugins/admin-surfaces`.
+
+## Wiring (forwarding lines removed)
+
+`surface-connections.ts` binds `createAdminSurfaceConnections` to the host's `surface-connection-bindings.ts` and
+forwards nothing: callers take the `IssuedSignIn` type from `@jini-ai/agent-plugins/admin-surfaces/connections`.

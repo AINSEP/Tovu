@@ -2,14 +2,14 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { parsePluginTokenMap, type TokenCheckOutcome, type TokenMapLimits, type TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
+import { parsePluginTokenMap, type TokenCheckOutcome, type TokenMapLimits, type TokenSignInPlugin, type ResolvedAgentPluginForConnect } from "@jini-ai/agent-plugins/connect";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginPathsPort } from "./service-ports.js";
 
 import { readInstalledMcpServers } from "./capability-projection.js";
-import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import type { InstalledAgentPluginServers } from "./import-access-token.js";
+import { titleCaseFromPluginId } from "./connect-tool.js";
+import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./lifecycle.js";
 import { listTokenSignInPlugins } from "./token-sign-in.js";
 

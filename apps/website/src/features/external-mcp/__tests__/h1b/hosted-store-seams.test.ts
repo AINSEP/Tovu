@@ -57,7 +57,7 @@ test("foreign context/kind refused with the real platform VaultError before any 
   }
   assert.deepEqual(counts, { seal: 0, open: 0 });
   assert.throws(() => vaultShim.externalMcpVaultRecord({ sealed: { ...sealed }, identity, kind: "mcp-env" }), VaultError);
-  const carried = vaultShim.externalMcpVaultEnvelope({ record: vaultShim.externalMcpVaultRecord({ sealed, identity, kind: "mcp-env" }) })!;
+  const carried = hosted.externalMcpVaultEnvelope({ record: vaultShim.externalMcpVaultRecord({ sealed, identity, kind: "mcp-env" }) })!;
   await assert.rejects(vaultShim.persistExternalMcpVaultEnvelope({ repo: new InMemoryVaultRepo({}), sealed: carried, identity, kind: "mcp-env" }),
     (error: unknown) => error instanceof VaultError && error.code === "conflict");
 });
@@ -67,8 +67,6 @@ test("error identity and one envelope module instance (package dist, not source)
   assert.ok(revoked instanceof hosted.ExternalMcpConnectionRevokedError && revoked instanceof ToolInputError);
   assert.deepEqual([revoked.name, revoked.code, revoked.retryable, revoked.message],
     ["ExternalMcpConnectionRevokedError", "EXTERNAL_MCP_CONNECTION_REVOKED", false, '"s1" was removed from Integrations → External MCP, so its tools no longer work. Do not retry this tool.']);
-  assert.equal(vaultShim.externalMcpVaultEnvelope, hosted.externalMcpVaultEnvelope);
-  assert.equal(vaultShim.deleteExternalMcpVaultEnvelope, hosted.deleteExternalMcpVaultEnvelope);
   const resolved = import.meta.resolve("@jini-ai/mcp/federation/hosted");
   assert.match(resolved, /\/dist\/federation\/hosted\/index\.js$/);
   // A shim-sealed envelope carries the context symbol of the hosted dist module ...

@@ -1,4 +1,3 @@
-export type { SealedSecret } from "@jini-ai/platform/secrets";
 /**
  * @file Public surface of the `integrations` Tier-2 core library (ADR-036).
  *
@@ -9,31 +8,7 @@ export type { SealedSecret } from "@jini-ai/platform/secrets";
  * v1 exports the type + port seams; the delivery worker, repos, signer, and handlers land
  * against these contracts in the Implementation Proposal phases (see the design report).
  */
-export type {
-  IntegrationId,
-  IntegrationSecretRecord,
-  SecretVersion,
-  WebhookBeforeDispatchHook,
-  WebhookBeforeDispatchResult,
-  WebhookDeliveryRecord,
-  WebhookDeliveryStatus,
-  WebhookEventEnvelope,
-  WebhookSignature,
-  WebhookSubscriptionRecord,
-  WebhookSubscriptionStatus,
-  WebhookTopic,
-} from "@jini-ai/integrations/webhooks";
-
-export type {
-  IntegrationSecretRepoPort,
-  SiteKeyHandle,
-  WebhookDeliveryRepoPort,
-  WebhookSubscriptionRepoPort,
-} from "./ports.js";
-
-// `HttpClientPort`/`EgressPolicy` are the shared `../http` core primitive (ADR-038) — re-exported
-// here (via `./ports`) so existing `integrations` consumers don't need to know the type moved.
-export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
+export type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
 // Subscription CRUD write-service (ADR-036 §6): its first landed consumer was the admin HTTP API
 // (the integrations admin routes). It now lives at `@jini-ai/integrations/webhooks/site/subscriptions`,
@@ -51,15 +26,6 @@ export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./
 // `db/sqlite`, same as every other outer-layer SQLite adapter (`vendor-credential-repo.sqlite.ts`
 // et al.).
 
-export {
-  isSiteIdToken, readSiteMetaId, readSiteMetaJson, resolveSiteKeyFingerprint,
-  resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir,
-  type SiteKeySource,
-} from "./site-key-sources.js";
-export {
-  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, isNoSiteKeyError, parseSiteKeyHex,
-  revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus,
-} from "./keyring.env.js";
+export { readSiteMetaJson, resolveSiteKeyFingerprint, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir, type SiteKeySource } from "./site-key-sources.js";
+export { fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, isNoSiteKeyError, parseSiteKeyHex, revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus } from "./keyring.env.js";
 
-export { InMemoryKeyring } from "./keyring.memory.js";
-export { AesGcmSecretSealer } from "./secret-sealer.aesgcm.js";

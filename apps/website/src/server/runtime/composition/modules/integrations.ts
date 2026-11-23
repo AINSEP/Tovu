@@ -1,10 +1,5 @@
 import { InMemoryDeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks/site/repo.memory";
-import type {
-  WebhookDeliveryRepoPort,
-  WebhookSubscriptionRepoPort,
-  WebhookTopic,
-} from "#src/features/webhooks/index";
-import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort, WebhookTopic } from "@jini-ai/integrations/webhooks";
 import { enqueueDelivery } from "#src/features/webhooks/delivery";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonObject } from "@jini-ai/core/primitives";
 import type { EventBusPort } from "@jini-ai/core/contracts/events";

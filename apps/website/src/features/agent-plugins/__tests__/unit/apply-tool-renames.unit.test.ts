@@ -11,7 +11,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
-import type { InstalledAgentPluginServers } from "../../import-access-token.js";
+import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { resolveAgentPluginLayout } from "../../layout.js";

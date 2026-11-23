@@ -14,9 +14,6 @@ import { createHostedMcpSignInService, type HostedMcpSignInPorts } from "@jini-a
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 
-export { createHostedMcpConnectionGate, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";
-export { createDeviceAuthorizationStore, createHostedMcpSignInService } from "@jini-ai/integrations/api-connections/hosted-mcp";
-
 /**
  * The terminal, non-retryable failure a federated tool returns once its connection needs
  * re-authorization.

@@ -1,4 +1,4 @@
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/features/webhooks/index";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 import { toWebhookDeliveryView } from "@jini-ai/integrations/webhooks/tools";
 
 /**

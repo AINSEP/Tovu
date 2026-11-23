@@ -63,7 +63,6 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   withFederatedRefusalDiagnosis: serverFederationDiagnosis,
   readEnabledExternalMcpConfigs: externalMcpStore,
   toResolvedFederatedConnections: hostedMcp,
-  createDeviceAuthorizationStore: externalMcpOAuth,
   createExternalMcpConnectionGate: externalMcpOAuth,
   createExternalMcpOAuthService: externalMcpOAuth,
   registerA2uiActionsRoute: a2uiActionsRoute,

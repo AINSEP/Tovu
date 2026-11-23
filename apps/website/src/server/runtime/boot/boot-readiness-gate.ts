@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
-import { siteKeySources } from "#src/features/webhooks/index";
+import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { runProductionReadinessGate, type BootRefusalFailure } from "./production-readiness-gate.js";
 import { CAPABILITY_INVENTORY } from "../configuration/capability-inventory.js";
 import { DEFAULT_OWNER_PASSWORD } from "../../../features/identity/wiring.js";
-import { inspectSiteKeyMaterial } from "#src/features/webhooks/index";
+import { inspectSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { warnOnBootReadinessGaps } from "./boot-readiness-warnings.js";
 import { bootLocalOwnerSignIn } from "./local-owner-signin.js";

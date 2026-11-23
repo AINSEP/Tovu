@@ -7,7 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";

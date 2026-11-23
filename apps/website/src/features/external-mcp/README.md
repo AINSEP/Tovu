@@ -17,3 +17,19 @@ external-MCP type is imported from its owner: record/config/view/revocation type
 `@jini-ai/mcp/federation/hosted`. `external-mcp-revocation.ts` binds only the host's model-facing
 revocation text and error code into the hosted error class; `rosterRefusalFor` is imported from
 `@jini-ai/mcp/federation/hosted` directly.
+
+## Wiring (forwarding lines removed)
+
+`external-mcp-oauth.ts` re-exports nothing: `createDeviceAuthorizationStore` and `createHostedMcpSignInService` come
+from `@jini-ai/integrations/api-connections/hosted-mcp`, `createHostedMcpConnectionGate` and
+`HostedMcpConnectionGatePorts` from `@jini-ai/mcp/federation/hosted`. `external-mcp-vault.ts` binds only the vault
+ports and the host-record readers over the hosted module; `externalMcpVaultEnvelope` and
+`deleteExternalMcpVaultEnvelope` are imported from `@jini-ai/mcp/federation/hosted` directly.
+
+`external-mcp-host-copy.ts` binds the host's model-facing copy (`Settings → External MCP`,
+`content_read.external_mcp`), the probe budget (`OUTBOUND_CALL_PER_IP` via `createRateLimiter`) and the
+redacting log formatter (`describeErrorForLog`) into `@jini-ai/mcp/external/*` once. It exports the
+bound `externalMcpAgentToolCatalog`, `externalMcpOperationsToolCatalog`, `readServerAdmissions` and
+`externalMcpOperationsHost`, which every `contributeExternalMcpOperationsTools` caller spreads into its
+services (`tool-catalog-manifest.ts`). `EXTERNAL_MCP_MANAGE_PERMISSION`, `ExternalMcpOperations` and
+the operations builders are imported from `@jini-ai/mcp/external/*` directly.

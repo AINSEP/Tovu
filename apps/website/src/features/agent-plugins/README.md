@@ -13,3 +13,14 @@ its manifest readers (`readInstalled`, and `createBundledSourceManifestReader` w
 (`@jini-ai/integrations/api-connections`). `connect-destination.ts`, `card-host-bindings.ts` and
 `admin-surfaces/issued-sign-ins.ts` stay here as this product's bindings (card identity, UI, copy,
 hosted sign-in path).
+
+## Wiring (forwarding lines removed)
+
+`access-token-tool.ts`, `connect-tool.ts`, `import-access-token.ts`, `switch-on-saved-token.ts`,
+`tool-registrations.ts` and `write-note-tool.ts` re-export nothing from `@jini-ai/agent-plugins/*`: callers
+take `AgentPluginConnectResult`, `ResolvedAgentPluginForConnect`, `InstalledAgentPluginServers`,
+`TokenImportLog`, `WRITE_PLUGIN_NOTE`, `pluginNoteRisk` and the other moved names from
+`@jini-ai/agent-plugins/connect` / `@jini-ai/agent-plugins/lifecycle/host-tools` directly. `set-enabled.ts`
+keeps its three error re-exports (`AgentPluginNotReadyError`, `AgentPluginLinkedError`,
+`AgentPluginNotInstalledError`) only because the route registration
+`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts` still imports them from here.

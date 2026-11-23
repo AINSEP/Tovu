@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { randomUUID } from "node:crypto";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope, externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
+import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,7 +10,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, openExternalMcpOAuthPayload, parseEnvBlock, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, parseAllowedToolNames, parseArgs, parseWriteAllowedToolNames, toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, parseAllowedToolNames, parseArgs, parseWriteAllowedToolNames, toResolvedFederatedConnections, deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "@jini-ai/core/contracts/hosted-mcp";
 

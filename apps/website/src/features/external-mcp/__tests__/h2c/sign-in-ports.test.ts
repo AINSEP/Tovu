@@ -26,9 +26,13 @@ import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.j
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../../external-mcp-store.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, resolveExternalMcpAuthMode, resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 import {
-  createDeviceAuthorizationStore, createExternalMcpReauthRequiredError, createHostedMcpSignInService, ExternalMcpReauthRequiredError,
-  tovuRegistrationIdentity, tovuSealExternalMcpOAuthPayload, tovuSignInPorts,
+  createExternalMcpReauthRequiredError,
+  ExternalMcpReauthRequiredError,
+  tovuRegistrationIdentity,
+  tovuSealExternalMcpOAuthPayload,
+  tovuSignInPorts,
 } from "../../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore, createHostedMcpSignInService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
 const WS = "22222222-2222-4222-8222-222222222222" as never;
 const SERVER = "docs";

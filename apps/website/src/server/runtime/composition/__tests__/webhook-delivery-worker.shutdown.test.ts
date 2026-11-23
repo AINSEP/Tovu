@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/features/webhooks/index";
+import type { HttpClientPort } from "#src/platform/http/ports";
+import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
 import { processDueDeliveries } from "#src/features/webhooks/delivery";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";

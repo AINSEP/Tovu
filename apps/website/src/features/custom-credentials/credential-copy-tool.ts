@@ -1,8 +1,6 @@
 import { buildFormSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialCopyRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
-export { createCredentialCopyRegistrations };
-export type { CredentialCopyRequired } from "@jini-ai/integrations/credentialed-http/tools";
 import { type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { InstanceAuthorizeFn } from '@jini-ai/core/gated-mutations';

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { heldUntil } from "../../kernel/__tests__/dialect-matrix.js";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import { externalMcpVaultEnvelope, externalMcpVaultRecord } from "../../../../features/external-mcp/external-mcp-vault.js";
+import { externalMcpVaultRecord } from "../../../../features/external-mcp/external-mcp-vault.js";
+import { externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";

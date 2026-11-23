@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety.js";
 import type { ContentKernel } from "../../../../platform/db/content-kernel.js";
 import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../external-mcp-store.js";
 import { FROZEN_PLAINTEXT, FROZEN_PROVIDER, FROZEN_SERVERS, FROZEN_WORKSPACE, type FakeTokenReply, type FakeTokenRequest,

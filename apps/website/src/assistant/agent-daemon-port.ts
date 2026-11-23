@@ -51,7 +51,7 @@ export { toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:
 // "oauth"` child process, and gates federated calls on a connection that has since gone
 // `needs_reauth`. It shares nothing in memory with the web server's instance — only the row.
-export { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService } from "../features/external-mcp/external-mcp-oauth.js";
+export { createExternalMcpConnectionGate, createExternalMcpOAuthService } from "../features/external-mcp/external-mcp-oauth.js";
 export { registerA2uiActionsRoute } from "./a2ui-actions-route.js";
 export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route.js";
 export { resolveMcpJsonInjection } from "./mcp-injection.js";

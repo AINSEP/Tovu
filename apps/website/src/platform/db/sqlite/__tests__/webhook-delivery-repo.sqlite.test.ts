@@ -13,8 +13,8 @@ import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscrip
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
-import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks";
-import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore, WebhookDeliveryRepoPort } from "@jini-ai/integrations/webhooks";
+import type { HttpClientPort } from "#src/platform/http/ports";
 import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "@jini-ai/integrations/webhooks";
 
 /**

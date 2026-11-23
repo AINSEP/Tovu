@@ -10,3 +10,8 @@
   admin path. `host-tool-binding.ts`, `install-tool-binding.ts` and `server/runtime/composition/site-guide.ts`
   read the bound values from there; `PLUGINS_SET_ENABLED_TOOL_ID`, `PluginFamily` and
   `PLUGINS_INSTALL_TOOL_ID` are imported straight from `@jini-ai/plugins/runtime/*`.
+
+## Wiring (forwarding lines removed)
+
+`capability-tool-registrations.ts` re-exports nothing: `PluginCapabilityToolSource` and
+`PluginCapabilityFieldSource` come from `@jini-ai/plugins/host`.

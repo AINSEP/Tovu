@@ -3,11 +3,10 @@ import test from "node:test";
 
 import {
   adaptWebhookHttpClient,
-  computeBackoffMs,
   enqueueDelivery,
-  MAX_DELIVERY_ATTEMPTS,
   processDueDeliveries,
 } from "../delivery.js";
+import { computeBackoffMs, MAX_DELIVERY_ATTEMPTS } from "@jini-ai/integrations/webhooks";
 import { RecordingHttpClient } from "../http.memory.js";
 import {
   InMemoryDeliveryEnvelopeStore,

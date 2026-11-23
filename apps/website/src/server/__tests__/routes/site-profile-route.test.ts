@@ -7,7 +7,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginA
 import express from "express";
 import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
-import { externalMcpVaultEnvelope } from "../../../features/external-mcp/external-mcp-vault.js";
+import { externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";

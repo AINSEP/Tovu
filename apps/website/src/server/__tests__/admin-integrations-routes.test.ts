@@ -7,7 +7,7 @@ import express from "express";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
-import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
+import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminIntegrationsCreateRoute } from "../inbound/admin-http/routes/integrations/create.js";
