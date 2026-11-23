@@ -434,7 +434,7 @@ export interface MembersDeps {
   /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
   mailSenderDomainVerification?: import("@jini-ai/platform/mail").SenderDomainVerificationPort;
   /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
-  mailTestMode?: () => Promise<import("#src/contracts/core/settings-vocabulary").MailTestModeSetting>;
+  mailTestMode?: () => Promise<import("@jini-ai/core/contracts/mail").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestProvider?: () => Promise<string | null>;
   mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
