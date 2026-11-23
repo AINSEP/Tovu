@@ -4,7 +4,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMenuAssignLocationRoute } from "../assign-location.js";
+import { registerAdminMenuAssignLocationRoute } from '#src/server/runtime/composition/modules/menus';
 
 /**
  * `assignLocation` refuses a trashed menu with `EntityNotLiveError` (mirrors
