@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { FORM_SUCCESS_CLASS, FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
 import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "@jini-ai/cms/forms/form-controls";
 import { fieldMaxChars } from "@jini-ai/cms/forms/field-length-caps";
-import { str, arr } from "./value-readers.js";
+import { str, arr } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { randomUUID } from "node:crypto";
 import type { FormCollectionPlan } from "@jini-ai/core/contracts/forms";

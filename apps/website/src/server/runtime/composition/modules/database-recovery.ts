@@ -1,9 +1,15 @@
-import { registerAdminDatabaseTimelineRoute } from "#src/server/inbound/admin-http/routes/database/timeline";
-import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "#src/server/inbound/admin-http/routes/database/restore-points";
-import { registerAdminDatabaseSchemaStateRoute } from "#src/server/inbound/admin-http/routes/database/schema-state";
-import { registerAdminRecoveryRestorePointsListRoute } from "#src/server/inbound/admin-http/routes/recovery/restore-points";
-import { registerAdminRecoveryDisclosureRoute } from "#src/server/inbound/admin-http/routes/recovery/disclosure";
-import { registerAdminRecoveryDeepLinkRoute } from "#src/server/inbound/admin-http/routes/recovery/deep-link";
+import { adminDatabaseTimelineRoute } from "@jini-ai/cms/admin-http/routes/database/timeline";
+import { adminDatabaseRestorePointsCreateRoute, adminDatabaseRestorePointsListRoute } from "@jini-ai/cms/admin-http/routes/database/restore-points";
+import { adminDatabaseSchemaStateRoute } from "@jini-ai/cms/admin-http/routes/database/schema-state";
+import { createRestorePoint, getTimeline, listRestorePoints, RestorePointUnavailableError, ValidationError } from "@jini-ai/db/tools";
+import { computeDisclosure } from "@jini-ai/db/recovery/disclosure";
+import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "@jini-ai/db/recovery/deep-link";
+import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import { recoveryRestorePointsListRoute } from "@jini-ai/cms/admin-http/routes/recovery/restore-points";
+import { recoveryDisclosureRoute } from "@jini-ai/cms/admin-http/routes/recovery/disclosure";
+import { recoveryDeepLinkRoute } from "@jini-ai/cms/admin-http/routes/recovery/deep-link";
+import type { Express } from "express";
+import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerAdminRecoveryStatusRoute } from "#src/server/inbound/admin-http/routes/recovery/status";
 import type { DatabaseRecoveryRouteDeps } from "#src/server/inbound/admin-http/routes/database-recovery/deps";
 import type { ServerModuleHandle } from "./types.js";
@@ -54,6 +60,83 @@ import type { ServerModuleHandle } from "./types.js";
  * only cares about registration order when two layers could match the same request, which never
  * happens here. See SPEC-042 for the full disclosure.
  */
+/** The route's own collaborators plus the two port fields, read per request rather than copied at
+ * registration: the hand-written routes read `deps.*` inside the handler, so a later swap of a field
+ * (as the route tests do with `authorize` and the watermark source) must still reach the mounted route.
+ * @complexity O(1).
+ */
+function withRequestTimePorts<T extends object>(
+  required: { deps: DatabaseRecoveryRouteDeps; own: T },
+  _optional: Record<string, never> = {},
+): T & AdminJsonRoutePortDeps {
+  return Object.defineProperties(required.own, {
+    workspaceId: { enumerable: true, get: () => required.deps.workspaceId },
+    authorize: { enumerable: true, get: () => required.deps.authorize },
+  }) as T & AdminJsonRoutePortDeps;
+}
+
+const recoveryMountOptions = (operation: string) => ({ failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const });
+
+/** `GET /api/admin/v1/recovery/restore-points` (Jini spec), gated by `backup.read`. */
+export function registerAdminRecoveryRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: recoveryRestorePointsListRoute, deps: withRequestTimePorts({ deps, own: {
+    listRestorePoints: () => listRestorePoints({ repo: deps.restorePointsRepo }),
+  } }) }, recoveryMountOptions("routes/recovery/restore-points"));
+}
+
+/** `POST /api/admin/v1/recovery/disclosure` (Jini spec), gated by `backup.read`. */
+export function registerAdminRecoveryDisclosureRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: recoveryDisclosureRoute, deps: withRequestTimePorts({ deps, own: {
+    computeDisclosure: ({ restorePointId, coveredCategories }: { restorePointId: string; coveredCategories: readonly string[] }) =>
+      computeDisclosure({ deps: { watermarkSource: deps.disclosureWatermarkSource, coveredCategories }, input: { restorePointId } }),
+  } }) }, recoveryMountOptions("routes/recovery/disclosure"));
+}
+
+/** `POST /api/admin/v1/recovery/deep-link` (Jini spec), gated by `backup.read`. The spec has
+ * already refused a non-object envelope, which is the only check the hand-written route made. */
+export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: recoveryDeepLinkRoute, deps: withRequestTimePorts({ deps, own: {
+    resolveDeepLinkContext: (input: { principalId: string; principalKind: "user"; envelope: object }) =>
+      resolveDeepLinkContext({ deps: { lookup: deps.deepLinkRestorePointLookup }, input: { ...input, envelope: input.envelope as DatabaseContextEnvelope } }),
+  } }) }, recoveryMountOptions("routes/recovery/deep-link"));
+}
+
+const RESTORE_POINTS_FAILURE: FailureOptions = { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" };
+
+/** `GET /api/admin/v1/database/timeline` (Jini spec), gated by `database.read`. Every field is a
+ * getter so a later swap on `deps` (as the route tests do) still reaches the mounted route. */
+export function registerAdminDatabaseTimelineRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: adminDatabaseTimelineRoute, deps: {
+    get databaseLedgerRepo() { return deps.databaseLedgerRepo; }, getTimeline,
+    get workspaceId() { return deps.workspaceId; }, get authorize() { return deps.authorize; },
+  } }, { authorization: "direct" });
+}
+
+/** `GET /api/admin/v1/database/schema-state` (Jini spec), gated by `database.read`. */
+export function registerAdminDatabaseSchemaStateRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: adminDatabaseSchemaStateRoute, deps: {
+    get databaseIntrospection() { return deps.databaseIntrospection; },
+    get workspaceId() { return deps.workspaceId; }, get authorize() { return deps.authorize; },
+  } }, { failure: { operation: "routes/database/schema-state", code: "INTERNAL_ERROR" }, authorization: "direct" });
+}
+
+/** `GET /api/admin/v1/database/restore-points` (Jini spec), gated by `database.read`. */
+export function registerAdminDatabaseRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: adminDatabaseRestorePointsListRoute, deps: {
+    get restorePointsRepo() { return deps.restorePointsRepo; }, listRestorePoints,
+    get workspaceId() { return deps.workspaceId; }, get authorize() { return deps.authorize; },
+  } }, { failure: RESTORE_POINTS_FAILURE, authorization: "direct" });
+}
+
+/** `POST /api/admin/v1/database/restore-points` (Jini spec, 201), gated by `backup.create`. */
+export function registerAdminDatabaseRestorePointsCreateRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: adminDatabaseRestorePointsCreateRoute, deps: {
+    get clock() { return deps.clock; }, get dbOps() { return deps.dbOps; }, get restorePointsRepo() { return deps.restorePointsRepo; },
+    createRestorePoint, restorePointErrors: { unavailable: RestorePointUnavailableError, validation: ValidationError },
+    get workspaceId() { return deps.workspaceId; }, get authorize() { return deps.authorize; },
+  } }, { failure: RESTORE_POINTS_FAILURE, authorization: "direct" });
+}
+
 export function createDatabaseRecoveryModule(deps: DatabaseRecoveryRouteDeps): ServerModuleHandle {
   return {
     name: "database-recovery",

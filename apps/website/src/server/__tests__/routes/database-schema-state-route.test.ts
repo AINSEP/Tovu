@@ -9,7 +9,7 @@ import type { DatabaseIntrospectionPort, SchemaStateSummary } from "#src/feature
 import { InMemoryDatabaseIntrospectionAdapter } from "#src/features/database/repo.memory";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseSchemaStateRoute } from "../../inbound/admin-http/routes/database/schema-state.js";
+import { registerAdminDatabaseSchemaStateRoute } from "../../runtime/composition/modules/database-recovery.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

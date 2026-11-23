@@ -1,7 +1,7 @@
 import type { SiteRenderContext } from "../../render-context.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
-import { str, arr, obj } from "../value-readers.js";
+import { str, arr, obj } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 
 export function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {

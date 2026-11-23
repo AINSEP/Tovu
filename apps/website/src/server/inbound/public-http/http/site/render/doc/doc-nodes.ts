@@ -4,7 +4,7 @@ import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler, DocRenderOptions } from "./doc-render-contract.js";
 import { toSlug } from "#src/platform/html/slug";
 import { dedupeHeadingIds, alignStyleAttr, headingAnchorId, tableSpanAttrs, tableCellAlignAttr } from "@jini-ai/cms/html/text-layout";
-import { isObject, str } from "../value-readers.js";
+import { isObject, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { renderMarks } from "@jini-ai/cms/html/document-marks";

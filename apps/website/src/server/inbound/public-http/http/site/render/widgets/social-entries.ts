@@ -1,5 +1,5 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { arr, obj, str } from "../value-readers.js";
+import { arr, obj, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";

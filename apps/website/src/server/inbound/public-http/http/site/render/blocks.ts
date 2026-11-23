@@ -5,7 +5,7 @@ import { COMPONENTS } from "./components/registry.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { renderPostBody } from "./post-body.js";
 import { entryList } from "./components/entry-lists.js";
-import { isObject } from "./value-readers.js";
+import { isObject } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import type { TemplateNode } from "#src/features/theme/index";
 
 /**
