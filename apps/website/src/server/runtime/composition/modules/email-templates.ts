@@ -40,9 +40,11 @@ import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-li
  */
 
 /** The two port fields every email-templates mount passes. `authorize` is read per request, as the
- *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
+ *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. It drops
+ *  the spec's `entityType`: these routes never named one, and forwarding it would let a resource-scoped
+ *  grant match — an authorization change, not part of a move (same rule as the posts/pages reads). */
 function emailTemplatePortDeps({ deps }: { deps: ContentRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
-  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+  return { workspaceId: deps.workspaceId, authorize: ({ entityType: _entityType, ...params }) => deps.authorize(params) };
 }
 
 /** The host's recognizers for the operation errors every route of this family maps. */
