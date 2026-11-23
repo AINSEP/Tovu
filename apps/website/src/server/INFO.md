@@ -23,3 +23,8 @@ Admin JSON routes are Jini `defineJsonRoute` specs mounted with `mountJsonRoute`
 `inbound/admin-http/admin-json-route-ports.ts` supplies the host ports. Its `authorize` port turns a
 by-id route's `{ entityId }` scope into the `entityId` field of `deps.authorize`; list/import send none.
 Covered by `inbound/admin-http/routes/redirects/__tests__/authorize-entity-id.test.ts`.
+The `authenticate` port answers `undefined` without a session, so a spec's `parse` refusal (400)
+still precedes the missing-session 500, as in the hand-written routes; `authorize` then fails closed.
+Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
+inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
