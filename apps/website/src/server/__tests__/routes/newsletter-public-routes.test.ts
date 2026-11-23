@@ -224,7 +224,7 @@ test("CONFIRM_SUBSCRIPTION: an invalid/unknown token is rejected 400 (HTML), nev
   assert.match(body, /invalid/i);
 });
 
-test("CONFIRM_SUBSCRIPTION: a well-formed, unexpired, unconsumed token still fails today (MembersConsentCapability is unbound, disclosed gap) — but never touches a cookie either way", async (t) => {
+test("CONFIRM_SUBSCRIPTION: with MembersConsentCapability unbound, a valid token gets the plain \"not right now\" page (B176) — and never touches a cookie", async (t) => {
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);
   await deps.newsletterReady;
@@ -280,9 +280,11 @@ test("CONFIRM_SUBSCRIPTION: a well-formed, unexpired, unconsumed token still fai
   });
 
   const res = await fetch(`${baseUrl}/newsletter/confirm?token=${rawToken}`);
-  // Real, current, disclosed behavior: 500, not the 400 "invalid" page — see file header.
-  assert.equal(res.status, 500, await res.clone().text());
-  assert.equal(res.headers.get("set-cookie"), null, "even a 500 must never set a session cookie");
+  // B176: consent is still unbound (disclosed gap, see file header), but the visitor now gets a plain
+  // 503 page instead of a 500 with an error ID, and the token stays usable for later.
+  assert.equal(res.status, 503, await res.clone().text());
+  assert.match(await res.clone().text(), /can’t be confirmed right now\. Ask the site owner\./);
+  assert.equal(res.headers.get("set-cookie"), null, "this page must never set a session cookie");
   assert.match(res.headers.get("content-type") ?? "", /html/);
 });
 
