@@ -81,3 +81,15 @@ session, and the fail-closed content-gating decision (ADR-030).
   in this library, by design.
 - Operator admin-gateway wiring for `members.*` permissions (ADR-018), including
   a rate-limiter for magic-link requests before public sign-up is enabled.
+
+## Wiring
+
+Sign-in and reset mail bodies render in Jini: `@jini-ai/user-management/members/auth-mail` `renderMemberAuthMail({ purpose, link, code?, renderEmailForSend })`. `member-challenge-request.ts` injects `renderEmailForSend` from `@jini-ai/platform/mail/email-template`; Jini never imports the renderer or host code. The rest of this feature stays here until its in-flight and prerequisite steps land (`types.ts`/`ports.ts` are still imported through this barrel by other runs' files).
+
+```ts
+import { renderMemberAuthMail } from "@jini-ai/user-management/members/auth-mail";
+import { renderEmailForSend } from "@jini-ai/platform/mail/email-template";
+const body = renderMemberAuthMail({ purpose: "signin", link, code: secrets.code, renderEmailForSend });
+```
+
+Why the split: Jini `docs/decisions/DR-005-portable-package-boundaries.md`.
