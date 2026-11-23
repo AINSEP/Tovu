@@ -2944,6 +2944,18 @@
     {
       "id": "e3e72647b3a2",
       "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host CLI command reworded neutral."
+    },
+    {
+      "id": "fb946c94c7e9",
+      "reason": "Header of the deleted features/agent-plugins/connection-status.ts compatibility shim (ex7 batch G): the shim is gone, callers use @jini-ai/agent-plugins/connect directly and bind the host projection pair through agentPluginMcpPortsOf / withAgentPluginMcpPorts, whose own docs keep the rationale."
+    },
+    {
+      "id": "2894da9cc44e",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts header (ex7 batch D, K5-webhooks-1.J); host path citations reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "d44542584760",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts (ex7 batch D); the type name now reads DeliveryEnvelopeStorePort (the host alias was dropped), rest identical."
     }
   ]
 }
