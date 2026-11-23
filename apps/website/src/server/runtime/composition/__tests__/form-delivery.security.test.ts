@@ -9,7 +9,7 @@ import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import { createFormDestinationDeliverer } from "#src/features/form-destinations/index";
+import { createFormDestinationDeliverer } from "#src/features/form-destinations/deliver";
 import type { FormDeliveryConnectionPort, FormDestinationKit } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";

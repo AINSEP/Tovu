@@ -11,7 +11,8 @@ import { set, type AuthorizeFn, type SettingsWriteServiceDeps } from "@jini-ai/c
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { createCustomCredential } from "#src/features/custom-credentials/index";
-import { FORM_DESTINATIONS_FILENAME, formDestinationKeyLabel } from "#src/features/form-destinations/index";
+import { FORM_DESTINATIONS_FILENAME } from "#src/features/form-destinations/registry";
+import { formDestinationKeyLabel } from "#src/features/form-destinations/key-store";
 import type { FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "@jini-ai/cms/forms";
 import type { FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";

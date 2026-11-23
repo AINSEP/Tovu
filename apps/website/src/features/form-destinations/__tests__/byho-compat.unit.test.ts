@@ -16,7 +16,8 @@ import { InMemoryCustomCredentialSetRepo, listCustomCredentials, type CustomCred
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { publishStaticSite } from "#src/features/deployments/static-publish/adapter";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { listFormDestinations, loadFormDestinationRegistryFromSource } from "../index.js";
+import { listFormDestinations } from "../key-store.js";
+import { loadFormDestinationRegistryFromSource } from "../registry.js";
 import { formDestinationKey } from "@jini-ai/cms/forms/destinations/pull";
 import { createFormDestinationPort } from "../port.js";
 import type { FormDestinationForm } from "@jini-ai/cms/forms";
