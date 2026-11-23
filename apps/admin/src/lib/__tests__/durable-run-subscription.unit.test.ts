@@ -3,13 +3,13 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
 import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 /** The host bindings the shell takes by injection (rv-g FIX 3): the real guarded read, and a quiet logger. */
 const readRefusal = ({ response }: { response: Response }) => orFallback({ work: () => response.clone().json(), fallback: null, step: "Read queued run refusal" });
 const logger = { error: vi.fn() };
 import { subscriptionEnded, type TrackedRunHandlers } from "@jini-ai/admin/shell/lib/stream-activity";
-import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 function harness() {
   let saved: ChatMessage | null = null;

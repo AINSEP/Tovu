@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPolicyPermission } from "@/features/roles/api/roles-api.types";
+import type { AdminPolicyPermission } from "@jini-ai/admin/roles/api/roles-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
 import { defaultRolesPort } from "../hooks/roles-dependencies.hooks";

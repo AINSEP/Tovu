@@ -1,0 +1,98 @@
+
+> tovu@0.1.0 check:architecture
+> tsx development/scripts/check-architecture.ts
+
+check:architecture — 2228 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              307
+  propagation cost (all-import)                        12.14%
+  propagation cost (runtime-only)                      3.28%
+  back-edges into composition root                     0
+    └ back-edges, runtime-only (informational)         0
+  module cycles (mutual pairs, runtime-only)           1
+  largest strongly-connected component (runtime-only)  2
+  module API surface (files exposed)                   684
+    └ deep-import edges (informational)                2731
+  bidirectional hub count                              12.61% (281/2228)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/attachments.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/site-references.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/content-types/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-copy-tool.ts -> apps/website/src/features/project-keys/service.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/vault-repo.ts -> apps/website/src/features/project-keys/attached-vault.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/run-ops.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+  NEW cross-feature edge: apps/website/src/features/forms/form-file-maintenance.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/forms/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/media/verify-published-media.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/navigation/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/shared-oauth-disconnect.ts -> apps/website/src/features/api-connections/shared-owner.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/settings/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-plugin-state.ts -> apps/website/src/features/agent-plugins/soon-lock.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/push-content.ts -> apps/website/src/features/source-control/provider-module.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/write-port.ts -> apps/website/src/features/custom-credentials/write-files-validation.ts
+  NEW cross-feature edge: apps/website/src/features/taxonomy/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/taxonomy/publish-term-ids.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/theme/active-theme-publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-read.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-trash.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-update.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.28
+
+  propagation cost (all-import) improved: 15.52 → 12.14
+
+  module API surface (files exposed) improved: 821 → 684
+
+  bidirectional hub count improved: 335 → 281
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.28  (+0.22 pts, +7.19%)
+  improved:  propagation cost (all-import)       15.52 → 12.14  (-3.38 pts, -21.78%)
+  improved:  module API surface (files exposed)  821 → 684  (-137, -16.69%)
+  improved:  bidirectional hub count             335 → 281  (-54, -16.12%)
+========================================================================
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.

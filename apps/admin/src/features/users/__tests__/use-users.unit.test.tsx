@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { userManagementKit } from "@/integrations/jini-kits";

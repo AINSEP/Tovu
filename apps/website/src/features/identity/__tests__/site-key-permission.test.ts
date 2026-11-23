@@ -11,7 +11,7 @@ import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "../wir
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
 
-import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 // The app's real, explicit grant registry — it calls `registerSiteKeyPermissionGrants`, so this file

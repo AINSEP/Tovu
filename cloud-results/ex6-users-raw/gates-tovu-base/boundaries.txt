@@ -1,0 +1,162 @@
+
+> tovu@0.1.0 check:boundaries
+> node development/scripts/check-feature-ranks.mjs . development/boundaries/feature-ranks.json && depcruise --config .dependency-cruiser.mjs apps/website/src
+
+68 feature folders with production code; 0 problem(s)
+
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/permanent-delete/tool-registrations.ts → apps/website/src/platform/db/content-kernel.ts
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/identity/repo.authentication.ts → apps/website/src/platform/db/keep-stored-revocation.ts
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/external-mcp/external-mcp-repo.sqlite.ts → apps/website/src/platform/db/content-kernel.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:platform/http: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/platform/http/egress-policies.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/theme/trash-theme-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/theme/set-active-theme-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/theme/preview-switcher-tools.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/theme/import-theme-file-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/theme/duplicate-theme-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/assistant/tool-registrations.ts → apps/website/src/features/theme/trash-theme-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/assistant/tool-registrations.ts → apps/website/src/features/theme/set-active-theme-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/theme: apps/website/src/assistant/tool-registrations.ts → apps/website/src/features/theme/preview-switcher-tools.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/post: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/post/preview-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/post: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/post/post-tool-duplicate.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/post: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/features/post/content-stats-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/post: apps/website/src/assistant/tool-registrations.ts → apps/website/src/features/post/post-tool-deps.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:features/post: apps/website/src/assistant/tool-registrations.ts → apps/website/src/features/post/content-stats-tool.ts
+  warn no-non-seam-deep-imports-from-tool-registration-caller:assistant: apps/website/src/server/runtime/composition/tool-catalog-manifest.ts → apps/website/src/assistant/tool-approval-policy.ts
+  warn no-deep-imports:platform/mail: apps/website/src/server/routes/types.ts → apps/website/src/platform/mail/purpose-gate-probe.ts
+  warn no-deep-imports:platform/mail: apps/website/src/server/routes/types.ts → apps/website/src/platform/mail/mail-status.ts
+  warn no-deep-imports:features/webhooks: apps/website/src/server/routes/types.ts → apps/website/src/features/webhooks/signing.ts
+  warn no-deep-imports:features/settings: apps/website/src/server/routes/route-deps/credentials-deps.ts → apps/website/src/features/settings/tool-registrations.ts
+  warn no-deep-imports:features/settings: apps/website/src/assistant/runtime-preferences.ts → apps/website/src/features/settings/admin-interface.ts
+  warn no-deep-imports:features/newsletter: apps/website/src/server/inbound/public-http/routes/site/newsletter-deps.ts → apps/website/src/features/newsletter/deps-builders.ts
+  warn no-deep-imports:features/newsletter: apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts → apps/website/src/features/newsletter/deps-builders.ts
+  warn no-deep-imports:features/entries: apps/website/src/server/routes/types.ts → apps/website/src/features/entries/public-list.ts
+  warn no-deep-imports:features/analytics: apps/website/src/server/routes/types.ts → apps/website/src/features/analytics/forwarding.ts
+  warn no-deep-imports:features/analytics: apps/website/src/server/routes/types.ts → apps/website/src/features/analytics/contracts.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/server/inbound/admin-http/routes/skills/manage.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/skills/tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/plugin-runtime/capability-tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/memory-tools.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:assistant: apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/runtime/lifecycle/assistant-daemon-connection.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/early-run-session.ts → apps/website/src/assistant/daemon-core-protocol.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/durable-run-routes.ts → apps/website/src/assistant/daemon-core-protocol.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/assistant-tool-access.ts → apps/website/src/assistant/cli-permission-layer.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts → apps/website/src/assistant/subagent-settings.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-plugin-preflight-events.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts → apps/website/src/assistant/tool-family-port.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts → apps/website/src/assistant/tool-catalog-query.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts → apps/website/src/assistant/tool-audit-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts → apps/website/src/assistant/daemon-call-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts → apps/website/src/assistant/component-catalog-query.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-server.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope.ts → apps/website/src/assistant/run-active-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope.ts → apps/website/src/assistant/custom-instructions.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope.ts → apps/website/src/assistant/agents.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope.ts → apps/website/src/assistant/agent-session-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/tool-recovery-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/tool-approval-policy.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/rewrap-page-navigate-error.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/read-only-tool-constraint.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/page-approval-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/lost-frontend-binding.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/frontend-control-capabilities.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts → apps/website/src/assistant/admin-frontend-owner.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-runtime.ts → apps/website/src/assistant/mcp-injection.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-runtime.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-runtime.ts → apps/website/src/assistant/custom-instructions.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-runtime.ts → apps/website/src/assistant/agents.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-lifetime.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-lifetime.ts → apps/website/src/assistant/agents.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/tool-recovery-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/run-active-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/read-only-tool-constraint.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/mcp-ui-tool-calls-route.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/frontend-control-capabilities.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/agents.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/admin-frontend-owner.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts → apps/website/src/assistant/a2ui-actions-route.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-attachments.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-scope-attachments.ts → apps/website/src/assistant/agent-session-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/run-start-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/run-page-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/run-active-context.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/mcp-injection.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/daemon-access.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/custom-instructions.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/agents.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → apps/website/src/assistant/agent-session-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-run-session.ts → apps/website/src/assistant/agent-session-preset.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts → apps/website/src/assistant/daemon-core-protocol.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts → apps/website/src/assistant/cli-permission-layer.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts → apps/website/src/assistant/external-mcp-roster-change.ts
+  warn no-deep-imports:assistant: apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts → apps/website/src/assistant/external-mcp-roster-change.ts
+  warn no-circular: apps/website/src/server/runtime/composition/site-deps/assembly-phases.ts → 
+      apps/website/src/server/runtime/composition/site-deps/boot-phases.ts →
+      apps/website/src/server/runtime/composition/site-deps/assembly-phases.ts
+  warn no-circular: apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts → 
+
+      apps/website/src/server/inbound/assistant/agent-daemon-run-tool-access.ts
+      →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts
+  warn no-circular: apps/website/src/server/inbound/assistant/agent-daemon-run-session.ts → 
+      apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-session.ts
+  warn no-circular: apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts → 
+
+      apps/website/src/server/inbound/assistant/agent-daemon-run-tool-access.ts
+      →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts
+  warn no-circular: apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts → 
+      apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts
+  warn no-circular: apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts → 
+      apps/website/src/server/inbound/assistant/agent-daemon-run-session.ts →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts →
+      apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts
+  warn no-circular: apps/website/src/server/inbound/admin-http/routes/redirects/create.ts → 
+      apps/website/src/server/runtime/composition/modules/redirects.ts →
+      apps/website/src/server/inbound/admin-http/routes/redirects/create.ts
+  warn no-circular: apps/website/src/features/theme/theme-static-assets.ts → 
+      apps/website/src/features/theme/theme.ts →
+      apps/website/src/features/theme/theme-static-assets.ts
+  warn no-circular: apps/website/src/features/site-backup/backup-service.ts → 
+      apps/website/src/features/site-backup/push-content.ts →
+      apps/website/src/features/site-backup/backup-service.ts
+  warn no-circular: apps/website/src/features/post/post-create.ts → 
+      apps/website/src/features/post/post-slugs.ts →
+      apps/website/src/features/post/post-create.ts
+  warn no-circular: apps/website/src/features/plugin-runtime/install-tool-binding.ts → 
+      apps/website/src/features/plugin-runtime/install-tool.ts →
+      apps/website/src/features/plugin-runtime/install-tool-binding.ts
+  warn no-circular: apps/website/src/features/plugin-runtime/host-tool-binding.ts → 
+      apps/website/src/features/plugin-runtime/tool-registrations.ts →
+      apps/website/src/features/plugin-runtime/host-tool-binding.ts
+  warn no-circular: apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts → 
+      apps/website/src/features/plugin-runtime/tool-registrations.ts →
+      apps/website/src/features/plugin-runtime/host-tool-binding.ts →
+      apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts
+  warn no-circular: apps/website/src/features/newsletter/deps-builders.ts → 
+      apps/website/src/features/newsletter/tool-registrations.ts →
+      apps/website/src/features/newsletter/deps-builders.ts
+  warn no-circular: apps/website/src/features/agent-plugins/lifecycle.ts → 
+      apps/website/src/features/agent-plugins/supersession.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts
+  warn no-circular: apps/website/src/features/agent-plugins/customize-tool.ts → 
+      apps/website/src/features/agent-plugins/install-tool.ts →
+      apps/website/src/features/agent-plugins/customize-tool.ts
+  warn no-circular: apps/website/src/features/agent-plugins/connect-sign-in-wait.ts → 
+      apps/website/src/features/agent-plugins/connect-tool.ts →
+      apps/website/src/features/agent-plugins/connect-sign-in-wait.ts
+  warn no-circular: apps/website/src/cli/commands/serve-listen.ts → 
+      apps/website/src/cli/commands/serve.ts →
+      apps/website/src/cli/commands/serve-listen.ts
+
+x 108 dependency violations (0 errors, 108 warnings). 6789 modules, 47117 dependencies cruised.
+

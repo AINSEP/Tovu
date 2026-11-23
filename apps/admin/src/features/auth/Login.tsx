@@ -1,10 +1,10 @@
-import { createLoginTranslator } from "./Login.hooks";
+import { createLoginTranslator } from "@jini-ai/admin/screens/auth/Login.hooks";
 import { PasskeySignIn } from '@jini-ai/user-management/react';
 import { ownerPasskeySignInPort } from '../../lib/owner-passkey-api';
 import { authApi } from './api/auth-api';
 import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
-import type { AdminUser } from "./api/auth-api.types";
+import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { useWiredLogin } from "./hooks/use-login.hooks";

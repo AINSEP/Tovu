@@ -1,0 +1,6 @@
+
+> tovu@0.1.0 check:why-comments
+> node development/scripts/check-why-comments.mjs
+
+why-comments: 0 files with removed lines checked against 13d792cf4..HEAD, 0 comment blocks lost (0 allow-listed)
+why-comments: ok

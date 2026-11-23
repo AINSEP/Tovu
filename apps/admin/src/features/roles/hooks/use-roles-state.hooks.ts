@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { AdminPolicyPermission, AdminRole, AdminPolicy } from "@/features/roles/api/roles-api.types";
+import type { AdminPolicyPermission, AdminRole, AdminPolicy } from "@jini-ai/admin/roles/api/roles-api.types";
 import { useFetchQuery as useFetchQueryHook } from "@jini-ai/ui/fetch-query";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale as useAdminLocaleHook } from "@/hooks/use-admin-locale.hooks";

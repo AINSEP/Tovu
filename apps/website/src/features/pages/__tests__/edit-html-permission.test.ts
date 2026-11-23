@@ -5,7 +5,7 @@ import test from "node:test";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
 
-import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations } from "../tool-registrations.js";

@@ -1,7 +1,7 @@
-import type { AdminPolicy, AdminRole } from "./api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { useWiredRoles } from "./hooks/use-roles.hooks";
-import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "./Roles.hooks";
+import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "@jini-ai/admin/roles/Roles.hooks";
 import { rolesDescriptionParts } from "./roles-i18n";
 import { RolesSection } from "./RolesSection";
 import { PoliciesSection } from "./PoliciesSection";

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useLogin, useWiredLogin } from "../hooks/use-login.hooks";
 import { createFakeLoginPort } from "@jini-ai/user-management/react/testing";
 import { defaultLoginPort } from "../hooks/login-dependencies.hooks";
-import type { LoginPort } from "../hooks/login-port.hooks";
+import type { LoginPort } from "@jini-ai/admin/screens/auth/hooks/login-port.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 
 /**

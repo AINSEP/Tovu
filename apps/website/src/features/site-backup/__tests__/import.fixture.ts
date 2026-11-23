@@ -11,7 +11,7 @@ import { login } from "@jini-ai/user-management/server";
 import { AuthInvalidCredentialsError } from "@jini-ai/user-management";
 import argon2 from "argon2";
 import { createSqliteIdentityRouteDeps } from "../../identity/wiring.js";
-import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
+import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { contentKernel } from "../../../platform/db/content-kernel.js";
 import { identityServiceDepsFrom } from "../../../server/inbound/admin-http/routes/users/deps.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";

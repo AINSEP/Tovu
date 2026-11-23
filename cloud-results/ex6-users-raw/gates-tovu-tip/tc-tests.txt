@@ -1,0 +1,6 @@
+
+> tovu@0.1.0 typecheck:tests
+> NODE_OPTIONS=--max-old-space-size=6144 tsc -p tsconfig.tests.json --noEmit
+
+apps/website/src/server/runtime/plugin-tier2/worker.ts(19,33): error TS2305: Module '"@jini-ai/plugins/host/worker"' has no exported member 'Tier2ImportPolicy'.
+apps/website/src/server/runtime/plugin-tier2/worker.ts(63,48): error TS2353: Object literal may only specify known properties, and 'importPolicy' does not exist in type 'StartTier2WorkerRequired'.

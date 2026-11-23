@@ -3,9 +3,9 @@ import { useLogin as useJiniLogin, type LoginController as JiniLoginController }
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 import { ApiError } from "@/lib/admin-http/request";
 
-import type { AdminUser } from "@/features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
 import { defaultLoginPort } from "./login-dependencies.hooks";
-import type { LoginPort } from "./login-port.hooks";
+import type { LoginPort } from "@jini-ai/admin/screens/auth/hooks/login-port.hooks";
 
 /**
  * @file Everything the Login screen does, so `Login.tsx` is only markup.

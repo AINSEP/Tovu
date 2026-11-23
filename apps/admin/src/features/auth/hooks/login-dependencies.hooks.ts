@@ -1,5 +1,5 @@
 import { authApi } from "@/features/auth/api/auth-api";
-import type { LoginPort } from "./login-port.hooks";
+import type { LoginPort } from "@jini-ai/admin/screens/auth/hooks/login-port.hooks";
 
 /**
  * @file The only place under `features/auth` that reaches `lib/api` — see `login-port.hooks.ts`

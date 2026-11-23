@@ -1,7 +1,7 @@
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import type { AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";

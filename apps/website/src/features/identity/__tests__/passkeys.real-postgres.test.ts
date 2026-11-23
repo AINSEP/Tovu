@@ -9,7 +9,7 @@ import { openPostgresKernel } from '#src/platform/db/kernel/drivers/postgres';
 import type { ContentDatabase } from '#src/platform/db/content-database.generated';
 import { migrateContentDatabase } from '#src/platform/db/migrations/index';
 import { createSqliteIdentityRouteDeps } from '../wiring.js';
-import { createPermissionGrantRegistry } from '../permission-grants.js';
+import { createPermissionGrantRegistry } from '@jini-ai/user-management/identity/permission-grants';
 import { identityServiceDepsFrom } from '#src/server/inbound/admin-http/routes/users/deps';
 
 /** Two independent PostgreSQL pools prove identity serialization, not a process-local mutex. */

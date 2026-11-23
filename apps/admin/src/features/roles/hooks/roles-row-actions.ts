@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
 import { describeApiError } from "../rules";
 import { t } from "../roles-i18n";
 import type { useRolesState } from "./use-roles-state.hooks";

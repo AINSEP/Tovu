@@ -18,7 +18,7 @@ import {
 } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
 
-import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**

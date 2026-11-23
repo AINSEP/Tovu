@@ -114,7 +114,7 @@ const tabPages: TabPage[] = [
   { route: "ai-assistant", ids: tabValues("ai-assistant/hooks/use-ai-assistant.hooks.ts", "AI_ASSISTANT_TAB_IDS"), shell: true },
   { route: "pages", ids: tabValues("pages/Pages.tsx", "jsx:tabs", "id") },
   { route: "media", ids: tabValues("media/hooks/use-media-tabs.hooks.ts", "MEDIA_TABS", "id") },
-  { route: "roles", ids: tabValues("roles/Roles.hooks.tsx", "ROLES_TAB_IDS") },
+  { route: "roles", ids: tabValues("@jini-ai/admin/roles/Roles.hooks.js", "ROLES_TAB_IDS") },
   { route: "seo", ids: tabValues("@jini-ai/admin/seo/rules.js", "SEO_TAB_IDS") },
   { route: "themes", ids: themeTabIds },
   { route: "appearance", ids: themeTabIds },
