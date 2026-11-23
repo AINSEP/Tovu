@@ -1,4 +1,4 @@
-import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
 import type { MigrateForwardExecuteResult } from "@/features/database/api/database-api.types";
 import { databaseApi } from "@/features/database/api/database-api";
 import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
