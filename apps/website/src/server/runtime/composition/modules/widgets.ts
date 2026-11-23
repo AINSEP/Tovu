@@ -2,20 +2,20 @@ import type { Express } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import { widgetCreateRoute } from "@jini-ai/cms/admin-http/routes/widgets/create";
+import { widgetEmbedInsertRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-insert";
+import { widgetEmbedRemoveRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-remove";
+import { widgetEmbedReorderRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-reorder";
 import { widgetGetRoute } from "@jini-ai/cms/admin-http/routes/widgets/get-by-id";
 import { widgetListRoute } from "@jini-ai/cms/admin-http/routes/widgets/list";
 import { widgetRegionBindRoute } from "@jini-ai/cms/admin-http/routes/widgets/region-bind";
 import { widgetRegionGetRoute } from "@jini-ai/cms/admin-http/routes/widgets/region-get";
+import { widgetRegionMutatePlacementsRoute } from "@jini-ai/cms/admin-http/routes/widgets/region-mutate-placements";
 import { widgetRegionsListRoute } from "@jini-ai/cms/admin-http/routes/widgets/regions-list";
 import { widgetTrashRoute } from "@jini-ai/cms/admin-http/routes/widgets/trash";
 import { widgetUpdateRoute } from "@jini-ai/cms/admin-http/routes/widgets/update";
 import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { registerAdminWidgetAgentToolsRoutes } from "#src/server/inbound/admin-http/routes/widgets/agent-tools";
-import { registerAdminWidgetEmbedInsertRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-insert";
-import { registerAdminWidgetEmbedRemoveRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-remove";
-import { registerAdminWidgetEmbedReorderRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-reorder";
 import { registerAdminWidgetPreviewRoute } from "#src/server/inbound/admin-http/routes/widgets/preview";
-import { registerAdminWidgetRegionMutatePlacementsRoute } from "#src/server/inbound/admin-http/routes/widgets/region-mutate-placements";
 import { createAdminJsonRoutePorts, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
@@ -24,7 +24,7 @@ import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `widgets` server module (SPEC-043, ADR-047) — ADR-046 Phase 3 server-module
- * convention, mirroring `modules/menus.ts`. Eight widgets routes are Jini route specs
+ * convention, mirroring `modules/menus.ts`. Twelve widgets routes are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/widgets/*`) mounted behind the admin ports below; the rest are
  * still hand-written `RouteRegistrar`s. Every route reads only its own fields of `RouteDeps`
  * (`RouteDeps` already carries every dependency a widgets route needs — `widgetBindingRepo`/
@@ -100,6 +100,26 @@ export const registerAdminWidgetRegionGetRoute: WidgetRouteRegistrar = ({ app, d
 
 export const registerAdminWidgetRegionBindRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountWidgetJsonRoute({ app, spec: widgetRegionBindRoute, deps: { ...widgetPortDeps({ deps }), regionDeps: () => buildWidgetsRegionDeps(deps) } });
+};
+
+export const registerAdminWidgetRegionMutatePlacementsRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountWidgetJsonRoute({
+    app,
+    spec: widgetRegionMutatePlacementsRoute,
+    deps: { ...widgetPortDeps({ deps }), widgetBindingRepo: deps.widgetBindingRepo, regionDeps: () => buildWidgetsRegionDeps(deps) },
+  });
+};
+
+export const registerAdminWidgetEmbedInsertRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountWidgetJsonRoute({ app, spec: widgetEmbedInsertRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+};
+
+export const registerAdminWidgetEmbedRemoveRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountWidgetJsonRoute({ app, spec: widgetEmbedRemoveRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+};
+
+export const registerAdminWidgetEmbedReorderRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountWidgetJsonRoute({ app, spec: widgetEmbedReorderRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
 };
 
 export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
