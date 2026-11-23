@@ -265,7 +265,7 @@ test("a reset that completes between the login's checks and its session save sti
 
 test("password login refuses an account disabled during verification", async () => {
   const h = harness(); const member = await h.seed();
-  h.deps.passwordHasher!.verify = async () => { await h.deps.members.save({ ...member, status: "disabled" }); return true; };
+  h.deps.passwordHasher!.verify = async () => { await h.deps.members.save({ ...member, status: "disabled", version: member.version + 1 }); return true; };
   await assert.rejects(h.login(), { message: "INVALID_CREDENTIALS" });
 });
 
@@ -308,7 +308,7 @@ test("reset consumes first, writes hash and cutoff, revokes all sessions, and in
 for (const status of ["disabled", "trash"] as const) {
   test(`reset denies a member made ${status} after issuance`, async () => {
     const h = harness(); const member = await h.seed(); const token = await h.resetToken();
-    await h.deps.members.save({ ...member, status });
+    await h.deps.members.save({ ...member, status, version: member.version + 1 });
     await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "x" } }), MemberAuthError);
     assert.deepEqual(h.hashInputs, []);
   });
@@ -379,7 +379,7 @@ test("password login folds the address's case and surrounding spaces before the 
 test("a reset link issued AT the credential cutoff is refused; one issued after it works", async () => {
   const h = harness(); const member = await h.seed();
   const token = await h.resetToken();
-  await h.deps.members.save({ ...member, credentialsRevokedAt: h.clock.nowIso() });
+  await h.deps.members.save({ ...member, credentialsRevokedAt: h.clock.nowIso(), version: member.version + 1 });
   await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "x" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
   assert.deepEqual(h.hashInputs, []);
   h.clock.advanceMs(1);
@@ -395,7 +395,7 @@ test("a credential cutoff that moves while the new password hashes refuses the r
   const hash = hasher.hash.bind(hasher);
   hasher.hash = async input => {
     // An EARLIER cutoff than the link passes the issuance check, so only the moved-cutoff check can refuse.
-    await h.deps.members.save({ ...member, credentialsRevokedAt: "2026-10-24T11:00:00.000Z" });
+    await h.deps.members.save({ ...member, credentialsRevokedAt: "2026-10-24T11:00:00.000Z", version: member.version + 1 });
     return hash(input);
   };
   await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");

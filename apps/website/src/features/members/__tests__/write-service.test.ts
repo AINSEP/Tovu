@@ -273,7 +273,7 @@ test("completeSignIn rejects a token whose member was disabled AFTER the link wa
   const rawToken = extractRawToken(sent[0].message.text!);
 
   const member = await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "raced@example.com" });
-  await deps.members.save({ ...member!, status: "disabled" });
+  await deps.members.save({ ...member!, status: "disabled", version: member!.version + 1 });
 
   await assert.rejects(
     () => completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
@@ -987,7 +987,7 @@ for (const status of ["disabled", "trash"] as const) {
     const { deps, sent, principals } = makeDeps();
     await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "race@example.com" } });
     const { member } = await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "race@example.com" } });
-    await deps.members.save({ ...member, status });
+    await deps.members.save({ ...member, status, version: member.version + 1 });
     const before = await principals.list({ workspaceId: WORKSPACE_ID });
     await assert.rejects(completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(sent[0].message.text!) } }), MemberAuthError);
     assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), before);
