@@ -1,5 +1,11 @@
 (function () {
-  var STORAGE_KEY = "tovu-theme:relay";
+  // The key is per THEME, taken from this script's own URL (`/theme-assets/<id>/scripts/...`, which
+  // theme duplication already rewrites to the copy's id), so a duplicated theme remembers light/dark
+  // on its own instead of sharing one entry with Tovu Theme. `tovu-theme` keeps its historical key
+  // (`tovu-theme:relay`), so existing visitors keep their choice. A static download flattens the URL
+  // to `scripts/theme-toggle.js` with no id; one theme per site there, so the historical key is safe.
+  var themeId = /\/theme-assets\/([^/]+)\//.exec((document.currentScript && document.currentScript.src) || "");
+  var STORAGE_KEY = (themeId ? themeId[1] : "tovu-theme") + ":relay";
   var root = document.documentElement;
 
   function apply({ mode }, _optional = {}) {
