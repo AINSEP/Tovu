@@ -1,0 +1,93 @@
+{
+  "planSha": "fixture-plan",
+  "themeRoots": [
+    "apps/website/src/features/theme/"
+  ],
+  "forbiddenRoots": [
+    "apps/website/src/server/routes/types.ts",
+    "apps/website/src/server/routes/route-deps/",
+    "apps/website/src/platform/",
+    "apps/website/src/server/runtime/composition/",
+    "apps/admin/src/integrations/",
+    "apps/admin/src/lib/admin-http/"
+  ],
+  "boundRoots": [
+    "apps/website/src/features/billing/",
+    "apps/admin/src/features/owner/",
+    "apps/desktop/src/main/sync/"
+  ],
+  "rows": [
+    {
+      "path": "apps/admin/src/integrations/jini-kits.ts",
+      "step": "s2",
+      "area": "admin",
+      "dest": "stays",
+      "k": [
+        "host"
+      ],
+      "scope": "host",
+      "disposition": "host-owned",
+      "owner": "tovu"
+    },
+    {
+      "path": "apps/admin/src/lib/admin-http/request.ts",
+      "step": "s2",
+      "area": "admin-http",
+      "dest": "stays",
+      "k": [
+        "host"
+      ],
+      "scope": "host",
+      "disposition": "host-owned",
+      "owner": "tovu"
+    },
+    {
+      "path": "apps/desktop/src/main/host-store.ts",
+      "step": "s3",
+      "area": "desktop",
+      "dest": "stays",
+      "k": [
+        "host"
+      ],
+      "scope": "host",
+      "disposition": "host-owned",
+      "owner": "tovu"
+    },
+    {
+      "path": "apps/website/src/features/theme/theme-a.ts",
+      "step": "s4",
+      "area": "theme",
+      "dest": "stays",
+      "k": [
+        "host"
+      ],
+      "scope": "host",
+      "disposition": "stays: owner 2026-11-22",
+      "owner": "tovu"
+    },
+    {
+      "path": "apps/website/src/platform/html/esc.ts",
+      "step": "s1",
+      "area": "platform",
+      "dest": "packages/cms/src/html/site/esc.ts",
+      "k": [
+        "move"
+      ],
+      "scope": "bound",
+      "disposition": "move",
+      "owner": "cms"
+    },
+    {
+      "path": "apps/website/src/platform/html/inner.ts",
+      "step": "s1",
+      "area": "platform",
+      "dest": "stays",
+      "k": [
+        "host"
+      ],
+      "scope": "host",
+      "disposition": "host-owned",
+      "owner": "tovu"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{ "name": "@jini-ai/core", "version": "0.0.0", "exports": { ".": "./index.js", "./contracts": "./contracts.js", "./text": "./text.js", "./kits/*": "./kits/*.js" } }

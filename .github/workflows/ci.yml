@@ -110,15 +110,25 @@ jobs:
           apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts
 
       - name: Check architecture boundaries
-        # .dependency-cruiser.mjs rules are deliberately severity:"warn" (see file header) —
-        # this always exits 0 on ordinary violations by design, so no continue-on-error needed.
-        # It only fails the step if the tool itself errors out.
+        # Three checks, any of which fails this step (the "Gate summary" step below then fails the job):
+        # the feature-rank coverage check, the website dependency-cruiser report (its error-severity
+        # rules — feature ranks, promoted deep-import rules — exit non-zero; warn rules only report),
+        # and the Gate B extraction ratchet (development/scripts/check-extraction-boundaries.mjs),
+        # which blocks new, raised or stale bound->host debt against development/boundaries/
+        # extraction-debt.json and rejects allowance growth versus EXTRACTION_BASE_REF. The ratchet's
+        # own fixtures run first so a broken checker cannot pass silently.
+        env:
+          EXTRACTION_BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || format('origin/{0}', github.event.repository.default_branch) }}
         id: gate-boundaries
         continue-on-error: true
-        run: npm run check:boundaries
+        run: |
+          node --test development/scripts/__tests__/check-extraction-boundaries.test.mjs development/scripts/__tests__/extraction-inventory.test.mjs development/scripts/__tests__/check-wiring-sections.test.mjs
+          npm run check:boundaries
+          # ADR-071 Wiring sections: an error for a Jini-bound feature folder this change touches, a warning otherwise.
+          npm run check:wiring
 
       - name: Check architecture metrics
-        # BLOCKING, unlike check:boundaries above — and a genuinely different check.
+        # BLOCKING, like check:boundaries above — but a genuinely different check.
         #
         # dependency-cruiser's `no-circular` finds cycles between *files*; this repo has 2 of
         # those. It cannot express cycles between *modules* (`src/<dir>`), of which there are
@@ -133,8 +143,8 @@ jobs:
         run: npm run check:architecture
 
       - name: Check capability-inventory staleness
-        # Same report-only posture as check:boundaries (see development/scripts/check-capability-inventory.ts
-        # header) — always exits 0 on findings, only fails on a genuine script error.
+        # Report-only (see development/scripts/check-capability-inventory.ts header) — always exits 0
+        # on findings, only fails on a genuine script error. Unlike check:boundaries, which blocks.
         id: gate-inventory
         continue-on-error: true
         run: npm run check:inventory
@@ -306,7 +316,7 @@ jobs:
           }
           echo "--- build-and-test gates ---"
           check "${{ steps.gate-typecheck.outcome }}"          "typecheck (root)"
-          check "${{ steps.gate-boundaries.outcome }}"         "check:boundaries (dependency-cruiser)"
+          check "${{ steps.gate-boundaries.outcome }}"         "check:boundaries (feature ranks, dependency-cruiser, extraction ratchet)"
           check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"

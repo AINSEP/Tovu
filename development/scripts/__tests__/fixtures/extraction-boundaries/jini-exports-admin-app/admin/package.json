@@ -1,0 +1,1 @@
+{ "name": "@jini-ai/admin", "version": "0.0.0", "exports": { "./react": "./react.js", "./private/*": null, "./*": "./*.js" } }

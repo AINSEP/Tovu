@@ -1,0 +1,1 @@
+{ "type": "module", "imports": { "#src/*": "./apps/website/src/*.ts" } }
