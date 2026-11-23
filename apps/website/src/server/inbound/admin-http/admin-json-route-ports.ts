@@ -60,7 +60,11 @@ export function createAdminJsonRoutePorts(
       if (required.workspaceScoped === false) return;
       if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
     },
+    // A missing session is deferred, not thrown here: the hand-written write routes validated the
+    // body before reading the principal, so a 400 must still win. `authorize` fails closed below
+    // with `getAuthedPrincipal`'s own error, which `onError` answers as the same redacted 500.
     authenticate: ({ res }) => {
+      if (!res.locals.principal) return undefined;
       const principal = { ...getAuthedPrincipal(res) };
       const publishTrust = required.authorization === "direct" ? null : getPublishTrustContext(res);
       if (publishTrust) publishTrustByContext.set(principal, publishTrustAuthorizeFor(publishTrust));
@@ -69,7 +73,7 @@ export function createAdminJsonRoutePorts(
     // A by-id route names its entity (`entityId`), as the hand-written routes passed it to
     // `deps.authorize`; an id-free route (list, import) sends no `entityId` key at all.
     authorize: async ({ context, deps, permission, entityType }, scope = {}) => {
-      if (!context) throw new Error("admin JSON route authorization has no authenticated principal");
+      if (!context) throw new Error("getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route");
       const authorize = publishTrustByContext.get(context) ?? deps.authorize;
       const entity = scope.entityId === undefined ? { entityType } : { entityType, entityId: scope.entityId };
       const result = await authorize({ principalId: context.id, permission, workspaceId: deps.workspaceId, ...entity });
