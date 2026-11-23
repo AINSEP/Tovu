@@ -5416,6 +5416,42 @@
     {
       "id": "3733af9f5242",
       "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3feb345f9e19",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/contract.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "4829953424c4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/contract.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "14ebb47750c3",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/criteria.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "3cccdb8a68c2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/index.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "24d916433f0e",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/phase.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "b82de0671a46",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "b353ab0a78cd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "639048e08d55",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "8ba488396f4a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
     }
   ]
 }
