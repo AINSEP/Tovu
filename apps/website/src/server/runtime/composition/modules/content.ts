@@ -11,8 +11,7 @@ import { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/rou
 import { registerAdminEmailTemplateRoutes } from "./email-templates.js";
 import { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
 import { registerAdminChangeSetListRoute, registerAdminChangeSetGetRoute, registerAdminChangeSetRevertRoute } from "./change-sets.js";
-import { registerAdminPresentationGetRoute, registerAdminThemeRescanRoute } from "./presentation.js";
-import { registerAdminPresentationPatchRoute } from "#src/server/inbound/admin-http/routes/presentation/patch-active-theme";
+import { registerAdminPresentationGetRoute, registerAdminPresentationPatchRoute, registerAdminThemeRescanRoute } from "./presentation.js";
 import { registerAdminThemesListRoute, registerAdminThemeDuplicateRoute } from "./themes.js";
 import {
   registerAdminThemeDetailRoute,
@@ -102,7 +101,7 @@ import type { ServerModuleHandle } from "./types.js";
  *   features-post-deep-import-trace.md Job 2) — it was here only for `revert.ts`'s own
  *   `reverterDeps.settingsRepo`, and that field was dead (declared, never read by either post
  *   reverter); removing it cost nothing.
- * - `presentationRepo`/`themes`: `presentation/get.ts`/`presentation/patch-active-theme.ts`
+ * - `presentationRepo`/`themes`: `modules/presentation.ts` (GET + PATCH)
  *   (`themes` via `validThemeIds(deps.themes)`).
  * - `themesDir`: `presentation/rescan-themes.ts` — the root to re-run discovery against. Taken from
  *   deps rather than re-derived so a composition root that overrides `TOVU_THEMES_DIR` rescans the

@@ -1,9 +1,13 @@
 import { presentationGetRoute, type PresentationResponseFields } from "@jini-ai/cms/admin-http/routes/presentation/get";
 import { themeRescanRoute } from "@jini-ai/cms/admin-http/routes/presentation/rescan-themes";
+import { presentationPatchRoute, type PresentationPatchResponseFields } from "@jini-ai/cms/admin-http/routes/presentation/patch";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
+import { setActiveTheme } from "#src/features/presentation/index";
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
 import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
 import type { HeadlessThemeSummary } from "#src/contracts/headless/index";
-import { duplicateThemeIds, findStoredTheme, rescanThemes, validThemeIds } from "#src/features/theme/index";
+import { duplicateThemeIds, findStoredTheme, rescanThemes, ThemeStylingRequiredError, validThemeIds, writableThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
@@ -20,11 +24,10 @@ import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-
  * discovery, preview host and presentation DTO as functions that read `deps` per request (a rescan
  * refills `deps.themes` in place, and tests reassign fields after registration).
  *
- * PATCH presentation STAYS hand-written: it answers an unexpected failure through
- * `adminFailureResponse` with only its operation, so its 500 copy is the operation-derived
- * "The presentation setting operation could not be completed." The mount's `failure` port goes
- * through `sendAdminFailure`, which derives the copy from the PATCH method + route template
- * ("…could not be saved.") — a wire change its test pins, so it is not moved by this step.
+ * PATCH presentation answers an unexpected failure through `adminFailureResponse` with only its
+ * operation, so its 500 copy is the operation-derived "The presentation setting operation could not
+ * be completed." — not `sendAdminFailure`'s method/route copy ("…could not be saved."). Its mount
+ * keeps that with `failureCopy: "operation"`.
  */
 
 /** The two port fields every presentation mount passes. `authorize` is read per request, as the
@@ -82,4 +85,34 @@ export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ app, deps
     duplicateThemeIds: () => duplicateThemeIds({ themes: deps.themes }),
   };
   mountAdminJsonRoute({ app, spec: themeRescanRoute, deps: rescanDeps }, mountOptions("routes/presentation/rescan-themes"));
+};
+
+/** The PATCH's host collaborators, each bound to this request's `deps` (tests reassign fields). */
+function presentationPatchDeps({ deps }: { deps: ContentRouteDeps }, _optional: Record<string, never> = {}) {
+  return {
+    ...presentationPortDeps({ deps }),
+    setActiveTheme: ({ activeThemeId, actorId }: { activeThemeId: string; actorId: string }) => setActiveTheme({
+      deps: {
+        repo: deps.presentationRepo, tracker: deps.tracker, clock: deps.clock,
+        availableThemeIds: writableThemeIds(deps, { requestedThemeId: activeThemeId }),
+      },
+      input: { workspaceId: deps.workspaceId, activeThemeId },
+    }, { actorId, source: "admin" }),
+    isThemeStylingRequired: ({ err }: { err: unknown }) => err instanceof ThemeStylingRequiredError,
+    themes: () => deps.themes,
+    catalogThemeIds: () => validThemeIds({ themes: deps.themes }),
+    findStoredTheme: ({ id }: { id: string }) => findStoredTheme({ themes: deps.themes, id }),
+    requestThemePreviewRefresh: () => { requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }); },
+    toPresentationResponse: (fields: PresentationPatchResponseFields) =>
+      toAdminPresentationResponse({ ...fields, availableThemes: fields.availableThemes as HeadlessThemeSummary[] }),
+  };
+}
+
+/** PATCH the active theme, gated by `theme.set` (`authorizeDirectOrRespond`, so `"direct"`). */
+export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute(
+    { app, spec: presentationPatchRoute, deps: presentationPatchDeps({ deps }) },
+    // No `code`: the hand-written route called `adminFailureResponse` with its operation only.
+    { authorization: "direct", failure: { operation: "routes/presentation/patch-active-theme" }, failureCopy: "operation" },
+  );
 };
