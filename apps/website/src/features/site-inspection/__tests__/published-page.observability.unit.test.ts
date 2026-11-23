@@ -10,6 +10,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import type { SiteInspectionToolDeps } from "../deps.js";
 import { fetchPublishedPage } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 
@@ -33,7 +34,7 @@ function renderer(status: number): RequestListener {
 test("fetchPublishedPage traces the loopback render as one CLIENT span: host, port and status, never the path or query", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => renderer(200), observability: port }, input: { path: PAGE } });
+  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, trackFetch, createSiteApp: () => renderer(200), observability: port }, input: { path: PAGE } });
 
   assert.equal(result.status, 200);
   const spans = exporter.getFinishedSpans();
@@ -50,7 +51,7 @@ test("fetchPublishedPage traces the loopback render as one CLIENT span: host, po
 test("fetchPublishedPage: a 500 render is an ERROR span with the status, and still returned to the caller", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => renderer(500), observability: port }, input: { path: "/" } });
+  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, trackFetch, createSiteApp: () => renderer(500), observability: port }, input: { path: "/" } });
 
   assert.equal(result.status, 500);
   const [span] = exporter.getFinishedSpans();
@@ -61,7 +62,7 @@ test("fetchPublishedPage: a 500 render is an ERROR span with the status, and sti
 test("fetchPublishedPage: a transport failure ends the span as ERROR with the error type and rethrows", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  await assert.rejects(fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => (req) => { req.socket.destroy(); }, observability: port }, input: { path: PAGE } }));
+  await assert.rejects(fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, trackFetch, createSiteApp: () => (req) => { req.socket.destroy(); }, observability: port }, input: { path: PAGE } }));
 
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.status.code, SpanStatusCode.ERROR);
@@ -70,7 +71,7 @@ test("fetchPublishedPage: a transport failure ends the span as ERROR with the er
 });
 
 test("fetchPublishedPage: with no port the render is untraced and unchanged", async () => {
-  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => renderer(200) }, input: { path: "/" } });
+  const result = await fetchPublishedPage({ deps: { reservedSegments: RESERVED_SEGMENTS, trackFetch, createSiteApp: () => renderer(200) }, input: { path: "/" } });
   assert.equal(result.status, 200);
   assert.equal(result.body, "<!doctype html><html><body>page</body></html>");
 });

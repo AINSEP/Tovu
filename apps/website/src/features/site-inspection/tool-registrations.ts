@@ -14,6 +14,7 @@ import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from 
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
 import { fetchPublishedPage, type FetchPublishedPageDeps } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
 import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 
@@ -63,12 +64,13 @@ export type { SiteInspectionToolDeps } from "./deps.js";
  * let drift from this map.
  */
 /**
- * Binds the host's reserved-path policy onto the route deps the published-page fetch reads. The
+ * Binds the host's reserved-path policy and its outbound-span tracker (`trackFetch`) onto the
+ * route deps the published-page fetch reads. The
  * route deps are the prototype rather than spread, so every field (including any lazily computed
  * one) is still read at the moment the fetch reads it, exactly as before the policy was injected.
  */
 function withReservedSegments({ routeDeps }: { routeDeps: SiteInspectionToolDeps }, _optional = {}): FetchPublishedPageDeps {
-  return Object.create(routeDeps, { reservedSegments: { value: RESERVED_SEGMENTS } }) as FetchPublishedPageDeps;
+  return Object.create(routeDeps, { reservedSegments: { value: RESERVED_SEGMENTS }, trackFetch: { value: trackFetch } }) as FetchPublishedPageDeps;
 }
 
 export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([

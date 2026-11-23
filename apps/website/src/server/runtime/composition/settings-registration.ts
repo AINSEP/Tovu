@@ -6,7 +6,8 @@
 import { ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
 import { ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
-import { ensureSettingsUiTabDefinitions, ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
+import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
+import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
 import { ensureCommentsSettingDefinitions } from "#src/features/comments/index";
 import { ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
 

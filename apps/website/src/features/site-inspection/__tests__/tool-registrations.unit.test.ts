@@ -311,7 +311,8 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
     async () => {
       const { fetchPublishedPage } = await import("@jini-ai/diagnostics/web-evidence/published-page");
       const { RESERVED_SEGMENTS } = await import("#src/platform/routing/index");
-      await fetchPublishedPage({ deps: Object.assign(Object.create(deps), { reservedSegments: RESERVED_SEGMENTS }), input: { path: "//evil.example" } });
+      const { trackFetch } = await import("@jini-ai/diagnostics/observability");
+      await fetchPublishedPage({ deps: Object.assign(Object.create(deps), { reservedSegments: RESERVED_SEGMENTS, trackFetch }), input: { path: "//evil.example" } });
     },
     PublishedPagePathError,
   );

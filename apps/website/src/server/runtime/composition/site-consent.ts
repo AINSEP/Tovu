@@ -8,6 +8,7 @@ import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
 import { fetchPublishedPage } from '@jini-ai/diagnostics/web-evidence/published-page';
+import { trackFetch } from '@jini-ai/diagnostics/observability';
 import { resolveSitePath } from '@jini-ai/diagnostics/web-evidence/site-path-policy';
 import { RESERVED_SEGMENTS } from '#src/platform/routing/index';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -56,7 +57,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     },
     renderPage: async ({ path }) => {
       const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
-      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability, reservedSegments: RESERVED_SEGMENTS }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
+      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability, reservedSegments: RESERVED_SEGMENTS, trackFetch }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };

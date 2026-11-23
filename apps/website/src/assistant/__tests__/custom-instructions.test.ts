@@ -6,9 +6,9 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   InMemorySettingsRepo,
   INSTRUCTIONS_NAMESPACE,
-  ensureSettingsUiTabDefinitions,
   getEffective,
 } from "../../features/settings/index.js";
+import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
 import {
   createCustomInstructionsCache,
   formatCustomInstructionsOverlay,

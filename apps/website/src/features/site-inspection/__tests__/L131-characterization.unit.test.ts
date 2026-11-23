@@ -11,6 +11,7 @@ import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "../li
 import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { fetchPublishedPage, type FetchPublishedPageDeps, type FetchPublishedPageOptions } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
 
 const origin = "https://site.example";
 
@@ -114,7 +115,7 @@ test("L131: live redirect loop stops at three hops or off-origin and returns fin
 
 function publishedFixture(fetch: typeof globalThis.fetch) {
   let closed = 0;
-  const deps: FetchPublishedPageDeps = { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => () => {}, fetch, createServer: listener => {
+  const deps: FetchPublishedPageDeps = { reservedSegments: RESERVED_SEGMENTS, trackFetch, createSiteApp: () => () => {}, fetch, createServer: listener => {
     const server = new Server(listener);
     Object.assign(server, {
       listen: () => { queueMicrotask(() => server.emit("listening")); return server; },

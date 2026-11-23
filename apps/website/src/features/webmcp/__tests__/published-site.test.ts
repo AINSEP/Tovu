@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemorySettingsRepo, getEffective, set } from '@jini-ai/core/settings';
 import { injectPublishedWebMcp } from '../published-html.js';
-import { ensureSettingsUiTabDefinitions, isPublishedWebMcpEnabled, PUBLISHED_WEBMCP_KEY, PUBLISHED_WEBMCP_NAMESPACE } from '../settings.js';
+import { ensureSettingsUiTabDefinitions, isPublishedWebMcpEnabled, PUBLISHED_WEBMCP_KEY, PUBLISHED_WEBMCP_NAMESPACE } from '@jini-ai/cms/webmcp/settings';
 
 test('opt-out removes tools inside nested templates while preserving ordinary attributes and scripts', () => {
   const html = '<template id="outer"><template><form toolname="contact" class="keep"><input toolparamdescription="Address" name="email"></form></template><script type="application/json">{"toolname":"keep"}</script></template>';

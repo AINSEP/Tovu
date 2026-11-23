@@ -24,7 +24,7 @@ import { applySiteCookieConsent } from '../../../inbound/public-http/middleware/
 import { applyAdminBrowserAnalytics } from '../browser-analytics.js';
 import { applyBrowserAnalyticsHttp } from '../browser-analytics-http.js';
 import { applyCanonicalSiteHostRedirect } from '../../../inbound/public-http/middleware/canonical-site-host.js';
-import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
+import { isPublishedWebMcpEnabled } from '@jini-ai/cms/webmcp/settings';
 import { registerAdminStatic } from "../../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../../inbound/public-http/middleware/site-chat-static.js";
 import { applyRenderThemeOverride } from "../../../inbound/public-http/middleware/render-theme-override.js";

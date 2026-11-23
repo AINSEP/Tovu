@@ -1,5 +1,5 @@
 import { createAnnotatedActionsScript } from '@jini-ai/agentic/core';
-import { PUBLISHED_WEBMCP_CONFIRMATION } from './webmcp-i18n.js';
+import { PUBLISHED_WEBMCP_CONFIRMATION } from '@jini-ai/cms/webmcp/webmcp-i18n';
 import { SCRIPT_MARKER, withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
 
 /** Server-side switch controls script delivery AND native declarative discovery. */
