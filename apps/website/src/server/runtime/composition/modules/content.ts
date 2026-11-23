@@ -30,7 +30,7 @@ import {
   registerAdminThemeFileResetRoute,
   registerAdminThemePagePublishRoute,
   registerAdminThemeSaveOriginalRoute,
-} from "#src/server/inbound/admin-http/routes/themes/explore";
+} from "./theme-explore.js";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
