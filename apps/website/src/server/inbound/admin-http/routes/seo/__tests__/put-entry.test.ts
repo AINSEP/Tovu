@@ -18,7 +18,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoPutEntryRoute } from "../put-entry.js";
+import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
 import type { SeoRouteDeps } from "../deps.js";
 
 /**

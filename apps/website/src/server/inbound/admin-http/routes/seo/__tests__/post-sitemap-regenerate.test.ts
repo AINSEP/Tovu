@@ -16,7 +16,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoPostSitemapRegenerateRoute } from "../post-sitemap-regenerate.js";
+import { registerAdminSeoPostSitemapRegenerateRoute } from "#src/server/runtime/composition/modules/seo";
 import type { SeoRouteDeps } from "../deps.js";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 
