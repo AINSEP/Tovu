@@ -106,104 +106,12 @@ export interface AdminSiteActivation {
   restartInstructions: string;
 }
 
-/** Mirrors `resolveRuntimeMode()`'s own closed union (`contracts/core/runtime-mode.ts`) — the
- *  site key tab's own copy of "is this a production deployment" (the fact that decides whether
- *  the generate action can matter at all — see `AdminSiteKeyStatus`'s doc). */
-export type AdminSiteKeyRuntimeMode = "production" | "local";
-
 /**
- * Mirrors `SiteKeyState` (`apps/website/src/contracts/core/site-key-state.ts`) — the site-key
- * plan §A.6 5-state set `GET .../system/site-key`'s `state` field now carries. Hand-declared
- * rather than imported: that file isn't wired into this app's `@tovu/*` tsconfig/vite path-alias
- * list yet (see its own header comment — a later admin-side slice does that; this one only needs a
- * stable value to read). `ADMIN_SITE_KEY_STATES` is the runtime source of truth this type is
- * derived from — `lib/__tests__/site-key-state-parity.unit.test.ts` reads the server source
- * file's own union text off disk and checks it against this list, so the two can never silently
- * drift apart. Keep both edited together.
+ * The runtime list of site-key states — the values `GET .../system/site-key`'s `state` field can
+ * carry. The type lives in Core as `AdminSiteKeyState` (`@jini-ai/core/contracts/site/site-key`),
+ * which carries no runtime values, so the list stays here. `lib/__tests__/site-key-state-parity.unit.test.ts`
+ * checks this tuple against the Core union (type level, both directions) and against the website's
+ * own `SiteKeyState` union (`apps/website/src/contracts/core/site-key-state.ts`, read off disk).
+ * Keep all three edited together.
  */
 export const ADMIN_SITE_KEY_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid"] as const;
-export type AdminSiteKeyState = (typeof ADMIN_SITE_KEY_STATES)[number];
-
-/** Mirrors `GET .../system/site-key`'s response shape (`inspectSiteKeyMaterial`, server-side).
- *  NEVER carries the key value itself — only whether one is active, which of the two possible
- *  sources it came from, and a one-way `fingerprint` a human can use to recognize "same key as
- *  before" across a reload without revealing it. Call `api.revealSiteKey()` for the actual
- *  value, behind its own explicit action. */
-export interface AdminSiteKeyStatus {
-  envVarName?: string;
-  reason?: "empty" | "not-hex" | "odd-length" | "too-short";
-  active: boolean;
-  source: "env" | "file" | "none";
-  fingerprint?: string;
-  /** `true` when a source was found but is not valid hex — `active` is `false` in this case too. */
-  invalid?: boolean;
-  /** Where a generated file lives (or would live) — not secret, a fixed filesystem convention.
-   *  Always present, even when `source` isn't `"file"`, so a `"none"` status can still say where
-   *  Generate would write. */
-  keyFilePath: string;
-  runtimeMode: AdminSiteKeyRuntimeMode;
-  /** Site-key plan §A.6 — see {@link AdminSiteKeyState}'s own doc for what each value means. */
-  state: AdminSiteKeyState;
-}
-
-/** `POST .../system/site-key/generate`'s success outcomes: `already-active` (200, a key matching
- *  the site's stamp was already in place, nothing written), `recovered` (200, the stamped key was
- *  found in another source and adopted), `created` (201, no sealed data, a new key minted). */
-export type AdminSiteKeyGenerateOutcome = "already-active" | "recovered" | "created";
-
-/** Mirrors `POST .../system/site-key/generate`'s `200`/`201` response shape. Deliberately has NO
- *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteKey`'s `generate()` only ever reads
- *  `fingerprint`/`keyFilePath`/`runtimeMode` from this response, so the server stopped sending the
- *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteKey()` (below)
- *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteKeyStatus` (the
- *  plain `GET`) never carries it either. */
-export interface AdminGeneratedSiteKey {
-  outcome: AdminSiteKeyGenerateOutcome;
-  fingerprint: string;
-  keyFilePath: string;
-  runtimeMode: AdminSiteKeyRuntimeMode;
-}
-
-/** `POST .../system/site-key/import`'s 200: the pasted token is now this site's key. `resealed`
- *  counts credentials saved under the key that was in place and moved onto the token. */
-export interface AdminImportedSiteKey {
-  outcome: "unlocked";
-  fingerprint: string;
-  keyFilePath: string;
-  resealed: number;
-  restorePointId?: string;
-  runtimeMode: AdminSiteKeyRuntimeMode;
-}
-
-/** A webhook whose signing secret changes when the site starts fresh. */
-export interface AdminSiteKeyAffectedWebhook {
-  label: string;
-  targetUrl: string;
-}
-
-/** `GET .../system/site-key/start-fresh`: what confirming would do, in one plain sentence. */
-export interface AdminSiteKeyStartFreshPreview {
-  removes: number;
-  affectedWebhooks: AdminSiteKeyAffectedWebhook[];
-  detail: string;
-  runtimeMode: AdminSiteKeyRuntimeMode;
-}
-
-/** `POST .../system/site-key/start-fresh`'s 200. The new key is never in the body. */
-export interface AdminStartedFreshSiteKey {
-  outcome: "started-fresh";
-  fingerprint: string;
-  keyFilePath: string;
-  discarded: number;
-  kept: number;
-  restorePointId: string;
-  affectedWebhooks: AdminSiteKeyAffectedWebhook[];
-  runtimeMode: AdminSiteKeyRuntimeMode;
-}
-
-/** Mirrors `POST .../system/site-key/reveal`'s response shape — {@link AdminSiteKeyStatus}
- *  plus the raw value when one is active. `hex` is absent when `active` is `false` (nothing to
- *  reveal). */
-export interface AdminRevealedSiteKey extends AdminSiteKeyStatus {
-  hex?: string;
-}

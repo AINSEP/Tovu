@@ -5,7 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { SiteKeyTab } from "../SiteKeyTab";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
-import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 
 /**
  * @file The Site key is the site key. The assistant drives this page through the real page

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminSiteKeyAffectedWebhook, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteKeyAffectedWebhook, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
