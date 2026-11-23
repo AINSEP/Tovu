@@ -25,16 +25,9 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, 
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const now = deps.clock.nowIso();
-      const page = await deps.trash.list({
-        workspaceId: deps.workspaceId,
-        now,
-        limit: readLimit({ raw: req.query.limit })      }, {
-        entityTypes: readEntityTypes({ raw: req.query.entityTypes }),
-        cursor: readCursor({ raw: req.query.cursor })      });
-
-      // Per-kind, not per-surface: a principal who can only moderate comments must not read the
-      // titles of deleted posts here any more than they can through the agent tool.
-      const visible = await filterVisibleTrashItems(deps, { principalId: principal.id, items: page.items });
+      const page = await readVisiblePage({ deps, principalId: principal.id, now, limit: readLimit({ raw: req.query.limit }),
+        entityTypes: readEntityTypes({ raw: req.query.entityTypes }), cursor: readCursor({ raw: req.query.cursor }) });
+      const visible = page.items;
       // Skip the query on an empty page (nothing visible to this principal, or the Trash truly is
       // empty) rather than paying for a lookup with no rows to resolve.
       const usernameByPrincipalId = visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
@@ -51,6 +44,40 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, 
     }
   });
 };
+
+/**
+ * The most source reads one list request makes while hidden rows keep the page short. Bounded so a
+ * Trash full of rows this principal may not see cannot turn one request into a full-table scan;
+ * hitting it returns a short page whose `nextCursor` still resumes exactly where reading stopped.
+ */
+const MAX_TRASH_LIST_READS = 10;
+
+/**
+ * One page of rows `principalId` may see, filled to `limit` across several source reads (B150).
+ *
+ * Filtering happens after each read (per-kind, not per-surface: a principal who can only moderate
+ * comments must not read the titles of deleted posts here any more than through the agent tool), so
+ * a single read can come back short while visible rows remain. Each follow-up read asks only for the
+ * shortfall: every row it returns fits on the page, so `nextCursor` never skips a visible row.
+ * A read that returns no rows stops the loop even with a cursor, so a misbehaving source cannot spin.
+ *
+ * @complexity O(MAX_TRASH_LIST_READS) source reads and O(limit · MAX_TRASH_LIST_READS) rows.
+ */
+async function readVisiblePage(
+  required: { deps: TrashRouteDeps; principalId: string; now: string; limit: number; entityTypes: string[] | undefined; cursor: string | null },
+  _optional: Record<string, never> = {}
+): Promise<{ items: TrashItem[]; nextCursor: string | null }> {
+  const { deps, principalId, now, limit, entityTypes } = required;
+  const items: TrashItem[] = [];
+  let cursor = required.cursor;
+  for (let reads = 0; reads < MAX_TRASH_LIST_READS; reads++) {
+    const page = await deps.trash.list({ workspaceId: deps.workspaceId, now, limit: limit - items.length }, { entityTypes, cursor });
+    items.push(...await filterVisibleTrashItems(deps, { principalId, items: page.items }));
+    cursor = page.nextCursor;
+    if (items.length >= limit || cursor === null || page.items.length === 0) break;
+  }
+  return { items, nextCursor: cursor };
+}
 
 /**
  * Resolve post/page subtypes without parsing entity payloads or changing trash identity.

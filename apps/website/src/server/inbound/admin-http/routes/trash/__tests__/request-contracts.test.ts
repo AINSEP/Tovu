@@ -64,7 +64,9 @@ test("trash list projects exact snapshot fields, actor lookup, and rounded days 
   }], nextCursor: "next-9" }) }, userRepo: { list: async (input: unknown) => {
     assert.deepEqual(input, { workspaceId: "ws-7" }); return [{ principalId: "unrelated", username: "wrong" }, { principalId: "principal-7", username: "ada" }];
   } } });
-  assert.deepEqual(await invoke("get", ""), { statusCode: 200, jsonBody: { items: [{
+  // limit 1 makes the one stub row a full page, so the cursor passes through from a single read
+  // (a short page with a cursor is refilled — B150, list-fill-page.test.ts).
+  assert.deepEqual(await invoke("get", "", undefined, { limit: "1" }), { statusCode: 200, jsonBody: { items: [{
     id: "trash-9", entityType: "post", entityId: "post-8", title: "Deleted title", subtitle: "deleted-slug", trashedAt: "2026-09-01T00:00:00.000Z",
     purgeAfter: "2026-10-03T13:00:00.000Z", daysRemaining: 3, actorPrincipalId: "principal-7", actorPluginId: "plugin-3", actorUsername: "ada", actorIsSystem: false,
   }], nextCursor: "next-9" } });

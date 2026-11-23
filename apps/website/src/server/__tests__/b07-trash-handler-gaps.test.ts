@@ -70,10 +70,12 @@ test("trash list parses string and repeated type filters, preserves cursors, and
 // F1.2: wrong daysRemaining, a lost subtitle, or a leaked storage column must fail the whole DTO.
 test("trash list projects snapshot values and rounds remaining partial days upward", async () => {
   const reads: unknown[] = [];
+  // limit 1 makes the one stub row a full page, so the cursor passes through from a single read
+  // (a short page with a cursor is refilled — B150, routes/trash/__tests__/list-fill-page.test.ts).
   const capture = await invoke(registerAdminTrashListRoute, {
     trash: { list: async () => ({ items: [snapshot], nextCursor: "next-page" }) },
     userRepo: { async list(input: unknown) { reads.push(input); return [{ principalId: "deleter-7", workspaceId: WS, username: "curator", passwordHash: "argon2id$never-projected" }]; } },
-  });
+  }, "", undefined, { limit: "1" });
   assert.deepEqual(reads, [{ workspaceId: WS }]);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: { items: [{
     id: "trash-row-7", entityType: "redirect", entityId: "redirect-7", title: "Old destination", subtitle: "/old-path",
