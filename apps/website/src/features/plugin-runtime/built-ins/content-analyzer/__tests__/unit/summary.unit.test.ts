@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { analyzeContent } from "../../analyze-content.js";
-import { summarizeReport, type ContentBlock } from "@jini-ai/cms/seo/content-analysis";
+import { summarizeReport } from "@jini-ai/cms/seo/content-analysis";
+import type { ContentBlock } from "@jini-ai/core/contracts/site/seo-content-analysis";
 
 /**
  * @file Model-facing English summary of a `ContentAnalysisReport` (`content-analyzer` built-in).

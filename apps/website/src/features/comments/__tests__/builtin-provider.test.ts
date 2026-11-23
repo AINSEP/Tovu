@@ -4,7 +4,7 @@ import type { CommentRecord, CommentRepoPort, CommentsSettings } from '@jini-ai/
 import { createBuiltinCommentsProvider, BUILTIN_COMMENTS_DEFINITION, type BuiltinCommentsDeps } from '../builtin-provider.js';
 import { renderCommentsMarkers } from '../public-markers.js';
 import { ToolInputError } from '@jini-ai/core';
-import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/capability-providers-comments';
 
 const entry = { id: 'e', slug: 'post', title: 'Post', canonicalUrl: '/post', status: 'published' };
 const row = (patch: Partial<CommentRecord> = {}): CommentRecord => ({ id: 'c', workspaceId: 's', entryId: 'e', parentId: null, threadRootId: 'c',

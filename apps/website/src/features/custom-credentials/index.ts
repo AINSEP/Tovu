@@ -3,7 +3,7 @@
  * `features/source-control/index.ts`).
  */
 export { allowedOriginsFor, type CustomCredentialProjectScope, type CustomCredentialScope, type CustomCredentialSetRecord, type CustomCredentialSetRepoPort, type CustomCredentialSummary, type CustomProviderConnectionInput } from "./types.js";
-export { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
+export { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 
 export {
   createCustomCredential,

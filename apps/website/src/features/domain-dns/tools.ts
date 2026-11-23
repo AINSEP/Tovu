@@ -11,14 +11,15 @@ import {
   readPublicDnsName as readDiagnosticDnsName,
   type DomainDnsChecks,
   type PublicDnsResolver,
-  type TlsStatus,
 } from "@jini-ai/diagnostics/domain-dns";
+import type { TlsStatus } from "@jini-ai/core/contracts/site/diagnostics-domain-dns";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 // These types remain on the registration adapter's public surface until r15 redirects the
 // feature barrel. They denote the package contract, rather than a second set of DNS shapes.
 export { DNS_TYPES };
-export type { DnsRecordType, DnsQuery, PublicDnsResolver, TlsStatus } from "@jini-ai/diagnostics/domain-dns";
+export type { DnsRecordType, DnsQuery, PublicDnsResolver } from "@jini-ai/diagnostics/domain-dns";
+export type { TlsStatus } from "@jini-ai/core/contracts/site/diagnostics-domain-dns";
 
 // Public-network validation and bounded-query rationale: Jini/packages/diagnostics/src/domain-dns/index.ts.
 /** Tovu authorization and publishing ports; public DNS/TLS contracts belong to diagnostics. */

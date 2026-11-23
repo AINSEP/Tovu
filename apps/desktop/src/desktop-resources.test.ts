@@ -1,7 +1,8 @@
 /** S2 monitor-only review: desktop ownership, approximate metrics, warnings and cheap sampling. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sampleProcessPrivateMemory, type ProcessUsage } from '@jini-ai/platform/process';
+import { sampleProcessPrivateMemory } from '@jini-ai/platform/process';
+import type { ProcessUsage } from '@jini-ai/core/contracts/site/platform-process';
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { createDesktopResources, type DesktopResourcesPorts } from './desktop-resources.ts';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';

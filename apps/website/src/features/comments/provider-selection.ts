@@ -1,5 +1,5 @@
 /** Site-scoped provider choice on the existing settings ledger; no comment data is moved. */
-import type { CommentsSelectionStorePort } from '@jini-ai/capability-providers/comments';
+import type { CommentsSelectionStorePort } from '@jini-ai/core/contracts/site/capability-providers-comments';
 import { ToolInputError } from '@jini-ai/core';
 import { observed } from "@jini-ai/core/errors/idioms";
 import { createSettingsPrincipalLookup, ensureSettingDefinitions, set, type SettingsRepoPort } from '../settings/index.js';

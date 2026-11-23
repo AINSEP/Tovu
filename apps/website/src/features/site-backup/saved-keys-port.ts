@@ -1,4 +1,4 @@
-import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 
 /** Job 2 owns encryption, vault capture, recipient re-sealing and password AAD.
  * The archive orchestrator supplies the SAME snapshot used for content projection.

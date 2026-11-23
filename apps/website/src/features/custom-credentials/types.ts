@@ -10,8 +10,8 @@ import type { CredentialSetConnectionInput, CredentialSetProjectScope, Credentia
  * ids; the historical names stay exported here so every existing import keeps working.
  */
 
-import type { CustomCredentialCategoryId } from "#src/contracts/core/custom-credential-categories";
-export { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "#src/contracts/core/custom-credential-categories";
+import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
+export { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/contracts/core/custom-credential-categories";
 
 /** The secret half of a custom credential — sealed as one ciphertext blob (this table's own
  *  connection object), same one-ciphertext-per-row discipline every sibling credential table here

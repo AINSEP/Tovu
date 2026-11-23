@@ -55,7 +55,7 @@ export {
   PUBLISH_CRITERIA_QUERY_PARAM,
 } from "./criteria.js";
 
-export type { PublishSection, PublishSectionId } from "./sections.js";
+export type { PublishSectionId } from "./sections.js";
 export {
   PUBLISH_SECTIONS,
   publishEntityTypeLabel,

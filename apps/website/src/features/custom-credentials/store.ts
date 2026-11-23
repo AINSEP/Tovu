@@ -3,7 +3,8 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhoo
 import { createCredentialSet, deleteCredentialSet, describeCredentialSet, describeCredentialSetByLabel, listCredentialSetInventory,
   listCredentialSets, resolveCredentialSetByLabel, updateCredentialSet } from "@jini-ai/integrations/credentialed-http/sets";
 import { tovuCredentialSetHost as host } from "./tovu-credential-sets.js";
-import type { CustomCredentialCategoryId, CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
+import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
+import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 
 /**
  * @file Tovu's custom-credential store: the historical exports, bound to Tovu's host inputs

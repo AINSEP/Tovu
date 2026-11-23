@@ -1,5 +1,5 @@
 /** Tovu adapter for the CMS comments engine. The engine keeps storage, spam and audit ownership. */
-import type { CommentsProviderAdapter, CommentsProviderDefinition, CommentThreadRendererPort } from '@jini-ai/capability-providers/comments';
+import type { CommentsProviderAdapter, CommentsProviderDefinition, CommentThreadRendererPort } from '@jini-ai/core/contracts/site/capability-providers-comments';
 import type { CommentRepoPort, CommentIngressPolicy, CommentWriteService, CommentsSettings, CommentRecord } from '@jini-ai/cms/comments';
 import { ToolInputError } from '@jini-ai/core';
 import { escapeHtml } from '#src/platform/html/escape';

@@ -6,7 +6,7 @@ import { createApp as createBaseApp, createRouteDeps } from "../../runtime/compo
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import express from "express";
-import type { CommercePaymentRuntimePort } from "@jini-ai/commerce";
+import type { CommercePaymentRuntimePort } from "@jini-ai/core/contracts/site/commerce";
 import { requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminCommerceStatusRoute } from "../../inbound/admin-http/routes/commerce/status.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
