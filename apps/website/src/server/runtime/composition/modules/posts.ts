@@ -9,14 +9,11 @@ import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inboun
  * specs (`@jini-ai/cms/admin-http/routes/posts/autosave`) mounted behind the admin ports; `RouteDeps`
  * is read only here, at registration.
  *
- * Still hand-written, re-exported unchanged (same registrar names, same order in `content.ts`):
+ * Still hand-written, registered by `content.ts` straight from their route files (same names, same order):
  * create, update and delete read the `Idempotency-Key` request header, which the server-neutral route
  * input (`body`/`query`/`params`) does not carry; create, update and the autosave PUT also answer
  * their 1 MiB cap with this host's own 413 copy, which a spec's `maxBodyBytes` does not reproduce.
  */
-export { registerAdminPostCreateRoute } from "#src/server/inbound/admin-http/routes/posts/create";
-export { registerAdminPostUpdateRoute } from "#src/server/inbound/admin-http/routes/posts/update";
-export { registerAdminPostDeleteRoute } from "#src/server/inbound/admin-http/routes/posts/delete";
 
 /** The two port fields the autosave mounts pass. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a test's later reassignment of it is still honoured. It drops the

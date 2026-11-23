@@ -26,7 +26,6 @@ import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-
  * through `sendAdminFailure`, which derives the copy from the PATCH method + route template
  * ("…could not be saved.") — a wire change its test pins, so it is not moved by this step.
  */
-export { registerAdminPresentationPatchRoute } from "#src/server/inbound/admin-http/routes/presentation/patch-active-theme";
 
 /** The two port fields every presentation mount passes. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */

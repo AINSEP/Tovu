@@ -40,8 +40,6 @@ export const registerAdminPageListRoute: ContentRouteRegistrar = ({ app, deps },
   );
 };
 
-export { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/routes/pages/create";
-
 export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const getDeps = {
     ...pagePortDeps({ deps }),
@@ -56,7 +54,3 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, 
     { authorization: "guarded", failure: { operation: "routes/pages/get-by-id", code: "INTERNAL_ERROR" } },
   );
 };
-
-export { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/routes/pages/update";
-export { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
-export { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
