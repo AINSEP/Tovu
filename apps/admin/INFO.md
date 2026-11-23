@@ -252,3 +252,12 @@ field cannot break it.
 rule in `src/styles/assistant.css` therefore loses even at equal specificity. Override through the
 `--jini-chat-*` custom properties, or with a descendant selector. Check computed style in the
 browser before believing a rule in that file has any effect. See its header for the full account.
+
+## Wiring
+
+The post editor's field components come from `@jini-ai/admin` (`PostAuthorFields`,
+`PostPublishAtField`); the editor hook passes their values, setters and `t` as required props.
+Their labels render `jini-field-label`; `src/styles.css` gives
+`.jini-post-publishing__field > .jini-field-label` the shared `.field-label` face, and the post
+layout rules (`styles.css`, `styles/editor.css`) target the `jini-*` class. Pinned by
+`src/__tests__/unit/post-field-label-css.unit.test.ts`.
