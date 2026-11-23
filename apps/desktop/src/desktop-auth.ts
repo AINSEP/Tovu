@@ -36,9 +36,14 @@
  *    reports and the caller loads the admin anyway, where the ordinary login screen is waiting. No
  *    retry loop, no blank window, no fabricated session.
  */
-import crypto from "node:crypto";
 import path from "node:path";
 import { assertLoopbackHttpUrl, ensureSession } from "@jini-ai/user-management/session-bootstrap";
+import {
+  armExactUrlHeader, exchangeSessionJson, exchangeSessionRequest, hasSessionCookie, persistentPartitionName, probeSession,
+} from "@jini-ai/desktop-host/electron/session-bootstrap";
+import type {
+  CookieJarSession, HeaderArmingSession, SessionBodyRequest, SessionNet, SessionOutcome,
+} from "@jini-ai/desktop-host/electron/session-bootstrap";
 
 /** The owner account this shell seeds and logs in as. **Must stay Tovu's own default owner
  *  username** (`features/identity/wiring.ts:120`) — see this file's header for the measured reason
@@ -66,52 +71,6 @@ const SESSION_PROBE_PATH = "/api/admin/v1/auth/me";
  *  `apps/website/` has to change, or even be resolvable, for this shell to build. */
 const SESSION_COOKIE_NAME = "tovu_session";
 
-/** What {@link redeemBootSession} and {@link endSiteSession} resolve with. */
-interface AuthOutcome {
-  ok: boolean;
-  status?: number;
-  reason?: string;
-}
-
-/** The slice of Electron's `Session` read here: its cookie jar's lookup. */
-interface CookieJarSession {
-  cookies: { get(filter: { name: string }): Promise<unknown[]> };
-}
-
-/** What `net.request` is given here, a subset of Electron's `ClientRequestConstructorOptions`. The
- *  session is only handed through to the request, so its type is whatever the caller's is. */
-interface AuthRequestOptions<TSession> {
-  method: "GET" | "POST";
-  url: string;
-  session: TSession;
-  useSessionCookies: boolean;
-}
-
-/** The slice of Electron's `IncomingMessage` read here. */
-interface AuthResponse {
-  statusCode: number;
-  on(event: "data", listener: () => void): unknown;
-  on(event: "end", listener: () => void): unknown;
-}
-
-/** The slice of Electron's `ClientRequest` every request here uses. */
-interface AuthRequest {
-  on(event: "response", listener: (response: AuthResponse) => void): unknown;
-  on(event: "error", listener: (error: Error) => void): unknown;
-  end(): void;
-}
-
-/** A request that also sends a JSON body, as {@link redeemBootSession}'s does. */
-interface AuthBodyRequest extends AuthRequest {
-  setHeader(name: string, value: string): void;
-  write(chunk: string): void;
-}
-
-/** The slice of Electron's `net` module used here, answering with `TRequest`. */
-interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
-  request(options: AuthRequestOptions<TSession>): TRequest;
-}
-
 /** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
  *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
  *  always knows the literal address its own child bound. */
@@ -135,19 +94,16 @@ function assertLoopbackAdminUrl({ adminUrl }: { adminUrl: string }, _options = {
 }
 
 /**
- * A stable, filesystem-safe Electron session-partition name for one site dir.
- *
- * Hashed rather than derived from the path so the name cannot collide with Electron's partition
- * syntax (`persist:` prefix, `/` separators) and does not leak the operator's directory layout into
- * a partition directory name under `userData`.
+ * This shell's Electron session-partition name for one site dir (property 2 in this file's header).
+ * The resolved path is the key, so path-equivalent spellings share one jar; the hashing is
+ * `persistentPartitionName`'s.
  *
  * @param input.siteDir absolute site directory.
  * @returns e.g. `persist:tovu-site-1f3c…`
  * @complexity O(n) in the path length.
  */
 function sitePartition({ siteDir }: { siteDir: string }, _options = {}): string {
-  const digest = crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
-  return `persist:tovu-site-${digest}`;
+  return persistentPartitionName({ prefix: "tovu-site-", key: path.resolve(siteDir) });
 }
 
 /** Arm CMS owner re-entry only in the site's Electron session, for its exact bootstrap and owner-reset URLs.
@@ -156,32 +112,19 @@ function sitePartition({ siteDir }: { siteDir: string }, _options = {}): string 
  * @complexity O(1) per intercepted request.
  */
 export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
-  session: { webRequest: { onBeforeSendHeaders(
-    filter: { urls: string[] },
-    listener: (details: { url: string; requestHeaders: Record<string, string> }, callback: (response: { requestHeaders: Record<string, string> }) => void) => void,
-  ): void } };
+  session: HeaderArmingSession;
   adminUrl: string; capability: string;
 }, _options = {}): void {
   const origin = assertLoopbackAdminUrl({ adminUrl });
   if (!/^[a-f0-9]{64}$/.test(capability) || origin.username || origin.password) throw new Error("Invalid desktop owner sign-in capability or origin.");
   const urls = ["local-boot-session", "reset-owner"].map(action => new URL(`/api/admin/v1/auth/${action}`, origin.origin).href);
-  session.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
-    callback({ requestHeaders: urls.includes(details.url)
-      ? { ...details.requestHeaders, "X-Tovu-Desktop-Owner-SignIn": capability }
-      : details.requestHeaders });
-  });
+  armExactUrlHeader({ session, urls, header: "X-Tovu-Desktop-Owner-SignIn", value: capability });
 }
 
 /**
  * Redeem a boot token over loopback so the resulting session cookie lands in `deps.session`'s own
- * cookie jar.
- *
- * `net.request` with `useSessionCookies: true` is what makes this work without any manual
- * `Set-Cookie` parsing or `cookies.set()` call: the request goes through Chromium's network stack
- * bound to that session, so the response's cookie is stored exactly as it would be for a real
- * navigation — including the `Secure` attribute, which Chromium accepts over loopback because
- * `127.0.0.1` is a trustworthy origin. Dropping `useSessionCookies` makes this whole mechanism a
- * silent no-op while every other signal still looks healthy, so a test is pinned to it.
+ * cookie jar (`exchangeSessionJson` binds it through the session; see its header for why no
+ * `Set-Cookie` parsing happens here).
  *
  * Never throws for an auth outcome. A 401 is an ordinary answer (a spent token, a server that
  * minted none), and the caller's job is then to show the login form.
@@ -196,42 +139,18 @@ export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
  * @complexity O(1) — one request.
  */
 async function redeemBootSession<TSession>(deps: {
-  net: AuthNet<TSession, AuthBodyRequest>;
+  net: SessionNet<TSession, SessionBodyRequest>;
   session: TSession;
   adminUrl: string;
   bootToken: string;
-}): Promise<AuthOutcome> {
+}): Promise<SessionOutcome> {
   // `async` so the loopback guard REJECTS rather than throwing synchronously. A Promise-returning
   // function that can also throw before returning its promise is a trap for any caller using
   // `.catch()`, and this particular throw is the security guard.
   const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
-  const body = JSON.stringify({ token: deps.bootToken });
-
-  return new Promise((resolve) => {
-    const request = deps.net.request({
-      method: "POST",
-      url: new URL(BOOT_SESSION_PATH, origin.origin).toString(),
-      session: deps.session,
-      useSessionCookies: true,
-    });
-    request.setHeader("Content-Type", "application/json");
-
-    request.on("response", (response: AuthResponse) => {
-      // Drained rather than parsed: nothing here needs the body, and an undrained response holds
-      // the socket open.
-      response.on("data", () => {});
-      response.on("end", () =>
-        resolve(
-          response.statusCode === 200
-            ? { ok: true, status: 200 }
-            : { ok: false, status: response.statusCode, reason: `boot-session responded ${response.statusCode}` },
-        ),
-      );
-    });
-    request.on("error", (error: Error) => resolve({ ok: false, reason: error.message }));
-
-    request.write(body);
-    request.end();
+  return exchangeSessionJson({
+    net: deps.net, session: deps.session, url: new URL(BOOT_SESSION_PATH, origin.origin).toString(),
+    body: JSON.stringify({ token: deps.bootToken }), label: "boot-session",
   });
 }
 
@@ -242,10 +161,8 @@ async function redeemBootSession<TSession>(deps: {
  * {@link sitePartition} gives every site a `persist:`-prefixed
  * partition, so its cookies survive an app restart, and a still-valid one sitting unused in the jar
  * is exactly what let 30-day sessions pile up one per launch (713 live rows found in one site's
- * database) with no reuse and no revocation. Matched by NAME only, never by URL/port: this shell
- * allocates a fresh port for the child on every launch, and Chromium keys a cookie by host, not port
- * (see this file's header, property 2) — a port-scoped lookup would never match the very cookie this
- * check exists to find.
+ * database) with no reuse and no revocation. Matched by NAME only (see `hasSessionCookie`): this
+ * shell allocates a fresh port for the child on every launch.
  *
  * A cookie present here is not proof the session is still valid server-side, and **this function
  * must never be used as if it were** — that was DS-01. The old doc here claimed a stale cookie
@@ -269,13 +186,13 @@ async function redeemBootSession<TSession>(deps: {
  * @complexity O(1) — one cookie-store lookup.
  */
 async function hasActiveSessionCookie(deps: { session: CookieJarSession }): Promise<boolean> {
-  const cookies = await deps.session.cookies.get({ name: SESSION_COOKIE_NAME });
-  return cookies.length > 0;
+  return hasSessionCookie({ session: deps.session, cookieName: SESSION_COOKIE_NAME });
 }
 
 /**
  * Whether this site's cookie jar carries a session the SERVER still honours — asked of the server,
- * not inferred from the jar.
+ * not inferred from the jar (`probeSession`: cookie check first as a cheap negative, then this
+ * site's "who am I" route through the session's own cookies; fails to `false`, never rejects).
  *
  * **DS-01, and the distinction is the whole finding.** {@link hasActiveSessionCookie} answers
  * "is there a cookie", which `main.js` used to treat as "is there a session": it set
@@ -291,19 +208,6 @@ async function hasActiveSessionCookie(deps: { session: CookieJarSession }): Prom
  * default does work — but a dead end for anyone who has only ever used this app. That is why
  * presence is not good enough.
  *
- * The cookie check runs FIRST as a cheap negative: a brand-new partition has no cookie, and a
- * request that could only ever answer 401 is a round trip on the critical path of every first site
- * open.
- *
- * `useSessionCookies: true` is load-bearing exactly as it is in {@link redeemBootSession} — without
- * it the probe is made as an anonymous caller and reports 401 for a perfectly healthy session,
- * which would mint and redeem a fresh token on every single open and rebuild the 30-day-session
- * pile-up this whole mechanism exists to prevent. A test is pinned to it.
- *
- * Fails to `false`, never rejects, for any transport outcome — same fail-open contract as every
- * other branch in this file. "Cannot confirm" and "not authenticated" both mean "mint a token and
- * try", which costs one unused single-use token and never costs the operator their way in.
- *
  * @param deps
  * @param deps.net Electron's `net` module (injectable test seam).
  * @param deps.session the Electron `Session` whose cookie jar is being asked about.
@@ -314,30 +218,13 @@ async function hasActiveSessionCookie(deps: { session: CookieJarSession }): Prom
  * @complexity O(1) — one cookie lookup plus at most one request.
  */
 async function hasValidSession<TSession>(deps: {
-  net: AuthNet<TSession>;
+  net: SessionNet<TSession>;
   session: TSession & CookieJarSession;
   adminUrl: string;
 }): Promise<boolean> {
   const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
-  if (!(await hasActiveSessionCookie(deps))) return false;
-
-  return new Promise((resolve) => {
-    const request = deps.net.request({
-      method: "GET",
-      url: new URL(SESSION_PROBE_PATH, origin.origin).toString(),
-      session: deps.session,
-      useSessionCookies: true,
-    });
-
-    request.on("response", (response: AuthResponse) => {
-      // Drained rather than parsed — see `redeemBootSession`'s identical comment. Only the STATUS
-      // is the answer here; the principal in the body is not this shell's business.
-      response.on("data", () => {});
-      response.on("end", () => resolve(response.statusCode === 200));
-    });
-    request.on("error", () => resolve(false));
-
-    request.end();
+  return probeSession({
+    net: deps.net, session: deps.session, url: new URL(SESSION_PROBE_PATH, origin.origin).toString(), cookieName: SESSION_COOKIE_NAME,
   });
 }
 
@@ -373,7 +260,7 @@ async function hasValidSession<TSession>(deps: {
  * @complexity O(1) — at most one probe plus one redeem.
  */
 async function ensureSiteSession<TSession>(deps: {
-  net: AuthNet<TSession>;
+  net: SessionNet<TSession>;
   session: TSession & CookieJarSession;
   adminUrl: string;
   redeem: () => Promise<boolean>;
@@ -400,34 +287,13 @@ async function ensureSiteSession<TSession>(deps: {
  * @complexity O(1) — one request.
  */
 async function endSiteSession<TSession>(deps: {
-  net: AuthNet<TSession>;
+  net: SessionNet<TSession>;
   session: TSession;
   adminUrl: string;
-}): Promise<AuthOutcome> {
+}): Promise<SessionOutcome> {
   const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
-
-  return new Promise((resolve) => {
-    const request = deps.net.request({
-      method: "POST",
-      url: new URL(LOGOUT_PATH, origin.origin).toString(),
-      session: deps.session,
-      useSessionCookies: true,
-    });
-
-    request.on("response", (response: AuthResponse) => {
-      // Drained rather than parsed — see `redeemBootSession`'s identical comment.
-      response.on("data", () => {});
-      response.on("end", () =>
-        resolve(
-          response.statusCode === 200
-            ? { ok: true, status: 200 }
-            : { ok: false, status: response.statusCode, reason: `logout responded ${response.statusCode}` },
-        ),
-      );
-    });
-    request.on("error", (error: Error) => resolve({ ok: false, reason: error.message }));
-
-    request.end();
+  return exchangeSessionRequest({
+    net: deps.net, session: deps.session, method: "POST", url: new URL(LOGOUT_PATH, origin.origin).toString(), label: "logout",
   });
 }
 
@@ -442,4 +308,3 @@ export {
   ensureSiteSession,
   endSiteSession,
 };
-export type { AuthBodyRequest, AuthNet, AuthOutcome, AuthRequest, AuthRequestOptions, AuthResponse, CookieJarSession };
