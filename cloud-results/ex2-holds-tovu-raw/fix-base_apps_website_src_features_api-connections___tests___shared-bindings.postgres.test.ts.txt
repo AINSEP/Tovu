@@ -1,0 +1,26 @@
+✖ PostgreSQL persists only the consumer reference across pools; a copied reference cannot grant access (53.690539ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1661.291775
+
+✖ failing tests:
+
+test at apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts:1:918
+✖ PostgreSQL persists only the consumer reference across pools; a copied reference cannot grant access (53.690539ms)
+  Error: failed to drop fixture database "tovu_shared_oauth_binding_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/tovu-base/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshPostgresContentDatabase (/home/user/tovu-base/apps/website/src/platform/db/__tests__/postgres-database.ts:31:15)
+      at TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/features/api-connections/__tests__/shared-bindings.postgres.test.ts:18:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+exit=1

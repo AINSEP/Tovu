@@ -64,18 +64,22 @@ export function reportServerFailure(
 }
 
 /** The shared admin failure lifecycle: redact before either sink, then correlate a safe reply.
- * Ports stay request-scoped; no global tracker is retained. Expected refusals belong to callers.
+ * Ports stay request-scoped; no global tracker is retained. Expected refusals belong to callers,
+ * except the typed disk-space refusal, which every admin route returns as-is (no incident).
  * @complexity Core redaction over the diagnostic/explanation plus fixed log/report/envelope work.
  */
 export function adminFailureResponse(
   { error, tracker }: { error: unknown } & AdminFailurePorts,
   options: FailureOptions = {},
-): { status: number; body: { error: string; code: string; errorId: string; details?: { failure: UserFacingError } } } {
+): { status: number; body: { error: string; code: string; errorId?: string; details?: { failure: UserFacingError } } } {
+  // C115: a full disk is the owner's to fix, not a server incident. Classify it before anything is
+  // logged or reported; the backup owner's closed, human-safe message is the whole reply, with no
+  // error ID because no incident carries one.
+  // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
+  if (options.status === undefined && error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, error: error.message } };
   const { operation = "admin-route" } = options;
   const body = unexpectedAdminBody({ errorId: mintToolErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }), options });
-  const { errorId } = reportServerFailure({ error, operation }, { tracker, errorId: body.errorId });
-  // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
-  if (options.status === undefined && error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
+  reportServerFailure({ error, operation }, { tracker, errorId: body.errorId });
   return { status: options.status ?? 500, body };
 }
 
