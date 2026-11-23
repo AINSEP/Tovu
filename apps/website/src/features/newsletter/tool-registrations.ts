@@ -387,6 +387,16 @@ function createNewsletterCreateCampaignHandler(deps: NewsletterToolDeps): ToolHa
 };
 }
 
+/**
+ * The preheader is the one patch field whose "no value" is itself a value: the tool schema promises
+ * "Omit or pass null for none", so an explicit `null` clears the stored preview text, while only an
+ * absent key (or a non-string, non-null value the schema would already have refused) keeps it.
+ */
+function patchedPreheader({ input, existing }: { input: Record<string, unknown>; existing: { preheader: string | null } }, _optional = {}): string | null {
+  if (input.preheader === null) return null;
+  return typeof input.preheader === "string" ? input.preheader : existing.preheader;
+}
+
 function createNewsletterUpdateCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
   return async (ctx) => {
   const input = requireInputRecord({ input: ctx.input });
@@ -406,7 +416,7 @@ function createNewsletterUpdateCampaignHandler(deps: NewsletterToolDeps): ToolHa
       actorId: ctx.principal.id,
       fields: {
         subject: typeof input.subject === "string" ? input.subject : existing.subject,
-        preheader: typeof input.preheader === "string" ? input.preheader : existing.preheader,
+        preheader: patchedPreheader({ input, existing }),
         fromName: typeof input.fromName === "string" ? input.fromName : existing.fromName,
         fromEmail: typeof input.fromEmail === "string" ? input.fromEmail : existing.fromEmail,
         replyTo: typeof input.replyTo === "string" ? input.replyTo : existing.replyTo,

@@ -356,6 +356,26 @@ test("campaign updates replace supplied fields and preserve omitted fields", asy
   assert.deepEqual({ subject: stored.subject, preheader: stored.preheader, fromName: stored.fromName, fromEmail: stored.fromEmail, replyTo: stored.replyTo, listId: stored.listId, version: stored.version }, { ...fields, version: 3 });
 });
 
+// B178: the schema documents "Omit or pass null for none", so an explicit `preheader: null` on update is
+// a clear request, while an absent `preheader` is the only thing that keeps the stored value.
+test("campaign update clears the preheader on an explicit null and keeps it when the key is absent", async () => {
+  const deps = makeRouteDeps();
+  await seedList(deps);
+  const context = { executionId: "exec", principal: { id: PRINCIPAL_ID }, run: { id: "run" }, signal: new AbortController().signal };
+  const create = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_create_campaign")!;
+  const update = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_update_campaign")!;
+  const created = await create.handler({ ...context, input: { subject: "Hello", preheader: "Preview", fromName: "Sender", fromEmail: "sender@example.com", replyTo: "reply@example.com", listId: "l-1" } }) as { campaign: { id: string; preheader: string | null } };
+  assert.equal(created.campaign.preheader, "Preview");
+
+  const kept = await update.handler({ ...context, input: { campaignId: created.campaign.id, subject: "Hello again" } }) as { campaign: { preheader: string | null } };
+  assert.equal(kept.campaign.preheader, "Preview", "an absent preheader key keeps the stored preview text");
+
+  const cleared = await update.handler({ ...context, input: { campaignId: created.campaign.id, preheader: null } }) as { campaign: { preheader: string | null } };
+  assert.equal(cleared.campaign.preheader, null, "an explicit null clears the preview text");
+  const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: created.campaign.id });
+  assert.equal(stored?.preheader, null, "the cleared preheader is what is persisted");
+});
+
 test("campaign listing filters matching status and leaves absent, empty and non-string status unfiltered", async () => {
   const deps = makeRouteDeps();
   const campaign = { id: "draft", workspaceId: WORKSPACE_ID, status: "draft" as const, subject: "Draft", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: "reply@example.com", listId: "l-1", scheduledAt: null, sendStartedAt: null, audienceSnapshotId: null, counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW };
