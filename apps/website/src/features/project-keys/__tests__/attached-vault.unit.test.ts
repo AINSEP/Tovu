@@ -53,14 +53,20 @@ test("failed shared-key reads keep class and code while withholding secret messa
   const logs: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { logs.push(args); });
   const failure = () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); };
-  const attachments = { ...fakeAttachments(), isAttached: async () => failure(), keyForLabel: async () => failure() };
+  const attachments = { ...fakeAttachments(), isAttached: async () => failure(), keyForLabel: async () => failure(), keysFor: async () => ["key-a"] };
   const view = attachedOnlyVault({ vault: new InMemoryVaultRepo({}), siteId: "site-a", attachments });
-  assert.equal(await view.find({ workspaceId: "project", id: "key-a" }), null);
+  // B134: a store read failure is not a missing key -- a null here made callers say "no longer exists".
+  const readFailure = (error: unknown) => error instanceof Error
+    && /Could not read the project key store/.test(error.message) && !/boom|SECRET/.test(error.message);
+  await assert.rejects(view.find({ workspaceId: "project", id: "key-a" }), readFailure);
   assert.ok(view.findByLabel);
-  assert.equal(await view.findByLabel({ workspaceId: "project", label: "name" }), null);
-  assert.equal(logs.length, 2);
+  await assert.rejects(view.findByLabel({ workspaceId: "project", label: "name" }), readFailure);
+  // Inventory still degrades to "skip the unreadable shared key" so local keys stay listable.
+  assert.deepEqual(await view.list(query), []);
+  assert.equal(logs.length, 3);
   assert.match(logs[0]?.join(" ") ?? "", /P25_SHARED_READ_FAILED/);
   assert.match(logs[1]?.join(" ") ?? "", /P25_SHARED_LABEL_READ_FAILED/);
+  assert.match(logs[2]?.join(" ") ?? "", /P25_SHARED_READ_FAILED/);
   for (const args of logs) {
     const line = args.join(" ");
     assert.match(line, /Error/);

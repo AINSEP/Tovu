@@ -8,14 +8,22 @@ import {
 import type { KeyAttachments } from './attachments.js';
 
 export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspaceId: string; label: string }, options?: Record<string, never>) => Promise<VaultRecord | null> };
+
+/** A Shared Keys store read failure, distinct from a real miss (`null`). Returning null here made callers
+ * tell the owner a key "no longer exists" when the store was only unreadable. The raw cause is logged
+ * redacted and deliberately not attached, since driver messages can carry secret material. */
+function projectKeyStoreReadError({ code }: { code: string }, _optional = {}): Error {
+  return new Error(`Could not read the project key store, so this saved key could not be checked. Nothing was changed. Retry, and if it keeps failing reopen Shared Keys. Details: ${code}.`);
+}
+
 function createGrantedVaultFind(vault: VaultRepoPort, siteId: string, attachments: KeyAttachments): VaultRepoPort['find'] {
   return async (input, options) => {
     try {
       if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
       return await vault.find(input, options);
     } catch (error) {
-      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
-      return null;
+      console.warn('[shared-keys] A granted key could not be read. Retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
+      throw projectKeyStoreReadError({ code: 'P25_SHARED_READ_FAILED' });
     }
   };
 }
@@ -36,7 +44,9 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
       console.warn('[shared-keys] Grants could not be read. Retry Shared Keys. Details: P25_GRANTS_READ_FAILED; secret values omitted.');
       return [];
     })) {
-      const row = await find({ workspaceId, id });
+      // Inventory degrades per row (already logged by `find`) so one unreadable shared key never hides the
+      // site's local keys; single-key lookups below surface the read failure instead.
+      const row = await find({ workspaceId, id }).catch(() => null);
       if (row) rows.push(row);
     }
     return rows;
@@ -50,13 +60,12 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
   return {
     find, list,
     ...(keyForLabel ? { findByLabel: async (input: { workspaceId: string; label: string }) => {
-      try {
-        const id = await keyForLabel({ siteId, label: input.label });
-        return id ? await find({ workspaceId: input.workspaceId, id }) : null;
-      } catch (error) {
+      // Only the label lookup is wrapped: `find` already logs and raises its own read failure.
+      const id = await keyForLabel({ siteId, label: input.label }).catch((error: unknown) => {
         console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
-        return null;
-      }
+        throw projectKeyStoreReadError({ code: 'P25_SHARED_LABEL_READ_FAILED' });
+      });
+      return id ? await find({ workspaceId: input.workspaceId, id }) : null;
     } } : {}),
     findOne: async input => (await granted(input)).find(row => row.kind === input.kind
       && (input.ownerKey === undefined || row.ownerKey === input.ownerKey)
