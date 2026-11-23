@@ -1,4 +1,4 @@
-import type { PermissionGrantRegistry } from "./permission-grants.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 
 /**
  * @file The `admin.security.site-key.manage` permission, and the grants that make it real —

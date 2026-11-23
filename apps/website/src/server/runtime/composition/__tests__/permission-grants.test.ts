@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createPermissionMigrationRegistry } from "@jini-ai/user-management/server";
 
-import { createPermissionGrantRegistry } from "#src/features/identity/permission-grants";
+import { createPermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 

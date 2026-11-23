@@ -6,7 +6,7 @@ import express from "express";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession, type AdminSignInPort } from "../inbound/admin-http/dev-auth.js";
 import { resolveLocalOwnerSignIn } from "../runtime/boot/local-owner-signin.js";
-import { mintBootSessionToken } from "../../features/identity/boot-session-token.js";
+import { mintBootSessionToken } from "@jini-ai/user-management/identity/boot-session-token";
 import { extractRouteHandler, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 import { createServingFormPullTrigger, FORM_PULL_FAILED_LINE } from "../runtime/composition/form-pull-triggers.js";
 import type { RouteDeps } from "../routes/types.js";

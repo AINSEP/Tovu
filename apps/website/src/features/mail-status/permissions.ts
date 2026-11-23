@@ -1,5 +1,5 @@
 import { registerPermission } from "@jini-ai/user-management";
-import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 
 /**
  * @file The Email page's own permissions (email phases 4-5), declared at composition like

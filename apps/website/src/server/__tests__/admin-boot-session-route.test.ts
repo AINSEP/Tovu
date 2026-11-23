@@ -7,7 +7,7 @@ import express from "express";
 import { bootAuthenticated, extractRouteHandler, startTestServer } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { mintBootSessionToken } from "../../features/identity/boot-session-token.js";
+import { mintBootSessionToken } from "@jini-ai/user-management/identity/boot-session-token";
 import type { RouteDeps } from "../routes/types.js";
 import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
 

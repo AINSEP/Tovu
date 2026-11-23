@@ -2,7 +2,7 @@ import { createServingApp } from "../../server/runtime/composition/serving-app.j
 import type { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-origin.js";
 import { startSiteDaemonListener } from "../../server/runtime/boot/site-daemon-listener.js";
-import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
+import { mintBootSessionToken } from "@jini-ai/user-management/identity/boot-session-token";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";

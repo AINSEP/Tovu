@@ -1,7 +1,7 @@
-import { registerUserManagePermissionGrants } from "#src/features/identity/user-manage-permission";
+import { registerUserManagePermissionGrants } from "@jini-ai/user-management/identity/user-manage-permission";
 import { registerFsFilesCustomRootPermissionGrants } from "#src/features/fs-files/custom-root-permission";
-import { createPermissionGrantRegistry, type PermissionGrantRegistry } from "#src/features/identity/permission-grants";
-import { registerRoleManagePermissionGrants } from "#src/features/identity/role-manage-permission";
+import { createPermissionGrantRegistry, type PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
+import { registerRoleManagePermissionGrants } from "@jini-ai/user-management/identity/role-manage-permission";
 import { registerSiteKeyPermissionGrants } from "#src/features/identity/site-key-permission";
 import { registerPagesPermissionGrants } from "#src/features/pages/permissions";
 import { registerPublishContentPermissionGrants } from "#src/features/publish-content/permissions";

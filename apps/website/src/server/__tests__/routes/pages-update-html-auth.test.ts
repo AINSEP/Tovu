@@ -12,7 +12,7 @@ import { type IdentityRepos } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
-import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";

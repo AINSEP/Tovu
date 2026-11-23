@@ -11,7 +11,7 @@ import type { NextFunction, Request, Response } from "express";
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
-import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "../custom-root.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
