@@ -24,7 +24,7 @@ import type { PublishContentSeedHashFn } from "#src/features/publish-content/see
 import type { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import type { memoryPublishContentApplyPort } from "../slices/publish-apply.js";
 import type { createInMemoryChatHistory } from "../../../../../assistant/index.js";
-import type { createSiteConsentReadiness } from "#src/features/consent/settings";
+import type { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
 import type { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import type { composeAgentPluginMcp } from "../../agent-plugin-service-ports.js";
 import type { NewsletterRouteDeps } from "../../../../inbound/admin-http/routes/newsletter/deps.js";

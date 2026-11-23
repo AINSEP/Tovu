@@ -2,7 +2,8 @@ import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_OFF } from '../settings.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_OFF } from '@jini-ai/cookie-consent/site/settings';
+import { reportPrivacyDefaultsFailure } from '../privacy-defaults-reporter.js';
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
 import { renderSiteConsentPreview, siteBannerMode } from '@jini-ai/cookie-consent/site/cookie-consent';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
@@ -206,7 +207,7 @@ test('readiness registers definitions before privacy creation and awaits its com
   const ready = createSiteConsentReadiness({ ...deps, after, systemPrincipalId: 'system-test' }, { ensurePrivacyDefaults: async () => {
     assert.ok(await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'privacyPolicyUrl', workspaceId: null }));
     called = true; await contentReady;
-  } });
+  }, reportPrivacyDefaultsFailure });
   void ready.then(() => { settled = true; });
   assert.equal(called, false); start();
   await new Promise(resolve => setImmediate(resolve));
@@ -220,7 +221,7 @@ test('privacy bootstrap failure is reported without blocking consent and retries
   const logged: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
   let attempts = 0;
-  const options = { ensurePrivacyDefaults: async () => { if (++attempts === 1) throw failure; } };
+  const options = { ensurePrivacyDefaults: async () => { if (++attempts === 1) throw failure; }, reportPrivacyDefaultsFailure };
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
   // The log keeps the redacted message + stack, not just the class name.
   assert.equal(logged.length, 1);

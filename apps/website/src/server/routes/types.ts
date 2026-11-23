@@ -46,7 +46,7 @@ import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../.
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
-import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "@jini-ai/analytics/site/forwarding";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -804,7 +804,7 @@ export interface AnalyticsDeps {
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
-   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`features/analytics/forwarding.ts`,
+   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`@jini-ai/analytics/site/forwarding`,
    * `.cloud-coord/analytics-DESIGN.md`). Real composition only: the hermetic root leaves it absent,
    * so its beacon keeps the built-in sink alone and no hooks — the pre-forwarding path.
    */

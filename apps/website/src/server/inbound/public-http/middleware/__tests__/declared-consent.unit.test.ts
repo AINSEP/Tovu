@@ -7,7 +7,7 @@ import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConse
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import { TELEMETRY_CONSENT } from '../../../../runtime/composition/telemetry-consent.js';
-import { ensureSiteConsentDefinitions } from '#src/features/consent/settings';
+import { ensureSiteConsentDefinitions } from '@jini-ai/cookie-consent/site/settings';
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
 import type { RouteDeps } from '#src/server/routes/types';
 import { dispatchJsonRequest, dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
