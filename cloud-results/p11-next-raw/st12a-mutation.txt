@@ -1,0 +1,18 @@
+## ST-12a mutation: default expiresAt to 14 days in receiveSiteShareArtifact
+not ok 1 - no expiry by default
+not ok 2 - peer-uploaded row without URL or storage still served
+ok 3 - an owner-chosen expiry stops the public link after its own date and deletes nothing
+ok 4 - the owner's choices are Never, 7, 30 or 90 days; anything else is refused in plain words
+ok 5 - a link stored with another provider cannot carry an expiry yet; nothing is written
+ok 6 - an unreadable expiry fails closed: the public link is not served
+# pass 4
+# fail 2
+restored
+# pass 6
+# fail 0
+## ST-12a mutation 2: findToken ignores expiresAt
+not ok 3 - an owner-chosen expiry stops the public link after its own date and deletes nothing
+not ok 6 - an unreadable expiry fails closed: the public link is not served
+# pass 5
+# fail 2
+restored
