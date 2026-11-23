@@ -9,6 +9,7 @@ import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env"
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteTimeZonePort } from "@jini-ai/cms/settings/site/site-timezone";
+import { createSiteTimeZoneFallbackReporter } from "#src/features/settings/site-timezone-fallback";
 import { formatErrorForLog } from "@jini-ai/core";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -205,6 +206,7 @@ function compositionSiteDisplaySources(
   // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
+    reportFallback: createSiteTimeZoneFallbackReporter(),
     ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
   });
   return { siteDisplayName, siteTimeZone };

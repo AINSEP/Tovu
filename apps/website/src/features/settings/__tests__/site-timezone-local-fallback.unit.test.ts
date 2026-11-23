@@ -21,7 +21,7 @@ test("a legacy site's missing creation timezone uses the server's local calendar
   processZone(t, "America/Los_Angeles");
   const settingsRepo = new InMemorySettingsRepo();
   for (const creationTimeZone of [undefined, { read: () => undefined }, { read: () => "Invalid/Zone" }]) {
-    const timeZone = await resolveSiteTimeZone({ settingsRepo, ...(creationTimeZone ? { creationTimeZone } : {}) }, { workspaceId: "legacy" });
+    const timeZone = await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo, ...(creationTimeZone ? { creationTimeZone } : {}) }, { workspaceId: "legacy" });
     assert.equal(timeZone, "America/Los_Angeles");
     assert.equal(formatDateLabel({ iso: EVENING_PT }, { timeZone }), "Oct 30, 2026");
     assert.equal(formatIsoDate({ iso: EVENING_PT }, { timeZone }), "2026-10-30");
@@ -31,10 +31,10 @@ test("a legacy site's missing creation timezone uses the server's local calendar
 test("the server-local fallback handles Pacific standard time and zones east of UTC", async (t) => {
   processZone(t, "America/Los_Angeles");
   const settingsRepo = new InMemorySettingsRepo();
-  const pacific = await resolveSiteTimeZone({ settingsRepo }, { workspaceId: "legacy" });
+  const pacific = await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo }, { workspaceId: "legacy" });
   assert.equal(formatDateLabel({ iso: "2026-12-01T07:30:00.000Z" }, { timeZone: pacific }), "Nov 30, 2026");
   process.env.TZ = "Asia/Tokyo";
-  const tokyo = await resolveSiteTimeZone({ settingsRepo }, { workspaceId: "legacy" });
+  const tokyo = await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo }, { workspaceId: "legacy" });
   assert.equal(tokyo, "Asia/Tokyo");
   assert.equal(formatDateLabel({ iso: "2026-10-30T16:30:00.000Z" }, { timeZone: tokyo }), "Oct 31, 2026");
 });
@@ -43,7 +43,7 @@ test("an explicit creation timezone including UTC wins over the server's timezon
   processZone(t, "America/Los_Angeles");
   const settingsRepo = new InMemorySettingsRepo();
   for (const zone of ["UTC", "Asia/Tokyo"]) {
-    const timeZone = await resolveSiteTimeZone({ settingsRepo, creationTimeZone: { read: () => zone } }, { workspaceId: "configured" });
+    const timeZone = await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo, creationTimeZone: { read: () => zone } }, { workspaceId: "configured" });
     assert.equal(timeZone, zone);
     assert.equal(formatDateLabel({ iso: EVENING_PT }, { timeZone }), "Oct 31, 2026");
   }
