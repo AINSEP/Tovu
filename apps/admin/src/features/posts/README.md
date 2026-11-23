@@ -32,6 +32,18 @@ The Posts list and the Post editor — the two screens behind the sidebar's **Co
   `styles.css` styles it by `.jini-post-toolbar__more` (phone-width visibility and order).
 - `AdminPost`, `PostsListPort` and `PostDeleteConfirmDialog` come from `@jini-ai/admin/posts`;
   `hooks/posts-list-dependencies.hooks.ts` binds this app's request client into `PostsListPort`.
+- `posts-host-ports.ts` binds `@jini-ai/admin/posts/api/posts-api`'s `createPostsApi` once to this
+  app's `request`, `WORKSPACE_ID`, `BASE`, `siteUrl` and `bodyFitsKeepalive`; every posts/pages
+  caller imports `postsApi` from there.
+- `PostEditorTemplateModalGate` comes from `@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate`;
+  `hooks/use-post-editor-screen.hooks.ts` binds `components/TemplateSource/TemplateSourceModal` into
+  its required `TemplateSourceModal` prop (typed `PostEditorTemplateModalGateProps<ThemeTier>`).
+- The Jini post dialogs emit only `jini-*` classes. `styles.css` twins `.settings-dialog` (+ `h2`/`p`)
+  as `.jini-post-dialog`, `.btn-secondary` as `.jini-post-btn-secondary`, `.editor-actions` as
+  `.jini-post-settings-dialog__actions` and `.widget-picker-footer` as `.jini-post-settings-dialog__footer`;
+  `styles/pages.css` twins `.segmented` as `.jini-post-settings-tabs` (active = `aria-selected`);
+  `styles/native-domain-dialogs.css` twins `.settings-dialog.jini-domain-dialog`. Guarded by
+  `src/__tests__/unit/post-dialog-chrome-css.unit.test.ts`.
 
 ## What this feature does not own
 
