@@ -10,7 +10,7 @@ import {
 } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modules/content";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import type { Response } from "express";
 

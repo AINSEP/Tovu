@@ -7,10 +7,10 @@ import express from "express";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import { registerAdminPostCreateRoute } from "../create.js";
 import { registerAdminPostUpdateRoute } from "../update.js";
-import { registerAdminPostAutosaveRoute } from "../autosave.js";
+import { registerAdminPostAutosaveRoute } from "#src/server/runtime/composition/modules/posts";
 
 async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
   const postRepo = new InMemoryPostRepo({});

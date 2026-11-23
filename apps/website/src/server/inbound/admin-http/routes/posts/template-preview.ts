@@ -6,7 +6,7 @@ import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/in
 import { renderPostPreview, TemplatePreviewRenderError } from "./template-preview-render.js";
 // Clone/draft/theme-branch rationale lives beside renderPostPreview in template-preview-render.ts.
 import { getAuthedPrincipal } from "../../dev-auth.js";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modules/content";
 
 const PLAIN_TEXT = "text/plain";
 

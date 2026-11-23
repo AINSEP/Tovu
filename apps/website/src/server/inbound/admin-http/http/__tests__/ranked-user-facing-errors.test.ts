@@ -4,7 +4,7 @@ import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminAssistantGetSettingsRoute } from "../../routes/assistant/get-settings.js";
-import { registerAdminPageListRoute } from "../../routes/pages/list.js";
+import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageUpdateRoute } from "../../routes/pages/update.js";
 import { registerAdminMediaListRoute } from "../../routes/media/list.js";
 import { registerAdminPostUpdateRoute } from "../../routes/posts/update.js";

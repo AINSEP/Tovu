@@ -3916,6 +3916,270 @@
     {
       "id": "ff2924c0fa3f",
       "reason": "RT-I2 (RT-K1-adm-redirects): obsolete, not moved. It documented the Express writer `respondToRedirectError`, deleted with the hand-written create route; Jini `rejectRedirectError` in packages/cms/src/admin-http/routes/redirects/shared.ts carries its own comment."
+    },
+    {
+      "id": "453122ecf227",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:8-16."
+    },
+    {
+      "id": "909699d3674b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:18-19."
+    },
+    {
+      "id": "3edde817d307",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:30-38."
+    },
+    {
+      "id": "8d988aacb9e7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:44-50."
+    },
+    {
+      "id": "26bf4cef42c4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/change-sets/*, reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/change-sets/revert.ts:28-30."
+    },
+    {
+      "id": "fbaf7f6ad1e4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:27-40."
+    },
+    {
+      "id": "313a64196639",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:46-46."
+    },
+    {
+      "id": "961311a38872",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:74-74."
+    },
+    {
+      "id": "9c1e508e4c5b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:91-100."
+    },
+    {
+      "id": "0f9b52cdf4f3",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts:31-49."
+    },
+    {
+      "id": "bb3c9e4c6df1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts:54-55."
+    },
+    {
+      "id": "58b8eb2baffb",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/list.ts:9-15."
+    },
+    {
+      "id": "4baa30d2dc24",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:23-30."
+    },
+    {
+      "id": "49818a3336c7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:33-43."
+    },
+    {
+      "id": "8f144f45253c",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:53-55."
+    },
+    {
+      "id": "d65a378f8d08",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:91-159."
+    },
+    {
+      "id": "ac21cced9f09",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:168-169."
+    },
+    {
+      "id": "fc5af9013bb2",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:182-184."
+    },
+    {
+      "id": "fb3e30b7c21f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:14-27."
+    },
+    {
+      "id": "fc0a6ae74e03",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:30-37."
+    },
+    {
+      "id": "fd11ad940924",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:49-50."
+    },
+    {
+      "id": "e130a9657c41",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:78-83."
+    },
+    {
+      "id": "f2f908376903",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:93-94."
+    },
+    {
+      "id": "25ff9a0c007b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:107-112."
+    },
+    {
+      "id": "e59969d0b0b6",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:128-148."
+    },
+    {
+      "id": "4aeb5f1d0cfa",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:27-32."
+    },
+    {
+      "id": "f6419739c9d2",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:48-56."
+    },
+    {
+      "id": "c7e592c9acb7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:58-59."
+    },
+    {
+      "id": "6e494e9f8101",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:74-85."
+    },
+    {
+      "id": "2a338271d1a4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:94-95."
+    },
+    {
+      "id": "b53cb7bb5777",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:97-100."
+    },
+    {
+      "id": "381f1228c8a6",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/rescan-themes.ts:8-25."
+    },
+    {
+      "id": "e6dd6ae2d81b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts:23-23."
+    },
+    {
+      "id": "5772faed1355",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts:33-45."
+    },
+    {
+      "id": "fad64242d51e",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:93-93."
+    },
+    {
+      "id": "65d3c969593b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:106-107."
+    },
+    {
+      "id": "8d35cd93d1c4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:122-129."
+    },
+    {
+      "id": "2e02baed7cab",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:480-481."
+    },
+    {
+      "id": "cdd1b799f99f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:486-488."
+    },
+    {
+      "id": "a9768a216b28",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:534-535."
+    },
+    {
+      "id": "a3ed52e37b1d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:545-547."
+    },
+    {
+      "id": "7b1536c00ba8",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:585-590."
+    },
+    {
+      "id": "301b07649035",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:634-642."
+    },
+    {
+      "id": "232ba6209398",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:662-666."
+    },
+    {
+      "id": "f868d0e312ee",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:686-686."
+    },
+    {
+      "id": "83d8aca3e4cb",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:696-703."
+    },
+    {
+      "id": "a20f1f0fba47",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:722-731."
+    },
+    {
+      "id": "e4a2fdce8a14",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:755-763."
+    },
+    {
+      "id": "d7e01464082d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:777-810."
+    },
+    {
+      "id": "e493562f4d70",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:826-831."
+    },
+    {
+      "id": "169157e93726",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:840-841."
+    },
+    {
+      "id": "1e41197c9903",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:853-854."
+    },
+    {
+      "id": "1154ead4cdf1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:864-869."
+    },
+    {
+      "id": "2f859bddf091",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:890-903."
+    },
+    {
+      "id": "06b594f68b12",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:914-918."
+    },
+    {
+      "id": "86a940f60b24",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:924-929."
+    },
+    {
+      "id": "aa22a8413071",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:947-949."
+    },
+    {
+      "id": "3008a35c788b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:972-978."
+    },
+    {
+      "id": "51688d56e571",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:980-986."
+    },
+    {
+      "id": "035f88b0ab87",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1048-1079."
+    },
+    {
+      "id": "b79a79052040",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1135-1147."
+    },
+    {
+      "id": "c8b7383c60e1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1180-1182."
+    },
+    {
+      "id": "5f3e2ad4db1d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1192-1219."
+    },
+    {
+      "id": "0444c1e9b21f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:19-25."
+    },
+    {
+      "id": "186a203cc975",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:34-56."
+    },
+    {
+      "id": "a80362d58b42",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:70-70."
     }
   ]
 }

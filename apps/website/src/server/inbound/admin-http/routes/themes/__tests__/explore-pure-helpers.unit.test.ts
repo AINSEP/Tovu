@@ -2,14 +2,13 @@ import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { bodyRecord, bodyStringField } from "@jini-ai/cms/admin-http/routes/themes/explore-shared";
 import {
-  bodyRecord,
-  bodyStringField,
   fileExtension,
   reloadTheme,
   renameThemeFileIfChanged,
 } from "../explore.js";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 

@@ -11,8 +11,8 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeDetailRoute, registerAdminThemeFileResetRoute } from "../explore.js";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import { registerAdminThemeDetailRoute, registerAdminThemeFileResetRoute } from "#src/server/runtime/composition/modules/theme-explore";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file The per-file reset route restores the catalog original's exact bytes, whatever they are:
