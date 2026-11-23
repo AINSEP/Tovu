@@ -1,7 +1,8 @@
 import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import type { useT } from "@jini-ai/ui";
 
-import { useExternalMcpRemoveConfirm } from "./hooks/use-external-mcp-remove-confirm.hooks";
+import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
+import { buildExternalMcpRemoveConfirmCopy } from "./rules";
 
 /**
  * @file Confirmation gate in front of `SourceConfigItemCard`'s "Remove" — added after an operator
@@ -52,7 +53,7 @@ export function ExternalMcpRemoveConfirmDialog({
   t,
   useExternalMcpRemoveConfirmHook = useExternalMcpRemoveConfirm,
 }: ExternalMcpRemoveConfirmDialogProps) {
-  const { copy, dialogRef } = useExternalMcpRemoveConfirmHook({ name, isOAuth, onCancel, t });
+  const { copy, dialogRef } = useExternalMcpRemoveConfirmHook({ name, isOAuth, onCancel, t, buildCopy: buildExternalMcpRemoveConfirmCopy });
   const titleId = `${cardHandle}-remove-confirm-title`;
 
   return (
