@@ -1,4 +1,4 @@
-import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { PublicAssistantSettings } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";
 

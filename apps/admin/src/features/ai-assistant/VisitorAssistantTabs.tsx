@@ -2,7 +2,8 @@ import { useVisitorAssistantTabs } from "./VisitorAssistantTabs.hooks";
 import { useId, type ReactNode } from "react";
 import { resolveTabBarTabIndex, tabHandleProps, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import { VisitorToolsPanel } from "./VisitorToolsPanel";
+import { VisitorToolsPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorToolsPanel";
+import { visitorToolsPanelBindings } from "./hooks/visitor-tools-dependencies.hooks";
 // The segmented pill's look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
 import "../../styles/assistant.css";
 
@@ -43,7 +44,7 @@ export function VisitorAssistantTabs({ t, providerPanel, toolsPanel, useVisitorA
         ))}
       </div>
       <div id={panelId} role="tabpanel" aria-label={active === "tools" ? t("Visitor tools") : t("AI provider")}>
-        {active === "tools" ? (toolsPanel ?? <VisitorToolsPanel t={t} />) : providerPanel}
+        {active === "tools" ? (toolsPanel ?? <VisitorToolsPanel t={t} {...visitorToolsPanelBindings} />) : providerPanel}
       </div>
     </div>
   );

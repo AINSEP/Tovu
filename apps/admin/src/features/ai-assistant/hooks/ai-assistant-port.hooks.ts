@@ -1,4 +1,4 @@
-import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { PublicAssistantSettings } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
 /**
  * @file What `use-ai-assistant.hooks.ts` needs from the outside world, as an interface rather than

@@ -1,13 +1,14 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 import { assistantSubagentsPort, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
-import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
+import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "@jini-ai/admin/screens/assistant-settings/use-assistant-owner-grant.hooks";
+import { assistantOwnerGrantDependencies } from "./assistant-owner-grant-dependencies.hooks";
 import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 const settingsKey = ["admin-assistant", "subagents"] as const;
 /** The panel and dock share the site-owner grant query. */
 export function useAssistantSubagentsSettings(required: { port: AssistantSubagentsPort; mode: string; agentId: string | null }, _optional = {}) {
-  const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
+  const state = useAssistantOwnerGrantSettings({ ...required, refresh: assistantOwnerGrantDependencies.refresh, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
   const localAgent = required.mode === "local-cli" && required.agentId !== null;
   const granted = subagentsGranted({ settings: state.settings });
@@ -29,10 +30,12 @@ function personalMcpConfirmation({ agentId, settings, t }: { agentId: string; se
 
 /** Subagent-specific copy and boolean payload; the shared hook owns locking and errors. */
 export function useAdminSubagents(required: { port: AssistantSubagentsPort; t?: (key: string) => string }, optional: { useConfirmation?: typeof useConfirmRequest } = {}) {
-  const state = useAssistantOwnerGrant({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey,
+  const state = useAssistantOwnerGrant({ ...required, ...assistantOwnerGrantDependencies,
+    useConfirmation: optional.useConfirmation ?? assistantOwnerGrantDependencies.useConfirmation,
+    namespace: SUBAGENTS_NAMESPACE, key: settingsKey,
     title: "Enable Full CLI access?", dangers: SUBAGENT_DANGERS,
     confirmLabel: "Enable Full CLI access", failure: required.t?.("failed to save subagent access") ?? "failed to save subagent access",
-  }, { ...optional, confirmEnable: false });
+  }, { confirmEnable: false });
   return { ...state, setEnabled: async ({ enabled }: { enabled: boolean }, _options = {}) => {
     await state.save({ settings: assistantCliPermissions({ enabled }) });
   }, setAgentMcp: async ({ agentId, enabled }: { agentId: string; enabled: boolean }, _options = {}) => {

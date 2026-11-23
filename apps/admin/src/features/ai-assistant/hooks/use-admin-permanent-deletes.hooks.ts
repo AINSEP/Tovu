@@ -1,6 +1,7 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import { assistantPermanentDeletesPort, ASSISTANT_PERMANENT_DELETES_NAMESPACE, PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS, type AssistantPermanentDeletesPort } from "@/lib/assistant-permanent-deletes";
-import { useAssistantOwnerGrant } from "./use-assistant-owner-grant.hooks";
+import { useAssistantOwnerGrant } from "@jini-ai/admin/screens/assistant-settings/use-assistant-owner-grant.hooks";
+import { assistantOwnerGrantDependencies } from "./assistant-owner-grant-dependencies.hooks";
 const settingsKey = ["admin-assistant", "permanent-deletes"] as const;
 /** Checkbox changes autosave one complete selection through the same owner-grant ceremony.
  * Turning off preserves the selection; no checked tool grants anything while off.
@@ -10,10 +11,12 @@ const settingsKey = ["admin-assistant", "permanent-deletes"] as const;
  * @example useAdminPermanentDeletes({ port });
  * @complexity O(13) time/space per selection, one audited request. */
 export function useAdminPermanentDeletes(required: { port: AssistantPermanentDeletesPort; t?: (key: string) => string }, optional: { useConfirmation?: typeof useConfirmRequest } = {}) {
-  const state = useAssistantOwnerGrant({ ...required, namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: settingsKey,
+  const state = useAssistantOwnerGrant({ ...required, ...assistantOwnerGrantDependencies,
+    useConfirmation: optional.useConfirmation ?? assistantOwnerGrantDependencies.useConfirmation,
+    namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: settingsKey,
     title: "Allow permanent deletes from chat?", dangers: PERMANENT_DELETE_DANGERS,
     confirmLabel: "Allow permanent deletes", failure: required.t?.("failed to save permanent delete access") ?? "failed to save permanent delete access",
-  }, optional);
+  });
   const selected = state.settings?.allowedToolIds ?? [];
   const saveSelection = async ({ allowedToolIds }: { allowedToolIds: string[] }, _options: Record<string, never> = {}) => {
     if (!state.settings?.enabled) return;

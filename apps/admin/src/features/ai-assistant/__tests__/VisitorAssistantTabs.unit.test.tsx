@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { VisitorAssistantTabs } from "../VisitorAssistantTabs";
-import { parseLimitsDraft } from "../hooks/use-visitor-tools.hooks";
 import { VISITOR_TOOLS_DICT, VISITOR_TOOLS_KEYS } from "../visitor-tools-i18n";
 import { AI_ASSISTANT_DICT, t as translate } from "../ai-assistant-i18n";
 import { VISITOR_TOOL_PRESENTATION } from "../../../../../website/src/assistant/site/visitor-tool-presentation";
@@ -36,19 +35,6 @@ describe("VisitorAssistantTabs", () => {
     expect(tools.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement).toBe(tools);
     expect(screen.getByText("tools screen")).toBeTruthy();
-  });
-});
-
-describe("parseLimitsDraft", () => {
-  const current = { perIpPerHour: 30, perSitePerDay: 1000 };
-  it("returns only changed dimensions", () => {
-    expect(parseLimitsDraft({ draft: { perIpPerHour: "30", perSitePerDay: "1000" }, current })).toEqual({ error: false, patch: {} });
-    expect(parseLimitsDraft({ draft: { perIpPerHour: " 5 ", perSitePerDay: "2000" }, current })).toEqual({ error: false, patch: { perIpPerHour: 5, perSitePerDay: 2000 } });
-  });
-  it("rejects zero, negatives, decimals, blanks and unsafe integers", () => {
-    for (const bad of ["0", "-1", "1.5", "", "1e3", "99999999999999999999"]) {
-      expect(parseLimitsDraft({ draft: { perIpPerHour: bad, perSitePerDay: "1" }, current })).toEqual({ error: true });
-    }
   });
 });
 

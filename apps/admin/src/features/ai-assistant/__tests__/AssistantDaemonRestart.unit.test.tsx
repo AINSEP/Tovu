@@ -11,7 +11,7 @@ function AssistantDaemonRestart(props: ComponentProps<typeof RealAssistantDaemon
   return <RealAssistantDaemonRestart useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
 }
 
-import type { AssistantDaemonRestartController } from "../hooks/use-assistant-daemon-restart.hooks";
+import type { ProcessRestartController as AssistantDaemonRestartController } from "@jini-ai/admin/react";
 
 /**
  * @file First test for `AssistantDaemonRestart` (the "Admin AI Assistant" tab's manual daemon
