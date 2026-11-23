@@ -8,6 +8,11 @@ import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { redirectsEvents } from '../redirects-ports';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
+
+/** Fixed-locale fake for tests that only exercise the permission gate. */
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
+
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
   cleanup();
@@ -21,9 +26,9 @@ async function fixture({ useLocale = () => 'en' }: { useLocale?: () => string } 
   const row = await api.createRedirect({ matchType: 'exact', fromPattern: '/old/<script>', toTarget: '/new', statusCode: 301 });
   const list = vi.spyOn(api, 'listRedirects');
   const hits = vi.spyOn(api, 'getRedirectHitStats');
-  const runtime = createHostAdminScope({ permissions: ['*'] }, { redirectsPorts: { redirectsApi: api, redirectsEvents }, useRedirectsLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { redirectsPorts: { redirectsApi: api, redirectsEvents } });
   scopes.push(runtime);
-  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects /></AdminModulesContext.Provider></FetchQueryProvider>;
+  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects useAdminLocaleHook={useLocale} /></AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, row, list, hits, runtime, node };
 }
 
@@ -34,7 +39,7 @@ describe('Jini redirects host switch', () => {
     [['admin.redirects.manage'], true],
     [['*'], true],
   ] as const)('keeps the route gate for grants %j', (permissions, visible) => {
-    const runtime = createHostAdminScope({ permissions });
+    const runtime = createHostAdminScope({ permissions, useAdminLocaleHook });
     scopes.push(runtime);
     expect(runtime.admin.describe().pages.find(page => page.id === 'redirects.list')).toMatchObject({ path: '/redirects', visible, permissions: ['admin.redirects.manage'] });
   });

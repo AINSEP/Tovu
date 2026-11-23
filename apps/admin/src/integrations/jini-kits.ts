@@ -19,6 +19,7 @@ import { useT as useChatT, createMidRunMessagePoster, createTypedAnswerPoster, u
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from '@jini-ai/chat/core';
 import { createA2uiActionPoster } from '@jini-ai/chat/transports/http';
 import type { AdminKit } from '@jini-ai/admin/react/kit';
+import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
 import type { UserManagementKit } from '@jini-ai/user-management/react/kit';
 import type { UiKit } from '@jini-ai/ui/react-kit';
 
@@ -31,7 +32,8 @@ export const adminKit = {
     RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, PreviewModalShell },
   // `useT` is ui's translator (Settings-dialog and panel copy). Chat's `useT` from `@jini-ai/chat/react`
   // reads a different dictionary and stays a separate binding; swapping them would mistranslate silently.
-  hooks: { useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
+  // The host's one locale hook; App's required `useAdminLocaleHook` prop references the same function.
+  hooks: { useAdminLocale: useHostAdminLocale, useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog, useT,
     useTabBarKeyboard, useSerialWrites, useCodeWrap, useInfoTip, usePanelPosition, useSelectDropdown },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
   mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,

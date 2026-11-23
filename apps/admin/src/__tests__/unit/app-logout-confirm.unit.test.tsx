@@ -9,6 +9,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
 import { appShellApiBody } from "../app-shell-api.fixture";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file Owner-requested (2026-08-31): "people may click [Log out] by accident, so it should ask
@@ -66,7 +69,7 @@ it("clicking the sidebar's Log out opens the confirmation dialog without logging
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
   const session = fakeSession(logout);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
 
@@ -78,7 +81,7 @@ it("Cancel closes the dialog and never calls the real logout", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
   const session = fakeSession(logout);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -96,7 +99,7 @@ it("the native cancel event (what a real browser fires on Escape) closes the dia
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
   const session = fakeSession(logout);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -111,7 +114,7 @@ it("Confirm — the only path that logs out — calls the real logout", async ()
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
   const session = fakeSession(logout);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -126,7 +129,7 @@ it("the confirm action is not the default-focused element — focus opens on Can
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
   const session = fakeSession(logout);
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();

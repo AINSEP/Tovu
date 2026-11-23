@@ -21,16 +21,16 @@ function fixture({ useLocale = () => 'en', permissions = ['*'] }: { useLocale?: 
   const api = createMemoryFormsApi({}, { forms: [form], submissions: [{ id: 's1', formDefinitionId: 'f1', data: { email: 'visitor@example.com' }, sourceIp: '127.0.0.1', submittedAt: '2026-10-07T00:00:00Z' }] });
   const list = vi.spyOn(api, 'listFormDefinitions');
   const navigate = vi.fn();
-  const runtime = createHostAdminScope({ permissions }, { formsPorts: { formsApi: api, formsCatalog, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } }, useFormsLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook: useLocale }, { formsPorts: { formsApi: api, formsCatalog, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } } });
   scopes.push(runtime);
   const node = (child: React.ReactNode) => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}>{child}</AdminModulesContext.Provider></FetchQueryProvider>;
-  return { api, list, runtime, node, navigate };
+  return { api, list, runtime, node, navigate, useAdminLocaleHook: useLocale };
 }
 
 describe('Jini Forms host switch', () => {
   it('mounts the list with the original handles, paths and expanded owner grant', async () => {
-    const { runtime, node } = fixture();
-    render(node(<FormsList />));
+    const { runtime, node, useAdminLocaleHook } = fixture();
+    render(node(<FormsList useAdminLocaleHook={useAdminLocaleHook} />));
     expect(screen.getByText('Loading forms…')).toHaveClass('notice');
     expect(await screen.findByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/admin/forms/contact');
     expect(screen.getByRole('heading', { name: 'Forms' })).toHaveClass('page-title');
@@ -40,25 +40,25 @@ describe('Jini Forms host switch', () => {
 
   it('preserves an edited draft across locale and route-derived submissions tab changes', async () => {
     let locale = 'en';
-    const { node } = fixture({ useLocale: () => locale });
-    const view = render(node(<FormEditor formId="contact" tab="fields" />));
+    const { node, useAdminLocaleHook } = fixture({ useLocale: () => locale });
+    const view = render(node(<FormEditor formId="contact" tab="fields" useAdminLocaleHook={useAdminLocaleHook} />));
     const name = await screen.findByLabelText('Name');
     fireEvent.change(name, { target: { value: 'Unsaved draft' } });
     locale = 'de';
-    view.rerender(node(<FormEditor formId="contact" tab="fields" />));
+    view.rerender(node(<FormEditor formId="contact" tab="fields" useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByRole('button', { name: 'Speichern' })).toBeInTheDocument();
     expect(view.container.querySelector('#form-name')).toBe(name);
     expect(name).toHaveValue('Unsaved draft');
-    view.rerender(node(<FormEditor formId="contact" tab="submissions" />));
+    view.rerender(node(<FormEditor formId="contact" tab="submissions" useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByText('visitor@example.com')).toBeInTheDocument();
-    view.rerender(node(<FormEditor formId="contact" tab="fields" />));
+    view.rerender(node(<FormEditor formId="contact" tab="fields" useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByLabelText('Name')).toHaveValue('Unsaved draft');
   });
 
   it('renders the new-form HTML authoring controls through the editor page', async () => {
     const user = userEvent.setup();
-    const { node } = fixture();
-    render(node(<FormEditor formId="new" tab="fields" />));
+    const { node, useAdminLocaleHook } = fixture();
+    render(node(<FormEditor formId="new" tab="fields" useAdminLocaleHook={useAdminLocaleHook} />));
     expect(await screen.findByLabelText('Name')).toHaveValue('');
     // The new editor paints before its effect-owned controller is attached; await the gesture.
     await user.click(screen.getByRole('button', { name: 'HTML' }));
@@ -67,17 +67,17 @@ describe('Jini Forms host switch', () => {
   });
 
   it('keeps tab navigation on the original history-pushed paths', async () => {
-    const { navigate, node } = fixture();
-    render(node(<FormEditor formId="contact" tab="fields" />));
+    const { navigate, node, useAdminLocaleHook } = fixture();
+    render(node(<FormEditor formId="contact" tab="fields" useAdminLocaleHook={useAdminLocaleHook} />));
     const tab = await screen.findByRole('tab', { name: 'Submissions' });
     fireEvent.click(tab);
     expect(navigate).toHaveBeenCalledWith({ base: '/admin', routePath: '/forms/contact/submissions' });
   });
 
   it('confirms submission Trash through the original generic port and retains its payload', async () => {
-    const { api, node } = fixture();
+    const { api, node, useAdminLocaleHook } = fixture();
     const trash = vi.spyOn(api.trash, 'trash');
-    render(node(<FormEditor formId="contact" tab="submissions" />));
+    render(node(<FormEditor formId="contact" tab="submissions" useAdminLocaleHook={useAdminLocaleHook} />));
     fireEvent.click(await screen.findByRole('button', { name: 'View' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete submission' }));
     expect(await screen.findByRole('dialog', { name: 'Move to trash?' })).toBeInTheDocument();
@@ -92,8 +92,8 @@ describe('Jini Forms host switch', () => {
   });
 
   it('refreshes the mounted list and disposes its subscription on unmount', async () => {
-    const { list, node } = fixture();
-    const view = render(node(<FormsList />));
+    const { list, node, useAdminLocaleHook } = fixture();
+    const view = render(node(<FormsList useAdminLocaleHook={useAdminLocaleHook} />));
     await screen.findByRole('link', { name: 'Contact' });
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
     act(() => publishContentRefresh({ resources: ['media'] }));

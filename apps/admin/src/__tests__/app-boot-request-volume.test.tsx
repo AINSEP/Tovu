@@ -8,6 +8,9 @@ import { appShellApiBody } from "./app-shell-api.fixture";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { createAssistantLastConversationStore } from "../hooks/assistant-chats-dependencies.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 // P18 exercises the real session/cache/shell/dock; routed page I/O is outside this seam.
 vi.mock("../features/ai-assistant", () => ({ AiAssistant: () => <h1>Assistant route</h1> }));
@@ -75,7 +78,7 @@ it("shares boot reads, retains per-pane health probes, and honors post-save sett
     return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
   }));
 
-  render(<StrictMode><FetchQueryProvider><App /></FetchQueryProvider></StrictMode>);
+  render(<StrictMode><FetchQueryProvider><App useAdminLocaleHook={useAdminLocaleHook} /></FetchQueryProvider></StrictMode>);
   // Drain boot responses and query notifications before opening the real settings subscription.
   await act(async () => { await vi.advanceTimersByTimeAsync(500); });
   expect(document.querySelector("#main-content")).not.toBeNull();

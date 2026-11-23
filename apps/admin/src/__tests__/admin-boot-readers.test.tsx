@@ -3,13 +3,48 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
+import { useAdminLocale as useBareAdminLocale } from "@jini-ai/admin/shell/hooks/use-admin-locale.hooks";
+import type { AdminLocalePort } from "@jini-ai/admin/shell/hooks/admin-locale-port.hooks";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
 import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 afterEach(cleanup);
+
+/** The bare Jini hook with an explicit port and the host's binding shape (key prefix, fallback). */
+function useAdminLocale(port: AdminLocalePort): string {
+  return useBareAdminLocale({ port, useBootScope: useAdminBootScope, useFetchQuery, useInvalidate, queryPrefix: ["settings", "core.language"], fallbackLocale: "en" });
+}
+
+it("scope switch: principal B's locale stays visible when A's slower read settles after B's", async () => {
+  // One port captured at mount (as the hook does); each read waits for the test, in call order.
+  const reads: Array<(locale: string) => void> = [];
+  const port: AdminLocalePort = {
+    loadLanguage: () => new Promise<string>((resolve) => { reads.push(resolve); }),
+    subscribeToSettingsRefresh: () => () => {},
+  };
+  function Reader() {
+    return <span>{useAdminLocale(port)}</span>;
+  }
+  // One reader that survives the principal switch, as a shell does: only the scope changes.
+  function Tree({ principal }: { principal: string }) {
+    return <FetchQueryProvider><AdminBootScopeContext.Provider value={{ principalId: principal, checking: false }}>
+      <Reader />
+    </AdminBootScopeContext.Provider></FetchQueryProvider>;
+  }
+  const { rerender } = render(<Tree principal="a" />);
+  await waitFor(() => expect(reads).toHaveLength(1));
+  rerender(<Tree principal="b" />);
+  // omit-query-scope: one shared key would not start B's read.
+  await waitFor(() => expect(reads).toHaveLength(2));
+  await act(async () => { reads[1]!("de"); });
+  await act(async () => { reads[0]!("fr"); });
+  await waitFor(() => expect(screen.getByText("de")).toBeTruthy());
+  expect(screen.queryByText("fr")).toBeNull();
+});
 
 it("defers boot settings, retains completed reads across remounts, and isolates another principal", async () => {
   const ownerA = createFakeAdminLocalePort({ initialLocale: "fr" });

@@ -5,12 +5,16 @@ import { describe, expect, it, vi } from "vitest";
 import { Login } from "../Login";
 import type { LoginController } from "../hooks/use-login.hooks";
 import { formatUserFacingError } from "@jini-ai/core";
-import * as localeHooks from "../../../hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
 /**
  * @file `Login` — markup only. Every state is driven through the injectable `useLoginHook` prop
  * (see `Posts.tsx`'s own doc for the convention), never a fake `fetch`.
  */
+
+// Fake locale hooks injected as the required `useAdminLocaleHook` prop (no module mock/spy).
+const useAdminLocaleHook: UseAdminLocaleHook = () => "en";
+const useSpanishLocaleHook: UseAdminLocaleHook = () => "es";
 
 function stubHook(overrides: Partial<LoginController> = {}): () => LoginController {
   return () => ({
@@ -30,26 +34,21 @@ function stubHook(overrides: Partial<LoginController> = {}): () => LoginControll
 
 describe("Login", () => {
   it("shows the error ID without Copy details for an anonymous sign-in failure", () => {
-    const locale = vi.spyOn(localeHooks, "useWiredAdminLocale").mockReturnValue("es");
     const failure = formatUserFacingError({ message: "Sign-in could not finish.", action: "Try signing in again.", step: "auth-login", cause: "Approved anonymous explanation" }, { errorId: "login-incident" });
-    try {
-      render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "failure", failure })} />);
-      expect(screen.getByRole("alert"), "The sign-in failure keeps its message").toHaveTextContent("Sign-in could not finish.");
-      expect(screen.getByRole("alert"), "Anonymous visitors can report the error ID in their locale").toHaveTextContent("login-incident — Informa de este ID de error.");
-      expect(screen.queryByText("Copiar detalles"), "Anonymous sign-in failures do not offer Copy details").not.toBeInTheDocument();
-    } finally {
-      locale.mockRestore();
-    }
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "failure", failure })} useAdminLocaleHook={useSpanishLocaleHook} />);
+    expect(screen.getByRole("alert"), "The sign-in failure keeps its message").toHaveTextContent("Sign-in could not finish.");
+    expect(screen.getByRole("alert"), "Anonymous visitors can report the error ID in their locale").toHaveTextContent("login-incident — Informa de este ID de error.");
+    expect(screen.queryByText("Copiar detalles"), "Anonymous sign-in failures do not offer Copy details").not.toBeInTheDocument();
   });
   it("passes the onLogin prop straight through to useLoginHook, unmodified", () => {
     const onLogin = vi.fn();
     const useLoginHook = vi.fn(stubHook());
-    render(<Login onLogin={onLogin} useLoginHook={useLoginHook} />);
+    render(<Login onLogin={onLogin} useLoginHook={useLoginHook} useAdminLocaleHook={useAdminLocaleHook} />);
     expect(useLoginHook).toHaveBeenCalledWith({ onLogin });
   });
 
   it("renders the hook's username/password values in their inputs", () => {
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "alice", password: "secret" })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "alice", password: "secret" })} useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByLabelText(/username/i)).toHaveValue("alice");
     expect(screen.getByLabelText("Password")).toHaveValue("secret");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
@@ -59,7 +58,7 @@ describe("Login", () => {
   // Owner 2026-10-25 (todos.md:153): the sign-in password needs the shared show/hide eye.
   it("the password field has the shared eye toggle, and it reveals and re-hides the typed password", async () => {
     const user = userEvent.setup();
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ password: "secret" })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ password: "secret" })} useAdminLocaleHook={useAdminLocaleHook} />);
     const input = screen.getByLabelText("Password");
     const eye = screen.getByRole("button", { name: "Show Password" });
     expect(eye).toHaveAttribute("type", "button");
@@ -74,7 +73,7 @@ describe("Login", () => {
     const user = userEvent.setup();
     const setUsername = vi.fn();
     const setPassword = vi.fn();
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "", password: "", setUsername, setPassword })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "", password: "", setUsername, setPassword })} useAdminLocaleHook={useAdminLocaleHook} />);
 
     await user.type(screen.getByLabelText(/username/i), "x");
     await user.type(screen.getByLabelText("Password"), "y");
@@ -84,24 +83,24 @@ describe("Login", () => {
   });
 
   it("shows no error banner when error is null", () => {
-    const { container } = render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: null })} />);
+    const { container } = render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: null })} useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
     expect(container.querySelector(".login-error")).toBeNull();
   });
 
   it("shows the hook's error message verbatim when set", () => {
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "invalid credentials" })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "invalid credentials" })} useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText("invalid credentials")).toBeInTheDocument();
   });
 
   it("disables the submit button and shows 'Signing in…' while busy", () => {
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ busy: true })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ busy: true })} useAdminLocaleHook={useAdminLocaleHook} />);
     const button = screen.getByRole("button", { name: /signing in/i });
     expect(button).toBeDisabled();
   });
 
   it("enables the submit button and shows 'Sign in' when not busy", () => {
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ busy: false })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ busy: false })} useAdminLocaleHook={useAdminLocaleHook} />);
     const button = screen.getByRole("button", { name: /^sign in$/i });
     expect(button).toBeEnabled();
   });
@@ -113,7 +112,7 @@ describe("Login", () => {
     const submit = vi.fn(async (e: React.FormEvent) => {
       e.preventDefault();
     });
-    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ submit })} />);
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ submit })} useAdminLocaleHook={useAdminLocaleHook} />);
 
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
     expect(submit).toHaveBeenCalledOnce();

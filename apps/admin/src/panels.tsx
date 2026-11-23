@@ -57,7 +57,7 @@ import {
   Playground,
   Sites,
 } from "./panel-pages";
-import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { t as tApp } from "./app-i18n";
 
 /**
@@ -362,19 +362,19 @@ const PANELS: readonly TovuAdminPanel[] = [
     render: (ctx, _options = {}) => {
       switch (ctx.view) {
         case "widget-regions":
-          return <WidgetRegions />;
+          return <WidgetRegions useAdminLocaleHook={ctx.useAdminLocaleHook} />;
         case "widget-region-editor":
           // Guaranteed present: this view only fires when `/regions/:regionKey` matched.
-          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} />;
+          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} useAdminLocaleHook={ctx.useAdminLocaleHook} />;
         case "widget-editor": {
           // Same split as `menus`: the `/new` pattern captures no `widgetId`, so its presence is
           // what distinguishes "editing" from "creating" — `widgetType` only ever came from the
           // query string on the create path.
           const widgetId = ctx.params.widgetId ?? null;
-          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} />;
+          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} useAdminLocaleHook={ctx.useAdminLocaleHook} />;
         }
         default:
-          return <WidgetsLibrary />;
+          return <WidgetsLibrary useAdminLocaleHook={ctx.useAdminLocaleHook} />;
       }
     },
     nav: {
@@ -420,16 +420,16 @@ const PANELS: readonly TovuAdminPanel[] = [
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" useAdminLocaleHook={ctx.useAdminLocaleHook} />;
         case "form-submissions":
           // Guaranteed present: this view only fires when `/:formId/submissions` matched. Same
           // `key` as `form-editor` above (both key off `ctx.params.formId`) — switching between
           // Fields and Submissions for the SAME form is a route change, not a remount, so
           // in-progress Fields edits survive the round trip (ADR-063). A different `formId`
           // switching the key IS meant to remount, resetting state for the new form.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" useAdminLocaleHook={ctx.useAdminLocaleHook} />;
         default:
-          return <FormsList />;
+          return <FormsList useAdminLocaleHook={ctx.useAdminLocaleHook} />;
       }
     },
     nav: {
@@ -540,7 +540,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // working screen stays reachable. `soonPreviewable` is what makes that combination coherent:
     // without it the row would render as a disabled link and the badge would hide shipped
     // functionality rather than annotate it.
-    render: () => <Comments />,
+    render: (ctx) => <Comments useAdminLocaleHook={ctx.useAdminLocaleHook} />,
     nav: {
       label: "Comments",
       group: "People",
@@ -836,7 +836,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
     // is still set, by owner decision: every row in Commerce previews as a real, clickable link
     // rather than a disabled one, so the section doesn't read as some rows working and others not.
-    render: ({ Placeholder }) => <Placeholder sectionId="orders" agentHandle="orders" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="orders" agentHandle="orders" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Orders",
       group: "Commerce",
@@ -854,7 +854,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Manage products and their catalog details.",
     // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
     // in it (`Jini packages/commerce/src/store/store-plugin.ts`), but no admin API or screen exists yet.
-    render: ({ Placeholder }) => <Placeholder sectionId="products" agentHandle="products" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="products" agentHandle="products" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Products",
       group: "Commerce",
@@ -881,7 +881,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
     // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
     // but with no reachable code path yet, not just an empty table waiting for traffic.
-    render: ({ Placeholder }) => <Placeholder sectionId="subscriptions" agentHandle="subscriptions" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="subscriptions" agentHandle="subscriptions" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Subscriptions",
       group: "Commerce",
@@ -903,7 +903,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // operator pays to run the site. `soonPreviewable` matches the owner decision recorded on
     // `orders` above: every Commerce row previews as a real clickable link, so the section never
     // reads as some rows working and others not.
-    render: ({ Placeholder }) => <Placeholder sectionId="billing" agentHandle="billing" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="billing" agentHandle="billing" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Billing",
       group: "Commerce",
@@ -1091,7 +1091,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // nav entry. Sits beside Recovery deliberately: both answer "what happened to my site," one
     // after the fact and one as a way back. The read side already exists in the tool catalog as
     // `database_query_timeline`, so this is a missing surface rather than a missing capability.
-    render: ({ Placeholder }) => <Placeholder sectionId="activity-log" agentHandle="activity-log" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="activity-log" agentHandle="activity-log" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Activity Log",
       group: "Operations",
@@ -1231,7 +1231,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useAdminLocaleHook={ctx.useAdminLocaleHook} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
@@ -1242,7 +1242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "redirects",
     description: "Manage URL redirects and retired destinations.",
     anyOfPermissions: ["admin.redirects.manage"],
-    render: () => <Redirects />,
+    render: (ctx) => <Redirects useAdminLocaleHook={ctx.useAdminLocaleHook} />,
     nav: {
       label: "Redirects",
       group: "Marketing",
@@ -1254,7 +1254,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Manage newsletter subscribers and campaigns.",
     // No screen yet — renders `Placeholder`, exactly as `#/section/newsletter` did, and exactly
     // what a genuinely unbuilt-but-real `nav` entry (`soon: true`) is for.
-    render: ({ Placeholder }) => <Placeholder sectionId="newsletter" agentHandle="newsletter" />,
+    render: ({ Placeholder, useAdminLocaleHook }) => <Placeholder sectionId="newsletter" agentHandle="newsletter" useAdminLocaleHook={useAdminLocaleHook} />,
     nav: {
       label: "Newsletter",
       group: "Marketing",
@@ -1293,8 +1293,8 @@ const PANELS: readonly TovuAdminPanel[] = [
 ];
 
 /** Reuse the admin's translated loading copy and existing text-only route loading pattern. */
-function PanelRouteLoading({ useWiredAdminLocaleHook = useWiredAdminLocale }: { useWiredAdminLocaleHook?: typeof useWiredAdminLocale; } = {}) {
-  const locale = useWiredAdminLocaleHook();
+function PanelRouteLoading({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }) {
+  const locale = useAdminLocaleHook({}, {});
   return <p role="status">{tApp({ locale, key: "Loading Tovu…" })}</p>;
 }
 
@@ -1307,7 +1307,7 @@ function PanelRouteLoading({ useWiredAdminLocaleHook = useWiredAdminLocale }: { 
 export const ADMIN_PANELS: readonly TovuAdminPanel[] = PANELS.map(panel => ({
   ...panel,
   render: (ctx: PanelRenderContext, options: Record<string, never> = {}) => (
-    <Suspense fallback={<PanelRouteLoading />}>
+    <Suspense fallback={<PanelRouteLoading useAdminLocaleHook={ctx.useAdminLocaleHook} />}>
       {panel.render(ctx, options)}
     </Suspense>
   ),

@@ -1,4 +1,5 @@
 import { reactModuleUi } from '@jini-ai/admin/core/react';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { createElement, useContext, useEffect, useState, Suspense, type ReactNode } from 'react';
 import { createAdmin } from '@jini-ai/admin/core/module';
 import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
@@ -24,31 +25,32 @@ import { AdminModulesContext, type Runtime } from './module-context';
 export { AdminModulesContext, useHostMediaPicker } from './module-context';
 
 const pickerConsumer = defineAdminModule({ id: 'host-editors', requires: { mediaPicker: mediaPickerToken }, pages: {} });
-/** Compose the host modules and their ports; optional domain ports/locale hooks are DI seams.
+/** Compose the host modules and their ports; the locale hook is required, domain ports are DI seams.
  * @returns A grant-keyed scope and bindings; callers dispose its admin and overlays on retirement.
  * @throws AdminConfigError if module/port composition is invalid.
- * @example createHostAdminScope({ permissions: ['*'] })
+ * @example createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useHostAdminLocale })
  */
-export function createHostAdminScope({ permissions }: { permissions: readonly string[] }, { commentsPorts = commentsHostPorts, useCommentsLocaleHook, redirectsPorts = redirectsHostPorts, useRedirectsLocaleHook, seoPorts = seoHostPorts, useSeoLocaleHook, widgetsPorts = widgetsHostPorts, useWidgetsLocaleHook, formsPorts = formsHostPorts, useFormsLocaleHook }: { commentsPorts?: CommentsHostPorts; useCommentsLocaleHook?: () => string; redirectsPorts?: RedirectsHostPorts; useRedirectsLocaleHook?: () => string; seoPorts?: SeoHostPorts; useSeoLocaleHook?: () => string; widgetsPorts?: WidgetsHostPorts; useWidgetsLocaleHook?: () => string; formsPorts?: FormsHostPorts; useFormsLocaleHook?: () => string } = {}): Runtime {
+export function createHostAdminScope({ permissions, useAdminLocaleHook }: { permissions: readonly string[]; useAdminLocaleHook: UseAdminLocaleHook }, { commentsPorts = commentsHostPorts, redirectsPorts = redirectsHostPorts, seoPorts = seoHostPorts, widgetsPorts = widgetsHostPorts, formsPorts = formsHostPorts }: { commentsPorts?: CommentsHostPorts; redirectsPorts?: RedirectsHostPorts; seoPorts?: SeoHostPorts; widgetsPorts?: WidgetsHostPorts; formsPorts?: FormsHostPorts } = {}): Runtime {
   const overlays = createOverlayController({});
   const feature = media({ ui: reactModuleUi, overlays }, { headerActions: mediaPublishContribution });
-  const commentsFeature = createHostCommentsModule({}, { useAdminLocaleHook: useCommentsLocaleHook });
-  const redirectsFeature = createHostRedirectsModule({}, { useAdminLocaleHook: useRedirectsLocaleHook });
-  const seoFeature = createHostSeoModule({}, { useAdminLocaleHook: useSeoLocaleHook });
-  const widgetsFeature = createHostWidgetsModule({}, { useAdminLocaleHook: useWidgetsLocaleHook });
-  const formsFeature = createHostFormsModule({}, { useAdminLocaleHook: useFormsLocaleHook });
+  const commentsFeature = createHostCommentsModule({ useAdminLocaleHook });
+  const redirectsFeature = createHostRedirectsModule({ useAdminLocaleHook });
+  const seoFeature = createHostSeoModule({ useAdminLocaleHook });
+  const widgetsFeature = createHostWidgetsModule({ useAdminLocaleHook });
+  const formsFeature = createHostFormsModule({ useAdminLocaleHook });
   // Scope membership uses object identity: host Provider wrappers are copies of the bound modules.
   const admin = createAdmin({ modules: [feature.react.module, commentsFeature.react.module, redirectsFeature.react.module, seoFeature.react.module, widgetsFeature.react.module, formsFeature.react.module, pickerConsumer], ports: { mediaApi, embedPolicy, mediaEvents, mediaProviders: createMediaProvidersPort({}), ...commentsPorts, ...redirectsPorts, ...seoPorts, ...widgetsPorts, ...formsPorts } }, { permissions: [...mediaSessionGrants({ permissions }), ...commentsSessionGrants({ permissions }), ...redirectsSessionGrants({ permissions }), ...seoSessionGrants({ permissions }), ...formsSessionGrants({ permissions })] });
   return { permissionKey: JSON.stringify(permissions), admin, overlays, picker: admin.scope({ module: pickerConsumer }).mediaPicker, bindings: { media: feature.react, comments: commentsFeature.react, redirects: redirectsFeature.react, seo: seoFeature.react, widgets: widgetsFeature.react, forms: formsFeature.react } };
 }
-export function useAdminModules({ permissions }: { permissions: readonly string[] }, _optional: Record<string, never> = {}) {
+export function useAdminModules({ permissions, useAdminLocaleHook }: { permissions: readonly string[]; useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}) {
   const [runtime, setRuntime] = useState<Runtime | null>(null);
   const key = JSON.stringify(permissions);
   useEffect(() => {
-    const current = createHostAdminScope({ permissions });
+    // One injected locale hook for the whole scope; a different hook builds a new scope.
+    const current = createHostAdminScope({ permissions, useAdminLocaleHook });
     setRuntime(current);
     return () => { current.admin.dispose(); current.overlays.dispose(); };
-  }, [key]);
+  }, [key, useAdminLocaleHook]);
   // During grant changes the old scope must not render with stale affordances.
   return runtime?.permissionKey === key ? runtime : null;
 }

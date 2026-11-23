@@ -18,3 +18,10 @@ transport, public sitemap transport, publish action and existing CMS media picke
 
 Browser acceptance still covers all three tabs and the sitemap modal after the coordinator's
 test/build batch and published-package typecheck.
+
+## Wiring
+
+**Locale (P12 #6.T).** `Seo` (index.ts) and `SeoModuleLoading`/`createHostSeoModule` (`integrations/jini-admin/seo-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext`; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

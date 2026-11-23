@@ -6,6 +6,7 @@ import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { ChatSurfacesProvider } from "@jini-ai/chat/react";
 import { chatSurfaces } from "./integrations/jini-surfaces";
 import { adminKit, uiKit, userManagementKit } from "./integrations/jini-kits";
+import { useHostAdminLocale } from "./hooks/admin-locale-dependencies.hooks";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
@@ -72,7 +73,8 @@ function SessionApp({
   useAdminSessionHook = useAdminSession }: {
   useAdminSessionHook?: typeof useAdminSession; } = {}) {
   const session = useAdminSessionHook();
-  const app = <App useSession={() => session} />;
+  // The same function `adminKit.hooks.useAdminLocale` holds: one host locale hook, two references.
+  const app = <App useSession={() => session} useAdminLocaleHook={useHostAdminLocale} />;
   if (session.checking || !session.user) return app;
   return <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId: session.user.id })}>
     {app}

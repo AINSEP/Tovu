@@ -5,6 +5,7 @@ import { createAdmin } from '@jini-ai/admin/core/module';
 import { defineAdminModule, type ModulePageProps } from '@jini-ai/core/contracts/admin-module';
 import type { LazyTabView } from '@jini-ai/admin/core/react';
 import { createOverlayController } from '@jini-ai/admin/react/overlays';
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { AdminModulesContext, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';
 import { PublishSectionButton } from '../../../features/publish-content/PublishSectionButton';
 
@@ -16,6 +17,8 @@ import { PublishSectionButton } from '../../../features/publish-content/PublishS
  */
 
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
+
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
 
 type Runtime = NonNullable<ReturnType<typeof useAdminModules>>;
 
@@ -40,7 +43,7 @@ function withRuntime(runtime: Runtime | null) {
 
 describe('createHostAdminScope', () => {
   it('describes the media library page, exposes the picker and keys the scope by its grants', () => {
-    const scope = createHostAdminScope({ permissions: ['media.read'] });
+    const scope = createHostAdminScope({ permissions: ['media.read'], useAdminLocaleHook });
     expect(scope.permissionKey).toBe('["media.read"]');
     expect(scope.admin.describe().pages.map((page) => [page.id, page.path])).toEqual([['media.library', '/media'], ['comments.queue', '/comments'], ['redirects.list', '/redirects'], ['seo.settings', '/seo'], ['widgets.library', '/widgets'], ['widgets.editor', '/widgets/:widgetId'], ['widgets.regions', '/widgets/regions'], ['widgets.region', '/widgets/regions/:regionKey'], ['forms.list', '/forms'], ['forms.editor', '/forms/:formId']]);
     expect(typeof scope.picker.pick).toBe('function');
@@ -60,7 +63,7 @@ describe('createHostAdminScope', () => {
 describe('useAdminModules', () => {
   it('builds a scope after mount, hides it while grants change, and disposes the replaced scope', async () => {
     let permissions: readonly string[] = ['media.read'];
-    const { result, rerender, unmount } = renderHook(() => useAdminModules({ permissions }));
+    const { result, rerender, unmount } = renderHook(() => useAdminModules({ permissions, useAdminLocaleHook }));
     const first = result.current!;
     expect(first.permissionKey).toBe('["media.read"]');
     const firstAdminDispose = vi.spyOn(first.admin, 'dispose');
@@ -88,7 +91,7 @@ describe('useAdminModules', () => {
   it('never returns a scope built for different grants than the current render', () => {
     let permissions: readonly string[] = [];
     const seen: (string | null)[] = [];
-    const { rerender } = renderHook(() => { const runtime = useAdminModules({ permissions }); seen.push(runtime?.permissionKey ?? null); });
+    const { rerender } = renderHook(() => { const runtime = useAdminModules({ permissions, useAdminLocaleHook }); seen.push(runtime?.permissionKey ?? null); });
     permissions = ['*'];
     rerender();
     // Each non-null scope seen matches the grants of the render that returned it.
@@ -105,7 +108,7 @@ describe('useAdminModules', () => {
 describe('useHostMediaPicker', () => {
   it('is null outside an admin scope and the scope picker inside one', () => {
     expect(renderHook(() => useHostMediaPicker()).result.current).toBeNull();
-    const scope = createHostAdminScope({ permissions: ['*'] });
+    const scope = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook });
     const { result } = renderHook(() => useHostMediaPicker(), { wrapper: withRuntime(scope) });
     expect(result.current).toBe(scope.picker);
     scope.admin.dispose(); scope.overlays.dispose();
@@ -196,7 +199,7 @@ describe('useModulePanel', () => {
 
 describe('useModuleProviderContent', () => {
   it('provides the scope and mounts its overlay host only when a scope exists', async () => {
-    const scope = createHostAdminScope({ permissions: ['*'] });
+    const scope = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook });
     function Probe() { return <p>{useHostMediaPicker() === scope.picker ? 'picker from scope' : 'no picker'}</p>; }
     const withScope = renderHook(() => useModuleProviderContent({ runtime: scope, children: <Probe /> }));
     const { container, unmount } = render(<>{withScope.result.current}</>);

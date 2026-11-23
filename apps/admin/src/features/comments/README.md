@@ -23,3 +23,10 @@ The host dictionary test stays in `__tests__/comments-i18n.unit.test.ts`; host s
 in `integrations/jini-admin/__tests__/comments-swap.unit.test.tsx`. Jini retains the screen suites.
 Settings deliberately do not subscribe to queue refresh: the uncontrolled form's one-shot
 baseline prevents background reads from silently reverting another operator's saved settings.
+
+## Wiring
+
+**Locale (P12 #6.T).** `Comments` (index.ts) and `CommentsModuleLoading`/`createHostCommentsModule` (`integrations/jini-admin/comments-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext`; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

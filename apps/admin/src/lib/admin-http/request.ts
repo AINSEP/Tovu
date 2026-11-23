@@ -1,9 +1,11 @@
 import { decodeApiError } from "@jini-ai/protocol";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { createAdminHttp } from "@jini-ai/admin/shell/lib/admin-http/request";
+import type { AdminHttpOptions } from "@jini-ai/core/admin-runtime";
 
 import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "../admin-failure-channel";
 import { isPageUnloading } from "@jini-ai/admin/shell/lib/page-lifecycle";
-import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "../server-reconnect";
+import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE } from "../server-reconnect";
 import { BASE } from "./config";
 
 
@@ -79,80 +81,6 @@ function unreachableApiMessage(_required: Record<string, never>, { status }: { s
   return `cannot reach the Tovu API${detail} — is the server running?`;
 }
 
-/** Sentinel for "the response body was not parseable JSON", distinct from a body that legitimately
- * parsed to `null`/`{}` — those prove an application answered, and must keep the old behavior. */
-const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
-
-/**
- * `fetch`, with the one failure mode it signals by REJECTING translated into an `ApiError` like
- * every other failure here.
- *
- * A rejected `fetch` (a `TypeError`: DNS failure, connection refused at the origin itself, offline,
- * TLS failure) is the case where nothing is listening where the admin app is served from — the
- * neighbouring route to {@link request}'s unparseable-5xx case, and the one that never reaches its
- * error handling at all. Unwrapped it surfaces as the browser's own "Failed to fetch"/"NetworkError
- * when attempting to fetch resource", which is both browser-specific and says nothing about Tovu.
- *
- * `AbortError` is deliberately re-thrown untouched: a caller-cancelled request is not a reachability
- * failure, and reporting it as one would be exactly the misleading-assertion bug this fixes. The
- * original failure text is preserved on `body.cause` rather than discarded.
- *
- * Only a `TypeError` gets wrapped — the type both the browser's `fetch` and Node's `undici` reject
- * with for DNS failure/connection refused/offline/TLS failure, per the paragraph above. Anything
- * else `fetch` rejects with (there is no other real case, but a caller could stub one, e.g. in a
- * test) is not a reachability failure this function has evidence for, and is re-thrown as-is rather
- * than relabeled — the same non-assertion discipline the unparseable-5xx case above already applies.
- *
- * @complexity O(1) plus the request itself.
- * @overallScore 100
- */
-/** `cause.name` without assuming `cause instanceof Error` — a fired `AbortSignal.timeout()` rejects
- *  `fetch` with a `DOMException`, and DOMException's `instanceof Error` result is realm-dependent
- *  (true against Node's own global, observed false against a test environment's jsdom-provided
- *  global). Duck-typing `name` is the only check that holds in both. */
-function errorName({ value }: { value: unknown }, _optional: Record<string, never> = {}): string | undefined {
-  if (!value || typeof value !== "object" || !("name" in value)) return undefined;
-  return typeof value.name === "string" ? value.name : undefined;
-}
-
-/**
- * Classifies a `fetch()` rejection cause and throws the appropriate translated error — the whole
- * catch-block body {@link fetchOrThrowUnreachable} used to carry inline. Pulled into its own
- * function (2026-09-04, complexity pass) purely to drop nesting: Cognitive Complexity charges extra
- * for a construct nested inside another (here, three `if`s and a ternary all nested inside the
- * `catch`), and that penalty is what pushed the caller to 10 against a 9 ceiling even though
- * cyclomatic complexity (which does not weight nesting) was already within bounds at 7. Moving the
- * SAME checks into a function of their own does not remove any branch — cyclomatic is unchanged —
- * it only resets the nesting depth they're scored at. Always throws; never returns normally, exactly
- * like the catch block it replaces.
- */
-function throwTranslatedFetchFailure({ cause }: { cause: unknown }, _optional: Record<string, never> = {}): never {
-  if (errorName({ value: cause }) === "AbortError") throw cause;
-  if (errorName({ value: cause }) === "TimeoutError") {
-    const message = cause instanceof Error ? cause.message : String(cause);
-    throw new ApiError({ message: timeoutApiMessage(), status: 0 }, { code: REQUEST_TIMEOUT_CODE, body: { cause: message } });
-  }
-  if (!(cause instanceof TypeError)) throw cause;
-  // A navigation cancels in-flight fetches with this SAME `TypeError`, after `pagehide` (see
-  // `page-lifecycle.ts`). That is a cancellation, not evidence the server is down.
-  if (isPageUnloading()) throw new DOMException("request cancelled: the page is unloading", "AbortError");
-  throw new ApiError({ message: unreachableApiMessage({}), status: 0 }, { code: API_UNREACHABLE_CODE, body: {
-    cause: cause.message,
-  } });
-}
-
-export async function fetchOrThrowUnreachable({ url, init }: { url: string; init: RequestInit }, _optional: Record<string, never> = {}): Promise<Response> {
-  // A caller-supplied signal (none exist today, but `AbortError` handling below already
-  // anticipates one) is honored as-is; otherwise every request is bounded so a queued-forever
-  // request (see `REQUEST_TIMEOUT_CODE`'s own doc) cannot hang a screen indefinitely.
-  const signal = init.signal ?? AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal });
-  } catch (cause) {
-    return throwTranslatedFetchFailure({ cause });
-  }
-}
-
 type UnauthenticatedListener = () => void;
 const unauthenticatedListeners = new Set<UnauthenticatedListener>();
 
@@ -183,23 +111,6 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
   return () => unauthenticatedListeners.delete(listener);
 }
 
-/** Builds `fetch`'s own `init`, merging in `request`'s two fixed defaults (`credentials`,
- *  `Content-Type`) under whatever the caller passed. Pulled out of `request` (2026-09-04, complexity
- *  pass) purely to carry the `= {}` default itself: TypeScript still resolves `buildFetchInit(init)`
- *  correctly when `request`'s own `init` argument is omitted (`undefined` triggers this function's
- *  default exactly as it did `request`'s), so no call site — inside or outside this file — changes
- *  behavior; only which function's signature carries the default-parameter branch changes.
- *
- *  `headers` is spread and rebuilt LAST, after `...init`, so `init`'s other fields (`method`, `body`,
- *  `credentials`) can still override the fixed defaults above them, but `init.headers` itself always
- *  merges onto the `Content-Type` default rather than replacing the whole `headers` object outright —
- *  a caller passing one custom header (e.g. `If-Match`) must not silently lose `Content-Type` (see
- *  `setDockerfileSource`'s regression test in `api-endpoint-option-branches.unit.test.ts`). A caller
- *  that sets its own `Content-Type` still wins, since it's spread after the default.
- *
- *  Exported (browser-file-scope-only otherwise) purely so `api-build-fetch-init.unit.test.ts` can
- *  assert this merge order directly — no in-repo caller currently overrides `Content-Type` itself, so
- *  that branch would otherwise be unreachable through the public `api` surface. */
 /**
  * The Fetch standard's ceiling on the combined body size of all in-flight `keepalive` requests
  * (64 KiB). A `fetch` whose keepalive body exceeds it rejects rather than being sent.
@@ -222,227 +133,73 @@ export function bodyFitsKeepalive({ body }: { body: string }, _optional: Record<
   return new TextEncoder().encode(body).length <= KEEPALIVE_MAX_BODY_BYTES;
 }
 
-export function buildFetchInit(init: RequestInit = {}): RequestInit {
-  const callerHeaders = init.headers ?? {};
-  // Header names are case-insensitive: a caller's lowercase "content-type" beside this default's
-  // capitalised key would be sent as two values joined with a comma, which the server refuses.
-  const callerSetsType = new Headers(callerHeaders).has("content-type");
-  return {
-    credentials: "same-origin",
-    ...init,
-    headers: callerSetsType ? callerHeaders : { "Content-Type": "application/json", ...callerHeaders },
-  };
-}
+/** The local API owners this admin may send its cookies to; never a provider URL. */
+type AdminApiBasePath = "/api/admin/v1" | "/api/assistant/chats" | "/api/agents";
 
-/** Parses `res`'s body as JSON, folding the "not valid JSON at all" case into the same
- *  `UNPARSEABLE_BODY` sentinel {@link request} always used, via `wasUnparseable`. `body` is `{}`
- *  when unparseable (unchanged from `request`'s own prior fallback) and the raw parsed value
- *  otherwise — including a legitimate JSON literal `null`, which is NOT the same thing as
- *  unparseable (see `UNPARSEABLE_BODY`'s own doc). Pulled out of `request` (2026-09-04, complexity
- *  pass) as its own step; the two callers below (`notifyIfUnauthenticated`,
- *  `buildRequestFailedError`) both need `wasUnparseable`, not just `body`. */
-async function parseJsonBody(res: Response, { requireJson = false }: { requireJson?: boolean } = {}): Promise<{ body: Record<string, unknown>; wasUnparseable: boolean }> {
-  const parsed = await res.json().catch((error: unknown) => {
-    if (requireJson) throw error;
-    return UNPARSEABLE_BODY;
-  });
-  const wasUnparseable = parsed === UNPARSEABLE_BODY;
-  return { body: wasUnparseable ? {} : parsed, wasUnparseable };
-}
-
-/** The one side effect on `request`'s error path: notifying every {@link onUnauthenticated}
- *  listener when, and only when, this non-2xx response is a genuine session invalidation. Gated on
- *  `status === 401 && code === "UNAUTHENTICATED"` specifically — not bare 401, and not 403. Bare 401
- *  is overloaded in this codebase: a relayed third-party failure (bad vendor key) can also be a 401,
- *  see `onUnauthenticated`'s own doc comment. Only
- *  `dev-auth.ts`'s genuine session-invalidity 401s carry this code. 403 means an authenticated
- *  principal lacks a permission, a completely different, per-action condition that must not kick the
- *  operator back to the login screen. Pulled out of `request` (2026-09-04, complexity pass) as its
- *  own step, run before {@link buildRequestFailedError} builds the thrown error. */
-function notifyIfUnauthenticated({ status, body }: { status: number; body: Record<string, unknown> }): void {
-  if (status === 401 && decodeApiError({ body }).code === "UNAUTHENTICATED") {
-    adminFailureChannel.reset();
-    for (const listener of unauthenticatedListeners) listener();
-  }
-}
-
-/** Builds the {@link ApiError} for `request`'s non-2xx branch. Three different failures can leave
- *  the operator staring at this error, and they need different actions:
- *
- *  1. **An application answered and reported a failure** — the body is JSON with an `error`/`code`
- *     envelope. Its own message wins, unchanged.
- *  2. **Nothing was listening upstream.** In dev, Vite's `/api` proxy answers an unreachable target
- *     with a bare `500`, `Content-Type: text/plain`, and a zero-length body (verified live against
- *     this repo's own proxy config, 2026-08-06); a production reverse proxy answers the same shape
- *     with 502/503/504. `fetch` resolves normally in this case — the proxy IS reachable — so this is
- *     the branch that must not report a plain "500".
- *  3. **The origin itself was unreachable**, so `fetch` rejected — handled one level down in
- *     {@link fetchOrThrowUnreachable}, and never reaches this function.
- *
- *  Cases 2 and 3 are the ones the old message got wrong. Note the limit of what case 2 can prove: an
- *  unparseable 5xx is *also* what a genuine server-side crash looks like when it escapes to
- *  Express's default (HTML) error handler rather than this codebase's JSON envelopes — the wire
- *  shape is the same, so this cannot distinguish them, and the message deliberately does not claim
- *  to. It names the likeliest cause, keeps the status for the other one, and points at the server
- *  either way, which is the correct first action for both. Parseable JSON (including a literal
- *  `null` body) is the discriminator that IS reliable: it proves an application, not a proxy,
- *  composed the response, so an otherwise empty error names its request and HTTP status, with
- *  guidance to check for a completed write before trying again.
- *
- *  Pulled out of `request` (2026-09-04, complexity pass) as its own pure step: a `{status, body,
- *  wasUnparseable}` triple in, an `ApiError` out, no `fetch`/parsing involved. */
-function buildRequestFailedError({
-  status,
-  body,
-  wasUnparseable,
-  init,
-  path,
-}: {
-  status: number;
-  body: Record<string, unknown>;
-  wasUnparseable: boolean;
-  init: RequestInit | undefined;
-  path: string;
-}): ApiError {
-  const noAppEnvelope = wasUnparseable && status >= 500;
-  const method = init?.method ?? "GET";
-  const fallback = redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text;
-  const decoded = decodeApiError({ body }, {
-    fallbackMessage: noAppEnvelope ? unreachableApiMessage({}, { status }) : fallback,
-  });
-  const error = new ApiError({ message: decoded.message, status }, { code: noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body });
-  return error;
-}
+/** Per-call options for {@link request}, {@link requestOnce} and {@link authenticatedAdminRequest}. */
+export type AuthenticatedAdminRequestOptions = AdminHttpOptions<ApiError, AdminApiBasePath, "page">;
 
 /**
- * The single fetch seam every `api.*` call goes through: sends JSON, parses JSON, and turns any
- * non-2xx into an {@link ApiError}.
+ * The one composed session client (`createAdminHttp`, `@jini-ai/admin`). Every behaviour rule lives
+ * there; this host binds Tovu's error class, copy, reconnect policy, failure channel and session
+ * listeners. The bound operations below keep their existing names and shapes, so no importer
+ * changes.
  *
- * `onOk`, when passed, is called with the raw `Response` in `response` immediately before this function resolves
- * on a 2xx — the ONE hook a caller needing something off the wire that isn't in the JSON body (e.g.
- * `getDockerfileSource`/`setDockerfileSource` reading the `ETag` response header, 2026-08-15) can
- * use without reimplementing this function's own fetch/parse/error-shaping. Deliberately not called
- * on the error path: nothing today needs a response header out of a FAILED request, and every
- * caller that does can still read `ApiError.body` (already routed through non-2xx responses).
+ * Copy bindings (moved here from the old in-file request stages):
+ * - `unreachable`: no Tovu API answered. A bare `request failed (500)` once cost a debugging hour
+ *   (2026-08-06) because a status asserts a server exists. In dev, Vite's `/api` proxy answers an
+ *   unreachable target with a bare text `500`; production proxies answer 502/503/504.
+ * - `requestFailed`: an application answered with an empty error. It names the request and status
+ *   and is passed through `redactSecretShapes`, since a path can carry a secret-shaped segment.
  *
- * See {@link buildFetchInit}, {@link parseJsonBody}, {@link notifyIfUnauthenticated}, and
- * {@link buildRequestFailedError} for the steps this orchestrates — each carries its own doc for why
- * its branch exists; this function's own job is only the sequencing.
- *
- * @complexity O(1) plus the request and body parse.
- * @overallScore 100
+ * Session invalidation resets the failure channel BEFORE notifying listeners, so a stale notice
+ * from the old session is never shown on the login screen.
  */
-/** One send through the fetch seam, no restart retry. Exported for `server-reconnect` tests only. */
-export async function requestOnce<T>(
-  { path, init, onOk }: { path: string; init?: RequestInit; onOk?: (required: { response: Response }, optional?: Record<string, never>) => void },
-  options: AuthenticatedAdminRequestOptions = {},
-): Promise<T> {
-  const res = await fetchOrThrowUnreachable({ url: `${options.basePath ?? BASE}${path}`, init: buildFetchInit(init) });
-  const { body, wasUnparseable } = await parseJsonBody(res, { requireJson: res.ok && options.requireJson });
-  if (!res.ok) {
-    notifyIfUnauthenticated({ status: res.status, body });
-    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable, init, path });
-    const error = options.errorFactory?.({ response: res, error: defaultError }) ?? defaultError;
-    // The dev proxy's mark for "the API refused the connection": this request never reached it.
-    if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
-    throw error;
-  }
-  onOk?.({ response: res });
-  return body as T;
-}
-
-/** Errors the dev proxy proved never reached the server (see {@link requestOnce}). */
-const upstreamRefusedErrors = new WeakSet<object>();
-
-/**
- * Sends once; if the server was unreachable (a restart), waits for `/readyz` to answer and sends
- * once more — reads always, writes only when provably undelivered or `retryWrites` (2026-10-05,
- * `server-reconnect.ts`). Exported for its test; every caller uses {@link request}.
- */
-export async function requestRidingOutRestart<T>(
-  { send, method }: { send: () => Promise<T>; method: string | undefined },
-  { retryWrites = false, reconnect = serverReconnect }: { retryWrites?: boolean; reconnect?: ServerReconnect } = {},
-): Promise<T> {
-  try {
-    const result = await send();
-    reconnect.markReachable();
-    return result;
-  } catch (error) {
-    const retry = error instanceof ApiError && shouldRetryAfterReconnect({
-      code: error.code, unreachableCode: API_UNREACHABLE_CODE, method, upstreamRefused: upstreamRefusedErrors.has(error), retryWrites,
-    });
-    if (!retry || !(await reconnect.waitUntilReachable())) throw error;
-    return send();
-  }
-}
-
-/** Publish one unexpected failure after restart recovery settles, preserving the caller's rejection.
- * The captured generation prevents an older session/site response from restoring cleared details.
- * @complexity O(1) orchestration plus existing request/retry and bounded failure formatting.
- * @overallScore 98 — approved backend copy remains a server disclosure contract.
- */
-export async function request<T>({ path }: { path: string }, { init, onOk, options = {} }: { init?: RequestInit; onOk?: (required: { response: Response }, optional?: Record<string, never>) => void; options?: AuthenticatedAdminRequestOptions } = {}): Promise<T> {
-  const generation = adminFailureChannel.getGeneration();
-  const method = init?.method ?? "GET";
-  try {
-    return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method }, options);
-  } catch (error) {
-    // Only the final unexpected failure is shared; callers keep their original error and body.
-    publishFinalFailure({ error, path, method, generation }, { failureEntry: options.failureEntry, basePath: options.basePath ?? BASE });
-    throw error;
-  }
-}
-
-/** Shares a final 5xx or no-response failure as one admin notice. A 4xx is the caller's to explain. */
-function publishFinalFailure(
-  { error, path, method, generation }: { error: unknown; path: string; method: string; generation: number },
-  { failureEntry, basePath }: { failureEntry?: "page"; basePath?: string } = {},
-): void {
-  try {
-    if (error instanceof ApiError && isPageWideFailure({ status: error.status, method, code: error.code })) {
+const adminHttp = createAdminHttp<ApiError, AdminApiBasePath, "page">({
+  timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
+  ports: {
+    // Resolved at call time, so a test's stubbed global fetch/AbortSignal is the one used.
+    fetch: ({ url, init }) => fetch(url, init),
+    timeoutSignal: ({ ms }) => AbortSignal.timeout(ms),
+    isPageUnloading: () => isPageUnloading(),
+    resolveBasePath: ({ basePath }) => basePath ?? BASE,
+    isUpstreamRefused: ({ response }) => response.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE,
+    decodeApiError: (required, optional) => decodeApiError(required, optional),
+    createError: (required, optional) => new ApiError(required, optional),
+    isRequestError: (required): required is { error: ApiError } => required.error instanceof ApiError,
+    messages: {
+      timeout: () => timeoutApiMessage(),
+      unreachable: ({ status }) => unreachableApiMessage({}, status === undefined ? {} : { status }),
+      requestFailed: ({ method, path, status }) => redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text,
+    },
+    reconnect: serverReconnect,
+    shouldRetry: (required) => shouldRetryAfterReconnect(required),
+    sessionInvalidated: () => {
+      adminFailureChannel.reset();
+      for (const listener of unauthenticatedListeners) listener();
+    },
+    getFailureGeneration: () => adminFailureChannel.getGeneration(),
+    reportFailure: ({ error, path, method, generation, basePath, failureEntry }) => {
+      // A 4xx is the caller's to explain; only a final 5xx or no-response failure is page-wide.
+      if (!isPageWideFailure({ status: error.status, method, code: error.code })) return;
       publishAdminFailure({ body: error.body, path, method, status: error.status, generation, ...(failureEntry ? { entry: failureEntry } : {}) }, { basePath });
-    }
-  } catch { /* Notice effects must never replace the original request rejection. */ }
-}
+    },
+  },
+});
 
-export interface AuthenticatedAdminRequestOptions {
-  /** Explicit local API owners only: never send admin cookies to a provider URL. */
-  basePath?: "/api/admin/v1" | "/api/assistant/chats" | "/api/agents";
-  signal?: AbortSignal;
-  headers?: Record<string, string>;
-  keepalive?: boolean;
-  onOk?: (required: { response: Response }, optional?: Record<string, never>) => void;
-  retryWrites?: boolean;
-  /** Transcript/inventory readers reject malformed successful JSON instead of accepting `{}`. */
-  requireJson?: boolean;
-  /** The shared posts routes also serve pages; a caller that knows the row is a page says so, so the failure notice says "page". */
-  failureEntry?: "page";
-  /** Preserve an adapter's status-bearing error contract after session invalidation is checked. */
-  errorFactory?: (input: { response: Response; error: ApiError }) => ApiError;
-}
+/** `fetch` bounded by the request deadline; a rejection becomes an {@link ApiError} (or AbortError). */
+export const fetchOrThrowUnreachable = adminHttp.fetchOrThrowUnreachable;
+/** One send through the seam, no restart retry. Exported for `server-reconnect` tests and the
+ *  owner-auth clients that must not retry. */
+export const requestOnce = adminHttp.requestOnce;
+/** Sends once, then once more after `/readyz` answers when the first send never reached the server. */
+export const requestRidingOutRestart = adminHttp.requestRidingOutRestart;
+/** The single fetch seam every `api.*` call goes through; publishes only the final failure. */
+export const request = adminHttp.request;
+/** Authenticated package adapters share cookies, bounded requests and session invalidation with
+ *  every native screen; paths are relative to the explicitly selected local API prefix. */
+export const authenticatedAdminRequest = adminHttp.authenticatedAdminRequest;
 
-/** The fetch init fragment for a body: none, a raw Blob with its own type, or JSON. */
-function requestPayload({ body }: { body: unknown }, _optional: Record<string, never> = {}): { body?: BodyInit; headers?: Record<string, string> } {
-  if (body === undefined) return {};
-  if (body instanceof Blob) return { body, headers: { "Content-Type": body.type || "application/octet-stream" } };
-  return { body: JSON.stringify(body) };
-}
-
-/** Authenticated package adapters share cookies, bounded requests and session invalidation
- * with every native screen; paths are relative to the explicitly selected local API prefix. */
-export function authenticatedAdminRequest<T>(
-  { path, method, body }: { path: string; method: string; body?: unknown },
-  options: AuthenticatedAdminRequestOptions = {},
-): Promise<T> {
-  const payload = requestPayload({ body });
-  return request<T>({ path }, { init: {
-    method,
-    ...payload,
-    headers: { ...payload.headers, ...options.headers },
-    ...(options.signal ? { signal: options.signal } : {}),
-    ...(options.keepalive === undefined ? {} : { keepalive: options.keepalive }),
-  }, onOk: options.onOk, options });
-}
 
 /**
  * Shared translation from a thrown request error to operator-facing copy — the "opt-out by

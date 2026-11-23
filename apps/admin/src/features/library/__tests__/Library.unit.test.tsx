@@ -8,6 +8,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { ADMIN_PANELS } from "@/panels";
 import { Library as LibraryRoute } from "@/panel-pages";
 import { Placeholder } from "@/components/Placeholder";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { translateAdminNavLabel } from "../../../lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { Library, documentMenuItems, markdownFrameDocument } from "../Library";
@@ -67,7 +68,7 @@ describe("Library panel registration", () => {
   it("passes ?tab= through to the page", () => {
     const library = ADMIN_PANELS.find((panel) => panel.id === "library")!;
     // Route pages now load lazily beneath the registry's Suspense boundary.
-    const boundary = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents"), Placeholder }) as ReactElement<{ children: ReactElement }>;
+    const boundary = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents"), Placeholder, useAdminLocaleHook: useHostAdminLocale }) as ReactElement<{ children: ReactElement }>;
     expect(boundary.type).toBe(Suspense);
     const element = boundary.props.children;
     expect(element.type).toBe(LibraryRoute);

@@ -7,6 +7,9 @@ import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../featu
 import { useAdminSession } from "../../App.hooks";
 import { Login } from "../../features/auth";
 import { settingsApi } from "../../lib/admin-http/settings-api";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file `useAdminSession`'s boot-token redemption (run-from-zip plan S2,
@@ -142,7 +145,7 @@ it.each([401, 403, 404, 500])("local bootstrap HTTP %s shows username/password l
   function SessionGate() {
     const session = useAdminSession();
     if (session.checking) return <div>Loading Tovu…</div>;
-    if (!session.user) return <Login onLogin={session.handleLogin} />;
+    if (!session.user) return <Login useAdminLocaleHook={useAdminLocaleHook} onLogin={session.handleLogin} />;
     return <div>Signed in</div>;
   }
   render(<StrictMode><SessionGate /></StrictMode>);

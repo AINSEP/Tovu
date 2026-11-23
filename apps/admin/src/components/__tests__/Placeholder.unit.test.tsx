@@ -1,21 +1,12 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-// `Placeholder`'s "Unknown section" branch reads `useWiredAdminLocale()` directly (deliberately
-// not hook-injected — see that call site's own comment in `Placeholder.tsx`), so the one test below
-// that needs an unsupported locale mocks this module. Every other test in this file leaves the
-// mock at its default ("en", the real hook's own jsdom-unmocked fallback) so none of them observe
-// any difference from the previously-unmocked real hook.
-const mockUseWiredAdminLocale = vi.hoisted(() => vi.fn(() => "en"));
-vi.mock("../../hooks/use-admin-locale.hooks", () => ({
-  useWiredAdminLocale: mockUseWiredAdminLocale,
-}));
+import { describe, expect, it } from "vitest";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
 import { ComingSoonNotice, findNavGroupLabel, Placeholder } from "../Placeholder";
 
-afterEach(() => {
-  mockUseWiredAdminLocale.mockReturnValue("en");
-});
+// Fake locale hooks injected as the required `useAdminLocaleHook` prop (no module mock).
+const useAdminLocaleHook: UseAdminLocaleHook = () => "en";
+const useUnsupportedLocaleHook: UseAdminLocaleHook = () => "xx-unsupported";
 
 /**
  * @file `Placeholder` — pins the fix for the audit's live-verified Newsletter bug
@@ -31,7 +22,7 @@ describe("a soon: true nav.ts item", () => {
   it("renders its own label and a coming-soon notice, not an error banner", () => {
     // "newsletter" is `soon: true` in nav.ts and was never added to the legacy admin-shell
     // registry (since deleted) — the exact reproduction of the live bug.
-    render(<Placeholder sectionId="newsletter" />);
+    render(<Placeholder sectionId="newsletter" useAdminLocaleHook={useAdminLocaleHook} />);
 
     expect(screen.getByRole("heading", { name: "Newsletter" })).toBeInTheDocument();
     expect(screen.getByText("Newsletter is coming soon.")).toBeInTheDocument();
@@ -41,13 +32,13 @@ describe("a soon: true nav.ts item", () => {
 
 describe("an optional disambiguation note (2026-08-10, admin-appearance)", () => {
   it("renders the note as a second line when provided", () => {
-    render(<Placeholder sectionId="newsletter" note="This is a disambiguation note." />);
+    render(<Placeholder sectionId="newsletter" note="This is a disambiguation note." useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText("Newsletter is coming soon.")).toBeInTheDocument();
     expect(screen.getByText("This is a disambiguation note.")).toBeInTheDocument();
   });
 
   it("renders nothing extra when omitted — every other soon caller stays unchanged", () => {
-    render(<Placeholder sectionId="newsletter" />);
+    render(<Placeholder sectionId="newsletter" useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText("Newsletter is coming soon.")).toBeInTheDocument();
     // Only the one page-description paragraph — no empty second <p>.
     expect(document.querySelectorAll(".page-description")).toHaveLength(1);
@@ -56,21 +47,19 @@ describe("an optional disambiguation note (2026-08-10, admin-appearance)", () =>
 
 describe("an id absent from nav.ts entirely", () => {
   it("renders the Unknown section error, matching the legacy /section/:id fallback's expectations", () => {
-    render(<Placeholder sectionId="does-not-exist-12345" />);
+    render(<Placeholder sectionId="does-not-exist-12345" useAdminLocaleHook={useAdminLocaleHook} />);
 
     expect(screen.getByText("Unknown section: does-not-exist-12345")).toBeInTheDocument();
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 
   it("a prototype-chain key is not mistaken for a real section", () => {
-    render(<Placeholder sectionId="constructor" />);
+    render(<Placeholder sectionId="constructor" useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByText(/unknown section/i)).toBeInTheDocument();
   });
 
   it("falls back to the English prefix when the admin locale has no UNKNOWN_SECTION_PREFIX entry", () => {
-    mockUseWiredAdminLocale.mockReturnValue("xx-unsupported");
-
-    render(<Placeholder sectionId="does-not-exist-12345" />);
+    render(<Placeholder sectionId="does-not-exist-12345" useAdminLocaleHook={useUnsupportedLocaleHook} />);
 
     expect(screen.getByText("Unknown section: does-not-exist-12345")).toBeInTheDocument();
   });

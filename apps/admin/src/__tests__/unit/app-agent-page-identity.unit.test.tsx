@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { agentPageId, App, parseRoute } from "../../App";
 import { ADMIN_AGENT_PAGE_PATHS } from "../../lib/agent-pages";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file The page id an agent reads back must be the id it navigated to.
@@ -92,7 +95,7 @@ async function renderAt(path: string) {
   // `replaceState`, not `location.pathname = …`: jsdom does not implement real navigation, so an
   // assignment leaves the URL alone and the app renders the dashboard — passing vacuously.
   window.history.replaceState(null, "", path);
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
   await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
   return container;
 }
