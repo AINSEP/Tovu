@@ -19,3 +19,10 @@ Custom content types — the three screens behind the sidebar's **Content → Co
 
 `Collections.tsx` has **no unit test**. `CollectionEntries.tsx` and `CollectionEntryEditor.tsx` each
 have one (`__tests__/`).
+
+## Wiring
+
+- `collections-host-ports.ts` binds `@jini-ai/admin/screens/collections/api/collections-api`'s
+  `createCollectionsApi({ request })` once to `lib/admin-http/request`; every collections caller
+  (the `*-dependencies.hooks.ts` live ports, widget config fields, request-shape tests) imports that
+  `collectionsApi` singleton.

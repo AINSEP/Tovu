@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { collectionsApi } from "../../features/collections/api/collections-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";

@@ -7,9 +7,9 @@ import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { usersApi } from "../../features/users/api/users-api";
-import { collectionsApi } from "../../features/collections/api/collections-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { databaseApi } from "../../features/database/api/database-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { settingsApi } from "../admin-http/settings-api";

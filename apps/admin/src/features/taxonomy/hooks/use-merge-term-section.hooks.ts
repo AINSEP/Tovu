@@ -5,7 +5,7 @@ import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
-import { defaultMergeTermSectionPort } from "./merge-term-section-dependencies.hooks";
+import { defaultMergeTermSectionPort } from "../taxonomy-host-ports";
 import type { MergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-port.hooks";
 
 /**

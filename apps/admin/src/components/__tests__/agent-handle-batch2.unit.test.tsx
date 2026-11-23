@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
 

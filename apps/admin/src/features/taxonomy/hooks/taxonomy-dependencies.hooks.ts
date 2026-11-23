@@ -1,5 +1,5 @@
 import type { AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
+import { taxonomyApi } from "@/features/taxonomy/taxonomy-host-ports";
 import { trashApi } from "@/features/trash/api/trash-api";
 import { ApiError } from "@/lib/admin-http/request";
 import type { TaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-port.hooks";

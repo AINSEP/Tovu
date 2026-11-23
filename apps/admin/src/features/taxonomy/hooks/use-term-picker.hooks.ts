@@ -7,7 +7,7 @@ import { t } from "../taxonomy-i18n";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
 
-import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
+import { defaultTermPickerPort } from "../taxonomy-host-ports";
 import type { TermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

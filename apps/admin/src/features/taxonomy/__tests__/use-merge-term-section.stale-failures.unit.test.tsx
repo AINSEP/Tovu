@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
+import { createFakeMergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-dependencies.hooks";
 import { useMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 
 // The main suite is being edited by another coverage worker. Reuse its port/provider owners

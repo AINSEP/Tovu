@@ -1,5 +1,5 @@
 import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
-import { collectionsApi } from "@/features/collections/api/collections-api";
+import { collectionsApi } from "@/features/collections/collections-host-ports";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 /**

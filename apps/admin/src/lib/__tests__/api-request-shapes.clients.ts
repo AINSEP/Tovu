@@ -1,7 +1,7 @@
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { authApi } from "../../features/auth/api/auth-api";
-import { collectionsApi } from "../../features/collections/api/collections-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { commentsApi } from "../../features/comments/api/comments-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { deploymentApi } from "../../features/deployment/api/deployment-api";
@@ -12,7 +12,7 @@ import { integrationsApi } from "../../features/integrations/api/integrations-ap
 import { mailStatusApi } from "../../features/email/api/mail-status-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { membersApi } from "../../features/members/api/members-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
@@ -25,7 +25,7 @@ import { securityApi } from "../../features/security/api/security-api";
 import { settingsApi } from "../admin-http/settings-api";
 import { sitesApi } from "../../features/sites/api/sites-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
-import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { themesApi } from "../../features/themes/api/themes-api";
 import { trashApi } from "../../features/trash/api/trash-api";
 import { usersApi } from "../../features/users/api/users-api";

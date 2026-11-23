@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { collectionsApi } from "../../features/collections/api/collections-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { formsApi } from "../../features/forms/api/forms-api";
 import {
   createFakeWidgetConfigFieldsPort,

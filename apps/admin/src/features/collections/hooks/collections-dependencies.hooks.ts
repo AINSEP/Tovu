@@ -1,5 +1,5 @@
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
-import { collectionsApi } from "@/features/collections/api/collections-api";
+import { collectionsApi } from "@/features/collections/collections-host-ports";
 import type { CollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-port.hooks";
 
 /**

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useNewTermForm, useWiredNewTermForm } from "../hooks/use-new-term-form.hooks";
-import { createFakeNewTermFormPort } from "../hooks/new-term-form-dependencies.hooks";
+import { createFakeNewTermFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-term-form-dependencies.hooks";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 
 /**

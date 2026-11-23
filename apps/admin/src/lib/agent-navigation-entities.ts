@@ -2,7 +2,7 @@ import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/agentic";
 import { integrationsApi } from "../features/integrations/api/integrations-api";
 import { postsApi } from "../features/posts/api/posts-api";
 import { pagesApi } from "../features/pages/api/pages-api";
-import { menusApi } from "../features/menus/api/menus-api";
+import { menusApi } from "../features/menus/menus-host-ports";
 import { widgetsApi } from "../features/widgets/api/widgets-api";
 
 /** Product lookups use the same authenticated read APIs as each editor. A missing row refuses

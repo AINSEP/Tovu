@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { menusApi } from "@/features/menus/api/menus-api";
+import { menusApi } from "@/features/menus/menus-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";

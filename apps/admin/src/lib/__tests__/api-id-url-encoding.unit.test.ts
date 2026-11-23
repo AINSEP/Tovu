@@ -5,13 +5,13 @@ import { sourceControlApi } from "../../features/source-control/api/source-contr
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
-import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
-import { collectionsApi } from "../../features/collections/api/collections-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 

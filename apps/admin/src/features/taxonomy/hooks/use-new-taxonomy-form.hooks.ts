@@ -4,7 +4,7 @@ import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
-import { defaultNewTaxonomyFormPort } from "./new-taxonomy-form-dependencies.hooks";
+import { defaultNewTaxonomyFormPort } from "../taxonomy-host-ports";
 import type { NewTaxonomyFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-taxonomy-form-port.hooks";
 
 /**

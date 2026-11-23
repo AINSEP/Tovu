@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
-import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
+import { createFakeMergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-dependencies.hooks";
 import type { AdminTerm, MergeTermPlanDetails } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import type { GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
 

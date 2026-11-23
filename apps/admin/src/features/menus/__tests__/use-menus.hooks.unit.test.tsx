@@ -5,7 +5,7 @@ import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { menusApi } from "@/features/menus/api/menus-api";
+import { menusApi } from "@/features/menus/menus-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";

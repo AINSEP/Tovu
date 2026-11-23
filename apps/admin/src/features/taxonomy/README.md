@@ -16,3 +16,12 @@ Categories and tags — the screen behind the sidebar's **Content → Taxonomy**
 
 `Taxonomy.tsx` has **no unit test**. Treat a change here as unverified until you have driven it in a
 browser.
+
+## Wiring
+
+`taxonomy-host-ports.ts` is the one place this admin binds `@jini-ai/admin`'s taxonomy screen code:
+`createTaxonomyApi({ request })` over `lib/admin-http/request`, then the live ports
+(`createMergeTermSectionPort`, `createNewTaxonomyFormPort`, `createNewTermFormPort`,
+`createTermPickerPort` with the auth client's `me`) as module-level singletons. The `use-*` hooks
+and `taxonomy-dependencies.hooks.ts` read those singletons; tests use the in-memory
+`createFake*Port`s from the same `@jini-ai/admin/screens/taxonomy/hooks/*-dependencies.hooks` subpaths.

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TermPicker } from "../TermPicker";
 import { useTermPicker, type TermPickerController } from "../hooks/use-term-picker.hooks";
-import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
+import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 

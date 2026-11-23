@@ -22,3 +22,4 @@ Both `Menus.tsx` and `MenuEditor.tsx` have unit tests (`__tests__/Menus.unit.tes
 
 - `MenuEditor.tsx` mounts `@jini-ai/admin`'s `MenuPageLinkFields` and injects its required `useMenuPageLinkFields` hook (from `@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks`); tests pass the same hook or a double.
 - The component renders `jini-menu-page-link-{label,visually-hidden,unavailable}` classes; this host styles them as aliases of `.a11y-label-wrap` (`styles/editor.css`), `.visually-hidden` and `.muted-cell` (`styles.css`).
+- `menus-host-ports.ts` binds `@jini-ai/admin/screens/menus/api/menus-api`'s `createMenusApi({ request, workspaceId })` once to `lib/admin-http/request` and `WORKSPACE_ID`; every menus caller (hooks, widget config fields, agent navigation, request-shape tests) imports that `menusApi` singleton.
