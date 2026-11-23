@@ -2,7 +2,7 @@ import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
-import { registerAdminToolGapsRoute } from '../tool-gaps.js';
+import { registerAdminToolGapsRoute } from '#src/server/runtime/composition/http-app/mount-admin-system';
 import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
 /** Execute only the route callback; no HTTP listener, app, daemon or CLI is started. */

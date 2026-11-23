@@ -10,7 +10,7 @@ import { createToolExecutor, createRunLifecycle, createInMemoryEventLog } from '
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { Express, Request, Response } from 'express';
 import { buildToolGapsRegistrations } from '../../../assistant/tool-gaps-tool.js';
-import { registerAdminToolGapsRoute } from '../../../server/inbound/admin-http/routes/system/tool-gaps.js';
+import { registerAdminToolGapsRoute } from '../../../server/runtime/composition/http-app/mount-admin-system.js';
 import { redactSecretShapes } from '../../../contracts/core/secret-redaction.js';
 
 /** The existing audit table on SQLite/PGlite: latest revision, scoped reads and no catalog noise. */
@@ -52,7 +52,7 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     let handler!: (req: Request, res: Response) => Promise<void>;
     registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps });
     let body: unknown;
-    const res = { locals: { principal: { id: 'owner' } }, json(value: unknown) { body = value; return this; } };
+    const res = { locals: { principal: { id: 'owner' } }, status() { return this; }, json(value: unknown) { body = value; return this; } };
     await handler({ params: { workspaceId: 'w' } } as unknown as Request, res as unknown as Response);
     assert.deepEqual(body, { entries });
   });

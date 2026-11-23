@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminObservabilityStatusRoute, type AdminObservabilityStatusDeps } from "../observability-status.js";
+import { registerAdminObservabilityStatusRoute, type AdminObservabilityStatusDeps } from "#src/server/runtime/composition/http-app/mount-admin-system";
 
 for (const method of ["get", "post"] as const) test(`observability ${method} owns one redacted correlated report`, async t => {
   const cause = new Error("telemetry context password=TELEMETRY_CANARY");
