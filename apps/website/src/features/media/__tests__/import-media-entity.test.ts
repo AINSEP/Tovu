@@ -305,6 +305,29 @@ test("importMediaEntity: a blob that already exists at the destination is never 
   assert.equal(blobAfter?.id, "blob-original");
 });
 
+test("importMediaEntity: B188 a tombstoned blob (pending GC) is resurrected to active, keeping its original attribution, so the delete-pass cannot orphan the imported row", async () => {
+  const deps = makeDeps();
+  const { storageKey } = await deps.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256, bytes: HELLO_BYTES });
+  await deps.assetBlobRepo.save({
+    id: "blob-tombstoned", workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256, storageKey,
+    createdByPrincipal: "original-author", createdAt: "2026-01-01T00:00:00.000Z",
+    status: "tombstoned", tombstonedAt: "2026-02-01T00:00:00.000Z",
+  });
+
+  const result = await importMediaEntity({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, record: makeMediaRecord({ id: "asset-revived", source: { sha256: HELLO_SHA256 } }),
+      bytes: HELLO_BYTES, blobCreatedByPrincipal: "importing-operator", baseVersion: null },
+  });
+
+  assert.equal(result.status, "imported");
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 });
+  assert.equal(blob?.status, "active", "an imported row now references this blob; it must not stay a GC candidate");
+  assert.equal(blob?.tombstonedAt, undefined);
+  assert.equal(blob?.createdByPrincipal, "original-author", "resurrecting must not re-stamp the blob's attribution");
+  assert.equal(blob?.id, "blob-tombstoned");
+});
+
 test("importMediaEntity: a brand-new blob IS stamped with the supplied blobCreatedByPrincipal", async () => {
   const deps = makeDeps();
   const record = makeMediaRecord({ id: "asset-fresh", source: { sha256: HELLO_SHA256 } });

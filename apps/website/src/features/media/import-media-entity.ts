@@ -3,7 +3,7 @@ import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfe
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
 import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord } from "./index.js";
-import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES, withSha256Lock } from "@jini-ai/cms/media";
 
 /** The reviewed source a replace-on-import may overwrite (publish-content's precheck refusal carries it). */
 interface MediaSourceReplacement {
@@ -301,12 +301,27 @@ function writeOnceSource({ record, existingById }: { record: MediaRecord; existi
  * @complexity O(1) — one lookup, plus one store put and one row save for a new blob.
  */
 async function ensureAssetBlob(
-  { deps, input, bytes }: { deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; bytes: Uint8Array },
+  required: { deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; bytes: Uint8Array },
   _options = {}
+): Promise<boolean> {
+  // B188: the same per-sha256 lock the upload path and the GC delete-pass take (`media-service.ts`
+  // `claimUploadBlob`), so this look-then-write cannot interleave with a delete-pass removing the
+  // blob this import is about to point a media row at.
+  return withSha256Lock({ key: required.input.record.source.sha256, criticalSection: () => claimImportBlob(required) });
+}
+
+/** The lookup-then-write half of {@link ensureAssetBlob}; must run inside the sha256 lock. */
+async function claimImportBlob(
+  { deps, input, bytes }: { deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; bytes: Uint8Array },
 ): Promise<boolean> {
   const { workspaceId, record } = input;
   const existingBlob = await deps.assetBlobRepo.findByHash({ workspaceId, sha256: record.source.sha256 });
-  if (existingBlob) return false;
+  if (existingBlob) {
+    // A tombstoned blob is a pending GC candidate. This import is about to reference it, so cancel
+    // the pending delete the way a dedup upload does. The row is spread, so attribution survives.
+    if (existingBlob.status === "tombstoned") await deps.assetBlobRepo.save({ ...existingBlob, status: "active", tombstonedAt: undefined });
+    return false;
+  }
   const { storageKey } = await deps.blobStore.putIfAbsent({ workspaceId, sha256: record.source.sha256, bytes });
   const newBlob: AssetBlobRecord = {
     id: deps.idGen.newId(),
