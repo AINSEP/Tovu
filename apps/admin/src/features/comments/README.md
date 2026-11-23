@@ -23,3 +23,7 @@ The host dictionary test stays in `__tests__/comments-i18n.unit.test.ts`; host s
 in `integrations/jini-admin/__tests__/comments-swap.unit.test.tsx`. Jini retains the screen suites.
 Settings deliberately do not subscribe to queue refresh: the uncontrolled form's one-shot
 baseline prevents background reads from silently reverting another operator's saved settings.
+
+## Wiring
+
+- `comments-host-ports.ts` binds `@jini-ai/admin/screens/comments/api/comments-api`'s `createCommentsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `commentsApi` singleton from there.

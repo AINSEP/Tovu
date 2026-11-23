@@ -11,9 +11,9 @@ import { collectionsApi } from "../../features/collections/collections-host-port
 import { databaseApi } from "../../features/database/api/database-api";
 import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { settingsApi } from "../admin-http/settings-api";
-import { commentsApi } from "../../features/comments/api/comments-api";
+import { commentsApi } from "../../features/comments/comments-host-ports";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { ApiError } from "../admin-http/request";
 

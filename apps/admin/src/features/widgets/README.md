@@ -24,3 +24,7 @@ Host dictionary coverage stays in `__tests__/widgets-i18n.unit.test.ts`; actual 
 config translation, picker/placement and route wiring stay in
 `integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx`. Coordinator runs these and the
 unchanged shared-component suites, then checks all four screens in Chrome before release.
+
+## Wiring
+
+- `widgets-host-ports.ts` binds `@jini-ai/admin/screens/widgets/api/widgets-api`'s `createWidgetsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `widgetsApi` singleton from there.

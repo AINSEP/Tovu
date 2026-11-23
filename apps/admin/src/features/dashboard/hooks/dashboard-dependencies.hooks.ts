@@ -6,7 +6,7 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
-import { commentsApi } from "@/features/comments/api/comments-api";
+import { commentsApi } from "@/features/comments/comments-host-ports";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**

@@ -16,8 +16,10 @@
   margin: 1rem 0 0.75rem;
 }
 
-/* Package viewers use Jini's accessible tabs; share this admin treatment with the page toolbar. */
+/* Package viewers use Jini's accessible tabs; share this admin treatment with the page toolbar.
+   The Jini post settings tab strip (`.jini-post-settings-tabs`, active = `aria-selected`) twins it. */
 .segmented,
+.jini-post-settings-tabs,
 .agent-plugin-source-modal [data-preview-modal-tabs] {
   display: inline-flex;
   align-items: center;
@@ -29,6 +31,7 @@
 }
 
 .segmented button,
+.jini-post-settings-tabs button,
 .agent-plugin-source-modal [data-preview-modal-tabs] button {
   border: 0;
   background: transparent;
@@ -40,6 +43,7 @@
 }
 
 .segmented button.is-active,
+.jini-post-settings-tabs button[aria-selected="true"],
 .agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"] {
   background: var(--surface);
   color: var(--fg);

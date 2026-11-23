@@ -2,10 +2,10 @@ import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { collectionsApi } from "../../features/collections/collections-host-ports";
-import { commentsApi } from "../../features/comments/api/comments-api";
+import { commentsApi } from "../../features/comments/comments-host-ports";
 import { databaseApi } from "../../features/database/api/database-api";
 import { deploymentApi } from "../../features/deployment/api/deployment-api";
-import { formsApi } from "../../features/forms/api/forms-api";
+import { formsApi } from "../../features/forms/forms-host-ports";
 import { fsFilesApi } from "../../features/fs-files/api/fs-files-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
@@ -29,7 +29,7 @@ import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { themesApi } from "../../features/themes/api/themes-api";
 import { trashApi } from "../../features/trash/api/trash-api";
 import { usersApi } from "../../features/users/api/users-api";
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */

@@ -13,7 +13,7 @@ import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";
-import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { widgetsApi } from "../../features/widgets/widgets-host-ports";
 
 /**
  * @file id-encoding sweep (2026-09-05, `fix-apienc` dispatch) — TASK 1.

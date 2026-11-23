@@ -78,7 +78,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .jini-post-notice__btn {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .jini-post-notice__btn, .jini-post-btn-secondary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -1217,16 +1217,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   box-shadow: var(--jini-control-shadow, none);
 }
 /* The Jini post-notice buttons' twin of the rule above, kept as its own block so `.btn-secondary`
-   stays a standalone global rule (the external-MCP picker pairs its action text with it). */
-.jini-post-notice__btn { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+   stays a standalone global rule (the external-MCP picker pairs its action text with it).
+   `.jini-post-btn-secondary` is the post URL dialog's outline Cancel (Jini emits only `jini-*`). */
+.jini-post-notice__btn, .jini-post-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover, .jini-post-notice__btn:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .jini-post-notice__btn:hover, .jini-post-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover), .jini-post-notice__btn:where(:hover) {
+.btn-secondary:where(:hover), .jini-post-notice__btn:where(:hover), .jini-post-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active), .jini-post-notice__btn:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .jini-post-notice__btn:where(:not(:disabled):active), .jini-post-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1234,7 +1235,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled, .jini-post-notice__btn:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .jini-post-notice__btn:disabled, .jini-post-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); opacity: 1; }
@@ -2246,6 +2247,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
 .editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+/* Twin for the Jini post settings dialog's action row (Jini emits only `jini-*` classes); its own
+   block so `.editor-actions` stays the standalone rule its ~30 other callers share. */
+.jini-post-settings-dialog__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
@@ -3090,6 +3094,13 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
+/* Twin of the three rules above for the Jini post dialogs (`PostSettingsDialog`, `PostUrlDialog`),
+   which emit only `jini-*` classes. Own blocks so `.settings-dialog` stays the shared modal rule. */
+.jini-post-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
+  background-image: var(--jini-panel-texture, none);
+}
+.jini-post-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.jini-post-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 
 /* `WidgetPickerDialog.tsx`'s "Place a {type} widget" modal — `.widget-picker-dialog`/`-body`/
    `-section`/`-footer` below all first-appear here; this modal had ZERO CSS anywhere for its own
@@ -3169,7 +3180,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    submit+Cancel pair in exactly this `.editor-actions` span — reused here unchanged (Cancel is the
    only dialog-level action; the submits above belong to their own sections) rather than inventing
    a second button-row idiom just for this file. */
-.widget-picker-footer {
+.widget-picker-footer, .jini-post-settings-dialog__footer {
   border-top: 1px solid var(--border); padding-top: var(--space-4);
 }
 

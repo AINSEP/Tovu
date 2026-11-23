@@ -3,7 +3,7 @@ import { collectionsApi } from "../../features/collections/collections-host-port
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
-import { formsApi } from "../../features/forms/api/forms-api";
+import { formsApi } from "../../features/forms/forms-host-ports";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";

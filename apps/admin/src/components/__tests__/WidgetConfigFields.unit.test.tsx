@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
-import { formsApi } from "../../features/forms/api/forms-api";
+import { formsApi } from "../../features/forms/forms-host-ports";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
