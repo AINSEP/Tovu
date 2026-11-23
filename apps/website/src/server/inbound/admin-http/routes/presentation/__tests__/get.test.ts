@@ -17,7 +17,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPresentationGetRoute } from "../get.js";
+import { registerAdminPresentationGetRoute } from "#src/server/runtime/composition/modules/presentation";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**

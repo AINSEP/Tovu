@@ -5,7 +5,7 @@ import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemesListRoute } from "../list.js";
+import { registerAdminThemesListRoute } from "#src/server/runtime/composition/modules/themes";
 
 function theme(id: string, source: string, errors: string[] = []) {
   return { manifest: { id, name: `Theme ${id}`, version: "2.3.4" }, source, status: errors.length ? "invalid" : "valid", errors };

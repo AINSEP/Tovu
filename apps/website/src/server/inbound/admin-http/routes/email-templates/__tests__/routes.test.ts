@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentRouteDeps } from "../../content/deps.js";
-import { registerAdminEmailTemplateRoutes } from "../routes.js";
+import { registerAdminEmailTemplateRoutes } from "#src/server/runtime/composition/modules/email-templates";
 
 const WS = "workspace-local";
 const BASE = `/api/admin/v1/workspaces/${WS}/email-templates`;
