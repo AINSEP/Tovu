@@ -87,7 +87,7 @@ test("every Tovu mount binds the request facts; header opt-ins and routeReply pa
     assert.equal(response.headers.get("retry-after"), "7");
     const { facts, headers } = await response.json() as { facts: Record<string, string>; headers: Record<string, string> };
     assert.match(facts.clientAddress, /127\.0\.0\.1/);
-    assert.deepEqual({ userAgent: facts.userAgent, host: facts.host }, { userAgent: "probe-agent/1", host });
+    assert.deepEqual({ userAgent: facts.userAgent, host: facts.host, protocol: facts.protocol }, { userAgent: "probe-agent/1", host, protocol: "http" });
     assert.deepEqual(headers, { "x-probe": "yes" });
   }
 });

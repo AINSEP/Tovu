@@ -65,11 +65,12 @@ export function refuseUnlessSessionCredential({ res, gate }: { res: Response; ga
 /** The host's `requestFacts` port, bound on every Tovu mount (admin and public, JSON and raw) and
  * consulted only for a spec that opts in. `clientAddress` is the same trust-proxy answer the Jini
  * frontend hooks get (`captureRequestFacts` → `resolveClientIp`); `host` is `req.get("host")` as
- * publish-trust's `originOf` reads it. An absent header leaves its key out.
+ * publish-trust's `originOf` reads it, and `protocol` is `req.protocol` (trust-proxy aware) for the same
+ * origin. An absent header leaves its key out.
  * @complexity O(1).
  */
 export function routeRequestFactsFor({ req }: { req: Request }, _optional: Record<string, never> = {}): RouteRequestFacts {
   const userAgent = req.get("user-agent");
   const host = req.get("host");
-  return { clientAddress: captureRequestFacts({ req }).clientAddress, ...(userAgent === undefined ? {} : { userAgent }), ...(host === undefined ? {} : { host }) };
+  return { clientAddress: captureRequestFacts({ req }).clientAddress, ...(userAgent === undefined ? {} : { userAgent }), ...(host === undefined ? {} : { host }), protocol: req.protocol };
 }

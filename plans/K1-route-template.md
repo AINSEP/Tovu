@@ -466,14 +466,14 @@ composition mounts it. Both are object fields — never positional.
 
 ### 9.2 `routeReply` — status, headers or an empty body from a JSON spec
 
-A handler returns `ok(routeReply({ status, body?, headers? }))` when the answer is not "200/successStatus +
+A handler returns `ok({ value: routeReply({ status, body?, headers? }) })` when the answer is not "200/successStatus +
 JSON": `Retry-After` on a 429 (members request-magic-link, publish-trust challenge/session, IP limiters),
 `ETag` + bare `304` (skills list), bare `204` (users remove-policy-permission, which used `send()`).
 `body` absent ⇒ `res.status(s).send()` exactly; ordinary return values are unchanged.
 ```ts
-if (!limit.allowed) return ok(routeReply({ status: 429, body: { error: "Too many requests", code: "RATE_LIMITED" }, headers: { "Retry-After": String(limit.retryAfterSeconds) } }));
-if (etag === raw.headers?.["if-none-match"]) return ok(routeReply({ status: 304, headers: { ETag: etag } }));
-return ok(routeReply({ status: 204 }));
+if (!limit.allowed) return ok({ value: routeReply({ status: 429, body: { error: "Too many requests", code: "RATE_LIMITED" }, headers: { "Retry-After": String(limit.retryAfterSeconds) } }) });
+if (etag === raw.headers?.["if-none-match"]) return ok({ value: routeReply({ status: 304, headers: { ETag: etag } }) });
+return ok({ value: routeReply({ status: 204 }) });
 ```
 
 ### 9.3 Raw routes — `mountAdminRawRoute` / `mountPublicRawRoute`
