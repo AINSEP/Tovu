@@ -15,8 +15,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoGetSettingsRoute } from "../get-settings.js";
-import type { SeoRouteDeps } from "../deps.js";
+import { registerAdminSeoGetSettingsRoute } from "#src/server/runtime/composition/modules/seo";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**

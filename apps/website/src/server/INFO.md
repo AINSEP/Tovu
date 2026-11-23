@@ -28,3 +28,9 @@ still precedes the missing-session 500, as in the hand-written routes; `authoriz
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+SEO (`runtime/composition/modules/seo.ts`) mounts `@jini-ai/cms/admin-http/routes/seo/*` and injects
+`seoReady` (every SEO spec waits on it before authorizing), the host `seo.*` settings ledger
+(`readSeoSettings`/`writeSeoSettings` over `features/seo/settings.ts`), the sitemap cache and, for
+put-entry, `entryAuthorize` (the RBAC `deps.authorize` its write chokepoint re-checks with). Put-entry
+mounts `"guarded"` with its operation-only 500 copy pinned (`PUT_ENTRY_FAILURE`); the rest `"direct"`.
+The public sitemap/robots/llms/feed routes in the same module stay hand-written (non-JSON).
