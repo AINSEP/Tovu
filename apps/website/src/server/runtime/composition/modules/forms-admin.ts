@@ -106,7 +106,13 @@ function formsPullPorts(_required: Record<string, never> = {}, _optional: Record
   } };
 }
 
-/** POST forms/submissions/pull behind {@link formsPullPorts}; never consulted the publishing-credential override. */
+/**
+ * POST — pull the submissions published static sites stored at their hosts into this site
+ * (`FormsDeps.formSubmissionsPull`, the same composed port as the `forms_pull_submissions` tool).
+ * Body: optional `{ targetId }` to pull from one hosting target only.
+ *
+ * Mounted at forms/submissions/pull behind {@link formsPullPorts}; never consulted the publishing-credential override.
+ */
 export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountJsonRoute<FormsPullSubmissionsInput, FormSubmissionsPullResult, FormsPullSubmissionsRouteDeps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...formsPullSubmissionsRoute, ports: formsPullPorts() }, deps: { ...formsPortDeps({ deps }), formSubmissionsPull: deps.formSubmissionsPull } });
 };

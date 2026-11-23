@@ -39,7 +39,7 @@ export interface MenuRouteDeps extends RouteDeps {
   navLocationBindingRepo: NavLocationBindingRepoPort;
 }
 
-/** Registrar signature for the menus routes (mirrors `RouteRegistrar`). */
+/** Registrar signature for the menus route modules (mirrors `RouteRegistrar`). */
 export type MenuRouteRegistrar = (required: { app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The two port fields every menus mount passes. `authorize` is read per request, as the

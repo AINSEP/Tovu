@@ -90,6 +90,31 @@ function collectionsWriteDeps({ deps }: { deps: ContentTypesRouteDeps }, _option
   };
 }
 
+// Why the write routes drain the outbox inline, as written when each drain was added:
+//
+// 2026-09-03 outbox-drain audit fix — drains the outbox so a successful `deprecate`/
+// `tombstone` transition's `content_type.deprecated`/`content_type.tombstoned` event
+// reaches `bus.subscribe`d consumers before the response rather than on the background
+// drainer's next pass (`serving-app.ts`; mirrors `posts/update.ts`'s identical inline
+// `processOutbox` call). `reactivate` enqueues nothing, so this call is a
+// harmless no-op drain on that branch — `@jini-ai/cms/content-types`'s `lifecycle.ts` file
+// header explains why `reactivateContentType` never accepted an `outbox` dep at all.
+//
+// 2026-09-03 outbox-drain audit fix — drains the outbox so `createEntry`'s `entry.created`
+// event reaches `bus.subscribe`d consumers before the response rather than on the background
+// drainer's next pass (`serving-app.ts`; mirrors `posts/update.ts`'s identical inline
+// `processOutbox` call).
+//
+// 2026-09-03 outbox-drain audit fix — drains the outbox so `updateEntry`'s `entry.updated`
+// event reaches `bus.subscribe`d consumers before the response rather than on the background
+// drainer's next pass (`serving-app.ts`; mirrors `posts/update.ts`'s identical inline
+// `processOutbox` call).
+//
+// 2026-09-03 outbox-drain audit fix — drains the outbox so `publishEntry`/`unpublishEntry`'s
+// `entry.published`/`entry.unpublished` event reaches `bus.subscribe`d consumers before the
+// response rather than on the background drainer's next pass (`serving-app.ts`; mirrors
+// `posts/update.ts`'s identical inline `processOutbox` call).
+
 /** The inline outbox drain the write routes run after a successful write (2026-09-03 audit fix). */
 function drainOutboxFor({ deps }: { deps: ContentTypesRouteDeps }, _options: Record<string, never> = {}): () => Promise<unknown> {
   return () => processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
