@@ -73,10 +73,13 @@ import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
-import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
-import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
-import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
-import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
+import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
+import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
+import { desktopRenderForHost } from "#src/platform/headless-browser/desktop-render";
+import { RenderServiceError } from "@jini-ai/desktop-host";
+import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
+import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
+import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
@@ -133,7 +136,8 @@ import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
-import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
+import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
+import { openLoopbackSiteServer } from "@jini-ai/cms/site-inspection/published-page";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
@@ -606,7 +610,11 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPageCaptureForHost({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+      capture: createPageCaptureForHost({
+        playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+        nativeCapture: desktopRenderForHost({ env: process.env }),
+        isRenderServiceError: (error): error is RenderServiceError => error instanceof RenderServiceError,
+      }),
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
