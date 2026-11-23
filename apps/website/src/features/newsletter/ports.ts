@@ -27,6 +27,7 @@ import type {
   AudienceSnapshotRow,
   CampaignRecord,
   CampaignRevision,
+  CampaignStatus,
   ConfirmationTokenRecord,
   NewsletterListRow,
   SendRow,
@@ -97,8 +98,9 @@ export interface NewsletterCampaignRepoPort {
   /** Bounded idle-safety probe; missing capability means busy, never a paginated-list fallback. */
   hasSending?(required: { workspaceId: UUID }, optional?: {}): Promise<boolean>;
   findById(required: { workspaceId: UUID; id: UUID }): Promise<CampaignRecord | null>;
-  /** Returns campaigns in ID order; pass nextCursor to continue after the last returned ID. */
-  list(required: { workspaceId: UUID }, optional?: { limit?: number; cursor?: string | null }): Promise<ListPage<CampaignRecord>>;
+  /** Returns campaigns in ID order; pass nextCursor to continue after the last returned ID.
+   * `status` filters inside the query, so `limit` counts matching rows only (a page is never short while matches remain). */
+  list(required: { workspaceId: UUID }, optional?: { limit?: number; cursor?: string | null; status?: CampaignStatus }): Promise<ListPage<CampaignRecord>>;
   /**
    * Package-private by convention (Code Review file-boundary check) — called from
    * `campaign-write-service.ts` (inside a `transaction()` callback together with `appendRevision`,

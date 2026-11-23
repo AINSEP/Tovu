@@ -11,6 +11,7 @@ import type {
   AudienceSnapshotRow,
   CampaignRecord,
   CampaignRevision,
+  CampaignStatus,
   ConfirmationTokenRecord,
   NewsletterListRow,
   SendRow,
@@ -54,10 +55,11 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
    * @throws {ToolInputError} If the cursor is malformed, including for an empty workspace.
    * @complexity O(n log n) time and O(n) space for n stored campaigns; no I/O.
    */
-  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null; status?: CampaignStatus } = {}): Promise<ListPage<CampaignRecord>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
     if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, shape: ['string'] });
-    return pageFromArray({ rows: this.campaigns.filter(c => c.workspaceId === required.workspaceId),
+    // Filter before paging so the page cap counts matching rows, as the SQL adapter does (B179).
+    return pageFromArray({ rows: this.campaigns.filter(c => c.workspaceId === required.workspaceId && (!optional.status || c.status === optional.status)),
       limit, cursor: optional.cursor ?? null, positionOf: campaign => [campaign.id], shape: ['string'] });
   }
 

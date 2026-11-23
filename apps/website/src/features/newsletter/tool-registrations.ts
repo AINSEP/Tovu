@@ -67,7 +67,7 @@ import {
   unsubscribeSubscription,
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
-import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
+import type { CampaignRecord, CampaignStatus, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
@@ -302,11 +302,12 @@ function createNewsletterListCampaignsHandler(deps: NewsletterToolDeps): ToolHan
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
 
   await deps.newsletterReady;
-  const status = typeof input.status === "string" ? input.status : undefined;
+  // The descriptor's enum bounds the value; an unknown string simply matches no row in the repo query.
+  const status = typeof input.status === "string" ? input.status as CampaignStatus : undefined;
   const paging = parseListPageRequest({ value: input }, { defaultLimit: 100, maxLimit: 100 });
-  const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, paging);
-  const items = status ? page.items.filter(campaign => campaign.status === status) : page.items;
-  const { items: campaigns, ...continuation } = listPageForModel({ page: { ...page, items }, toolId: "newsletter_list_campaigns" });
+  // The repo filters before its page cap, so a filtered page is never short while matches remain (B179).
+  const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, { ...paging, ...(status ? { status } : {}) });
+  const { items: campaigns, ...continuation } = listPageForModel({ page, toolId: "newsletter_list_campaigns" });
   return { campaigns: campaigns.map(toCampaignToolView), ...continuation };
 };
 }

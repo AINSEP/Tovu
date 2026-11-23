@@ -4,7 +4,7 @@ import type { ContentDatabase } from "../../platform/db/content-database.generat
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort } from "./ports.js";
 import { toCampaignRecord, toCampaignRevision, toCampaignRow, updatableCampaignColumns } from "./repo.rows.js";
-import type { CampaignCounters, CampaignRecord, CampaignRevision } from "./types.js";
+import type { CampaignCounters, CampaignRecord, CampaignRevision, CampaignStatus } from "./types.js";
 import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 
 /**
@@ -64,13 +64,15 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
    * @throws {ToolInputError} If the cursor is malformed.
    * @complexity O(limit) returned rows, in one indexed query; storage errors propagate.
    */
-  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null; status?: CampaignStatus } = {}): Promise<ListPage<CampaignRecord>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
     const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, shape: ['string'] }) : null;
     const rows = await this.kernel.run((db) => {
       // One bounded page of envelopes per list call; bodies are loaded only by findById.
       let query = db.selectFrom("newsletter_campaigns").selectAll().where("workspace_id", "=", required.workspaceId);
       if (after) query = query.where("id", ">", String(after[0]));
+      // Filter before the limit so the page cap counts matching rows (B179).
+      if (optional.status) query = query.where("status", "=", optional.status);
       return query
         .orderBy("id", "asc")
         .limit(limit + 1)

@@ -40,6 +40,21 @@ function listCases(make: () => NewsletterCampaignRepoPort): void {
     assert.equal(second.nextCursor, null);
   });
 
+  // B179: the status filter must run inside the repo query, so the page cap counts matching rows only.
+  test("pages over status-matching rows only", async () => {
+    const repo = make();
+    for (const id of ["c1", "c2", "c3"]) await repo.saveCampaignRow(campaign(id, { status: "sent" }));
+    for (const id of ["c4", "c5"]) await repo.saveCampaignRow(campaign(id));
+    const whole = await repo.list({ workspaceId: WS }, { limit: 2, status: "draft" });
+    assert.deepEqual(whole.items.map(row => row.id), ["c4", "c5"]);
+    assert.equal(whole.nextCursor, null);
+    const first = await repo.list({ workspaceId: WS }, { limit: 1, status: "draft" });
+    assert.deepEqual(first.items.map(row => row.id), ["c4"]);
+    const second = await repo.list({ workspaceId: WS }, { limit: 1, status: "draft", cursor: first.nextCursor });
+    assert.deepEqual(second.items.map(row => row.id), ["c5"]);
+    assert.equal(second.nextCursor, null);
+  });
+
   test("rejects a malformed cursor", async () => {
     const repo = make();
     await assert.rejects(repo.list({ workspaceId: WS }, { cursor: "invalid" }), /invalid cursor/i);
@@ -57,10 +72,23 @@ function routeDeps(): NewsletterRouteDeps {
     authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
 }
 
-test("campaign tool exposes a continuation even if the first page has no status matches", async () => {
+test("campaign tool fills a status-filtered page from matching rows (B179)", async () => {
+  const deps = routeDeps();
+  for (const id of ["c1", "c2", "c3"]) await deps.newsletterCampaignRepo.saveCampaignRow(campaign(id, { status: "sent" }));
+  for (const id of ["c4", "c5"]) await deps.newsletterCampaignRepo.saveCampaignRow(campaign(id));
+  const tool = buildNewsletterRegistrations(deps).find(entry => entry.descriptor.id === "newsletter_list_campaigns");
+  assert.ok(tool);
+  const context = { executionId: "exec", principal: { id: "principal" }, run: { id: "run" }, signal: new AbortController().signal };
+  const page = await tool.handler({ ...context, input: { status: "draft", limit: 2 } }) as { campaigns: CampaignRecord[]; nextCursor: string | null };
+  assert.deepEqual(page.campaigns.map(row => row.id), ["c4", "c5"]);
+  assert.equal(page.nextCursor, null);
+});
+
+test("campaign tool exposes a continuation when more status matches remain", async () => {
   const deps = routeDeps();
   await deps.newsletterCampaignRepo.saveCampaignRow(campaign("c1", { status: "sent" }));
   await deps.newsletterCampaignRepo.saveCampaignRow(campaign("c2"));
+  await deps.newsletterCampaignRepo.saveCampaignRow(campaign("c3"));
   const tool = buildNewsletterRegistrations(deps).find(entry => entry.descriptor.id === "newsletter_list_campaigns");
   assert.ok(tool);
   const schema = tool.descriptor.inputSchema as { properties: { cursor: { type: string }; limit: { maximum: number } } };
@@ -68,11 +96,11 @@ test("campaign tool exposes a continuation even if the first page has no status 
   assert.equal(schema.properties.limit.maximum, 100);
   const context = { executionId: "exec", principal: { id: "principal" }, run: { id: "run" }, signal: new AbortController().signal };
   const first = await tool.handler({ ...context, input: { status: "draft", limit: 1 } }) as { campaigns: CampaignRecord[]; nextCursor: string; more: string };
-  assert.deepEqual(first.campaigns, []);
+  assert.deepEqual(first.campaigns.map(row => row.id), ["c2"]);
   assert.equal(typeof first.nextCursor, "string");
   assert.match(first.more, /newsletter_list_campaigns/);
   const second = await tool.handler({ ...context, input: { status: "draft", limit: 1, cursor: first.nextCursor } }) as { campaigns: CampaignRecord[]; nextCursor: string | null };
-  assert.deepEqual(second.campaigns.map(row => row.id), ["c2"]);
+  assert.deepEqual(second.campaigns.map(row => row.id), ["c3"]);
   assert.equal(second.nextCursor, null);
 });
 
