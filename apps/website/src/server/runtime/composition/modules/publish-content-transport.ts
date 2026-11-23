@@ -30,7 +30,9 @@ import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "#src
 
 /** The two port fields every mount passes; `authorize` read per request, as the hand-written routes did. */
 function transportPortDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
-  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
+  // The hand-written routes never named an entity to `deps.authorize`; the spec's `entityType` (core's
+  // port requires one) is dropped so RBAC sees the same params as before (as `modules/plugins.ts` does).
+  return { workspaceId: deps.workspaceId, authorize: ({ entityType: _entityType, entityId: _entityId, ...params }) => deps.authorize(params) };
 }
 
 /** `guarded` + the unexpected-failure copy key the hand-written route used for its redacted 500. */
