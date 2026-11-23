@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError } from "@/lib/admin-http/request";
 
 import type { AdminAgentPlugin } from "../../integrations/api/integrations-api.types";
 import { integrationsApi } from "../../integrations/api/integrations-api";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
-import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
+import { errorMessage, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file Provider tab state: the installed providers (`GET …/mail-providers`), a key form per
@@ -50,7 +51,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     let live = true;
     pluginApi.listAgentPlugins().then(({ agentPlugins }) => {
       if (live) setChoices(agentPlugins.filter((p) => !p.enabled && p.provides?.includes("outbound-mail")));
-    }, (error: unknown) => { if (live) setAddError(errorMessage({ error })); });
+    }, (error: unknown) => { if (live) setAddError(errorMessage({ error, ApiError })); });
     return () => { live = false; };
   }, [pluginApi, attempt]);
   const addProvider = useCallback(async ({ pluginId }: { pluginId: string }, _optional = {}) => {
@@ -69,7 +70,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
       setChoices((rows) => rows?.filter((p) => p.pluginId !== pluginId) ?? null);
       return provider.id;
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : errorMessage({ error }));
+      setAddError(error instanceof Error ? error.message : errorMessage({ error, ApiError }));
       return undefined;
     } finally {
       locked.current = false;
@@ -107,7 +108,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   const { api } = required;
   const { onChanged } = optional;
   const load = useCallback(() => api.listProviders(), [api]);
-  const { view, reload, setData } = useLoad({ load });
+  const { view, reload, setData } = useLoad({ ApiError, load });
   const refresh = useCallback(async () => { const report = await api.listProviders(); setData(report); return report; }, [api, setData]);
   const additions = useProviderChoices({ pluginApi: required.pluginApi, refresh });
   const [drafts, setDrafts] = useState<Record<string, MailProviderCredentialInput>>({});
@@ -136,7 +137,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error, ApiError }) });
     } finally {
       setBusyId(null);
     }
@@ -153,7 +154,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error, ApiError }) });
     } finally {
       setBusyId(null);
       setPendingSwitch(null);

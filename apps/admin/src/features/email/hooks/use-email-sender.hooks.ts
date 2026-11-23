@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiError } from "@/lib/admin-http/request";
 
 import { emailApi, type EmailApi, type MailDnsStatus } from "../email-api";
-import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
+import { errorMessage, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file Sender & DNS tab state. The sender is two ordinary settings (`core.mail.senderName`,
@@ -68,9 +69,9 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
   const { api } = required;
   const { onChanged } = optional;
   const loadSender = useCallback(async () => readSenderRows((await api.readSender()).data), [api]);
-  const { view: sender, setData: setSender } = useLoad({ load: loadSender });
+  const { view: sender, setData: setSender } = useLoad({ ApiError, load: loadSender });
   const loadDns = useCallback(() => api.readDns(), [api]);
-  const { view: dns, setData: setDns, reload: reloadDns } = useLoad({ load: loadDns });
+  const { view: dns, setData: setDns, reload: reloadDns } = useLoad({ ApiError, load: loadDns });
   const [draft, setDraftState] = useState<SenderValues>({ name: "", email: "" });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [checking, setChecking] = useState(false);
@@ -101,7 +102,7 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
       reloadDns();
       onChanged?.();
     } catch (error) {
-      setSaveState({ error: errorMessage({ error }) });
+      setSaveState({ error: errorMessage({ error, ApiError }) });
     }
   }, [api, draft, saved, setSender, reloadDns, onChanged]);
 
@@ -111,7 +112,7 @@ export function useEmailSender(required: { api: Pick<EmailApi, "readSender" | "s
     try {
       setDns(await api.verifyDns());
     } catch (error) {
-      setCheckError(errorMessage({ error }));
+      setCheckError(errorMessage({ error, ApiError }));
     } finally {
       setChecking(false);
     }

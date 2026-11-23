@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { emailApi, type EmailApi, type EmailTemplateDetail, type EmailTemplatePreview } from "../email-api";
-import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
+import { errorMessage, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file One email template's editor page state: the raw HTML working copy, `{{field}}` fill-in
@@ -46,7 +46,7 @@ export function templateFieldNames(required: { declared: readonly { name: string
 /** The friendly line for a save failure; a 409 means someone else saved first. Pure. */
 export function saveFailureText({ error }: { error: unknown }, _options = {}): string {
   if (error instanceof ApiError && error.status === 409) return "Someone else changed this template. Reload to get their version; copy your edits first.";
-  return errorMessage({ error });
+  return errorMessage({ error, ApiError });
 }
 
 /** Keeps the last good preview on screen beside the failure. */
@@ -141,7 +141,7 @@ function useEmailTemplatePreview(
     const timer = setTimeout(() => {
       api.previewTemplate({ html, values, mode }).then(
         (data) => { if (live) setPreview({ data, error: null, pending: false }); },
-        (error: unknown) => { if (live) setPreview(previewFailed({ error: errorMessage({ error }) })); },
+        (error: unknown) => { if (live) setPreview(previewFailed({ error: errorMessage({ error, ApiError }) })); },
       );
     }, debounceMs);
     return () => { live = false; clearTimeout(timer); };
@@ -154,7 +154,7 @@ function useEmailTemplateWorkingCopy(
 ) {
   const { api, id } = required;
   const debounceMs = optional.debounceMs ?? 400;
-  const { view, setData } = useLoad({ load: useCallback(() => api.getTemplate({ id }), [api, id]) });
+  const { view, setData } = useLoad({ ApiError, load: useCallback(() => api.getTemplate({ id }), [api, id]) });
   const detail = view.kind === "loaded" ? view.data : null;
   const [html, setHtml] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});

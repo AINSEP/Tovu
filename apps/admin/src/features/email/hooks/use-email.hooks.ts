@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 import { mailStatusApi } from "@/features/email/api/mail-status-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

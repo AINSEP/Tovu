@@ -1,4 +1,4 @@
-import { createEmailTabLabel } from "./Email.hooks";
+import { createEmailTabLabel } from "@jini-ai/admin/screens/email/Email.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { t } from "./email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { EmailActivityTab } from "./EmailActivityTab";
 import { EmailOverviewTab } from "./EmailOverviewTab";
 import { Chip, Section, Segments, type Tone } from "./EmailParts";

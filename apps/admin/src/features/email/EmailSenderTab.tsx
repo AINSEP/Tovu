@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { t } from "./email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailDnsRecordStatus, MailDnsStatus } from "./email-api";
 import { Chip, CopyButton, Loaded, Section, when, type Tone } from "./EmailParts";
 import type { EmailSenderController } from "./hooks/use-email-sender.hooks";

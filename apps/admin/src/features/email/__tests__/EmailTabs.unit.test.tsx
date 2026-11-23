@@ -14,7 +14,7 @@ import { useEmailSender } from "../hooks/use-email-sender.hooks";
 import { useEmailActivity } from "../hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, MAIL_PLUGIN, TEMPLATE } from "./email.test-helpers";
-import { t } from "../email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 
 /** @file User actions reach injected ports; provider declarations and DNS verdicts stay truthful. */
 describe("Email tab components", () => {

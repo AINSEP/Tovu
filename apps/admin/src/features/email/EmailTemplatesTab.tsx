@@ -2,7 +2,7 @@ import { ConfirmDialog, DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
-import { t } from "./email-i18n";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { Loaded, Section, when } from "./EmailParts";
 import { templateEditorPath, type EmailTemplatesController } from "./hooks/use-email-templates.hooks";
 

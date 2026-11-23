@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
+import { ApiError } from "@/lib/admin-http/request";
 
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { emailApi, type EmailApi, type EmailTemplateSummary } from "../email-api";
-import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
+import { errorMessage, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file Templates list state — the Pages list's shape (`features/pages/hooks/use-pages.hooks.ts`):
@@ -43,7 +44,7 @@ export function useEmailTemplates(
   const openDefault = useCallback((routePath: string) => navigate({ routePath }), []);
   const open = optional.open ?? openDefault;
   const newName = optional.newName ?? "Untitled email";
-  const { view, reload, setData } = useLoad({ load: useCallback(() => api.listTemplates(), [api]) });
+  const { view, reload, setData } = useLoad({ ApiError, load: useCallback(() => api.listTemplates(), [api]) });
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<EmailTemplatesController["renaming"]>(null);
@@ -57,7 +58,7 @@ export function useEmailTemplates(
       const created = await api.createTemplate({ name: newName });
       open(templateEditorPath({ id: created.id }));
     } catch (failure) {
-      setError(errorMessage({ error: failure }));
+      setError(errorMessage({ error: failure, ApiError }));
     } finally {
       setCreating(false);
     }
@@ -82,7 +83,7 @@ export function useEmailTemplates(
       if (view.kind === "loaded") setData({ templates: view.data.templates.map((row) => (row.id === updated.id ? { ...row, name: updated.name, version: updated.version, updatedAt: updated.updatedAt } : row)) });
       setRenaming(null);
     } catch (failure) {
-      setError(errorMessage({ error: failure }));
+      setError(errorMessage({ error: failure, ApiError }));
       setRenaming(null);
       reload();
     }
@@ -96,7 +97,7 @@ export function useEmailTemplates(
       await api.trashTemplate({ id: pendingTrash.id });
       if (view.kind === "loaded") setData({ templates: view.data.templates.filter((row) => row.id !== pendingTrash.id) });
     } catch (failure) {
-      setError(errorMessage({ error: failure }));
+      setError(errorMessage({ error: failure, ApiError }));
     } finally {
       setTrashing(false);
       setPendingTrash(null);

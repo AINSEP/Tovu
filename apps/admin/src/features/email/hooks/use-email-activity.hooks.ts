@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError } from "@/lib/admin-http/request";
 
 import {
   emailApi, type EmailApi, type MailActivityDetail, type MailActivityFilter, type MailActivityPage, type MailFeedbackSetupReport,
   type MailSuppressionEntry, type MailSuppressionRemovalPlan,
 } from "../email-api";
-import { errorMessage, isForbidden, useLoad, type LoadView } from "./email-load.hooks";
+import { errorMessage, isForbidden, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file Activity tab state: recent sends (`GET …/mail-activity`, filters + cursor paging + one
@@ -56,7 +57,7 @@ type Page<T> = { items: T[]; nextCursor: string | null; empty: "none_recorded" |
 /** One paged read keyed on `fetchPage`'s identity: a new identity (new filter) starts over. */
 function usePaged<T>(required: { fetchPage: (cursor?: string) => Promise<Page<T>> }): PagedList<T> {
   const { fetchPage } = required;
-  const { view, reload, setData } = useLoad({ load: useCallback(() => fetchPage(), [fetchPage]) });
+  const { view, reload, setData } = useLoad({ ApiError, load: useCallback(() => fetchPage(), [fetchPage]) });
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const loadMore = useCallback(async () => {
@@ -67,7 +68,7 @@ function usePaged<T>(required: { fetchPage: (cursor?: string) => Promise<Page<T>
       const next = await fetchPage(view.data.nextCursor);
       setData({ ...next, items: [...view.data.items, ...next.items], empty: null });
     } catch (error) {
-      setMoreError(errorMessage({ error }));
+      setMoreError(errorMessage({ error, ApiError }));
     } finally {
       setLoadingMore(false);
     }
@@ -115,7 +116,7 @@ export function useEmailActivity(
     detailFor.current = id;
     api.getActivity({ id }).then(
       (data) => { if (detailFor.current === id) setDetail({ kind: "loaded", data }); },
-      (error: unknown) => { if (detailFor.current === id) setDetail(isForbidden({ error }) ? { kind: "forbidden" } : { kind: "error", message: errorMessage({ error }) }); },
+      (error: unknown) => { if (detailFor.current === id) setDetail(isForbidden({ error, ApiError }) ? { kind: "forbidden" } : { kind: "error", message: errorMessage({ error, ApiError }) }); },
     );
   }, [api, openId]);
 
@@ -133,7 +134,7 @@ export function useEmailActivity(
   const setRemovalReason = useCallback((reason: string) => setRemoval((step) => (step?.kind === "reason" ? { ...step, reason, error: null } : step)), []);
   const cancelRemoval = useCallback(() => setRemoval(null), []);
 
-  const refusal = ({ error }: { error: unknown }, _options = {}) => (isForbidden({ error }) ? "Only the site owner can remove a block." : errorMessage({ error }));
+  const refusal = ({ error }: { error: unknown }, _options = {}) => (isForbidden({ error, ApiError }) ? "Only the site owner can remove a block." : errorMessage({ error, ApiError }));
   const submitReason = useCallback(async (step: Extract<RemovalStep, { kind: "reason" }>) => {
     const reason = step.reason.trim();
     if (reason.length < MIN_REASON) {
@@ -166,7 +167,7 @@ export function useEmailActivity(
     await (removal.kind === "reason" ? submitReason(removal) : submitConfirm(removal));
   }, [removal, submitReason, submitConfirm]);
 
-  const { view: feedback } = useLoad({ load: useCallback(() => api.readFeedback(), [api]) });
+  const { view: feedback } = useLoad({ ApiError, load: useCallback(() => api.readFeedback(), [api]) });
 
   return useMemo(() => ({
     filter, setFilter, activity, openId, detail, toggleDetail, search, setSearch, suppressions,
