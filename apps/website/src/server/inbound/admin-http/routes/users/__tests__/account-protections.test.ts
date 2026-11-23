@@ -229,3 +229,15 @@ test("HTTP enable: an admin may still re-enable an ordinary user", async () => {
   assert.equal((await f.invoke("post", "/:principalId/enable", caller, ordinary)).statusCode, 200);
   assert.equal((await f.deps.principalRepo.findById({ workspaceId, id: ordinary }))?.status, "active");
 });
+
+// B152: Trash membership is private — a caller without user.manage must get 403, never a 409
+// that confirms the user is in the Trash.
+test("HTTP reset-password: a caller without user.manage gets 403 for a trashed user, not USER_IN_TRASH", async () => {
+  const f = await setup();
+  const caller = await f.make("no-grants");
+  const target = await f.make("trashed-user");
+  f.trashed.add(target);
+  const r = await f.invoke("post", "/:principalId/reset-password", caller, target, { password: "replacement-password" });
+  assert.equal(r.statusCode, 403);
+  assert.equal((r.jsonBody as { code: string }).code, "FORBIDDEN");
+});

@@ -331,3 +331,10 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   in the write's transaction: only an owner may re-enable an admin or owner account.
 - Test: `account-protections.test.ts` "HTTP enable: a non-owner admin cannot re-enable an owner-disabled admin".
   Mutation: guard action `enable` → `reset-password` (no owner rule) — red.
+
+### `B152-reset-password-trash-before-permission` — FIXED on `codex/bugs-high-tovu`
+- `POST users/:id/reset-password` looked the user up in the Trash before checking the caller's permission, so a
+  caller without `user.manage` got `409 USER_IN_TRASH` and learned the user was trashed. The permission check now
+  runs first (as `enable.ts`), so that caller gets 403.
+- Test: `account-protections.test.ts` "HTTP reset-password: a caller without user.manage gets 403 for a trashed
+  user, not USER_IN_TRASH". Mutation: move the permission check after the Trash check — red.
