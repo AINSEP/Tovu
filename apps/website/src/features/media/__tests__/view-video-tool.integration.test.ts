@@ -12,7 +12,7 @@ import { buildMediaViewVideoRegistrations } from '../view-video-tool.js';
 // only. Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
 // Its mvhd/tkhd headers declare 8 seconds and 632x418; those are independent test oracles.
 test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source metadata', { timeout: 105_000 }, async t => {
-  if (!await findVideoBinaries({}, {})) { t.skip('Video preview unavailable: nice/ffmpeg/ffprobe are missing.'); return; }
+  if (!await findVideoBinaries({ env: process.env }, {})) { t.skip('Video preview unavailable: nice/ffmpeg/ffprobe are missing.'); return; }
   const workspaceId = 'ws-video-integration';
   const principalId = 'video-integration-owner';
   const mediaRepo = new InMemoryMediaRepo({});
@@ -26,7 +26,7 @@ test('real tiny MP4 reaches the tool as N decodable bounded JPEGs with source me
   }, input: { workspaceId, bytes, filename: 'iris-ai-motion.mp4', contentType: 'video/mp4', createdByPrincipal: principalId } });
   const tool = buildMediaViewVideoRegistrations({
     workspaceId, mediaRepo, assetBlobRepo: blobRepo, blobStore,
-    authorize: async () => ({ allowed: true, reason: 'matched' }), extractor: createFfmpegVideoFrameExtractor({}, {}),
+    authorize: async () => ({ allowed: true, reason: 'matched' }), extractor: createFfmpegVideoFrameExtractor({ env: process.env }, {}),
     readAttachment: async () => { throw new Error('this case uses a library id'); },
   }, {})[0]!;
   const output = await tool.handler({ executionId: 'real-video-exec', principal: { id: principalId }, run: { id: 'real-video-run' }, input: { mediaId: media.id, frames: 4 }, signal: new AbortController().signal }) as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };

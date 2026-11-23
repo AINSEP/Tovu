@@ -13,7 +13,9 @@ export function createMediaVideoToolPorts(
   { uploadDirectory }: { uploadDirectory?: string } = {},
 ): MediaVideoToolPorts {
   return {
-    extractor: createFfmpegVideoFrameExtractor({}, {}),
+    // The composition root is the one place that reads this process's environment: the engine's ffmpeg
+    // discovery (PATH, FFMPEG_PATH, FFPROBE_PATH) takes it injected and never reads it itself.
+    extractor: createFfmpegVideoFrameExtractor({ env: process.env }, {}),
     readAttachment: async (input, { maxBytes }) => uploadDirectory === undefined
       ? { ok: false, refusal: "no-record" }
       : readChatAttachmentForOwner({ uploadDirectory }, { ...input, maxBytes }),
