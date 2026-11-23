@@ -34,8 +34,12 @@ stays here as the host-integration test of that binding), and `UserInterfaceSett
 holds them to the same declarations; `__tests__/UserInterfaceSettingsPanel.unit.test.tsx` stays here as the
 host-integration test of that binding).
 Still here (blocked): `ai-agent-presentation.ts` and `hooks/use-ai-agent-presentation.hooks.ts` (`ExecutionPort` /
-`DetectedAgent` / `ExecutionConfig` from `@jini-ai/ui` have no admin-kit or Core owner), `ExternalMcpSettingsPanel.hooks.tsx`
-(`useWiredSourceConfigAddForm` from `@jini-ai/ui`), `hooks/use-user-interface-tab.hooks.ts` (the host binding above) and
+`DetectedAgent` / `ExecutionConfig` from `@jini-ai/ui` have no admin-kit or Core owner; `@jini-ai/admin` and
+`@jini-ai/ui` are both layer 5, so `check-package-layers` rejects an admin → ui production import as `L1-layer-edge`.
+Core's `contracts/site/agent-runtime` `DetectedAgent` is the registry shape (`name`/`available`), not the card shape
+(`label`/`installed`/`description`) these functions read, so it is not a substitute), `ExternalMcpSettingsPanel.hooks.tsx`
+(`useWiredSourceConfigAddForm` / `SourceConfigItem` / `SourceConfigDependencies` from `@jini-ai/ui`, same layer rule),
+`hooks/use-user-interface-tab.hooks.ts` (the host binding above) and
 `hooks/use-admin-appearance-settings.hooks.ts` (this app's `lib/settings-tabs` types and its own hooks).
 
 ## History: `features/settings-raw`'s `Settings.tsx` (deleted)
