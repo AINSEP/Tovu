@@ -5144,6 +5144,182 @@
     {
       "id": "65f763f37ee5",
       "reason": "Kept in Tovu apps/admin/src/features/import-export/hooks/import-export-dependencies.hooks.ts (useSiteTransferTranslate host binding, A-K2-import-export-1), verbatim; the new file is untracked so the checker does not see it yet."
+    },
+    {
+      "id": "35fb926dd3a8",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), reworded neutral: host-file names replaced by 'the host's commit binding' and 'that entry'."
+    },
+    {
+      "id": "a3226c56c39d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "697b5282b826",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d37733732880",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/commit-target.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d3f4c5edfe76",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "956d0f7cee40",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6eff28bb7ee6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), reworded: @param tags renamed to required.host/optional.*; the observability note moved to SourceControlKitHost.observeFetch and the host binding provider-kit-host.ts."
+    },
+    {
+      "id": "939cdbb7b995",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-kit.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "d90bebc39487",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "9fffcc7e0b34",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "89f036a9b7d2",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "facb2f4b2d49",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "33b889394e9d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "2595c8c3b033",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "56785da5b536",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "4a8e9f013348",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "71bda1d47497",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "bc1a3c6b82b4",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "f4a04d97cb9c",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "c3d5937b3a80",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "c61590066d05",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "428658dc6380",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "e1002b0d831f",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "639f4317d7d1",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "3966716e0867",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "9d1e4cdada95",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "5e24171f69a6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6230e164e0cf",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "60bcf0f2b728",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "cc920fbf8082",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "fbfcb3eb7982",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "545a0d0f38d6",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "ccad68fd31af",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "f1d84ef33ab1",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "7812a50603dc",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "47d81a94ddfb",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "72473442358a",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "38237835c9e8",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "a9425ddb8edc",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/provider-module.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "5bb4b1ed0d81",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), reworded neutral: host file names replaced by 'the host's backup feature'; added a sentence on the generic report parameter R."
+    },
+    {
+      "id": "d6baf00404d2",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "991beece5331",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "739a7bfd527d",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "6caeab351224",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
     }
   ]
 }

@@ -15,7 +15,7 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "../commit-site.js";
-import type { SourceControlCommitResult, RepositoryTargetValidator } from "../provider-module.js";
+import type { SourceControlCommitResult, RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
 

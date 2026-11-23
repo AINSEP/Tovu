@@ -19,8 +19,9 @@ import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/types";
 import { SOURCE_CONTROL_PROVIDERS_FILENAME, loadBundledSourceControlProviderRegistry, loadSourceControlProviderRegistry } from "../provider-registry.js";
-import { createSourceControlProviderKit } from "../provider-kit.js";
-import type { SourceControlProviderKit } from "../provider-module.js";
+import { createSourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-kit";
+import { sourceControlKitHost } from "../provider-kit-host.js";
+import type { SourceControlProviderKit } from "@jini-ai/devops/source-control/site/provider-module";
 import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/site/saved-key-bindings";
 import { commitSiteToSourceControl, type SourceControlCommitAdapter } from "../commit-site.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
@@ -266,7 +267,7 @@ function recordingKit(): RecordedTransports {
   const sent: unknown[] = [];
   const client: HttpClientPort = { send: async (request) => { sent.push(request); return { status: 204, headers: {}, bodyText: "" }; } };
   const fetchFn = (async (url: string, init?: RequestInit) => { fetched.push({ url, init }); return new Response(null, { status: 204 }); }) as typeof fetch;
-  return { kit: createSourceControlProviderKit({ httpClient: client, fetchFn }), fetched, sent, client };
+  return { kit: createSourceControlProviderKit({ host: sourceControlKitHost() }, { httpClient: client, fetchFn }), fetched, sent, client };
 }
 
 // Mutation: in `provider-kit.ts` change `fetchRedirectPolicy: "caller"` to `"guard"` -> `init` reaches `fetchFn`
@@ -302,7 +303,7 @@ test("kit.httpClient.send reaches the guarded client only", async () => {
 // Mutation: make `NO_HTTP_CLIENT.send` resolve (or fall back to `fetchFn`) -> `assert.rejects` is RED.
 test("without a guarded client, httpClient.send rejects with a transport error and sends nothing", async () => {
   const fetched: string[] = [];
-  const kit = createSourceControlProviderKit({ fetchFn: (async (url: string) => { fetched.push(url); return new Response(null); }) as typeof fetch });
+  const kit = createSourceControlProviderKit({ host: sourceControlKitHost() }, { fetchFn: (async (url: string) => { fetched.push(url); return new Response(null); }) as typeof fetch });
   const request = { method: "GET" as const, url: "https://api.example.test/user", headers: { authorization: "Bearer fixture" }, idleTimeoutMs: 1000 };
 
   await assert.rejects(() => kit.httpClient.send(request), { message: "no outbound HTTP client is wired for this call" });

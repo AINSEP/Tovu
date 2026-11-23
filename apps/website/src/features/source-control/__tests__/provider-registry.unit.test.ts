@@ -19,7 +19,7 @@ import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../agent-pl
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
 import { buildSourceControlProviders, buildSourceControlProviderForApi, type LoadedSourceControlProvider, type SourceControlProviderRegistry, buildLoadedSourceControlProvider, findReservedPath, isUnderWorkflowPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
-import type { SourceControlProvider } from "../provider-module.js";
+import type { SourceControlProvider } from "@jini-ai/devops/source-control/site/provider-module";
 
 /**
  * @file `provider-registry.ts` — the seam that lets an Agent Plugin add a git host. Loading a module

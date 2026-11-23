@@ -26,7 +26,7 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
-import { validateCommitTarget } from "./commit-target.js";
+import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
 import {
   buildSourceControlProvider,
   switchedOffPluginSentence,
@@ -34,7 +34,7 @@ import {
   type SourceControlProviderDescriptor,
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
-import type { RepositoryTargetValidator } from "./provider-module.js";
+import type { RepositoryTargetValidator } from "@jini-ai/devops/source-control/site/provider-module";
 import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/site/saved-key-bindings";
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
