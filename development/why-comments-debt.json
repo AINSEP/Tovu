@@ -3244,6 +3244,10 @@
     {
       "id": "cecd3ebf4521",
       "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
+    },
+    {
+      "id": "8dd47a012640",
+      "reason": "Header said the client types mirror the settings response contracts; the value/reset responses now alias the Core DTOs (@jini-ai/core/contracts/site/cms-settings, rv1123e §2.1), so 'mirroring' is no longer true."
     }
   ]
 }
