@@ -17,7 +17,7 @@ import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
  * `updated_by` is the pin's actor). What stays: a row anyone else wrote, such as an owner's own title
  * or an owner's reset, travels with the rest of the workspace's content.
  *
- * WHY THE THREE LITERALS ARE MIRRORED, NOT IMPORTED. Their sources are `features/settings/site-title.ts`
+ * WHY THE THREE LITERALS ARE MIRRORED, NOT IMPORTED. Their sources are `@jini-ai/cms/settings/site/site-title`
  * (`SITE_TITLE_NAMESPACE`, `SITE_TITLE_KEY`) and `server/runtime/configuration/seed.ts`
  * (`SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID`). `.dependency-cruiser.mjs` forbids `site-dir` from importing
  * `server/**` and flags `db/sqlite` value-importing feature internals, and `seed-site.mjs` loads this

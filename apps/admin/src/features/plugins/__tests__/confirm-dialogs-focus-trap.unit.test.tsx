@@ -8,7 +8,7 @@ import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-
 /**
  * @file 2026-09-20 platform review, Finding 4: `PluginRemoveConfirmDialog` and
  * `AgentPluginDisableConfirmDialog` both declare `role="dialog" aria-modal="true"` — a hand-rolled
- * div dialog copied from `features/settings/ExternalMcpRemoveConfirmDialog.tsx` — but their paired
+ * div dialog copied from `@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog` — but their paired
  * hooks only ever listened for Escape, so the browser gave them no Tab containment at all: Tab from
  * the last focusable control walked straight out onto the page behind the backdrop.
  *
