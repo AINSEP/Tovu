@@ -100,6 +100,8 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   slug: "transferred",
   alt: "transferred",
   caption: "transferred",
+  // Plain-language description (Jini media, for search) travels with the asset like caption.
+  description: "transferred",
   credit: "transferred",
   source: "transferred",
   status: "transferred",
