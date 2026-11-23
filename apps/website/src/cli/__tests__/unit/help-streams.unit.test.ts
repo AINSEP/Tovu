@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Command } from 'commander';
 
-import { printBareUsageAndExit, printUsageToStderr } from '../../help.js';
+import { printBareUsage, printUsage } from '@jini-ai/cli';
+
+// `cli/help.ts` moved to `@jini-ai/cli` (P13-C1); `main.ts` binds the real process streams and exit
+// exactly as these helpers bind them, so the process-level assertions below are unchanged.
+const printBareUsageAndExit = (program: Command) =>
+  printBareUsage({ program, stdout: process.stdout, exit: (code) => process.exit(code) });
+const printUsageToStderr = (program: Command) => printUsage({ program, stderr: process.stderr });
 
 // Author Checklist: reject truncating help, swapping stdout/stderr, changing exit 0 to 1,
 // or exiting in the stderr-only formatter. TestContext restores all process replacements.

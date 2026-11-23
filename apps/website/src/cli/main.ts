@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import { runCliProgram } from "@jini-ai/cli";
+
 import { mapErrorToCliOutcome } from "./errors.js";
-import { printBareUsageAndExit, printUsageToStderr } from "./help.js";
 import { createProgram } from "./program.js";
 
 /**
@@ -14,32 +15,20 @@ import { createProgram } from "./program.js";
  * `tovu` with zero arguments is handled explicitly, BEFORE `program.parseAsync()` runs: commander's
  * own default zero-argument behavior (a subcommand-style program with no args) writes usage to
  * STDERR and would exit 1 by default — this feature's contract (api.spec.md §6, `CLI_HELP`)
- * requires stdout + exit 0 for the bare-invocation case, matching `--help`'s outcome.
+ * requires stdout + exit 0 for the bare-invocation case, matching `--help`'s outcome. The loop
+ * itself is `@jini-ai/cli` `runCliProgram`; the usage printers it uses replaced `cli/help.ts`.
  *
  * Architectural role:
  * `cli` layer. The one process entrypoint for the `tovu` bin — mirrors `src/index.ts`'s existing
  * role for the legacy env-var boot.
  */
-async function main(): Promise<void> {
-  const program = createProgram();
-  const argv = process.argv.slice(2);
-
-  if (argv.length === 0) {
-    printBareUsageAndExit(program);
-  }
-
-  try {
-    await program.parseAsync(argv, { from: "user" });
-  } catch (err) {
-    const outcome = mapErrorToCliOutcome({ err: err });
-    if (outcome.stderrLine) {
-      process.stderr.write(`${outcome.stderrLine}\n`);
-    }
-    if (outcome.printUsage) {
-      printUsageToStderr(program);
-    }
-    process.exit(outcome.exitCode);
-  }
-}
-
-void main();
+// The bin binds every process effect here; `runCliProgram` (bare-usage bypass, parse, map, exit)
+// never defaults to `process` itself.
+void runCliProgram({
+  createProgram,
+  mapError: mapErrorToCliOutcome,
+  argv: process.argv.slice(2),
+  stdout: process.stdout,
+  stderr: process.stderr,
+  exit: (code) => process.exit(code),
+});

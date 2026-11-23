@@ -1,4 +1,12 @@
 import { CommanderError } from "commander";
+import {
+  createCliOutcomeMapper,
+  createParserClassifier,
+  formatStderrLine,
+  type CliOutcome,
+  type CliOutcomeClassifier,
+  type CodedErrorRule,
+} from "@jini-ai/cli";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 
 import {
@@ -26,6 +34,10 @@ import { ExportOutputNotEmptyError } from "../features/site-export/index.js";
  * Architectural role:
  * `cli` layer only. Consumes `site-dir`'s typed errors and `commander`'s `CommanderError` — never
  * the reverse (`site-dir` has zero knowledge of exit codes or `cli`).
+ *
+ * Tovu's exit-code registry and domain classifiers; the mapping engine is `@jini-ai/cli`
+ * `createCliOutcomeMapper` (commander code sets, `error: ` stripping, coded-rule matching and the
+ * INTERNAL fallback live there).
  */
 
 /** `PORT_IN_USE` (exit 1) — the HTTP listener's `EADDRINUSE`, the one CLI-layer-native error this file itself declares (errors.spec.md: "Produced By: HTTP listener EADDRINUSE"). */
@@ -63,13 +75,7 @@ export class ExportBlockedPendingRecoveryError extends Error {
   }
 }
 
-export interface CliOutcome {
-  exitCode: number;
-  /** The single `tovu: <CODE>: <message>` stderr line — omitted for a pure success outcome (`--help`). */
-  stderrLine?: string;
-  /** AC-12: an unknown command must also print usage, beyond the one-line error contract. */
-  printUsage?: boolean;
-}
+const BIN_NAME = "tovu";
 
 const EXIT_CODE_BY_ERROR_CODE: Record<string, number> = {
   VALIDATION: 2,
@@ -111,22 +117,8 @@ const OUTCOME_BY_REPAIR_REFUSAL: Record<SiteRepairRefusalReason, "SITE_DIR_INVAL
 };
 
 function stderrLine({ code, message }: { code: string; message: string }, _options = {}): string {
-  return `tovu: ${code}: ${message}`;
+  return formatStderrLine({ binName: BIN_NAME, code, message });
 }
-
-/** commander error codes that are usage-class failures — errors.spec.md's `VALIDATION` (exit 2). */
-const COMMANDER_VALIDATION_CODES = new Set([
-  "commander.missingArgument",
-  "commander.invalidArgument",
-  "commander.excessArguments",
-  "commander.unknownOption",
-  "commander.unknownCommand",
-  "commander.missingMandatoryOptionValue",
-  "commander.optionMissingArgument",
-]);
-
-/** commander error codes that represent a SUCCESSFUL outcome (help/version already printed by commander itself). */
-const COMMANDER_SUCCESS_CODES = new Set(["commander.helpDisplayed", "commander.help", "commander.version"]);
 
 /**
  * The `site-dir` domain's own typed errors, mapped 1:1 by CLASS (never by `.name`, so a foreign
@@ -165,33 +157,13 @@ function mapSiteDirError({ err }: { err: unknown }, _options = {}): CliOutcome |
   return undefined;
 }
 
-/**
- * Map any error `cli/main.ts` catches to `{ exitCode, stderrLine?, printUsage? }`.
- *
- * @param required.err - whatever `program.parseAsync()` (commander) or an action handler (`site-dir`
- *   errors, `PortInUseError`, or a genuinely unexpected bug) throws/rejects with.
- * @returns the exit code and (when applicable) the exact single stderr line to print.
- * @complexity O(1) — a fixed sequence of `instanceof`/set-membership checks, not a function of
- *   any caller-controlled collection.
- * @overallScore 100
- */
-export function mapErrorToCliOutcome({ err }: { err: unknown }, _options = {}): CliOutcome {
-  if (err instanceof PluginInstallError) return { exitCode: 2, stderrLine: stderrLine({ code: err.code, message: err.message }) };
-  if (err instanceof CommanderError) return mapCommanderError({ err });
-
-  const siteDirOutcome = mapSiteDirError({ err: err });
-  if (siteDirOutcome) return siteDirOutcome;
-
-  const coded = mapCodedError({ err });
-  if (coded) return coded;
-
-  // errors.spec.md §4: "INTERNAL | any uncaught error".
-  const message = err instanceof Error ? err.message : String(err);
-  return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine({ code: "INTERNAL", message: message }) };
+/** `tovu plugin install` refusals carry their own wire code and are always usage-class (exit 2). */
+function mapPluginInstallError({ err }: { err: unknown }, _options = {}): CliOutcome | undefined {
+  return err instanceof PluginInstallError ? { exitCode: 2, stderrLine: stderrLine({ code: err.code, message: err.message }) } : undefined;
 }
 
 /** The error classes that carry their own stable code, in the order `mapErrorToCliOutcome` checks them. */
-const CODED_ERRORS: ReadonlyArray<{ type: abstract new (...args: never[]) => Error; code: string }> = [
+const CODED_ERRORS: ReadonlyArray<CodedErrorRule> = [
   { type: PortInUseError, code: "PORT_IN_USE" },
   { type: ExportOutputNotEmptyError, code: "EXPORT_OUTPUT_NOT_EMPTY" },
   { type: ExportIncompleteError, code: "EXPORT_INCOMPLETE" },
@@ -199,23 +171,38 @@ const CODED_ERRORS: ReadonlyArray<{ type: abstract new (...args: never[]) => Err
   { type: InternalError, code: "INTERNAL" },
 ];
 
-function mapCodedError({ err }: { err: unknown }, _options: Record<string, never> = {}): CliOutcome | undefined {
-  for (const { type, code } of CODED_ERRORS) {
-    if (err instanceof type) return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine({ code, message: err.message }) };
-  }
-  return undefined;
+/**
+ * Build Tovu's error → outcome mapper. Classifier ORDER is the contract: plugin-install refusals
+ * first, then commander's own parse/dispatch errors, then the `site-dir` classes; after them the
+ * coded classes and finally errors.spec.md §4 "INTERNAL | any uncaught error".
+ *
+ * @param _args - none; the first-argument pad keeps the `(required, optional)` shape.
+ * @param optional.siteDirClassifier - replaces {@link mapSiteDirError} (tests prove the order with it).
+ * @returns `({ err }) => CliOutcome`.
+ * @complexity O(1) per call — a fixed classifier list and five coded rules.
+ */
+export function createTovuCliOutcomeMapper(
+  _args: Record<string, never>,
+  { siteDirClassifier = mapSiteDirError }: { siteDirClassifier?: CliOutcomeClassifier } = {},
+): (required: { err: unknown }, _options?: Record<string, never>) => CliOutcome {
+  return createCliOutcomeMapper({
+    binName: BIN_NAME,
+    exitCodes: EXIT_CODE_BY_ERROR_CODE,
+    classifiers: [
+      mapPluginInstallError,
+      createParserClassifier({ binName: BIN_NAME, exitCodes: EXIT_CODE_BY_ERROR_CODE, isParserError: (err): err is CommanderError => err instanceof CommanderError }),
+      siteDirClassifier,
+    ],
+    codedErrors: CODED_ERRORS,
+  });
 }
 
-function mapCommanderError({ err }: { err: CommanderError }, _options: Record<string, never> = {}): CliOutcome {
-  if (COMMANDER_SUCCESS_CODES.has(err.code)) {
-    return { exitCode: 0 };
-  }
-  const knownValidationCode = COMMANDER_VALIDATION_CODES.has(err.code);
-  const outcome = { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine({ code: "VALIDATION", message: err.message.replace(/^error:\s*/, "") }) };
-  if (knownValidationCode) {
-    return { ...outcome, printUsage: err.code === "commander.unknownCommand" };
-  }
-  // Any other commander-internal error is still an argv-shape/usage problem — commander only
-  // ever throws (once `.exitOverride()` is set) for parsing/dispatch issues.
-  return outcome;
-}
+/**
+ * Map any error `cli/main.ts` catches to `{ exitCode, stderrLine?, printUsage? }`.
+ *
+ * @param required.err - whatever `program.parseAsync()` (commander) or an action handler (`site-dir`
+ *   errors, `PortInUseError`, or a genuinely unexpected bug) throws/rejects with.
+ * @returns the exit code and (when applicable) the exact single stderr line to print.
+ * @complexity O(1).
+ */
+export const mapErrorToCliOutcome = createTovuCliOutcomeMapper({});
