@@ -13,7 +13,8 @@ import { loadPluginContributionsFromSource } from "../../agent-plugins/lifecycle
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { byoClientLabel, resolveByoClient } from "../byo-client.js";
+import { byoClientLabel } from "@jini-ai/integrations/api-connections";
+import { resolveByoClient } from "../byo-client.js";
 import { loadDeclaredApiConnections } from "../contribution.js";
 
 const packageRoot = path.join(import.meta.dirname, "fixtures", "acme-office");

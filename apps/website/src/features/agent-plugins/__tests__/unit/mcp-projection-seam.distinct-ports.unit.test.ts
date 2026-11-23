@@ -12,9 +12,9 @@ import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mc
 import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { composeAgentPluginMcp, composePluginProviderFaces } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
 import { createTovuPluginHost, type TovuPluginHostDeps } from '../../../../server/runtime/composition/plugin-host.js';
-import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
+import { agentPluginMcpProjections, withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
-import { loadAgentPluginConnectionStatuses } from '../../connection-status.js';
+import { loadAgentPluginConnectionStatuses as loadWithPorts } from '@jini-ai/agent-plugins/connect';
 import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
@@ -123,9 +123,9 @@ test('sign-in eligibility uses the host credential projection, not Tovu default'
 test('status and stored-credential reads use the host pure projections', async () => {
   const row = { provisionedByPluginId: 'images', authMode: 'oauth' as const, oauthStatus: 'connected' as const, sealedOAuth: null };
   const { ports } = hostPorts({ oauthStatus: () => 'needs_reauth', hasStaticAccessToken: () => false });
-  const statuses = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] }, ...ports });
+  const statuses = await loadWithPorts(withAgentPluginMcpPorts({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] }, ...ports }));
   assert.equal(statuses.get('images'), 'needs_reauth');
-  const control = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } });
+  const control = await loadWithPorts(withAgentPluginMcpPorts({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } }));
   assert.equal(control.get('images'), 'connected');
   const unsigned = { authMode: 'oauth' as const, sealedOAuth: null, oauthStatus: null };
   assert.equal(hasStoredAgentPluginCredential(unsigned), false);

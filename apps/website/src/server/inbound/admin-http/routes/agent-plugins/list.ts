@@ -5,7 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";
 import { agentPluginLifecycleFields } from "./install-response.js";
-import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
+import { loadAgentPluginConnectionStatuses } from "@jini-ai/agent-plugins/connect";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
 
 /**
