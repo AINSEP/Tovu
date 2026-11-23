@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage } from "@jini-ai/chat/core";
+import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { createVisitorPageControl } from "./visitor-page-control";
 import { createSiteAssistantTransport } from "./site-assistant-transport";
 import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
@@ -28,8 +29,21 @@ export function useSiteAssistantWidget(_required: Record<string, never>, _option
   const frontend = useMemo(() => createVisitorPageControl({ document, beforeNavigate: ({ messages }) => saveSiteAssistantState({ ...liveState.current, messages: messages ?? liveState.current.messages }) }), []);
   const confirm = useCallback((input: Parameters<typeof confirmSiteAssistantTool>[0]) => confirmSiteAssistantTool(input, { headers: frontend.currentHeaders }), [frontend]);
   const toolConfirmation = useSiteToolConfirmation({}, { confirm });
+  // Which model answered the latest turn, and the question of a send that failed for good; both are
+  // set by the transport and cleared when the next run starts or the thread resets.
+  const [model, setModel] = useState<string | null>(null);
+  const [failedPrompt, setFailedPrompt] = useState<string | null>(null);
+  const composerHandle = useRef<ChatPaneComposerHandle | null>(null);
   useEffect(() => () => frontend.close({}), [frontend]);
-  const transport = useMemo(() => createSiteAssistantTransport({}, { onToolConfirmation: toolConfirmation.receive, frontend }), [toolConfirmation.receive, frontend]);
+  const transport = useMemo(() => createSiteAssistantTransport({}, {
+    onToolConfirmation: toolConfirmation.receive, frontend,
+    onModel: ({ model: next }) => setModel(next), onFailure: ({ prompt }) => setFailedPrompt(prompt),
+  }), [toolConfirmation.receive, frontend]);
+  const retryFailedPrompt = useCallback(() => {
+    if (failedPrompt) composerHandle.current?.insertText(failedPrompt);
+    setFailedPrompt(null);
+    panelRef.current?.querySelector("textarea")?.focus();
+  }, [failedPrompt, panelRef]);
 
   // `ChatPane` owns its transcript internally and only takes `initialMessages` at mount — the same
   // constraint `AssistantDock.tsx`'s conversation switcher documents (`key={chats.paneKey}`). There
@@ -60,6 +74,8 @@ export function useSiteAssistantWidget(_required: Record<string, never>, _option
     // Cleared directly here (not left to the effect above) so the guarantee holds even if a future
     // change ever batches or skips that effect.
     setPersistedMessages([]);
+    setModel(null);
+    setFailedPrompt(null);
     clearSiteAssistantState();
     toolConfirmation.receive({ directive: null });
     liveState.current = { open, messages: [] };
@@ -72,5 +88,6 @@ export function useSiteAssistantWidget(_required: Record<string, never>, _option
   }, [open]);
 
   return { open, paneKey, panelRef, launcherRef, closePanel, i18n, t, suggestions, toggleOpen,
-    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation };
+    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation,
+    model, failedPrompt, retryFailedPrompt, composerHandle };
 }
