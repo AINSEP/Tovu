@@ -77,7 +77,8 @@ const WIRED_HOOKS: readonly string[] = [
   // Jini owns both list lifecycles; the resource-filtered host port retains their subscription.
   "integrations/jini-admin/widgets-ports.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",
-  "features/recovery/hooks/use-recovery.hooks.ts",
+  // The package owns the Recovery read lifecycle; this host binding retains the bus subscription.
+  "features/recovery/hooks/recovery-dependencies.hooks.ts",
   // Screen and sidebar share this read/subscription owner.
   "features/sites/hooks/use-sites-snapshot.hooks.ts",
   "features/themes/hooks/use-theme-explore.hooks.ts",

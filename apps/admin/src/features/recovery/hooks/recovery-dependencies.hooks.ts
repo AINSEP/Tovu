@@ -3,6 +3,11 @@ import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import type { AdminRestorePointSummary } from "@/features/database/api/database-api.types";
 import { databaseApi } from "@/features/database/api/database-api";
 import type { RecoveryPort } from "@jini-ai/admin/recovery/hooks/recovery-port.hooks";
+import { useRecovery, type RecoveryController, type RecoveryHost } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 
 /**
  * @file The only place `use-recovery.hooks.ts` reaches `lib/api` — see `recovery-port.hooks.ts` for
@@ -16,6 +21,29 @@ export const defaultRecoveryPort: RecoveryPort = {
   createRestorePoint: (_input, options = {}) => databaseApi.createRecoveryRestorePoint(options),
   resolveRecoveryDeepLink: (envelope, _options = {}) => recoveryApi.resolveRecoveryDeepLink(envelope),
 };
+
+/** This admin's collaborators for the package's Recovery hook: its locale, API-error wording,
+ *  router, content-refresh bus and console. Module-level, so the two hooks keep their identity. */
+export const RECOVERY_HOST: RecoveryHost = {
+  useLocale: () => useAdminLocale(),
+  describeError: (required) => describeApiError(required),
+  navigate: (required, optional = {}) => navigate(required, optional),
+  // The screen's refresh subscription stays on this host's bus: a restore point minted by an
+  // assistant run reloads the list through the package hook's own `load`.
+  useContentRefreshSubscription: (required) => useContentRefreshSubscription(required),
+  reportError: ({ message, detail }) => console.error(message, detail),
+};
+
+/**
+ * Binds the real `/api/.../recovery` client — the zero-argument half of the `useX(dependencies)` /
+ * `useWiredX()` pair, so `Recovery.tsx` composes this and a test composes the package's `useRecovery`
+ * with `createFakeRecoveryPort`.
+ *
+ * @returns Same controller shape as `useRecovery`, bound to the real port and this admin's host.
+ */
+export function useWiredRecovery(): RecoveryController {
+  return useRecovery({ port: defaultRecoveryPort, host: RECOVERY_HOST });
+}
 
 /** Every caller names the point's `id` (it is derived from the store size), so it is required. */
 function fakeRestorePointSummary(

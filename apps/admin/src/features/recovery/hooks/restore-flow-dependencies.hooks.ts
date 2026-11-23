@@ -2,6 +2,10 @@ import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contract
 import type { AdminDisclosureResult, RestoreExecuteResult } from "@jini-ai/admin/core";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import type { RestoreFlowPort } from "@jini-ai/admin/recovery/hooks/restore-flow-port.hooks";
+import { useRestoreFlow, type RestoreFlowController, type RestoreFlowHost } from "@jini-ai/admin/recovery/hooks/use-restore-flow.hooks";
+import type { AdminRestorePoint } from "@jini-ai/admin/core";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**
  * @file The only place `use-restore-flow.hooks.ts` reaches `lib/api` — see `restore-flow-
@@ -64,4 +68,22 @@ export function createFakeRestoreFlowPort(options: FakeRestoreFlowPortOptions = 
       return options.executeResult ?? { restoreRunId: "fake-run-1", state: "succeeded" };
     },
   };
+}
+
+/** This admin's collaborators for the package's restore ceremony hook. Module-level, so the
+ *  locale hook keeps its identity. */
+export const RESTORE_FLOW_HOST: RestoreFlowHost = {
+  useLocale: () => useAdminLocale(),
+  describeError: (required) => describeApiError(required),
+};
+
+/**
+ * Binds the real `/api/.../recovery/restore` client — the pair `RestoreFlow` in `Recovery.tsx`
+ * mounts, while a test composes the package's `useRestoreFlow` with `createFakeRestoreFlowPort`.
+ *
+ * @param props The selected restore point.
+ * @returns Same controller shape as `useRestoreFlow`, bound to the real port and this admin's host.
+ */
+export function useWiredRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
+  return useRestoreFlow({ point: props.point, port: defaultRestoreFlowPort, host: RESTORE_FLOW_HOST });
 }

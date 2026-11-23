@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@jini-ai/admin/core";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
-import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
-import { createFakeRecoveryPort } from "../hooks/recovery-dependencies.hooks";
-import { RECOVERY_RESOURCE } from "../rules";
+import { useRecovery } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";
+import { RECOVERY_HOST, createFakeRecoveryPort, useWiredRecovery } from "../hooks/recovery-dependencies.hooks";
+import { RECOVERY_RESOURCE } from "@jini-ai/admin/recovery/rules";
 
 // Tabs (2026-09-10): the deep-link resolution effect below now also navigates to `?tab=restore` on
 // a match — mocked for the same reason `Recovery.unit.test.tsx`/`Database.unit.test.tsx` mock it,
@@ -197,7 +197,7 @@ describe("createRestorePoint (2026-09-10, restore-point functionality consolidat
 describe("createRestorePoint — injected port (2026-08-14 Orc-BASH pass convention)", () => {
   it("appends to the fake port's store, visible on the next list read", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [] });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([]));
 
     await act(async () => {
@@ -209,7 +209,7 @@ describe("createRestorePoint — injected port (2026-08-14 Orc-BASH pass convent
 
   it("surfaces a create failure from the fake port's rejected createRestorePoint", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [], createError: new Error("boom from fake") });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([]));
 
     await act(async () => {
@@ -377,7 +377,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
    *  `useAdminLocale()` is a separate, un-injected concern from this port. */
   it("loads status and points from the fake port with no real fetch call for the data itself", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
 
     await waitFor(() => expect(result.current.points).not.toBeNull());
     expect(result.current.status).toEqual(STATUS);
@@ -387,7 +387,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("surfaces a load failure from the fake port's rejected calls", async () => {
     const port = createFakeRecoveryPort({ loadError: new Error("boom from fake") });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.error).toBe("boom from fake"));
     expect(result.current.status).toBeNull();
   });
@@ -398,7 +398,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
       points: [POINT],
       deepLinkResult: { found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } },
     });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
 
     await waitFor(() => expect(result.current.selected).toEqual(POINT));
     expect(port.deepLinkCalls).toHaveLength(1);
@@ -418,7 +418,7 @@ describe("useRecovery — content refresh bus", () => {
     // pass even if the subscription below did nothing.
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
     const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
 
     // Database's `backup_create_restore_point` call landing server-side — this screen reads the
@@ -434,7 +434,7 @@ describe("useRecovery — content refresh bus", () => {
   it("refreshes on a notification that names recovery, and ignores one that names only other resources", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
     const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
 
     listSpy.mockResolvedValue({ items: [POINT, { ...POINT, id: "rp2" }] });
@@ -450,7 +450,7 @@ describe("useRecovery — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
     const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
-    const { result, unmount } = renderHook(() => useRecovery({ port }));
+    const { result, unmount } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
 
     const callsWhileMounted = listSpy.mock.calls.length;
@@ -463,7 +463,7 @@ describe("useRecovery — content refresh bus", () => {
 
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
 
     // Two assistant writes land back to back, each publishing its own content-refresh
@@ -498,7 +498,7 @@ describe("useRecovery — content refresh bus", () => {
 
   it("ignores a stale refresh rejection after a newer list succeeded", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
     let rejectEarlier!: (error: Error) => void;
     const newer = { ...POINT, id: "rp-new" };
@@ -517,7 +517,7 @@ describe("useRecovery — content refresh bus", () => {
   it("retains a previous load error during retry and clears it after a successful read", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
     const list = vi.spyOn(port, "listRecoveryRestorePoints").mockRejectedValueOnce(new Error("offline"));
-    const { result } = renderHook(() => useRecovery({ port }));
+    const { result } = renderHook(() => useRecovery({ port, host: RECOVERY_HOST }));
     await waitFor(() => expect(result.current.error).toBe("offline"));
     let release!: (value: { items: AdminRestorePoint[] }) => void;
     list.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));

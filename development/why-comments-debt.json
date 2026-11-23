@@ -4076,6 +4076,170 @@
     {
       "id": "5a587cdeb4d4",
       "reason": "Moved to Jini @jini-ai/db/src/__tests__/tools/site-messages.test.ts (X-database-transfer-1), reworded neutral ('Tovu's' -> 'The')."
+    },
+    {
+      "id": "efd18a4941f3",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/__tests__/recovery-i18n.unit.test.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "0ba1e4027a96",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/__tests__/recovery-i18n.unit.test.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "249aeb541724",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), reworded neutral: the website agent-tools path now reads \"the host's database agent tools\", `useWiredRecovery` is named as the host binding, and a host-seam paragraph is added."
+    },
+    {
+      "id": "10545f3586fa",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "07b4ec77a9ca",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "b0bace4c00d8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "dac5d5e6ad98",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "e2542f021a61",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), reworded: the @param now also names the injected `RecoveryHost` collaborators."
+    },
+    {
+      "id": "2ff1f96715b3",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "89eeae23aaad",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "61b5af6496c2",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a237a5d3d247",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "192b74348232",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "77d44ade3273",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "62ca73629435",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "9116b6d3af0a",
+      "reason": "Moved into the host binding apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts (A-K2-recovery-1) with the zero-argument useWired* hook it documents, reworded: names the package hook it binds instead of \"below\"."
+    },
+    {
+      "id": "beefd762dfaa",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), reworded: the DI-seam paragraph now describes the single args object and the injected `host`; `useWiredRestoreFlow` named as the host binding."
+    },
+    {
+      "id": "b5989441b7df",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "fcf1a739a4ce",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "33ad764096c6",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-restore-flow.hooks.ts (A-K2-recovery-1), reworded: port/point are now named fields of one required args object with the injected `host`; the meaning (point = business input, port = external dependency) is kept."
+    },
+    {
+      "id": "c2ea780f1b68",
+      "reason": "Moved into the host binding apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts (A-K2-recovery-1) with the zero-argument useWired* hook it documents, reworded: names the package hook it binds instead of \"below\"."
+    },
+    {
+      "id": "95e7d71a1b7d",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "10697e7be322",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n/recovery-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "5d0d14946736",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n/recovery-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a46157186f16",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "4c093fd63c52",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "77b65faefc65",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), reworded neutral: `styles.css` / `.recovery-loss-qty` now name the host stylesheet and its injected `classNames.quantity` class."
+    },
+    {
+      "id": "af34a4dcae16",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "a68f08ef65a9",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "dccd796a9219",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "b841c42ed500",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/recovery-i18n.tsx (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "3a0836a7bd91",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "d319ef852435",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), reworded neutral: the two host website agent-tools file paths now read \"the host's database/recovery agent tools\"."
+    },
+    {
+      "id": "e464c5c6e74d",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "ae6efb0d9b63",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "9f2a72e6160f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "61ffc851484e",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "f67dd9def91f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "0ba94757f7bb",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "2e1f8d6a5721",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "5aee2dca9f35",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
     }
   ]
 }
