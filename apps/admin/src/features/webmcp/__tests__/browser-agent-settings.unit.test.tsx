@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrowserAgentSettingsPanel } from "../BrowserAgentSettingsPanel";
 import { WEBMCP_PREFERENCE_KEY, useBrowserAgentSettings, setBrowserAgentEnabled, type BrowserAgentSettingsPort } from "../browser-agent-settings.hooks";
-import { WEBMCP_DICT, WEBMCP_KEYS } from "../webmcp-i18n";
+import { WEBMCP_DICT, WEBMCP_KEYS } from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
 import { ADMIN_LOCALES } from "../../../lib/settings-tabs";
 
 afterEach(() => { act(() => setBrowserAgentEnabled({ enabled: true })); localStorage.clear(); });
