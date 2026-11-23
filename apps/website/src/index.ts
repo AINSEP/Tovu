@@ -78,11 +78,22 @@ startOwnParentWatchdog({
   env: process.env,
   ppid: () => process.ppid,
   signalZero: (pid) => { process.kill(pid, 0); },
-  exit: (code) => { process.exit(code); },
+  exit: exitProcess,
   log: (line) => console.log(line),
   error: (line) => console.error(line),
   setInterval: (callback, ms) => setInterval(callback, ms),
 });
+
+type ExitFn = (code: number) => void;
+
+/**
+ * The one place this entrypoint ends the process. Every fatal boot path below takes it as an injectable
+ * `exit` (default: this) instead of calling `process.exit` itself, so a test can observe the code
+ * without dying — the parent watchdog above already worked that way, these three did not.
+ */
+function exitProcess(code: number): void {
+  process.exit(code);
+}
 
 /**
  * Applies the same schema-version guard `tovu serve` gets for free from `boot-site-dir.ts` (see
@@ -95,7 +106,8 @@ startOwnParentWatchdog({
  * nothing. A no-op for `useMemory` boots (nothing on disk to guard) and for a brand-new/never-
  * migrated db (nothing to compare against yet — `openContentDb()`'s own first-boot path is correct).
  */
-async function guardContentDbSchemaOrExit({ dbPath }: { dbPath: string }, _optional = {}): Promise<void> {
+async function guardContentDbSchemaOrExit({ dbPath }: { dbPath: string }, optional: { exit?: ExitFn } = {}): Promise<void> {
+  const { exit = exitProcess } = optional;
   const result = await checkContentDbSchema({ dbPath });
   if (result.status !== "refuse") return;
 
@@ -103,7 +115,7 @@ async function guardContentDbSchemaOrExit({ dbPath }: { dbPath: string }, _optio
   console.error(
     `Refusing to boot against ${dbPath} — this is the same schema guard 'tovu serve' applies before opening a site's content.db.`
   );
-  process.exit(1);
+  exit(1);
 }
 
 /**
@@ -188,8 +200,9 @@ async function reserveSiteBootListener(
     server: ReturnType<typeof createHttpServer>;
     runningLease: ReturnType<typeof claimSiteRunning> | undefined;
   },
-  _options: Record<string, never> = {},
+  optional: { exit?: ExitFn } = {},
 ): Promise<void> {
+  const { exit = exitProcess } = optional;
   // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
   // which Node re-throws — so the process dies with a raw stack trace and no statement of what is
   // wrong. Measured 2026-08-15: `tsx watch` restarted this process on a source edit, force-killed
@@ -219,7 +232,10 @@ async function reserveSiteBootListener(
           `  Find it with:  lsof -ti :${port} -sTCP:LISTEN\n` +
           `  Then stop that process, or set PORT to a free port.`,
       );
-      process.exit(1);
+      exit(1);
+      // A real exit never returns, but an injected one may (a test spy): stop here rather than fall
+      // through to the rethrow below, which is only for the failures that are NOT a port collision.
+      return;
     }
     throw error;
   }
@@ -255,13 +271,14 @@ async function openSiteDeps(_optional = {}) {
 }
 
 /** Runs the boot modules and publishes the readiness snapshot; a failed critical module ends the process. */
-async function runBootModulesOrExit(deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"], _optional = {}): Promise<void> {
+async function runBootModulesOrExit(deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"], optional: { exit?: ExitFn } = {}): Promise<void> {
+  const { exit = exitProcess } = optional;
   const bootResult = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory, defaultContentDbPath }) });
   setReadinessSnapshot(bootResult);
   if (!bootResult.ok) {
     logCriticalBootFailures(bootResult);
     console.error("Refusing to boot — a critical module failed. See failures above.");
-    process.exit(1);
+    exit(1);
   }
 }
 
