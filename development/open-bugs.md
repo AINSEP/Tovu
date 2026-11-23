@@ -318,3 +318,19 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## Bug lane A (LOW / LOW-MED, `codex/bugs-low-a-*`, 2026-11-23) — fixed
+- C003 `snapshot-stale-header` — fixed: comment now says ROLLED_BACK (terminal), snapshot kept (Jini 6b991c6b7).
+- C014 optional-peer contract stale ui→lexical / daemon→express pins — fixed (Jini f8409dabf); user-management manifest texts remain after combine-15.
+- C037 ui api.spec formatTimestamp location/signature — fixed (Jini 97cefd7e7).
+- C112 sidecar json-ipc builds its own console logger — fixed, injected `reporter` (Jini 9932ab798, de4865d0f).
+- C107 resource card menu focus on open / restore on Escape — fixed (Jini 93c9563e8).
+- A196 two reads of one file with different windows look identical — fixed in tool row target (Jini 116d86b69); Read card pass-through after combine-15.
+- C095 `<<SUBAGENT_DISPATCH>>` sent in every in-app prompt — fixed, only when the site reaches AI-Dev-Shop/AGENTS.md (2382fb7c03).
+- A382 Vite prebundle keeps old @jini-ai packages — fixed, fingerprint stamp forces one re-optimize (7396fd6777).
+- A362 site-plugin-directories.test.mjs stale import — fixed (cee11d6c87).
+- A046 copied themes share the light/dark storage key — fixed for tovu-starter (0664c4c743) and tovu-theme (09130d6d5a).
+- A453 classic admin theme loads Google Fonts — fixed, self-hosted (4e2b5f55cf); other bundled themes still listed.
+- C017 admin CSS targets `.jini-*` classes nothing emits — fixed, dead rules removed (e4e6c62ad6).
+- A369 5 agent-daemon-server source pins stale after refactors — fixed, re-anchored (95690f2f05).
+- A340 static publish project name blank though history has it — fixed (616b6a6634).
