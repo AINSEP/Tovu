@@ -17,7 +17,7 @@ import {
 } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/index";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
-import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
+import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";

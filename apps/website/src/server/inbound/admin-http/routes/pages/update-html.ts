@@ -11,7 +11,7 @@ import {
   PageKindMismatchError,
   PageNotFoundError,
 } from "#src/features/pages/index";
-import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
+import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

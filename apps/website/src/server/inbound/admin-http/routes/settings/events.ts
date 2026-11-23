@@ -68,7 +68,7 @@ import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
  * the two numbers differ.
  */
 
-import { authorizeChangeFeed } from "./preview-feed-access.js";
+import { authorizeChangeFeed } from "@jini-ai/cms/admin-http/routes/settings/preview-feed-access";
 import { createThemePreviewFeed, readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import {
   collectChangedNamespaces,
