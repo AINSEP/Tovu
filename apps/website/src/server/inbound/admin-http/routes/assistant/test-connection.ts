@@ -5,7 +5,7 @@ import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/ag
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "./execution-deps.js";
-import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "./execution-request-fields.js";
+import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "@jini-ai/cms/admin-http/routes/assistant/execution-request-fields";
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
 interface TestConnectionRequestBody {
