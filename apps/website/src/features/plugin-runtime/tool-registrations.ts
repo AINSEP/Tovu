@@ -1,6 +1,6 @@
 /** Tovu catalogs, cards and host effects bind the portable @jini-ai/plugins/host/tools lifecycle. */
 import { pluginManagementToolIds } from './plugin-tool-ids.js';
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import type { PluginExportCatalogPort } from '@jini-ai/core/contracts/headless/plugin-export-catalog';
 import type { OperatorLocaleDeps, PluginHostPort, AgentPluginLayout, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from '@jini-ai/core/primitives';

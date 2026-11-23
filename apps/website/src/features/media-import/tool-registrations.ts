@@ -1,6 +1,6 @@
 import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "../media/chat-preview.js";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/site/media-import';
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

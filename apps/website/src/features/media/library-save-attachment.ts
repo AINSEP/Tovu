@@ -1,5 +1,5 @@
 import { captureMediaUploaded } from "./analytics.js";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { requireInputRecord, requireString, ToolInputError, type ToolRegistration } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { MAX_DOCUMENT_BYTES, MediaValidationError, uploadMedia, documentContentType, documentDisplayFilename, type MediaToolDeps, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';

@@ -752,9 +752,9 @@ export interface ObservabilityDeps {
    * How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Hermetic roots supply the no-provider facade. */
-  tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   /** Public event admission follows visitor consent, independent of admin usage telemetry. */
-  visitorTracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  visitorTracker?: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   observabilityEnabled?: () => boolean;
   flushTelemetry?: () => Promise<void>;
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];

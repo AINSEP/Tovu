@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
 import { startPostGoLiveSweep } from "../go-live-sweep.js";
 

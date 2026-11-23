@@ -1,7 +1,7 @@
 import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "../media/chat-preview.js";
 import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { Clock } from "@jini-ai/core/primitives";
