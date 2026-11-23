@@ -54,8 +54,11 @@ export function createAdminJsonRoutePorts(
 ): JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> {
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth.
+    // Deployment-level paths (`/api/admin/v1/database/*`, `/recovery/*`) have no `:workspaceId`
+    // and never ran that guard, so an absent param is not a foreign workspace.
     workspace: ({ raw, deps }) => {
-      if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
+      if (raw.params.workspaceId === undefined) return;
+      if (String(raw.params.workspaceId) !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
     },
     authenticate: ({ res }) => {
       const principal = { ...getAuthedPrincipal(res) };

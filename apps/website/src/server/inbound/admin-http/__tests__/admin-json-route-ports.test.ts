@@ -90,6 +90,20 @@ test("a foreign workspace is the shared 404 and never reaches authorization", as
   assert.deepEqual(s.authorizeCalls, []);
 });
 
+test("a deployment-level path without :workspaceId never runs the workspace guard", async (t) => {
+  const app = express();
+  app.use(express.json());
+  app.use((_req, res, next) => { res.locals.principal = { id: "caller", kind: "user" }; next(); });
+  mountAdminJsonRoute({ app, spec: defineJsonRoute<void, { ok: true }, object, { id: string }>({ method: "get", path: "/api/admin/v1/deployment-probe",
+    parse: () => ok({ value: undefined }), handle: async () => ok({ value: { ok: true as const } }) }),
+  deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never });
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin/v1/deployment-probe`);
+  assert.deepEqual({ status: response.status, body: await response.json() }, { status: 200, body: { ok: true } });
+});
+
 test("a denial writes the same 403 body as authorizeOrRespond", async (t) => {
   const s = await serve({ allowed: false });
   t.after(s.close);
