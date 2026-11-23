@@ -23,7 +23,7 @@ import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
-import { MEDIA_OBJECT_STORE_KEY, STORAGE_SETTINGS_NAMESPACE } from "#src/features/object-storage/setting";
+import { MEDIA_OBJECT_STORE_KEY, STORAGE_SETTINGS_NAMESPACE } from "@jini-ai/platform/object-store/site/setting";
 import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
 import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
 import { createCustomCredential } from "#src/features/custom-credentials/store";

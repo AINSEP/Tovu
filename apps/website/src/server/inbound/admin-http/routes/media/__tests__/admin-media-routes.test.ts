@@ -13,7 +13,8 @@ import { registerAdminMediaListRoute } from "../list.js";
 import { registerAdminMediaTrashRoute } from "../trash.js";
 import { registerAdminMediaUpdateRoute } from "../update.js";
 import { registerAdminMediaUploadRoute } from "../upload.js";
-import { CORE_PUBLIC_TRANSFORM_NAME, registerTransform } from "#src/features/media/index";
+import { registerTransform } from "#src/features/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

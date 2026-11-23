@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { MediaRecord } from "#src/features/media/index";
-import { readRecordedContentType, resolveContentTypes } from "../content-type.js";
+import { readRecordedContentType, resolveContentTypes } from "@jini-ai/cms/media/site/content-type-resolution";
 
 /**
  * @file Direct tests for `content-type.ts`. `media-content-type.test.ts` covers the list route's

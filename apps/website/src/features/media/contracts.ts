@@ -1,6 +1,6 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "./content-type-store.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 
 /**
  * Hands one asset's removal to whoever owns removal in this composition.

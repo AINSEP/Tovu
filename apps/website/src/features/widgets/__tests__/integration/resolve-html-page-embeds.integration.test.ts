@@ -7,7 +7,9 @@ import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/ind
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
-import { CORE_PUBLIC_TRANSFORM_NAME, InMemoryMediaContentTypeStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import type { MediaRecord, TransformDefinitionRecord } from "#src/features/media/index";
 import { MAX_HTML_EMBEDS_PER_PAGE } from "@jini-ai/cms/widgets/html";
 import { WIDGET_PAYLOAD_FIELD } from "@jini-ai/cms/widgets";

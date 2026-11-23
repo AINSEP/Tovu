@@ -45,7 +45,7 @@ import { registerContentType } from "#src/features/content-types/index";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { extractEntryRefs } from "@jini-ai/cms/widgets";
 import { toSlug } from "../../platform/html/slug.js";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";

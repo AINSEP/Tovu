@@ -6,7 +6,7 @@ import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerTransform } from "#src/features/media/index";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";
 import { createMediaModule } from "../../runtime/composition/modules/media.js";

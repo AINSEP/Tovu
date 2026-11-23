@@ -17,7 +17,8 @@ import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { join } from "node:path";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
-import { readMediaObjectStoreSetting } from "#src/features/object-storage/index";
+import { getEffective } from "@jini-ai/core/settings";
+import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { resolveShareDirectory } from "../site-paths.js";
@@ -136,7 +137,7 @@ function shareDeliveryPorts(required: ShareDeliveryPortsRequired, _optional = {}
       // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
       // the site's media choice wins so media and shares share one provider and connection.
       // Revoke passes the share's saved provider, so only that store may delete it.
-      const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
+      const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId, getEffective }),
         resolveCredential: resolveShareCredential },
       selection.provider === undefined ? {} : { savedProvider: selection.provider });
       if (!chosen) return undefined;

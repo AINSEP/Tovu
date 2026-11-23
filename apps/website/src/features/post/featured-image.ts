@@ -1,5 +1,5 @@
 import { findMediaByIdOrSlug, type MediaRepoPort } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "../media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { PostValidationError } from "./post.js";
 
 /**

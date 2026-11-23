@@ -1,0 +1,40 @@
+XP4 packages/core/src/contracts/storage/__tests__/sqlite.test.ts: Error: contract JavaScript contains runtime statements
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: ImportDeclaration
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: ImportDeclaration
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: vitest
+XP4 packages/core/src/contracts/storage/__tests__/values.test.ts: Error: contract JavaScript contains runtime statements
+XP4 packages/core/src/contracts/vault/invariants.ts: FirstStatement
+XP4 packages/core/src/contracts/vault/invariants.ts: ClassDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: FirstStatement
+XP4 packages/core/src/contracts/vault/invariants.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/invariants.ts: Error: contract JavaScript contains runtime statements
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ImportDeclaration
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ImportDeclaration
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ImportDeclaration
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: FunctionDeclaration
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: FirstStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: FirstStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: FirstStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: ExpressionStatement
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: node:assert/strict
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: vitest
+XP4 packages/core/src/contracts/vault/__tests__/invariants.test.ts: Error: contract JavaScript contains runtime statements
+XP5 packages/chat/package.json: @jini-ai/protocol
+XP5 packages/node-adapters/package.json: @jini-ai/platform
+XP5 packages/node-adapters/package.json: @jini-ai/agent-plugins
+XP5 packages/server/package.json: @jini-ai/node-adapters
+XP5 packages/server/package.json: @jini-ai/platform
+XP5 packages/ui/package.json: @jini-ai/protocol
+ ELIFECYCLE  Command failed with exit code 1.
+EXIT 1

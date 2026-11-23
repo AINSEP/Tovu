@@ -11,7 +11,7 @@ import {
 
 import type { PostRecord } from "#src/features/post/index";
 import { uploadMedia, SharpImageTransformer } from "#src/features/media/index";
-import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
+import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 

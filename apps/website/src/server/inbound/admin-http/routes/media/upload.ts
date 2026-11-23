@@ -6,9 +6,9 @@ import {
   captureMediaUploaded,
   MediaConflictError,
   MediaValidationError,
-  resolveUploadContentType,
   uploadMedia,
 } from "#src/features/media/index";
+import { resolveUploadContentType } from "@jini-ai/cms/media/site/upload-content-type";
 /**
  * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
  * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's

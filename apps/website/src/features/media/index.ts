@@ -112,11 +112,9 @@ export { sanitizeSvg, sniffContentType, type SniffedContentType } from "@jini-ai
 export { mediaAgentToolCatalog } from "@jini-ai/cms/media";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
-export type { MediaContentTypeStorePort } from "./content-type-store.js";
 // Jini owns upload validation, dedup, GC locking, renditions and immutable creation attribution.
 export { uploadMedia } from "@jini-ai/cms/media";
 export type { MediaRecord } from "@jini-ai/cms/media";
-export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
 export type {
   MediaProviderCredentialRepoPort,
@@ -131,21 +129,12 @@ export {
   saveMediaProviderCredentials,
 } from "./provider-credential-store.js";
 
-export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
-
-export { resolveUploadContentType, assertAllowedSniffedContentType } from "./upload-content-type.js";
-
-export { mediaUrlKey, mediaPublicPath, type MediaUrlKeySource, type MediaPublicPathVariant } from "./public-path.js";
-
 export { purgeMedia } from "./purge-media.js";
 
 export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, validateDocumentIngress, decodeDocumentUtf8, documentDisplayFilename, DOCUMENT_TEXT_PAGE_BYTES, readDocumentText, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 
 export { saveLibraryDocument } from "./library-save-attachment.js";
-export { readStoredBytes } from "./original-bytes.js";
-export { resolveContentTypes, readRecordedContentType, type ContentTypeDeps } from "./content-type-resolution.js";
 export { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "./read-chat-attachment.js";
 export { captureMediaUploaded } from "./analytics.js";
 export { findMediaWhereUsed } from "./where-used.js";
-export type { HydrateBlobStoreFromSeedResult } from "./hydrate-blob-store-from-seed.js";

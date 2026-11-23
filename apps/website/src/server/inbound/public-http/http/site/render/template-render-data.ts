@@ -5,7 +5,7 @@ import { shortDate, renderPostBody } from "./post-body.js";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { resolveCoverImage } from "@jini-ai/cms/media/cover-image";
-import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 
 /** Currency formatting is shared with the catalog; old currency-less theme fixtures mean USD.
  * @complexity O(1), with no I/O. */

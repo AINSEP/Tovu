@@ -5,7 +5,7 @@ import type { ContentKernel } from "../content-kernel.js";
 import { listColumns } from "@jini-ai/db/kernel";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { mediaFileReplacementRecord, type MediaRecord, type MediaFileReplacementInput } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "#src/features/media/index";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
 import type {

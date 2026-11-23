@@ -1,5 +1,5 @@
 import { captureMediaUploaded } from "../media/index.js";
-import { withChatPreview } from "../media/chat-preview.js";
+import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
@@ -35,7 +35,7 @@ import {
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "../media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
 import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";

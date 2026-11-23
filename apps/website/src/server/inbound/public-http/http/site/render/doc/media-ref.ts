@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
 import { renderImageTag } from "@jini-ai/cms/widgets/media-tags";
 import type { DocNodeRenderDeps } from "./doc-render-contract.js";
-import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { isPlausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 
 /** The `assetId`/`transformName` pair a ref-shaped image node's `attrs` must carry, or `null` when

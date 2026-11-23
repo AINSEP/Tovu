@@ -1,5 +1,5 @@
 import { captureMediaUploaded } from "../media/index.js";
-import { withChatPreview } from "../media/chat-preview.js";
+import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media-import';
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
@@ -22,7 +22,7 @@ import {
   type UploadMediaInput,
 } from "../media/index.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort } from "../media/index.js";
+import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";

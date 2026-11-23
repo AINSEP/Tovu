@@ -11,10 +11,10 @@ import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryBlobStore,
-  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../../media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";

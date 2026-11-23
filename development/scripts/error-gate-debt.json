@@ -700,16 +700,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/media/chat-preview.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/media/content-type-resolution.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/media/read-chat-attachment.ts",
     "rule": "catch-reads-error",
     "value": 4

@@ -34,12 +34,12 @@ import { InMemoryVersionedMediaRepo, type VersionedMediaRepoPort } from "@jini-a
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
-  InMemoryMediaContentTypeStore,
   InMemoryBlobStore,
   type AssetBlobRecord,
   type BlobStorePort,
   type MediaRecord,
 } from "#src/features/media/index";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { eachDialect } from "../../kernel/__tests__/dialect-matrix.js";
 import { SqlAssetBlobRepo, SqlMediaContentTypeStore } from "../media-repo.js";
-import { InMemoryMediaContentTypeStore, type MediaContentTypeStorePort } from "#src/features/media/content-type-store";
+import { InMemoryMediaContentTypeStore, type MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { AssetBlobRecord } from "@jini-ai/cms/media";
 
 /**

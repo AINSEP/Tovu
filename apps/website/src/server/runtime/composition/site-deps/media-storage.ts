@@ -7,7 +7,8 @@ import { loadBundledObjectStoreRegistry } from "#src/features/object-storage/ind
 import { loadObjectStoreRegistry } from "#src/features/object-storage/index";
 import { mediaUploadsDir } from "../site-paths.js";
 import { readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
-import { readMediaObjectStoreSetting } from "#src/features/object-storage/index";
+import { getEffective } from "@jini-ai/core/settings";
+import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { storeBoundServicesFor } from "../store-bound-services.js";
 import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
@@ -47,7 +48,7 @@ export function composeMediaStorage(required: ComposeMediaStorageRequired, _opti
     host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: observability() }) },
     loadBundledRegistry: () => loadBundledObjectStoreRegistry({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir() }),
     loadSiteRegistry: () => loadObjectStoreRegistry({ workspaceId: workspaceId(), uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions }),
-    readSetting: () => readMediaObjectStoreSetting({ settingsRepo: settingsRepo(), workspaceId: workspaceId() }),
+    readSetting: () => readMediaObjectStoreSetting({ settingsRepo: settingsRepo(), workspaceId: workspaceId(), getEffective }),
     resolveSharedCredential: async ({ providerId }) => {
       // Provider ids use underscores; the saved connection is keyed by the deploy target's hyphenated id.
       const resolved = await (await mediaCredentials).resolve({ workspaceId: workspaceId(), target: providerId.replace(/_/g, "-") });

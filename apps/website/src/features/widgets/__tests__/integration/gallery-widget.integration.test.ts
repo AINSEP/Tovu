@@ -4,7 +4,8 @@ import { buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegion
 import { registerCoreResolver, createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
 import { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } from '@jini-ai/cms/widgets/html';
 import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
-import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
+import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
+import { CORE_PUBLIC_TRANSFORM_NAME } from '@jini-ai/cms/media/site/bootstrap';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';

@@ -5,7 +5,7 @@ import type { MediaRecord } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
-import { readRecordedContentType } from "./content-type.js";
+import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
 import { sendMediaNotFound } from "./route-guards.js";

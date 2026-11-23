@@ -24,12 +24,12 @@ import {
   type AgentToolDefinition,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
-  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
   registerTransform,
 } from "../../features/media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import {
   assertRiskMetadataIsWirable,
 } from "../tool-registrations.js";

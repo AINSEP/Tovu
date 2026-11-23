@@ -16,7 +16,6 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
-  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
@@ -24,6 +23,7 @@ import {
   registerTransform,
   saveMediaProviderCredentials,
 } from "../../media/index.js";
+import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";

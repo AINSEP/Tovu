@@ -4,7 +4,7 @@ import { NO_MARKER_ATTRIBUTES } from "@jini-ai/cms/widgets/media-attributes";
 import { isObject, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
-import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { mediaUrlKey, mediaPublicPath } from "@jini-ai/cms/media/site/public-path";
 import { renderVideoTag, renderImageTag } from "@jini-ai/cms/widgets/media-tags";
 import { MEDIA_PLAYBACK_COPY } from "@jini-ai/cms/public-http/http/site/render/media-playback-copy";
 import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/html/gallery-render";
