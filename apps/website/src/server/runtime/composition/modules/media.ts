@@ -1,10 +1,14 @@
 import type { Express } from "express";
-import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
 import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
+import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
+import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
+import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
-import { getMediaProviderCredentials, purgeMedia, type MediaRecord } from "#src/features/media/index";
+import { findMediaWhereUsed, getMediaProviderCredentials, purgeMedia, uploadMedia, type MediaRecord } from "#src/features/media/index";
+import { fetchImage } from "#src/features/media-import/fetch-image";
+import { EgressRefusedError } from "#src/platform/http/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
@@ -16,9 +20,9 @@ import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-h
 import { registerAdminMediaUpdateRoute } from "#src/server/inbound/admin-http/routes/media/update";
 import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
 import { registerAdminMediaReplaceRoute } from "#src/server/inbound/admin-http/routes/media/replace";
-import { registerAdminMediaImportUrlRoute, type MediaImportUrlRouteDeps } from "#src/server/inbound/admin-http/routes/media/import-url";
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -104,6 +108,58 @@ export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps },
     toMediaResponse: ({ media }) => toTrashedMediaResponse({ deps, media }),
   } }, { authorization: "direct", failure: mediaFailure("routes/media/trash") });
 };
+
+/** The `RouteDeps` slice the usage route reads (the usage scan's repos plus the port fields). */
+export type MediaWhereUsedDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mediaRepo" | "entryRefsRepo" | "postRepo">;
+
+/** GET where-used (Jini spec `mediaWhereUsedRoute`). It read `deps.authorize` directly, never the
+ *  publishing-credential override, so it mounts with `authorizeDirectOrRespond` semantics. The usage
+ *  scan reads `deps` per request, so a test's later replacement of a repo method is still honoured. */
+export const registerAdminMediaWhereUsedRoute = ({ app, deps }: { app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
+  mountAdminJsonRoute({ app, spec: mediaWhereUsedRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    mediaRepo: { findById: (input) => deps.mediaRepo.findById(input) },
+    findWhereUsed: (input) => findMediaWhereUsed({ deps, input }),
+  } }, { authorization: "direct", failure: mediaFailure("routes/media/where-used") });
+};
+
+/** The `RouteDeps` slice the URL import reads: the asset routes' deps plus the dedicated egress client. */
+export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
+
+/** POST import-url (Jini spec `mediaImportUrlRoute`). It read `deps.authorize` directly, so it mounts
+ *  with `authorizeDirectOrRespond` semantics. `logEgressRefusal` receives an egress refusal's full
+ *  diagnosis; without it, the operator console does.
+ *  @complexity O(1) setup; per request as the spec. */
+export function registerAdminMediaImportUrlRoute(
+  { app, deps }: { app: Express; deps: MediaImportUrlRouteDeps },
+  optional: { logEgressRefusal?: (line: string) => void } = {},
+): void {
+  mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    // This is the dedicated MEDIA_IMPORT_EGRESS_POLICY client from composition, never the
+    // credentialed-request client (which has a smaller cap and a different redirect policy).
+    fetchImage: ({ url }) => fetchImage({ deps: { httpClient: deps.mediaImportHttpClient }, url }),
+    uploadMedia: (input) => uploadMedia({
+      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+      input,
+    }, { maxUploadBytes: MAX_DOCUMENT_BYTES }),
+    mediaContentTypeStore: { set: (input) => deps.mediaContentTypeStore.set(input) },
+    egressRefusalMessage: ({ error }) => egressRefusalMessage({ error }, { log: optional.logEgressRefusal }),
+    toMediaResponse: async ({ media, contentType, byteSize }) => {
+      const publicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null;
+      return toAdminMediaResponse({ media, contentType, publicUrl, byteSize });
+    },
+  } }, { authorization: "direct", failure: mediaFailure("routes/media/import-url") });
+}
+
+/** The caller-safe sentence for an egress refusal, or `undefined` for any other failure.
+ *  @complexity O(1). */
+function egressRefusalMessage({ error }: { error: unknown }, optional: { log?: ((line: string) => void) | undefined } = {}): string | undefined {
+  if (!(error instanceof EgressRefusedError)) return undefined;
+  // Full DNS diagnosis is operator-log-only, matching the assistant tool's refusal contract.
+  (optional.log ?? console.warn)(`[media-import] admin URL import refused: ${error.message}`);
+  return error.callerSafeMessage;
+}
 
 /** The admin response for the re-read asset: recorded type, public URL and stored size, read in parallel.
  *  @complexity O(1) — three independent single-asset lookups. */
