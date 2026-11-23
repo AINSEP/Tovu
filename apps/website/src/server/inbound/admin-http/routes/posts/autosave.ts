@@ -121,8 +121,6 @@ function parseAutosaveBody({ rawBody }: { rawBody: unknown }, _optional = {}): P
   return { ...common, ...content, ...byline };
 }
 
-type AutosaveRoute = Parameters<ContentRouteRegistrar>[0];
-
 const AUTOSAVE_PATH = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
 
 /**
@@ -142,19 +140,14 @@ const AUTOSAVE_PATH = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autos
  * treating its own in-memory edit as current" — the hook never did that, and by design still does
  * not; that would discard the very work the refusal is protecting.)
  *
- * GET on the same path reads the parked snapshot (`{ autosave: PostAutosaveSnapshot | null }`) —
- * the recovery-banner check on editor mount. DELETE clears it unconditionally (`{ ok: true }`) —
- * called after a real Save/Publish succeeds, and on an explicit operator Discard.
+ * K1 (rt-l1-content): GET and DELETE on the same path are Jini specs
+ * (`@jini-ai/cms/admin-http/routes/posts/autosave`), mounted after this one by
+ * `registerAdminPostAutosaveRoute` in `runtime/composition/modules/posts.ts`. This PUT stays
+ * hand-written: its 1 MiB cap answers this host's own 413 copy ("Content too large to save."),
+ * which the spec-level `maxBodyBytes` refusal does not reproduce.
  */
-export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (route, _options = {}) => {
-  registerAutosaveWrite(route);
-  registerAutosaveReadAndClear(route);
-};
-
-function registerAutosaveWrite({ app, deps }: AutosaveRoute, _options = {}): void {
-  const path = AUTOSAVE_PATH;
-
-  app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
+export const registerAdminPostAutosaveWriteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  app.put(AUTOSAVE_PATH, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
@@ -185,34 +178,4 @@ function registerAutosaveWrite({ app, deps }: AutosaveRoute, _options = {}): voi
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." });
     }
   } }));
-}
-
-function registerAutosaveReadAndClear({ app, deps }: AutosaveRoute, _options = {}): void {
-  const path = AUTOSAVE_PATH;
-
-  app.get(path, asyncRoute({ handler: async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-    if (!(await allowedToWrite(deps, res))) return;
-
-    try {
-      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
-      const autosave = await deps.postRepo.readAutosave({ workspaceId: deps.workspaceId, id: postId });
-      res.json({ autosave });
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/read", code: "INTERNAL_ERROR", message: "The post draft could not be loaded." });
-    }
-  } }));
-
-  app.delete(path, asyncRoute({ handler: async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-    if (!(await allowedToWrite(deps, res))) return;
-
-    try {
-      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
-      await deps.postRepo.clearAutosave({ workspaceId: deps.workspaceId, id: postId });
-      res.json({ ok: true });
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/clear", code: "INTERNAL_ERROR", message: "The post draft could not be cleared." });
-    }
-  } }));
-}
+};

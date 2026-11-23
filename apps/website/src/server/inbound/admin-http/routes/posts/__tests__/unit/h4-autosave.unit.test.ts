@@ -5,7 +5,7 @@ import { createCapturingResponse } from '#src/server/__tests__/helpers/http-test
 import { lastRouteHandler } from '#src/server/__tests__/helpers/last-route-handler';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { ContentRouteDeps } from '../../../content/deps.js';
-import { registerAdminPostAutosaveRoute } from '../../autosave.js';
+import { registerAdminPostAutosaveRoute } from '#src/server/runtime/composition/modules/posts';
 
 const PATH = '/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave';
 const VALID = { bodyFormat: 'html', title: 'Unsaved title', slug: 'draft', bodyHtml: '<p>Draft</p>', baseVersion: 3 };
