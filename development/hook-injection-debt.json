@@ -127,18 +127,6 @@
         "apps/admin/src/features/media/Media.tsx"
       ]
     },
-    "ExternalMcpSharedChoice::useLocal": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
-      ]
-    },
-    "ExternalMcpSharedChoice::useSaved": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
-      ]
-    },
     "ExternalProvidersPanel::useAdminThemeBoundary": {
       "count": 1,
       "files": [
@@ -233,12 +221,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/media/RemoteImageImport.tsx"
-      ]
-    },
-    "SharedChoices::useSaved": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
       ]
     },
     "VisitorCredentialForm::useStoredCredentialHint": {

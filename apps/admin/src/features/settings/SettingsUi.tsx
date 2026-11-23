@@ -130,7 +130,7 @@ import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { Workspace } from "../workspace";
 import { t as tWorkspace } from "../workspace/workspace-i18n";
 import { describeSaveStatus, resolveByokConfig } from "./rules";
-import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
+import { useWiredSettingsLocaleSync } from "../../integrations/jini-admin/settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scroll.hooks";
 
@@ -140,9 +140,9 @@ import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { aiAgentPanelDictionaries } from "./settings-execution-i18n";
 import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
-import { t as tInterfaceCopy } from "./settings-interface-i18n";
+import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
 import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
-import { memoryPanelDictionaries } from "./settings-memory-i18n";
+import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-memory-i18n";
 import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 
 import { type Translate } from '@jini-ai/core/text';

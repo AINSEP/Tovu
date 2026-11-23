@@ -1,4 +1,4 @@
-import { createUserInterfaceSettingsPanelTranslator } from "./UserInterfaceSettingsPanel.hooks";
+import { createUserInterfaceSettingsPanelTranslator } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "./user-interface-settings.css";
