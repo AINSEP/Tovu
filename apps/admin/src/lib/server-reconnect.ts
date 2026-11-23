@@ -6,7 +6,7 @@ import { orFallback } from "@jini-ai/core/errors/idioms";
  * switched site — `request()` (`api.ts`) waits here for `/readyz` to answer again and retries,
  * instead of failing the screen (the owner's login failed with ECONNREFUSED through the Vite proxy
  * exactly this way). The status drives the "Server restarting…" banner
- * (`components/ServerRestartingBanner`).
+ * (`@jini-ai/admin`'s `ServerRestartingBanner`, bound in `lib/shell-notices-wiring.tsx`).
  *
  * Which failures may be retried is {@link shouldRetryAfterReconnect}'s call: reads always; a write
  * only when it provably never reached the server (the dev proxy marks a refused upstream with
