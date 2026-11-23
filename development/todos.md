@@ -113,16 +113,21 @@ Found on Sienna's site (zoran-new): the in-app assistant could not add "GRV Reca
 
 Fix:
 - [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports.
+  - **Lane A 11-23:** Jini media accepts qt/M4V brands (9aea2fc70); admin picker accepts .mov/.m4v + Chrome note (cf77668a74). Left after combine-15: `media-import/fetch-image.ts` and `site-backup/archive-media.ts` allowlists.
 - **Owner 2026-10-31:** accept the .MOV as-is when it is ≤ 50 MB; transcode only when it is over 50 MB (no automatic conversion of small files). Small kept files whose codec most browsers can't play (e.g. HEVC) show a "may not play in Chrome" note on the media card with a **Convert for web** button (owner chose option A).
 - [ ] Convert to a web-safe MP4 (H.264/AAC, faststart) on import, because HEVC .mov doesn't play in most browsers.
+  - **Lane A 11-23:** Jini `MediaTranscoderPort` + ffmpeg adapter + `shouldTranscodeOnImport` (>50 MiB) (e2fbab44b). Tovu import wiring after combine-15.
   - Keep the original.
   - Resize/bitrate-cap large videos.
 - [ ] Do the conversion through a media tool the assistant can call. It runs ffmpeg server-side or via a provider plugin; never vendor code in core.
+  - **Lane A 11-23:** Jini `media_convert_video` (approval-gated, only when a transcoder is injected) (e2fbab44b). Tovu registration after combine-15.
 - [ ] Settle one consistent size limit across Library, Media, chat attachments and assistant imports, and say the limit in the error message.
+  - **Lane A 11-23:** admin Library/Media on one 50 MB limit with the plain sentence (cf77668a74). Left after combine-15: Library hook wording, composer wording, server upload message.
 
 ## ⭐ NEEDED (owner 2026-10-29 ~5:45 PM): update a deployed site to a new Tovu version from the production site itself
 Today a site can (re)deploy through its hosting platform with the `deployment_ops` tools (`apps/website/src/features/deployments/deploy-ops/agent-tools.ts`), using a saved credential and the repo's deploy workflow. But nothing lets the owner open the PRODUCTION admin and say "update this site to the latest Tovu".
 - [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release.
+  - **Lane A 11-23:** Jini contract `SiteUpdatePort`, `checkForUpdateFromFeed`, approval-gated `runSiteUpdate` (backup → readiness → apply → verify → rollback) (437e9a0fe). Tovu notice/adapters after combine-15 + owner questions (see `cloud-results/todos-a.md`).
 - [ ] One-click (or chat) update.
   - It bumps the site's Tovu version and triggers the platform deploy.
   - It waits for the deploy, then checks the live site.
@@ -2346,6 +2351,7 @@ Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu
 
 ## LATER (owner 10-31): media descriptions for semantic search
 - [ ] Whenever an agent creates, imports or sees an image, it also writes a plain-language **description** of what the image shows, so search (incl. semantic search) can find it. Media has `alt` + `caption` today but no description field — add one (ADR-066 TS migration) or decide caption is enough; agent tools (media import/generate/view_image) fill it; search indexes it; owner can edit it in Media.
+  - **Lane A 11-23:** Jini half done (3ded2a6bc: field, cap, tools, search). Tovu column + `media-repo.ts` mapping + update route after combine-15.
 - [ ] Videos: same idea, harder — describe from stills/key frames (and transcript if any). Later.
 
 - 11-01 owner: REDO the demo reel later — the reel itself is good, but the sites/website UI shown in it looks awful; re-record once the site UI is better. (Blur of client names: owner says not needed.)
