@@ -1,0 +1,1 @@
+check:complexity — ok: 0 entries (0 cyclomatic, 0 cognitive).

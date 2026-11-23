@@ -1,0 +1,62 @@
+(node:7298) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7298) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ runServeCommand's body actually CALLS pinServedSiteDirIntoEnv, not just imports/defines it (1.185173ms)
+✔ sanity: the exact call-site text is not also the primitive's own declaration line (a regex that matched both would prove nothing) (0.412463ms)
+✔ runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST }) (0.148289ms)
+✖ runServeCommand's body passes the resolved host into app.listen(port, host) (3.136185ms)
+✔ program.ts registers --host and threads it into runServeCommand's input (0.184853ms)
+✖ the BR-07 shutdown uses the shared bounded store close with the composition and boot work (3.338013ms)
+tovu serve: warning: listening on 0.0.0.0; this site is reachable from other machines on your network (--host/TOVU_HOST)
+tovu serve: warning: listening on all interfaces; this site is reachable from other machines on your network (--host/TOVU_HOST)
+✔ runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting (9687.967685ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10299.323914
+
+✖ failing tests:
+
+test at apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:3240
+✖ runServeCommand's body passes the resolved host into app.listen(port, host) (3.136185ms)
+  AssertionError [ERR_ASSERTION]: runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts to Node's own all-interfaces default, undoing the loopback default.
+      at TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:113:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:4317
+✖ the BR-07 shutdown uses the shared bounded store close with the composition and boot work (3.338013ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(body.includes("closeStoreOnShutdown({"))
+  
+      at TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:136:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+exit=1
