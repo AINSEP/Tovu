@@ -1,4 +1,4 @@
-import { translationEntry } from "../../lib/translation-entry";
+import { translationEntry } from "@jini-ai/admin/shell/lib/translation-entry";
 /**
  * @file Copy for the Sites screen's Export Site and Import Site tabs (owner, 2026-10-18), every
  * locale `sites-i18n.ts` carries. Merged into `SITES_DICT` there, the same way `SITE_CARD_DICT` is.

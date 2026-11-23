@@ -18,7 +18,7 @@ import { widgetsHostPorts, type WidgetsHostPorts } from './widgets-ports';
 import { createHostWidgetsModule } from './widgets-module.hooks';
 import { formsHostPorts, formsSessionGrants, type FormsHostPorts } from './forms-ports';
 import { createHostFormsModule } from './forms-module.hooks';
-import { navigate } from '../../lib/router';
+import { navigate } from '@jini-ai/admin/shell/lib/router';
 import type { PanelRouteContext } from '../../panel-contracts';
 import { AdminModulesContext, type Runtime } from './module-context';
 export { AdminModulesContext, useHostMediaPicker } from './module-context';

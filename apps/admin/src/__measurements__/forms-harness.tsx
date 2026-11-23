@@ -2,7 +2,7 @@
 import { useFormEditor, useFormsList } from '@jini-ai/admin/forms/react';
 import { useCallback } from 'react';
 import { useWiredAdminLocale } from '../hooks/use-admin-locale.hooks';
-import { navigate } from '../lib/router';
+import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { createFormsTranslator, formsHostPorts } from '../integrations/jini-admin/forms-ports';
 
 export function useWiredFormsList() {

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { themesApi } from "@/features/themes/api/themes-api";
 import { ApiError } from "@/lib/admin-http/request";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
@@ -3698,11 +3698,11 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
 
     state.live = "body{color:red}";
-    act(() => publishContentRefresh(["posts"]));
+    act(() => publishContentRefresh({ resources: ["posts"] }));
     await settle();
     expect(result.current.files[0]?.modified).toBe(false);
 
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(result.current.files[0]?.modified).toBe(true));
   });
 
@@ -4321,7 +4321,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("Home"));
     await port.copyThemeFile({ themeId: "basic", path: ABOUT });
     await port.deleteThemeFile({ themeId: "basic", path: STYLE });
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(result.current.files.map(entry => entry.path)).toEqual([INDEX, ABOUT, "pages/about-1.html"]));
     expect(result.current.selected).toBe(INDEX);
     expect(result.current.source).toBe("Home");
@@ -4344,7 +4344,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("body{}"));
     await port.deleteThemeFile({ themeId: "basic", path: STYLE });
     const reads = vi.spyOn(port, "getThemeFile");
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
     expect(result.current.selected).toBe(INDEX);
     expect(result.current.error).toBeNull();
@@ -4359,7 +4359,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("body{}"));
     act(() => result.current.setSource("body{color:red}"));
     await port.deleteThemeFile({ themeId: "basic", path: STYLE });
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(result.current.files.some(entry => entry.path === STYLE)).toBe(false));
     expect(result.current.source).toBe("body{color:red}");
     expect(result.current.selected).toBe(STYLE);
@@ -4382,7 +4382,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
       held = true;
       return new Promise(resolve => { releaseOld = () => resolve(snapshot); });
     };
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(releaseOld).toBeDefined());
     await act(async () => { await result.current.copyFile(ABOUT); });
     expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true);
@@ -4398,7 +4398,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     for (const path of [INDEX, ABOUT, STYLE]) await port.deleteThemeFile({ themeId: "basic", path: path });
     const searchBefore = window.location.search;
 
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
 
     await waitFor(() => expect(result.current.files).toEqual([]));
     expect(result.current.selected).toBeNull();
@@ -4416,7 +4416,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     const reads = vi.spyOn(port, "getThemeFile");
     await port.copyThemeFile({ themeId: "basic", path: ABOUT });
 
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
 
     await waitFor(() => expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true));
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -4434,7 +4434,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
       ? new Promise((_resolve, reject) => { failRead = () => reject(new Error("read timed out")); })
       : serverRead({ themeId, path });
 
-    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [THEME_FILES_RESOURCE] }));
     await waitFor(() => expect(failRead).toBeDefined());
     act(() => result.current.select(ABOUT));
     await waitFor(() => expect(result.current.source).toBe("About"));

@@ -2,7 +2,7 @@ import { readableTextColor } from "@jini-ai/ui";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useEffect, useRef } from "react";
 import { APPEARANCE_NAMESPACE, adminThemeAccent, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
-import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { useAdminThemeState } from "../admin-themes/use-admin-theme.hooks";
 import { advanceAppearancePreview, useAdminAppearanceSnapshot } from "./use-admin-appearance-snapshot.hooks";
 

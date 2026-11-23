@@ -6,7 +6,7 @@ import { createMemoryRedirectsApi } from '@jini-ai/admin/redirects/adapters/memo
 import { Redirects } from '../../../features/redirects';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { redirectsEvents } from '../redirects-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
@@ -122,12 +122,12 @@ describe('Jini redirects host switch', () => {
     const view = render(node());
     await screen.findByRole('heading', { name: 'Redirects' });
     expect(list).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['media']));
+    act(() => publishContentRefresh({ resources: ['media'] }));
     expect(list).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['redirects']));
+    act(() => publishContentRefresh({ resources: ['redirects'] }));
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['redirects']));
+    act(() => publishContentRefresh({ resources: ['redirects'] }));
     expect(list).toHaveBeenCalledTimes(2);
   });
 });

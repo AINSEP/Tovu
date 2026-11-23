@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
@@ -20,13 +20,13 @@ describe("plugin lists after assistant tool writes", () => {
     const site = renderHook(() => usePlugins({ port: sitePort, locale: "en", t }));
     const agent = renderHook(() => useAgentPlugins({ port: agentPort, locale: "en", t }));
     await waitFor(() => { expect(site.result.current.plugins).toEqual([]); expect(agent.result.current.agentPlugins).toEqual([]); });
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     expect(siteRead).toHaveBeenCalledTimes(1); expect(agentRead).toHaveBeenCalledTimes(1);
     siteRead.mockResolvedValue({ plugins: [siteRow] }); agentRead.mockResolvedValue({ agentPlugins: [agentRow] });
     act(() => publishContentRefresh()); // The assistant publisher sends the unknown scope.
     await waitFor(() => { expect(site.result.current.plugins).toEqual([siteRow]); expect(agent.result.current.agentPlugins).toEqual([agentRow]); });
     siteRead.mockResolvedValue({ plugins: [] }); agentRead.mockResolvedValue({ agentPlugins: [] });
-    act(() => publishContentRefresh(["plugins", "agent-plugins"]));
+    act(() => publishContentRefresh({ resources: ["plugins", "agent-plugins"] }));
     await waitFor(() => { expect(site.result.current.plugins).toEqual([]); expect(agent.result.current.agentPlugins).toEqual([]); });
     site.unmount(); agent.unmount();
     act(() => publishContentRefresh());

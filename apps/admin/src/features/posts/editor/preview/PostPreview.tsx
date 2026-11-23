@@ -1,4 +1,4 @@
-import { usePreviewPaneWidth } from "../../../../components/DevicePreview/DevicePreview.hooks";
+import { usePreviewPaneWidth } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../../../components/DevicePreview/DevicePreviewFrame";
 import { PostPreviewFrame } from "./PostPreviewFrame";
 import { resolvePostPreviewBranches } from "../../rules";

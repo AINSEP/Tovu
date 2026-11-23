@@ -7,7 +7,7 @@ import { useId, type ReactNode } from "react";
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
-import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
+import { CODE_PREVIEW_MODAL_ICONS } from "@jini-ai/admin/shell/components/CodeView/preview-modal-icons";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

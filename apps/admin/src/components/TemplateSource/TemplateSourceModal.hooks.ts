@@ -1,4 +1,4 @@
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { templateEditUrl } from "./use-template-source.hooks";
 
 export function createGoToTemplateInEditor({ themeId, templateFilename, confirmLeave, onClose }: {

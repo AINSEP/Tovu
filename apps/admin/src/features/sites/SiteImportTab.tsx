@@ -13,7 +13,7 @@ import { useDesktopImport, type DesktopImportController } from "./hooks/use-desk
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView, liveImportMode } from "./site-transfer-rules";
 
 import { formatTimestamp, interpolate, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The "Import Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Import tab from 2026-10-25). Two ways in, under one ⓘ:

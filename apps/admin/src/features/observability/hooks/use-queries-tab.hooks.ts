@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { authApi } from "@/features/auth/api/auth-api";
-import { AdminFetchQueryAdapterContext } from "@/lib/fetch-query/adapter-context";
+import { AdminFetchQueryAdapterContext } from "@jini-ai/admin/shell/lib/fetch-query/adapter-context";
 
 export interface QueriesIdentityPort {
   me(): Promise<{ effectivePermissions?: readonly string[] }>;

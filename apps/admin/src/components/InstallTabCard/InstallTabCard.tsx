@@ -1,6 +1,6 @@
 import type { ChangeEvent, FormEvent, ReactNode, RefObject } from "react";
 
-import type { ZipDropController } from "./use-zip-drop.hooks";
+import type { ZipDropController } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
 import "./install-tab-card.css";
 
 /**

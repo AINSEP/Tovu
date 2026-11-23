@@ -9,7 +9,7 @@ import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hook
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import type { ExecutionConfigWrite } from "../AssistantDock/execution-config-write";
 import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "../../lib/execution-settings";
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { SAVE_DEBOUNCE_MS, useSettingsSlice } from "../../hooks/use-settings-slice.hooks";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 

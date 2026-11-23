@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { navigate } from "../../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ADDONS_PANEL_PATHS } from "../../../lib/addons-routes";
 
 /**

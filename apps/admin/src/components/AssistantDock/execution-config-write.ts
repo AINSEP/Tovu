@@ -3,7 +3,7 @@ import type { ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, type ExecutionConfig } from "@jini-ai/ui";
 
 import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
-import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 import { isAbortError } from '@jini-ai/core/text';
 /**

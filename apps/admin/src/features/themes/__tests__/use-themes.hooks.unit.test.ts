@@ -8,7 +8,7 @@ import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { publishThemePreviewRefresh } from "../theme-preview-refresh";
-import { publishContentRefresh } from "@/lib/content-refresh-bus";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
  * @file `useThemes` driven against the injected `ThemesPort`, no `fetch` stub and no `api` spy.

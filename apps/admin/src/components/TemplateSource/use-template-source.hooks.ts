@@ -5,7 +5,7 @@ import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { defaultTemplateSourcePort } from "./template-source-dependencies.hooks";
-import type { TemplateSourcePort } from "./template-source-port.hooks";
+import type { TemplateSourcePort } from "@jini-ai/admin/shell/components/TemplateSource/template-source-port.hooks";
 
 /**
  * @file `TemplateSourceModal`'s template-source fetch, split out per the `use-<thing>.hooks.ts`

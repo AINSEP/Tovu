@@ -1,10 +1,15 @@
 import { expect, test, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
-import { browserQueuedStartPorts, startQueuedDaemonRun } from "../queued-daemon-start";
-import { withAcceptanceCancellation } from "../acceptance-cancellation";
-import { subscriptionEnded, type TrackedRunHandlers } from "../stream-activity";
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
+import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+
+/** The host bindings the shell takes by injection (rv-g FIX 3): the real guarded read, and a quiet logger. */
+const readRefusal = ({ response }: { response: Response }) => orFallback({ work: () => response.clone().json(), fallback: null, step: "Read queued run refusal" });
+const logger = { error: vi.fn() };
+import { subscriptionEnded, type TrackedRunHandlers } from "@jini-ai/admin/shell/lib/stream-activity";
 
 function harness() {
   let saved: ChatMessage | null = null;
@@ -75,7 +80,7 @@ test("a refused concurrent turn waits client-side with the same accepted message
   let tries = 0;
   const response = await startQueuedDaemonRun({ body, ports: {
     post: async (required) => { calls.push(required); return ++tries === 1 ? new Response(JSON.stringify({ code: "CHAT_RUN_BUSY" }), { status: 409 }) : new Response('{"run":{"id":"next"}}', { status: 201 }); },
-    wait: async () => { calls.push("wait"); },
+    wait: async () => { calls.push("wait"); }, readRefusal,
   } }, {});
   expect(response.status).toBe(201); expect(calls).toEqual([{ body }, "wait", { body }]);
 });
@@ -84,7 +89,7 @@ test("user Stop during client backoff prevents dispatch and needs no resend", as
   const abort = new AbortController();
   let posts = 0;
   await expect(startQueuedDaemonRun({ body: {}, signal: abort.signal, ports: {
-    post: async () => { posts++; return new Response('{"code":"CHAT_RUN_BUSY"}', { status: 409 }); }, wait: async () => { abort.abort(); },
+    post: async () => { posts++; return new Response('{"code":"CHAT_RUN_BUSY"}', { status: 409 }); }, wait: async () => { abort.abort(); }, readRefusal,
   } }, {})).rejects.toThrow("The queued turn was stopped.");
   expect(posts).toBe(1);
 });
@@ -94,7 +99,7 @@ test("Stop before a start response persists intent by message identity, includin
   const actions: string[] = [];
   await expect(withAcceptanceCancellation({ signal: abort.signal,
     start: async () => { actions.push("accepting"); abort.abort(); throw new Error("response lost"); },
-    cancel: async () => { actions.push("persist-stop"); },
+    cancel: async () => { actions.push("persist-stop"); }, logger,
   }, {})).rejects.toThrow("response lost");
   expect(actions).toEqual(["accepting", "persist-stop", "persist-stop"]);
 });
@@ -104,7 +109,7 @@ test("a cancel that rejects while the stop beats acceptance is swallowed, and th
   const cancels: string[] = [];
   const result = await withAcceptanceCancellation({ signal: abort.signal,
     start: async () => { abort.abort(); return "accepted"; },
-    cancel: async () => { cancels.push("persist-stop"); throw new Error("daemon unreachable"); },
+    cancel: async () => { cancels.push("persist-stop"); throw new Error("daemon unreachable"); }, logger,
   }, {});
   await Promise.resolve();
   expect(result).toBe("accepted"); expect(cancels).toEqual(["persist-stop", "persist-stop"]);
@@ -113,10 +118,10 @@ test("a cancel that rejects while the stop beats acceptance is swallowed, and th
 test("an accepted turn that is never stopped never asks the daemon to cancel it", async () => {
   const abort = new AbortController();
   let cancels = 0;
-  const result = await withAcceptanceCancellation({ signal: abort.signal, start: async () => 7, cancel: async () => { cancels++; } }, {});
+  const result = await withAcceptanceCancellation({ signal: abort.signal, start: async () => 7, cancel: async () => { cancels++; }, logger }, {});
   abort.abort();
   expect(result).toBe(7); expect(cancels).toBe(0);
-  expect(await withAcceptanceCancellation({ start: async () => "no signal", cancel: async () => { cancels++; } }, {})).toBe("no signal");
+  expect(await withAcceptanceCancellation({ start: async () => "no signal", cancel: async () => { cancels++; }, logger }, {})).toBe("no signal");
   expect(cancels).toBe(0);
 });
 
@@ -124,7 +129,7 @@ test("a 409 that is not CHAT_RUN_BUSY, or whose body is not JSON, is returned in
   for (const body of ['{"code":"VERSION_CONFLICT"}', "not json"]) {
     let waits = 0;
     const response = await startQueuedDaemonRun({ body: {}, ports: {
-      post: async () => new Response(body, { status: 409 }), wait: async () => { waits++; },
+      post: async () => new Response(body, { status: 409 }), wait: async () => { waits++; }, readRefusal,
     } }, {});
     expect(response.status).toBe(409); expect(await response.text()).toBe(body); expect(waits).toBe(0);
   }
@@ -134,14 +139,14 @@ test("a turn already stopped before dispatch never posts", async () => {
   const abort = new AbortController(); abort.abort();
   let posts = 0;
   await expect(startQueuedDaemonRun({ body: {}, signal: abort.signal, ports: {
-    post: async () => { posts++; return new Response("{}", { status: 201 }); }, wait: async () => {},
+    post: async () => { posts++; return new Response("{}", { status: 201 }); }, wait: async () => {}, readRefusal,
   } }, {})).rejects.toMatchObject({ name: "AbortError" });
   expect(posts).toBe(0);
 });
 
 test("browser queued-start ports POST the same-origin JSON body to /api/runs", async () => {
   const requests: [string, RequestInit][] = [];
-  const ports = browserQueuedStartPorts({}, { request: async (url, init) => { requests.push([String(url), init!]); return new Response("{}", { status: 201 }); } });
+  const ports = browserQueuedStartPorts({ orFallback }, { request: async (url, init) => { requests.push([String(url), init!]); return new Response("{}", { status: 201 }); } });
   const response = await ports.post({ body: { assistantMessageId: "answer" } }, {});
   expect(response.status).toBe(201);
   expect(requests).toEqual([["/api/runs", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: '{"assistantMessageId":"answer"}' }]]);
@@ -149,7 +154,7 @@ test("browser queued-start ports POST the same-origin JSON body to /api/runs", a
 
 test("browser queued-start backoff waits one second, and a Stop during it cancels the timer and rejects", async () => {
   const timers: { work: () => void; delayMs: number; cancelled: boolean }[] = [];
-  const ports = browserQueuedStartPorts({}, { schedule: ({ work, delayMs }) => {
+  const ports = browserQueuedStartPorts({ orFallback }, { schedule: ({ work, delayMs }) => {
     const timer = { work, delayMs, cancelled: false }; timers.push(timer); return () => { timer.cancelled = true; };
   } });
   const abort = new AbortController();
@@ -174,11 +179,11 @@ test("default browser queued-start ports use the real one-second timer, cleared 
   vi.useFakeTimers();
   try {
     let resolved = false;
-    const waited = browserQueuedStartPorts().wait({}, {}).then(() => { resolved = true; });
+    const waited = browserQueuedStartPorts({ orFallback }).wait({}, {}).then(() => { resolved = true; });
     await vi.advanceTimersByTimeAsync(999); expect(resolved).toBe(false);
     await vi.advanceTimersByTimeAsync(1); await waited; expect(resolved).toBe(true);
     const abort = new AbortController();
-    const stopped = browserQueuedStartPorts().wait({ signal: abort.signal }, {});
+    const stopped = browserQueuedStartPorts({ orFallback }).wait({ signal: abort.signal }, {});
     expect(vi.getTimerCount()).toBe(1);
     abort.abort();
     await expect(stopped).rejects.toMatchObject({ name: "AbortError" });
