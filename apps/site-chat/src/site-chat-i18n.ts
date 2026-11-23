@@ -1,3 +1,5 @@
+import { createDictionaryTranslator, interpolate } from '@jini-ai/core/text';
+import { resolveSystemLocale } from '@jini-ai/ui/i18n/locale';
 // The same locale set as the admin, owned here so the public bundle never imports admin code.
 const keys = ['Ask this site', 'Chat with this site', "Ask about this site's posts and pages…",
   'Ask about posts, pages or docs on this site.', 'What can I find on this site?', 'Show me the latest posts',
@@ -28,19 +30,21 @@ const rows: Record<string, readonly string[]> = {
 
 export const SITE_CHAT_DICTIONARY = Object.fromEntries(Object.entries(rows).map(([locale, values]) =>
   [locale, Object.fromEntries(keys.map((key, index) => [key, values[index]!]))]));
-/** Bind public copy to the page language with an English fallback. O(1) dictionary lookup. */
+const translate = createDictionaryTranslator({ featureDictionary: SITE_CHAT_DICTIONARY });
+const SUPPORTED_LOCALES = Object.keys(rows);
+
+/** Bind public copy to the page language with an English fallback. O(locales) match, O(1) lookup. */
 export function createSiteChatI18n({ document }: { document: Document }, _options = {}) {
   const language = document.documentElement.lang || 'en';
-  const locale = Object.keys(rows).find(key => key.toLowerCase() === language.toLowerCase()) ?? language.split('-')[0]!;
-  // The panel-kit translator's barrel imports React, which this shared vanilla host cannot load.
-  const dictionary = SITE_CHAT_DICTIONARY[locale] ?? {};
+  // The React-free locale subpath: the `@jini-ai/ui` root barrel imports React, which this shared vanilla host cannot load.
+  const locale = resolveSystemLocale({ languages: [language], supportedLocales: SUPPORTED_LOCALES }) ?? language.split('-')[0]!;
   // Jini's chat calls t(key, vars) for timed/named lines ("Thinking… {time}"); fill them in, keeping
   // an unknown {name} as-is the way Jini's own passthrough translator does.
   return {
     locale,
     t: (key: string, vars?: Record<string, string | number>): string => {
-      const template = Object.hasOwn(dictionary, key) ? dictionary[key]! : key;
-      return vars ? template.replace(/\{(\w+)\}/g, (match, name: string) => vars[name] === undefined ? match : String(vars[name])) : template;
+      const template = translate({ locale, key });
+      return vars ? interpolate({ template, vars }) : template;
     },
   };
 }
