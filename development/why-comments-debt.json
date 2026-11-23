@@ -3616,6 +3616,66 @@
     {
       "id": "f35d66f3ea31",
       "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyState doc (w3-fnd, rv1123e shared-a FIX 2): all five per-state explanations carried, host file names reworded neutral per N2."
+    },
+    {
+      "id": "3ec770e8db4f",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "7fa4856a75ca",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "8f929ca04f57",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "e9cdafa80c90",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "f7e07caf5344",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "fc2296b4f8a8",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts with the SitesPort site DTOs (w3-fnd K4-seam-17); product env names and host paths reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "fe2539e801df",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/hooks-sites-port-hooks.ts SitesPort @file rationale (w3-fnd K4-seam-17); the host port file is deleted (types-only), reworded per N2."
+    },
+    {
+      "id": "48a23f6e39a0",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/__tests__/stored-credential-endpoint.unit.test.ts @file header (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "4f2ee79864eb",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "68d60bb545f4",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "7f3dbb3a1c26",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "9ca288b68b2f",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "f264b12eee50",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/stored-credential-endpoint.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "ad632c7d77c1",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/visitor-tools.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
+    },
+    {
+      "id": "d5ca51656775",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/version-conflict.ts (w3-fnd A-K2-shell-lib-6, K5 request injection); host paths/product names reworded to 'the host' per N1/N2, why kept."
     }
   ]
 }
