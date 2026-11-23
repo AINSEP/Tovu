@@ -3092,6 +3092,10 @@
     {
       "id": "17085e5685cf",
       "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/access-shared.ts (accessPermissionUnknown), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts:10-12."
+    },
+    {
+      "id": "f7537a5b2f57",
+      "reason": "rt-i1 (RT-K1-adm-users-1): moved with the code to Jini packages/user-management/src/admin-http/http/users.ts (file header), host path reworded neutral; the Tovu file is deleted."
     }
   ]
 }
