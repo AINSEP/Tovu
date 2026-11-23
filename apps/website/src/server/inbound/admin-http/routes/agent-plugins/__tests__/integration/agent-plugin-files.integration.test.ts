@@ -21,7 +21,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginA
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
-import { registerAgentPluginFilesRoute } from "../../files.js";
+import { registerAgentPluginFilesRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
 
 /**
  * @file `AGENT_PLUGIN_FILES` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files`

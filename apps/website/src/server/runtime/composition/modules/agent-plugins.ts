@@ -1,12 +1,12 @@
 import { registerPluginExportFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files";
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
-import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
+import { registerAgentPluginFilesRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
-import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/list";
-import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
+import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";
+import { registerAgentPluginSetEnabledRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
-import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { registerApiConnectionSignInRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";

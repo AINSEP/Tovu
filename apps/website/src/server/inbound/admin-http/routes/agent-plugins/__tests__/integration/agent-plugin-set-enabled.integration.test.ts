@@ -33,7 +33,7 @@ import {
   type AgentPluginArchiveReaderPort,
 } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
-import { registerAgentPluginSetEnabledRoute } from "../../set-enabled.js";
+import { registerAgentPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
 
 /**
