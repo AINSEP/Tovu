@@ -25,7 +25,10 @@ import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from 
 import { registerMemberOidcCallbackRoute } from "#src/server/inbound/public-http/routes/members/oidc-callback";
 import { registerMemberOidcVerifyEmailRoute } from "#src/server/inbound/public-http/routes/members/oidc-verify-email";
 import { registerMemberUnlinkIdentityRoute } from "#src/server/inbound/public-http/routes/members/unlink-identity";
-import { MEMBER_OIDC_PATH, memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { memberOidcHeaders, type MemberOidcRouteDeps } from "#src/server/inbound/public-http/routes/members/oidc-deps";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 import type { Express } from "express";
 
 /** Composition owns the only identity adapter and transaction binding. An in-memory-only boot
@@ -45,7 +48,9 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
       httpPorts: createTovuOAuthHttpPorts({ http: admin.mediaGenerationHttpClient }),
       sealer: admin.siteAssistantSecretSealer, keyring: admin.siteAssistantSecretKeyring, origin: members.origin,
       resolveProvider: async ({ workspaceId, providerId }) => (await listProviders({ workspaceId })).find(provider => provider.id === providerId) ?? null,
-      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }) },
+      resolveClient: input => resolveLoginCredentials({ deps: credentials, ...input }),
+      appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+      beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
     links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo({ kernel }),
       transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key) } };
 }

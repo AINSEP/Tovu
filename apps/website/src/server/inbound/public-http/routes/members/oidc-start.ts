@@ -1,10 +1,11 @@
 import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
-import { beginOidcLogin, memberLoginCallbackUrl } from "#src/features/member-login/index";
+import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
-import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
+import { memberOidcContext, memberOidcCookie, memberOidcHeaders,
   redirectMemberOidcError, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Safe provider metadata only; configuration/pins and credentials never leave the server.

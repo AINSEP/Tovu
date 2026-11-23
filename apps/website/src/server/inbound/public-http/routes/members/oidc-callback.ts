@@ -4,17 +4,17 @@ import type { Express, Request, Response } from "express";
 import {
   completeOidcLogin,
   memberLoginCallbackUrl,
-  requestLoginEmailProof,
-  resolveFederatedIdentity,
   sealLoginEmailContinuation,
   type CompletedOidcLogin,
   type LoginContext,
-} from "#src/features/member-login/index";
+} from "@jini-ai/user-management/member-login/oidc-login";
+import { requestLoginEmailProof, resolveFederatedIdentity } from "#src/features/member-login/index";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberRequestLimits, checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
-import { MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
+import { MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
   memberOidcHeaders, memberOidcProviderId, MemberOidcCancelled, redirectMemberOidcError, uniqueMemberCookie,
   type MemberOidcRouteDeps } from "./oidc-deps.js";
 

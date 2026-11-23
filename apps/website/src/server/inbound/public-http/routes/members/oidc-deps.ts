@@ -2,7 +2,8 @@
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { parse } from "cookie";
-import { type OidcLoginDeps, type LoginContext, type MemberLoginLinkDeps } from "#src/features/member-login/index";
+import { type MemberLoginLinkDeps } from "#src/features/member-login/index";
+import type { OidcLoginDeps, LoginContext } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError, type LoginProvider, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
 import { resolveMemberSession, type MemberSessionRecord, type MemberRecord } from "#src/features/members/index";
 import type { MemberPublicRouteDeps } from "./deps.js";
@@ -16,7 +17,6 @@ export interface MemberOidcRouteDeps {
   listProviders: (input: { workspaceId: string }) => Promise<readonly LoginProvider[]>;
 }
 
-export { MEMBER_OIDC_PATH } from "#src/features/member-login/public-path";
 export const MEMBER_OIDC_BINDING_COOKIE = "__Secure-tovu_member_login_binding";
 export const MEMBER_OIDC_PROOF_COOKIE = "__Secure-tovu_member_login_proof";
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: "lax" as const };

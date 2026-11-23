@@ -1,13 +1,15 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express } from "express";
-import { openLoginEmailContinuation, resolveFederatedIdentity } from "#src/features/member-login/index";
+import { openLoginEmailContinuation } from "@jini-ai/user-management/member-login/oidc-login";
+import { resolveFederatedIdentity } from "#src/features/member-login/index";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberPost, checkMemberRequestLimits, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
 import { callbackAddress } from "./oidc-callback.js";
-import { MEMBER_OIDC_PATH, MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
+import { MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
   memberOidcHeaders, sendMemberOidcError, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Strict JSON DTO; callers cannot inject claims, intent or proof booleans. O(k) body keys. */
