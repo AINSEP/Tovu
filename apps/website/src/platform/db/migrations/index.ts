@@ -1,3 +1,4 @@
+import { changeSetsActorKind } from './0043_change_sets_actor_kind.js';
 import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
 import { ownerPasskeys } from './0041_owner_passkeys.js';
 import { ownerMfa } from './0040_owner_mfa.js';
@@ -120,6 +121,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]
   ownerMfa({ checksum: pinned('0040_owner_mfa') }),
   ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
   optimisticConcurrencyVersions({ checksum: pinned('0042_optimistic_concurrency_versions') }),
+  changeSetsActorKind({ checksum: pinned('0043_change_sets_actor_kind') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [

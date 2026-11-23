@@ -1404,6 +1404,8 @@ export const changeSets = sqliteTable(
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
     actorId: text("actor_id"),
+    /** `user` | `agent` | `system` (migration 0043); NULL on rows recorded before the column existed. */
+    actorKind: text("actor_kind"),
     status: text("status").notNull(),
     summary: text("summary").notNull(),
     idempotencyKey: text("idempotency_key"),

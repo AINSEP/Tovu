@@ -1,3 +1,4 @@
+import { CHANGE_SETS_ACTOR_KIND_SQL } from '../migrations/0043_change_sets_actor_kind.js';
 import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
 import { OWNER_MFA_SQL } from '../migrations/0040_owner_mfa.js';
@@ -269,6 +270,7 @@ function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonl
     "0042_optimistic_concurrency_versions": () => {
       for (const statement of OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS) client.exec(statement);
     },
+    "0043_change_sets_actor_kind": () => client.exec(CHANGE_SETS_ACTOR_KIND_SQL),
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

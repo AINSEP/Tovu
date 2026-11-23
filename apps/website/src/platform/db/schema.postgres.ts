@@ -126,6 +126,7 @@ export const changeSets = pgTable("change_sets", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   actorId: text("actor_id"),
+  actorKind: text("actor_kind"),
   status: text("status").notNull(),
   summary: text("summary").notNull(),
   idempotencyKey: text("idempotency_key"),
