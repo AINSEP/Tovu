@@ -21,6 +21,13 @@ function media(id: string, status: AdminMedia["status"] = "active"): AdminMedia 
   return { id, slug: `${id}-slug`, workspaceId: "workspace-local", title: id, alt: "", caption: "", credit: "", sha256: "h", status, createdAt: "2026-10-04", updatedAt: "2026-10-04", version: 1, width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", publicUrl: `/m/${id}` } as AdminMedia;
 }
 
+/** Since 04d030b5a9 the hook reports a structured `UserFacingError` (message, next action, step, redacted cause), not a flat string. */
+const CHOOSE_FAILED = {
+  message: "The media could not be chosen.",
+  action: "Cancel and choose the media again.",
+  step: "Choose media",
+} as const;
+
 function deferredPicker() {
   const calls: { required: unknown; signal?: AbortSignal; resolve: (value: { id: string } | null) => void }[] = [];
   const picker = {
@@ -94,7 +101,7 @@ describe("useJiniMediaPicker", () => {
     const onSelect = vi.fn();
     const { result } = renderHook(() => useJiniMediaPicker({ onSelect, onCancel: vi.fn() }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m3" }); });
-    await waitFor(() => expect(result.current.error).toBe("Unable to choose media. Please try again."));
+    await waitFor(() => expect(result.current.error).toMatchObject({ ...CHOOSE_FAILED, cause: expect.stringContaining("Selected media is unavailable") }));
     expect(onSelect).not.toHaveBeenCalled();
   });
 
@@ -103,7 +110,7 @@ describe("useJiniMediaPicker", () => {
     stubMediaList(new Error("boom"));
     const { result } = renderHook(() => useJiniMediaPicker({ onSelect: vi.fn(), onCancel: vi.fn() }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m1" }); });
-    await waitFor(() => expect(result.current.error).toBe("Unable to choose media. Please try again."));
+    await waitFor(() => expect(result.current.error).toMatchObject({ ...CHOOSE_FAILED, cause: expect.stringContaining("boom") }));
   });
 
   it("uses the latest callbacks without reopening the picker", async () => {
@@ -199,7 +206,8 @@ describe("MediaPickerDialog under the host picker", () => {
 
     await act(async () => { calls[0]!.resolve({ id: "gone" }); });
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Unable to choose media. Please try again.");
+    expect(alert).toHaveTextContent(CHOOSE_FAILED.message);
+    expect(alert).toHaveTextContent(CHOOSE_FAILED.action);
     fireEvent.click(within(alert).getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

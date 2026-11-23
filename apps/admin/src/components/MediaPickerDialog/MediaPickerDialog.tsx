@@ -152,5 +152,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
   const vm = useJiniMediaPickerHook(props);
   const locale = useAdminLocaleHook();
-  return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
+  // The wrapper is the one alert (it also holds Cancel); the notice inside must not be a second `alert`, or a
+  // screen reader announces the failure twice and the alert is no longer a single addressable region.
+  return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} role="status" /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }
