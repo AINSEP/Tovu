@@ -3816,6 +3816,106 @@
     {
       "id": "e765877a789e",
       "reason": "Moved to Jini packages/search/src/site/cms-document-source.ts, the createCmsSearchDocumentSources doc; same text plus the generic-over-DB note and the @example now passing the host-injected `isLiveAt`, `resolveMemberAccess`, `postPublicPath` and `toSearchText`; why kept."
+    },
+    {
+      "id": "987e437c8df5",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-execution-i18n.ts, the @file header of the Settings AI-agent-tab copy; same text, the AI Assistant dictionary and the unit test are now cited as the host's (`features/ai-assistant/ai-assistant-i18n.ts`, the host's `__tests__/settings-execution-i18n.unit.test.ts`) and a new paragraph says the Local CLI key carries a `{productName}` token the host fills through `interpolate()`; why kept."
+    },
+    {
+      "id": "2aac10e72b08",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/SettingsUi.hooks.ts (the `tCap` doc); same text, only \"Tovu's own dictionary\" -> \"the host's own dictionary\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "01b6390e0942",
+      "reason": "Reworded in place at Tovu apps/admin/src/lib/settings-tabs.ts (INTERFACE_NAMESPACE doc): the registrar moved to Jini packages/cms/src/settings/site/admin-interface.ts, so the cited path `features/settings/admin-interface.ts` became `@jini-ai/cms/settings/site/admin-interface`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "cc3efe00a5d8",
+      "reason": "Reworded in place at Tovu apps/website/src/features/publish-content/ui/report-rows.ts (the site-settings refusal group comment): `features/settings/publish-content.ts` moved to Jini packages/cms/src/settings/site/publish-content.ts, so the cited path became `@jini-ai/cms/settings/site/publish-content`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "dd31ee667965",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the @file header of SEO's host binding; same text, 'Tovu's' -> 'the host's', plus a sentence that the ledger collaborators and tool metadata are injected through `SeoToolHostPolicy`; why kept."
+    },
+    {
+      "id": "e1c6520dc5ce",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the `SeoToolDeps` doc (the structural route-deps slice); same no-back-edge rationale, the host's `server/routes/types` `RouteDeps` -> 'the host's `RouteDeps`', `Jini/packages/cms/src/seo/media.ts` -> `../media.ts`; why kept."
+    },
+    {
+      "id": "51e35f03abec",
+      "reason": "Obsolete: it documented the `mediaContentTypeStore` field of the host's SeoToolDeps. Jini packages/cms/src/seo/site/tool-registrations.ts `SeoToolDeps` no longer carries that field (it extends the package's `SeoPackageToolDeps` minus `seoSettings`; the media lookups travel through the injected `seoDeps`/settings-ledger bindings). The share-image content-type check (2026-10-05) is still documented where it runs: Jini packages/cms/src/seo/write-service.ts (`seoImageRefRefusal` call and its media-lookups port doc) and packages/cms/src/seo/site/settings.ts."
+    },
+    {
+      "id": "e59b3f391cd2",
+      "reason": "Moved to Jini packages/cms/src/seo/site/tool-registrations.ts, the `contributeSeoTools` doc; same Stage 2 batch 2 rationale, the host's composition-root file path and `assistant/tool-registrations.ts` -> 'the host composition root's tool-catalog manifest' / 'the host's assistant tool registrations', the cross-domain import list reduced to `@jini-ai/core` and the package's own SEO modules, and an @example showing the injected `{ toolMetadata, hostReads, settingsLedger }`; why kept."
+    },
+    {
+      "id": "75a671b804d8",
+      "reason": "Moved to Jini packages/cms/src/settings/site/publish-content.ts, the @file header (`site-setting` on the publish factory); the allowlist, deliberately-left-out and addressing sections are verbatim, the opening now says the repo publish factory is host-injected (`createRepoPublishHandler`) and the allowlist is the host's injected `publishableSettings` (not the host's `PUBLISHABLE_SETTINGS` constant), plus a new Wiring section listing what the host binds; why kept."
+    },
+    {
+      "id": "92c3397f507e",
+      "reason": "Moved to Jini packages/cms/src/settings/site/publish-content.ts (the refusal-class doc); same text, 'rewritten for the owner by `ui/report-rows.ts`' -> 'by the host's publish report rows'; why kept."
+    },
+    {
+      "id": "cd0af81dc706",
+      "reason": "Moved to Jini packages/cms/src/settings/site/site-title-write.ts (`dedicatedWriter` doc); same sentence, the @complexity claim changed from O(1) to O(w) because the writer now scans the host-injected `writePolicies.dedicatedWriters` (w entries) instead of a fixed in-module table; why kept."
+    },
+    {
+      "id": "c3be83971316",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-configure.ts (`parseVisitorToolsConfigure` doc); same text, the @throws now names the host's `visitorTools.ValidationError` (the error class is injected through `VisitorToolsHostContract`) and the @example passes `visitorTools`; why kept."
+    },
+    {
+      "id": "14f7dc1b0516",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-configure.ts (`visitorToolsNeedsApproval` doc); same text including the MOVE note, only the @example now passes the injected `visitorTools` (default limits come from the host contract); why kept."
+    },
+    {
+      "id": "fe17d471c14d",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-registrations.ts (`buildVisitorToolsRegistrations` doc); same text, only the @example now passes the injected `hostPolicy` (catalog, tool metadata, approval handler and visitor-tools contract are host-bound); why kept."
+    },
+    {
+      "id": "c860f8b993cb",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-registrations.ts (`contributeVisitorTools` doc); same sentence, extended with 'the host binds `hostPolicy` once' because the contributor now takes the injected policy; why kept."
+    },
+    {
+      "id": "502c584942f3",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-service.ts (module header); same text, only \"Tovu's site-policy management owner\" -> \"The host's site-policy management owner\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "c752de008384",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-service.ts (`createVisitorToolsManagement` doc); same text, the @throws names the host's `visitorTools.ValidationError` and the @example now passes the injected `visitorTools` and `writePolicies`; why kept."
+    },
+    {
+      "id": "c248244c2031",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (module header); same text, only \"The only Tovu management writer\" -> \"The only host management writer\" (Jini carries no Tovu name); why kept."
+    },
+    {
+      "id": "dff2ebb048e3",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`readVisitorToolsRevision` doc); same text, only the @example now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "3c331d6f2643",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`readVisitorToolsSnapshot` doc); same text, only the @example now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "ee74dc47f67a",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`guardVisitorToolsRevision` doc: J1 swap point, F7-F9 notes); verbatim apart from the @example, which now passes the injected `visitorTools` contract; why kept."
+    },
+    {
+      "id": "fdeb86d1feb5",
+      "reason": "Moved to Jini packages/cms/src/settings/site/visitor-tools-write.ts (`writeVisitorTools` doc); same text plus a line that the write goes through the package chokepoint `set` with the host's `writePolicies`, and the @example now passes `visitorTools` and `writePolicies`; why kept."
+    },
+    {
+      "id": "cabf3b6fb0ec",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts and memory-deps/slices/site-title-settings.ts (the `core.site.timezone` registration comment): the definition moved to Jini packages/cms/src/settings/site/site-timezone.ts, so the cited path `features/settings/site-timezone.ts` became `@jini-ai/cms/settings/site/site-timezone`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "6e1c490878ee",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts (the `core.mail.senderEmail`/`senderName` registration comment): the definition moved to Jini packages/cms/src/settings/site/mail-sender.ts, so the cited path became `@jini-ai/cms/settings/site/mail-sender`; the rest is verbatim; why kept."
+    },
+    {
+      "id": "1e6ef7ce631f",
+      "reason": "Reworded in place at Tovu apps/website/src/server/runtime/composition/site-deps/identity-settings.ts (the `core.mail.provider`/`testMode` registration comment): the definition moved to Jini packages/cms/src/settings/site/mail-provider.ts, so the cited path became `@jini-ai/cms/settings/site/mail-provider`; the rest is verbatim; why kept."
     }
   ]
 }
