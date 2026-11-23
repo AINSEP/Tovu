@@ -121,8 +121,23 @@ export function wireFormsAndSearch(required: WireFormsAndSearchRequired, _option
     }).resolveContext(input),
     httpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }),
     loadContributions: agentPluginLifecycle.loadPluginContributions,
-    // Fail closed: an unreadable activations file is `undetermined`, never active.
-    isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
+    isPluginActive: bindSearchPluginActivity({ lifecycle: agentPluginLifecycle, layout: agentPluginLayout, workspaceId }),
   }), { storage: kernel, settingsReady: siteTitleReady });
   return { widgetAdoptionReady };
+}
+
+/**
+ * Site search's "is this provider plugin on?" check. Activations live in the WORKSPACE folder
+ * (`forWorkspace(...).root`, as `app.ts` and the publish-credentials wiring read them); the site-level
+ * root has no activations file, so reading it there left a disabled provider plugin still active
+ * for search writes and queries (B211). Fail closed: an unreadable file is `undetermined`, never active.
+ */
+export function bindSearchPluginActivity(required: {
+  lifecycle: Pick<ReturnType<typeof composeAgentPluginBootstrap>["agentPluginLifecycle"], "resolveAgentPluginActivation">;
+  layout: Pick<ReturnType<typeof composeAgentPluginBootstrap>["agentPluginLayout"], "forWorkspace">;
+  workspaceId: string;
+}, _optional: Record<string, never> = {}): (input: { pluginId: string }) => Promise<boolean> {
+  const { lifecycle, layout, workspaceId } = required;
+  return async ({ pluginId }) => (await lifecycle.resolveAgentPluginActivation({
+    workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId })).verdict === "active";
 }

@@ -345,3 +345,10 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   `redactUserText` before storing. Already-stored titles are not scrubbed (owner question 3 in P8).
 - Test: `assistant-chats-routes.test.ts` "renamed title with a token is stored redacted". Mutation: skip the
   redactor — red.
+
+### `B211-search-plugin-activation-site-root` — FIXED on `codex/bugs-high-tovu`
+- Site search asked "is this provider plugin on?" at the site-level `agentPluginLayout.root`, where no activations
+  file lives, so a provider plugin the operator disabled kept receiving index writes and visitor queries. The check
+  (now `bindSearchPluginActivity`) reads `agentPluginLayout.forWorkspace({ workspaceId }).root`, as `app.ts` does.
+- Test: `site-deps/__tests__/search-plugin-activity.unit.test.ts`. Mutation: read `layout.root` again — red.
+- Unrelated, pre-existing: 32 `site-deps` characterization tests ("slice call missing") fail on the base too.
