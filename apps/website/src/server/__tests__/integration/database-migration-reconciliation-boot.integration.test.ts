@@ -11,6 +11,7 @@ import { defaultDatabaseJournalDbPath } from "../../runtime/composition/site-pat
 import { buildBootModules } from "../../runtime/boot/bootstrap.js";
 import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
 import { createApp } from "../../runtime/composition/app.js";
+import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { loginAsOwner, startTestServer } from "../helpers/http-test-server.js";
@@ -36,6 +37,21 @@ import { loginAsOwner, startTestServer } from "../helpers/http-test-server.js";
  * `/admin` and `/admin/...` (the real admin shell) remain reachable.
  */
 
+// A312: `createSiteRouteDeps({}, { dbPath })` alone binds the composition to this PROCESS's site
+// (`describeSiteBinding()`: `TOVU_SITE_DIR` or `<cwd>/sites/<name>`), not to `dbPath`'s folder, so
+// booting it installed bundled agent plugins into the repo's real `sites/tovu-dev`. Each composition
+// here is bound to its disposable dir; the check reads the composition's own binding rather than the
+// shared repo folder, because other test files in a parallel run may still leak there until the
+// code-level fix (overrides.ts resolveSiteBindingOverride from dbPath) lands after combine-15.
+/**
+ * Binds a composition to the test's disposable `dir` through the existing `overrides.siteBinding`
+ * seam (the one `tovu serve <dir>` uses). Without it the composition defaults to the process's own
+ * site, the repo's `sites/<id>`, whatever `dbPath` says (A312).
+ */
+function disposableSiteOverrides({ dir }: { dir: string }, _optional = {}) {
+  return { siteBinding: describeSiteBinding({ env: { ...process.env, TOVU_SITE_DIR: dir }, cwd: dir }) };
+}
+
 test("a non-terminal migration_runs row (simulated crash mid-migration) is reconciled at boot: siteStatus flips to BLOCKED_PENDING_RECOVERY and a migration.interrupted ledger row is appended", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-boot-"));
   const dbPath = path.join(dir, "content.db");
@@ -58,7 +74,7 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
     await databaseJournalDb.close();
 
     // Now boot for real, through the exact path index.ts uses.
-    const deps = await createSiteRouteDeps({}, { dbPath });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
@@ -99,7 +115,7 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
     });
     await databaseJournalDb.close();
 
-    const deps = await createSiteRouteDeps({}, { dbPath });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
@@ -183,7 +199,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
     await databaseJournalDb.close();
 
     // Boot #1 (simulates the operator's process starting after the crash).
-    const deps1 = await createSiteRouteDeps({}, { dbPath });
+    const deps1 = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     const result1 = await runBootLifecycle({ modules: buildBootModules(deps1, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation1 = result1.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation1?.lifecycle.status, "ready", "boot 1: detection succeeds");
@@ -201,7 +217,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
     // deterministic id `interrupted-run-crashed-restart-safe` collided with boot 1's own row,
     // throwing UNIQUE constraint failed -- the critical module failed, `ok` went false, and
     // index.ts would process.exit(1) before ever calling listen(), locking Recovery itself out.
-    const deps2 = await createSiteRouteDeps({}, { dbPath });
+    const deps2 = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     const result2 = await runBootLifecycle({ modules: buildBootModules(deps2, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation2 = result2.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation2?.lifecycle.status, "ready", "boot 2 must NOT crash the critical module on the same still-unresolved migration");
@@ -233,7 +249,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     await databaseJournalDb.close();
 
     // Boot #1: blocked, as before.
-    const deps = await createSiteRouteDeps({}, { dbPath });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
@@ -310,7 +326,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     // sibling "second boot" test above (avoids an unrelated identity-seed race, not what this test
     // is proving).
     await deps.identityReady;
-    const rebootDeps = await createSiteRouteDeps({}, { dbPath });
+    const rebootDeps = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     const rebootResult = await runBootLifecycle({ modules: buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(rebootResult.ok, true);
     assert.equal(await rebootDeps.siteStatusRepo.get(rebootDeps.workspaceId), "SERVING", "the resolution must survive a reboot -- the exit is durable, not just an in-process flag flip");
@@ -337,7 +353,7 @@ test("a clean sidecar (no non-terminal migration_runs row) boots normally: siteS
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-clean-"));
   const dbPath = path.join(dir, "content.db");
   try {
-    const deps = await createSiteRouteDeps({}, { dbPath });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: disposableSiteOverrides({ dir }) });
     const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
@@ -345,6 +361,17 @@ test("a clean sidecar (no non-terminal migration_runs row) boots normally: siteS
 
     const siteStatus = await deps.siteStatusRepo.get(deps.workspaceId);
     assert.equal(siteStatus, "SERVING");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("A312 regression: a booted composition is bound to its disposable site, and its plugin runtime lands there, not in the repo's sites/<id>", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-a312-"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: disposableSiteOverrides({ dir }) });
+  try {
+    assert.equal(deps.siteBinding.dir, dir, "the composition must serve the test's disposable site, not the process's own");
+    assert.ok(fs.existsSync(path.join(dir, "plugins-runtime")), "the plugin runtime is composed inside the disposable site");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
