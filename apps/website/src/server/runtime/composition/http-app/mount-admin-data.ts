@@ -5,7 +5,7 @@
 
 import { registerAdminTaxonomyMergeTermRoutes } from "../../../inbound/admin-http/routes/taxonomy/merge-term.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "../../../inbound/admin-http/routes/database/migrate-forward.js";
-import { registerAdminRecoveryRestoreRoutes } from "../../../inbound/admin-http/routes/recovery/restore.js";
+import { registerAdminRecoveryRestoreRoutes } from "../modules/recovery-restore.js";
 import { createTaxonomyModule } from "../modules/taxonomy.js";
 import { createContentTypesModule } from "../modules/content-types.js";
 import { createSeoModule } from "../modules/seo.js";

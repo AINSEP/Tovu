@@ -249,7 +249,7 @@ async function readRecoveryStatus(routeDeps: RecoveryToolDeps, ctx: Parameters<T
           operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
           pendingMigration: siteStatus === "PENDING_MIGRATION",
           migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
-          // Matches `apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`'s own honest stub — no per-category
+          // Matches `@jini-ai/cms/admin-http/routes/recovery/status`'s own honest stub — no per-category
           // write-count tracker exists anywhere in this codebase yet (see `disclosure.ts`'s doc).
           watermarkBaselineAvailable: false,
         },

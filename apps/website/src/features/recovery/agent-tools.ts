@@ -22,7 +22,7 @@ import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/
  *     `database/restore-points.ts`'s own file header records as already fixed.
  *   - `recovery_get_status` and `recovery_resolve_deep_link` are NEW catalog entries this dispatch
  *     adds (not part of SPEC-019's original REQ-23-REQ-25 set) — both are read-only, zero-side-effect
- *     admin-UI sections (`apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`, `apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts`)
+ *     admin-UI sections (`@jini-ai/cms/admin-http/routes/recovery/status`, `@jini-ai/cms/admin-http/routes/recovery/deep-link`)
  *     this catalog did not previously cover at all. Added under the same "read-only admin-UI section
  *     is safe to wrap directly" bar the rest of this catalog already uses, per ADR-045 §4/§5.
  *
@@ -152,7 +152,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     // NEW this dispatch (not part of SPEC-019's original set) — read-only, admin-UI "Recovery
-    // status bar + degraded banner" section (`apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`, ADR-045 §4).
+    // status bar + degraded banner" section (`@jini-ai/cms/admin-http/routes/recovery/status`, ADR-045 §4).
     name: "recovery_get_status",
     description:
       "Reports this site's current restore-point cost class plus the single highest-precedence degraded-state banner (migration interrupted, pending migration, an operation already in flight, cost class unavailable, or watermark baseline unavailable), if any.",
@@ -162,7 +162,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     // NEW this dispatch (not part of SPEC-019's original set) — read-only re-resolution of a
-    // deep-link envelope (`apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts`, ADR-041 §7/ADR-045 §5). Never
+    // deep-link envelope (`@jini-ai/cms/admin-http/routes/recovery/deep-link`, ADR-041 §7/ADR-045 §5). Never
     // trusts the envelope's own carried values; every id is re-looked-up server-side (INV-04).
     name: "recovery_resolve_deep_link",
     description:
