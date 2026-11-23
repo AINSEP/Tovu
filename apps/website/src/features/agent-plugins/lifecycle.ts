@@ -23,7 +23,7 @@ import {
   type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugins";
-import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
+import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
 import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";

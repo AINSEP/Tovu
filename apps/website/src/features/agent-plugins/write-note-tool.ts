@@ -3,8 +3,7 @@
 import { pluginNoteHandler as hostPluginNoteHandler, pluginNoteToolCatalog, type HostToolSurfaces } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AgentToolDefinition, ToolHandler } from "@jini-ai/core";
-import type { AgentPluginLayout } from "./layout.js";
-import { type OperatorLocaleDeps } from "../../contracts/headless/index.js";
+import type { AgentPluginLayout, OperatorLocaleDeps } from "@jini-ai/core/contracts/headless/plugin-host";
 import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";

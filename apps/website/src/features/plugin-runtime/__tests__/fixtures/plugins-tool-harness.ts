@@ -11,7 +11,7 @@ import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/h
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
-import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "../../../../contracts/headless/index.js";
+import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "@jini-ai/core/contracts/headless/plugin-host";
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../../../agent-plugins/provider-plugin-link.js";
 import type { PluginProviderFacesPort } from "../../service-ports.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";

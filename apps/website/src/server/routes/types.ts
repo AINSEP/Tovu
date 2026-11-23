@@ -59,7 +59,8 @@ import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../..
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
-import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
+import type { FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
+import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
@@ -629,9 +630,9 @@ export interface SettingsDeps {
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
   /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
-  cookieConsent?: import('#src/contracts/headless/index').SiteCookieConsentDeps;
+  cookieConsent?: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps;
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
-  consentAdapters?: (required: { base: string }) => readonly import('#src/contracts/headless/index').ConsentPluginContribution[];
+  consentAdapters?: (required: { base: string }) => readonly import('@jini-ai/core/contracts/headless/site-cookie-consent').ConsentPluginContribution[];
   /** `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks); omitted by hermetic callers. */
   mailFeedbackRoute?: import('#src/features/mail/index').MailFeedbackRoute;
   /**
@@ -959,7 +960,7 @@ export interface PluginRuntimeDeps {
   pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   pluginLoadedVersion?: (required: { id: string }, optional?: Record<string, never>) => string | undefined;
-  pluginHost?: import("#src/contracts/headless/index").PluginHostPort;
+  pluginHost?: import("@jini-ai/core/contracts/headless/plugin-host").PluginHostPort;
   pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
@@ -1273,7 +1274,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   siteStoragePaths: SiteStoragePaths;
   /** Layouts resolved once against siteBinding.dir, including boot-time directory overrides. */
-  agentPluginLayout: import("#src/features/agent-plugins/layout").AgentPluginLayout;
+  agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   /** One ordered federation preset registry per booted host. */
   federatedMcpPresetRegistry: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
   /** One lifecycle per boot, sharing the layout used by requests and backup sources. */

@@ -32,7 +32,7 @@ export interface ComposePluginRuntimeRequired {
   readonly browserProviderApprovals?: readonly BundledBrowserProviderApproval[];
   readonly bundledEnabledIds?: readonly string[];
   readonly pluginSourcePolicy?: PluginSourcePolicyPort;
-  readonly getPluginHost?: () => import("#src/contracts/headless/index").PluginHostPort | undefined;
+  readonly getPluginHost?: () => import("@jini-ai/core/contracts/headless/plugin-host").PluginHostPort | undefined;
   readonly workspaceId: string;
   readonly clock: ClockPort;
   readonly activationRepo: PluginActivationRepoPort;

@@ -40,7 +40,7 @@ import type { FederationDeps } from "./mcp-federation/registrations.js";
 export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDeps, "postRead"> {
   readonly postRepo: import("../features/post/index.js").PostRepoPort;
   readonly executablePluginToolRegistry?: ToolRegistry;
-  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
+  readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
   readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;

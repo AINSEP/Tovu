@@ -1,5 +1,5 @@
 import type { ExportReport } from "#src/contracts/core/export-report";
-import type { SiteCookieConsentDeps } from '../../contracts/headless/site-cookie-consent.js';
+import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import type { RequestListener } from "node:http";
 import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import path from "node:path";

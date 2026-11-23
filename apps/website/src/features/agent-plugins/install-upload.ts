@@ -4,7 +4,7 @@ import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecyc
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
 import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-import type { PluginHostPort } from "../../contracts/headless/index.js";
+import type { PluginHostPort, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 /**
  * @file `installUploadedAgentPlugin()` — the admin "Add a plugin" upload: one operator-supplied
  * `.zip` of an agent-plugins.org package, installed for one workspace and left switched OFF.
@@ -48,7 +48,6 @@ import {
   type AgentPluginArchiveReaderPort,
   type InstalledAgentPlugin,
 } from "./lifecycle.js";
-import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 
 const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;

@@ -45,8 +45,7 @@ export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 export type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
-import type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
-export type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
+import type { SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
 
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
@@ -61,7 +60,7 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.
  * the (small) activations record.
  */
 // A stable owner context per booted layout preserves its queues without selecting a site again.
-const lifecycles = new WeakMap<import("./layout.js").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
+const lifecycles = new WeakMap<import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
 
 export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: {
   /** Serving hosts await Stop/cleanup after the durable OFF decision. */

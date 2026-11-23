@@ -7,7 +7,7 @@ import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
+import type { AgentPluginHostCapability, PluginHostPort } from '@jini-ai/core/contracts/headless/plugin-host';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
 import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';

@@ -2,7 +2,7 @@ import { createFormCollectionRegistry, type FormCollectionRegistry } from "@jini
 import { type FormCollectionProvider } from "@jini-ai/core/contracts/forms";
 import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/payments/kernel";
 import { createAsyncLocalSpanScope, createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
-import type { ConsentPluginContribution } from '#src/contracts/headless/index';
+import type { ConsentPluginContribution } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts } from "@jini-ai/diagnostics/observability";

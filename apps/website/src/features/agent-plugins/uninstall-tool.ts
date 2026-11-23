@@ -47,7 +47,7 @@ import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-u
  * radii (site plugins go to the Trash; Agent Plugins do not).
  */
 
-import type { AgentPluginUninstallToolDeps as HostUninstallDeps } from '../../contracts/headless/index.js';
+import type { AgentPluginUninstallToolDeps as HostUninstallDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 
 /** The lifecycle inputs and principal-bound locale resolver this branch consumes. */
 export interface AgentPluginUninstallToolDeps extends Pick<HostUninstallDeps, 'agentPluginLayout' | 'authorize' | 'workspaceId' | 'uninstallAgentPlugin'> {

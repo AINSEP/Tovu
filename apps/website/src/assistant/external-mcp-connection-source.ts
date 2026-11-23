@@ -31,7 +31,7 @@ export interface StoredExternalMcpConnectionFailure {
 
 /** Local manifest lookup port; remote annotations never grant read authority. */
 type ResolvePluginReadOnlyRemoteNames = (input: {
-  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
+  readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   readonly workspaceId: string;
   readonly pluginId: string;
   readonly serverId: string;
@@ -40,7 +40,7 @@ type ResolvePluginReadOnlyRemoteNames = (input: {
 
 export interface StoredExternalMcpConnectionSourceDeps {
   readonly isPluginEnabled?: (pluginId: string) => Promise<boolean>;
-  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
+  readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   readonly repo: ExternalMcpServerRepoPort;
   readonly sealer: SecretSealerPort;
   /** Resolves (and refreshes, if due) an `authMode: "oauth"` row's access token before its child

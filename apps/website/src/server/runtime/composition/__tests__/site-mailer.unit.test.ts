@@ -9,7 +9,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/platform/mail";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import type { SetAgentPluginEnabledInput } from "#src/features/agent-plugins/set-enabled";
+import type { SetAgentPluginEnabledInput } from "@jini-ai/core/contracts/headless/plugin-host";
 
 import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
 import { ensureMailProviderSettings, readMailProviderSetting, writeMailProviderSetting } from "#src/features/settings/mail-provider";

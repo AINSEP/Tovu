@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setAgentPluginEnabled } from '../../set-enabled.js';
 import { notifyExternalMcpRosterChanged, onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests, ToolAccessLoweringError } from '../../../../assistant/external-mcp-roster-change.js';
-import type { AgentPluginLayout } from '../../layout.js';
+import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 
 const layout: AgentPluginLayout = { root: '/unused', workspacesDir: '/unused', forWorkspace: () => { throw new Error('injected lifecycle must own storage'); } };
 

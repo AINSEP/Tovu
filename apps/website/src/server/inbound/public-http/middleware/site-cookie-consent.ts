@@ -20,7 +20,7 @@ import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
+import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';
 import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
@@ -30,7 +30,6 @@ import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy,
 import { asyncRoute } from "../../../../platform/express/async-route.js";
 import { browserDiagnosticsEnabled, siteBrowserDiagnosticsBridge, siteBrowserDiagnosticsModule } from '../../../runtime/composition/browser-diagnostics.js';
 
-export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 
 export const CONSENT_ENDPOINT = '/_consent';
 const PLUGIN_BASE = `${CONSENT_ENDPOINT}/p`;

@@ -8,7 +8,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { resolveAgentPluginLayout, type AgentPluginLayout } from "../../layout.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import {
   AgentPluginInstallError,
   installAgentPlugin,

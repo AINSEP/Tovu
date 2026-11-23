@@ -2,8 +2,7 @@
 import { escapeHtml } from "@jini-ai/core/text";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/cms/widgets/html";
-import type { PluginExportCatalogPort, PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
-export type { PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
+import type { PluginExportCatalogPort, PluginExportCatalogRow } from '@jini-ai/core/contracts/headless/plugin-export-catalog';
 import type { LoginProvider } from "@jini-ai/user-management/server";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
