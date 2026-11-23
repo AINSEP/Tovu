@@ -5014,12 +5014,16 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    prevent, just recreated in a new context. Chained-class selectors here (0,2,0 and up) outrank
    both `.row-menu-item` alone and `.btn-danger`/`.btn-warning` alone (0,1,0 each) regardless of
    source order, so shape stays `.row-menu-item`'s (block, full-width, menu-item padding) while
-   color and hover state come from the tone. */
-.row-menu-item.btn-danger, .row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.btn-danger, .jini-taxonomy-row-menu-item.btn-warning { background: transparent; border: none; }
-.row-menu-item.btn-danger, .jini-taxonomy-row-menu-item.btn-danger { color: var(--danger); }
-.row-menu-item.btn-danger:hover, .row-menu-item.btn-danger:focus-visible, .jini-taxonomy-row-menu-item.btn-danger:hover, .jini-taxonomy-row-menu-item.btn-danger:focus-visible { background: var(--danger-bg); color: var(--danger); outline: none; }
-.row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.btn-warning { color: var(--warning); }
-.row-menu-item.btn-warning:hover, .row-menu-item.btn-warning:focus-visible, .jini-taxonomy-row-menu-item.btn-warning:hover, .jini-taxonomy-row-menu-item.btn-warning:focus-visible { background: var(--warning-bg); color: var(--warning); outline: none; }
+   color and hover state come from the tone. `@jini-ai/admin`'s `TaxonomyRowMenu` emits only
+   `jini-*` classes, so its tones arrive as `.jini-taxonomy-row-menu-item-{danger,warning}`
+   instead of the `.btn-*` pair; those take the same chained (0,2,0) selectors and identical
+   declarations, so both menus render the same. The `.btn-*` base pill rules no longer reach the
+   engine item, which is fine: the reset below is what overrode them anyway. */
+.row-menu-item.btn-danger, .row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-danger, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-warning { background: transparent; border: none; }
+.row-menu-item.btn-danger, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-danger { color: var(--danger); }
+.row-menu-item.btn-danger:hover, .row-menu-item.btn-danger:focus-visible, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-danger:hover, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-danger:focus-visible { background: var(--danger-bg); color: var(--danger); outline: none; }
+.row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-warning { color: var(--warning); }
+.row-menu-item.btn-warning:hover, .row-menu-item.btn-warning:focus-visible, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-warning:hover, .jini-taxonomy-row-menu-item.jini-taxonomy-row-menu-item-warning:focus-visible { background: var(--warning-bg); color: var(--warning); outline: none; }
 
 /* Confirm dialog — native `<dialog>`; un-styled, the UA stylesheet centers it with a system
    border/background and a plain black `::backdrop`. This replaces both with the token system but

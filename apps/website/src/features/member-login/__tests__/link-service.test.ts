@@ -154,7 +154,7 @@ test("wrong email code spends an attempt outside the link transaction", async ()
 test("credential revocation fences an outstanding callback", async () => {
   const f = fixture();
   const member = await f.seed();
-  await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt });
+  await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt, version: member.version + 1 });
   await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), MemberLoginError);
 });
 
@@ -206,11 +206,11 @@ for (const startedAt of ["not-a-date", "", "2026-13-45T99:00:00Z"]) {
 test("revocation AT startedAt blocks, revocation strictly before it does not", async () => {
   const f = fixture();
   const member = await f.seed();
-  await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt });
+  await f.deps.members.save({ ...member, credentialsRevokedAt: f.input.startedAt, version: member.version + 1 });
   await assert.rejects(resolveFederatedIdentity({ deps: f.deps, input: f.input }), rejectsWith("LOGIN_BLOCKED"));
   const g = fixture();
   const other = await g.seed();
-  await g.deps.members.save({ ...other, credentialsRevokedAt: new Date(Date.parse(g.input.startedAt) - 1).toISOString() });
+  await g.deps.members.save({ ...other, credentialsRevokedAt: new Date(Date.parse(g.input.startedAt) - 1).toISOString(), version: other.version + 1 });
   assert.equal((await resolveFederatedIdentity({ deps: g.deps, input: g.input })).kind, "signed_in");
 });
 
@@ -233,7 +233,7 @@ test("any failure while requesting the inbox proof is masked as LOGIN_UNAVAILABL
 test("activating a pending member keeps an earlier email verification time", async () => {
   const f = fixture();
   const member = await f.seed("pending");
-  await f.deps.members.save({ ...member, emailVerifiedAt: "2026-01-01T00:00:00.000Z" });
+  await f.deps.members.save({ ...member, emailVerifiedAt: "2026-01-01T00:00:00.000Z", version: member.version + 1 });
   assert.equal((await resolveFederatedIdentity({ deps: f.deps, input: f.input })).kind, "signed_in");
   const updated = await f.deps.members.findById({ workspaceId: "ws", id: member.id });
   assert.equal(updated?.status, "active");

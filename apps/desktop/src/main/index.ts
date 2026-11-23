@@ -132,7 +132,7 @@ import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWindowQuitPrompt, type QuitPhase } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
-import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "@jini-ai/desktop-host/shell/window-navigation-policy";
+import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "@jini-ai/desktop-host/electron/navigation-policy";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
@@ -164,7 +164,7 @@ import { addSitePointer } from "../add-site-pointer.ts";
 import { importSiteArchive, stopRunningImports, tidyInterruptedImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
-import { readWindowBounds, writeWindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
+import { readWindowBounds, writeWindowBounds } from "./windows/window-bounds-json-store.ts";
 import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 import { SPELLCHECK_MENU_LABELS } from "./spellcheck-labels.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
@@ -659,9 +659,8 @@ function isSupervisedGuestUrl({ raw }: { raw: string }, _optional = {}): boolean
 function isShellPage({ raw }: { raw: string }, _optional = {}): boolean {
   return isShellPageUrl({ raw, pages: {
     isSupervisedSite: ({ url }) => isSupervisedGuestUrl({ raw: url }),
-    attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
     rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
-  } });
+  } }, { attachUrl: process.env.TOVU_DESKTOP_URL?.trim() });
 }
 
 const signInWindows = new WeakSet<WebContents>();
@@ -678,7 +677,7 @@ function registerGuestNavigationPolicy(): void {
       signInWindows.add(popup.webContents);
       contents.session.setPermissionRequestHandler((wc, _permission, callback) => callback(!signInWindows.has(wc)));
       contents.session.setPermissionCheckHandler((wc) => !wc || !signInWindows.has(wc));
-      installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url: next }) => void shell.openExternal(next) });
+      installGuestWindowOpenPolicy({ contents: popup.webContents, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url: next }) => void shell.openExternal(next) });
       popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl({ raw: next })) event.preventDefault(); });
       popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl({ raw: event.url })) event.preventDefault(); });
       void popup.loadURL(url);

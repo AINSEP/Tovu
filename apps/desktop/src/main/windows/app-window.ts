@@ -4,7 +4,7 @@
  * the navigation boundary all before the first load — are verified without Electron. `main.ts`
  * passes a `BrowserWindow` factory and `shell.openExternal` in.
  */
-import { installAppWindowNavigationPolicy, type NavigableContents } from "@jini-ai/desktop-host/shell/window-navigation-policy";
+import { installAppWindowNavigationPolicy, type ElectronNavigableContents as NavigableContents } from "@jini-ai/desktop-host/electron/navigation-policy";
 
 /** The `BrowserWindow` options {@link createAppWindow} builds. */
 interface AppWindowOptions {
@@ -103,7 +103,7 @@ function createAppWindow<W extends AppWindow>(
   // Anything that navigates away from the app's own origin belongs in the OS browser — a
   // "view site ↗" link must not replace the admin shell inside the app window, and nothing but this
   // origin may run with the speech preload. See `window-navigation-policy.ts`.
-  installAppWindowNavigationPolicy({ contents: window.webContents, options: { appOrigin: new URL(url).origin, openExternal } });
+  installAppWindowNavigationPolicy({ contents: window.webContents, appOrigin: new URL(url).origin, openExternal });
 
   void window.loadURL(url);
   return window;

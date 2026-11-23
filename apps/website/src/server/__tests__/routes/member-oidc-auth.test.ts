@@ -417,7 +417,7 @@ async function linkedLogin(t: test.TestContext) {
 }
 const unverified = async (f: ReturnType<typeof fixture>) => {
   const { items: [current] } = await f.members.memberRepo.list({ workspaceId: "ws" });
-  await f.members.memberRepo.save({ ...current!, emailVerifiedAt: undefined });
+  await f.members.memberRepo.save({ ...current!, emailVerifiedAt: undefined, version: current!.version + 1 });
 };
 
 test("S3 unlink: an active member with a password needs no verified inbox, and the reply is exactly {ok:true}", async t => {

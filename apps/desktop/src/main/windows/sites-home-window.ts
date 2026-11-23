@@ -8,9 +8,12 @@
  */
 import { pathToFileURL } from "node:url";
 
-import { admitGuestSource, applyGuestWebPreferences, type GuestWebPreferences } from "@jini-ai/desktop-host/shell/webview-guest-policy";
-import { installSitesHomeNavigationPolicy, type NavigableContents } from "@jini-ai/desktop-host/shell/window-navigation-policy";
-import { resolveWindowBounds, windowBoundsFilePath, type DisplayLike, type WindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
+import {
+  admitGuestSource, applyGuestWebPreferences, installRendererNavigationPolicy,
+  type ElectronNavigableContents as NavigableContents, type GuestWebPreferences,
+} from "@jini-ai/desktop-host/electron/navigation-policy";
+import { resolveWindowBounds, type DisplayLike, type WindowBounds } from "@jini-ai/desktop-host/electron/usability";
+import { sitesHomeBoundsPath } from "./window-bounds-json-store.ts";
 import type { SpellCheckWebContents } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 
 /** The sites home window's own `webContents`, as the setup below uses it. */
@@ -144,8 +147,8 @@ function installGuestAttachPolicy<W extends SitesHomeWindow>({ window, ports }: 
   // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
   // site's origin, so a guest pointed anywhere else is refused before it attaches.
   window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
-    if (!admitGuestSource({ event, params, options: { isAllowedSource: ({ src }) => ports.isSupervisedGuestUrl({ url: src }) } })) return;
-    applyGuestWebPreferences({ webPreferences, options: { preloadPath: ports.guestPreloadPath } });
+    if (!admitGuestSource({ event, params, isAllowedSource: ({ src }) => ports.isSupervisedGuestUrl({ url: src }) })) return;
+    applyGuestWebPreferences({ webPreferences, preloadPath: ports.guestPreloadPath });
   });
 
   // The right-click spelling-suggestions menu for a project tab's own editing surface (the embedded
@@ -187,7 +190,7 @@ function openSitesHomeWindow<W extends SitesHomeWindow>(
     return null;
   }
 
-  const boundsPath = windowBoundsFilePath({ userDataDir: ports.userDataDir });
+  const boundsPath = sitesHomeBoundsPath({ userDataDir: ports.userDataDir });
   const window = ports.createBrowserWindow(sitesHomeWindowOptions({ ports, boundsPath }, { selftest }));
 
   trackWindow?.(window);
@@ -211,10 +214,11 @@ function openSitesHomeWindow<W extends SitesHomeWindow>(
   // Only the renderer's own file may load in this window: it holds the `tovuRunner` bridge with
   // `sandbox: false`, and the page's CSP does not follow a navigation (a dropped link, say) to
   // another page. See `window-navigation-policy.ts`.
-  installSitesHomeNavigationPolicy({ contents: window.webContents, options: {
+  installRendererNavigationPolicy({
+    contents: window.webContents,
     rendererFileUrl: pathToFileURL(ports.rendererPath).href,
     openExternal: ports.openExternal,
-  } });
+  });
 
   void window.loadFile(ports.rendererPath);
   return window;

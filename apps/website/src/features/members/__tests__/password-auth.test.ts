@@ -318,10 +318,11 @@ test("forgot password is indistinguishable for unknown, disabled and eligible ad
   const h = harness();
   const expected = { accepted: true };
   assert.deepEqual(await requestPasswordReset({ deps: h.deps, input: { workspaceId: WS, email: EMAIL } }), expected);
-  await h.seed("disabled");
+  const disabled = await h.seed("disabled");
   assert.deepEqual(await requestPasswordReset({ deps: h.deps, input: { workspaceId: WS, email: EMAIL } }), expected);
   assert.equal(h.sent.length, 0);
-  await h.seed();
+  // Re-enabling is a real write, so it carries the next version (C058 exact-prior compare-and-set).
+  await h.deps.members.save({ ...disabled, status: "active", version: disabled.version + 1 });
   assert.deepEqual(await requestPasswordReset({ deps: h.deps, input: { workspaceId: WS, email: EMAIL } }), expected);
   assert.equal(h.sent.length, 1);
 });
