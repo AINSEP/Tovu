@@ -58,7 +58,7 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
 }
 
-import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+import { writeAgentsSnapshot } from "../../lib/shell-collaborators";
 
 // `render` (from the kits helper) mounts the production query cache, kits and chat surfaces, as `main.tsx` does for the real dock.
 import {

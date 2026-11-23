@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { type ChatPaneAgent, type ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 
-import { readAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
+import { readAgentsSnapshot } from "@/lib/shell-collaborators";
 import { useAgentsLoader, recordAgents, rescanAgentsInto, readDaemonOnline } from "./agents-inventory.hooks";
 
 /**
@@ -53,7 +53,7 @@ export function useRuntimeAccess(
 /**
  * The inventory `ChatPane` shows before its own `listAgents` call resolves (its `agents` prop, read
  * once per pane mount): the cached live list when this tab already has one, otherwise the last list
- * this browser saw (`lib/assistant-agents-snapshot.ts`), otherwise nothing — the pre-existing
+ * this browser saw (`readAgentsSnapshot` in `lib/shell-collaborators.ts`), otherwise nothing — the pre-existing
  * "Loading available CLIs" state. Re-read every render so a pane re-keyed by a conversation switch
  * seeds from the live list rather than the snapshot the dock mounted with.
  *

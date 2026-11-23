@@ -5,7 +5,7 @@ import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkin
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
-import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
+import { createBrowserWorkingDirectoryAccess } from "@jini-ai/admin/shell/lib/browser-working-directory-access";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
 /**
@@ -111,9 +111,12 @@ export function useAttachmentValidator(): ReturnType<typeof createChatAttachment
   return useMemo(() => createChatAttachmentValidator(), []);
 }
 
+/** Where the recent-folder names already live; host-owned and unchanged so existing lists survive. */
+const RECENT_DIRECTORY_NAMES_STORAGE_KEY = "tovu.assistant.recentWorkingDirectoryNames";
+
 /**
  * Builds the composer's native working-directory access — see
- * `@/lib/browser-working-directory-access`'s module doc for the File System Access API details
+ * `@jini-ai/admin/shell/lib/browser-working-directory-access`'s module doc for the File System Access API details
  * and its known folder-NAME-not-path limitation. Injectable per `INFO.md`'s Components rule 3
  * (this is a browser API, `window.showDirectoryPicker`) — defaulted to the real hook on
  * `AssistantDockProps`.
@@ -129,7 +132,7 @@ export function useAttachmentValidator(): ReturnType<typeof createChatAttachment
  * const workingDirectoryAccess = useWorkingDirectoryAccess();
  */
 export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
-  return useMemo(() => createBrowserWorkingDirectoryAccess(), []);
+  return useMemo(() => createBrowserWorkingDirectoryAccess({ recentDirectoryNamesStorageKey: RECENT_DIRECTORY_NAMES_STORAGE_KEY }), []);
 }
 
 export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}

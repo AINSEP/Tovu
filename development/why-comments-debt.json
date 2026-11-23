@@ -867,7 +867,7 @@
     },
     {
       "id": "f786bd1dabc6",
-      "reason": "wording largely survives at apps/admin/src/lib/assistant-agents-snapshot.ts (59% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+      "reason": "wording largely survives at Jini packages/admin/src/shell/lib/assistant-agents-snapshot.ts (moved w3-fnd K3) (59% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
       "id": "f7db4a3e8c0d",

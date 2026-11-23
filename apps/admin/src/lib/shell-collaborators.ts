@@ -11,6 +11,8 @@ import { createVersionConflict } from "@jini-ai/admin/shell/lib/version-conflict
 import { createProbeErrorDescribers } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { createVisitorToolsPort } from "@jini-ai/admin/shell/lib/visitor-tools";
 import { createAssistantPermanentDeletesPort } from "@jini-ai/admin/shell/lib/assistant-permanent-deletes";
+import { createAssistantAgentsSnapshot } from "@jini-ai/admin/shell/lib/assistant-agents-snapshot";
+import { createAgentInventorySnapshot } from "@jini-ai/chat/browser/agent-inventory";
 import { ApiError, authenticatedAdminRequest } from "./admin-http/request";
 import { WORKSPACE_ID } from "./admin-http/config";
 
@@ -50,3 +52,13 @@ export const { describeProbeError, createProbeErrorDescriber } = createProbeErro
 const adminRequestOps = { authenticatedAdminRequest };
 export const visitorToolsPort = createVisitorToolsPort({ http: adminRequestOps, workspaceId: WORKSPACE_ID });
 export const assistantPermanentDeletesPort = createAssistantPermanentDeletesPort({ http: adminRequestOps, workspaceId: WORKSPACE_ID });
+
+/**
+ * The assistant picker's last-seen agent inventory (Jini's `createAssistantAgentsSnapshot`). The key
+ * is the one this browser has always used: versioned so a future change to the stored shape can
+ * ignore old entries, and unchanged by the move so stored inventories survive.
+ */
+export const { readAgentsSnapshot, writeAgentsSnapshot } = createAssistantAgentsSnapshot({
+  storageKey: "tovu.admin.assistant-agents.v1",
+  createInventorySnapshot: createAgentInventorySnapshot,
+});
