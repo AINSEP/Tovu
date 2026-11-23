@@ -50,3 +50,7 @@ Integrations (`runtime/composition/modules/integrations-admin.ts`, which keeps `
 delete and deliveries `"direct"`. Each registrar binds `#src/features/webhooks` (`createSubscription`, `pauseSubscription`,
 `deleteSubscription` plus the validation/not-found matchers) at request time; the dev-mode `"user-local"` owner placeholder
 is bound in the create registrar.
+Ops (`runtime/composition/modules/core.ts`) registers `/health` and `/healthz` from `@jini-ai/cms/public-http/routes/ops/health`
+through `mountPublicJsonRoute` (`registerHealthRoute`/`registerHealthzRoute`, `deps: {}`, operations `ops:health`/`ops:healthz`),
+first in the core module as before. `/readyz` stays hand-written in `inbound/public-http/routes/ops/health.ts` because
+`features/deployments/deploy-config.ts` reads the health-check path from that file's `registerReadyzRoute` source.
