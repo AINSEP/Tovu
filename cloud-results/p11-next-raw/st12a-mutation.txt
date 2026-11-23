@@ -10,3 +10,9 @@ ok 6 - an unreadable expiry fails closed: the public link is not served
 restored
 # pass 6
 # fail 0
+## ST-12a mutation 2: findToken ignores expiresAt
+not ok 3 - an owner-chosen expiry stops the public link after its own date and deletes nothing
+not ok 6 - an unreadable expiry fails closed: the public link is not served
+# pass 5
+# fail 2
+restored
