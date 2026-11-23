@@ -1,5 +1,5 @@
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { PostsListPort } from "@jini-ai/admin/posts/hooks/posts-list-port.hooks";

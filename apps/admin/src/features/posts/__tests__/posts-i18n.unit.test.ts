@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement as h } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";

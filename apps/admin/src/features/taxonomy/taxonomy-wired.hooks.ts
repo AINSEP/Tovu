@@ -31,7 +31,7 @@ import {
  */
 export function useWiredNewTaxonomyForm(options: NewTaxonomyFormOptions): NewTaxonomyFormController {
   const locale = useAdminLocale();
-  return useNewTaxonomyForm(options, defaultNewTaxonomyFormPort, locale, taxonomyHostKit);
+  return useNewTaxonomyForm({ options: options, port: defaultNewTaxonomyFormPort, locale: locale, kit: taxonomyHostKit });
 }
 
 /**
@@ -42,7 +42,7 @@ export function useWiredNewTaxonomyForm(options: NewTaxonomyFormOptions): NewTax
  */
 export function useWiredNewTermForm(options: NewTermFormOptions): NewTermFormController {
   const locale = useAdminLocale();
-  return useNewTermForm(options, defaultNewTermFormPort, locale, taxonomyHostKit);
+  return useNewTermForm({ options: options, port: defaultNewTermFormPort, locale: locale, kit: taxonomyHostKit });
 }
 
 /**
@@ -53,7 +53,7 @@ export function useWiredNewTermForm(options: NewTermFormOptions): NewTermFormCon
  */
 export function useWiredTermDetailPanel(options: TermDetailPanelOptions): TermDetailPanelController {
   const locale = useAdminLocale();
-  return useTermDetailPanel(options, defaultTaxonomyPort, locale, taxonomyHostKit);
+  return useTermDetailPanel({ options: options, port: defaultTaxonomyPort, locale: locale, kit: taxonomyHostKit });
 }
 
 /**
@@ -66,7 +66,7 @@ export function useWiredTermDetailPanel(options: TermDetailPanelOptions): TermDe
  */
 export function useWiredMergeTermSection(options: MergeTermSectionOptions): MergeTermSectionController {
   const locale = useAdminLocale();
-  return useMergeTermSection(options, defaultMergeTermSectionPort, locale, taxonomyHostKit);
+  return useMergeTermSection({ options: options, port: defaultMergeTermSectionPort, locale: locale, kit: taxonomyHostKit });
 }
 
 /**

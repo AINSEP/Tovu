@@ -214,7 +214,7 @@ describe("useNewTermForm — injected port", () => {
     const port = createFakeNewTermFormPort();
     const onCreated = vi.fn();
 
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useNewTermForm({ options: { taxonomy: taxonomy(true), onCreated }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => {
       result.current.setName("  Child  ");
       result.current.setParentId("p1");
@@ -231,7 +231,7 @@ describe("useNewTermForm — injected port", () => {
 
   it("surfaces a rejected createTerm call's message on the error channel", async () => {
     const port = createFakeNewTermFormPort({ createError: "duplicate name" });
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useNewTermForm({ options: { taxonomy: taxonomy(false), onCreated: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setName("Dup"));
 
     await act(async () => {

@@ -169,7 +169,7 @@ describe("stale rename settlement across a term switch (no key={term.id} remount
     port.renameTerm = vi.fn(() => new Promise<{ term: AdminTerm }>((resolve, reject) => { resolveRename = resolve; rejectRename = reject; }));
     const onRenamed = vi.fn();
 
-    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed }, port, "en", taxonomyHostKit), {
+    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ options: { term, onRenamed }, port: port, locale: "en", kit: taxonomyHostKit }), {
       initialProps: { term: term1 },
       wrapper,
     });
@@ -211,7 +211,7 @@ describe("useTermDetailPanel — injected port", () => {
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] }] });
     const onRenamed = vi.fn();
 
-    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTermDetailPanel({ options: { term, onRenamed }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setNewName("Renamed via port"));
     await act(async () => {
       await result.current.rename(formEvent());
@@ -227,7 +227,7 @@ describe("useTermDetailPanel — injected port", () => {
     const group = { taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] };
     const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [group] });
 
-    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useTermDetailPanel({ options: { term, onRenamed: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setNewName("Shared Store Rename"));
     await act(async () => {
       await result.current.rename(formEvent());

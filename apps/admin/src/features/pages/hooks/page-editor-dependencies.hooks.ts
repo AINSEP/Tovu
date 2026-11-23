@@ -2,7 +2,7 @@ import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-iden
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";

@@ -7,7 +7,7 @@ import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its

@@ -83,7 +83,7 @@ describe("createFakePagesPort — simulateConcurrentSave", () => {
 
 describe("defaultPagesPort.updatePost", () => {
   it("saves through the shared route as a page, so a failure reads page and not post", async () => {
-    const { postsApi } = await import("@/features/posts/api/posts-api");
+    const { postsApi } = await import("@/features/posts/posts-host-ports");
     const { vi } = await import("vitest");
     const spy = vi.spyOn(postsApi, "updatePost").mockResolvedValue({} as never);
     const { defaultPagesPort } = await import("../pages-dependencies.hooks");

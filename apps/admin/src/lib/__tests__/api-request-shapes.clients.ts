@@ -16,7 +16,7 @@ import { menusApi } from "../../features/menus/menus-host-ports";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
-import { postsApi } from "../../features/posts/api/posts-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
 import { providersApi } from "../../features/providers/api/providers-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";

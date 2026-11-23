@@ -133,7 +133,7 @@ describe("useNewTaxonomyForm — injected port", () => {
     const port = createFakeNewTaxonomyFormPort();
     const onCreated = vi.fn();
 
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useNewTaxonomyForm({ options: { onCreated }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => {
       result.current.setName("Category");
       result.current.setHierarchical(true);
@@ -149,7 +149,7 @@ describe("useNewTaxonomyForm — injected port", () => {
 
   it("surfaces a rejected createTaxonomy call's message on the error channel", async () => {
     const port = createFakeNewTaxonomyFormPort({ createError: "name already exists" });
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated: vi.fn() }, port, "en", taxonomyHostKit), { wrapper });
+    const { result } = renderHook(() => useNewTaxonomyForm({ options: { onCreated: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setName("Category"));
 
     await act(async () => {

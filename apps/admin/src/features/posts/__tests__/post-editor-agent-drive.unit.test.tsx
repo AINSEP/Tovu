@@ -7,7 +7,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own

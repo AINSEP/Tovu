@@ -6,7 +6,7 @@ import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its

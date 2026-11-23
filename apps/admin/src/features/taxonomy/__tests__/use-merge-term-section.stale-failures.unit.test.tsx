@@ -39,7 +39,7 @@ describe("merge wizard stale failures", () => {
       port.executeMergeTerm = () => { attempted = true; return held; };
     }
     const { result, rerender } = renderHook(
-      ({ currentTerm }) => useMergeTermSection({ term: currentTerm, onMerged }, port, "en", taxonomyHostKit),
+      ({ currentTerm }) => useMergeTermSection({ options: { term: currentTerm, onMerged }, port: port, locale: "en", kit: taxonomyHostKit }),
       { initialProps: { currentTerm: term }, wrapper },
     );
     act(() => result.current.setIntoTermId("into1"));

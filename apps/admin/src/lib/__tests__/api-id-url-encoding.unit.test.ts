@@ -6,7 +6,7 @@ import { integrationsApi } from "../../features/integrations/api/integrations-ap
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
-import { postsApi } from "../../features/posts/api/posts-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/collections-host-ports";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
