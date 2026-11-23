@@ -33,7 +33,7 @@ function installFresh(base: ContentKernel): Promise<void> {
     (chain, table) => chain.then(() => base.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)),
     Promise.resolve()
   );
-  return dropped.then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: base, dbPath: ":memory:" }));
+  return dropped.then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: base, dbPath: ":memory:" }));
 }
 
 function repos(base: ContentKernel) {

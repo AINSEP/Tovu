@@ -1,4 +1,5 @@
 /** Real transaction boundaries: a failed session mint must roll back link and activation. */
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { eachDialect } from "../../../platform/db/kernel/__tests__/dialect-matrix.js";
@@ -17,6 +18,7 @@ function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {
     identities: new SqlMemberExternalIdentityRepo({ kernel }), principals: new SqlPrincipalRepo(kernel),
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
     transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key),
+    mailTransport: membersMailTransport,
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => { throw new Error("no mail in authoritative login"); }, sendBatch: async () => [] } };
 }

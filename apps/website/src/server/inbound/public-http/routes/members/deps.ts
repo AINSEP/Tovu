@@ -18,6 +18,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  */
 import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type { MailerPort } from "#src/platform/mail/index";
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -87,6 +88,7 @@ export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, opt
     principals: deps.principalRepo,
     origin: deps.origin,
     senderIdentity: deps.mailSenderIdentity,
+    mailTransport: membersMailTransport,
   };
 }
 

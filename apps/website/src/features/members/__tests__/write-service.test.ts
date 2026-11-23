@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -94,6 +95,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
     sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(),
     mailer,
+    mailTransport: membersMailTransport,
     principals,
     origin: makeOriginRegistry({ canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: clock.nowIso(), source: "dev-capability" }) }),
     ...overrides,

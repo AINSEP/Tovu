@@ -36,7 +36,7 @@ import type {
  * @file Row types and mapping for the newsletter tables, shared by every dialect. The campaign pair
  * is in the migrated core schema, so its columns are the generated `ContentDatabase` types
  * (snake_case, JSON as compact text). The five `p_newsletter__*` tables are created by the
- * dataModule engine (`data-module-manifest.ts`), not the migrated schema, so they are NOT in
+ * dataModule engine (`@jini-ai/user-management/newsletter/data-module-manifest`), not the migrated schema, so they are NOT in
  * `ContentDatabase`: the repo brings them into a query with Kysely's `withTables<NewsletterTables>()`.
  * Neutral on purpose: no repo, no driver.
  */

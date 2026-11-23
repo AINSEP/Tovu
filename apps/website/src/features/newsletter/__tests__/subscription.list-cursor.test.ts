@@ -47,7 +47,7 @@ function cases(make: () => NewsletterSubscriptionRepoPort): void {
 function sqlRepo(base: ContentKernel): SqlNewsletterSubscriptionRepo {
   const ready = Object.values(NEWSLETTER_TABLE_NAMES).reduce(
     (chain, table) => chain.then(() => base.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)), Promise.resolve(),
-  ).then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: base, dbPath: ":memory:" }));
+  ).then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: base, dbPath: ":memory:" }));
   ready.catch(() => {});
   return new SqlNewsletterSubscriptionRepo(heldUntil(base, ready));
 }

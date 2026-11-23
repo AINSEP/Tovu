@@ -1,4 +1,5 @@
 /** OPUS-REVIEW shard C: password policy, anti-enumeration, reset cutoff and password/reset races. */
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -43,6 +44,7 @@ function harness() {
       canonicalOrigin: async () => ({ scheme: "https", host: "members.example.test", source: "workspace-setting", verifiedAt: clock.nowIso() }),
       isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false,
     },
+    mailTransport: membersMailTransport,
     mailer: {
       capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: clock.nowIso() }; },

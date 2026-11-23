@@ -3,7 +3,7 @@
  * `repo.ts` (`SqlNewsletter…Repo`) behind their historical `SqliteNewsletter…Repo` names used by the
  * composition root; new code constructs `SqlNewsletter…Repo`
  * with a kernel directly. The campaign pair lives in the migrated core schema; the other five tables
- * are the `p_newsletter__*` dataModule tables `declareDataModule()` creates (`data-module-manifest.ts`,
+ * are the `p_newsletter__*` dataModule tables `declareDataModule()` creates (`@jini-ai/user-management/newsletter/data-module-manifest`,
  * ADR-023 §7/§8).
  */
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";

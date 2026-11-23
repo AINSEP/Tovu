@@ -72,7 +72,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
     await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath });
-    await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: kernel, dbPath: paths.contentDbPath });
+    await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
     const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });

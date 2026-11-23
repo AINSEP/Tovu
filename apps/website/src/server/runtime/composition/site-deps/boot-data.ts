@@ -60,7 +60,7 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
-  const newsletterReady = installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: kernel, dbPath })
+  const newsletterReady = installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath })
     .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {

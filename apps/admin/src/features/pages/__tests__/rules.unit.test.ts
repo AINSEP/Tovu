@@ -329,7 +329,7 @@ describe("sort labels and conflict copy are translated, not English passthrough"
     const deT = (key: string): string => pagesT({ locale: "de", key });
     expect(columnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
     expect(updatedColumnSortLabel({ t: deT, direction: "desc" })).toMatch(/^Nach Aktualisierungsdatum sortiert/);
-    const message = pageVersionConflictMessage({ t: (key) => editorT({ locale: "de", key }), expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
+    const message = pageVersionConflictMessage({ t: (key) => editorT({ locale: "de", key }), expectedVersion: null, currentVersion: 7 });
     expect(message).toContain("die von dir geladene Version");
     expect(message).toContain("Version 7");
     expect(message).not.toMatch(/Someone else|version you loaded/);

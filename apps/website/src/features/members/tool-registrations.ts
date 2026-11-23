@@ -38,6 +38,7 @@ import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError,
 import { createMember } from "@jini-ai/user-management/members/member-sign-in";
 import { disableMember, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
 import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
+import { membersMailTransport } from "./mail-transport.js";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
 
@@ -343,7 +344,7 @@ function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: buildMembersWriteServiceDeps({ deps }),
+        deps: buildMembersWriteServiceDeps({ deps: { ...deps, mailTransport: membersMailTransport } }),
         input: {
           workspaceId: deps.workspaceId,
           email,

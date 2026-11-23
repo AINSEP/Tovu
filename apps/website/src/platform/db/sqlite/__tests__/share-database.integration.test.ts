@@ -17,6 +17,8 @@ import { openContentDb } from "../content-db.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";
 
+const NEWSLETTER_DATA_MODULE = createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER });
+
 /**
  * @file Boundary pins for the share projection (`../share-database.ts`) against real in-memory
  * SQLite: every refusal names its code and exact message, and every projection rule (media kinds,
