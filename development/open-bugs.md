@@ -352,3 +352,10 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   (now `bindSearchPluginActivity`) reads `agentPluginLayout.forWorkspace({ workspaceId }).root`, as `app.ts` does.
 - Test: `site-deps/__tests__/search-plugin-activity.unit.test.ts`. Mutation: read `layout.root` again — red.
 - Unrelated, pre-existing: 32 `site-deps` characterization tests ("slice call missing") fail on the base too.
+
+### `B190-widget-embed-entry-id-schema` — FIXED on `codex/bugs-high-tovu`
+- The admin editor writes `attrs.widgetEntryId` on every `widgetEmbed` node, but the post tool schema's
+  `widgetEmbed.attrs` had `additionalProperties: false` without it, so strict MCP validation refused the node and a
+  model had to strip it, losing which widget the embed shows. The schema now lists it ("Keep it when present").
+- Test: `agent-tools.tiptap-node-vocabulary.test.ts` "widgetEmbed carrying widgetEntryId passes strict validation and
+  keeps it". Mutation: drop the schema property — red.

@@ -482,3 +482,12 @@ test("schema-required YouTube fields and table/media constraints match the rende
   assert.ok(media);
   assert.equal(media.properties.attrs.properties.transformName.const, "public");
 });
+
+// B190: the admin editor stamps attrs.widgetEntryId on every widgetEmbed it inserts. Strict MCP
+// validation rejected such a node, so a model editing the post had to strip it to pass — losing
+// which widget the embed shows.
+test("widgetEmbed carrying widgetEntryId passes strict validation and keeps it", () => {
+  const doc = { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "pl-1", widgetEntryId: "wi-1" } }] };
+  assert.equal(validateDoc(doc), true, JSON.stringify(validateDoc.errors));
+  assert.equal(doc.content[0]!.attrs.widgetEntryId, "wi-1");
+});
