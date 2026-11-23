@@ -7,9 +7,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { getAuthedPrincipal } from "../dev-auth.js";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { pluginHookFailedBody } from "./plugin-hook-error.js";
-import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetConfigValidationError, WidgetEmbedGuardrailError, WidgetEmbedHostNotFoundError, WidgetEmbedHostUnsupportedError, WidgetEmbedPlacementNotFoundError, WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetReferencedError, WidgetTypeUnregisteredError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
-import { WidgetEmbedReorderCountMismatchError } from "@jini-ai/cms/widgets";
-import type { WidgetAreaEntry, WidgetInstanceEntry } from "@jini-ai/cms/widgets";
+import { widgetDomainErrorToResponse, type WidgetErrorResponse } from "@jini-ai/cms/admin-http/http/widgets";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `widgets` HTTP surface
@@ -40,100 +38,8 @@ export async function requireWidgetsPermissionOrRespond({ authorize, workspaceId
   return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
 }
 
-export function toAdminWidgetResponse(instance: WidgetInstanceEntry): { widget: WidgetInstanceEntry } {
-  return { widget: instance };
-}
-
-export function toAdminWidgetAreaResponse(area: WidgetAreaEntry): { area: WidgetAreaEntry } {
-  return { area };
-}
-
-// REQ-34 where-used response shaping belongs to Jini/packages/cms/src/widgets/where-used.ts.
-
-
-export interface WidgetErrorResponse {
-  status: number;
-  body: Record<string, unknown>;
-}
-
-/**
- * `WidgetForbiddenError` (thrown by `requireWidgetPermission` inside the domain functions
- * themselves — REQ-40's "same gate for human and AI-originated calls") carries only a message, not
- * a structured permission field; extracted here so this 403's body shape matches every other admin
- * route's `{ error, code, details: { permission, reason } }` convention
- * (`apps/website/src/server/inbound/admin-http/routes/menus/create.ts`) rather than diverging just because the check happened one layer
- * down. Falls back to an empty string if the message shape ever changes upstream — still a valid
- * 403, just without the extracted detail.
- *
- * `code` is `WIDGETS_FORBIDDEN`, matching this class's own documented code in `errors.ts` and every
- * sibling widgets error's HTTP/model-facing parity (`tool-registrations.ts`'s
- * `toModelFacingWidgetsError` prefixes with the same string) — previously this returned the generic
- * `FORBIDDEN` every OTHER admin route's inline 403 uses, which was a drift from every sibling in
- * this table, not a deliberate distinct code. See `widgets-error-code-parity.test.ts`.
- */
-function widgetForbiddenToResponse(err: WidgetForbiddenError): WidgetErrorResponse {
-  const match = /lacks permission '([^']+)' \(([^)]+)\)/.exec(err.message);
-  return {
-    status: 403,
-    body: { error: err.message, code: "WIDGETS_FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
-  };
-}
-
-/**
- * Ordered `errorClass -> mapper` table backing `widgetErrorToResponse`. Order matters only in that
- * every listed class must be checked before the unconditional 500 fallback — the classes themselves
- * are disjoint (none is a subclass of another here), so relative order among them is not significant.
- */
-const WIDGET_ERROR_MAPPERS: ReadonlyArray<
-  readonly [abstract new (...args: never[]) => Error, (err: never) => WidgetErrorResponse]
-> = [
-  [
-    WidgetConfigValidationError,
-    (err: WidgetConfigValidationError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_CONFIG_VALIDATION_ERROR", details: { fieldErrors: err.fieldErrors } } }),
-  ],
-  [
-    WidgetTypeUnregisteredError,
-    (err: WidgetTypeUnregisteredError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_TYPE_UNREGISTERED", details: { widgetType: err.widgetType } } }),
-  ],
-  [
-    WidgetEmbedReorderCountMismatchError,
-    (err: WidgetEmbedReorderCountMismatchError) => ({
-      status: 400,
-      body: { error: err.message, code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH", details: { expectedCount: err.expectedCount, actualCount: err.actualCount } },
-    }),
-  ],
-  [
-    WidgetEmbedGuardrailError,
-    (err: WidgetEmbedGuardrailError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: err.reason } } }),
-  ],
-  [
-    WidgetVersionConflictError,
-    (err: WidgetVersionConflictError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_VERSION_CONFLICT", details: { currentVersion: err.currentVersion } } }),
-  ],
-  [
-    WidgetAreaConflictError,
-    (err: WidgetAreaConflictError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_AREA_CONFLICT", details: { currentVersion: err.currentVersion } } }),
-  ],
-  [
-    WidgetReferencedError,
-    (err: WidgetReferencedError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_REFERENCED", details: { referencingLocations: err.referencingLocations } } }),
-  ],
-  [WidgetInstanceNotFoundError, (err: WidgetInstanceNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" } })],
-  [WidgetAreaNotFoundError, (err: WidgetAreaNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_AREA_NOT_FOUND" } })],
-  [WidgetEmbedHostNotFoundError, (err: WidgetEmbedHostNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_EMBED_HOST_NOT_FOUND" } })],
-  [
-    WidgetEmbedPlacementNotFoundError,
-    (err: WidgetEmbedPlacementNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_EMBED_PLACEMENT_NOT_FOUND" } }),
-  ],
-  [
-    WidgetEmbedHostUnsupportedError,
-    (err: WidgetEmbedHostUnsupportedError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_EMBED_HOST_UNSUPPORTED", details: { reason: err.reason } } }),
-  ],
-  [WidgetForbiddenError, widgetForbiddenToResponse],
-  // A post/page save under an embed insert/remove/reorder or a widget tool route can be refused by
-  // a plugin's beforeSave hook — the same fixed-text envelope the posts routes and agent tools give.
-  [PluginHookFailedError, (err: PluginHookFailedError) => ({ status: 500, body: { ...pluginHookFailedBody(err) } })],
-];
+// REQ-34 where-used response shaping belongs to Jini/packages/cms/src/widgets/where-used.ts; the
+// response DTOs and the widgets domain's own error table live in `@jini-ai/cms/admin-http/http/widgets`.
 
 /**
  * Pure typed-error -> `{status, body}` mapping, mirroring the `{error, code, ...}` envelope shape
@@ -144,9 +50,11 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
  * since a `Response` can only be finalized once.
  */
 export function widgetErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): WidgetErrorResponse {
-  for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
-    if (err instanceof ErrorClass) return mapper(err as never);
-  }
+  const mapped = widgetDomainErrorToResponse({ err });
+  if (mapped) return mapped;
+  // A post/page save under an embed insert/remove/reorder or a widget tool route can be refused by
+  // a plugin's beforeSave hook — the same fixed-text envelope the posts routes and agent tools give.
+  if (err instanceof PluginHookFailedError) return { status: 500, body: { ...pluginHookFailedBody(err) } };
   return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "http/widgets" });
 }
 

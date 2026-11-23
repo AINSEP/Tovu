@@ -38,7 +38,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
   let counter = 0;
   const now = "2026-10-01T12:00:00.000Z";
 
-  const { registerAdminWidgetUpdateRoute } = await import("../../update.js");
+  const { registerAdminWidgetUpdateRoute } = await import("#src/server/runtime/composition/modules/widgets");
 
   let routeHandler: any;
   const mockApp = {

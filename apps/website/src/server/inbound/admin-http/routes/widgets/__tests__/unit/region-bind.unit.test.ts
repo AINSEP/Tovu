@@ -28,7 +28,7 @@ test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and
   let counter = 0;
   const now = "2026-10-01T12:00:00.000Z";
 
-  const { registerAdminWidgetRegionBindRoute } = await import("../../region-bind.js");
+  const { registerAdminWidgetRegionBindRoute } = await import("#src/server/runtime/composition/modules/widgets");
 
   let routeHandler: any;
   const mockApp = {

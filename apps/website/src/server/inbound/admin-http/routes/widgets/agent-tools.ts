@@ -13,9 +13,9 @@ import type { WidgetPlacementNode, WidgetTypeKey } from "@jini-ai/cms/widgets";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,
-  toAdminWidgetResponse,
   widgetErrorToResponse,
 } from "#src/server/inbound/admin-http/http/widgets";
+import { toAdminWidgetResponse } from "@jini-ai/cms/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

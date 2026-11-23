@@ -9,18 +9,12 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryWidgetRegionBindingRepo, WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWidgetCreateRoute } from "../../create.js";
+import { registerAdminWidgetCreateRoute, registerAdminWidgetGetRoute, registerAdminWidgetListRoute, registerAdminWidgetRegionBindRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute } from "#src/server/runtime/composition/modules/widgets";
 import { registerAdminWidgetEmbedInsertRoute } from "../../embed-insert.js";
 import { registerAdminWidgetEmbedRemoveRoute } from "../../embed-remove.js";
 import { registerAdminWidgetEmbedReorderRoute } from "../../embed-reorder.js";
-import { registerAdminWidgetGetRoute } from "../../get-by-id.js";
-import { registerAdminWidgetListRoute } from "../../list.js";
 import { registerAdminWidgetPreviewRoute } from "../../preview.js";
-import { registerAdminWidgetRegionBindRoute } from "../../region-bind.js";
-import { registerAdminWidgetRegionGetRoute } from "../../region-get.js";
 import { parseWidgetRegionPlacements, registerAdminWidgetRegionMutatePlacementsRoute } from "../../region-mutate-placements.js";
-import { registerAdminWidgetRegionsListRoute } from "../../regions-list.js";
-import { registerAdminWidgetTrashRoute } from "../../trash.js";
 import { registerAdminWidgetAgentToolsRoutes } from "../../agent-tools.js";
 
 /**
