@@ -40,3 +40,10 @@ npx eslint --rule 'complexity: ["error", 10]' --rule 'sonarjs/cognitive-complexi
 ```
 
 The member suite command includes existing password/code/reset/set-password regression coverage. New S2 protocol tests use real AES-GCM, real RSA signatures and Jini validation against a hermetic token/JWKS transport; transaction tests use SQLite and PGlite. A real Google smoke check and S3/U1 continuation route/UI integration remain central-runner responsibilities.
+
+## Wiring
+
+- The member OIDC route template `MEMBER_OIDC_PATH` is owned by Jini at
+  `@jini-ai/core/contracts/headless/member-login`; route adapters, composition and the plugin exports runtime
+  import it from there. The former `public-path.ts` forwarder is deleted; this feature keeps the login
+  services, provider readiness and credentials (host).

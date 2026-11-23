@@ -9,7 +9,8 @@ import * as memberLogin from '#src/features/member-login/index';
 import type { MemberRecord, MemberSessionRecord } from '#src/features/members/index';
 import { InMemoryMemberExternalIdentityRepo } from '#src/features/members/repo.memory';
 import type { MemberPublicRouteDeps } from '../../deps.js';
-import { currentOidcMember, memberOidcCookie, MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from '../../oidc-deps.js';
+import { MEMBER_OIDC_PATH } from '@jini-ai/core/contracts/headless/member-login';
+import { currentOidcMember, memberOidcCookie, MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from '../../oidc-deps.js';
 import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from '../../oidc-start.js';
 import { registerPublicMemberMeRoute } from '../../me.js';
 

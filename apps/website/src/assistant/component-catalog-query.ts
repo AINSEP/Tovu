@@ -1,7 +1,7 @@
 import type { ComponentCatalogEntry, ComponentCatalogQuery, ComponentCatalogSearchHit } from "@jini-ai/daemon/http";
 import { ALL_MANIFESTS, type InteractiveComponentManifest } from "@jini-ai/ui/interactive-ui/manifests";
 import { chartCatalogManifests as jiniChartCatalogManifests } from "@jini-ai/ui/charts";
-import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**

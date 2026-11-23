@@ -110,3 +110,10 @@ Same JSON/relational split guidance as `post`'s INFO.md: `MediaRecord`'s
 editorial fields are plain relational columns here (no JSON body yet, unlike
 `post.bodyJson`) since there's no rich-content payload for a media asset in
 this pass — just scalar editorial metadata.
+
+## Wiring
+
+- Jini owns the chat attachment wire vocabulary (`CHAT_ATTACHMENT_REF_PATTERN`, `ChatAttachmentReadResult`,
+  `ChatAttachmentRefusal`) at `@jini-ai/core/contracts/headless/chat-attachment`; callers import it from there.
+  This feature (the host) owns the reader itself (`readChatAttachmentForOwner`, sidecars, upload root) and
+  does not re-export the Jini names.

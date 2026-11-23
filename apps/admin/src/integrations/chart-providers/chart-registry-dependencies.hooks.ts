@@ -1,7 +1,8 @@
 /** The only chart bootstrap client binding; retries and session handling stay in the existing API. */
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
-import type { AdminChartProviderSnapshot, ChartRegistryPort } from "./chart-registry-port.hooks";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
+import type { ChartRegistryPort } from "./chart-registry-port.hooks";
 
 export const defaultChartRegistryPort: ChartRegistryPort = {
   readSnapshot: async () => (await authenticatedAdminRequest<{ data: AdminChartProviderSnapshot }>({

@@ -6,7 +6,7 @@ import { prepareMessageAttachments } from '@jini-ai/daemon';
 import type { ToolContributor } from '@jini-ai/core';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRepoPort } from './index.js';
-import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult } from './read-chat-attachment.js';
+import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult } from '@jini-ai/core/contracts/headless/chat-attachment';
 
 /** Video is never sent as a filename pretending to be visible content. Authorized bytes go to an
  * injected extractor, then its JPEGs use the same preparation as message image attachments and the

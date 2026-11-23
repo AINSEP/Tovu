@@ -2,7 +2,7 @@
 import { getEffective, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { CHART_TABLE_PROVIDER } from "@jini-ai/ui/charts";
 import type { AdmittedBrowserProvider, BrowserProviderAsset } from "@jini-ai/plugins/host";
-import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 
 /** Build an immutable asset address without exposing a filesystem path.
  * @returns A workspace-scoped address matched only against admitted in-memory assets.

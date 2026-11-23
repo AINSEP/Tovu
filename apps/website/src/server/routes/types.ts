@@ -1,6 +1,7 @@
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
-import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
-import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { VersionedMediaRepoPort, DocumentTextExtractorPort } from "@jini-ai/cms/media";
+import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
+import type { CommentsProviderRegistry } from "@jini-ai/core/contracts/site/capability-providers-comments";
 import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
@@ -15,25 +16,15 @@ import type { PeerSiteReads } from "#src/assistant/host-ports";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import type { TrashDb, TrashKindMover } from "#src/features/trash/index";
 import type { RemoveEntity } from "@jini-ai/cms/trash/site/ports";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 import type { RevertRegistry } from "../../contracts/core/commands/index.js";
-import type {
-  PasswordHasherPort,
-  PolicyPermissionRepoPort,
-  PolicyRepoPort,
-  PrincipalPolicyRepoPort,
-  PrincipalRepoPort,
-  PrincipalRoleRepoPort,
-  RolePolicyRepoPort,
-  RoleRepoPort,
-  SessionRepoPort,
-  UserRepoPort,
-} from "@jini-ai/user-management";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort } from "@jini-ai/user-management";
+import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
@@ -84,7 +75,8 @@ import type { HydrateBlobStoreFromSeedResult } from "@jini-ai/cms/media/site/hyd
 import type { RemoveMediaFn } from "../../features/media/contracts.js";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
+import type { FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "@jini-ai/db/tools";
@@ -99,7 +91,7 @@ import type {
   MigrationRunsRepoPort,
   SiteStatusPort,
 } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
-import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
 import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
@@ -127,12 +119,10 @@ import type {
 } from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
-import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
+import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
-import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
@@ -685,7 +675,7 @@ export interface SettingsDeps {
    */
   assistantSettingsReady: Promise<void>;
   /** One management owner for page and chat; absent roots fail closed. */
-  visitorToolsManagement?: import("#src/contracts/site-assistant/visitor-tools-management").VisitorToolsManagementPort;
+  visitorToolsManagement?: import("@jini-ai/core/contracts/site/site-assistant-visitor-tools-management").VisitorToolsManagementPort;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
@@ -957,7 +947,7 @@ export interface PluginRuntimeDeps {
   /** Admitted runtime chart assets; disable and quarantine retire the same loader generation. */
   browserProviders?: (input: Record<string, never>, options?: Record<string, never>) => { generation: number; providers: readonly AdmittedBrowserProvider[] };
   /** Site settings and admitted metadata projected at the composition boundary. */
-  chartProviderSnapshot?: (input: Record<string, never>, options?: Record<string, never>) => Promise<import("#src/contracts/headless/index").AdminChartProviderSnapshot>;
+  chartProviderSnapshot?: (input: Record<string, never>, options?: Record<string, never>) => Promise<import("@jini-ai/core/contracts/headless/chart-providers").AdminChartProviderSnapshot>;
   pluginContributions?: PluginContributionRegistry;
   pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;

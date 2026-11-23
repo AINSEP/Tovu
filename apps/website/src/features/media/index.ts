@@ -135,6 +135,6 @@ export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, valida
 export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 
 export { saveLibraryDocument } from "./library-save-attachment.js";
-export { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "./read-chat-attachment.js";
+export { readChatAttachmentForOwner } from "./read-chat-attachment.js";
 export { captureMediaUploaded } from "./analytics.js";
 export { findMediaWhereUsed } from "./where-used.js";

@@ -4,7 +4,8 @@ import type { Express } from "express";
 import { beginOidcLogin, memberLoginCallbackUrl } from "#src/features/member-login/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
-import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { memberOidcContext, memberOidcCookie, memberOidcHeaders,
   redirectMemberOidcError, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Safe provider metadata only; configuration/pins and credentials never leave the server.

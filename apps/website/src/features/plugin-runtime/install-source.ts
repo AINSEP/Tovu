@@ -1,7 +1,8 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { ToolInputError, requireInputRecord } from '@jini-ai/core';
-import { CHAT_ATTACHMENT_REF_PATTERN, type PluginInstallRequest, type InstallAttachmentReader, type InstallArchiveFiles } from '../../contracts/headless/index.js';
+import { CHAT_ATTACHMENT_REF_PATTERN } from '@jini-ai/core/contracts/headless/chat-attachment';
+import { type PluginInstallRequest, type InstallAttachmentReader, type InstallArchiveFiles } from '../../contracts/headless/index.js';
 
 const nodeArchiveFiles: InstallArchiveFiles = {
   stat: ({ path: sourcePath }, _optional) => stat(sourcePath),
