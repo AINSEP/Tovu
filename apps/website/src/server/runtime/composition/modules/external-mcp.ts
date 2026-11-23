@@ -19,7 +19,7 @@ import { ExternalMcpReauthRequiredError } from "#src/features/external-mcp/exter
 import {
   deleteExternalMcpServer, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, listExternalMcpServerViews, saveExternalMcpServer,
 } from "#src/features/external-mcp/external-mcp-store";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ExternalMcpRouteDeps, ExternalMcpRouteRegistrar } from "#src/server/inbound/admin-http/routes/external-mcp/deps";
 import {
   registerAdminExternalMcpOAuthConnectRoute,
@@ -69,18 +69,27 @@ function externalMcpPortDeps({ deps }: { deps: ExternalMcpRouteDeps }, _optional
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** Every route in this family authorized `direct` (never the publishing-credential override). */
-function mountOptions(operation: string) {
-  return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/**
+ * Every route in this family authorized `direct` (never the publishing-credential override), with one
+ * check each. None opts into `deferMissingPrincipal`: the hand-written `guardExternalMcpRequest` read
+ * the session before any route looked at its params or body, so a missing session stays a 500 first.
+ */
+function mountOptions({ operation }: { operation: string }, _optional: Record<string, never> = {}): AdminJsonRouteMountOptions {
+  return { authorization: "direct", failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
 /** Tags a row with the runtime's built-in provenance list. */
 function ownershipFor({ deps }: { deps: ExternalMcpRouteDeps }, _optional: Record<string, never> = {}) {
-  return <T extends { serverId: string }>(server: T) => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds });
+  return <T extends { serverId: string }>({ server }: { server: T }, _o: Record<string, never> = {}) => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds });
 }
 
-const isValidationError = (err: unknown): err is ExternalMcpValidationError => err instanceof ExternalMcpValidationError;
-const isSecretStoreUnconfiguredError = (err: unknown): err is ExternalMcpSecretStoreUnconfiguredError => err instanceof ExternalMcpSecretStoreUnconfiguredError;
+/** The spec's error predicate for one host/other-package class: `instanceof` the real class, as a guard. */
+function instanceOf<E>({ ErrorClass }: { ErrorClass: abstract new (...args: never[]) => E }, _optional: Record<string, never> = {}) {
+  return (required: { err: unknown }, _o: Record<string, never> = {}): required is { err: E } => required.err instanceof ErrorClass;
+}
+
+const isValidationError = instanceOf({ ErrorClass: ExternalMcpValidationError });
+const isSecretStoreUnconfiguredError = instanceOf({ ErrorClass: ExternalMcpSecretStoreUnconfiguredError });
 
 export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({
@@ -89,7 +98,7 @@ export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ a
       ...externalMcpPortDeps({ deps }), describeOwnership: ownershipFor({ deps }),
       listServers: ({ workspaceId }) => listExternalMcpServerViews({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId }),
     },
-  }, mountOptions("routes/external-mcp/list"));
+  }, mountOptions({ operation: "routes/external-mcp/list" }));
 };
 
 export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -99,10 +108,10 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ ap
       ...externalMcpPortDeps({ deps }), describeOwnership: ownershipFor({ deps }),
       saveServer: (input) => saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, input),
       notifyRosterChanged: (optional) => notifyExternalMcpRosterChanged(optional),
-      isToolAccessLoweringError: (err): err is ToolAccessLoweringError => err instanceof ToolAccessLoweringError,
+      isToolAccessLoweringError: instanceOf({ ErrorClass: ToolAccessLoweringError }),
       isValidationError, isSecretStoreUnconfiguredError,
     },
-  }, mountOptions("routes/external-mcp/put"));
+  }, mountOptions({ operation: "routes/external-mcp/put" }));
 };
 
 export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -110,22 +119,22 @@ export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({
     app, spec: externalMcpDeleteRoute,
     deps: {
       ...externalMcpPortDeps({ deps }),
-      isBuiltInServer: (serverId) => isBuiltInExternalMcpServer({ serverId, ids: deps.builtInExternalMcpServerIds }),
+      isBuiltInServer: ({ serverId }) => isBuiltInExternalMcpServer({ serverId, ids: deps.builtInExternalMcpServerIds }),
       deleteServer: (input) => deleteExternalMcpServer({ repo: deps.externalMcpServerRepo }, input),
     },
-  }, mountOptions("routes/external-mcp/delete"));
+  }, mountOptions({ operation: "routes/external-mcp/delete" }));
 };
 
 export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   // No composed reader reads the server-owned federation directly (its own unavailable 503).
   const readAdmissions = () => deps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {});
-  mountAdminJsonRoute({ app, spec: externalMcpAdmissionsRoute, deps: { ...externalMcpPortDeps({ deps }), readAdmissions } }, mountOptions("routes/external-mcp/admissions"));
+  mountAdminJsonRoute({ app, spec: externalMcpAdmissionsRoute, deps: { ...externalMcpPortDeps({ deps }), readAdmissions } }, mountOptions({ operation: "routes/external-mcp/admissions" }));
 };
 
 export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   const approvalDeps = { ...externalMcpPortDeps({ deps }), toolApprovalRepo: deps.externalMcpToolApprovalRepo };
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalsListRoute, deps: approvalDeps }, mountOptions("routes/external-mcp/tool-approvals"));
-  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalRevokeRoute, deps: approvalDeps }, mountOptions("routes/external-mcp/tool-approvals"));
+  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalsListRoute, deps: approvalDeps }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
+  mountAdminJsonRoute({ app, spec: externalMcpToolApprovalRevokeRoute, deps: approvalDeps }, mountOptions({ operation: "routes/external-mcp/tool-approvals" }));
 };
 
 /** `DELETE .../mcp-servers/:serverId/oauth`; registered only when an OAuth service is wired. */
@@ -135,13 +144,13 @@ export function registerAdminExternalMcpOAuthDisconnectRoute({ app, deps }: { ap
     deps: {
       ...externalMcpPortDeps({ deps }),
       disconnect: (input) => deps.externalMcpOAuth.disconnect(input),
-      isApiConnectionError: (err): err is ApiConnectionError => err instanceof ApiConnectionError,
+      isApiConnectionError: instanceOf({ ErrorClass: ApiConnectionError }),
       isValidationError,
-      isReauthRequiredError: (err): err is ExternalMcpReauthRequiredError => err instanceof ExternalMcpReauthRequiredError,
+      isReauthRequiredError: instanceOf({ ErrorClass: ExternalMcpReauthRequiredError }),
       isSecretStoreUnconfiguredError,
-      isOAuthError: (err): err is OAuthError => err instanceof OAuthError,
+      isOAuthError: instanceOf({ ErrorClass: OAuthError }),
     },
-  }, mountOptions("routes/external-mcp/oauth"));
+  }, mountOptions({ operation: "routes/external-mcp/oauth" }));
 }
 
 export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle {
