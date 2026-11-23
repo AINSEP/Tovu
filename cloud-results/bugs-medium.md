@@ -63,4 +63,23 @@ Changesets added in Jini for integrations, db, cms, agent-plugins and plugin-cat
 
 ## Verification
 
-See the "Verify" section appended below.
+Setup: Tovu `npm ci`, workspace packages built; Jini `pnpm install` + `pnpm -r build` (exit 0), then Tovu linked to
+this Jini checkout (`link-jini.mjs`) because merge-13 imports `@jini-ai/core` subpaths the published package does
+not export yet. Without the link, many website tests fail to load on the unmodified base too.
+
+- Jini: `tsc --noEmit` clean for integrations, db, cms; vitest webhooks 129/129, plan-store 5/5, cms media 573/573;
+  `node --test` resend 18/18; plugin-catalog 68/68 after the re-pin; `pnpm guard` ok.
+- Tovu: `tsc -p tsconfig.json --noEmit` 0 errors (linked). Changed-area tests (newsletter, public newsletter
+  routes, external-mcp, webmcp, site-backup import): 1124/1130 before the B176 integration witness was repointed;
+  after it, the remaining failures are all present without these changes:
+  - `newsletter-public-routes.test.ts` "UNSUBSCRIBE: an unexpected storage failure … generic 500 page" (fails on the
+    merge-13 base: the page text no longer says "Unexpected server error").
+  - `import-history-retention.unit.test.ts` "Q4 expiry …" (fails on the merge-13 base).
+  - `import-restore.unit.test.ts` "import keeps starter radio and URL form markup active…" —
+    `TypeError: Cannot read properties of undefined (reading 'fieldKinds')`, from Tovu merge-13 against Jini
+    merge-14; nothing to do with the slug change.
+  - `import-registry.unit.test.ts` lock-timeout test: failed once under parallel load, passes alone (40/40).
+- Not run: `typecheck:tests` (the 6 GB test-tree typecheck) and the postgres-backed suites (no postgres here).
+
+Note: the Jini branch also builds a Resend plugin version bump (0.2.3 -> 0.2.4). A host pinning the catalog
+needs the matching Jini release before it sees the new digest.
