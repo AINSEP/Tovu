@@ -122,6 +122,9 @@ describe("the direct-URL gate over the real panels", () => {
  * test below; renaming a server permission fails the second.
  */
 const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
+/** Route specs that moved into `@jini-ai/cms` (ex5-fnd-routes): their permission literal now lives in
+ *  the package's built route module, which ships in `dist/` for both linked and registry installs. */
+const CMS_ROUTES = "../../../node_modules/@jini-ai/cms/dist/admin-http/routes";
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
   pages: `${ROUTES}/pages/list.ts`,
@@ -142,7 +145,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   plugins: `${ROUTES}/plugins/list.ts`,
   "agent-plugins": `${ROUTES}/agent-plugins/list.ts`,
   skills: `${ROUTES}/skills/list.ts`,
-  database: `${ROUTES}/database/timeline.ts`,
+  database: `${CMS_ROUTES}/database/timeline.js`,
   recovery: `${ROUTES}/recovery/status.ts`,
   deployment: `${ROUTES}/system/deployment-overview.ts`,
   observability: `${ROUTES}/system/observability-status.ts`,
@@ -152,7 +155,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
   seo: `${ROUTES}/seo/get-settings.ts`,
-  redirects: `${ROUTES}/redirects/list.ts`,
+  redirects: `${CMS_ROUTES}/redirects/shared.js`,
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
