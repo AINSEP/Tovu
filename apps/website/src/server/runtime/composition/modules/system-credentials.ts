@@ -3,11 +3,9 @@ import { publishCredentialCreateRoute } from "@jini-ai/cms/admin-http/routes/sys
 import { publishCredentialDeleteRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/delete";
 import { publishCredentialUpdateRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/update";
 import { publishCredentialVerifyRoute } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/verify";
-import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 
 import {
-  customCredentialCreateRoute, customCredentialDeleteRoute, customCredentialListRoute, customCredentialUpdateRoute,
-  type CredentialRoutePrincipal, type CustomCredentialView,
+  customCredentialCreateRoute, customCredentialDeleteRoute, type CustomCredentialView,
 } from "@jini-ai/cms/admin-http/routes/system/custom-credentials";
 import type { PublishCredentialView } from "@jini-ai/cms/admin-http/routes/system/publish-credentials/shared";
 
@@ -26,16 +24,13 @@ import {
 } from "#src/features/source-control/index";
 import {
   createCustomCredential,
-  describeCredential as describeCustomCredential,
+  describeCredential as describeCustomCredentialForDelete,
   CustomCredentialDuplicateLabelError,
   CustomCredentialConcurrentModificationError,
   CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
   deleteCustomCredential,
-  listCustomCredentialInventory,
-  updateCustomCredential,
-  type UpdateCustomCredentialInput,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
 import {
@@ -59,10 +54,8 @@ import {
   verifyPublishCredentialById,
   type PublishCredentialVerificationResult,
 } from "#src/features/deployments/static-publish/index";
-import {
-  createAdminJsonRoutePorts, mountAdminJsonRoute, type AdminJsonRoutePortDeps,
-} from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
+import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { registerAdminCustomCredentialsListRoute, registerAdminCustomCredentialsUpdateRoute } from "#src/server/inbound/admin-http/routes/system/custom-credentials";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminPublishCredentialsListRoute } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
 
@@ -138,40 +131,6 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
   mountAdminJsonRoute({ app, spec: sourceControlDeleteRoute, deps: { ...base, deleteCredential: (args) => deleteSourceControlCredential(readDeps, args) } }, options);
 }
 
-// ── credential kind (owner-session gates) ───────────────────────────────────────────────────────
-
-/** How each request authenticated (`res.locals.authCredentialKind`), keyed on that request's own
- *  principal copy — the same per-request keying the shared ports use for publish trust. A spec
- *  never sees `res`, so the custom-credentials list/update read the kind through this lookup. */
-const credentialKindByPrincipal = new WeakMap<object, string | undefined>();
-
-/** The admin ports with `authenticate` also recording the request's credential kind. Composed here
- *  (not in the shared ports) because only the owner-session gates below read it. */
-function credentialKindPorts(options: ReturnType<typeof directFailure>): JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> {
-  const ports = createAdminJsonRoutePorts({ ...options, workspaceScoped: true });
-  const authenticate = ports.authenticate!;
-  return {
-    ...ports,
-    authenticate: async (args) => {
-      const principal = await authenticate(args);
-      if (principal) credentialKindByPrincipal.set(principal, args.res.locals.authCredentialKind as string | undefined);
-      return principal;
-    },
-  };
-}
-
-const credentialKindOf = (principal: CredentialRoutePrincipal) => credentialKindByPrincipal.get(principal);
-
-/** `mountAdminJsonRoute`, but behind {@link credentialKindPorts}. The ports read only the two port
- *  fields, so widening them to the route's full deps type is sound. */
-function mountWithCredentialKind<Input, Output, Deps>(
-  { app, spec, deps }: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
-  options: ReturnType<typeof directFailure>,
-): void {
-  const ports = credentialKindPorts(options) as JsonRoutePorts<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>;
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...spec, ports }, deps });
-}
-
 // ── custom ──────────────────────────────────────────────────────────────────────────────────────
 
 export type AdminCustomCredentialsDeps = Pick<
@@ -185,12 +144,6 @@ const CUSTOM_ERRORS = {
   duplicateLabel: CustomCredentialDuplicateLabelError,
   notFound: CustomCredentialNotFoundError,
   secretStoreUnconfigured: CustomCredentialSecretStoreUnconfiguredError,
-};
-
-/** Shared Keys copy (Tovu product wording) for the list's owner-session gate. */
-const SHARED_KEYS_COPY = {
-  sharedKeysSessionRequired: "Use the owner's session to view Shared Keys.",
-  sharedKeysOwnerRequired: "Sign in as the installation owner to view Shared Keys.",
 };
 
 function customReadDeps(deps: AdminCustomCredentialsDeps) {
@@ -212,13 +165,12 @@ async function prepareCustomInvalidation(deps: AdminCustomCredentialsDeps) {
     invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache, ...(change as { before?: CustomCredentialSummary; after?: CustomCredentialSummary }) });
 }
 
-/** The fields every custom mount shares; each is read per request. */
+/** The fields both custom spec mounts share; each is read per request. */
 function customBase(deps: AdminCustomCredentialsDeps, readDeps: ReturnType<typeof customReadDeps>) {
   return {
     ...portDeps({ deps }), storeErrors: CUSTOM_ERRORS,
     projectKeys: () => deps.projectKeys,
-    ownerPrincipalId: async () => await deps.ownerPrincipalId,
-    describeCredential: (target: { workspaceId: string; id: string }) => describeCustomCredential(readDeps, target),
+    describeCredential: (target: { workspaceId: string; id: string }) => describeCustomCredentialForDelete(readDeps, target),
     prepareInvalidation: () => prepareCustomInvalidation(deps),
   };
 }
@@ -230,19 +182,13 @@ export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Expre
   const readDeps = customReadDeps(deps);
   const writeDeps = customWriteDeps(deps);
   const base = customBase(deps, readDeps);
-  mountWithCredentialKind({ app, spec: customCredentialListRoute, deps: {
-    ...base, credentialKindOf, copy: SHARED_KEYS_COPY,
-    listInventory: ({ workspaceId }) => listCustomCredentialInventory({ deps: readDeps, workspaceId }),
-  } }, options);
+  // List and update STAY hand-written (K1 STOP): they read `res.locals.authCredentialKind`.
+  registerAdminCustomCredentialsListRoute({ app, deps });
   mountAdminJsonRoute({ app, spec: customCredentialCreateRoute, deps: {
     ...base,
     createCredential: (input) => createCustomCredential(writeDeps, input as unknown as Parameters<typeof createCustomCredential>[1]),
   } }, options);
-  mountWithCredentialKind({ app, spec: customCredentialUpdateRoute, deps: {
-    ...base, credentialKindOf,
-    updateCredential: ({ input, allowSharedKeyReplacement }) =>
-      updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement }, input as UpdateCustomCredentialInput),
-  } }, options);
+  registerAdminCustomCredentialsUpdateRoute({ app, deps });
   mountAdminJsonRoute({ app, spec: customCredentialDeleteRoute, deps: {
     ...base, deleteCredential: (target) => deleteCustomCredential(readDeps, target),
   } }, options);

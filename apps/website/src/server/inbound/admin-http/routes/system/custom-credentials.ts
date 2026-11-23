@@ -1,0 +1,211 @@
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { ToolInputError } from "@jini-ai/core";
+import { invalidatePublishCredentialCompatibility } from "#src/features/deployments/publish-credentials/index";
+import type { Express, Request, Response } from "express";
+
+import {
+  describeCredential,
+  CustomCredentialDuplicateLabelError,
+  CustomCredentialConcurrentModificationError,
+  CustomCredentialNotFoundError,
+  CustomCredentialSecretStoreUnconfiguredError,
+  CustomCredentialValidationError,
+  listCustomCredentialInventory,
+  updateCustomCredential,
+  type UpdateCustomCredentialInput,
+  type CustomCredentialSummary,
+} from "#src/features/custom-credentials/index";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+
+/**
+ * @file Admin Access Tokens page's "Add custom provider" backend — the LIST and UPDATE verbs only,
+ * still hand-written (K1 STOP, RT-K1-adm-system-10): both read `res.locals.authCredentialKind`
+ * (the owner-session gate on Shared Keys, the owner-session shared-key replacement), which the admin
+ * JSON ports do not carry. Create and delete are Jini specs
+ * (`@jini-ai/cms/admin-http/routes/system/custom-credentials`) mounted by
+ * `runtime/composition/modules/system-credentials.ts`, which calls the two registrars below in the
+ * original order (list, create, update, delete).
+ *
+ * Registers `GET`/`POST` on the collection and `PUT`/`DELETE` on a single credential set, all under
+ * `/api/admin/v1/workspaces/:workspaceId/system/custom/credentials`. Deliberately a THIN HTTP
+ * adapter over `features/custom-credentials/store.ts` — every validation, uniqueness, and shape
+ * rule already lives there; this route's only job is: check auth, shape the request into
+ * `store.ts`'s input types, map its thrown errors to HTTP status codes, and return
+ * `CustomCredentialSummary` — never the sealed connection, never a token, never a username.
+ * Structurally mirrors `source-control-credentials.ts` byte-for-byte.
+ *
+ * `custom-credentials.write`-gated on every verb, a NEW dot-namespaced permission (not reused from
+ * either sibling feature) — matches the established per-feature permission convention
+ * `source-control-credentials.ts`'s own header traces; the seeded owner's wildcard grant authorizes
+ * it immediately with no seed edit required.
+ *
+ * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
+ */
+type AdminCustomCredentialsDeps = Pick<
+  RouteDeps,
+  "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache" | "projectKeys" | "ownerPrincipalId">>;
+
+const PERMISSION = "custom-credentials.write";
+const ENTITY_TYPE = "custom-credentials";
+
+const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/custom/credentials";
+
+/** Every error this route can produce, shaped once so each handler below stays a thin dispatch —
+ *  mirrors `source-control-credentials.ts`'s own `sendStoreError`. */
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
+  if (err instanceof CustomCredentialValidationError) {
+    res.status(400).json({ error: "VALIDATION", detail: err.message });
+    return;
+  }
+  if (err instanceof CustomCredentialConcurrentModificationError) {
+    res.status(409).json({ error: "CONCURRENT_MODIFICATION", detail: err.message });
+    return;
+  }
+  if (err instanceof CustomCredentialDuplicateLabelError) {
+    res.status(409).json({ error: "DUPLICATE_LABEL", detail: err.message });
+    return;
+  }
+  if (err instanceof CustomCredentialNotFoundError) {
+    res.status(404).json({ error: "NOT_FOUND", detail: err.message });
+    return;
+  }
+  if (err instanceof CustomCredentialSecretStoreUnconfiguredError) {
+    res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
+    return;
+  }
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/system/custom-credentials", code: "INTERNAL_ERROR" });
+}
+
+/**
+ * Builds the PUT body into `updateCustomCredential`'s partial-update input — each field is forwarded
+ * only when the request actually supplied that key (an omitted key must leave the stored value
+ * alone; see `UpdateCustomCredentialInput`'s own per-field "omitted = unchanged" doc). Extracted from
+ * the PUT handler below: six independent `!== undefined` checks inlined into one object literal
+ * pushed that handler's cyclomatic complexity to 10 against the repo's ceiling of 9 — this helper's
+ * own complexity is a flat 7 (one per checked field, no nesting), comfortably under the gate.
+ */
+function buildUpdateCredentialInput({ workspaceId, id, body }: { workspaceId: string; id: string; body: Record<string, unknown> }, _optional = {}): UpdateCustomCredentialInput {
+  return {
+    workspaceId,
+    id,
+    ...(body.label !== undefined ? { label: body.label } : {}),
+    ...(body.category !== undefined ? { category: body.category } : {}),
+    ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
+    ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
+    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+    ...(body.connection !== undefined ? { connection: body.connection } : {}),
+    // Independent of `connection` (2026-09-01) — `body.username` travels through even on a
+    // request that carries no `connection` at all. `null` (an explicit clear) survives this
+    // check exactly like a string does; only an actually-absent JSON key reads as `undefined`
+    // and gets skipped, same "omitted key vs. present null" distinction `store.ts`'s own
+    // `UpdateCustomCredentialInput.username` doc relies on.
+    ...(body.username !== undefined ? { username: body.username } : {}),
+  };
+}
+
+/** Deploy targets are loaded only when there is a publish-verification cache to invalidate. */
+async function registryForInvalidation({ deps }: { deps: Pick<AdminCustomCredentialsDeps, "workspaceId" | "loadDeployTargets" | "publishCredentialVerificationCache"> }, _optional = {}) {
+  return deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets({ workspaceId: deps.workspaceId }) : undefined;
+}
+
+type CredentialReadDeps = { repo: AdminCustomCredentialsDeps["customCredentialSetRepo"]; sealer: AdminCustomCredentialsDeps["siteAssistantSecretSealer"] };
+
+/** Everything a verb's registrar needs: the app, the route deps, the two store-dep bags and the shared guard. */
+interface CredentialRouteContext {
+  app: Express;
+  deps: AdminCustomCredentialsDeps;
+  readDeps: CredentialReadDeps;
+  writeDeps: ReturnType<typeof buildWriteDeps>;
+  rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean>;
+}
+
+function buildWriteDeps(deps: AdminCustomCredentialsDeps) {
+  return {
+    repo: deps.customCredentialSetRepo,
+    sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring,
+    clock: deps.clock,
+    idGen: deps.idGen,
+  };
+}
+
+/** Shared workspace-path-param + `custom-credentials.write` authorization check every verb below
+ *  performs first — mirrors `source-control-credentials.ts`'s own `rejectUnlessAuthorized`.
+ *  Returns `true` and has already written the response iff the caller should stop. */
+async function rejectUnlessAuthorizedFor(input: { deps: AdminCustomCredentialsDeps; req: Request; res: Response }): Promise<boolean> {
+  const { deps, req, res } = input;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
+  const principal = getAuthedPrincipal(res);
+  const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: ENTITY_TYPE };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
+  return false;
+}
+
+function registerListRoute({ app, deps, readDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    if (deps.projectKeys) {
+      if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to view Shared Keys.", permission: PERMISSION })) return;
+      if (getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to view Shared Keys." }); return; }
+    }
+    try {
+      const [inventory, keys] = await Promise.all([
+        listCustomCredentialInventory({ deps: readDeps, workspaceId: deps.workspaceId }),
+        deps.projectKeys?.list({}) ?? Promise.resolve([]),
+      ]);
+      const usage = new Map(keys.map(key => [key.keyId, key]));
+      const credentials = inventory.map(credential => {
+        if (credential.scope !== "project") return credential;
+        const key = usage.get(credential.id);
+        return { ...credential, usedBy: key?.usedBy ?? [], usedByThisSite: key?.usedByThisSite ?? false };
+      });
+      res.status(200).json({ credentials, ...(deps.projectKeys ? { projectKeysAvailable: true } : {}) });
+    } catch (err) {
+      sendStoreError({ res, err });
+    }
+  } }));
+}
+
+function registerUpdateRoute({ app, deps, readDeps, writeDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
+  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    try {
+      const registry = await registryForInvalidation({ deps });
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      const ownerSession = res.locals.authCredentialKind === "session" && getAuthedPrincipal(res).id === await deps.ownerPrincipalId;
+      const credential = await updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement: ownerSession }, buildUpdateCredentialInput({ workspaceId: deps.workspaceId, id: req.params.id, body }));
+      if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
+      res.status(200).json({ credential });
+    } catch (err) {
+      sendStoreError({ res, err });
+    }
+  } }));
+}
+
+function buildContext({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }): CredentialRouteContext {
+  return {
+    app,
+    deps,
+    readDeps: { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    writeDeps: buildWriteDeps(deps),
+    rejectUnlessAuthorized: (req, res) => rejectUnlessAuthorizedFor({ deps, req, res }),
+  };
+}
+
+/** `GET` the inventory (owner-session gate when a project key store is attached). */
+export function registerAdminCustomCredentialsListRoute({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
+  registerListRoute(buildContext({ app, deps }));
+}
+
+/** `PUT` one credential (owner-session shared-key replacement). */
+export function registerAdminCustomCredentialsUpdateRoute({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
+  registerUpdateRoute(buildContext({ app, deps }));
+}

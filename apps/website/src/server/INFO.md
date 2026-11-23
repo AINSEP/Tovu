@@ -37,12 +37,16 @@ Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`
 `createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
 hand-written: `PUT …/sites/config` (two failure copies by phase), the socket-reading list and the
 header-gated `/internal/dev-warm-site` (`routes/system/sites.ts`), card previews (binary) and the warm relay.
-Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount the source-control (5), custom (4)
-and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure` operations;
-the heal scheduler is built once per registration and injected. The custom list/update mount behind ports
-composed in that module (built from `createAdminJsonRoutePorts`) whose `authenticate` also records the
-request's credential kind for the owner-session gates. The publish GET list (a pinned direct-call rejection)
-and `routes/system/credential-copy.ts` (socket/headers, `Cache-Control: no-store`) stay hand-written.
+Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount the source-control (5), custom
+(create, delete) and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure`
+operations; store deps are bound once at registration as before and the heal scheduler is built once per
+registration and injected. Still hand-written in `inbound/admin-http/routes/system/`: custom list and update
+(they read `res.locals.authCredentialKind`), the publish GET list (a pinned direct-call rejection) and
+`credential-copy.ts` (socket/headers, `Cache-Control: no-store`). Their Jini specs for publish list and custom
+list/update exist but are not mounted until the admin ports carry the credential kind.
+Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
+per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
+per-error failure copy from the admin ports (owner decisions).
 Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings specs `"direct"` with failure
 `{ operation: "routes/settings", message: "The settings request could not finish." }`, binding readiness, the
 ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,
