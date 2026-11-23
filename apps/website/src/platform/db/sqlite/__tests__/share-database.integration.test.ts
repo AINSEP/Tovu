@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { statfs } from "node:fs/promises";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
-import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
+import { SITE_CONSENT_DEFAULTS } from "@jini-ai/cookie-consent/site/config";
 import { computeBlobStorageKey, MediaValidationError } from "#src/features/media/index";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";

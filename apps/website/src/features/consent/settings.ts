@@ -3,8 +3,7 @@ import { observed } from "@jini-ai/core/errors/idioms";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ensureSettingDefinitions, getEffective, type EnsureSettingDefinitionsDeps, type SettingsRepoPort, type SettingDefinitionSpec } from '@jini-ai/core/settings';
 
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, type SiteConsentSettings } from './config.js';
-export { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from './config.js';
+import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, type SiteConsentSettings } from '@jini-ai/cookie-consent/site/config';
 
 const ENUM_VALUES: Partial<Record<keyof SiteConsentSettings, readonly string[]>> = { regionMode: SITE_CONSENT_REGION_MODES, placement: SITE_CONSENT_PLACEMENTS };
 

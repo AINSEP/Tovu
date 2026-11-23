@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import test, { before } from 'node:test';
 import fc from 'fast-check';
 import { ToolInputError } from '@jini-ai/core';
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '../../config.js';
-import { consentConfigProblems, parseConsentConfig } from '../../validation.js';
+import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '@jini-ai/cookie-consent/site/config';
+import { consentConfigProblems, parseConsentConfig } from '@jini-ai/cookie-consent/site/validation';
 
 const parameters = { numRuns: 150, seed: 20261021 };
 const copyField = fc.constantFrom(...Object.keys(SITE_CONSENT_TEXT_LIMITS) as (keyof typeof SITE_CONSENT_TEXT_LIMITS)[]);

@@ -8,7 +8,7 @@ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { buildConsentRegistrations, consentDerivedRisk, contributeConsentTools } from '../tool-registrations.js';
 import { consentFixture } from './fixture.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
-import { SITE_CONSENT_DEFAULT_CSS } from '../config.js';
+import { SITE_CONSENT_DEFAULT_CSS } from '@jini-ai/cookie-consent/site/config';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '../revisions.repo.js';
 

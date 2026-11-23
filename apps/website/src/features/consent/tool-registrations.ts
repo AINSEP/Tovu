@@ -6,7 +6,7 @@ import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { toolMetadata } from '#src/contracts/core/tool-metadata/consent';
 import type { SiteConsentService } from './service.js';
 import { readConsentRequest, consentRevisionToken } from './request.js';
-import { parseConsentConfig } from './validation.js';
+import { parseConsentConfig } from '@jini-ai/cookie-consent/site/validation';
 
 export interface ConsentToolDeps { siteConsent?: SiteConsentService }
 const PATH = { type: 'string', description: 'One local public page path, default /; no external URL.' };

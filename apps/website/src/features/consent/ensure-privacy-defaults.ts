@@ -1,6 +1,6 @@
 import { deriveAvailableName } from '@jini-ai/core/naming';
 import { createPost, type PostRecord } from '../post/index.js';
-import { privacyPageTemplate } from './privacy-page-template.js';
+import { privacyPageTemplate } from '@jini-ai/cookie-consent/site/privacy-page-template';
 
 /** Site-specific CMS bootstrap ports; persistence and identity remain with their existing owners. */
 export interface PrivacyDefaultsDeps {
