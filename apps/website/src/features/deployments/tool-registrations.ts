@@ -12,7 +12,8 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import { deploymentsAgentToolCatalog } from "@jini-ai/devops/deploy/site/agent-tools";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "@jini-ai/devops/deploy/site/dockerfile";
-import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
+import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun } from "./export-run-binding.js";
+import type { ExportEngine, ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps

@@ -1,6 +1,6 @@
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
-import type { ExportEngine } from "#src/features/deployments/export-run";
+import type { ExportEngine } from "@jini-ai/devops/deploy/site/export-run";
 import type { RouteDeps } from "../../../../routes/types.js";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.

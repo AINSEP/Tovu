@@ -1,13 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import {
-  getExportRunSnapshot,
-  startExportRun,
-  type ExportRunCounts,
-  type ExportRunSnapshot,
-  type ExportRunStatus,
-} from "#src/features/deployments/index";
+import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/export-run-binding";
+import type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus } from "@jini-ai/devops/deploy/site/export-run";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

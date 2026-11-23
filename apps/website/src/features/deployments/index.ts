@@ -18,19 +18,6 @@ export type {
 // .dependency-cruiser.mjs registers those barrels in EXTRA_TO_EXEMPT because its generated
 // no-deep-imports rule recognizes only the top-level index, not nested guarded modules.
 
-// `ExportEngine`/`ExportRunCounts`/`ExportRunSnapshot`/`ExportRunStatus` are the shape
-// `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` (the one composed caller) and `server/routes/types.ts`
-// (its `RouteDeps` field) need; `startExportRun`/`getExportRunSnapshot` are the two functions that
-// route actually calls. `ExportRunReportLike` has no external caller today and stays un-re-exported.
-export {
-  getExportRunSnapshot,
-  startExportRun,
-  type ExportEngine,
-  type ExportRunCounts,
-  type ExportRunSnapshot,
-  type ExportRunStatus,
-} from "./export-run.js";
-
 // `buildDeploymentDescriptor` + the generator port back `tovu deploy config --target <id>`
 // (`cli/commands/deploy-config.ts`). The platform generators themselves are plugin modules (the
 // bundled hosting plugins' `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see
