@@ -8,7 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminTaxonomyAssignTermsRoute } from "../assign-terms.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "#src/server/runtime/composition/modules/taxonomy";
 import type { TaxonomyRouteDeps } from "../deps.js";
 
 /**

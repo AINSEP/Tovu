@@ -8,11 +8,11 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyListRoute } from "../../runtime/composition/modules/taxonomy.js";
-import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
-import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/routes/taxonomy/create-term.js";
+import { registerAdminTaxonomyCreateRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../runtime/composition/modules/taxonomy.js";
 import { registerAdminTaxonomyDeleteRoute } from "../../runtime/composition/modules/taxonomy.js";
-import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
-import { registerAdminTaxonomyAssignTermsRoute } from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "../../runtime/composition/modules/taxonomy.js";
 import { registerAdminTrashRestoreRoute } from "../../inbound/admin-http/routes/trash/restore.js";
 import type { RouteDeps } from "../../routes/types.js";
 

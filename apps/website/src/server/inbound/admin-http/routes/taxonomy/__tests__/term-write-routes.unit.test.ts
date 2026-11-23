@@ -5,9 +5,9 @@ import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake
 import type { TaxonomyRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminTaxonomyCreateTermRoute } from "../create-term.js";
-import { registerAdminTaxonomyDeleteRoute } from "../delete-taxonomy.js";
-import { registerAdminTaxonomyDeleteTermRoute } from "../delete-term.js";
+import { registerAdminTaxonomyCreateTermRoute } from "#src/server/runtime/composition/modules/taxonomy";
+import { registerAdminTaxonomyDeleteRoute } from "#src/server/runtime/composition/modules/taxonomy";
+import { registerAdminTaxonomyDeleteTermRoute } from "#src/server/runtime/composition/modules/taxonomy";
 
 /**
  * Direct-invoke route contracts for the taxonomy term-write routes, with hand-written fakes for the
