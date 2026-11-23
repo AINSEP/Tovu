@@ -356,7 +356,7 @@ Split points: `composeAssistantRoutines`, `openRoutineDb`, `createRoutineHost` (
 ### 5. Failure modes and limits
 | failure | plain words | where | id |
 |---|---|---|---|
-| routines DB cannot open (corrupt/permission) | "Routines are unavailable because their data file could not be opened." | list `availability: 'error'`, admin banner; HTTP 503 | `ROUTINES_STORE_OPEN_FAILED` → admin `ERR-` id via `W/shared/admin-failure.ts` |
+| routines DB cannot open (corrupt/permission) | "Routines are unavailable because their data file could not be opened." | list `availability: 'error'`, admin banner; HTTP 503 | `ROUTINES_STORE_OPEN_FAILED` → admin `ERR-` id via `W/server/inbound/shared/admin-failure.ts:70,123` (`adminFailureResponse`, `sendAdminFailure`) |
 | not desktop | "Routines run only while the desktop app is open." | HTTP 503, admin screen | `ROUTINES_UNAVAILABLE` |
 | assistant off | "Turn on the AI assistant to run routines." | admin screen | `ROUTINES_ASSISTANT_OFF` |
 | other window holds lease | "Routines for this site are running in another Tovu window." | admin screen | `ROUTINES_LEASE_HELD` |
