@@ -25,7 +25,7 @@ export const PageEditor = lazy(() => import("./features/pages").then(module => (
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
 export const Members = lazy(() => import("./features/members").then(module => ({ default: module.Members })));
 export { Comments } from "./features/comments";
-export const Analytics = lazy(() => import("./features/analytics").then(module => ({ default: module.Analytics })));
+export const Analytics = lazy(() => import("./integrations/jini-admin/analytics-page").then(module => ({ default: module.Analytics })));
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
 export const MenuEditor = lazy(() => import("./features/menus").then(module => ({ default: module.MenuEditor })));

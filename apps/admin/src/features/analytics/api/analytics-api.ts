@@ -1,7 +1,7 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
-import type { AdminAnalyticsHit } from "./analytics-api.types";
+import type { AdminAnalyticsHit } from "@jini-ai/admin/screens/analytics/api/analytics-api.types";
 
 /** The admin API calls of the analytics feature. */
 export const analyticsApi = {
