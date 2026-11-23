@@ -13,7 +13,8 @@ import {
   type SiteKeySource,
   type SiteKeySourceMaterial,
 } from "./site-key-sources.js";
-import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { buildSiteMetaForNewKey } from "#src/platform/site-dir/index";
 

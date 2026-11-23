@@ -61,3 +61,7 @@ touches webhook persistence doesn't have to rediscover it.
   (`previousSecretVersion`) — `verifySignature` already accepts a header carrying multiple `v1=`
   values, but nothing in this task's scope constructs one yet.
 - The deferred `integration_secrets` / `SecretSealerPort` outbound-connector half (ADR-036 §8).
+
+## Wiring
+
+- `RuntimeMode` (the type) is imported from `@jini-ai/core/contracts/site/core-runtime-mode`; `resolveRuntimeMode` (the value) still comes from `#src/contracts/core/runtime-mode`, which the composition root calls and passes down.

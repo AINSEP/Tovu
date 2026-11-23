@@ -339,3 +339,7 @@ wrapper retirement; references to their former paths describe the pre-migration 
  * Jini owns normalization, validation and defensive copies; SQL repositories keep their contract.
  */
 ```
+
+## Wiring
+
+- `RuntimeMode` (the type) is imported from `@jini-ai/core/contracts/site/core-runtime-mode`; `resolveRuntimeMode` (the value) still comes from `#src/contracts/core/runtime-mode`, which the composition root calls and passes down.

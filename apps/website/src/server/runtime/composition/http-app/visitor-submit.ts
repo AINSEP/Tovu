@@ -36,6 +36,8 @@ export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional
     // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
     ipHashSalt: resolveCommentsIpHashSalt({
       env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
+      // The salt resolver never logs: this host keeps its production fail-safe warning on the server console.
+      warn: (line) => console.warn(line),
     }).then(({ salt }) => salt),
   } });
 }
