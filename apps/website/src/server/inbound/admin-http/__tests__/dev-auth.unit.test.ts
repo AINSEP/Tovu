@@ -69,7 +69,10 @@ test("GET /auth/me directly returns the exact 401 for an unauthenticated request
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/auth/me");
   const { res, capture } = createCapturingResponse();
 
-  await handler({ headers: {}, socket: { localPort: 0 } }, res);
+  // K1 routes read the request through `res.req` (http-kit's authenticate port), as Express sets it.
+  const req = { headers: {}, socket: { localPort: 0 } };
+  Object.assign(res, { req });
+  await handler(req, res);
 
   assert.equal(capture.statusCode, 401);
   assert.deepEqual(capture.jsonBody, { error: "unauthenticated", code: "UNAUTHENTICATED" });
@@ -84,7 +87,10 @@ test("GET /auth/me/password-status directly returns the exact 401 for an unauthe
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/auth/me/password-status");
   const { res, capture } = createCapturingResponse();
 
-  await handler({ headers: {}, socket: { localPort: 0 } }, res);
+  // K1 routes read the request through `res.req` (http-kit's authenticate port), as Express sets it.
+  const req = { headers: {}, socket: { localPort: 0 } };
+  Object.assign(res, { req });
+  await handler(req, res);
 
   assert.equal(capture.statusCode, 401);
   assert.deepEqual(capture.jsonBody, { error: "unauthenticated", code: "UNAUTHENTICATED" });

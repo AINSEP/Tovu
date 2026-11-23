@@ -35,7 +35,8 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
     const cookies: string[] = [];
     res.setHeader = () => res;
     res.cookie = (_name, value) => { cookies.push(value); return res; };
-    res.req = { headers: {}, socket: { localPort: 4317 } } as Request;
+    // K1 routes read request facts through `res.req` (the http-kit authenticate port), so it is the full fake request.
+    res.req = { headers: {}, socket: { localPort: 4317 }, ip: '127.0.0.1', get: () => undefined } as unknown as Request;
     return { res, capture, cookies };
   }
   const request = (body: object) => ({ body, ip: '127.0.0.1', headers: {}, socket: { localPort: 4317 }, get: () => undefined });
