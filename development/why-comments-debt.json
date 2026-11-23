@@ -3184,6 +3184,50 @@
     {
       "id": "cecd3ebf4521",
       "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
+    },
+    {
+      "id": "a84e179cb29b",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:21-21."
+    },
+    {
+      "id": "374b1aff5aef",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:23-23."
+    },
+    {
+      "id": "eb689c32b0c8",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:25-25."
+    },
+    {
+      "id": "969a29ddb09e",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:27-27."
+    },
+    {
+      "id": "ff0c51eee669",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:29-29."
+    },
+    {
+      "id": "1770706f7f40",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:33-35."
+    },
+    {
+      "id": "754307449772",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:45-47."
+    },
+    {
+      "id": "0abecbb012e5",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:51-58."
+    },
+    {
+      "id": "580f78b52016",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:60-68."
+    },
+    {
+      "id": "a2b148d66925",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:70-76."
+    },
+    {
+      "id": "869a187fdeaa",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoSettingsDto header), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:1-1."
     }
   ]
 }
