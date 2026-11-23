@@ -1,4 +1,5 @@
-import { DEFAULT_THEME_SLOTS, type ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
+import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
+import type { ThemeSlotDescriptor } from "@jini-ai/core/contracts/site/core-theme-slots";
 import { type ThemeManifest, type ThemeTier } from "./render-contract.js";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";

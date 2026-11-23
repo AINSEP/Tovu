@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { trashMember } from "./trash-member.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";

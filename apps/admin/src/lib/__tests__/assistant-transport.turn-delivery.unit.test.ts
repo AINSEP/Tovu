@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 
 import {
@@ -9,6 +9,7 @@ import {
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { FakeEventSource, resetFakeEventSource, streamFromChunks } from "./assistant-transport.test-helpers";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file Regression suite for Defects 2 and 3 of the 2026-09-11 chat-lifecycle repair, both observed

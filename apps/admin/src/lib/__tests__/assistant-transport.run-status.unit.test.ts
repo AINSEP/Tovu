@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { renderHook, act, cleanup } from "@/__tests__/fetch-query-render";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers } from "@jini-ai/chat/react";
 import { useConversation } from "@jini-ai/chat/react";
 
@@ -11,6 +11,7 @@ import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/ho
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 import { durableRunBindings } from "../durable-run-subscription";
 import { translateRunFrame } from "@tovu/assistant-run-events";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file What a dead chat run WRITES DOWN — the durable half of the 2026-09-06 chat-death

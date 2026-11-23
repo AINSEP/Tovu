@@ -8,7 +8,7 @@ import type { PostRepoPort } from "./post.js";
 import type { PostTemplateDeps } from "./template-options.js";
 import type { PostSearchPort } from "./search.js";
 import type { FeaturedImageDeps } from "./featured-image.js";
-import type { RuntimeMode } from "../../contracts/core/runtime-mode.js";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 /**
  * Structural mirror of `features/pages/html-document-store.sqlite.ts`'s

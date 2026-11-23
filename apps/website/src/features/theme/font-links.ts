@@ -1,6 +1,6 @@
 import type { ThemeManifest } from "./render-contract.js";
 import { publicThemeResources } from "./public-theme-resources.js";
-import type { PublicThemeResources } from "../../contracts/core/public-page-security-headers.js";
+import type { PublicThemeResources } from "@jini-ai/core/contracts/site/core-public-page-security-headers";
 
 /**
  * Render declared font links; legacy family lists use the shipped URL template unchanged.

@@ -3,7 +3,8 @@ import { SharpImageTransformer } from "@jini-ai/cms/media/node";
  * site, the same lifetime and gating `site-preview-host.ts` applies to Sites card captures, reusing
  * that feature's store, queue and Playwright capture rather than a second screenshot stack. */
 import path from "node:path";
-import { isSiteSwitcherEnabled, type SiteBinding } from "#src/platform/site-dir/index";
+import { isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import {
   createSitePreviewCaptureForHost,
   createSitePreviewService,

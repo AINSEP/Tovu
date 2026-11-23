@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file Regression suite for the turn-1 amnesia defect (2026-09-09): the admin chat pane lost the

@@ -1,10 +1,11 @@
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import { createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import type { DurableRecovery, RecoveryPorts } from "@jini-ai/chat/server/durable-runs";
 
 import type { ChatRunLedger } from "#src/assistant/index";
 
 import type { RunDaemonClient, RunDaemonRequest } from "../run-daemon-http-client.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file Binds durable recovery to the run finalizer: an HTTP status becomes live, dead or

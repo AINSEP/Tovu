@@ -3,4 +3,3 @@
 export type { PeerSiteReads } from "./tool-registrations.js";
 export type { SiteAssistantCredentialRepoPort } from "./site-credential-store.js";
 export type { AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
-export type { ToolGapsToolDeps } from "./tool-gaps-tool.js";

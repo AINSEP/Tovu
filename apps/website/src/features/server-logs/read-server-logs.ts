@@ -1,4 +1,4 @@
-import type { ServerLogEntry, ServerLogLevel } from "#src/platform/server-logs/index";
+import type { ServerLogEntry, ServerLogLevel } from "@jini-ai/core/contracts/site/platform-server-logs";
 
 /**
  * @file `readServerLogs` — the ONE read behind both the admin route

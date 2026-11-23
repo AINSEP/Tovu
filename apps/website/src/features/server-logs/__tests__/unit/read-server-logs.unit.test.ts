@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ServerLogEntry } from "#src/platform/server-logs/index";
+import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "../../read-server-logs.js";
 
 function entry(seq: number, level: ServerLogEntry["level"], message: string, at = `2026-10-05T12:00:0${seq}.000Z`): ServerLogEntry {

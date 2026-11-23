@@ -9,7 +9,7 @@ import {
   type ResolvedMailer as JiniResolvedMailer,
 } from "@jini-ai/platform/mail";
 
-import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";
 import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 import { describeMailProviders } from "./mail-provider-configuration.js";

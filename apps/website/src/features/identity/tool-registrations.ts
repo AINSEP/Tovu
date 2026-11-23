@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
-import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/site/identity';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";

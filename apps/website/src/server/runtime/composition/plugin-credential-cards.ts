@@ -6,7 +6,7 @@ import { credentialCardsContribution, mergePluginCredentialCards } from '@jini-a
 import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
 import { parseSourceControlProvidersFile } from '#src/features/source-control/provider-registry';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
-import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
+import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 import { readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import type { LoadPluginCredentialCards } from "../../../features/custom-credentials/plugin-credential-card.js";
 import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";

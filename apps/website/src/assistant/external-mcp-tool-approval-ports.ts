@@ -6,10 +6,7 @@
  * Fingerprinting, drift checks and destructive-call locks live in @jini-ai/mcp/federation.
  */
 import type { UUID } from "@jini-ai/core/primitives";
-import type {
-  ConversationToolApprovalKey,
-  ExternalMcpToolApprovalRecord as SharedApprovalRecord,
-} from "@jini-ai/mcp/federation";
+import type { ExternalMcpToolApprovalRecord as SharedApprovalRecord } from "@jini-ai/mcp/federation";
 
 /** A site's durable grant; the required workspace cannot be omitted by a host caller. */
 export interface ExternalMcpToolApprovalRecord extends Omit<SharedApprovalRecord, "scope"> {
@@ -24,10 +21,3 @@ export interface ExternalMcpToolApprovalRepoPort {
   delete(input: { workspaceId: UUID; serverId: string; toolName: string }): Promise<boolean>;
 }
 
-/** The conversation grant key and timestamp are passed together at each boundary. */
-export interface ConversationToolApprovalStore {
-  has(key: ConversationToolApprovalKey): Promise<boolean>;
-  /** Person/identity grant shared across existing chats; used only for native escalations. */
-  hasIdentity?(key: Omit<ConversationToolApprovalKey, "conversationId">): Promise<boolean>;
-  grant(required: { key: ConversationToolApprovalKey; grantedAt: string }, optional?: Record<string, never>): Promise<void>;
-}

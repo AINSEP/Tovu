@@ -4,7 +4,7 @@ import type { AgUiEvent } from "@jini-ai/chat/core/ag-ui";
 import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
 import { EventType } from "@ag-ui/core";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 
 import {
@@ -14,6 +14,7 @@ import {
 } from "../assistant-transport-ag-ui";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file ADR-059's AG-UI canary transport — the client-side half. Mirrors

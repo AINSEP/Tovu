@@ -7,5 +7,3 @@ export const PUBLISHABLE_SETTINGS: Readonly<Record<string, string>> = {
   "site.seo:default_og_image": "Default share image",
   "site.seo:twitter_site": "X (Twitter) handle",
 };
-
-export type MailTestModeSetting = { mode: "off" } | { mode: "redirect"; to: string } | { mode: "capture" };

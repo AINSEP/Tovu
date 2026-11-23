@@ -14,7 +14,8 @@ import {
   type VerifiedOrigin,
   type OriginBootPlan,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import type { ISODateTime } from "@jini-ai/core/primitives";
 
 export type { OriginBootPlan } from "@jini-ai/core/contracts/server/verified-origin";

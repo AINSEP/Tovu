@@ -29,7 +29,8 @@ import {
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
-import { devRestartPortFromEnv, type DevRestartPort } from "#src/platform/dev-supervisor/index";
+import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
+import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/index";
 import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 import {
   createSiteForOwner,

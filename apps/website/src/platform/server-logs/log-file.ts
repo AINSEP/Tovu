@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { ServerLogEntry } from "./log-buffer.js";
+import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 
 /**
  * @file Persisted tail of the server log buffer (slice L2, gap A-04): one JSON entry per line in

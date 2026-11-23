@@ -26,7 +26,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  */
 
 export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
-  tracker?: import('@jini-ai/diagnostics/observability').Tracker;
+  tracker?: import('@jini-ai/core/contracts/site/diagnostics-observability').Tracker;
   providerConfig?: ProviderConfigSource;
   ownerPrincipalId?: Promise<string>;
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;

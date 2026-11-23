@@ -26,11 +26,12 @@
  * `ReadableStream`, matching the exact two-line `event:`/`data:` framing `sse()` writes server-side.
  */
 import { assistantContentFromEvents, latestUserPromptFromHistory } from "@jini-ai/chat/core";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
 import { parseToolConfirmation, type ToolConfirmation } from "./tool-confirmation";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 const CHAT_URL = "/api/site-assistant/chat";
 /** Silence (no bytes at all) this long ends the turn with a visible error instead of an endless

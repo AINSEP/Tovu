@@ -13,7 +13,7 @@ import { tovuTargetDeps, type AgentPluginTokenTargetDeps } from './access-token-
 import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from './switch-on-saved-token.js';
 import { tovuInstalledMcpReads } from './federate-mcp.js';
 import { withOverrides } from './mcp-host-bindings.js';
-import type { AgentPluginLayout } from './layout.js';
+import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 export type { ImportAgentPluginAccessTokenOutcome, InstalledAgentPluginServers, TokenImportLog } from '@jini-ai/agent-plugins/connect';
 
 /** Recorded as `updatedBy`/principal on what an import writes. */

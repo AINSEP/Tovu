@@ -1,7 +1,6 @@
 /** Declared plugin JavaScript and external hosts: what a page loads, when, and what its policy names. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
@@ -10,6 +9,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import { owner, workspaceId } from "../fixtures/plugin-exports.js";
+import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
 const URL_PROP = "https://book.vendor.test/me/30min";
 const script = "/api/agent-plugin-exports/v1/demo/cal/components/cal.js";

@@ -2,7 +2,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/database-transf
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";

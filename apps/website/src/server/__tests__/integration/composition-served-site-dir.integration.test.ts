@@ -15,7 +15,7 @@ import { installFirstPartyPublishContentTypes } from "../../runtime/composition/
 import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { redirects, workspaces } from "#src/platform/db/schema.sqlite";
-import type { SiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 /**
  * @file `createSiteRouteDeps` roots every `<site>/...` path it defaults at the site it was BOOTED

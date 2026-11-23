@@ -1,4 +1,3 @@
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, type ArchivePlugin } from "./archive-manifest.js";
 import { archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js";
@@ -9,6 +8,7 @@ import { readBundledPackageFiles } from "./package-file-inventory.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
 import { addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export interface VerifiedSiteImport {
   encryptedKeys?: Buffer;
