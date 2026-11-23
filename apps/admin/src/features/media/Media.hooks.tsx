@@ -1,5 +1,8 @@
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { Icon } from "@jini-ai/ui";
+import { useCallback, useState, type ChangeEvent } from "react";
+import { isUploadTooLarge } from "@/lib/upload-limit";
+import type { MediaController } from "./hooks/use-media.hooks";
 import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 
 /**
@@ -67,4 +70,28 @@ export function resolveMediaTabs({ t }: { t: (key: string) => string }, { counts
  *  the guard is what makes that a checked fact instead of an asserted one. */
 export function resolveMediaTabChange({ setActiveTab }: { setActiveTab: MediaTabsController["setActiveTab"] }, _optional: Record<string, never> = {}): (id: string) => void {
   return (id) => setActiveTab(resolveActiveTab({ tabId: id }));
+}
+
+/**
+ * The admin's one upload limit (`lib/upload-limit.ts`, P10-M2) for the Upload dialog: a file over
+ * it is flagged the moment it is chosen, so the operator is told before any bytes are read or sent.
+ * The chosen file still goes to `onFileChange` so the dialog keeps showing what was picked (and a
+ * later, smaller pick replaces it); `tooLarge` is what blocks Upload. Closing the dialog clears it.
+ * @returns `tooLarge`, plus `chooseFile`/`close` to wire in place of `onFileChange`/`closeUpload`.
+ * @complexity O(1).
+ */
+export function useUploadSizeGuard(
+  { onFileChange, closeUpload }: Pick<MediaController, "onFileChange" | "closeUpload">,
+  _optional: Record<string, never> = {},
+): { tooLarge: boolean; chooseFile: (event: ChangeEvent<HTMLInputElement>) => void; close: () => void } {
+  const [tooLarge, setTooLarge] = useState(false);
+  const chooseFile = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setTooLarge(isUploadTooLarge({ size: event.target.files?.[0]?.size ?? 0 }));
+    onFileChange(event);
+  }, [onFileChange]);
+  const close = useCallback(() => {
+    setTooLarge(false);
+    closeUpload();
+  }, [closeUpload]);
+  return { tooLarge, chooseFile, close };
 }

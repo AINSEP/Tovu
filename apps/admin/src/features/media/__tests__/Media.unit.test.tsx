@@ -255,7 +255,8 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     await screen.findByRole("heading", { name: "Media" });
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload");
-    const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
+    // Only MIME entries are compared; `.mov`/`.m4v` extensions are there for pickers that ignore MIME.
+    const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter((entry) => entry.includes("/")));
     // audio excluded pending owner decision on audio uploads
     const expected = new Set([...DEFAULT_ALLOWED_MIME_TYPES].filter((mimeType) => !mimeType.startsWith("audio/")));
     expect(accepted).toEqual(expected);
@@ -285,6 +286,26 @@ describe("upload and import dialogs (owner item #9, 2026-10-13)", () => {
     expect(screen.getByRole("button", { name: "Upload" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("File to upload"), { target: { files: [new File(["image"], "a.png", { type: "image/png" })] } });
     // Alt text is optional and never blocks.
+    expect(screen.getByRole("button", { name: "Upload" })).toBeEnabled();
+  });
+
+  // P10-M2: one 50 MiB limit across the admin, refused before the bytes are read or sent.
+  it("refuses a file one byte over 50 MiB in the dialog, in plain words, and accepts exactly 50 MiB", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+    await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
+    const sized = (size: number) => {
+      const file = new File(["x"], "clip.mov", { type: "video/quicktime" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+    const dialog = document.querySelector(".media-upload-dialog") as HTMLElement;
+    fireEvent.change(screen.getByLabelText("File to upload"), { target: { files: [sized(50 * 1024 * 1024 + 1)] } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("This file is larger than 50 MB. Choose a smaller file or ask the assistant to convert it.");
+    expect(screen.getByRole("button", { name: "Upload" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("File to upload"), { target: { files: [sized(50 * 1024 * 1024)] } });
+    expect(within(dialog).queryByRole("alert")).toBeNull();
     expect(screen.getByRole("button", { name: "Upload" })).toBeEnabled();
   });
 
@@ -1291,5 +1312,18 @@ describe("EditMediaPanel — caption, CSS class, pending save and copy feedback"
 
     expect(writeText).toHaveBeenCalledWith("abc123");
     expect(await within(hashRow).findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+});
+
+// .MOV gap (owner 2026-10-31, option A): a kept QuickTime clip says it may not play in Chrome.
+describe("QuickTime playback note", () => {
+  it("shows the note on a QuickTime card only", async () => {
+    const mov = { ...ACTIVE_ITEM, id: "media-mov", title: "Pitch", slug: "pitch", contentType: "video/quicktime" };
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse({ media: [ACTIVE_ITEM, mov] })) }]));
+    const { container } = renderScreen();
+    await waitForCard(container, "Sunset Photo.png");
+    const notes = await screen.findAllByText("This video may not play in Chrome.");
+    expect(notes).toHaveLength(1);
+    expect(cardFor(container, "Sunset Photo.png").contains(notes[0]!)).toBe(false);
   });
 });

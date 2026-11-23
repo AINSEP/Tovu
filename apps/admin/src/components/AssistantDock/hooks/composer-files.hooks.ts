@@ -5,6 +5,7 @@ import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkin
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
+import { ADMIN_UPLOAD_MAX_BYTES, isUploadTooLarge, uploadTooLargeMessage } from "@/lib/upload-limit";
 import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -27,28 +28,43 @@ import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/fe
  */
 /**
  * Mirrors the website daemon's own per-file/per-turn caps so a rejection surfaces here, before any
- * bytes are sent, rather than only after the daemon's own enforcement rejects them. `apps/admin` is
- * a separate browser bundle from `apps/website` (no shared import today — see `tsconfig.json`'s
- * `@tovu/*` aliases for the narrow, dependency-free exceptions that DO cross that boundary), so
- * these are duplicated literals, not an import, matching this codebase's existing convention for a
- * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
- * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
- *
- * Owner-directed (2026-09-21): must stay equal to `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, which the website imports as
- * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
+ * bytes are sent, rather than only after the daemon's own enforcement rejects them. The per-file
+ * cap is the admin's one upload limit (`lib/upload-limit.ts`, P10-M2), shared with Library and
+ * Media; see that file for why it is a hand-kept copy of the server's `TOVU_MAX_UPLOAD_BYTES`.
+ * The batch cap must stay equal to `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
  * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
  */
-const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
-const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
+const CHAT_ATTACHMENT_MAX_BATCH_BYTES = ADMIN_UPLOAD_MAX_BYTES * 2;
 
-export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
+type AttachmentUpload = ReturnType<typeof createDaemonAttachmentUploader>;
+
+/**
+ * Refuses any file over the admin upload limit with the admin's own words, before `upload` runs.
+ * `@jini-ai/chat`'s uploader also checks the size, but says "Each attachment must be 50 MB or
+ * smaller." with no way forward; checking first keeps chat, Library and Media saying the same thing.
+ * @returns An uploader with the same signature that forwards the composer's batch options untouched.
+ * @throws Error carrying {@link uploadTooLargeMessage} when any file is over the limit.
+ * @complexity O(files) time, O(1) space.
+ */
+export function withUploadSizeLimit({ upload }: { upload: AttachmentUpload }, { locale = "en" }: { locale?: string } = {}): AttachmentUpload {
+  return async (files, options) => {
+    if (files.some((file) => isUploadTooLarge({ size: file.size }))) throw new Error(uploadTooLargeMessage({ locale }));
+    // Same reason as `useSkillAwareAttachmentUploader`: an explicit `undefined` options argument is
+    // not the same call the composer made, so forward exactly what it passed.
+    return options === undefined ? upload(files) : upload(files, options);
+  };
+}
+
+/** @param input.locale - the viewer's admin locale for the size refusal; English when omitted. */
+export function useAttachmentUploader({ locale = "en" }: { locale?: string } = {}): AttachmentUpload {
   return useMemo(
-    () =>
-      createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
-        maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
+    () => withUploadSizeLimit({
+      upload: createDaemonAttachmentUploader({ baseUrl: "", fetch }, {
+        maxAttachmentBytes: ADMIN_UPLOAD_MAX_BYTES,
         maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
       }),
-    [],
+    }, { locale }),
+    [locale],
   );
 }
 
@@ -132,9 +148,9 @@ export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | un
   return useMemo(() => createBrowserWorkingDirectoryAccess(), []);
 }
 
-export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, _options: Record<string, never> = {}
+export function useAttachmentUploaderSeam({ override }: { override: typeof useAttachmentUploader | undefined }, { locale }: { locale?: string } = {}
 ): ReturnType<typeof createDaemonAttachmentUploader> {
-  return (override ?? useAttachmentUploader)();
+  return (override ?? useAttachmentUploader)(locale === undefined ? {} : { locale });
 }
 
 export function useAttachmentValidatorSeam({ override }: { override: typeof useAttachmentValidator | undefined }, _options: Record<string, never> = {}

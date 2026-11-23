@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { UPLOAD_LIMIT_STRINGS } from "../../lib/upload-limit-i18n";
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Library screen (`Library.tsx`) — this feature's own dictionary, not
@@ -451,4 +452,9 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator({ featureDictionary: LIBRARY_DICT }, { commonDictionary: COMMON_I18N });
+// The shared upload-limit refusal joins this table so the Library's own `t` can say it.
+const LIBRARY_WITH_UPLOAD_LIMIT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(LIBRARY_DICT).map(([locale, entries]) => [locale, { ...entries, ...UPLOAD_LIMIT_STRINGS[locale] }]),
+);
+
+export const t = createDictionaryTranslator({ featureDictionary: LIBRARY_WITH_UPLOAD_LIMIT }, { commonDictionary: COMMON_I18N });

@@ -1,5 +1,6 @@
 import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { ADMIN_UPLOAD_MAX_BYTES } from "@/lib/upload-limit";
 
 /**
  * @file Pure rules for the Library screen: which files the Upload tab accepts, how a document row
@@ -19,8 +20,10 @@ export const LIBRARY_KEYS = {
 export const LIBRARY_EXTENSIONS = ["md", "txt", "pdf", "docx", "csv", "json", "doc", "xls", "rtf", "xlsx", "pptx", "pages", "key"] as const;
 export type LibraryExtension = (typeof LIBRARY_EXTENSIONS)[number];
 
-/** Mirrors `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES` (10 MiB). */
-export const LIBRARY_MAX_BYTES = 10 * 1024 * 1024;
+/** The admin's one upload limit (`lib/upload-limit.ts`, 50 MiB), which mirrors `@jini-ai/cms/media`'s
+ *  `MAX_DOCUMENT_BYTES`. It was a separate 10 MiB here until P10-M2 (2026-11-23), so Library refused
+ *  documents the server and Media took. */
+export const LIBRARY_MAX_BYTES = ADMIN_UPLOAD_MAX_BYTES;
 
 /** The native picker's `accept` list. */
 export const LIBRARY_ACCEPT = LIBRARY_EXTENSIONS.map((ext) => `.${ext}`).join(",");

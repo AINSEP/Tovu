@@ -17,6 +17,7 @@ import {
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
   mediaFillsPreview,
+  mediaMayNotPlayInChrome,
   mediaUploadAccept,
   mediaUploadLabel,
   MEDIA_GRID_SIZES,
@@ -41,7 +42,8 @@ import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
-import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
+import { resolveMediaTabChange, resolveMediaTabs, useUploadSizeGuard } from "./Media.hooks";
+import { UPLOAD_TOO_LARGE_MESSAGE } from "@/lib/upload-limit";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport } from "./RemoteImageImport";
 import { Button, Dialog, TextField } from "@jini-ai/ui-kit/react";
@@ -815,6 +817,7 @@ function MediaToolbar({
 }: { activeTab: MediaContentTabId } & Pick<MediaController, "fileInputRef" | "altDraft" | "setAltDraft" | "selectedFileName" | "onFileChange" | "upload" | "uploading"
   | "uploadOpen" | "openUpload" | "closeUpload" | "uploadError" | "canUpload" | "t">) {
   const fileInputId = useId();
+  const sizeGuard = useUploadSizeGuard({ onFileChange, closeUpload });
   // Icon button (owner, 2026-11-01): the tooltip and the accessible name are the same tab-aware text.
   const uploadLabel = t(mediaUploadLabel({ tab: activeTab }));
 
@@ -827,7 +830,7 @@ function MediaToolbar({
           <UploadIcon />
         </button>
       </DockHeaderTip>
-      <Dialog open={uploadOpen} title={uploadLabel} pending={uploading} onClose={closeUpload}
+      <Dialog open={uploadOpen} title={uploadLabel} pending={uploading} onClose={sizeGuard.close}
         className="settings-dialog jini-domain-dialog media-upload-dialog">
         <form
           onSubmit={upload}
@@ -863,10 +866,10 @@ function MediaToolbar({
               // the real allowlist server-side regardless of what this lets past the file picker.
               accept={mediaUploadAccept({ tab: activeTab })}
               aria-label={t("File to upload")}
-              onChange={onFileChange}
+              onChange={sizeGuard.chooseFile}
               {...agentHandle({ handle: "media-upload-file" }, {
                 role: "field",
-                label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
+                label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4, webm, mov or m4v",
               })}
             />
             <label className="btn-secondary" htmlFor={fileInputId}>
@@ -878,10 +881,11 @@ function MediaToolbar({
           </div>
           <TextField label={t("Alt text (optional)")} value={altDraft} disabled={uploading} onValueChange={({ value }) => setAltDraft(value)}
             attrs={agentHandle({ handle: "media-upload-alt" }, { role: "field", label: "Alt text for the file being uploaded" })} />
-          {uploadError ? <div role="alert" className="notice error">{uploadError}</div> : null}
+          {sizeGuard.tooLarge ? <div role="alert" className="notice error">{t(UPLOAD_TOO_LARGE_MESSAGE)}</div>
+            : uploadError ? <div role="alert" className="notice error">{uploadError}</div> : null}
           <div className="jini-dialog-footer">
-            <Button variant="secondary" className="btn-secondary" disabled={uploading} onPress={closeUpload}>{t("Cancel")}</Button>
-            <Button type="submit" variant="primary" disabled={!canUpload}
+            <Button variant="secondary" className="btn-secondary" disabled={uploading} onPress={sizeGuard.close}>{t("Cancel")}</Button>
+            <Button type="submit" variant="primary" disabled={!canUpload || sizeGuard.tooLarge}
               attrs={agentHandle({ handle: "media-upload-submit" }, { role: "button", label: "Upload the chosen file" })}>
               {uploading ? t("Uploading…") : t("Upload")}
             </Button>
@@ -1005,6 +1009,7 @@ function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: Med
   const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
   const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
+  if (mediaMayNotPlayInChrome({ contentType: props.item.contentType })) parts.push(<span key="playback">{props.t("This video may not play in Chrome.")}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
   const date = metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null;
   if (parts.length === 0 && !date) return null;

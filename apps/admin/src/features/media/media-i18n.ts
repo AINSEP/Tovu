@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { UPLOAD_LIMIT_STRINGS } from "../../lib/upload-limit-i18n";
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Media.tsx`'s own UI chrome — page header, tab strip, toolbar,
@@ -1870,13 +1871,38 @@ const MEDIA_TOOLBAR_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Extra large": "অতি বড়", "Size": "আকার", "Small": "ছোট", "Medium": "মাঝারি", "Large": "বড়", "Upload video": "ভিডিও আপলোড করুন", "Upload image or video": "ছবি বা ভিডিও আপলোড করুন" },
 };
 
+/** The QuickTime card note (`rules.ts`'s `mediaMayNotPlayInChrome`, owner 2026-10-31). */
+const MEDIA_PLAYBACK_STRINGS: Record<string, Record<string, string>> = {
+  es: { "This video may not play in Chrome.": "Es posible que este video no se reproduzca en Chrome." },
+  id: { "This video may not play in Chrome.": "Video ini mungkin tidak dapat diputar di Chrome." },
+  de: { "This video may not play in Chrome.": "Dieses Video wird in Chrome möglicherweise nicht abgespielt." },
+  "zh-CN": { "This video may not play in Chrome.": "此视频可能无法在 Chrome 中播放。" },
+  "zh-TW": { "This video may not play in Chrome.": "此影片可能無法在 Chrome 中播放。" },
+  "pt-BR": { "This video may not play in Chrome.": "Este vídeo pode não ser reproduzido no Chrome." },
+  ru: { "This video may not play in Chrome.": "Это видео может не воспроизводиться в Chrome." },
+  fa: { "This video may not play in Chrome.": "ممکن است این ویدیو در Chrome پخش نشود." },
+  ar: { "This video may not play in Chrome.": "قد لا يعمل هذا الفيديو في Chrome." },
+  ja: { "This video may not play in Chrome.": "この動画は Chrome で再生できない場合があります。" },
+  ko: { "This video may not play in Chrome.": "이 동영상은 Chrome에서 재생되지 않을 수 있습니다." },
+  pl: { "This video may not play in Chrome.": "Ten film może nie odtwarzać się w Chrome." },
+  hu: { "This video may not play in Chrome.": "Előfordulhat, hogy ez a videó nem játszható le Chrome-ban." },
+  fr: { "This video may not play in Chrome.": "Cette vidéo risque de ne pas être lue dans Chrome." },
+  uk: { "This video may not play in Chrome.": "Це відео може не відтворюватися в Chrome." },
+  tr: { "This video may not play in Chrome.": "Bu video Chrome'da oynatılamayabilir." },
+  th: { "This video may not play in Chrome.": "วิดีโอนี้อาจเล่นใน Chrome ไม่ได้" },
+  it: { "This video may not play in Chrome.": "Questo video potrebbe non essere riprodotto in Chrome." },
+  hi: { "This video may not play in Chrome.": "यह वीडियो Chrome में शायद न चले।" },
+  ur: { "This video may not play in Chrome.": "ممکن ہے یہ ویڈیو Chrome میں نہ چلے۔" },
+  bn: { "This video may not play in Chrome.": "এই ভিডিওটি Chrome-এ নাও চলতে পারে।" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
     // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
     // is present in every one, which left those fallbacks with no reachable branch).
-    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale], ...MEDIA_LINK_STRINGS[locale], ...MEDIA_TOOLBAR_STRINGS[locale] },
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale], ...MEDIA_LINK_STRINGS[locale], ...MEDIA_TOOLBAR_STRINGS[locale], ...MEDIA_PLAYBACK_STRINGS[locale], ...UPLOAD_LIMIT_STRINGS[locale] },
   ]),
 );
 

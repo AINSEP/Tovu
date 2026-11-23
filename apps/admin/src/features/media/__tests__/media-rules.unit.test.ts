@@ -4,6 +4,8 @@ import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
 import {
   mediaAltText,
+  mediaMayNotPlayInChrome,
+  mediaUploadAccept,
   readFileAsBase64,
   resolveLightboxItem,
   type Base64FileReader,
@@ -84,5 +86,21 @@ describe("unsafe-URL scan on non-ASCII values", () => {
 
   it("still flags a scheme split by interior whitespace", () => {
     expect(parseMediaHtmlAttributes({ policy: embedPolicy, text: 'title="java\tscript:x"' }).errors).toEqual([{ reason: "unsafe-url", attribute: "title" }]);
+  });
+});
+
+// .MOV gap (owner 2026-10-29/10-31): iPhone clips arrive as QuickTime; the picker must offer them.
+describe("video upload types", () => {
+  it("offers QuickTime (.mov) and .m4v next to MP4/WebM on the Videos and All tabs, never on Images", () => {
+    const videos = mediaUploadAccept({ tab: "videos" }).split(",");
+    expect(videos).toEqual(expect.arrayContaining(["video/quicktime", "video/x-m4v", ".mov", ".m4v"]));
+    expect(mediaUploadAccept({ tab: "all" }).split(",")).toEqual(expect.arrayContaining(["video/quicktime", ".mov"]));
+    expect(mediaUploadAccept({ tab: "images" })).not.toMatch(/quicktime|\.mov/);
+  });
+
+  it("warns only for QuickTime that the browser may not play it", () => {
+    expect(mediaMayNotPlayInChrome({ contentType: "video/quicktime" })).toBe(true);
+    expect(mediaMayNotPlayInChrome({ contentType: "video/mp4" })).toBe(false);
+    expect(mediaMayNotPlayInChrome({ contentType: "image/png" })).toBe(false);
   });
 });

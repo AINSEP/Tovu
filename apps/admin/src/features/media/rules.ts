@@ -370,12 +370,22 @@ export function mediaUploadLabel({ tab }: { tab: MediaContentTabId }, _optional:
 }
 
 const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml";
-const VIDEO_ACCEPT = "video/mp4,video/webm";
+// QuickTime and .m4v (the .MOV gap, owner 2026-10-29): iPhone clips arrive as `.mov`. The bare
+// extensions are listed too because some pickers report a `.mov` with no MIME type at all.
+const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime,video/x-m4v,.mov,.m4v";
 
 /** The picker's `accept` for a tab. Advisory only: the server still enforces its allowlist. */
 export function mediaUploadAccept({ tab }: { tab: MediaContentTabId }, _optional: Record<string, never> = {}): string {
   if (tab === "images") return IMAGE_ACCEPT;
   return tab === "videos" ? VIDEO_ACCEPT : `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
+}
+
+/** Whether a stored clip should carry the "may not play in Chrome" note (owner, 2026-10-31,
+ *  option A). QuickTime is kept as-is up to the upload limit, and its usual iPhone codec (HEVC)
+ *  does not play in most browsers. The codec is not known here, so every QuickTime clip gets the
+ *  note; `.m4v` is nearly always H.264 and plays, so it does not. */
+export function mediaMayNotPlayInChrome({ contentType }: { contentType: string | null }, _optional: Record<string, never> = {}): boolean {
+  return contentType === "video/quicktime";
 }
 
 /** Grid card sizes (owner, 2026-11-01), relative to the original card width: Small 1/3, Medium 2/3,

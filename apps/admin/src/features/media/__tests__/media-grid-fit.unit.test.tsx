@@ -124,7 +124,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     const user = userEvent.setup();
     const { unmount } = render(<FetchQueryProvider><Media tabId="videos" /></FetchQueryProvider>);
     await user.click(await screen.findByRole("button", { name: "Upload video" }));
-    expect(screen.getByLabelText("File to upload").getAttribute("accept")).toBe("video/mp4,video/webm");
+    expect(screen.getByLabelText("File to upload").getAttribute("accept")).toBe("video/mp4,video/webm,video/quicktime,video/x-m4v,.mov,.m4v");
     expect(screen.getByRole("button", { name: "Import from URL" })).toHaveAttribute("aria-label", "Import from URL");
     unmount();
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);

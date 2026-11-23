@@ -54,9 +54,12 @@ describe("libraryFileProblem", () => {
     expect(libraryFileProblem({ name: "notes.md", size: 0 })).toBe("empty");
   });
 
-  it("refuses a file one byte over the 10 MiB cap but accepts one exactly at it", () => {
-    expect(libraryFileProblem({ name: "big.pdf", size: LIBRARY_MAX_BYTES + 1 })).toBe("size");
-    expect(libraryFileProblem({ name: "big.pdf", size: LIBRARY_MAX_BYTES })).toBeNull();
+  // P10-M2 (2026-11-23): Library was 10 MiB while Media and the server took 50 MiB, so a file the
+  // server would store was refused here. Pinned to the literal, not the constant, so a drift fails.
+  it("refuses a file one byte over the shared 50 MiB cap but accepts one exactly at it", () => {
+    expect(LIBRARY_MAX_BYTES).toBe(50 * 1024 * 1024);
+    expect(libraryFileProblem({ name: "big.pdf", size: 50 * 1024 * 1024 + 1 })).toBe("size");
+    expect(libraryFileProblem({ name: "big.pdf", size: 50 * 1024 * 1024 })).toBeNull();
   });
 });
 

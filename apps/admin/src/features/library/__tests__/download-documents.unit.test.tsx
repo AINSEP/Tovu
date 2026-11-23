@@ -12,7 +12,7 @@ const typeLine = 'Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages
 const packageMessage = 'Folder package: in Pages/Keynote, save as a single file, then upload again.';
 
 describe('download-only Library documents', () => {
-  it.each(extensions)('accepts .%s at the 10 MiB cap and uses the download preview', ext => {
+  it.each(extensions)('accepts .%s at the 50 MiB cap and uses the download preview', ext => {
     expect(LIBRARY_ACCEPT.split(',')).toContain('.' + ext);
     expect(libraryFileProblem({ name: 'download.' + ext.toUpperCase(), size: LIBRARY_MAX_BYTES })).toBeNull();
     expect(libraryFileProblem({ name: 'download.' + ext, size: LIBRARY_MAX_BYTES + 1 })).toBe('size');
