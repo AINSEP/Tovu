@@ -9,7 +9,7 @@
 
 import type { CapabilityInventoryEntry } from "../configuration/capability-inventory.js";
 import { findCapabilityEntry } from "../configuration/capability-inventory.js";
-import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 export interface EnvSnapshot {
   hasDevSecretPlaceholder: boolean;

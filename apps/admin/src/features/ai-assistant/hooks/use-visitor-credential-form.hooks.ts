@@ -11,7 +11,7 @@ import {
 } from "@jini-ai/ui";
 
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
-import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { createExecutionPort } from "@/lib/execution-settings";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,

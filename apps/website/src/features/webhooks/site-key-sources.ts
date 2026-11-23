@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { join } from "node:path";
 
-import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import { assertTestHomeIsolation } from "#src/platform/test-home-isolation";
 
 /**
