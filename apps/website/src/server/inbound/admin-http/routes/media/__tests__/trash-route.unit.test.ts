@@ -5,7 +5,7 @@ import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { BASE, INTERNAL, WS } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaTrashRoute } from '../trash.js';
+import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
 import { forbiddenBody, mediaApp, PNG_BASE64, seedPng } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash';
