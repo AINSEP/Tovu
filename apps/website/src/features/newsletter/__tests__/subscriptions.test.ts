@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions.js";
 import {
+  NewsletterConsentUnavailableError,
   NewsletterListNotFoundError,
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
@@ -43,7 +44,8 @@ function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
       send: async (message) => { sentEmails.push(message); return { ok: true as const, providerMessageId: "m1", acceptedAt: NOW }; },
       sendBatch: async () => [],
     },
-    consentCapability: null,
+    // Bound by default: double opt-in refuses outright while consent is unbound (B176 test below).
+    consentCapability: { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "rev-1" }), revoke: async () => ({ status: "revoked" }) },
     originRegistry: {
       canonicalOrigin: async () => ({ scheme: "https" as const, host: "acme.test", verifiedAt: "2026-07-13T00:00:00.000Z", source: "workspace-setting" as const }),
       isAllowedRedirectTarget: async () => true,
@@ -289,4 +291,19 @@ test("saveSubscription and importSubscriptions refuse an archived list before an
   await assert.rejects(saveSubscription({ deps, input: { workspaceId: WS, listId: "list-old", subscriberId: "subscriber-1", source: "admin" } }), archived);
   await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-old", subscribers: [{ subscriberId: "subscriber-1", source: "import" }] } }), archived);
   assert.equal(deps.sentEmails.length, 0);
+});
+
+// B176: with Members consent unbound a confirmation link can only ever 503, so subscribe refuses
+// with the typed error before any subscription row, confirmation token or email is written.
+test("saveSubscription and importSubscriptions refuse an unbound consent binding with zero token writes and zero sends", async () => {
+  const deps = makeDeps();
+  deps.confirmationDeps.consentCapability = null;
+  let tokenWrites = 0;
+  const realSave = deps.confirmationDeps.tokenRepo.save.bind(deps.confirmationDeps.tokenRepo);
+  deps.confirmationDeps.tokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
+  await assert.rejects(saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "admin" } }), NewsletterConsentUnavailableError);
+  await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "subscriber-2", source: "import" }] } }), NewsletterConsentUnavailableError);
+  assert.equal(tokenWrites, 0);
+  assert.equal(deps.sentEmails.length, 0);
+  assert.deepEqual((await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 10 })).items, []);
 });

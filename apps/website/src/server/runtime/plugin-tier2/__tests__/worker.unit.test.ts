@@ -73,7 +73,8 @@ test("main() without an importer resolves both SDK specifiers to the same module
     const { posted, parentPort } = port();
     const request: Tier2Request = {
       kind: "beforeSave",
-      plugin: { ...plugin, entryPath: pathToFileURL(entry).href },
+      // The installed-package layout: the registered root is the folder the entry sits in.
+      plugin: { ...plugin, entryPath: pathToFileURL(entry).href, packageRoot: dir },
       entry: { id: "e", workspaceId: "ws", title: "Hi", slug: "hi", status: "draft", bodyJson: {}, ext: {} } as import("@tovu/sdk").ContentEntryDraft,
       ctx: { pluginId: "t2", workspaceId: "ws" },
     };

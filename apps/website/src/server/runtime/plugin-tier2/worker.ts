@@ -53,15 +53,19 @@ export function importPluginModule(entryPath: string): Promise<unknown> {
 /**
  * Runs the posted request and posts its reply. CIC U-002: the SDK resolver is registered per
  * worker, before the plugin's first import, unless a test injects `importModule`. Jini's worker
- * start registers {@link TIER2_IMPORT_POLICY} for the entry first, on the same import path.
+ * start registers {@link TIER2_IMPORT_POLICY} for the entry and the request's registered
+ * `plugin.packageRoot` first, on the same import path.
  *
  * @throws When there is no parent port (not inside a worker).
  * @complexity O(1) own work plus the plugin's import/setup/filter cost.
  */
 export async function main(required: Tier2WorkerMainRequired, optional: Tier2WorkerMainOptional = {}): Promise<void> {
   return startTier2Worker(
-    { ...required, binding: pluginHostBinding, importPolicy: TIER2_IMPORT_POLICY, registerSdkResolver: registerPluginSdkResolver, realImport: importPluginModule },
-    optional,
+    { ...required, binding: pluginHostBinding, registerSdkResolver: registerPluginSdkResolver, realImport: importPluginModule },
+    // Optional in Jini (older hosts run without one), so Tovu always passes it explicitly: dropping it
+    // would silently run every plugin with no import policy. Jini then requires the request's
+    // `plugin.packageRoot` (the root registered for this entry) and refuses the import without it.
+    { ...optional, importPolicy: TIER2_IMPORT_POLICY },
   );
 }
 

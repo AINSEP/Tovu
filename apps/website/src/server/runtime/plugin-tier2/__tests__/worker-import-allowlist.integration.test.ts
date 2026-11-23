@@ -31,6 +31,10 @@ import { createTier2WorkerRunner } from "../run-in-worker.js";
  *   content-analyzer itself still loads in a real worker with exactly those -> the built-in test.
  * - a malformed entry `file:` URL is a structured `stage: "import"` reply, not a crashed worker
  *   -> the malformed-URL test.
+ * - every request carries the package root the host registered for THAT entry (an installed
+ *   package's own root; content-analyzer's declared `sourceDir`), because Jini's worker refuses to
+ *   guess one from the entry's location; a request without it is refused at import, never run
+ *   without the policy -> the missing-root test.
  */
 
 /** Generous: a fresh tsx worker on a loaded CI host must never flake the success path. */
@@ -39,7 +43,7 @@ const runner = createTier2WorkerRunner({}, { timeoutMs: TIMEOUT_MS });
 
 const FIXTURE_DEPENDENCY = "tier2-fixture-dependency";
 
-async function withPluginPackage(source: string, run: (entryUrl: string) => Promise<void>): Promise<void> {
+async function withPluginPackage(source: string, run: (entryUrl: string, packageRoot: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-tier2-allowlist-"));
   try {
     await mkdir(path.join(root, "server"), { recursive: true });
@@ -52,14 +56,18 @@ async function withPluginPackage(source: string, run: (entryUrl: string) => Prom
     const entry = path.join(root, "server", "index.mjs");
     await writeFile(entry, source);
     assert.equal(createRequire(entry).resolve(FIXTURE_DEPENDENCY), path.join(dependency, "index.mjs"));
-    await run(pathToFileURL(entry).href);
+    await run(pathToFileURL(entry).href, root);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 }
 
-function probe(entryPath: string): Tier2Request {
-  return { kind: "probe", plugin: { pluginId: "t2-allowlist", entryPath, capabilities: ["hooks.attach"], hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] } };
+/** `packageRoot` is the root the host registered for this entry; `undefined` only in the missing-root test. */
+function probe(entryPath: string, packageRoot: string | undefined): Tier2Request {
+  return {
+    kind: "probe",
+    plugin: { pluginId: "t2-allowlist", entryPath, ...(packageRoot === undefined ? {} : { packageRoot }), capabilities: ["hooks.attach"], hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] },
+  };
 }
 
 const PLUGIN_BODY = `export default definePlugin({ setup(sdk) { sdk.addFilter("content.entry.beforeSave", (e) => ({ title: e.title })); } });\n`;
@@ -71,8 +79,8 @@ test("a site-layout tier-2 plugin still imports both SDK specifiers and its own 
       `import { shout } from "./helper.mjs";\n` +
       `if (definePlugin !== legacyDefinePlugin || shout("a") !== "A") throw new Error("imports diverged");\n` +
       PLUGIN_BODY,
-    async (entryUrl) => {
-      assert.deepEqual(await runner(probe(entryUrl)), { ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] });
+    async (entryUrl, packageRoot) => {
+      assert.deepEqual(await runner(probe(entryUrl, packageRoot)), { ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] });
     },
   );
 });
@@ -90,7 +98,7 @@ for (const specifier of ["node:fs", "fs", "child_process", "node:child_process",
     await withPluginPackage(
       `import { definePlugin } from "@tovu/sdk";\nimport * as other from ${JSON.stringify(specifier)};\n` +
         `globalThis.__tier2AllowlistLeak = other;\n` + PLUGIN_BODY,
-      async (entryUrl) => assertRefused(await runner(probe(entryUrl)), specifier),
+      async (entryUrl, packageRoot) => assertRefused(await runner(probe(entryUrl, packageRoot)), specifier),
     );
   });
 }
@@ -98,7 +106,7 @@ for (const specifier of ["node:fs", "fs", "child_process", "node:child_process",
 test("a dynamic import() of a refused specifier inside the plugin is refused as well", async () => {
   await withPluginPackage(
     `import { definePlugin } from "@tovu/sdk";\nawait import("node:" + "child_process");\n` + PLUGIN_BODY,
-    async (entryUrl) => assertRefused(await runner(probe(entryUrl)), "node:child_process"),
+    async (entryUrl, packageRoot) => assertRefused(await runner(probe(entryUrl, packageRoot)), "node:child_process"),
   );
 });
 
@@ -109,8 +117,8 @@ test("a relative path that climbs out of the plugin package is refused", async (
     await withPluginPackage(
       `import { definePlugin } from "@tovu/sdk";\n` +
         `import escaped from ${JSON.stringify(`../../${path.basename(outside)}/escape.mjs`)};\nglobalThis.__tier2AllowlistLeak = escaped;\n` + PLUGIN_BODY,
-      async (entryUrl) => {
-        const reply = await runner(probe(entryUrl));
+      async (entryUrl, packageRoot) => {
+        const reply = await runner(probe(entryUrl, packageRoot));
         assert.equal(reply.ok, false);
         if (!reply.ok) assert.match(reply.error, /outside its own package/);
       },
@@ -121,12 +129,35 @@ test("a relative path that climbs out of the plugin package is refused", async (
 });
 
 test("the built-in content-analyzer, which imports host packages, still loads in a real worker", async () => {
-  const reply = await runner(probe(CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath));
+  const reply = await runner(probe(CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath, CONTENT_ANALYZER_RUNTIME_SOURCE.sourceDir));
   assert.deepEqual(reply, { ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] });
 });
 
+test("the built-in content-analyzer's trusted specifiers are its own: a module in its sourceDir importing node:fs is refused", async () => {
+  // A plugin entry placed directly inside content-analyzer's registered sourceDir, as a sibling of
+  // its real entry: same package root, different entry, so it gets the SDK-only policy.
+  const sibling = path.join(CONTENT_ANALYZER_RUNTIME_SOURCE.sourceDir, `tier2-allowlist-sibling-${process.pid}.mjs`);
+  await writeFile(sibling, `import { definePlugin } from "@tovu/sdk";\nimport * as fs from "node:fs";\nglobalThis.__tier2AllowlistLeak = fs;\n` + PLUGIN_BODY);
+  try {
+    assertRefused(await runner(probe(pathToFileURL(sibling).href, CONTENT_ANALYZER_RUNTIME_SOURCE.sourceDir)), "node:fs");
+  } finally {
+    await rm(sibling, { force: true });
+  }
+});
+
+test("a request without a registered package root is refused at import, never run without the policy", async () => {
+  await withPluginPackage(`import { definePlugin } from "@tovu/sdk";\n` + PLUGIN_BODY, async (entryUrl) => {
+    const reply = await runner(probe(entryUrl, undefined));
+    assert.equal(reply.ok, false);
+    if (!reply.ok) {
+      assert.equal(reply.stage, "import");
+      assert.match(reply.error, /has no registered package root/);
+    }
+  });
+});
+
 test("a malformed entry file URL is a structured import-stage reply, not a crashed worker", async () => {
-  const reply = await runner(probe("file:///plugins/%2Fbad/server/index.mjs"));
+  const reply = await runner(probe("file:///plugins/%2Fbad/server/index.mjs", "/plugins"));
   assert.equal(reply.ok, false);
   if (!reply.ok) assert.equal(reply.stage, "import");
 });
