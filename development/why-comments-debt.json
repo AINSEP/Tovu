@@ -2988,6 +2988,62 @@
     {
       "id": "0a60dc7d8e68",
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
+    },
+    {
+      "id": "69901a45d344",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/migrate-forward.ts (RT-K1-adm-database-1) as the spec file header; the host binding note lives in runtime/composition/modules/database-migrate-forward.ts."
+    },
+    {
+      "id": "b1cafe73d78e",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/migrate-forward.ts (RT-K1-adm-database-1) on preAuthorizeMigration, the AUD-001 pre-check it explains."
+    },
+    {
+      "id": "3c8fe38ba3fe",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/recovery/restore.ts (RT-K1-adm-recovery-2) as the spec file header; host binding scope note in runtime/composition/modules/recovery-restore.ts."
+    },
+    {
+      "id": "3c08940ae79a",
+      "reason": "Obsolete with sendRecoveryError (folded into the Jini restore spec's settle()); the message-less fallback rule is now pinned by the wire test recovery-restore-message-fallback.test.ts, whose header carries this reasoning (RT-K1-adm-recovery-2)."
+    },
+    {
+      "id": "67d81de7792d",
+      "reason": "Obsolete: the shared 500 helper is gone; the host admin JSON route ports answer every unexpected restore failure with the route's failure options (RT-K1-adm-recovery-2)."
+    },
+    {
+      "id": "01739657a091",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/recovery/restore.ts (RT-K1-adm-recovery-2) on preAuthorizeExecution, the AUD-001 pre-check it explains."
+    },
+    {
+      "id": "759b0bc9bf11",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/recovery/status.ts (RT-K1-adm-recovery-2) as the spec file header."
+    },
+    {
+      "id": "8294397e7724",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) with readBackstopApplyReport."
+    },
+    {
+      "id": "8c33000fe7d3",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) on readBackstopApplyReport."
+    },
+    {
+      "id": "9671335d9862",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) on readBackstopApplyReport."
+    },
+    {
+      "id": "e6b91e1bcb8c",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) on toPublishContentReportDto."
+    },
+    {
+      "id": "70c377cfdf43",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) on toPublishContentReportDto's whitelist."
+    },
+    {
+      "id": "cae434e73678",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) beside canOverwrite."
+    },
+    {
+      "id": "765fad9bb901",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/publish-content.ts (RT-K1-adm-publish-content, DTO move) beside the conditional referencedBy."
     }
   ]
 }
