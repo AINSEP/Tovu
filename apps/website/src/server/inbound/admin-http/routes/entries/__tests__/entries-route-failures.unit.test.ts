@@ -3,9 +3,9 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { registerAdminEntryCreateRoute } from '../create.js';
-import { registerAdminEntryLifecycleRoute } from '../lifecycle.js';
-import { registerAdminEntryUpdateRoute } from '../update.js';
+import { registerAdminEntryCreateRoute } from '#src/server/runtime/composition/modules/content-types';
+import { registerAdminEntryLifecycleRoute } from '#src/server/runtime/composition/modules/content-types';
+import { registerAdminEntryUpdateRoute } from '#src/server/runtime/composition/modules/content-types';
 import { allowed, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [

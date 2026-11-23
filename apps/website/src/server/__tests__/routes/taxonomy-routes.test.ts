@@ -7,10 +7,10 @@ import express from "express";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminTaxonomyListRoute } from "../../inbound/admin-http/routes/taxonomy/list.js";
+import { registerAdminTaxonomyListRoute } from "../../runtime/composition/modules/taxonomy.js";
 import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
 import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/routes/taxonomy/create-term.js";
-import { registerAdminTaxonomyDeleteRoute } from "../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
+import { registerAdminTaxonomyDeleteRoute } from "../../runtime/composition/modules/taxonomy.js";
 import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
 import { registerAdminTaxonomyRenameTermRoute } from "../../inbound/admin-http/routes/taxonomy/rename-term.js";
 import {

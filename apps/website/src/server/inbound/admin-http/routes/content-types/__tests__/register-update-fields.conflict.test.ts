@@ -6,9 +6,9 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryContentTypeRepo, type ContentTypeRecord } from "#src/features/content-types/index";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminContentTypeRegisterRoute } from "../register.js";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../update-fields.js";
-import type { ContentTypesRouteDeps } from "../deps.js";
+import { registerAdminContentTypeRegisterRoute } from "#src/server/runtime/composition/modules/content-types";
+import { registerAdminContentTypeUpdateFieldsRoute } from "#src/server/runtime/composition/modules/content-types";
+import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modules/content-types";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
