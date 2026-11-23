@@ -195,6 +195,7 @@ test("desktop chat detection and executor receive the same app runtime across li
     userDataDir: dir, projectsPath: path.join(dir, "projects.json"),
     revealPath: async () => {}, pickDirectory: async () => null,
     broadcast: () => {}, readSiteName: () => "Fixture site",
+    isTrustedRendererUrl: ({ url }) => url === "file:///shell.html",
   }, {
     createDesktopAgentRuntime: async (required) => {
       assert.equal(required.agentRuntime, owned);
@@ -206,7 +207,7 @@ test("desktop chat detection and executor receive the same app runtime across li
     },
   });
   t.after(() => chat.close());
-  const event = { sender: { send: () => {}, isDestroyed: () => false } };
+  const event = { sender: { send: () => {}, isDestroyed: () => false, getURL: () => "file:///shell.html" }, senderFrame: { url: "file:///shell.html", parent: null } };
   const list = handlers.get(AGENT_INVENTORY_IPC.list)!;
   const rescan = handlers.get(AGENT_INVENTORY_IPC.rescan)!;
   const first = await list(event) as { id: string; available: boolean; models: unknown }[];

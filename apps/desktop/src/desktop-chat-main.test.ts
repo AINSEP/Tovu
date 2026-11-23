@@ -57,6 +57,7 @@ function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolea
     revealPath: async () => {}, pickDirectory: async () => null,
     broadcast: ({ channel, payload }) => broadcasts.push([channel, payload]),
     readSiteName: ({ siteDir }) => `Site ${path.basename(siteDir)}`,
+    isTrustedRendererUrl: ({ url }) => url === "file:///shell.html",
     ...(extra.readFullCliAccess ? { readFullCliAccess: extra.readFullCliAccess } : {}),
   }, factory === undefined ? {} : { createDesktopAgentRuntime: factory });
   return { dir, projectsPath, handlers, broadcasts, turns, runtime, captured: () => captured! };
@@ -98,7 +99,7 @@ test("a start's reported site becomes the turn's addressee only when this app tr
   const tracked = path.join(s.dir, "tracked-site");
   trackSite({ projectsPath: s.projectsPath, siteDir: tracked }, { origin: SITE_ORIGIN.adopted });
   const start = s.handlers.get(WORKSPACE_CHAT_IPC.start)!;
-  const event = { sender: { send: () => {}, isDestroyed: () => false } };
+  const event = { sender: { send: () => {}, isDestroyed: () => false, getURL: () => "file:///shell.html" }, senderFrame: { url: "file:///shell.html", parent: null } };
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s1", activeSiteDir: tracked });
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s2", activeSiteDir: path.join(s.dir, "elsewhere") });
   assert.deepEqual(s.turns.map((turn) => turn.addressee), [{ siteDir: tracked, name: "Site tracked-site" }, null]);

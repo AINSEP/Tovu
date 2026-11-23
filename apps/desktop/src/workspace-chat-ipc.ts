@@ -20,6 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RunProtocolEvent } from "@jini-ai/protocol";
+import { isTrustedMainFrame, type IpcSenderEvent } from "./ipc-sender-trust.ts";
 import type { DesktopAgentRuntime } from "./desktop-agent.ts";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import type { ConversationStore } from "./workspace-conversation-store.ts";
@@ -67,16 +68,23 @@ const DESKTOP_CHAT_INVOKE_CHANNELS: readonly string[] = Object.freeze([
   ...Object.values(WORKING_DIRECTORY_IPC),
 ]);
 
-/** The slice of a `WebContents` a subscription pushes to. */
+/** The slice of a `WebContents` a subscription pushes to and whose page the sender check reads. */
 interface EventSink {
   send(channel: string, message: WorkspaceChatEventMessage): void;
   isDestroyed(): boolean;
+  getURL(): string;
 }
+
+/** The slice of an Electron invoke event this module reads. */
+type ChatIpcEvent = IpcSenderEvent & { sender: EventSink };
 
 /** The slice of Electron's `ipcMain` this module uses. */
 interface ChatIpcMain {
-  handle(channel: string, listener: (event: { sender: EventSink }, ...args: any[]) => unknown): void;
+  handle(channel: string, listener: (event: ChatIpcEvent, ...args: any[]) => unknown): void;
 }
+
+/** Plain words for the one refusal: a page that is not the shell (a site in a frame or tab) asked. */
+const SENDER_REFUSED = "Only Tovu's own window can use the desktop chat, so this request was refused. (ERR-DESKTOP-CHAT-SENDER)";
 
 /** The pane's start input plus the active site the shell renderer reports for THIS turn. */
 type DesktopChatStartInput = WorkspaceChatStartInput & { activeSiteDir?: string | null };
@@ -91,6 +99,9 @@ interface WorkspaceChatIpcDeps {
   resolveAddressee: (input: { siteDir: string }, options?: Record<string, never>) => TurnAddressee | null;
   listAgents: (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]>;
   pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
+  /** The host's own renderer page(s). Every channel answers only that page's main frame (B115):
+   *  these channels run the agent, delete conversations and probe folders. */
+  isTrustedUrl: (required: { url: string }) => boolean;
 }
 
 /**
@@ -112,6 +123,13 @@ function addresseeForStart({ input, resolve }: { input: DesktopChatStartInput; r
 function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscriptions: () => number } {
   const subscriptions = new Map<string, () => void>();
   const lifecycleOf = async () => (await deps.runtime).lifecycle;
+  // Every handler below goes through this guard, so no channel can be registered without the check.
+  const ipcMain: ChatIpcMain = {
+    handle: (channel, listener) => deps.ipcMain.handle(channel, (event, ...args) => {
+      if (!isTrustedMainFrame({ event, isTrustedUrl: deps.isTrustedUrl })) throw new Error(SENDER_REFUSED);
+      return listener(event, ...args);
+    }),
+  };
 
   const detach = ({ subscriptionId }: { subscriptionId: string }, _options = {}) => {
     subscriptions.get(subscriptionId)?.();
@@ -121,7 +139,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   /** Attaches one subscription; resolves with its outcome. Every event is pushed tagged. */
   const subscribe = createWorkspaceRunSubscriber(detach, lifecycleOf, subscriptions);
 
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
+  ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
     const { runId } = await (await deps.runtime).startTurn(
       { prompt: input.prompt, agentId: input.agentId },
       {
@@ -135,34 +153,34 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId, afterCursor: null });
     return { runId };
   });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
+  ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
     await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId: input.runId, afterCursor: input.afterCursor ?? null });
   });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach({ subscriptionId }));
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
+  ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach({ subscriptionId }));
+  ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
     await (await lifecycleOf()).cancel({ runId, reason: "Stopped by the operator." });
   });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (_event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
+  ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (_event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
     const run = await (await lifecycleOf()).get({ runId });
     return run === undefined ? null : { runId: run.id, state: run.state };
   });
 
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.list, () => deps.listAgents({ rescan: false }));
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.rescan, () => deps.listAgents({ rescan: true }));
+  ipcMain.handle(AGENT_INVENTORY_IPC.list, () => deps.listAgents({ rescan: false }));
+  ipcMain.handle(AGENT_INVENTORY_IPC.rescan, () => deps.listAgents({ rescan: true }));
   // The daemon is in-process: if this handler answers, it is online.
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, () => true);
+  ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, () => true);
 
-  deps.ipcMain.handle(CONVERSATION_IPC.list, () => deps.conversations.list());
-  deps.ipcMain.handle(CONVERSATION_IPC.create, () => deps.conversations.create());
-  deps.ipcMain.handle(CONVERSATION_IPC.rename, (_event, input: RenameConversationInput) => deps.conversations.rename(input));
-  deps.ipcMain.handle(CONVERSATION_IPC.delete, (_event, { id }: { id: string }) => deps.conversations.remove({ id }));
-  deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
-  deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
+  ipcMain.handle(CONVERSATION_IPC.list, () => deps.conversations.list());
+  ipcMain.handle(CONVERSATION_IPC.create, () => deps.conversations.create());
+  ipcMain.handle(CONVERSATION_IPC.rename, (_event, input: RenameConversationInput) => deps.conversations.rename(input));
+  ipcMain.handle(CONVERSATION_IPC.delete, (_event, { id }: { id: string }) => deps.conversations.remove({ id }));
+  ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
+  ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
 
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory }));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
+  ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory }));
+  ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
+  ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
+  ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
 
   return { activeSubscriptions: () => subscriptions.size };
 }
@@ -216,4 +234,4 @@ function isDirectory({ directory }: { directory: unknown }, _options = {}): bool
 }
 
 export { registerWorkspaceChatIpc, addresseeForStart, DESKTOP_CHAT_INVOKE_CHANNELS, WORKSPACE_CHAT_IPC, AGENT_INVENTORY_IPC, CONVERSATION_IPC, WORKING_DIRECTORY_IPC };
-export type { WorkspaceChatIpcDeps, DesktopChatStartInput, EventSink, ChatIpcMain };
+export type { WorkspaceChatIpcDeps, DesktopChatStartInput, EventSink, ChatIpcMain, ChatIpcEvent };

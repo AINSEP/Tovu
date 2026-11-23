@@ -1,6 +1,7 @@
 /** One sender owns its own claims. Closing a tab or destroying its window releases the stream. */
 import { SITE_THEME_PREVIEW_CHANNELS as channels, type SiteThemePreviewRefresh } from './contracts/project.ts';
 import type { createSiteThemePreviewSubscriptions } from './site-theme-preview.ts';
+import { isTrustedMainFrame } from './ipc-sender-trust.ts';
 interface PreviewSender {
   id: number;
   getURL: () => string;
@@ -10,10 +11,18 @@ interface PreviewSender {
   send: (channel: string, frame: SiteThemePreviewRefresh) => void;
 }
 
+interface PreviewEvent { sender: PreviewSender; senderFrame?: { url: string; parent: unknown } | null }
+
+/** `allowed` vouches for the sender's page; a site in an `<iframe>` shares that page's sender, so the
+ * message must also come from the page's own main frame (B115). Untrusted claims are ignored. O(1). */
+function trusted({ event, allowed }: { event: PreviewEvent; allowed: (required: { sender: PreviewSender }) => boolean }, _optional = {}): boolean {
+  return isTrustedMainFrame({ event, isTrustedUrl: ({ url }) => url === event.sender.getURL() }) && allowed({ sender: event.sender });
+}
+
 export function registerSiteThemePreviewIpc(
   { ipcMain, subscriptions, allowed }: {
     ipcMain: {
-      handle: (channel: string, listener: (event: { sender: PreviewSender }, input: unknown) => void) => void;
+      handle: (channel: string, listener: (event: PreviewEvent, input: unknown) => void) => void;
       removeHandler: (channel: string) => void;
     };
     subscriptions: Pick<ReturnType<typeof createSiteThemePreviewSubscriptions>, 'watch'>;
@@ -34,9 +43,9 @@ export function registerSiteThemePreviewIpc(
     const { subscriptionId } = input;
     return typeof subscriptionId === 'string' && /^[\w-]{1,100}$/.test(subscriptionId) ? subscriptionId : undefined;
   };
-  ipcMain.handle(channels.watch, ({ sender }, input) => {
-    const id = inputId({ input });
-    if (!allowed({ sender }) || sender.isDestroyed() || !id) return;
+  ipcMain.handle(channels.watch, (event, input) => {
+    const { sender } = event, id = inputId({ input });
+    if (!trusted({ event, allowed }) || sender.isDestroyed() || !id) return;
     const siteDir = watchSiteDirectory({ input });
     if (siteDir === undefined) return;
     let owner = owners.get(sender);
@@ -50,9 +59,9 @@ export function registerSiteThemePreviewIpc(
       if (!sender.isDestroyed()) sender.send(channels.event, frame);
     } }));
   });
-  ipcMain.handle(channels.unwatch, ({ sender }, input) => {
-    const id = inputId({ input });
-    if (!id) return;
+  ipcMain.handle(channels.unwatch, (event, input) => {
+    const { sender } = event, id = inputId({ input });
+    if (!id || !trusted({ event, allowed })) return;
     const owner = owners.get(sender);
     owner?.claims.get(id)?.(); owner?.claims.delete(id);
     if (owner?.claims.size === 0) release({ sender, owner });

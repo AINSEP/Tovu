@@ -31,7 +31,9 @@ import { RUNNER_WORKING_DIRECTORY_CHANNELS } from "./contracts/working-directory
 import type { WorkspaceChatEventMessage } from "./contracts/workspace-chat.ts";
 import type { StreamSubscribeResult } from "@jini-ai/daemon";
 
-type Handler = (event: { sender: EventSink }, ...args: unknown[]) => unknown;
+type Handler = (event: { sender: EventSink; senderFrame?: { url: string; parent: unknown } | null }, ...args: unknown[]) => unknown;
+/** The shell renderer's page; the fixture's `isTrustedUrl` admits only this. */
+const SHELL_URL = "file:///app/dist/renderer/index.html";
 /** Jini's real `RunLifecycle.stream` result, so a fake cannot model an outcome the daemon never returns. */
 type StreamResult = StreamSubscribeResult;
 
@@ -45,6 +47,7 @@ function fakeSender() {
       sent.push(message);
     },
     isDestroyed() { return sender.destroyed; },
+    getURL() { return SHELL_URL; },
   };
   return { sender, sent };
 }
@@ -88,9 +91,11 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
     resolveAddressee: ({ siteDir }: { siteDir: string }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
     listAgents: async (required: { rescan: boolean }) => { calls.listAgents!.push(required); return []; },
     pickDirectory: async (_required: Record<string, never> = {}, { currentDirectory }: { currentDirectory?: string } = {}) => { calls.pick!.push(currentDirectory); return "/picked"; },
+    isTrustedUrl: ({ url }: { url: string }) => url === SHELL_URL,
   } as unknown as WorkspaceChatIpcDeps;
   const registered = registerWorkspaceChatIpc(deps);
-  const invoke = (channel: string, sender: EventSink, ...args: unknown[]) => handlers.get(channel)!({ sender }, ...args);
+  // Every ordinary call comes from the shell renderer's own main frame.
+  const invoke = (channel: string, sender: EventSink, ...args: unknown[]) => handlers.get(channel)!({ sender, senderFrame: { url: SHELL_URL, parent: null } }, ...args);
   return { handlers, calls, invoke, ...registered };
 }
 
@@ -108,6 +113,30 @@ test("every claimed invoke channel gets exactly one handler, and push-only chann
   assert.deepEqual([...handlers.keys()].sort(), [...DESKTOP_CHAT_INVOKE_CHANNELS].sort());
   assert.equal(handlers.has(WORKSPACE_CHAT_IPC.event), false);
   assert.equal(handlers.has(WORKSPACE_CHAT_IPC.navigate), false);
+});
+
+test("B115: a message from a frame that is not the shell renderer's main frame is refused on every channel, with no action", async () => {
+  const { handlers, calls, activeSubscriptions } = setup();
+  const { sender, sent } = fakeSender();
+  const site = "http://127.0.0.1:4000/";
+  const untrusted = [
+    { sender, senderFrame: { url: site, parent: { url: SHELL_URL, parent: null } } }, // a site page in an iframe
+    { sender, senderFrame: { url: SHELL_URL, parent: { url: SHELL_URL, parent: null } } }, // nested, same URL
+    { sender: { ...sender, getURL: () => site }, senderFrame: { url: site, parent: null } }, // a webview guest
+    { sender, senderFrame: null }, // a frame torn down in flight
+  ];
+  for (const event of untrusted) {
+    for (const [channel, handler] of handlers) {
+      await assert.rejects(async () => handler(event, { subscriptionId: "s1", prompt: "hi", agentId: "claude", runId: "known", id: "c1" }),
+        /ERR-DESKTOP-CHAT-SENDER/, channel);
+    }
+  }
+  assert.deepEqual(calls.startTurn, []);
+  assert.deepEqual(calls.stream, []);
+  assert.deepEqual(calls.cancel, []);
+  assert.equal(calls.remove, undefined);
+  assert.deepEqual(sent, []);
+  assert.equal(activeSubscriptions(), 0);
 });
 
 test("addresseeForStart trusts only a tracked site, never a bare renderer-reported path", () => {

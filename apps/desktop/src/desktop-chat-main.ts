@@ -28,6 +28,8 @@ interface DesktopChatMainDeps {
   broadcast: (required: { channel: string; payload: unknown }, options?: {}) => void;
   /** Display name of a tracked site — `main.ts`'s own `readSiteName`. */
   readSiteName: (required: { siteDir: string }, options?: {}) => string;
+  /** The shell renderer's own page URL(s); every chat channel answers only their main frame (B115). */
+  isTrustedRendererUrl: (required: { url: string }) => boolean;
 }
 
 /**
@@ -84,6 +86,7 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
       supportsTools: runtimeSupportsExternalTools,
     }),
     pickDirectory: deps.pickDirectory,
+    isTrustedUrl: deps.isTrustedRendererUrl,
   });
   return runtime;
 }
