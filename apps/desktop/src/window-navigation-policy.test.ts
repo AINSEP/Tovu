@@ -27,12 +27,12 @@ import { fileURLToPath } from "node:url";
 import {
   installAppWindowNavigationPolicy,
   installGuestWindowOpenPolicy,
-  installSitesHomeNavigationPolicy,
+  installRendererNavigationPolicy,
   isExternalBrowserUrl,
   isSameOrigin,
   isShellPageUrl,
-} from "@jini-ai/desktop-host/shell/window-navigation-policy";
-import type { NavigableContents, WindowOpenResponse } from "@jini-ai/desktop-host/shell/window-navigation-policy";
+} from "@jini-ai/desktop-host/electron/navigation-policy";
+import type { ElectronNavigableContents as NavigableContents, WindowOpenResponse } from "@jini-ai/desktop-host/electron/navigation-policy";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,7 +42,7 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
  *  OS browser. */
 function installOnFake(
   install: (args: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) => void = ({ contents, openExternal }) =>
-    installAppWindowNavigationPolicy({ contents, options: { appOrigin: APP_ORIGIN, openExternal } }),
+    installAppWindowNavigationPolicy({ contents, appOrigin: APP_ORIGIN, openExternal }),
 ) {
   let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
   let navigateListener: ((event: { preventDefault(): void }, url: string) => void) | undefined;
@@ -205,7 +205,7 @@ function installGuestPopupOnFake(isSupervisedGuestUrl: (url: string) => boolean)
       openHandler = handler;
     },
   };
-  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl(url), openExternal: ({ url }) => opened.push(url) });
+  installGuestWindowOpenPolicy({ contents, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl(url), openExternal: ({ url }) => opened.push(url) });
   return {
     opened,
     windowOpen(url: string): WindowOpenResponse {
@@ -250,7 +250,8 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
       );
     },
   };
-  installGuestWindowOpenPolicy(contents, {
+  installGuestWindowOpenPolicy({
+    contents,
     isSupervisedGuestUrl: () => false,
     openExternal: () => {
       throw new Error("boom");
@@ -259,10 +260,9 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
 });
 
 const RENDERER = "file:///Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html";
-const pages = (overrides: { attachUrl?: string } = {}) => ({
+const pages = () => ({
   isSupervisedSite: ({ url }: { url: string }) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
   rendererFileUrl: RENDERER,
-  ...overrides,
 });
 
 test("isShellPageUrl admits a supervised site's pages", () => {
@@ -271,12 +271,12 @@ test("isShellPageUrl admits a supervised site's pages", () => {
 });
 
 test("isShellPageUrl admits attach mode's origin by parsed origin, and nothing when there is no attach url", () => {
-  const attach = pages({ attachUrl: "http://localhost:5173" });
-  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/pages", pages: attach }), true);
-  assert.equal(isShellPageUrl({ raw: "http://localhost:5173@evil.example/admin/", pages: attach }), false);
-  assert.equal(isShellPageUrl({ raw: "http://localhost:51730/admin/", pages: attach }), false);
+  const attach = { attachUrl: "http://localhost:5173" };
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/pages", pages: pages() }, attach), true);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173@evil.example/admin/", pages: pages() }, attach), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:51730/admin/", pages: pages() }, attach), false);
   assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/", pages: pages() }), false);
-  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/", pages: pages({ attachUrl: "" }) }), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/", pages: pages() }, { attachUrl: "" }), false);
 });
 
 test("isShellPageUrl admits the sites home renderer's own file, whatever its hash or query, and no other file", () => {
@@ -289,7 +289,7 @@ test("isShellPageUrl admits the sites home renderer's own file, whatever its has
 
 test("isShellPageUrl refuses foreign pages and garbage without throwing", () => {
   for (const raw of ["https://evil.example/admin/", "javascript:alert(1)", "data:text/html,x", "about:blank", "", "not a url"]) {
-    assert.equal(isShellPageUrl({ raw, pages: pages({ attachUrl: "http://localhost:5173" }) }), false, raw);
+    assert.equal(isShellPageUrl({ raw, pages: pages() }, { attachUrl: "http://localhost:5173" }), false, raw);
   }
 });
 
@@ -302,7 +302,7 @@ test("main.ts registers the speech channels with the shell-page sender check", (
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
     shellPage,
-    /isShellPageUrl\(\{ raw, pages: \{\s*isSupervisedSite: \(\{ url \}\) => isSupervisedGuestUrl\(\{ raw: url \}\),\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\} \}\)/,
+    /isShellPageUrl\(\{ raw, pages: \{\s*isSupervisedSite: \(\{ url \}\) => isSupervisedGuestUrl\(\{ raw: url \}\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\} \}, \{ attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\) \}\)/,
   );
 });
 
@@ -312,7 +312,7 @@ test("main.ts registers the speech channels with the shell-page sender check", (
 // other top-level navigation, replaced the page with a remote one that got the SAME preload and none
 // of the CSP. Only the renderer's own file may load there.
 const installSitesHome = ({ contents, openExternal }: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) =>
-  installSitesHomeNavigationPolicy({ contents, options: { rendererFileUrl: RENDERER, openExternal } });
+  installRendererNavigationPolicy({ contents, rendererFileUrl: RENDERER, openExternal });
 
 test("sites home: navigating the window to a remote page is prevented and handed to the OS browser", () => {
   const fake = installOnFake(installSitesHome);
