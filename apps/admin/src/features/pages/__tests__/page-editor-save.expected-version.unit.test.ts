@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { PageBodyWriteError, writePage } from "../hooks/page-editor-save";
 import type { AdminPost } from "../../posts/api/posts-api.types";
-import type { PageSavePlan } from "../rules";
+import type { PageSavePlan } from "@jini-ai/admin/pages/page-editor-rules";
 
 const page: AdminPost = {
   id: "pg-html", workspaceId: "workspace-local", kind: "page", title: "Landing", slug: "landing",

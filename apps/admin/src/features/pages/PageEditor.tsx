@@ -26,27 +26,27 @@ import type {
   StandingDraftAutosaveSnapshot,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import {
-  useWiredPageEditor,
-  type PageEditorView,
-} from "./hooks/use-page-editor.hooks";
+import { useWiredPageEditor } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
 import {
-  PAGE_EXTERNAL_CHANGE_MESSAGE,
-  pageAutosaveStaleBasisMessage,
   pageEditorSurface,
   pagePickerValue,
   pagePublicPath,
+  type PageSaveConflict,
+} from "./rules";
+import {
+  PAGE_EXTERNAL_CHANGE_MESSAGE,
+  pageAutosaveStaleBasisMessage,
   PAGE_PREVIEW_IFRAME_SANDBOX,
   pageVersionConflictMessage,
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
-  type PageSaveConflict,
-} from "./rules";
+  type PageEditorView,
+} from "@jini-ai/admin/pages/page-editor-rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -90,8 +90,8 @@ What stays here, and what Tovu binds:
 - `repo.ts`, `repo.rows.ts`, `repo.sqlite.ts`: the SQL adapters. They type against the host's Kysely `ContentDatabase`/`ContentKernel` and call `keepStoredRevocation`, and `@jini-ai/user-management` carries no SQL storage seam yet.
 - `member-challenge-request.ts`: binds the host mail transport (`isMailDeliveryAvailable`, `mailSenderIdentityFor` from `platform/mail`) and the Jini renderer into the challenge flow.
 - `write-service.ts`: composes `membersWriteService` from the Jini functions plus `member-challenge-request.ts`.
-- `subscriber-directory.ts`: implements the newsletter feature's `SubscriberDirectoryPort`, which has no Jini owner yet.
-- `tool-registrations.ts`: the assistant tool contributor. It binds `@jini-ai/cms/core` permission/error helpers and the host tool metadata.
+- `MembersSubscriberDirectory` (the newsletter `SubscriberDirectoryPort` over `MemberRepoPort`) now lives in `@jini-ai/user-management/members/subscriber-directory`; the memory and site compositions bind it with the members repo.
+- `tool-registrations.ts`: the assistant tool contributor. It binds `@jini-ai/cms/core` permission/error helpers and the tool metadata from `@jini-ai/core/tool-metadata/members`.
 - Every composition passes `MembersWriteServiceDeps` (`buildMembersWriteServiceDeps`): repos, clock, ids, the positional mailer, optional `mailStatus`, `origin`, `senderIdentity`, `principals`, and `credentialLifecycle` (the content kernel, typed as core `StorageKernel`'s `transaction`/`lockKey`).
 
 ```ts

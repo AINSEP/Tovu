@@ -671,7 +671,7 @@ test("dispatchRow: happy path -- sends via the mailer, outcome 'sent'", async ()
   assert.equal(result.providerMessageId, "pm-1");
   assert.equal(result.error, null);
   assert.deepEqual(mailer.sentTo, ["a@test.com"]);
-  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: row.recipientEmail }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: dispatchMessage.subject, text: dispatchMessage.text, html: undefined, headers: {} });
+  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: row.recipientEmail }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: dispatchMessage.subject, text: dispatchMessage.text, headers: {} });
 });
 
 test("dispatchRow: each row supplies its own provider idempotency key and source identity", async () => {

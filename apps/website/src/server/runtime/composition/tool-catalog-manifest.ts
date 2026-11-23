@@ -428,6 +428,8 @@ function installStatusAndAgentTools(contributions: AssistantToolContributions, g
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
   contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
+  /** Defaults to this process's captured console buffer. */
+  // Now: the server-logs tool's log source is `ServerLogsToolDeps.serverLogs`, bound here to that buffer.
   contributions.contributors.register({ contribution: contributeServerLogsTools({ serverLogs: processServerLogSource }) });
   contributions.contributors.register({ contribution: contributeObservabilityTools({ testErrorMessage: TELEMETRY_TEST_ERROR_MESSAGE }) });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC

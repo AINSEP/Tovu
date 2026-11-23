@@ -30,20 +30,17 @@ import { createEmbedPlaceholderDescriber } from "@jini-ai/admin/pages/lib/embed-
 import { embedMarkerTarget, parseEmbedMarkerConfig } from "@jini-ai/cms/widgets/markers";
 import { prettifyHtml } from "@jini-ai/admin/pages/lib/prettify-html";
 import { useWiredEditorHtmlJump, useWiredInteractiveEditorFlush } from "./page-editor-wiring.hooks";
+import { HOME_PAGE_HANDLE, pageAdminPath, PAGES_RESOURCE, type PageSaveConflict } from "../rules";
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
-  HOME_PAGE_HANDLE,
   pageAcceptsHtmlBody,
-  pageAdminPath,
   pageDirtyGuardBaseline,
   pageEditableHtml,
   pagePreviewFormTarget,
-  PAGES_RESOURCE,
   pageRefreshMayHaveUnsavedEdits,
-  type PageSaveConflict,
   type PageSavePlan,
-} from "../rules";
+} from "@jini-ai/admin/pages/page-editor-rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import { applyPartialSave, applySavedPage, applySaveFailure, PageBodyWriteError, writePage } from "./page-editor-save";
 import type { PageEditorPort } from "./page-editor-port.hooks";
@@ -78,8 +75,7 @@ import {
  *  mounted directly by `PageEditor.tsx` since 2026-09-23 with this feature's own
  *  `embedPlaceholderDescriber` supplied above, rather than through `@jini-ai/admin/react`'s
  *  Tovu-specific adapter). */
-export type { PageEditorView } from "../rules";
-import type { PageEditorView } from "../rules";
+import type { PageEditorView } from "@jini-ai/admin/pages/page-editor-rules";
 
 import { type Translate } from '@jini-ai/core/text';
 export interface PageEditorController {
