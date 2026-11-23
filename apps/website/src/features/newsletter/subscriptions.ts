@@ -7,7 +7,7 @@
  * `SubscriberDirectoryPort`, read-only.
  */
 import type { UUID } from "@jini-ai/core/primitives";
-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
+import { issueConfirmationToken, refuseUnboundConsent, type ConfirmationDeps } from "./confirmation.js";
 import {
   NewsletterListNotFoundError,
   NewsletterSubscriberNotFoundError,
@@ -47,6 +47,9 @@ export async function saveSubscription(required: {
     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
   }
   refuseArchivedList({ list });
+  // B176: refuse before the pending row is written — a subscription that can never be confirmed
+  // must not be left behind (the issuer repeats this guard for its other callers).
+  refuseUnboundConsent({ consentCapability: deps.confirmationDeps.consentCapability });
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
@@ -148,6 +151,9 @@ export async function importSubscriptions(required: {
     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
   }
   refuseArchivedList({ list });
+  // Batch-wide like the list checks above: an unbound consent binding refuses every row, so it is
+  // one typed refusal (503), not N identical per-row failures (B176).
+  refuseUnboundConsent({ consentCapability: deps.confirmationDeps.consentCapability });
 
   const created: SubscriptionRow[] = [];
   const failed: { index: number; code: string; message: string }[] = [];

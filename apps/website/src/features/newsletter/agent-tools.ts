@@ -250,7 +250,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_resend_confirmation",
     description:
-      "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Requires subscriber-management permission.",
+      "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent, or {delivered:false,mailDeliveryAvailable:true,reason:'consent_unavailable',note} when subscriber consent is not connected and nothing was changed. Requires subscriber-management permission.",
     sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {

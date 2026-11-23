@@ -9,6 +9,7 @@ import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
   NewsletterConflictError,
+  NewsletterConsentUnavailableError,
   NewsletterDefaultListProtectedError,
   NewsletterForbiddenError,
   NewsletterLaunchGateBlockedError,
@@ -124,6 +125,12 @@ const NEWSLETTER_ERROR_MAPPERS: ReadonlyArray<
     (err: NewsletterSubscriptionNotFoundError) => ({ status: 404, body: { error: err.message, code: "NEWSLETTER_SUBSCRIPTION_NOT_FOUND" } }),
   ],
   [NewsletterForbiddenError, (err: NewsletterForbiddenError) => ({ status: 403, body: { error: err.message, code: "FORBIDDEN" } })],
+  // B176: a missing Members consent binding is a temporary server-side capability gap, not a bad
+  // request — 503 so the admin client shows "not available yet" rather than a validation error.
+  [
+    NewsletterConsentUnavailableError,
+    (err: NewsletterConsentUnavailableError) => ({ status: 503, body: { error: err.message, code: "NEWSLETTER_CONSENT_UNAVAILABLE" } }),
+  ],
 ];
 
 /**
