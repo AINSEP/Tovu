@@ -22,7 +22,7 @@ import { resolveFsRoots } from "#src/features/fs-files/layout";
 import { setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
 import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
-import { registerSkillFilesRoute } from "#src/server/inbound/admin-http/routes/skills/files";
+import { registerSkillFilesRoute } from "#src/server/runtime/composition/modules/skills";
 import type { RouteDeps } from "#src/server/routes/types";
 
 const workspaceId = "workspace-local";

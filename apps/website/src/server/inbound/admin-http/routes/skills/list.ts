@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { listManagedSkills } from "#src/features/skills/install-service";
-import type { SkillsRouteRegistrar } from "./deps.js";
+import type { SkillsRouteRegistrar } from "#src/server/runtime/composition/modules/skills";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**

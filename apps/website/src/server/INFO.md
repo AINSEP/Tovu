@@ -38,3 +38,9 @@ Trash (`runtime/composition/modules/trash.ts`, which now holds `TrashRouteDeps`/
 `TRASH_READ_PERMISSION` + `deps.authorize` as the injected entry gate (`authorizeEntry`, so the port call keeps its exact
 `{ principalId, permission, workspaceId }` params), `mayActOnEntityType`/`filterVisibleTrashItems` as the per-kind policy,
 `moveToTrash` as the move and the column-only `posts.kind` query as `loadPostDisplayKinds`; `trash`/`clock` stay per-request getters.
+Skills (`runtime/composition/modules/skills.ts`, which now holds `SkillsRouteDeps`/`SkillsRouteRegistrar`) mounts
+`@jini-ai/cms/admin-http/routes/skills/{files,install,set-enabled,uninstall,guidance}`, all `"guarded"`; files uses operation
+`routes/skills/files`, the four management routes `routes/skills/manage` with "Could not change skills. Try again.". It binds
+the booted `skillLayout`/`siteBinding` per call, `readPluginPackageFiles` + `PLUGIN_PACKAGE_FILE_LIMITS`, `SKILL_STATE_FILE`, the
+install-service functions, `buildSkillToolRegistrations` with `withExtensionApprovalPolicy`, and `instanceof SkillInputError`.
+`routes/skills/list.ts` stays hand-written: it answers `ETag`/`304` with `Cache-Control`.

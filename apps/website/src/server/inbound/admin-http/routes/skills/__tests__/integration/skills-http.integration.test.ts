@@ -12,7 +12,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerSkillsListRoute } from "../../list.js";
-import type { SkillsRouteDeps } from "../../deps.js";
+import type { SkillsRouteDeps } from "#src/server/runtime/composition/modules/skills";
 
 /**
  * @file C-001 `GET /api/admin/v1/workspaces/:workspaceId/skills` — implementation-outline.md
