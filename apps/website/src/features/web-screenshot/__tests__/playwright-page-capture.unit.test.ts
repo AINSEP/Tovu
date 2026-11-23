@@ -5,7 +5,7 @@ import { PageWorkTimeout, type RenderBrowserPool } from "@jini-ai/diagnostics/we
 
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
 import { createPlaywrightPageCapture, type CaptureBrowser, type CaptureBrowserLauncher, type CaptureContextOptions, type CaptureLaunchOptions, type CapturePage } from "../playwright-page-capture.js";
-import { MAX_REDIRECT_HOPS, type RouteLike } from "../request-guard.js";
+import { MAX_REDIRECT_HOPS, type RouteLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { PageCaptureError, VIEWPORT_PRESETS, type PageCaptureRequest } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**

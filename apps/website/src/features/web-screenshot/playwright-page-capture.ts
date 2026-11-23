@@ -5,7 +5,7 @@ import { REAL_CAPTURE_CLOCK, type CaptureClock } from "@jini-ai/diagnostics/web-
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease, type RenderSession } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
+import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { CAPTURE_LIMITS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
@@ -14,7 +14,7 @@ import { CAPTURE_LIMITS, PageCaptureError, type PageCapture, type PageCapturePor
  *
  * Isolation, per capture: a FRESH browser context (no cookies, storage or cache from any other
  * call), service workers blocked (so every request reaches the router), downloads refused,
- * WebSockets closed before they connect, and every HTTP request routed through `request-guard.ts`,
+ * WebSockets closed before they connect, and every HTTP request routed through Jini's `request-guard.ts`,
  * which fetches it itself through the egress guard. As defence in depth, Chromium is launched with
  * a dead proxy and no loopback bypass, so any request that somehow escaped routing would fail
  * rather than reach a network, and WebRTC is limited to proxied UDP (none). That proxy is not
@@ -298,7 +298,11 @@ function createCaptureShooter({ browser, httpClient, ownSiteFetch, routerOptions
       throw new PageCaptureError({ kind: "unavailable", message: (error as Error).message });
     }
     const { viewport } = request;
-    const router = createRequestRouter({ httpClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, { ...routerOptions, allowDataRequests: false });
+    // Product HTTP signature adapter; Jini owns pinned request routing and redirect/budget rules.
+    // Security rationale and why Chromium never receives redirects live in Jini's request-guard.ts.
+    // Adapt the host signature without opening any raw public transport.
+    const routerClient = { send: ({ request: hop }: { request: Parameters<HttpClientPort["send"]>[0] }) => httpClient.send(hop) };
+    const router = createRequestRouter({ httpClient: routerClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, { ...routerOptions, allowDataRequests: false });
     const contextOptions: CaptureContextOptions = {
       viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor,
       isMobile: viewport.isMobile, hasTouch: viewport.isMobile, serviceWorkers: "block", acceptDownloads: false,
