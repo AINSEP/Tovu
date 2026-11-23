@@ -1,8 +1,10 @@
 import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "@jini-ai/cms/redirects";
-import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
+import { toAdminRedirectResponse } from "@jini-ai/cms/admin-http/http/redirects";
+import { REDIRECT_WRITE_ERROR_MAPPINGS } from "@jini-ai/cms/admin-http/routes/redirects/shared";
+import type { RedirectRouteRegistrar } from "#src/server/runtime/composition/modules/redirects";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError } from "./shared.js";
+import { respondToRedirectError } from "./shared.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const VALID_MATCH_TYPES = new Set(["exact", "prefix", "wildcard", "regex"]);
