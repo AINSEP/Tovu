@@ -119,7 +119,8 @@ test("resolveDevTlsActive: neither file present disables TLS", () => {
 for (const apiScheme of ["http", "https"]) {
   test(`startAdminVite hands the actual child the non-default ports and ${apiScheme} scheme`, () => {
     const calls = [];
-    startAdminVite({ apiPort: 3301, vitePort: 5274, apiScheme, extraCaCerts: apiScheme === "https" ? "/fixture/root-ca.pem" : undefined }, (...args) => calls.push(args));
+    startAdminVite({ apiPort: 3301, vitePort: 5274, apiScheme, extraCaCerts: apiScheme === "https" ? "/fixture/root-ca.pem" : undefined },
+      { startChild: (...args) => calls.push(args), prepareDepsCache: () => ({ force: false }) });
     assert.deepEqual(calls, [["admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {
       TOVU_API_URL: `${apiScheme}://localhost:3301`,
       TOVU_ADMIN_DEV_PORT: "5274",

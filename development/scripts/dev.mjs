@@ -32,7 +32,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
-import { existsSync, readFileSync, unlinkSync, unwatchFile, watchFile } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, unlinkSync, unwatchFile, watchFile, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -740,11 +740,59 @@ export function buildApiEnv({ scheme, apiPort, vitePort, supervisorPid }, { env 
   };
 }
 
-/** Starts the admin child with the ports and scheme this stack has already checked. */
-export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, startChild = start) {
+const NODE_FS = { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync };
+
+/** Newest mtime anywhere under `dir`. A whole-tree walk because `tsc` rewrites nested files in place,
+ * which never touches the mtime of `dist/` itself or of any directory above the rewritten file.
+ * @complexity O(files under dir). */
+function newestMtimeMs({ dir }, { fs }) {
+  let newest = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    newest = Math.max(newest, entry.isDirectory() ? newestMtimeMs({ dir: full }, { fs }) : fs.statSync(full).mtimeMs);
+  }
+  return newest;
+}
+
+/** Identity of every `@jini-ai/*` package an app's Vite resolves: where it really lives, its version,
+ * and when its build output last changed. `""` when the app has no `@jini-ai` scope at all.
+ * @complexity O(files under each package's dist). */
+export function jiniDepsFingerprint({ nodeModulesDir }, { fs = NODE_FS } = {}) {
+  const scope = path.join(nodeModulesDir, "@jini-ai");
+  if (!fs.existsSync(scope)) return "";
+  return JSON.stringify(fs.readdirSync(scope).sort().map((name) => {
+    const real = fs.realpathSync(path.join(scope, name));
+    const { version } = JSON.parse(fs.readFileSync(path.join(real, "package.json"), "utf8"));
+    const dist = path.join(real, "dist");
+    return [name, real, version, fs.existsSync(dist) ? newestMtimeMs({ dir: dist }, { fs }) : 0];
+  }));
+}
+
+/** Vite keys `.vite/deps` on the lockfile, but the admin's `@jini-ai/*` deps are `file:` links into a
+ * sibling checkout: installing or rebuilding a newer `@jini-ai/chat` leaves the lockfile unchanged
+ * and Vite keeps serving the old prebundle (A382). Compare a stamp kept beside Vite's own cache and
+ * ask for one forced re-optimize whenever it moved; a missing stamp is treated as moved, since a
+ * cache of unknown provenance cannot be trusted. The stamp lives inside Vite's cacheDir so deleting
+ * that cache by hand also resets it. */
+export function prepareAdminDepsCache({ adminDir }, { fs = NODE_FS } = {}) {
+  const nodeModulesDir = path.join(adminDir, "node_modules");
+  const stampFile = path.join(nodeModulesDir, ".vite", "tovu-jini-deps.json");
+  const fingerprint = jiniDepsFingerprint({ nodeModulesDir }, { fs });
+  if (fs.existsSync(stampFile) && fs.readFileSync(stampFile, "utf8") === fingerprint) return { force: false };
+  fs.mkdirSync(path.dirname(stampFile), { recursive: true });
+  fs.writeFileSync(stampFile, fingerprint);
+  return { force: true };
+}
+
+/** Starts the admin child with the ports and scheme this stack has already checked, forcing Vite to
+ * re-optimize its prebundled deps when the linked `@jini-ai/*` packages changed since the last start. */
+export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, {
+  startChild = start, prepareDepsCache = () => prepareAdminDepsCache({ adminDir: path.join(REPO_ROOT, "apps", "admin") }),
+} = {}) {
   const env = buildAdminViteEnv({ apiPort, vitePort, apiScheme });
   if (extraCaCerts) env.NODE_EXTRA_CA_CERTS = extraCaCerts;
-  return startChild("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], env);
+  const { force } = prepareDepsCache();
+  return startChild("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev", ...(force ? ["--", "--force"] : [])], env);
 }
 
 /** Wait for the boot result, not the early 503 listener. Reuse the shared polling owner and the
