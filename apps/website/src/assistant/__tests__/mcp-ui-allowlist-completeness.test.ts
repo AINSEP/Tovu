@@ -72,6 +72,8 @@ interface ExchangeScan {
   readonly toolIds: ReadonlySet<string>;
   /** `file: CONSTANT` for every call whose `toolId` could not be resolved to a string literal. */
   readonly unresolved: readonly string[];
+  /** Unresolved ids that are named imports from a `@jini-ai/*` module, keyed by local name. */
+  readonly packageImports: ReadonlyMap<string, { readonly module: string; readonly name: string }>;
 }
 
 // These exact dynamic expressions are adapters for handlers tested through real exchanges.
@@ -118,9 +120,13 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   ])],
 ]);
 
-function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
+function scanExchangeTexts(
+  texts: readonly { file: string; text: string }[],
+  { importedConstants = new Map() }: { importedConstants?: ReadonlyMap<string, string> } = {},
+): ExchangeScan {
   const sources = texts.map(({ file, text }) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
   const constants = new Map<string, ts.Expression>();
+  const packageImports = new Map<string, { module: string; name: string }>();
   const walk = (node: ts.Node, visit: (node: ts.Node) => void) => {
     visit(node);
     ts.forEachChild(node, (child) => walk(child, visit));
@@ -128,6 +134,13 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
   for (const source of sources) walk(source, (node) => {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
       constants.set(node.name.text, node.initializer);
+    }
+    // Moved tool-id constants are imported from Jini; only a value import can name a runtime id.
+    const declaration = ts.isImportSpecifier(node) && !node.isTypeOnly ? node.parent.parent.parent : undefined;
+    if (declaration && ts.isImportDeclaration(declaration) && !declaration.importClause?.isTypeOnly
+      && ts.isStringLiteral(declaration.moduleSpecifier) && declaration.moduleSpecifier.text.startsWith("@jini-ai/")) {
+      const specifier = node as ts.ImportSpecifier;
+      packageImports.set(specifier.name.text, { module: declaration.moduleSpecifier.text, name: (specifier.propertyName ?? specifier.name).text });
     }
   });
   const unparen = (node: ts.Expression): ts.Expression =>
@@ -138,6 +151,7 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
     if (ts.isIdentifier(node) && !seen.has(node.text)) {
       const value = constants.get(node.text);
       if (value) return resolve(value, new Set([...seen, node.text]));
+      return importedConstants.get(node.text);
     }
     return undefined;
   };
@@ -172,6 +186,7 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
   };
   const toolIds = new Set<string>();
   const unresolved: string[] = [];
+  const unresolvedImports = new Map<string, { module: string; name: string }>();
   for (const source of sources) {
     const relative = path.relative(SRC_ROOT, source.fileName);
     const record = (spec: ts.Expression | undefined, node: ts.Node) => {
@@ -180,6 +195,8 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
       if (id) toolIds.add(id);
       else if (!value || !DYNAMIC_BINDINGS.get(relative)?.has(value.getText(source))) {
         const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        const imported = value && ts.isIdentifier(unparen(value)) ? packageImports.get((unparen(value) as ts.Identifier).text) : undefined;
+        if (imported) unresolvedImports.set((unparen(value!) as ts.Identifier).text, imported);
         unresolved.push(`${relative}:${line}: ${value?.getText(source) ?? "missing argument"}`);
       } else {
         // The host adapters delegate these registered IDs to Jini rather than declaring a literal binding.
@@ -220,12 +237,38 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
       }
     });
   }
-  return { toolIds, unresolved };
+  return { toolIds, unresolved, packageImports: unresolvedImports };
 }
 
-function scanExchangeOpeners(files: readonly string[]): ExchangeScan {
-  return scanExchangeTexts(files.map((file) => ({ file, text: readFileSync(file, "utf8") })));
+/**
+ * Tool-id constants moved into Jini packages are read from the real export, never a copied literal,
+ * so a renamed engine id still has to be on the allowlist. A non-string export stays unresolved.
+ */
+async function scanExchangeOpeners(files: readonly string[]): Promise<ExchangeScan> {
+  const texts = files.map((file) => ({ file, text: readFileSync(file, "utf8") }));
+  const first = scanExchangeTexts(texts);
+  const importedConstants = new Map<string, string>();
+  for (const [local, { module, name }] of first.packageImports) {
+    const value = (await import(module) as Record<string, unknown>)[name];
+    if (typeof value === "string") importedConstants.set(local, value);
+  }
+  return importedConstants.size === 0 ? first : scanExchangeTexts(texts, { importedConstants });
 }
+
+test("a tool id imported from a Jini package resolves only through its real exported value", () => {
+  const text = `
+    import { MOVED_ID } from "@jini-ai/example/tools";
+    import type { TYPE_ID } from "@jini-ai/example/tools";
+    store.open({ binding: { principalId: "p", toolId: MOVED_ID }, emit });
+    store.open({ binding: { principalId: "p", toolId: TYPE_ID }, emit });`;
+  const file = path.join(SRC_ROOT, "fixture.ts");
+  const unloaded = scanExchangeTexts([{ file, text }]);
+  assert.deepEqual([...unloaded.packageImports], [["MOVED_ID", { module: "@jini-ai/example/tools", name: "MOVED_ID" }]]);
+  assert.equal(unloaded.unresolved.length, 2);
+  const loaded = scanExchangeTexts([{ file, text }], { importedConstants: new Map([["MOVED_ID", "moved_tool"]]) });
+  assert.deepEqual([...loaded.toolIds], ["moved_tool"]);
+  assert.deepEqual(loaded.unresolved, [`fixture.ts:5: TYPE_ID`]);
+});
 
 // F5.6: the scanner must see alternate receivers, literals, shorthand and reordered fields.
 test("the parser enumerates alternate opener shapes and reports unresolved bindings", () => {
@@ -313,7 +356,7 @@ function missingFromAllowlist(openers: ReadonlySet<string>, allowlist: ReadonlyS
     .sort();
 }
 
-const scan = scanExchangeOpeners(sourceFiles(SRC_ROOT));
+const scan = await scanExchangeOpeners(sourceFiles(SRC_ROOT));
 
 test("every surfaceExchanges.open(...) call names a toolId constant this scan can resolve", () => {
   assert.deepEqual(scan.unresolved, []);
@@ -335,6 +378,8 @@ test("the scan finds the known exchange openers (guards against a scan that sile
     "taxonomy_execute_merge_term",
     "database_execute_migrate_forward",
     "backup_execute_restore",
+    // Through a tool-id constant imported from a Jini package, resolved from its real export.
+    "publish_content_execute_pull",
   ]) {
     assert.ok(scan.toolIds.has(id), `expected the scan to find '${id}'`);
   }
