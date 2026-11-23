@@ -45,8 +45,8 @@ import { namePasteHandler } from '../contracts/site-name.js';
  */
 import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, cardOpenProps, closeMenuThen, duplicateDisplayNames, type SiteListController } from '@jini-ai/ui/site-card';
 import { useDeleteConfirmation } from './App.hooks.js';
-import { useDismissibleDropdown } from './use-dropdown-menu.hooks.js';
-import { useSiteListPrefs } from './use-site-list-prefs.hooks.js';
+import { useDismissibleDropdown } from '@jini-ai/ui/browser';
+import { useWiredSiteListPrefs } from './use-site-list-prefs.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
@@ -90,7 +90,7 @@ export function SiteGrid({
   usePower = useSitePower,
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
-  useListPrefs = useSiteListPrefs, useSiteListViewHook = useSiteListView,
+  useListPrefs = useWiredSiteListPrefs, useSiteListViewHook = useSiteListView,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -116,7 +116,7 @@ export function SiteGrid({
    *  the same reason as the others, so a test can render a card with a capture. */
   usePreview?: typeof useSitePreview;
   /** This window's sort, pins and hidden sites. Injectable for the same reason as the others. */
-  useListPrefs?: typeof useSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
+  useListPrefs?: typeof useWiredSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState({ onDelete });

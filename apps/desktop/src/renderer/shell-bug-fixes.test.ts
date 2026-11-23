@@ -12,8 +12,8 @@ import type { SiteRecord, CreatedSiteRecord } from '../contracts/project.js';
 
 const site = (fields: Partial<SiteRecord> = {}) => ({ id: '/site', displayName: 'My website', status: 'stopped', folderMissing: false, ...fields }) as SiteRecord;
 
-// The menu and Rename hooks run this rule (rendered in `use-dropdown-menu.hooks.render.test.ts`
-// and `use-site-rename.hooks.render.test.ts`); its own guards are asserted here.
+// The menu and Rename hooks run this rule (the menu's is rendered in Jini's
+// `@jini-ai/ui/browser` `useDismissibleDropdown.test.tsx`, Rename's in `use-site-rename.hooks.render.test.ts`); its own guards are asserted here.
 test('D-12: Escape dismisses, but not while busy or mid IME composition, and no other key does', () => {
   let dismissed = 0;
   dismissOnEscape({ event: { key: 'Enter' }, dismiss: () => { dismissed++; } });

@@ -22,7 +22,7 @@ import type { ResourcesSnapshot } from '../contracts/resources.js';
 import { SiteGrid } from './SiteGrid.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
 import { externalStopConfirm, restartControl } from './use-site-power.hooks.js';
-import { SITE_LIST_STORAGE_KEY, useSiteListPrefs, type SiteListStorage } from './use-site-list-prefs.hooks.js';
+import { SITE_LIST_STORAGE_KEY, useWiredSiteListPrefs, type SiteListStorage } from './use-site-list-prefs.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
@@ -623,7 +623,7 @@ function dated(...numbers: number[]) {
 }
 
 function renderList(t: TestContext, projects: SiteRecord[], storage: SiteListStorage) {
-  const grid = renderGrid(t, projects, fakeHooks(), { useListPrefs: () => useSiteListPrefs({}, { storage }) });
+  const grid = renderGrid(t, projects, fakeHooks(), { useListPrefs: () => useWiredSiteListPrefs({}, { storage }) });
   const names = () => grid.cards().map((card) => card.querySelector('h3')!.textContent);
   const chip = (label: RegExp) => [...grid.host.querySelectorAll<HTMLButtonElement>('.jini-site-list-toolbar__view')].find((view) => label.test(view.textContent ?? ''));
   const chooseMenuItem = (name: string, item: string) => {
