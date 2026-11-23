@@ -5,7 +5,8 @@ import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallba
 import {
   useAdminSubagents, useAssistantSubagentsSettings, useDockAgentPermissions, useWiredAdminSubagents, useWiredAssistantSubagentsSettings,
 } from "../hooks/use-admin-subagents.hooks";
-import { assistantSubagentsPort, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import { assistantSubagentsPort } from "@/lib/shell-collaborators";
+import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@jini-ai/admin/shell/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 const ALL_ON = { ...assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }), canEdit: true };

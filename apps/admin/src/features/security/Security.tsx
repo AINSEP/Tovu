@@ -1,8 +1,7 @@
 import { navigateSecurityTab } from "./Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
-import { ownerPasskeySettingsPort } from '../../lib/owner-passkey-api';
 import { TotpSettings } from "@jini-ai/user-management/react";
-import { ownerMfaPort } from "../../lib/owner-mfa-api";
+import { ownerMfaPort, ownerPasskeySettingsPort } from "../../lib/shell-collaborators";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 

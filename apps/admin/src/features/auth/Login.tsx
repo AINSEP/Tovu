@@ -1,6 +1,6 @@
 import { createLoginTranslator } from "./Login.hooks";
 import { PasskeySignIn } from '@jini-ai/user-management/react';
-import { ownerPasskeySignInPort } from '../../lib/owner-passkey-api';
+import { ownerPasskeySignInPort } from '../../lib/shell-collaborators';
 import { authApi } from './api/auth-api';
 import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";

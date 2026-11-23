@@ -1,6 +1,7 @@
 import { useRecoveryCodeSignIn } from '@jini-ai/user-management/react';
 
-import { ownerRecoveryFailure, type OwnerRecoveryPort } from '../../lib/owner-recovery-api';
+import { ownerRecoveryFailure } from '../../lib/shell-collaborators';
+import { type OwnerRecoveryPort } from '@jini-ai/admin/shell/lib/owner-recovery-api';
 
 import { type Translate } from '@jini-ai/core/text';
 /** Reset the owner password with a one-use recovery code. */

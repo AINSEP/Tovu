@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { assistantPermanentDeletesPort } from "../shell-collaborators";
-import { assistantSubagentsPort, SUBAGENT_DANGERS } from "../assistant-subagents";
+import { assistantPermanentDeletesPort, assistantSubagentsPort } from "../shell-collaborators";
+import { SUBAGENT_DANGERS } from "@jini-ai/admin/shell/lib/assistant-subagents";
 
 /**
  * @file The two assistant risk-setting host adapters (`assistant-permanent-deletes.ts`,
