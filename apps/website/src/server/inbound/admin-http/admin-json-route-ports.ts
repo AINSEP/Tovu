@@ -66,10 +66,13 @@ export function createAdminJsonRoutePorts(
       if (publishTrust) publishTrustByContext.set(principal, publishTrustAuthorizeFor(publishTrust));
       return principal;
     },
-    authorize: async ({ context, deps, permission, entityType }) => {
+    // A by-id route names its entity (`entityId`), as the hand-written routes passed it to
+    // `deps.authorize`; an id-free route (list, import) sends no `entityId` key at all.
+    authorize: async ({ context, deps, permission, entityType }, scope = {}) => {
       if (!context) throw new Error("admin JSON route authorization has no authenticated principal");
       const authorize = publishTrustByContext.get(context) ?? deps.authorize;
-      const result = await authorize({ principalId: context.id, permission, workspaceId: deps.workspaceId, entityType });
+      const entity = scope.entityId === undefined ? { entityType } : { entityType, entityId: scope.entityId };
+      const result = await authorize({ principalId: context.id, permission, workspaceId: deps.workspaceId, ...entity });
       // Same 403 body `authorizeOrRespond` writes (authorize-guard.ts `writeForbidden`).
       if (!result.allowed) rejectRoute({
         status: 403, error: `principal '${context.id}' is not authorized for '${permission}' (${result.reason})`,
