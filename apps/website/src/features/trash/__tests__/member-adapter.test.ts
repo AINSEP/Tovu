@@ -19,7 +19,7 @@ import { membersWriteService } from "#src/features/members/write-service";
 import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "../adapters/member.js";

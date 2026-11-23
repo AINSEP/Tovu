@@ -22,7 +22,7 @@ import { updatePost, type PostRecord } from "#src/features/post/index";
 
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";

@@ -8,7 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTrashSweep, startTrashSweeper, type TrashSweepOnce, type TrashSweepReport } from "@jini-ai/cms/trash";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";

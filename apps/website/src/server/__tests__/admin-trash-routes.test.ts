@@ -17,7 +17,7 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import * as schema from "#src/platform/db/schema.sqlite";

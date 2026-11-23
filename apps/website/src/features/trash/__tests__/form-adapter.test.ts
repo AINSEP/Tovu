@@ -8,7 +8,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";

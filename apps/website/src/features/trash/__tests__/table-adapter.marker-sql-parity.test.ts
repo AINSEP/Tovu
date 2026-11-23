@@ -6,7 +6,7 @@ import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dial
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker } from "../adapters/marker-sql.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 

@@ -7,7 +7,7 @@ import type { TrashEntityType } from "@jini-ai/cms/trash";
 
 import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
 import type { TrashUserPort } from "@jini-ai/cms/trash";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";

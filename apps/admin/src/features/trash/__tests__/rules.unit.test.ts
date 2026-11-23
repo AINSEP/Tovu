@@ -3,7 +3,7 @@ import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
 import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
 import { describeTrashLoadError } from "../rules";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../../../../../website/src/features/trash/registry";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../../../../../website/src/features/trash/permissions";
 
 it("labels every server Trash kind and the page display kind, including new registry entries", () => {

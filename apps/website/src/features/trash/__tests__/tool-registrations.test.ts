@@ -7,7 +7,7 @@ import type { UserRepoPort, UserRecord } from "@jini-ai/user-management";
 import * as schema from "#src/platform/db/schema.sqlite";
 
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations, type TrashToolDeps } from "../tool-registrations.js";
 import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/agent-tools.js";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";

@@ -14,7 +14,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter, ThemeTrashLocationError, themeTrashLocationError } from "#src/features/theme/theme-trash-binding";
 import { locateThemeFolder } from "@jini-ai/cms/themes/files/trash";
 import { buildTrashThemeRegistrations, createThemeTrashMover, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";

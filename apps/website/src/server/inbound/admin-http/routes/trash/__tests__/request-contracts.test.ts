@@ -9,7 +9,7 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";

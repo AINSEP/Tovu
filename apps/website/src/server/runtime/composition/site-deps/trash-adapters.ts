@@ -30,7 +30,7 @@ import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-rep
 import type { SqlitePostRepo } from "#src/features/post/index";
 import type { createMediaBlobStore } from "#src/features/object-storage/index";
 import type { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import type { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import type { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashFollowUpHooks } from "@jini-ai/cms/trash";
 
 interface ComposeTrashAdaptersRequired {

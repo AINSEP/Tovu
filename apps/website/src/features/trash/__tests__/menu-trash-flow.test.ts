@@ -13,7 +13,7 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
