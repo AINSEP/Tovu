@@ -2,7 +2,8 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
+import { SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
+import { trashUser } from "#src/features/identity/trash-user-binding";
 import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";

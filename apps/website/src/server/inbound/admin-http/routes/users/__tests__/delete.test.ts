@@ -33,7 +33,7 @@ import { registerAdminUserDeleteRoute } from "../delete.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { assignRole, createUser, createSessionForPrincipal, validateSession, resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
 import { OwnerRequiredError } from "@jini-ai/user-management";
-import { trashUser } from "#src/features/identity/delete-user-service";
+import { trashUser } from "#src/features/identity/trash-user-binding";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 

@@ -1,11 +1,11 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction, SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { assertCallerHasAnyPermission, resetUserPassword } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { UserInTrashError } from "#src/features/identity/delete-user-service";
+import { UserInTrashError } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 

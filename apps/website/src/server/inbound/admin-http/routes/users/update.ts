@@ -5,7 +5,7 @@ import { IdentityConflictError, IdentityValidationError, IdentityForbiddenError,
 import { updateUser } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { UserInTrashError } from "#src/features/identity/delete-user-service";
+import { UserInTrashError } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 

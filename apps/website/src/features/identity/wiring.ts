@@ -17,7 +17,7 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
 import { ScryptApiKeySecretHasher } from "@jini-ai/user-management/identity/api-key-secret";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
-import type { RemoveUserFn } from "./delete-user-service.js";
+import type { RemoveUserFn } from "@jini-ai/user-management/identity/delete-user-service";
 import {
   SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,

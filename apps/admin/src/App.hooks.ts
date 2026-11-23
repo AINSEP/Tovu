@@ -28,7 +28,7 @@ import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/local-owner-signin";
+import { readInitialAdminSession } from "./lib/owner-clients";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {

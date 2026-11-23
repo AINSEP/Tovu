@@ -39,7 +39,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
-import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
+import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "@jini-ai/user-management/identity/delete-user-service";
 import { canPublishToLive } from "@jini-ai/cms/publish/content/live-site-policy";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 

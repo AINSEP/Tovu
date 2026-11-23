@@ -6,8 +6,8 @@ import { useOwnerRecoverySignIn } from "@jini-ai/admin/screens/auth/OwnerRecover
 import type { Translate } from "@jini-ai/core/text";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { ApiError } from "@/lib/admin-http/request";
-import { ownerPasskeySignInPort } from "../../lib/owner-passkey-api";
-import { ownerRecoveryFailure, ownerRecoveryPort } from "../../lib/owner-recovery-api";
+import { ownerPasskeySignInPort } from "../../lib/owner-clients";
+import { ownerRecoveryFailure, ownerRecoveryPort } from "../../lib/owner-clients";
 
 /**
  * @file The host's bindings for the Jini sign-in screens — what Tovu injects: its admin HTTP error

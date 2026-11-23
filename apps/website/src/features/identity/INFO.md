@@ -83,5 +83,9 @@ What this host injects into the Jini identity modules (`@jini-ai/user-management
   pre-write backup as `beforeReset`.
 - `tool-registrations.ts` / `routes/users/deps.ts` call `createUsernameChangePort` with the host's
   outbox, id generator, Trash membership check and seeded owner id.
-- `user-purge.ts` (`SqlUserPurge`) implements Jini's `UserPurgePort`; `delete-user-service.ts` stays
-  here until its module-level `trashUser` lock becomes instance-owned.
+- `user-purge.ts` (`SqlUserPurge`) implements Jini's `UserPurgePort`.
+- `trash-user-binding.ts` calls `createTrashUserService({})` ONCE for the process (one workspace per
+  process, CIC U-001) so the admin `DELETE users/:principalId` route and the assistant's `trash_item`
+  user port share one INV-08 serialization queue; each call injects `DeleteUserDeps` (the Trash-bound
+  `removeUser` and `isInTrash`). The stateless account-contract checks and error identities are
+  imported from `@jini-ai/user-management/identity/delete-user-service` at each call site.

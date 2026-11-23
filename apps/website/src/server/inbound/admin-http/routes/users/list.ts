@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
-import { userAccountProtection } from "#src/features/identity/delete-user-service";
+import { userAccountProtection } from "@jini-ai/user-management/identity/delete-user-service";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**

@@ -3,7 +3,7 @@ import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-gran
 import { toolMetadata } from '@jini-ai/core/tool-metadata/identity';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
-import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
+import { assertUserAccountAction, SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
 import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-management";
 /**
  * @file Identity tools built by Jini, with host human-confirmation and password-entry adapters.

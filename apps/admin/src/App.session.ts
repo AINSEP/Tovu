@@ -5,7 +5,7 @@ import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-rea
 import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "@jini-ai/admin/shell/lib/boot-token-fragment";
-import { readInitialAdminSession } from "./lib/local-owner-signin";
+import { readInitialAdminSession } from "./lib/owner-clients";
 import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,

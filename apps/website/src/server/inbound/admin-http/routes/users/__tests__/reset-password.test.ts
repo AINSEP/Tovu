@@ -12,7 +12,7 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserResetPasswordRoute, sendResetPasswordError } from "../reset-password.js";
-import { SelfDeleteError } from "#src/features/identity/delete-user-service";
+import { SelfDeleteError } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/user-management/server";
 
