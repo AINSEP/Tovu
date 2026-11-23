@@ -106,8 +106,6 @@ import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export type { AgentToolActorClassRule } from "@jini-ai/core";
-
 /**
  * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
  * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Required, not

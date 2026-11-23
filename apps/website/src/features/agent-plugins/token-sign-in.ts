@@ -8,7 +8,6 @@ import {
   listTokenSignInPlugins as listWithPorts, checkAgentPluginAccessToken as checkWithPorts,
   type TokenSignInPlugin, type TokenCheckOutcome,
 } from "@jini-ai/agent-plugins/connect";
-export type { TokenSignInPlugin, TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
 
 /** Lists token sign-in choices using the injected plugin reader. */
 export function listTokenSignInPlugins(

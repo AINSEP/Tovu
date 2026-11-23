@@ -39,8 +39,6 @@ import {
 
 import { SYSTEM_CONTENT_TYPES } from "../../contracts/core/system-content-types.js";
 
-export { MAX_DECLARED_CONTENT_TYPES, MAX_DECLARED_FIELDS, MAX_DECLARED_QUERYABLE_FIELDS } from "@jini-ai/plugins/host";
-export type { ApplyDeclaredContentTypesResult, DeclarativeManifestView, DeclaredContentTypeOutcome, ParseDeclaredContentTypesResult } from "@jini-ai/plugins/host";
 export type DeclaredContentType = DeclaredContentTypeDefinition;
 export type DeclaredContentTypePorts = DeclaredContentTypeWritePorts;
 export type DeclaredContentTypePlan = DeclaredContentTypeDefinitionPlan;
