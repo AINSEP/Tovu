@@ -29,7 +29,7 @@ import { assistantContentFromEvents, latestUserPromptFromHistory } from "@jini-a
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
-import { isNetworkFailure, NO_REPLY_REASON, TRUNCATED_REPLY_MESSAGE, visitorFacingError } from "./site-assistant-errors";
+import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
 import { parseToolConfirmation, type ToolConfirmation } from "./tool-confirmation";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
@@ -39,10 +39,6 @@ const CHAT_URL = "/api/site-assistant/chat";
  *  content, so this is generous; any received chunk restarts it. */
 const IDLE_TIMEOUT_MS = 90_000;
 const TIMEOUT_REASON = "the site took too long to respond";
-/** A request that fails before the server sent a single reply byte (dropped connection, 5xx) is tried
- *  once more after this pause — the intermittent first-prompt failure. Never after reply frames began. */
-const RETRY_DELAY_MS = 600;
-const MAX_MODEL_NAME_CHARS = 80;
 /** Oldest-dropped-first turn cap and per-turn character cap for the `history` sent alongside a
  *  message — matches `assistant/site/history.ts`'s server-side defaults in VALUE only (the server is
  *  the actual enforcement point; see this file's header). */
@@ -166,13 +162,6 @@ export interface SiteAssistantTransportOptions {
   };
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
   readonly onToolConfirmation?: (required: { directive: ToolConfirmation | null }, optional?: Record<string, never>) => void;
-  /** The model answering this turn: `{ model: null }` when a run starts, then the server's `meta` frame. */
-  readonly onModel?: (required: { model: string | null }, optional?: Record<string, never>) => void;
-  /** `{ prompt: null }` when a run starts; `{ prompt }` (the visitor's question) when it finally fails, so
-   *  the panel can offer a retry. Not called for a cut-off reply, which has nothing to retry. */
-  readonly onFailure?: (required: { prompt: string | null }, optional?: Record<string, never>) => void;
-  /** Pause before the one automatic retry of a request that failed before any reply bytes. Defaults to {@link RETRY_DELAY_MS}. */
-  readonly retryDelayMs?: number;
   /** Defaults to the global `fetch`, resolved per call. */
   readonly fetch?: typeof fetch;
   /** Defaults to {@link IDLE_TIMEOUT_MS}. */
@@ -192,10 +181,10 @@ function consumeToolConfirmation({ data, settled, receive }: {
 }
 
 type Options = SiteAssistantTransportOptions;
-type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch; prompt: string };
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
 
 /** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
-function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs, prompt }: RunArgs, _options = {}) {
+function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs }: RunArgs, _options = {}) {
   const collected: AgentEvent[] = [];
   const flags = { settled: false, failed: false, replied: false, timedOut: false };
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -215,14 +204,6 @@ function createRunLifecycle({ input, handlers, options, runId, controller, idleT
     if (flags.settled) return;
     flags.failed = true;
     handlers.onError(visitorFacingError({ error }));
-    options.onFailure?.({ prompt });
-  };
-  // The reply stopped at the server's length limit: its partial text stays, with a notice that is not
-  // "couldn't get an answer" and no retry offer (resending the same question would cut off again).
-  const failTruncated = () => {
-    if (flags.settled) return;
-    flags.failed = true;
-    handlers.onError(new Error(TRUNCATED_REPLY_MESSAGE));
   };
   // `expectReply: false` only for an abort: a visitor's own Stop is not a missing reply.
   const finish = ({ expectReply = true }: { expectReply?: boolean } = {}) => {
@@ -236,9 +217,7 @@ function createRunLifecycle({ input, handlers, options, runId, controller, idleT
     handlers.onDone(collected);
   };
   input.signal.addEventListener("abort", abort);
-  options.onModel?.({ model: null });
-  options.onFailure?.({ prompt: null });
-  return { collected, flags, armIdleTimer, fail, failTruncated, finish };
+  return { collected, flags, armIdleTimer, fail, finish };
 }
 type RunLifecycle = ReturnType<typeof createRunLifecycle>;
 
@@ -251,20 +230,11 @@ function handleTextFrame({ data, life, handlers }: { data: unknown; life: RunLif
 
 function handleEndFrame({ data, life, args }: { data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
   const { input, options, runId } = args;
-  // Only `truncated` is branched on: the reply stopped at the length limit, so say so.
-  if ((data as { reason?: string }).reason === "truncated") life.failTruncated();
+  // The end reason is server telemetry only; nothing here branches on it.
   life.finish();
   options.frontend?.finish({ navigation: (data as { reason?: string }).reason === 'navigation', messages: [
     ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: life.collected }), events: life.collected, runStatus: 'succeeded' },
   ] });
-}
-
-/** The server's `meta` frame names the answering model; blank or oversized values are ignored, never shown. */
-function handleMetaFrame({ data, args }: { data: unknown; args: RunArgs }, _options = {}) {
-  const model = (data as { model?: unknown } | null)?.model;
-  if (typeof model !== "string") return;
-  const trimmed = model.trim();
-  if (trimmed && trimmed.length <= MAX_MODEL_NAME_CHARS) args.options.onModel?.({ model: trimmed });
 }
 
 function handleFrame({ event, data, life, args }: { event: string; data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
@@ -276,8 +246,6 @@ function handleFrame({ event, data, life, args }: { event: string; data: unknown
     life.fail({ error: new Error((data as ChatFrameError).message || "site assistant error") });
   } else if (event === "end") {
     handleEndFrame({ data, life, args });
-  } else if (event === "meta") {
-    handleMetaFrame({ data, args });
   } else if (event === "client_directive") {
     // Confirmation directives go to their receiver; retired/unknown machine directives
     // never enter the visitor transcript either way.
@@ -299,21 +267,6 @@ function postChat({ args, message, frontendHeaders }: { args: RunArgs; message: 
   });
 }
 
-/** One POST, retried once — and only before any reply byte exists — on a network failure or a 5xx. */
-async function postChatWithOneRetry({ args, message, frontendHeaders }: { args: RunArgs; message: string; frontendHeaders: Record<string, string> }, _options = {}): Promise<Response> {
-  const delay = args.options.retryDelayMs ?? RETRY_DELAY_MS;
-  let response: Response | undefined;
-  try {
-    response = await postChat({ args, message, frontendHeaders });
-    if (response.status < 500) return response;
-    void response.body?.cancel();
-  } catch (error) {
-    if (!isNetworkFailure({ error })) throw error;
-  }
-  await new Promise<void>((resolve) => { setTimeout(resolve, delay); });
-  return postChat({ args, message, frontendHeaders });
-}
-
 async function failOnRefusal({ response, life }: { response: Response; life: RunLifecycle }, _options = {}) {
   // A non-JSON refusal still reaches the visitor with its HTTP status below.
   const message = `This site could not answer (HTTP ${response.status})`;
@@ -331,7 +284,7 @@ async function performRun({ args, life, message }: { args: RunArgs; life: RunLif
   try {
     life.armIdleTimer();
     const frontendHeaders = await args.options.frontend?.headers() ?? {};
-    const response = await postChatWithOneRetry({ args, message, frontendHeaders });
+    const response = await postChat({ args, message, frontendHeaders });
     if (!response.ok) {
       await failOnRefusal({ response, life });
       return;
@@ -372,7 +325,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      const args: RunArgs = { input, handlers, options, runId, controller, idleTimeoutMs, fetchChat, prompt: message };
+      const args: RunArgs = { input, handlers, options, runId, controller, idleTimeoutMs, fetchChat };
       void performRun({ args, life: createRunLifecycle(args), message });
       return { runId };
     },

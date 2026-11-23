@@ -12,7 +12,7 @@ test('the visitor message list keeps the composer-height reserve as its bottom p
     style.textContent = readFileSync(new URL('../widget.css', import.meta.url), 'utf8');
     const rules = Array.from(style.sheet!.cssRules) as CSSStyleRule[];
     const list = rules.find(rule => rule.selectorText === '.tovu-site-assistant .jini-chat-pane .jini-message-list');
-    assert.equal(list?.style.getPropertyValue('padding'), '12px 16px calc(var(--jini-chat-controls-height, 240px) + 56px)');
+    assert.equal(list?.style.getPropertyValue('padding'), '12px 16px calc(var(--jini-chat-controls-height, 240px) + 24px)');
   } finally {
     dom.window.close();
   }

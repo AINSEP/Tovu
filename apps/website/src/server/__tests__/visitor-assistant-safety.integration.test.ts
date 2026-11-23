@@ -11,7 +11,7 @@ import type { SiteAssistantErrorLogEntry } from "#src/assistant/site/public-erro
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { createSiteAssistantModule, VISITOR_MAX_OUTPUT_TOKENS } from "../runtime/composition/modules/site-assistant.js";
+import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { parsePublicJsonBody } from "../inbound/shared/json-body-parsers.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
@@ -56,7 +56,7 @@ function googleReply({ parts }: { parts: unknown[] }, _options = {}): StubProvid
   }) + "\n\n" };
 }
 
-test("visitorsafe: Gemini receives the visitor output budget on the first request and tool continuation", async t => {
+test("visitorsafe: Gemini receives a 1024-token budget on the first request and tool continuation", async t => {
   const requests: Record<string, unknown>[] = [];
   const f = await boot({ t, reply: (count, body) => {
     requests.push(body);
@@ -68,7 +68,7 @@ test("visitorsafe: Gemini receives the visitor output budget on the first reques
   assert.equal(response.status, 200);
   assert.match(await response.text(), /Public answer/);
   assert.equal(requests.length, 2);
-  for (const body of requests) assert.equal((body.generationConfig as { maxOutputTokens?: number })?.maxOutputTokens, VISITOR_MAX_OUTPUT_TOKENS);
+  for (const body of requests) assert.equal((body.generationConfig as { maxOutputTokens?: number })?.maxOutputTokens, 1024);
 });
 
 for (const categoryNames of [[], ["Travel", "News"]]) {
@@ -308,38 +308,4 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
     assert.equal(response.response.isError, true, response.name);
     assert.equal(response.response.content, "I can't help with that request here.", response.name);
   }
-});
-
-function frameOf({ wire, event }: { wire: string; event: string }, _options = {}) {
-  const frame = wire.split("\n\n").find(f => f.startsWith(`event: ${event}\n`));
-  return frame ? JSON.parse(frame.slice(`event: ${event}\ndata: `.length)) : undefined;
-}
-
-/** VISITOR-CHAT cut-off (2026-11-23): Gemini counts hidden thinking tokens against `maxOutputTokens`,
- * so a reply can stop at MAX_TOKENS mid-sentence. The adapter still reports `end: stop`, so the
- * visitor saw "Here is the complete list of the 11 posts" with no list and no hint anything failed. */
-test("visitor-chat: a reply that stopped at the output budget ends as truncated, not as a normal stop", async t => {
-  const f = await boot({ t, reply: () => ({ status: 200, body: "data: " + JSON.stringify({
-    candidates: [{ content: { role: "model", parts: [{ text: "Here is the complete list of the 11 posts" }] }, finishReason: "MAX_TOKENS", index: 0 }],
-    usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 12, thoughtsTokenCount: VISITOR_MAX_OUTPUT_TOKENS - 12 },
-  }) + "\n\n" }) });
-  const wire = await (await post(f)).text();
-  assert.match(wire, /Here is the complete list of the 11 posts/);
-  assert.deepEqual(frameOf({ wire, event: "end" }), { reason: "truncated" });
-});
-
-test("visitor-chat: a complete reply under the budget still ends as a normal stop", async t => {
-  const f = await boot({ t, reply: () => ({ status: 200, body: "data: " + JSON.stringify({
-    candidates: [{ content: { role: "model", parts: [{ text: "Short answer." }] }, finishReason: "STOP", index: 0 }],
-    usageMetadata: { candidatesTokenCount: 4, thoughtsTokenCount: 30 },
-  }) + "\n\n" }) });
-  const wire = await (await post(f)).text();
-  assert.deepEqual(frameOf({ wire, event: "end" }), { reason: "stop" });
-});
-
-test("visitor-chat: the answering model is sent as a meta frame before end, and never on a failed turn", async t => {
-  const ok = await boot({ t, reply: () => googleReply({ parts: [{ text: "Fine." }] }) });
-  const wire = await (await post(ok)).text();
-  assert.deepEqual(frameOf({ wire, event: "meta" }), { model: "private-model" });
-  assert.ok(wire.indexOf("event: meta") < wire.indexOf("event: end"), "meta precedes end so the client has it before it settles");
 });
