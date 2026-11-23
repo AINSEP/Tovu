@@ -13,7 +13,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { InMemoryPluginActivationRepo, PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
-import type { PluginsRouteDeps } from "../../deps.js";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**

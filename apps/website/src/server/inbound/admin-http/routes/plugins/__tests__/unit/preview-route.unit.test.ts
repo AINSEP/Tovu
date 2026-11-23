@@ -6,8 +6,8 @@ import express from "express";
 import type { ContentEntryDraft } from "@tovu/sdk";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
-import { registerPluginPreviewRoute } from "../../preview.js";
-import type { PluginsRouteDeps } from "../../deps.js";
+import { registerPluginPreviewRoute } from "#src/server/runtime/composition/modules/plugins";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 
 // Route-level tests for PLUGIN_PREVIEW (AW-7 Tier 2): every response mapping, with the preview
 // binding as a recording fake. The real worker path is pinned by

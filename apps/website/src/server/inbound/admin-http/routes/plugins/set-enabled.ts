@@ -11,7 +11,7 @@ import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
+import type { PluginsRouteDeps, PluginsRouteRegistrar } from "#src/server/runtime/composition/modules/plugins";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** OFF commits before the existing serving runtime stops affected answers. */
