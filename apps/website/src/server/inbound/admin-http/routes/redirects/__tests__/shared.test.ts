@@ -5,11 +5,8 @@ import type { Response } from "express";
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 
 import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
-import {
-  respondToRedirectError,
-  REDIRECT_WRITE_ERROR_MAPPINGS,
-  type RedirectErrorMapping,
-} from "../shared.js";
+import { respondToRedirectError } from "../shared.js";
+import { REDIRECT_WRITE_ERROR_MAPPINGS, type RedirectErrorMapping } from "@jini-ai/cms/admin-http/routes/redirects/shared";
 
 function createMockResponse(): { res: Response; result: { status: number; body: unknown } } {
   const result = { status: 200, body: undefined as unknown };

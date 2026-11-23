@@ -1,0 +1,14 @@
+HEAD 6a77fd1fd
+build exit=0 secs=118
+typecheck exit=0 secs=99
+guard exit=0 secs=58
+api-check exit=0 secs=13
+size exit=1 secs=20
+complexity exit=1 secs=22
+hooks exit=0 secs=0
+why-base exit=0 secs=8
+why-default exit=1 secs=21
+cross-package exit=1 secs=18
+log-safety exit=1 secs=23
+error-gate exit=0 secs=20
+DONE
