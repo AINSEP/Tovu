@@ -177,16 +177,49 @@
 .page > .editor-action-row:has(+ .post-preview-surface) > .post-settings-trigger { margin-right: 37px; }
 
 /* Content analysis card (`@jini-ai/admin/screens/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
-   above the Categories & Tags box in the post editor. Reuses `.card`, `.dash-stat-*` type styles
-   and the `.status` pills; only the layout below is its own. The stats are NOT `.dash-stat` boxes:
-   those are link cards with a hover lift, and nothing here is clickable. */
+   above the Categories & Tags box in the post editor. Jini renders only `jini-*` classes and the
+   card is not inside a `.jini-page`, so jini-media.css's scoped rules never reach it. The block
+   right below paints its shared shapes with the SAME declarations as the app's `.card`,
+   `.dash-stat-*`, `.field-*`, `.status` pill, `.btn-secondary`, `.editor-actions` and `.save-error`
+   rules (styles.css), under `:where()` so each keeps that rule's own specificity. The stats are NOT
+   `.dash-stat` boxes: those are link cards with a hover lift, and nothing here is clickable. */
+.jini-card:where(.jini-content-analysis) {
+  background: var(--jini-panel-bg); border: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: var(--r-lg);
+  padding: var(--space-5) var(--space-6); box-shadow: var(--jini-panel-shadow);
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
+}
+:where(.jini-content-analysis) .jini-card-title { margin: 0 0 var(--space-2); font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; line-height: 1.3; color: var(--fg); text-wrap: balance; }
+:where(.jini-content-analysis) .jini-card-lead { margin: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+:where(.jini-content-analysis p, .jini-content-analysis li) { font-size: var(--text-sm); }
+:where(.jini-content-analysis) .jini-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+:where(.jini-content-analysis) .jini-save-error { color: var(--danger); font-size: 0.85rem; }
+:where(.jini-content-analysis) .jini-btn-secondary {
+  border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
+  transition: opacity 0.14s, box-shadow 0.14s;
+  background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border); box-shadow: var(--jini-control-shadow, none);
+}
+:where(.jini-content-analysis) .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+:where(.jini-content-analysis) .jini-btn-secondary:where(:hover) { box-shadow: var(--jini-control-shadow-hover, none); }
+:where(.jini-content-analysis) .jini-btn-secondary:where(:not(:disabled):active) { box-shadow: var(--jini-control-shadow-pressed, none); }
+:where(.jini-content-analysis) .jini-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+:where(.jini-content-analysis) .jini-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+:where(.jini-content-analysis) .jini-stat-value { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; color: var(--fg); font-variant-numeric: tabular-nums; }
+:where(.jini-content-analysis) .jini-stat-meta { font-size: var(--text-xs); color: var(--muted); }
+:where(.jini-content-analysis) .jini-field-label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+:where(.jini-content-analysis) .jini-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+:where(.jini-content-analysis) .jini-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+:where(.jini-content-analysis) .jini-status-ok { background: var(--ok-bg); color: var(--ok); }
+:where(.jini-content-analysis) .jini-status-warning { background: var(--warning-bg); color: var(--warning); }
+:where(.jini-content-analysis) .jini-status-error { background: var(--danger-bg); color: var(--danger); }
+:where(.jini-content-analysis) .jini-status-neutral { background: var(--surface-3); color: var(--muted); }
 .jini-content-analysis { margin-top: var(--space-4); }
 .jini-content-analysis-stats {
   list-style: none; margin: var(--space-4) 0; padding: 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-3);
 }
 .jini-content-analysis-stat { display: flex; flex-direction: column; gap: var(--space-1); }
-.jini-content-analysis-stat .dash-stat-value { font-size: 1.5rem; }
+.jini-content-analysis-stat .jini-stat-value { font-size: 1.5rem; }
 .jini-content-analysis-list {
   list-style: none; margin: var(--space-2) 0 var(--space-4); padding: 0;
   display: flex; flex-direction: column; gap: var(--space-2);
