@@ -21,7 +21,7 @@ let deriveFailure: unknown;
 let generateFailure: unknown;
 
 /** The real keyring, except that a derivation fails with `deriveFailure` when one is set. */
-class FailingFixedKeyring extends realSecrets.FixedRootKeyKeyring {
+class FailingFixedKeyring extends realSecrets.FixedSiteKeyKeyring {
   override async derive(input: DeriveInput): Promise<Uint8Array> {
     if (deriveFailure !== undefined) throw deriveFailure;
     return super.derive(input);
@@ -32,13 +32,13 @@ class FailingFixedKeyring extends realSecrets.FixedRootKeyKeyring {
   }
 }
 
-const failingGenerate: typeof realSecrets.generateFileRootKey = (options) => {
+const failingGenerate: typeof realSecrets.generateFileSiteKey = (options) => {
   if (generateFailure !== undefined) throw generateFailure;
-  return realSecrets.generateFileRootKey(options);
+  return realSecrets.generateFileSiteKey(options);
 };
 
 mock.module("@jini-ai/platform/secrets", {
-  namedExports: { ...realSecrets, FixedRootKeyKeyring: FailingFixedKeyring, generateFileRootKey: failingGenerate },
+  namedExports: { ...realSecrets, FixedSiteKeyKeyring: FailingFixedKeyring, generateFileSiteKey: failingGenerate },
 });
 
 const { EnvOrFileKeyring, generateFileSiteKey, SiteKeyFileAlreadyExistsError, UnusableSiteKeyError } = await import("../keyring.env.js");
@@ -51,8 +51,8 @@ const workDir = mkdtempSync(join(tmpdir(), "tovu-keyring-jini-boundary-"));
 const KEY_FILE = join(workDir, "keys", "site-key.hex");
 test.after(() => rmSync(workDir, { recursive: true, force: true }));
 
-function jiniRefusal(): InstanceType<typeof realSecrets.UnusableRootKeyError> {
-  return new realSecrets.UnusableRootKeyError({
+function jiniRefusal(): InstanceType<typeof realSecrets.UnusableSiteKeyError> {
+  return new realSecrets.UnusableSiteKeyError({
     source: "file",
     reason: "odd-length",
     message: "the root key file at /k is not usable as a root key: x. The keyring refuses to derive any key material from it.",

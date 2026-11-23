@@ -1,9 +1,13 @@
+// The released canonical SiteKey exports, imported directly. The `Jini*` / `*Jini*` local names are NOT a
+// legacy shim: this module exports its own Tovu-shaped `FixedSiteKeyKeyring`, `UnusableSiteKeyError`,
+// `parseSiteKeyHex`, `fingerprintSiteKeyHex` and `generateFileSiteKey`, so the engine's same-named exports
+// need a distinct local binding.
 import {
-  FixedRootKeyKeyring as JiniFixedSiteKeyKeyring, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  UnusableRootKeyError as JiniUnusableSiteKeyError, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  parseRootKeyHex as parseKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  fingerprintRootKeyHex as fingerprintKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-  generateFileRootKey as generateKeyFile, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  FixedSiteKeyKeyring as JiniFixedSiteKeyKeyring,
+  UnusableSiteKeyError as JiniUnusableSiteKeyError,
+  parseSiteKeyHex as parseJiniSiteKeyHex,
+  fingerprintSiteKeyHex as fingerprintJiniSiteKeyHex,
+  generateFileSiteKey as generateJiniFileSiteKey,
 } from "@jini-ai/platform/secrets";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -263,7 +267,7 @@ export type ParsedSiteKeyHex =
  * @complexity O(n) in the value's length.
  */
 export function parseSiteKeyHex({ raw }: { raw: string }, _optional = {}): ParsedSiteKeyHex {
-  return parseKeyHex({ raw });
+  return parseJiniSiteKeyHex({ raw });
 }
 
 /** Plain-language "what is wrong with it", per rejection. A `Record` over the union, so adding a
@@ -328,7 +332,7 @@ export class UnusableSiteKeyError extends Error {
  * ones that could silently diverge.
  */
 export function fingerprintSiteKeyHex({ hex }: { hex: string }, _optional = {}): string {
-  return fingerprintKeyHex({ hex });
+  return fingerprintJiniSiteKeyHex({ hex });
 }
 
 /** {@link inspectSiteKeyMaterial}'s result — never carries the key value itself. */
@@ -462,9 +466,11 @@ export function generateFileSiteKey(options: { keyFilePath: string }, _optional 
   // Jini performs the exclusive create; this adapter retains Tovu's directory mode and error identity.
   // 0700 like `ensureSiteKey`'s own writer (site-key plan §A.1) — only applies to directories this call creates.
   mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
-  try { return generateKeyFile({ keyFilePath }); }
+  try { return generateJiniFileSiteKey({ keyFilePath }); }
   catch (error) {
-    if (isAlreadyExistsError({ err: error }) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) { // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+    if (isAlreadyExistsError({ err: error }) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) {
+      // Matched by name, not `instanceof`: the released engine still names its error class `RootKeyFileAlreadyExistsError`
+      // (its `SiteKeyFileAlreadyExistsError` export is an alias of the same class), so this is current, not legacy.
       throw new SiteKeyFileAlreadyExistsError({ keyFilePath });
     }
     throw error;
