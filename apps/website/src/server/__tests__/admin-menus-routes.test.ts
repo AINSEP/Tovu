@@ -707,6 +707,16 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds; a second del
   assert.equal(forceRes.status, 404);
 });
 
+/** The seeded admin's principal, for direct handler calls that bypass the session middleware. */
+async function seededOwnerPrincipal(deps: ReturnType<typeof buildTestApp>["deps"]) {
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  return ownerPrincipal;
+}
+
 /**
  * `req.params.workspaceId ?? ""` / `req.params.menuId ?? ""` / `parseMenuTreeRequestBody`'s own
  * `(rawBody ?? {})` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): Express
@@ -731,6 +741,9 @@ test("update menu tree: `parseMenuTreeRequestBody`'s `(rawBody ?? {})` fallback,
   const { app, deps } = buildTestApp();
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
   const { res, capture } = createCapturingResponse();
+  // The route is now a Jini spec: the shared JSON-route adapter authenticates before it parses the
+  // body, so the body fallback is only reachable for a signed-in principal (as in production).
+  res.locals.principal = await seededOwnerPrincipal(deps);
 
   // No `body` key at all -> `(rawBody ?? {})` fallback; `{}.items` is not an array, so this reaches
   // the batch-shape guard rather than throwing on a property access of `undefined`.
@@ -1042,6 +1055,10 @@ test("assign-location returns 400 for an absent body when mounted without a body
   const { deps } = buildTestApp();
   await deps.identityReady;
   const app = express();
+  // The shared JSON-route adapter authenticates before it parses the body; sign the request in so
+  // the absent body (not the absent session) is what this test exercises.
+  const principal = await seededOwnerPrincipal(deps);
+  app.use((_req, res, next) => { res.locals.principal = principal; next(); });
   registerAdminMenuAssignLocationRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
