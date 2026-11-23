@@ -1,4 +1,5 @@
-import { buildToolGapsRegistrations, toolGapsDerivedRisk, type ToolGapsToolDeps } from "./tool-gaps-tool.js";
+import { buildToolGapsRegistrations, toolGapsDerivedRisk } from "./tool-gaps-tool.js";
+import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";

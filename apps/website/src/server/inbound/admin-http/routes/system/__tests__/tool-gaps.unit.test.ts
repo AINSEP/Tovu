@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
 import { registerAdminToolGapsRoute } from '../tool-gaps.js';
-import type { ToolGapsToolDeps } from '#src/assistant/tool-gaps-tool';
+import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
 /** Execute only the route callback; no HTTP listener, app, daemon or CLI is started. */
 async function invoke(principalId: string, workspaceId = 'w', toolGaps?: ToolGapsToolDeps['toolGaps'] | null) {

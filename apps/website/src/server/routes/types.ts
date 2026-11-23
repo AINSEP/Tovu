@@ -784,7 +784,7 @@ export interface ObservabilityDeps {
    */
   toolAttemptAuditSink: ToolAttemptAuditSink;
   /** Existing audit store, projected for the owner-only Tool gaps read surfaces. */
-  toolGaps?: import("../../features/tool-audit/tool-gaps.js").ToolGapReadPort;
+  toolGaps?: import("@jini-ai/core/contracts/site/assistant-host-ports").ToolGapReadPort;
 }
 
 /**

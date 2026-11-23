@@ -15,30 +15,7 @@
  * that skips it by accident.
  */
 
-export type ServerLogLevel = "debug" | "info" | "warn" | "error";
-
-/** Which process logged the line: the main server, or the agent daemon it supervises. */
-export type ServerLogSource = "server" | "daemon";
-
-/** Captured with each line so rotation and later async work cannot change its attribution. */
-export interface ServerLogMetadata {
-  readonly release?: string;
-  readonly environment?: string;
-  readonly traceId?: string;
-  readonly spanId?: string;
-}
-
-export interface ServerLogEntry extends ServerLogMetadata {
-  /** Monotonic within one process; lets a reader page forward without duplicates.
-   * Total lines ever appended, including ones already dropped by the caps. */
-  readonly seq: number;
-  /** ISO-8601 time the line was captured. */
-  readonly at: string;
-  readonly level: ServerLogLevel;
-  readonly source: ServerLogSource;
-  /** Already redacted and length-capped. */
-  readonly message: string;
-}
+import type { ServerLogEntry, ServerLogLevel, ServerLogMetadata, ServerLogSource } from "@jini-ai/core/contracts/site/platform-server-logs";
 
 export interface ServerLogAppendInput {
   readonly level: ServerLogLevel;
