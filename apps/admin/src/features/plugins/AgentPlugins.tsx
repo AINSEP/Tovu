@@ -1,9 +1,7 @@
 import { useAgentPluginConfirmation } from "./AgentPlugins.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-// SettingsDialogShell stays on the UI owner: this screen passes `labels`, which the kit slot's
-// SettingsDialogShellProps does not declare yet (kit gap, see README Wiring).
-import { SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
-import { I18nProvider, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
+import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useId } from "react";
