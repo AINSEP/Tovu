@@ -1,4 +1,4 @@
-import { createApiKeyPrincipal } from "#src/features/identity/api-key-service";
+import { createApiKeyPrincipal } from "@jini-ai/user-management/identity/api-key-service";
 import { toApiKeyPrincipalResponse } from "#src/server/inbound/admin-http/http/api-keys";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import {

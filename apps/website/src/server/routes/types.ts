@@ -34,7 +34,7 @@ import type {
   SessionRepoPort,
   UserRepoPort,
 } from "@jini-ai/user-management";
-import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";

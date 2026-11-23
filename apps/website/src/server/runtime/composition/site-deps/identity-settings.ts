@@ -5,7 +5,7 @@ import { type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import type { RouteDeps } from "../../../routes/types.js";
 import { type SiteDisplayNameSource } from "#src/features/settings/site-title";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
+import { applyOwnerPasswordReset } from "@jini-ai/user-management/identity/owner-reset-env";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";

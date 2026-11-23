@@ -6,9 +6,9 @@ import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
-import { authenticateApiKey } from "../api-key-service.js";
-import { InMemoryApiKeyRepo } from "../repo.memory.js";
-import type { ApiKeyRepoPort } from "../api-key-types.js";
+import { authenticateApiKey } from "../api-key-binding.js";
+import { InMemoryApiKeyRepo } from "@jini-ai/user-management/identity/repo.memory";
+import type { ApiKeyRepoPort } from "@jini-ai/user-management/identity/api-key-types";
 import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
 import { SqlPrincipalPolicyRepo, SqlPrincipalRoleRepo, SqlRolePolicyRepo } from "../repo.assignments.js";
 import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";

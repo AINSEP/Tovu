@@ -31,7 +31,8 @@ import {
 import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
 import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
-import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
+import { authenticateApiKey } from "#src/features/identity/api-key-binding";
+import type { ApiKeyServiceDeps } from "@jini-ai/user-management/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore, redeemBootSessionToken } from "@jini-ai/user-management/identity/boot-session-token";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";

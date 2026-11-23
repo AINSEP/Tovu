@@ -31,7 +31,7 @@ import type { SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createUsernameChangePort } from "./username-change-ports.js";
+import { createUsernameChangePort } from "@jini-ai/user-management/identity/username-change-ports";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 

@@ -3,7 +3,7 @@ import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
-import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
+import { UserDeleteUnsupportedError } from "@jini-ai/user-management/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
