@@ -74,6 +74,17 @@ export function isHttpsRequest(req: Request): boolean {
  * @complexity O(1).
  */
 export function resolvePublicOrigin(req: Request): string {
+  return resolvePublicOriginFor({ protocol: resolveProtocol(req), host: req.get("host") });
+}
+
+/**
+ * {@link resolvePublicOrigin} from facts a framework-neutral route already holds: the serving
+ * protocol (the same {@link resolveProtocol} answer, carried in Jini's request facts) and the `Host`
+ * header. The one implementation both the Express callers and the Jini OAuth callback routes use.
+ * @throws TypeError when `TOVU_PUBLIC_URL` is set but not an http(s) URL.
+ * @complexity O(1).
+ */
+export function resolvePublicOriginFor({ protocol, host }: { protocol: string; host: string | undefined }, _optional: Record<string, never> = {}): string {
   const configured = process.env.TOVU_PUBLIC_URL?.trim();
   if (configured) {
     const url = new URL(configured);
@@ -82,5 +93,5 @@ export function resolvePublicOrigin(req: Request): string {
     }
     return url.origin;
   }
-  return `${resolveProtocol(req)}://${req.get("host") ?? "localhost"}`;
+  return `${protocol}://${host ?? "localhost"}`;
 }

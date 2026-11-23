@@ -8,7 +8,7 @@ import { type ExternalMcpOAuthService } from "../../../../../../features/externa
 import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "../oauth-callback.js";
+import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "#src/server/runtime/composition/public-oauth-callbacks";
 
 /**
  * @file Route-level tests for the closed OAuth-callback failure-reason vocabulary
