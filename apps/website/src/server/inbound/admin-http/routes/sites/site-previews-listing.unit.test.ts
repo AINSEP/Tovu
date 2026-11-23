@@ -2,7 +2,7 @@ import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { registerAdminSitesRoutes, type AdminSitesDeps } from "../system/sites.js";
+import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
 import type { SitePreviewService, SitePreviewTarget } from "#src/features/sites/index";

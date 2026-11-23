@@ -10,9 +10,9 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
-import { registerAdminSettingsClearRoute } from "../clear.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../get-effective.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../register-definitions.js";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetEffectiveRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
 
 /**
  * @file Request-shape guards of the settings JSON routes (`mountSettingsJsonRoute` in `shared.ts`

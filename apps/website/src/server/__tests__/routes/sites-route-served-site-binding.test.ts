@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
-import { registerAdminSitesRoutes, type AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
+import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 /**

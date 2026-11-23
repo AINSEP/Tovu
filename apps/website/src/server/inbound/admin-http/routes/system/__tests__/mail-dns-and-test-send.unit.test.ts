@@ -10,8 +10,7 @@ import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
 import type { DnsChangeToolDeps } from "#src/features/domain-dns/index";
 import { context, fakeAuthoritative, memoryBindings } from "#src/features/domain-dns/__tests__/dns-fakes";
 import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
-import { registerAdminMailDnsRoutes } from "../mail-dns.js";
-import { registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "../mail-test-send.js";
+import { registerAdminMailDnsRoutes, registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "#src/server/runtime/composition/modules/system-mail";
 
 /**
  * @file The Email page's phase-3 admin adapters, driven as direct handler calls: each route checks

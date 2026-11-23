@@ -8,10 +8,10 @@ import express from "express";
 
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../../inbound/admin-http/routes/settings/get-raw.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
-import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
+import { registerAdminSettingsGetEffectiveRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetRawRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

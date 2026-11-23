@@ -9,9 +9,10 @@ import {
   type RouteInputContext,
 } from "@jini-ai/core/contracts/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
-import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
-import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
+import { touchesProtectedNamespaces } from "@jini-ai/cms/admin-http/routes/settings/protected-namespaces";
+import type { SettingsWriteFence } from "@jini-ai/cms/admin-http/routes/settings/shared";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
 
 import {
   createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set, type SettingsWriteServiceDeps,
@@ -21,6 +22,7 @@ import {
   resolveUserLayerReadTarget as resolveCmsUserLayerReadTarget,
   type SettingsPermissions,
   type SettingsService,
+  type SettingsRepoPort,
   type UserLayerReadTarget,
 } from "@jini-ai/core/settings";
 import { respondToSettingsError as respondToCmsSettingsError, type SettingsErrorMapping } from "@jini-ai/http-kit/settings";
@@ -114,6 +116,35 @@ export function respondToSettingsError({ res, err, mappings }: { res: Response; 
   respondToCmsSettingsError({ response: res, error: err, mappings });
 }
 
+/**
+ * Tovu's protected settings namespaces (host policy injected into every Jini settings write spec as
+ * `writeFence`). The owner-only grants (Full CLI subagents, permanent deletes) have their own
+ * acknowledgment endpoints, so a generic write answers 403 with both reasons. The visitor assistant
+ * definitions are code-owned: a definition batch must not rewrite their false default into an
+ * implicit enable, so it answers 400 with the steps that do enable it.
+ */
+export const SETTINGS_WRITE_FENCE: SettingsWriteFence = {
+  protected: {
+    namespaces: [ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_PERMANENT_DELETES_NAMESPACE],
+    error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON,
+  },
+  codeOwned: {
+    namespaces: ["site.assistant"], code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
+    error: "Visitor assistant definitions are code-owned. Save a usable provider key and a model, then enable the assistant in AI Assistant.",
+  },
+};
+
+/** Generic settings mutations cannot bypass the dedicated owner/acknowledgment endpoints: whether a
+ * body reaches one of Tovu's owner-only namespaces (by name, rename, alias or reset; the resolution
+ * itself is `@jini-ai/cms` `touchesProtectedNamespaces`). `namespaces` narrows or widens the check.
+ * @complexity As `touchesProtectedNamespaces`. No writes.
+ */
+export function touchesAssistantSubagents(required: {
+  body: unknown; repo: SettingsRepoPort; workspaceId: string; namespaces?: readonly string[];
+}, _optional: Record<string, never> = {}): Promise<boolean> {
+  return touchesProtectedNamespaces({ ...required, namespaces: required.namespaces ?? SETTINGS_WRITE_FENCE.protected.namespaces });
+}
+
 /** Tovu permission ids remain host policy; CMS owns scope-to-permission translation. */
 const SETTINGS_PERMISSIONS: SettingsPermissions = {
   read: "settings.read",
@@ -154,7 +185,9 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   };
 }
 
-/** Bind the JSON adapter to Tovu's ambient workspace, readiness/session and permission policy.
+/** Bind the JSON adapter to Tovu's ambient workspace (still used by the hand-written owner-grant
+ * system routes, `routes/system/assistant-owner-grant.ts`; the eight settings routes are Jini specs
+ * mounted in `runtime/composition/modules/settings.ts`), readiness/session and permission policy.
  * Field parsing remains in each handler: reads authorize first, while writes validate both fields
  * and body workspace first. Domain services retain their non-bypassable inner authorization.
  * Unknown failures keep the fixed CMS 500 envelope rather than disclosing exception messages.
@@ -176,12 +209,11 @@ export function mountSettingsJsonRoute<Output>(required: {
       // Code-owned visitor defaults must not be rewritten into an implicit enable through the
       // generic definition batch. Reuse the existing alias/batch fence before ANY item writes.
       if (method !== "get" && Array.isArray((input.body as { definitions?: unknown } | null)?.definitions)
-        && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId, namespaces: ["site.assistant"] })) {
-        rejectRoute({ status: 400, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
-          error: "Visitor assistant definitions are code-owned. Save a usable provider key and a model, then enable the assistant in AI Assistant." });
+        && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId, namespaces: SETTINGS_WRITE_FENCE.codeOwned.namespaces })) {
+        rejectRoute({ status: 400, code: SETTINGS_WRITE_FENCE.codeOwned.code, error: SETTINGS_WRITE_FENCE.codeOwned.error });
       }
       if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
-        rejectRoute({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
+        rejectRoute({ status: 403, code: "FORBIDDEN", error: SETTINGS_WRITE_FENCE.protected.error });
       }
       if (!context) throw new Error("settings route has no authenticated principal");
       if (!authorize) throw new Error("settings route has no authorizer");

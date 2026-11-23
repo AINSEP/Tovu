@@ -11,7 +11,7 @@ import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminCustomCredentialsRoutes, type AdminCustomCredentialsDeps } from "../custom-credentials.js";
+import { registerAdminCustomCredentialsRoutes, type AdminCustomCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
 /** Real vault adapters and an injected reference store exercise metadata visibility separately
  * from runtime credential access. Fake secrets are constructed at runtime and never logged.

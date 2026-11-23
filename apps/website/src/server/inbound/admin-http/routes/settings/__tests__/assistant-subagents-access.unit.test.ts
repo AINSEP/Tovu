@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "#src/contracts/headless/index";
-import { touchesAssistantSubagents } from "../assistant-subagents-access.js";
+import { touchesAssistantSubagents } from "../shared.js";
 
 /**
  * @file Branch pins for the generic-settings fence around the owner-only agent permissions.

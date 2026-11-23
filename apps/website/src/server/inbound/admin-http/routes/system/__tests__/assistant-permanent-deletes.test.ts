@@ -6,10 +6,10 @@ import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode
 import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../assistant-permanent-deletes.js";
-import { registerAdminSettingsSetRoute } from "../../settings/set.js";
-import { registerAdminSettingsClearRoute } from "../../settings/clear.js";
-import { registerAdminSettingsResetRoute } from "../../settings/reset.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../settings/register-definitions.js";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 const base = "/api/admin/v1/workspaces/:workspaceId";
 const path = base + "/system/assistant-permanent-deletes";

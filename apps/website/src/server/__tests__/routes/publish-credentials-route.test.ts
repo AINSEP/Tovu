@@ -8,7 +8,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
-import { registerAdminPublishCredentialsRoutes } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
+import { registerAdminPublishCredentialsRoutes } from "#src/server/runtime/composition/modules/system-credentials";
 import {
   bootAuthenticated,
   createCapturingResponse,
