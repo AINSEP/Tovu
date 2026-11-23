@@ -29,7 +29,7 @@ const MOVE_PROMPT = {
   moveFailed: "Tovu could not be moved to Applications. It will keep running from here.",
   olderCopyRunning: "An older Tovu is open from Applications. Quit it, then open this copy again to replace it.",
   openingNewer: "A newer Tovu is already in Applications. Opening that one instead.",
-} as const satisfies MovePromptMessages;
+} as const satisfies MovePromptMessages & Record<string, string>;
 
 /** The name the skip reason uses for the other open copies. */
 const MOVE_PROMPT_APP_NAME = "Tovu";
