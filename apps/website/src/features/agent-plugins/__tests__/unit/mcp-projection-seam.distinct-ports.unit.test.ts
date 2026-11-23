@@ -22,6 +22,10 @@ import { forceRemove } from '../fixtures/force-remove.js';
 import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 
+/** The host binds its canonical projection pair when a caller carries none (the former connection-status shim's job). */
+const loadAgentPluginConnectionStatuses = (required: Parameters<typeof withAgentPluginMcpPorts>[0] & Omit<Parameters<typeof loadWithPorts>[0], 'projections'>) =>
+  loadWithPorts(withAgentPluginMcpPorts(required));
+
 // S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.
 const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
 class HostValidation extends Error {}
@@ -123,9 +127,9 @@ test('sign-in eligibility uses the host credential projection, not Tovu default'
 test('status and stored-credential reads use the host pure projections', async () => {
   const row = { provisionedByPluginId: 'images', authMode: 'oauth' as const, oauthStatus: 'connected' as const, sealedOAuth: null };
   const { ports } = hostPorts({ oauthStatus: () => 'needs_reauth', hasStaticAccessToken: () => false });
-  const statuses = await loadWithPorts(withAgentPluginMcpPorts({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] }, ...ports }));
+  const statuses = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] }, ...ports });
   assert.equal(statuses.get('images'), 'needs_reauth');
-  const control = await loadWithPorts(withAgentPluginMcpPorts({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } }));
+  const control = await loadAgentPluginConnectionStatuses({ workspaceId: 'site', mcp: { listByWorkspaceId: async () => [row] } });
   assert.equal(control.get('images'), 'connected');
   const unsigned = { authMode: 'oauth' as const, sealedOAuth: null, oauthStatus: null };
   assert.equal(hasStoredAgentPluginCredential(unsigned), false);
