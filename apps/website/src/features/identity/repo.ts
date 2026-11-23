@@ -164,4 +164,16 @@ export class SqlUserRepo implements UserRepoPort {
         .onConflict((oc) => oc.column("principal_id").doUpdateSet(row))
         .execute()) });
   }
+
+  /** Single-column UPDATE: a login never rewrites the password hash, username or email it read earlier (B262). */
+  async recordLogin(required: { workspaceId: string; principalId: string; lastLoginAt: string }): Promise<void> {
+    await this.kernel.run((db) =>
+      db
+        .updateTable("identity_users")
+        .set({ last_login_at: required.lastLoginAt })
+        .where("workspace_id", "=", required.workspaceId)
+        .where("principal_id", "=", required.principalId)
+        .execute()
+    );
+  }
 }

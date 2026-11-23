@@ -63,6 +63,21 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
     assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: row.principalId }), { ...row, email: undefined, lastLoginAt: undefined });
   });
 
+  test(`[${adapterName}] UserRepoPort: recordLogin (B262) touches only the login time, so a write after login's read survives`, async () => {
+    const repo = makeRepo();
+    await repo.save({ principalId: "p-race", workspaceId: WS, username: "racer", passwordHash: "old-hash" });
+    const loginSnapshot = await repo.findByUsername({ workspaceId: WS, username: "racer" });
+    // A password reset commits between login's read and its timestamp write.
+    await repo.save({ ...loginSnapshot!, passwordHash: "reset-hash", email: "new@example.test" });
+    await repo.recordLogin({ workspaceId: WS, principalId: "p-race", lastLoginAt: "2026-01-05T00:00:00.000Z" });
+    await repo.recordLogin({ workspaceId: WS2, principalId: "p-race", lastLoginAt: "2026-01-09T00:00:00.000Z" });
+    await repo.recordLogin({ workspaceId: WS, principalId: "p-missing", lastLoginAt: "2026-01-09T00:00:00.000Z" });
+    assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-race" }), {
+      principalId: "p-race", workspaceId: WS, username: "racer", passwordHash: "reset-hash", email: "new@example.test", lastLoginAt: "2026-01-05T00:00:00.000Z",
+    });
+    assert.equal(await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-missing" }), null);
+  });
+
   test(`[${adapterName}] UserRepoPort: save + findByPrincipalId/findByUsername round-trip, save is upsert`, async () => {
     const repo = makeRepo();
     await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h1" });
