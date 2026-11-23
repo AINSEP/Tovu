@@ -1,6 +1,6 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
+import { disableMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -19,6 +19,14 @@ import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
  * to this spec, see the Programmer handoff), so `authorize()` is called
  * directly rather than via `executeCommand`'s `deps.authorize` hook.
  */
+/**
+ * C058: the reload copy for a disable that lost the member compare-and-set. It is the admin's shared
+ * `VERSION_CONFLICT_MESSAGE` text: the members screen shows the server `error` as-is, and the
+ * `VERSION_CONFLICT` code lets any caller classify it like the other editors' stale saves.
+ */
+export const MEMBER_VERSION_CONFLICT_MESSAGE =
+  "Someone else changed this while you were editing. Your changes were not saved. Copy anything you want to keep, then reload to see their version.";
+
 export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
@@ -51,6 +59,11 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: rou
     } catch (err) {
       if (err instanceof MemberNotFoundError) {
         res.status(404).json({ error: err.message });
+        return;
+      }
+
+      if (err instanceof MemberConflictError) {
+        res.status(409).json({ code: "VERSION_CONFLICT", error: MEMBER_VERSION_CONFLICT_MESSAGE });
         return;
       }
 

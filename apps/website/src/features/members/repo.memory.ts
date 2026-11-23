@@ -207,7 +207,8 @@ export class InMemoryMemberRepo implements MemberRepoPort {
     if (existing === undefined) throw new Error("Member repository has no row at the matched position");
     const cutoffRegressed = existing.credentialsRevokedAt !== undefined
       && (record.credentialsRevokedAt === undefined || existing.credentialsRevokedAt > record.credentialsRevokedAt);
-    if (existing.status === "trash" || existing.version > record.version || cutoffRegressed) {
+    // C058: same exact-prior-version compare-and-set as the durable adapter (`stored = incoming - 1`).
+    if (existing.status === "trash" || existing.version !== record.version - 1 || cutoffRegressed) {
       throw new MemberConflictError("member changed or is in Trash; re-read it before updating");
     }
     this.rows[index] = record;
