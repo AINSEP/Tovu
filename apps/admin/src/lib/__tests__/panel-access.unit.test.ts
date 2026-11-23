@@ -125,7 +125,8 @@ const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
   pages: `${ROUTES}/pages/list.ts`,
-  posts: `${ROUTES}/posts/list.ts`,
+  // The posts read routes are Jini specs now; their `content.read` check lives in the built guard they share.
+  posts: "../../../node_modules/@jini-ai/cms/dist/admin-http/routes/posts/shared.js",
   media: `${ROUTES}/media/list.ts`,
   // Library lists `media?kind=document` through the same route and permission.
   library: `${ROUTES}/media/list.ts`,
