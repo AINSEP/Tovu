@@ -105,8 +105,8 @@ export {
   setExecutionCredential,
   deleteExecutionCredential,
   // The read path, exported alongside the CRUD three because it now has a SECOND consumer beyond
-  // `byok-credential.ts`'s stored port: `routes/assistant/stored-credential-probe.ts` opens the same
-  // row so a probe can run against a key the browser does not hold.
+  // `byok-credential.ts`'s stored port: `server/runtime/composition/modules/assistant-execution.ts`'s
+  // `probeCredentialResolvers` opens the same row so a probe can run against a key the browser does not hold.
   resolveExecutionCredential,
   ExecutionCredentialValidationError,
   ExecutionCredentialSecretStoreUnconfiguredError,

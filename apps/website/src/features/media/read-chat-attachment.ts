@@ -58,7 +58,7 @@
  * - not gated by an additional `authorize()` permission either, and that is not an omission: the
  *   upload route itself requires only `requireAdminSession` (`modules/assistant.ts`), so a
  *   permission gate here would refuse a principal their own upload. Same reasoning the admin BYOK
- *   execution-credential routes give for having no `authorize()` call (`routes/assistant/deps.ts`):
+ *   execution-credential routes give for having no `authorize()` call (`server/runtime/composition/modules/assistant-settings.ts`):
  *   the record is scoped to the principal, so there is no other principal's data to reach.
  *
  * Deliberately NOT narrower: an attachment already claimed by a run is still readable by its owner.
