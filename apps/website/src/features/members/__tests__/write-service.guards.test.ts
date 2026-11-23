@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { memberChallengeStore } from "@jini-ai/user-management/members/member-challenge";
-import { requestSignInLink } from "../member-challenge-request.js";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import { MemberValidationError } from "@jini-ai/user-management/members/types";
 
 /**

@@ -9,7 +9,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
-import { requestSignInLink, requestPasswordReset } from "#src/features/members/member-challenge-request";
+import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
 import { type MemberRecord } from "@jini-ai/user-management/members/types";
 import { type OutboundEmail } from "#src/platform/mail/index";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";

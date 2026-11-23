@@ -5,7 +5,7 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { completeSignIn, createMember, notifyMemberCreated } from "@jini-ai/user-management/members/member-sign-in";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
-import { requestSignInLink } from "../members/member-challenge-request.js";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import type { MemberExternalIdentityRecord, MemberRecord } from "@jini-ai/user-management/members/types";
 import { decideMemberLogin } from "@jini-ai/user-management/server";
 import { MemberLoginError, type VerifiedLoginIdentity } from "@jini-ai/user-management/server";

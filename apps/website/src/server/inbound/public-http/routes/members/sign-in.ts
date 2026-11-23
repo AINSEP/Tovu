@@ -4,7 +4,7 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
-import { prepareMemberChallenge } from "#src/features/members/member-challenge-request";
+import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
 import { sendMemberAuthError } from "./complete-sign-in.js";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 

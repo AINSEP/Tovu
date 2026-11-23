@@ -37,7 +37,7 @@ import type {
 import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
 import { createMember } from "@jini-ai/user-management/members/member-sign-in";
 import { disableMember, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
-import { requestSignInLink } from "./member-challenge-request.js";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
 

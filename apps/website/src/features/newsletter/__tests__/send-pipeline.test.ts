@@ -36,7 +36,9 @@ import {
 import { ObservedOutbox } from "#src/server/runtime/composition/__tests__/form-delivery-oauth.fixture";
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { installNewsletterDataModule } from "../data-module-manifest.js";
+import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import { processUnsubscribe } from "@jini-ai/user-management/newsletter/unsubscribe";
 import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import type { LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
@@ -808,7 +810,7 @@ interface RaceRepos {
 
 async function makeSqliteRaceRepos(): Promise<RaceRepos> {
   const db = openContentDb(":memory:");
-  await installNewsletterDataModule({
+  await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,
     db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });

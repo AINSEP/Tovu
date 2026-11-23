@@ -27,7 +27,10 @@ import Database from "better-sqlite3";
 
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
-import { installNewsletterDataModule, NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
+import { createNewsletterDataModule, installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
+
+const NEWSLETTER_DATA_MODULE = createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER });
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-newsletter-dm-"));
@@ -163,7 +166,7 @@ test("installNewsletterDataModule rejects a real declaration failure instead of 
   const { db, dbPath, dir } = openWithCore();
   try {
     db.exec("CREATE TABLE p_newsletter__lists (id INTEGER PRIMARY KEY)");
-    await assert.rejects(() => installNewsletterDataModule({ db: contentKernel({ store: db }), dbPath }), /newsletter dataModule declaration failed: COLUMN_TYPE_MISMATCH/);
+    await assert.rejects(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: contentKernel({ store: db }), dbPath }), /newsletter dataModule declaration failed: COLUMN_TYPE_MISMATCH/);
     assert.deepEqual(db.prepare("SELECT * FROM workspaces").all(), [{ id: "ws-1", name: "Acme" }]);
     assert.equal(tableExists(db, NEWSLETTER_TABLE_NAMES.sends), false);
   } finally {
@@ -175,13 +178,13 @@ test("installNewsletterDataModule rejects a real declaration failure instead of 
 test("installNewsletterDataModule preserves existing newsletter rows on repeated boot", async (t) => {
   const { db, dbPath, dir } = openWithCore();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  await installNewsletterDataModule({ db: contentKernel({ store: db }), dbPath });
+  await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: contentKernel({ store: db }), dbPath });
   db.prepare(`INSERT INTO p_newsletter__lists
     (id, workspace_id, name, slug, is_default, status, created_at, updated_at)
     VALUES ('list-1', 'ws-1', 'Weekly', 'weekly', 1, 'active', 'created', 'updated')`).run();
   const schema = db.prepare("SELECT name, sql FROM sqlite_master WHERE name LIKE 'p_newsletter__%' ORDER BY name").all();
 
-  await installNewsletterDataModule({ db: contentKernel({ store: db }), dbPath }, {});
+  await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: contentKernel({ store: db }), dbPath }, {});
 
   assert.deepEqual(db.prepare("SELECT * FROM p_newsletter__lists").all(), [{
     id: "list-1", workspace_id: "ws-1", name: "Weekly", slug: "weekly", is_default: 1,

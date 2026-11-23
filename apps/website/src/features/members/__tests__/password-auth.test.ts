@@ -13,7 +13,7 @@ import {
 } from "@jini-ai/user-management/members/repo.memory";
 import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
 import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "@jini-ai/user-management/members/member-credentials";
-import { requestSignInLink, requestPasswordReset } from "../member-challenge-request.js";
+import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
 import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
 

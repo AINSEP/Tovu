@@ -25,7 +25,7 @@ import {
 } from "@jini-ai/user-management/members/repo.memory";
 import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
 import { completeSignIn, createMember } from "@jini-ai/user-management/members/member-sign-in";
-import { requestSignInLink } from "../member-challenge-request.js";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import {
   MemberAuthError,
   MemberSignInUnavailableError,

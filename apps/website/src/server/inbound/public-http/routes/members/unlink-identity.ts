@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { MemberLoginError } from "@jini-ai/user-management/server";
-import { prepareMemberChallenge } from "#src/features/members/member-challenge-request";
+import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
 import { type MemberRecord } from "@jini-ai/user-management/members/types";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

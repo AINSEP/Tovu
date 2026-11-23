@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
 import express from 'express';
-import * as members from '#src/features/members/member-challenge-request';
+import * as members from '@jini-ai/user-management/members/member-challenge-request';
 import { MemberSignInUnavailableError, MemberValidationError } from '@jini-ai/user-management/members/types';
 import { SenderIdentityNotConfiguredError } from '#src/platform/mail/index';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
@@ -10,7 +10,7 @@ import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { MembersRouteDeps } from '../../deps.js';
 
 let send: typeof members.requestSignInLink = async (_required) => assert.fail('unexpected sign-in mail');
-mock.module('#src/features/members/member-challenge-request', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
+mock.module('@jini-ai/user-management/members/member-challenge-request', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
 const { registerAdminMemberRequestMagicLinkRoute } = await import('../../request-magic-link.js');
 const PATH = '/api/admin/v1/workspaces/:workspaceId/members/request-magic-link';
 

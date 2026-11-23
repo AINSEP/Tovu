@@ -10,7 +10,9 @@ import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests_
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-subscriptions";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
-import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
+import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import { SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
 import { InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { buildNewsletterRegistrations, type NewsletterToolDeps } from "../tool-registrations.js";
@@ -45,7 +47,7 @@ function cases(make: () => NewsletterSubscriptionRepoPort): void {
 function sqlRepo(base: ContentKernel): SqlNewsletterSubscriptionRepo {
   const ready = Object.values(NEWSLETTER_TABLE_NAMES).reduce(
     (chain, table) => chain.then(() => base.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)), Promise.resolve(),
-  ).then(() => installNewsletterDataModule({ db: base, dbPath: ":memory:" }));
+  ).then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: base, dbPath: ":memory:" }));
   ready.catch(() => {});
   return new SqlNewsletterSubscriptionRepo(heldUntil(base, ready));
 }

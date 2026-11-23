@@ -9,7 +9,8 @@ import { computeBlobStorageKey, MediaValidationError } from "#src/features/media
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
-import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-manifest";
+import { createNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openContentDb } from "../content-db.js";

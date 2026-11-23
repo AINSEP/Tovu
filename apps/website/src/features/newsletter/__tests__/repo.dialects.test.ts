@@ -6,7 +6,9 @@ import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
+import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "../repo-sends.js";
 import { SqlNewsletterCampaignRepo } from "../repo.js";
 import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
@@ -31,7 +33,7 @@ function installFresh(base: ContentKernel): Promise<void> {
     (chain, table) => chain.then(() => base.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)),
     Promise.resolve()
   );
-  return dropped.then(() => installNewsletterDataModule({ db: base, dbPath: ":memory:" }));
+  return dropped.then(() => installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,  db: base, dbPath: ":memory:" }));
 }
 
 function repos(base: ContentKernel) {

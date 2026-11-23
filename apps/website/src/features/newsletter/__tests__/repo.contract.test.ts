@@ -13,7 +13,9 @@ import test from "node:test";
 import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { installNewsletterDataModule } from "../data-module-manifest.js";
+import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -76,7 +78,7 @@ function makeContractCampaign(overrides: Partial<CampaignRecord> = {}): Campaign
 
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
-  await installNewsletterDataModule({
+  await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,
     db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });

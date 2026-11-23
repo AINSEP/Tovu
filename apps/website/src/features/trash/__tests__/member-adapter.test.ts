@@ -15,7 +15,7 @@ import { SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo"
 import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
-import { membersWriteService } from "#src/features/members/write-service";
+import { membersWriteService } from "@jini-ai/user-management/members/write-service";
 import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";

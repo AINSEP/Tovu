@@ -15,7 +15,7 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { requestSignInLink } from "#src/features/members/member-challenge-request";
+import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import { type MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { type OutboundEmail } from "#src/platform/mail/index";
 import type { MailerSendOptions } from "#src/platform/mail/index";
