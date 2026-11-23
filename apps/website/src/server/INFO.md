@@ -39,9 +39,10 @@ Users (`runtime/composition/modules/users.ts` for the 9 principal routes, `modul
 for 7 role/policy routes) mount `@jini-ai/user-management/admin-http/routes/users/*`, all `"direct"`.
 Each registrar binds the identity service its spec calls from `@jini-ai/user-management/server`, the
 identity deps assembler (`identityServiceDepsFrom`, per request), the Trash index/move, the
-account-protection guard and the host error classes as predicates. list-roles, list-policies,
-list-policy-permissions and remove-policy-permission are still hand-written (`routes/users/`): their
-authorize call sends no `entityType` / their 204 is a bare `res.send()`. `routes/users/deps.ts` stays
+account-protection guard and the host error classes as predicates. `modules/users-access.ts` also
+mounts list-roles, list-policies and list-policy-permissions (`"guarded"`, `role.manage` with no
+`entityType`) and remove-policy-permission (`"direct"`; binds `deps.transactions`, the row read and the
+host owner guards `principalHoldsOwnerWildcard`/`assertActiveOwnerFloor`; bare 204 via `routeReply`). `routes/users/deps.ts` stays
 (the `UsersRouteDeps` bag and `identityServiceDepsFrom`, ~40 composition importers).
 Owner MFA: `modules/owner-auth.ts` binds `ownerMfaDepsFrom` to Jini's `composeOwnerMfaDeps`; the
 owner MFA/passkey/recovery route files stay hand-written in `inbound/admin-http/`.
@@ -194,3 +195,7 @@ Still hand-written: routes that read `res.locals.authCredentialKind` or the publ
 (publish-content import/backstop/bundle-create/export/capabilities/peer-transport, plugins
 provider-settings) — they need that context on the admin JSON ports — and the byte/stream/upload
 routes (blob-get/put, blobs-probe's own 413 body, export, plugins install/chart-providers).
+Plugins provider-settings (w3 C3) is now `@jini-ai/cms/admin-http/routes/plugins/{provider-settings,project-key-use}`
+mounted `"guarded"` by `registerPluginProviderSettingsRoutes` in `modules/plugins.ts`, which binds
+`declaredProviderSettingFields`, `saveProviderSettings` (+ `reapplyProvider`) and the owner-only copy;
+project-key use mounts `sessionCredentialOnly` (the owner-session 403) instead of reading the kind itself.
