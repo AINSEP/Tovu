@@ -336,3 +336,4 @@ Full table: `cloud-results/bugs-medium.md`.
   list ("This list is archived.", `NewsletterValidationError` reason `archived`).
 - `B201` — FIXED-ON-BRANCH: the External MCP reauth deep link points at `/addons/integrations?tab=external-mcp&server=<id>`.
 - `B237` — FIXED-ON-BRANCH: WebMCP script injection finds `</body>` case-insensitively on the original HTML.
+- `B165` — FIXED-ON-BRANCH: site import checks only the derived slug (trimmed), so names ending in "." or a space import.

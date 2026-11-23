@@ -133,12 +133,13 @@ async function reconcileCreatingRow(required: { row: SiteImportRecord; workspace
 }
 
 /** A folder-safe site name from the display name; non-Latin names fall back to `imported-site`.
- * @throws {ValidationError} Windows device names or trailing dots/spaces, before or after slugification.
+ * Only the derived slug is checked (B165): the display name is a label, so "Acme Inc." or a trailing
+ * space must not fail the import; slugification already drops those characters.
+ * @throws {ValidationError} when the slug is a Windows device name (for example `con`).
  * @complexity O(display name length), no I/O.
  */
 export function importSiteSlug(required: { displayName: string }, _optional = {}): string {
-  assertPortableSiteName({ name: required.displayName });
-  const slug = required.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "imported-site";
+  const slug = required.displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "imported-site";
   assertPortableSiteName({ name: slug });
   return slug;
 }
