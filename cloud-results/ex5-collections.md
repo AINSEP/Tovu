@@ -113,3 +113,12 @@ PARTIAL 739018abf da51ac5f: K5-entries-1 (repo.sqlite, publish-content, unreadab
    - `development/scripts/check-architecture.baseline.json:79` still names the deleted `features/entries/public-list.ts → features/content-types/index.ts` edge. The gate exit is unchanged, and the file is the baseline, so it was not edited.
    - Docs and old reports still cite old paths. Not edited.
 6. Jini `check:cross-package` pins `--base 35c4961af`, which this clone cannot reach. The gate was run against the real base instead.
+
+## Addendum: Tovu admin vitest (full) and one fix
+- **Full suite at `7d2aadfb5`:** 904 files, 14,873 pass / 7 fail. combine-13 recorded 909 files, 14,917 / 6. Files and tests are fewer because 5 test files moved to Jini.
+- **4 of the 5 red files are BASE-RED**, the same files with the same counts as combine-13: `JiniMediaPicker.hooks` (3), `admin-literal-copy`, `credential-input-autocomplete`, `dictionary-lookup-sinks`.
+- **The 5th, `lib/__tests__/untranslated-copy.unit.test.ts`, was NEW RED and is fixed:**
+  - **Why it failed:** it globs only the host's own `*-i18n` modules. With the two dictionaries moved to Jini, they dropped out of the no-English check, and its `fr :: Parent` allowance looked unused.
+  - **The fix:** the test now also imports `@jini-ai/admin/screens/{collections,taxonomy}/*-i18n` into its module set. The moved copy stays under the same check. No assertion or allowance changed.
+  - **After:** 68/68. Admin tsc still shows only the 4 base-red errors.
+- **Net: no new red in admin.**

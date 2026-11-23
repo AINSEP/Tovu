@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { ADMIN_LOCALES } from "../../../../website/src/contracts/core/admin-locales";
 import { COMMON_I18N } from "../i18n-common";
+import * as COLLECTIONS_I18N_MODULE from "@jini-ai/admin/screens/collections/collections-i18n";
+import * as TAXONOMY_I18N_MODULE from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -24,9 +26,15 @@ import { COMMON_I18N } from "../i18n-common";
 
 type Dictionary = Readonly<Record<string, Readonly<Record<string, string>>>>;
 
-const MODULES = import.meta.glob<Record<string, unknown>>(["../../**/*-i18n.ts", "../../**/*-i18n.tsx", "../i18n-common.ts", "!../../**/__tests__/**"], {
-  eager: true,
-});
+const MODULES: Record<string, Record<string, unknown>> = {
+  ...import.meta.glob<Record<string, unknown>>(["../../**/*-i18n.ts", "../../**/*-i18n.tsx", "../i18n-common.ts", "!../../**/__tests__/**"], {
+    eager: true,
+  }),
+  // The collections and taxonomy screens' dictionaries moved to `@jini-ai/admin`. This admin still
+  // shows their copy, so they stay under the same no-English check rather than dropping out of it.
+  "@jini-ai/admin/screens/collections/collections-i18n": COLLECTIONS_I18N_MODULE,
+  "@jini-ai/admin/screens/taxonomy/taxonomy-i18n": TAXONOMY_I18N_MODULE,
+};
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */
 const MODULES_WITHOUT_DICTIONARY = new Set([
@@ -230,6 +238,7 @@ function scanDictionary(dictionary: Dictionary): { gaps: string[]; allowancesUse
 
 /** `../../features/x/x-i18n.ts` → `features/x/x-i18n.ts`; `../x.ts` → `lib/x.ts`. */
 function displayPath(globKey: string): string {
+  if (globKey.startsWith("@")) return globKey;
   return globKey.startsWith("../../") ? globKey.slice("../../".length) : `lib/${globKey.slice("../".length)}`;
 }
 
