@@ -23,12 +23,20 @@ import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hook
 import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
 import { AdminSubagents } from "./AdminSubagents";
 import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
-import { VisitorAssistantPanel } from "./VisitorAssistantPanel";
+import { VisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantPanel";
+import { useVisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-panel.hooks";
+import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { VisitorAssistantTabs } from "./VisitorAssistantTabs";
-import { visitorKeyFooterLines } from "./rules";
+import {
+  visitorCredentialSaveIdleMessage,
+  visitorCredentialSaveStatusMessage,
+  visitorCredentialSettingsStatusMessage,
+  visitorKeyFooterLines,
+} from "./rules";
 import "./ai-assistant.css";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
-import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
+import type { ProcessRestartController as AssistantDaemonRestartController } from "@jini-ai/admin/react";
+import { useWiredAssistantDaemonRestart } from "./hooks/assistant-daemon-restart-dependencies.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
@@ -37,13 +45,7 @@ import {
   resolveAiAssistantTabSubtitle,
   useWiredAiAssistant,
 } from "./hooks/use-ai-assistant.hooks";
-import {
-  useWiredVisitorCredentialForm,
-  visitorCredentialSaveIdleMessage,
-  visitorCredentialSaveStatusMessage,
-  visitorCredentialSettingsStatusMessage,
-  type VisitorCredentialFormController,
-} from "./hooks/use-visitor-credential-form.hooks";
+import { useWiredVisitorCredentialForm } from "./hooks/visitor-credential-form-dependencies.hooks";
 import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
@@ -947,7 +949,8 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       // per-tool Auto | Ask first | Off list. See `VisitorAssistantTabs`.
       panel: (
         <VisitorAssistantTabs t={t} providerPanel={
-          <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm}
+          <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip}
+            useVisitorCredentialFormHook={useWiredVisitorCredentialForm} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
             controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
         } />
       ),

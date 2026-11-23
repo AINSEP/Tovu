@@ -40,6 +40,6 @@ describe("AI Assistant toggle rows keep the ⓘ beside the label on phones", () 
   });
 
   it("takes the 44px floor's slack out of each visitor step head", () => {
-    expect(phoneDeclarations(".visitor-step-head > :is(.info-tip, select)")).toEqual({ "margin-block": "calc((1.5rem - 44px) / 2)" });
+    expect(phoneDeclarations(".jini-visitor-step-head > :is(.info-tip, select)")).toEqual({ "margin-block": "calc((1.5rem - 44px) / 2)" });
   });
 });

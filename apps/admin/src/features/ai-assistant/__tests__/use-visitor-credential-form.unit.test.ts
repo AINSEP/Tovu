@@ -7,14 +7,14 @@ import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jin
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
+import { saveVisitorKey, saveVisitorSettings } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-actions";
 import {
-  saveVisitorKey,
-  saveVisitorSettings,
+  createFakeVisitorCredentialFormPort,
+  useHostVisitorCredentialForm as useVisitorCredentialForm,
   useWiredVisitorCredentialForm,
-  useVisitorCredentialForm,
-} from "../hooks/use-visitor-credential-form.hooks";
-import { createFakeVisitorCredentialFormPort } from "../hooks/visitor-credential-form-dependencies.hooks";
-import type { VisitorCredentialFormPort } from "../hooks/visitor-credential-form-port.hooks";
+  visitorCredentialFormRules,
+} from "../hooks/visitor-credential-form-dependencies.hooks";
+import type { VisitorCredentialFormPort } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 
 /**
  * @file First test file for `useVisitorCredentialForm` (0% before this pass — no test file existed
@@ -835,6 +835,7 @@ describe("VisitorCredentialFormPort injection", () => {
     const writes: string[] = [];
 
     await saveVisitorKey({
+      describeApiError: visitorCredentialFormRules.describeApiError,
       api: fake.port,
       config: CONFIG,
       writers: {
@@ -853,6 +854,7 @@ describe("VisitorCredentialFormPort injection", () => {
     const writes: string[] = [];
 
     await saveVisitorSettings({
+      describeApiError: visitorCredentialFormRules.describeApiError,
       api: fake.port,
       config: CONFIG,
       writers: {
@@ -872,6 +874,7 @@ describe("VisitorCredentialFormPort injection", () => {
   it("saveVisitorKey reports the injected port's failure without touching storage", async () => {
     const states: string[] = [];
     await saveVisitorKey({
+      describeApiError: visitorCredentialFormRules.describeApiError,
       api: {
         getAssistantSiteCredential: () => Promise.reject(new Error("unused")),
         setAssistantSiteCredential: () => Promise.reject(new ApiError({ message: "boom", status: 500 }, { code: "SERVER_ERROR" })),
@@ -1082,6 +1085,7 @@ describe("visitor credential form with an injected probe transport", () => {
   it("uses the settings-specific error fallback for a non-Error rejection", async () => {
     const states: unknown[] = [];
     await saveVisitorSettings({
+      describeApiError: visitorCredentialFormRules.describeApiError,
       api: { ...createFakeVisitorCredentialFormPort(), async setAssistantSiteCredential() { throw null; } },
       config: { protocol: "anthropic", providerId: "anthropic", apiKey: "", baseUrl: "https://api.anthropic.com", model: "m1" },
       writers: { setSettingsSaveState: (state) => states.push(state), setStored: () => states.push("unexpected stored write"), setDirty: () => states.push("unexpected dirty write") },

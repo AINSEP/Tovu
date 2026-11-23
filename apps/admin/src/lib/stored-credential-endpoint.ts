@@ -8,7 +8,7 @@ import { type Translate } from '@jini-ai/core/text';
  * for — the endpoint pin in the server's `stored-credential-probe.ts`.
  *
  * Shared by the admin's two key screens so both answer "can this stored key be probed here?" the same
- * way: the visitor key (`features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts`) and the
+ * way: the visitor key (`@jini-ai/admin/screens/assistant-settings/use-visitor-credential-form.hooks`, bound by `features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts`) and the
  * admin's own key (`hooks/use-admin-execution-credential.hooks.ts`). Moved here from
  * `features/ai-assistant/rules.ts` when the second screen needed them (owner repro 2026-09-13).
  */

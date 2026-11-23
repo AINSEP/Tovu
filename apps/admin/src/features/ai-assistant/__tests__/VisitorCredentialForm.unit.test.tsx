@@ -12,14 +12,13 @@ import {
   visitorCredentialApiKeyPlaceholder,
   visitorCredentialKeyStatusMessage,
 } from "../AiAssistant";
-import {
-  visitorCredentialSaveStatusMessage,
-  visitorCredentialSettingsStatusMessage,
-  type VisitorCredentialFormController,
-} from "../hooks/use-visitor-credential-form.hooks";
+import { visitorCredentialSaveStatusMessage, visitorCredentialSettingsStatusMessage } from "../rules";
+import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { t as translateAiAssistant } from "../ai-assistant-i18n";
-import { visitorProviderGroups } from "../rules";
-import { VisitorAssistantPanel } from "../VisitorAssistantPanel";
+import { visitorProviderGroups } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form.rules";
+import { VisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantPanel";
+import { useVisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-panel.hooks";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 /**
  * @file Direct tests for the units pulled out of `VisitorCredentialForm` in the complexity pass
@@ -55,7 +54,7 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     hasStoredKey: false,
     storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
-    providerGroups: visitorProviderGroups({ configuredIds: new Set() }),
+    providerGroups: visitorProviderGroups({ configuredIds: new Set(), presets: DEFAULT_PROVIDER_PRESETS }),
     selectPresetById: vi.fn(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
@@ -280,7 +279,7 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "loading" } });
     const controller = { settings: { publicEnabled: true, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    const { rerender } = render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    const { rerender } = render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
     expect(screen.queryByText("Needs a key")).toBeNull();
@@ -288,7 +287,7 @@ describe("VisitorCredentialForm", () => {
     expect(screen.queryByRole("switch")).toBeNull();
 
     const hydrated = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
-    rerender(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    rerender(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => hydrated} />);
     expect(screen.queryByText("Loading saved settings…")).toBeNull();
     expect(screen.getByText("On")).toBeInTheDocument();
@@ -300,7 +299,7 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "error", message: "Stored settings unavailable" } });
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
     expect(screen.queryByRole("switch")).toBeNull();
@@ -311,9 +310,9 @@ describe("VisitorCredentialForm", () => {
     const setPublicEnabled = vi.fn(async () => undefined);
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: "Could not save.", setPublicEnabled, setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
-    expect(screen.getByText("Could not save.")).toHaveClass("save-error");
+    expect(screen.getByText("Could not save.")).toHaveClass("jini-save-error");
     const toggle = screen.getByRole("switch");
     expect(screen.queryByText("Save a key in step 1 first.")).toBeNull();
     fireEvent.click(toggle);
@@ -324,11 +323,11 @@ describe("VisitorCredentialForm", () => {
     const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: false, hasUsableKey: false });
     const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     const toggle = screen.getByRole("switch");
     expect(toggle).toBeDisabled();
-    const reason = screen.getByText("Save a key in step 1 first.", { selector: "p.visitor-step-hint" });
+    const reason = screen.getByText("Save a key in step 1 first.", { selector: "p.jini-visitor-step-hint" });
     expect(toggle.getAttribute("aria-describedby")?.split(" ")).toContain(reason.id);
   });
 
@@ -337,7 +336,7 @@ describe("VisitorCredentialForm", () => {
     const setWidget = vi.fn(async () => undefined);
     const controller = { settings: { publicEnabled: false }, saving: false,
       saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget };
-    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
       t={key => key} useVisitorCredentialFormHook={() => credential} />);
     const widget = screen.getByLabelText("Widget") as HTMLSelectElement;
     // No stored widget yet: the React widget is what renders.
@@ -471,7 +470,7 @@ describe("in-flight and settled states of the visitor key and settings controls"
   it("marks a provider that already holds a saved key as configured", () => {
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
     render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
-      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]) }),
+      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]), presets: DEFAULT_PROVIDER_PRESETS }),
     })} />);
     expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
   });

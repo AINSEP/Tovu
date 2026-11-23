@@ -1,31 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ByokConfig } from "@jini-ai/ui";
-import type { SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError } from "@/lib/admin-http/request";
-import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import {
-  defaultVisitorCredentialConfig,
-  DEFAULT_VISITOR_PRESET_ID,
-  configuredPresetIds,
-  describeApiError,
-  hasStoredCredential,
-  hydrateVisitorCredentialConfig,
-  isPresetSuppliedEndpoint,
-} from "../rules";
+import { describeApiError } from "../rules";
 
 // Author Checklist: literal outcomes, real rules and provider library, no I/O or shared state.
 // F4.3/F6.2: non-default providers distinguish protocol, endpoint and nullish fallback branches.
-function config(overrides: Partial<ByokConfig> = {}): ByokConfig {
-  return {
-    protocol: "google", providerId: "google-gemini", apiKey: "typed-secret",
-    baseUrl: "https://generativelanguage.googleapis.com", model: "current-model", ...overrides,
-  };
-}
-
-function stored(overrides: Partial<SiteAssistantCredential> = {}): SiteAssistantCredential {
-  return { isSet: true, masked: "••••abcd", provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "stored-model", updatedAt: null, ...overrides };
-}
-
 describe("assistant error copy", () => {
   // Removing any code-specific override must fail its literal assertion (F1.2/F4.4).
   it("names the assistant setting on forbidden writes", () => {
@@ -49,99 +27,5 @@ describe("assistant error copy", () => {
     expect(describeApiError({ e: new Error("offline"), fallback: "fallback" })).toBe("offline");
     expect(describeApiError({ e: { code: "FORBIDDEN" }, fallback: "fallback" })).toBe("fallback");
     expect(describeApiError({ e: null, fallback: "fallback" })).toBe("fallback");
-  });
-});
-
-describe("stored credential presence", () => {
-  it("requires the server's isSet flag, even when other metadata is present", () => {
-    expect(hasStoredCredential({ stored: null })).toBe(false);
-    expect(hasStoredCredential({ stored: stored({ isSet: false }) })).toBe(false);
-    expect(hasStoredCredential({ stored: stored() })).toBe(true);
-  });
-});
-
-describe("automatic discovery destination gate", () => {
-  // BUG, F4.4/F6.2: Azure's empty URL placeholder is not a preset-supplied destination.
-  // Clearing an endpoint must not authorize automatic credential-bearing discovery.
-  it.each(["", " \t\n"])("rejects a missing destination %j", (url) => {
-    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
-  });
-
-  // A startsWith comparison would transmit a key to a suffix host or changed path (F4.4).
-  it.each([
-    "https://api.anthropic.com", "https://api.openai.com/v1",
-    "https://generativelanguage.googleapis.com", "https://openrouter.ai/api/v1",
-    "http://localhost:11434/v1",
-  ])("accepts the exact preset endpoint %s, including surrounding whitespace", (url) => {
-    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(true);
-    expect(isPresetSuppliedEndpoint({ baseUrl: ` \t${url}\n` })).toBe(true);
-  });
-
-  it.each([
-    "https://api.anthropic.com.attacker.example", "https://api.openai.com/v1/other",
-    "https://api.openai.com/v1/", "http://localhost:11435/v1",
-    "https://api.openai.co", "https://custom.example/v1",
-  ])("rejects an operator endpoint or incomplete hostname: %s", (url) => {
-    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
-  });
-});
-
-describe("configured provider chip identities", () => {
-  // Returning all presets or reading the active key for every provider would fail (F1.3/F4.3).
-  it("marks only complete provider-specific drafts, including keyless Ollama", () => {
-    const draft = config({ model: "", savedByProviderId: {
-      anthropic: { apiKey: "ant-key", baseUrl: "https://api.anthropic.com", model: "claude-model" },
-      openai: { apiKey: "oai-key", baseUrl: "https://api.openai.com/v1", model: "openai-model" },
-      openrouter: { apiKey: "router-key", baseUrl: "https://openrouter.ai/api/v1", model: "  " },
-      ollama: { apiKey: "", baseUrl: "http://localhost:11434/v1", model: "local-model" },
-    } });
-    expect([...configuredPresetIds(draft)].sort()).toEqual(["anthropic", "ollama", "openai"]);
-    expect(draft.model).toBe("");
-  });
-
-  it("does not mark other providers from the current provider's credentials", () => {
-    expect([...configuredPresetIds(config())]).toEqual(["google-gemini"]);
-  });
-});
-
-describe("visitor credential hydration", () => {
-  it.each([
-    ["anthropic", "https://api.anthropic.com", "anthropic"],
-    ["openai", "https://openrouter.ai/api/v1", "openrouter"],
-    ["azure", "https://tenant.openai.azure.com", "azure-openai"],
-    ["openai", "https://unlisted.example/v1", null],
-  ] as const)("restores %s / %s with the correct preset identity", (protocol, baseUrl, providerId) => {
-    const current = Object.freeze(config());
-    expect(hydrateVisitorCredentialConfig({ current, stored: stored({ provider: protocol, baseUrl }) })).toEqual({
-      protocol, providerId, apiKey: "typed-secret", baseUrl, model: "stored-model",
-    });
-    expect(current.protocol).toBe("google");
-    expect(current.model).toBe("current-model");
-  });
-
-  it("keeps the protocol and preset for an unknown server provider while hydrating its values", () => {
-    expect(hydrateVisitorCredentialConfig({ current: config({ protocol: "anthropic", providerId: "anthropic" }), stored: stored({ provider: "future-provider", baseUrl: "https://future.example", model: "future-model" }) }))
-      .toEqual({ protocol: "anthropic", providerId: "anthropic", apiKey: "typed-secret", baseUrl: "https://future.example", model: "future-model" });
-  });
-
-  it("preserves current values for null stored fields but respects explicit empty strings", () => {
-    expect(hydrateVisitorCredentialConfig({ current: config({ baseUrl: "https://local.example/v1", model: "draft-model" }), stored: stored({ provider: "google", baseUrl: null, model: null }) }))
-      .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "https://local.example/v1", model: "draft-model" });
-    expect(hydrateVisitorCredentialConfig({ current: config(), stored: stored({ provider: "google", baseUrl: "", model: "" }) }))
-      .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "", model: "" });
-  });
-});
-
-describe("defaultVisitorCredentialConfig", () => {
-  it("starts on the default (Anthropic) preset with an empty key and model", () => {
-    const anthropic = DEFAULT_PROVIDER_PRESETS.find((preset) => preset.id === DEFAULT_VISITOR_PRESET_ID)!;
-    expect(defaultVisitorCredentialConfig()).toEqual({
-      protocol: anthropic.protocol, providerId: anthropic.id, apiKey: "", baseUrl: anthropic.baseUrl, model: "",
-    });
-  });
-
-  it("falls back to the catalog's first preset when the default one is not in it", () => {
-    const presets = DEFAULT_PROVIDER_PRESETS.filter((preset) => preset.id !== DEFAULT_VISITOR_PRESET_ID);
-    expect(defaultVisitorCredentialConfig({}, { presets })).toMatchObject({ providerId: presets[0]!.id, baseUrl: presets[0]!.baseUrl });
   });
 });

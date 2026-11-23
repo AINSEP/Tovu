@@ -30,49 +30,50 @@
    Status pill, then three numbered steps on a quiet rail. Type joins the Jini form's scale (13px
    controls, 12px labels and hints) so the steps and the form read as one system. Rule of the tab:
    no control wider than its content needs, no loose paragraphs (explanations live in ⓘ tips). */
-.visitor-assistant { display: flex; flex-direction: column; gap: 1.25rem; }
-.visitor-assistant .save-error { margin: 0; }
+.jini-visitor-assistant { display: flex; flex-direction: column; gap: 1.25rem; }
+.jini-visitor-assistant .jini-save-error { margin: 0; color: var(--danger); font-size: 0.85rem; }
 
-.visitor-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; font-size: 12px; color: var(--jini-text-muted); }
-.visitor-status-caption { font-weight: 600; color: var(--jini-text-strong); font-size: 13px; }
-.visitor-pill {
+.jini-visitor-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.jini-visitor-status-caption { font-weight: 600; color: var(--jini-text-strong); font-size: 13px; }
+.jini-visitor-pill {
   display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem;
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius-pill, 999px);
   font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); background: var(--jini-bg-subtle);
 }
-.visitor-pill::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--jini-text-muted); }
-.visitor-pill.is-on { border-color: color-mix(in srgb, var(--jini-success) 45%, var(--jini-border)); background: color-mix(in srgb, var(--jini-success) 10%, transparent); }
-.visitor-pill.is-on::before { background: var(--jini-success); }
-.visitor-pill.is-needs-key { border-color: color-mix(in srgb, var(--jini-warning) 55%, var(--jini-border)); background: color-mix(in srgb, var(--jini-warning) 12%, transparent); }
-.visitor-pill.is-needs-key::before { background: var(--jini-warning); }
+.jini-visitor-pill::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--jini-text-muted); }
+.jini-visitor-pill--on { border-color: color-mix(in srgb, var(--jini-success) 45%, var(--jini-border)); background: color-mix(in srgb, var(--jini-success) 10%, transparent); }
+.jini-visitor-pill--on::before { background: var(--jini-success); }
+.jini-visitor-pill--needs-key { border-color: color-mix(in srgb, var(--jini-warning) 55%, var(--jini-border)); background: color-mix(in srgb, var(--jini-warning) 12%, transparent); }
+.jini-visitor-pill--needs-key::before { background: var(--jini-warning); }
 
 /* Numbered steps: a counter disc per step, joined by a hairline rail so the three read as one
    sequence. Content sits on the title's left edge. */
-.visitor-steps { list-style: none; margin: 0; padding: 0; counter-reset: visitor-step; }
-.visitor-step { position: relative; padding: 0 0 2rem 2.25rem; counter-increment: visitor-step; }
-.visitor-step:last-child { padding-bottom: 0; }
-.visitor-step::before {
+.jini-visitor-steps { list-style: none; margin: 0; padding: 0; counter-reset: visitor-step; }
+.jini-visitor-step { position: relative; padding: 0 0 2rem 2.25rem; counter-increment: visitor-step; }
+.jini-visitor-step:last-child { padding-bottom: 0; }
+.jini-visitor-step::before {
   content: counter(visitor-step); position: absolute; left: 0; top: 0;
   display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem;
   border-radius: 50%; border: 1px solid var(--jini-border-strong, var(--jini-border)); background: var(--jini-bg-panel);
   font-size: 12px; font-weight: 600; color: var(--jini-text-strong);
 }
-.visitor-step:not(:last-child)::after {
+.jini-visitor-step:not(:last-child)::after {
   content: ""; position: absolute; left: calc(0.75rem - 0.5px); top: 1.85rem; bottom: 0.35rem;
   width: 1px; background: var(--jini-border);
 }
-.visitor-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-height: 1.5rem; }
-.visitor-step-head > .info-tip { margin-left: -0.25rem; }
+.jini-visitor-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-height: 1.5rem; }
+.jini-visitor-step-head > .info-tip { margin-left: -0.25rem; }
 /* Negative block margin keeps a select-bearing head as tall as a plain one, so the disc stays centred. */
-.visitor-step-head > select { margin: -0.4rem 0 -0.4rem 0.5rem; }
-.visitor-step-title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); }
-.visitor-step-title > label { cursor: pointer; }
-.visitor-step-hint { margin: 0.25rem 0 0; font-size: 12px; line-height: 1.5; color: var(--jini-text-muted); }
-.visitor-step > .jini-assistant-toggle { margin-top: 0.6rem; }
-.visitor-step .jini-assistant-toggle .visitor-step-hint { margin: 0 0 0 calc(34px + 0.55rem); }
+.jini-visitor-step-head > select { margin: -0.4rem 0 -0.4rem 0.5rem; }
+.jini-visitor-step-title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); }
+.jini-visitor-step-title > label { cursor: pointer; }
+.jini-visitor-step-hint { margin: 0.25rem 0 0; font-size: 12px; line-height: 1.5; color: var(--jini-text-muted); }
+.jini-visitor-step > .jini-assistant-toggle { margin-top: 0.6rem; }
+.jini-visitor-step .jini-assistant-toggle .jini-visitor-step-hint { margin: 0 0 0 calc(34px + 0.55rem); }
 
 /* Compact controls: a select is as wide as its longest option, never the column. */
-.visitor-compact-select.jini-input {
+.visitor-compact-select.jini-input,
+.jini-visitor-compact-select.jini-input {
   width: auto; max-width: 100%;
 }
 .visitor-inline-field { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -81,31 +82,31 @@
 
 /* The credential form inside step 1. The select names the provider, so the form's own provider
    heading would only repeat it; the key/model inputs are capped so nothing stretches full width. */
-.settings-ui-section--page-flow .visitor-step .jini-settings-byok { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 14px; }
-.visitor-step .jini-byok-card-head { display: none; }
-.visitor-step .jini-field-input-row > .jini-input,
-.visitor-step .jini-byok-model-row > .jini-field,
-.visitor-step .jini-byok-advanced { max-width: 30rem; }
-.visitor-step .jini-byok-key-actions .info-tip { margin-left: -0.15rem; margin-right: 0.25rem; }
-.visitor-step .jini-byok-key-footer:has(> .assistant-key-footer:empty) { display: none; }
+.settings-ui-section--page-flow .jini-visitor-step .jini-settings-byok { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 14px; }
+.jini-visitor-step .jini-byok-card-head { display: none; }
+.jini-visitor-step .jini-field-input-row > .jini-input,
+.jini-visitor-step .jini-byok-model-row > .jini-field,
+.jini-visitor-step .jini-byok-advanced { max-width: 30rem; }
+.jini-visitor-step .jini-byok-key-actions .info-tip { margin-left: -0.15rem; margin-right: 0.25rem; }
+.jini-visitor-step .jini-byok-key-footer:has(> .assistant-key-footer:empty) { display: none; }
 /* The model control is as wide as the chosen model id, like the Provider select, capped at the key
    input's measure; long picker labels wrap inside it. Width, not a flex-basis: the mobile column
    layout would read a basis as height, and align-self keeps that column from stretching it. */
-.settings-ui-section--page-flow .visitor-step .jini-byok-model-row > .jini-field {
+.settings-ui-section--page-flow .jini-visitor-step .jini-byok-model-row > .jini-field {
   flex: 0 1 auto; width: auto; max-width: min(30rem, 100%); min-width: 0; align-self: flex-start;
 }
 /* The portal menu copies the trigger's width, so a compact picker would squeeze its search box and
    wrap every model id. A floor keeps the list readable; the cap stops it running off a phone. */
 .jini-select-menu.portal:has(> .jini-searchable-select-search-row) { min-width: min(20rem, calc(100vw - 5rem)); }
-.visitor-step .jini-searchable-select { width: 100%; max-width: 100%; }
-.visitor-step .jini-select { width: 100%; max-width: 100%; }
-.visitor-step .jini-select-trigger { max-width: min(30rem, 100%); }
-.visitor-step .jini-select-value { white-space: normal; overflow-wrap: anywhere; }
-.visitor-step .jini-byok-key-footer { margin-top: -6px; }
-.visitor-step .assistant-key-status { margin: 0; }
+.jini-visitor-step .jini-searchable-select { width: 100%; max-width: 100%; }
+.jini-visitor-step .jini-select { width: 100%; max-width: 100%; }
+.jini-visitor-step .jini-select-trigger { max-width: min(30rem, 100%); }
+.jini-visitor-step .jini-select-value { white-space: normal; overflow-wrap: anywhere; }
+.jini-visitor-step .jini-byok-key-footer { margin-top: -6px; }
+.jini-visitor-step .assistant-key-status { margin: 0; }
 /* Test connection matches the Model input's height, so the pair reads as one line. */
-.visitor-step .jini-byok-test-btn { min-height: 37px; }
-.visitor-step :is(.btn-primary, .jini-byok-test-btn, .jini-input-affix-btn) {
+.jini-visitor-step .jini-byok-test-btn { min-height: 37px; }
+.jini-visitor-step :is(.btn-primary, .jini-byok-test-btn, .jini-input-affix-btn) {
   min-height: 37px; font-size: 12px;
 }
 
@@ -136,14 +137,14 @@
    checkbox to 20x20, which would crush the switch track into a dot, so the track is restated. */
 @media (max-width: 640px) {
   /* Keep this three-tab page on one row, including hosts using the general wrap preference. */
-  .visitor-step { padding-left: 2rem; }
+  .jini-visitor-step { padding-left: 2rem; }
   /* The 44px floor grows the head's ⓘ and select past the 1.5rem disc, which centred the title
      ~8px under the disc's number (Chrome check, 2026-10-11). Negative block margins equal to that
      slack keep the 44px hit area but take it out of the row, so the head stays disc-high. */
-  .visitor-step-head > :is(.info-tip, select) { margin-block: calc((1.5rem - 44px) / 2); }
-  .visitor-assistant .jini-input,
-  .visitor-assistant .jini-select-trigger { min-height: 40px; font-size: 16px; }
-  .visitor-assistant .jini-select.jini-input { min-height: 0; }
+  .jini-visitor-step-head > :is(.info-tip, select) { margin-block: calc((1.5rem - 44px) / 2); }
+  .jini-visitor-assistant .jini-input,
+  .jini-visitor-assistant .jini-select-trigger { min-height: 40px; font-size: 16px; }
+  .jini-visitor-assistant .jini-select.jini-input { min-height: 0; }
   /* A 20px line inside 10px padding keeps a one-line row 40px tall and a wrapped label tight; the
      label's own padding still gives it a ~40px tap area. The 44px floor made the ⓘ wider than the
      space left beside a long label, so at 375px it dropped onto a line of its own ("Enable the AI
@@ -157,8 +158,8 @@
   .jini-assistant-toggle-head > input { margin-top: 10px; }
   /* The 22px switch, centred on the first line like the 20px checkbox above. */
   .jini-assistant-toggle--switch .jini-assistant-toggle-head > input[role="switch"] { margin-top: 9px; }
-  .visitor-step :is(.btn-primary, .jini-byok-test-btn, .jini-input-affix-btn) { min-height: 40px; }
-  .visitor-assistant .jini-assistant-toggle--switch input[role="switch"] { width: 38px; height: 22px; }
+  .jini-visitor-step :is(.btn-primary, .jini-byok-test-btn, .jini-input-affix-btn) { min-height: 40px; }
+  .jini-visitor-assistant .jini-assistant-toggle--switch input[role="switch"] { width: 38px; height: 22px; }
   .ai-assistant-page .jini-tabbed-dialog-nav-item strong { white-space: nowrap; }
 }
 
@@ -166,57 +167,57 @@
    Same 13/12px scale as the steps above. One row per tool: name + one-line description on the left,
    the gear's Auto | Ask first | Off pill on the right; limits fold under a "Limits" disclosure. */
 .visitor-assistant-tabs { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
-.visitor-tools { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.visitor-tools-intro { display: flex; align-items: center; gap: 0.3rem; margin: 0; font-size: 13px; color: var(--jini-text-muted); }
-.visitor-tools-empty { margin: 0; font-size: 13px; color: var(--jini-text-muted); }
-.visitor-tools-message {
+.jini-visitor-tools { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.jini-visitor-tools-intro { display: flex; align-items: center; gap: 0.3rem; margin: 0; font-size: 13px; color: var(--jini-text-muted); }
+.jini-visitor-tools-empty { margin: 0; font-size: 13px; color: var(--jini-text-muted); }
+.jini-visitor-tools-message {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0; padding: 0.6rem 0.8rem;
   border: 1px solid var(--jini-border); border-radius: 8px; font-size: 13px; color: var(--jini-text-strong); background: var(--jini-bg-subtle);
 }
-.visitor-tools-message.is-warning { border-color: color-mix(in srgb, var(--jini-warning) 55%, var(--jini-border)); background: color-mix(in srgb, var(--jini-warning) 12%, transparent); }
-.visitor-tools-message.is-error { border-color: color-mix(in srgb, var(--jini-danger, var(--danger)) 50%, var(--jini-border)); color: var(--jini-danger, var(--danger)); }
-.visitor-tools-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.visitor-tools-group-title { margin: 0; font-size: 12px; font-weight: 600; text-transform: none; color: var(--jini-text-muted); }
-.visitor-tools-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--jini-border); }
-.visitor-tool { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.75rem 0; border-bottom: 1px solid var(--jini-border); min-width: 0; }
-.visitor-tool-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; min-width: 0; }
-.visitor-tool-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-.visitor-tool-title { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); overflow-wrap: anywhere; }
-.visitor-tool-description {
+.jini-visitor-tools-message--warning { border-color: color-mix(in srgb, var(--jini-warning) 55%, var(--jini-border)); background: color-mix(in srgb, var(--jini-warning) 12%, transparent); }
+.jini-visitor-tools-message--error { border-color: color-mix(in srgb, var(--jini-danger, var(--danger)) 50%, var(--jini-border)); color: var(--jini-danger, var(--danger)); }
+.jini-visitor-tools-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.jini-visitor-tools-group-title { margin: 0; font-size: 12px; font-weight: 600; text-transform: none; color: var(--jini-text-muted); }
+.jini-visitor-tools-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--jini-border); }
+.jini-visitor-tool { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.75rem 0; border-bottom: 1px solid var(--jini-border); min-width: 0; }
+.jini-visitor-tool-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; min-width: 0; }
+.jini-visitor-tool-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.jini-visitor-tool-title { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); overflow-wrap: anywhere; }
+.jini-visitor-tool-description {
   font-size: 12px; line-height: 1.5; color: var(--jini-text-muted); overflow-wrap: anywhere;
 }
-.visitor-tool-unavailable { font-size: 12px; color: var(--jini-warning); }
-.visitor-tool-mode { flex-shrink: 0; }
-.visitor-tool-mode .jini-chat-settings-segmented { flex-wrap: nowrap; }
-.visitor-tool-limits > summary {
+.jini-visitor-tool-unavailable { font-size: 12px; color: var(--jini-warning); }
+.jini-visitor-tool-mode { flex-shrink: 0; }
+.jini-visitor-tool-mode .jini-chat-settings-segmented { flex-wrap: nowrap; }
+.jini-visitor-tool-limits > summary {
   display: inline-flex; align-items: center; gap: 0.3rem; width: fit-content; cursor: pointer;
   font-size: 12px; font-weight: 500; color: var(--jini-text-muted); border-radius: 4px;
 }
-.visitor-tool-limits > summary::-webkit-details-marker { display: none; }
-.visitor-tool-limits > summary::before {
+.jini-visitor-tool-limits > summary::-webkit-details-marker { display: none; }
+.jini-visitor-tool-limits > summary::before {
   content: ""; width: 0.35rem; height: 0.35rem; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
   transform: rotate(-45deg); transition: transform 120ms ease;
 }
-.visitor-tool-limits[open] > summary::before { transform: rotate(45deg); }
-.visitor-tool-limits > summary:hover { color: var(--jini-text-strong); }
-.visitor-tool-limits > summary:focus-visible { outline: 2px solid var(--jini-accent); outline-offset: 2px; }
-.visitor-tool-limits-body { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; margin-top: 0.5rem; }
-.visitor-tool-limit { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
-.visitor-tool-limit > .jini-input { width: 9rem; max-width: 100%; }
-.visitor-tool-limits-body > .btn-primary { min-height: 37px; font-size: 12px; }
-.visitor-tool-limit-hint, .visitor-tool-limit-error { flex-basis: 100%; font-size: 12px; color: var(--jini-text-muted); }
-.visitor-tool-limit-error { color: var(--jini-danger, var(--danger)); }
+.jini-visitor-tool-limits[open] > summary::before { transform: rotate(45deg); }
+.jini-visitor-tool-limits > summary:hover { color: var(--jini-text-strong); }
+.jini-visitor-tool-limits > summary:focus-visible { outline: 2px solid var(--jini-accent); outline-offset: 2px; }
+.jini-visitor-tool-limits-body { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; margin-top: 0.5rem; }
+.jini-visitor-tool-limit { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
+.jini-visitor-tool-limit > .jini-input { width: 9rem; max-width: 100%; }
+.jini-visitor-tool-limits-body > .btn-primary { min-height: 37px; font-size: 12px; }
+.jini-visitor-tool-limit-hint, .jini-visitor-tool-limit-error { flex-basis: 100%; font-size: 12px; color: var(--jini-text-muted); }
+.jini-visitor-tool-limit-error { color: var(--jini-danger, var(--danger)); }
 
 @media (max-width: 640px) {
   /* Rows stack: the pill drops under the description and may use the whole width. */
-  .visitor-tool-head { flex-direction: column; align-items: stretch; }
-  .visitor-tool-mode .jini-chat-settings-segmented { display: flex; }
-  .visitor-tool-mode .jini-chat-settings-segment { flex: 1 1 0; justify-content: center; padding-inline: 0.5rem; }
-  .visitor-tool-limit { flex: 1 1 8rem; }
-  .visitor-tool-limit > .jini-input { width: 100%; min-height: 40px; font-size: 16px; }
-  .visitor-tool-limits-body > .btn-primary { min-height: 40px; }
+  .jini-visitor-tool-head { flex-direction: column; align-items: stretch; }
+  .jini-visitor-tool-mode .jini-chat-settings-segmented { display: flex; }
+  .jini-visitor-tool-mode .jini-chat-settings-segment { flex: 1 1 0; justify-content: center; padding-inline: 0.5rem; }
+  .jini-visitor-tool-limit { flex: 1 1 8rem; }
+  .jini-visitor-tool-limit > .jini-input { width: 100%; min-height: 40px; font-size: 16px; }
+  .jini-visitor-tool-limits-body > .btn-primary { min-height: 40px; }
 }
-@media (prefers-reduced-motion: reduce) { .visitor-tool-limits > summary::before { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .jini-visitor-tool-limits > summary::before { transition: none; } }
 
 /* The phone hit-area ring for the AI Assistant switch. The global phone block in `styles.css` still
    names the old `.assistant-toggle--switch` class (that file is owned by another in-flight branch);
