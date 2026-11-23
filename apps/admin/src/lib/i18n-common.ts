@@ -27,7 +27,6 @@ import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
  * convention as this file, but a genuinely separate dictionary that must be extended on its own —
  * adding a language here does not add it there. Check both before assuming a locale is fully done.
  */
-import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
 
 /** The Publish Content dialog's notice for a destination running an older build. It names the
  *  product, so it cannot ship inside the reusable dictionary; it is the one common entry Tovu owns. */

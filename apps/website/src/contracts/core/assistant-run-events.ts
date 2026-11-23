@@ -3,7 +3,6 @@
 import * as owner from "@jini-ai/chat/core/run-events";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
-import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/core/contracts/site/core-run-events";
 

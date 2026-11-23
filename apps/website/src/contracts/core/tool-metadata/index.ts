@@ -3,14 +3,6 @@ import { toolMetadata as consent } from '@jini-ai/core/tool-metadata/consent';
 import { projectToolMetadata } from '@jini-ai/core';
 import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
-/** Owner policy: classify the action rather than the input's write-shaped fields.
- * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which
- * includes publishing or unpublishing on this site) and trash (restorable from the Trash).
- * Only what cannot be undone from here asks — see {@link approvalClassAsks}.
- * `publish` means the action leaves this site: the live site, a deploy, a git host, an email.
- * Plan entries describe domain facts through Jini; human forms stay on their secret-card engine.
- * New native registrations fail closed until their owner declares an action policy. */
-export type HostToolApprovalPolicy = ToolApprovalPolicy<'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' | 'theme-activation'>;
 import { toolMetadata as agent_plugins } from './agent-plugins.js';
 import { toolMetadata as analytics } from '@jini-ai/core/tool-metadata/analytics';
 import { toolMetadata as assistant } from './assistant.js';
