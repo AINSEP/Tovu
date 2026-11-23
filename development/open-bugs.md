@@ -332,3 +332,5 @@ Full table: `cloud-results/bugs-medium.md`.
   ("This subscription link can’t be confirmed right now. Ask the site owner.") instead of a 500, and
   the token stays unused. Still OPEN: tokens and confirmation emails are still issued while unbound
   (changing that touches every subscribe path and their tests; left for a design call).
+- `B177` — FIXED-ON-BRANCH: campaign saves/schedules and single/bulk subscriptions refuse an archived
+  list ("This list is archived.", `NewsletterValidationError` reason `archived`).
