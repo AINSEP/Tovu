@@ -2,7 +2,6 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
-import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import type { AdminPost } from "../posts/api/posts-api.types";
 
 import type {
@@ -10,7 +9,6 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
-import { t as translate } from "@jini-ai/admin/pages/pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
@@ -23,6 +21,9 @@ import { type Translate } from '@jini-ai/core/text';
  * Mirrors `features/posts/rules.ts` exactly, since `Pages.tsx` is `Posts.tsx`'s twin (same
  * `RowMenu`-building logic, same Publish/Unpublish status-flip rule) backed by the pages-filtered
  * endpoints.
+ * The list screen's own row-menu builders (`pageRowMenuItems`, `buildPageRowMenuHandleMap`) moved
+ * with the list to `@jini-ai/admin/pages/pages-list-rules`; everything here is also read by the page
+ * editor or the Theme Pages tab.
  * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
  * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
  * popover, which is how its `page.status` conditional ended up permanently untested.
@@ -93,71 +94,8 @@ export function pageAdminPath(page: PageAdminHandle, _optional: Record<string, n
   return `/pages/${page.slug === HOME_PAGE_HANDLE ? page.id : page.slug}`;
 }
 
-/** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
- *  state and navigation, and so a test can assert exactly which one a given row wires up — same
- *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
-export interface PageRowMenuHandlers {
-  onEdit: (required: { page: AdminPost }) => void;
-  onTogglePublish: (page: AdminPost) => void;
-  onDelete: (page: AdminPost) => void;
-}
-
-/**
- * The row-action menu for one page.
- *
- * The branch is the reason this is exported: **the middle item's label and key flip with the row's
- * own status** — "Unpublish" for a published page, "Publish" for a draft — same deliberate rename
- * `posts/rules.ts`'s `postRowMenuItems` got (owner request, 2026-09-22), replacing the old rule
- * that omitted the item entirely for a draft rather than rendering it disabled. See that function's
- * own doc for the full "why" — a status-only payload sent by the old "Disable" item, always
- * missing `title`/`slug`, was rejected by `PUT /posts/:id` with "title is required" (owner
- * screenshot) before the row's status could ever change, and a draft page had no way to publish
- * from this list at all.
- *
- * Both branches call the SAME handler — `onTogglePublish` reads `page.status` itself to decide
- * which way to flip, so this menu builder does not need two callbacks for what is one reversible
- * toggle.
- *
- * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
- * `usePages().removePage`, gated on `ConfirmDialog`.
- *
- * @complexity Time/space: O(1) — exactly three entries, no iteration.
- * @overallScore 100
- */
-export function pageRowMenuItems({ page, handlers, locale }: { page: AdminPost; handlers: PageRowMenuHandlers; locale: string }, _options = {}): RowMenuItem[] {
-  const t = ({ key }: { key: string }, _options = {}): string => translate({ locale: locale, key: key });
-  const items: RowMenuItem[] = [{ key: "edit", label: t({ key: "Edit" }), onSelect: () => handlers.onEdit({ page }) }];
-  items.push(
-    page.status === "published"
-      ? { key: "unpublish", label: t({ key: "Unpublish" }), onSelect: () => handlers.onTogglePublish(page) }
-      : { key: "publish", label: t({ key: "Publish" }), onSelect: () => handlers.onTogglePublish(page) }
-  );
-  items.push({ key: "delete", label: t({ key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(page) });
-  return items;
-}
-
-/**
- * Row-menu agent handle for every page, keyed by page id. `Pages.tsx` looks a row's handle up BY
- * ID rather than by render position — mirrors `posts/rules.ts`'s `buildPostRowMenuHandleMap`
- * verbatim, for the reason that function's own doc gives and that this screen learned the hard way
- * (2026-09-07 audit claim #2): `DataTable` sorts `rows` internally and passes each `cell` callback
- * the index into that SORTED order, while the handle array is built from the unsorted `pages` prop,
- * so any row whose sort position differed from its array position published another page's handle.
- *
- * `null` (list not loaded yet) returns an empty map rather than throwing, so the caller can memoize
- * this unconditionally above its own loading-state early return.
- *
- * @complexity Time/space: O(n) in page count.
- */
-export function buildPageRowMenuHandleMap({ pages }: { pages: AdminPost[] | null }, _options = {}): Map<string, string> {
-  if (!pages) return new Map();
-  const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) => page.id) }
-  );
-  return new Map(pages.map((page, index) => [page.id, handles[index]]));
-}
-
 /** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as
- *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a `pageId` rather than
+ *  `PageRowMenuHandlers` (`@jini-ai/admin/pages/pages-list-rules`) — in particular, `onEdit` takes a `pageId` rather than
  *  building the Theme Studio href itself, so this module stays free of navigation: the caller
  *  (`ThemePagesTab.tsx`) already holds the narrowed, non-null `themeId` `themeStudioHref` needs, and
  *  is the one place that calls it. */
@@ -168,7 +106,7 @@ export interface ThemePageRowMenuHandlers {
 
 /**
  * The row-action menu for one Theme Page row — pulled out of `ThemePagesTab.tsx`'s `DataTable`
- * cell for the same reason {@link pageRowMenuItems} was: a claim worth a test, which it cannot have
+ * cell for the same reason `pageRowMenuItems` (`@jini-ai/admin/pages/pages-list-rules`) was: a claim worth a test, which it cannot have
  * while it is a closure inside a table cell reachable only by rendering and opening a popover.
  *
  * A theme page has no `PostRecord` behind it (see `Pages.tsx`'s own header on this tab's history),
@@ -179,7 +117,7 @@ export interface ThemePageRowMenuHandlers {
  * for that history). Kept as its own function (rather than a bare inline array at the call site) so
  * a future third action lands here, not as a second ad hoc array shape.
  *
- * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike {@link pageRowMenuItems}
+ * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike `pageRowMenuItems`
  * — `ThemePagesTab.tsx`'s own helpers (`themePagePublishState`, `lockedPublishReason`, …) all take
  * `t: Translate` already, and this row menu is built inside that same component, so matching ITS
  * established convention avoids threading a second, redundant `locale` value through the same tree.

@@ -18,7 +18,6 @@ import {
   pagePreviewFormTarget,
   pagePublicPath,
   pageRefreshMayHaveUnsavedEdits,
-  pageRowMenuItems,
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
   themePageRowMenuItems,
@@ -28,11 +27,8 @@ import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 /**
  * @file Pure logic for `features/pages/rules.ts`.
  *
- * `pageRowMenuItems` mirrors `features/posts/rules.ts`'s `postRowMenuItems` exactly (this feature's
- * own doc comment says so) — the branch worth pinning is the same one: the middle item's key and
- * label flip with the row's own status (Unpublish for published, Publish for draft), replacing the
- * pre-2026-09-22 "Disable" item that was omitted entirely for a draft page rather than rendered
- * disabled.
+ * `pageRowMenuItems` moved with the list screen to `@jini-ai/admin/pages/pages-list-rules`; its
+ * status-flip tests moved with it (`packages/admin/src/pages/__tests__/pages-list-rules.unit.test.ts`).
  */
 
 const PUBLISHED_PAGE: AdminPost = {
@@ -47,81 +43,11 @@ const PUBLISHED_PAGE: AdminPost = {
   version: 1,
 };
 
-const DRAFT_PAGE: AdminPost = { ...PUBLISHED_PAGE, id: "pg2", title: "Draft Page", status: "draft" };
 const identityT = (key: string): string => key;
 
 function page(overrides: Partial<AdminPost> = {}): AdminPost {
   return { ...PUBLISHED_PAGE, ...overrides };
 }
-
-describe("pageRowMenuItems", () => {
-  it("returns Edit, Unpublish, then Delete (in that order) for a published page", () => {
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
-    expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
-  });
-
-  it("returns Edit, Publish, then Delete for a draft page — the middle item flips rather than being omitted", () => {
-    const items = pageRowMenuItems({ page: DRAFT_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
-    expect(items.map((i) => i.key)).toEqual(["edit", "publish", "delete"]);
-    expect(items.find((i) => i.key === "unpublish")).toBeUndefined();
-  });
-
-  it("marks Delete destructive, and Edit/Unpublish not", () => {
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
-    expect(items.find((i) => i.key === "delete")).toMatchObject({ label: "Delete", destructive: true });
-    expect(items.find((i) => i.key === "edit")).not.toHaveProperty("destructive", true);
-    expect(items.find((i) => i.key === "unpublish")).not.toHaveProperty("destructive", true);
-  });
-
-  it("wires Edit's onSelect to onEdit with the page, and only onEdit", () => {
-    const onEdit = vi.fn();
-    const onTogglePublish = vi.fn();
-    const onDelete = vi.fn();
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
-    items.find((i) => i.key === "edit")!.onSelect();
-    expect(onEdit).toHaveBeenCalledWith({ page: PUBLISHED_PAGE });
-    expect(onTogglePublish).not.toHaveBeenCalled();
-    expect(onDelete).not.toHaveBeenCalled();
-  });
-
-  it("wires Unpublish's onSelect to onTogglePublish with the page, and only onTogglePublish", () => {
-    const onEdit = vi.fn();
-    const onTogglePublish = vi.fn();
-    const onDelete = vi.fn();
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
-    items.find((i) => i.key === "unpublish")!.onSelect();
-    expect(onTogglePublish).toHaveBeenCalledWith(PUBLISHED_PAGE);
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(onDelete).not.toHaveBeenCalled();
-  });
-
-  it("wires Publish's onSelect to onTogglePublish with the page, for a draft row", () => {
-    const onEdit = vi.fn();
-    const onTogglePublish = vi.fn();
-    const onDelete = vi.fn();
-    const items = pageRowMenuItems({ page: DRAFT_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
-    items.find((i) => i.key === "publish")!.onSelect();
-    expect(onTogglePublish).toHaveBeenCalledWith(DRAFT_PAGE);
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(onDelete).not.toHaveBeenCalled();
-  });
-
-  it("wires Delete's onSelect to onDelete with the page, and only onDelete", () => {
-    const onEdit = vi.fn();
-    const onTogglePublish = vi.fn();
-    const onDelete = vi.fn();
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
-    items.find((i) => i.key === "delete")!.onSelect();
-    expect(onDelete).toHaveBeenCalledWith(PUBLISHED_PAGE);
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(onTogglePublish).not.toHaveBeenCalled();
-  });
-
-  it("translates labels to Spanish when locale is es", () => {
-    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "es" });
-    expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
-  });
-});
 
 const THEME_ROW: ThemePageRow = {
   pageId: "about",

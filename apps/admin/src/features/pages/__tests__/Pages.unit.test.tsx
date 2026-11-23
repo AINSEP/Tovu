@@ -2,15 +2,17 @@ import { render, screen, fireEvent, within } from "@/__tests__/fetch-query-rende
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Pages, pagesListNotice } from "../Pages";
-import { buildPageRowMenuHandleMap } from "../rules";
-import type { PagesController } from "../hooks/use-pages.hooks";
+import { Pages } from "../Pages";
+import { buildPageRowMenuHandleMap } from "@jini-ai/admin/pages/pages-list-rules";
+import type { PagesController as JiniPagesController } from "@jini-ai/admin/pages/hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";
 
-const identityT = (key: string): string => key;
+/** The screen renders from `@jini-ai/admin/pages/Pages`; this suite drives it through the host
+ *  wiring (`../Pages.tsx`), so its controller fixture is the host's `AdminPost` instantiation. */
+type PagesController = JiniPagesController<AdminPost>;
 
 /**
  * @file `Pages` — markup-only list screen, twin of `features/posts/Posts.tsx`. Driven entirely
@@ -974,31 +976,6 @@ describe("Theme Pages tab — deep link via ?tab=", () => {
     renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" })] });
     await user.click(screen.getByRole("tab", { name: /^My Pages/ }));
     expect(window.location.search).toBe("");
-  });
-});
-
-/**
- * `pagesListNotice` — pulled out of `Pages` (2026-08-06, complexity pass, fourth pass; see its own
- * doc). The states above already exercise it end to end through the full component; these pin the
- * function's own branch decisions directly, no render involved.
- */
-describe("pagesListNotice", () => {
-  it("returns the error notice when there is an error and no list yet", () => {
-    expect(pagesListNotice({ pages: null, error: "boom", t: identityT })).not.toBeNull();
-  });
-
-  it("returns the loading notice when there is no list and no error", () => {
-    expect(pagesListNotice({ pages: null, error: null, t: identityT })).not.toBeNull();
-  });
-
-  it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{pagesListNotice({ pages: null, error: "boom", t: identityT })}</>);
-    expect(screen.getByText("boom")).toBeInTheDocument();
-    expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
-  });
-
-  it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(pagesListNotice({ pages: [], error: "a later error", t: identityT })).toBeNull();
   });
 });
 
