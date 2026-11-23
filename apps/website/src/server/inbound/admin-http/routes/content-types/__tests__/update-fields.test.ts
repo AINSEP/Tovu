@@ -6,7 +6,7 @@ import { EntityNotLiveError } from "@jini-ai/cms/core";
 import * as contentTypes from "#src/features/content-types/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { ContentTypesRouteDeps } from "../deps.js";
+import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modules/content-types";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 test("update-fields HTTP characterization", async (t) => {
@@ -21,7 +21,7 @@ test("update-fields HTTP characterization", async (t) => {
       updateContentTypeFields: (input: Parameters<typeof write>[0]) => write(input),
     },
   });
-  const { registerAdminContentTypeUpdateFieldsRoute } = await import("../update-fields.js");
+  const { registerAdminContentTypeUpdateFieldsRoute } = await import("#src/server/runtime/composition/modules/content-types");
   const deps: ContentTypesRouteDeps = {
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),

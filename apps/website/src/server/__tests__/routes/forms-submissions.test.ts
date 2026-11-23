@@ -10,8 +10,8 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
 import { registerAdminFormsDeleteSubmissionRoute } from "../../inbound/admin-http/routes/forms/delete-submission.js";
-import { registerAdminFormsGetSubmissionRoute } from "../../inbound/admin-http/routes/forms/get-submission.js";
-import { registerAdminFormsListSubmissionsRoute } from "../../inbound/admin-http/routes/forms/list-submissions.js";
+import { registerAdminFormsGetSubmissionRoute } from "../../runtime/composition/modules/forms-admin.js";
+import { registerAdminFormsListSubmissionsRoute } from "../../runtime/composition/modules/forms-admin.js";
 import { createTrashModule } from "../../runtime/composition/modules/trash.js";
 import type { RouteDeps } from "../../routes/types.js";
 

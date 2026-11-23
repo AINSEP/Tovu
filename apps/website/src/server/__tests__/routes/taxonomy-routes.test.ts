@@ -7,17 +7,17 @@ import express from "express";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminTaxonomyListRoute } from "../../inbound/admin-http/routes/taxonomy/list.js";
-import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
-import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/routes/taxonomy/create-term.js";
-import { registerAdminTaxonomyDeleteRoute } from "../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
-import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
-import { registerAdminTaxonomyRenameTermRoute } from "../../inbound/admin-http/routes/taxonomy/rename-term.js";
+import { registerAdminTaxonomyListRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyCreateRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyDeleteRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../../runtime/composition/modules/taxonomy.js";
+import { registerAdminTaxonomyRenameTermRoute } from "../../runtime/composition/modules/taxonomy.js";
 import {
   registerAdminTaxonomyAssignedTermsRoute,
   registerAdminTaxonomyAssignTermsRoute,
   registerAdminTaxonomyUnassignTermsRoute,
-} from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
+} from "../../runtime/composition/modules/taxonomy.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

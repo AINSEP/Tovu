@@ -30,7 +30,7 @@ import { legacyProviderCredentialCheck } from "../provider-plugins.js";
 import { listCustomCredentials } from "#src/features/custom-credentials/index";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { pluginsInstallDir } from "../site-paths.js";
-import { registerMenuReverters } from "#src/features/navigation/index";
+import { registerMenuReverters } from "#src/features/navigation/reverters";
 import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { resolveSiteStoragePaths } from "../site-paths.js";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";

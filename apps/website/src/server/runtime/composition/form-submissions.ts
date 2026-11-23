@@ -6,10 +6,8 @@ import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
-import {
-  createFormDestinationPort,
-  listFormDestinations,
-} from "#src/features/form-destinations/index";
+import { listFormDestinations } from "#src/features/form-destinations/key-store";
+import { createFormDestinationPort } from "#src/features/form-destinations/port";
 import { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination } from "@jini-ai/cms/forms/destinations/pull";
 import type { FormDestinationAddress, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";

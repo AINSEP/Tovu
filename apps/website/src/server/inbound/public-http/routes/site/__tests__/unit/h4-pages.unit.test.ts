@@ -4,7 +4,7 @@ import express, { type Request } from 'express';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { RouteDeps } from '#src/server/routes/types';
 import type { DiscoveredTheme, StaticMenuItem } from '#src/features/theme/index';
-import { NAV_DOC_TYPE, type NavMenuEntry } from '#src/features/navigation/index';
+import { NAV_DOC_TYPE, type NavMenuEntry } from '@jini-ai/cms/navigation';
 import type { PublicPostRecord } from '#src/features/post/index';
 import { resolveMediaAssetMetadataForRender } from "../../pages/render-context/media-metadata.js";
 import { resolveStaticMenusForRender } from "../../pages/render-context/static-menus.js";

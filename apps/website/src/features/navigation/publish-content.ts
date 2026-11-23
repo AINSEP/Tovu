@@ -13,12 +13,11 @@ import type {
 } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
-import { importMenuEntity } from "./import-menu.js";
-import { menuHoldersReferencing, repointMenuItems } from "./repoint-menu-refs.js";
-import type { MenuRepointReplacement } from "./repoint-menu-refs.js";
-import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "./index.js";
-import type { MenuStatus, NavMenuDoc, NavMenuEntry  } from "./index.js";
-import type { MenuRepoPort } from "@jini-ai/cms/navigation";
+import { importMenuEntity } from "@jini-ai/cms/navigation/site/import-menu";
+import { menuHoldersReferencing, repointMenuItems } from "@jini-ai/cms/navigation/site/repoint-menu-refs";
+import type { MenuRepointReplacement } from "@jini-ai/cms/navigation/site/repoint-menu-refs";
+import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "@jini-ai/cms/navigation/node";
+import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 /**
  * @file `menu`'s publish-content contribution, built on `createRepoPublishHandler`

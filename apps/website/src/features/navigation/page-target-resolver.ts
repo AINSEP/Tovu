@@ -1,7 +1,6 @@
 import type { PostRepoPort } from "#src/features/post/index";
 import { entryPublicPath } from "#src/platform/routing/index";
-import { isAllowedHref } from "@jini-ai/cms/navigation";
-import type { ResolveTargetHrefFn } from "./index.js";
+import { isAllowedHref, type ResolveTargetHrefFn } from "@jini-ai/cms/navigation";
 
 /** The host's page/entry records share the post repository. Resolve their stable ids at render
  * time so renames follow the slug and unpublished/trashed targets are unavailable. */

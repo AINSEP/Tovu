@@ -18,7 +18,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ToolInputError } from "@jini-ai/core";
 import { type AgentToolDefinition as NavigationAgentToolDefinition } from "@jini-ai/core";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "../../features/navigation/index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,

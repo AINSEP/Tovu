@@ -13,7 +13,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createLazyProxy } from "../lazy-proxy.js";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { registerMenuReverters } from "#src/features/navigation/index";
+import { registerMenuReverters } from "#src/features/navigation/reverters";
 import { createPostRevertRegistry } from "#src/features/post/index";
 import { bindForgetRemovedEntity } from "@jini-ai/cms/trash";
 import { POST_ENTITY_TYPE } from "#src/features/trash/index";

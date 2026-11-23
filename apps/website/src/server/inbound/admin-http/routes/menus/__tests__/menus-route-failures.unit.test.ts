@@ -3,12 +3,14 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { registerAdminMenuAssignLocationRoute } from '../assign-location.js';
-import { registerAdminMenuCreateRoute } from '../create.js';
-import { registerAdminMenuDeleteRoute } from '../delete.js';
-import { registerAdminMenuGetRoute } from '../get-by-id.js';
-import { registerAdminMenuListRoute } from '../list.js';
-import { MenuConflictError } from '#src/features/navigation/index';
+import {
+  registerAdminMenuAssignLocationRoute,
+  registerAdminMenuCreateRoute,
+  registerAdminMenuDeleteRoute,
+  registerAdminMenuGetRoute,
+  registerAdminMenuListRoute,
+} from '#src/server/runtime/composition/modules/menus';
+import { MenuConflictError } from '@jini-ai/cms/navigation/node';
 import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
 import { WS, BASE, INTERNAL, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 

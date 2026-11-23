@@ -8,7 +8,7 @@ import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import type { InMemoryAssetBlobRepo, InMemoryBlobStore } from "#src/features/media/index";
 import type { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
-import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import type { InMemoryNavLocationBindingRepo } from "@jini-ai/cms/navigation";
 import type { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { builtInThemesDir } from "../../site-paths.js";

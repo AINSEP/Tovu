@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAdminAnalyticsRecentHitsRoute } from "../../admin-http/routes/analytics/recent-hits.js";
-import { registerAdminFormsPullSubmissionsRoute } from "../../admin-http/routes/forms/pull-submissions.js";
+import { registerAdminFormsPullSubmissionsRoute } from "#src/server/runtime/composition/modules/forms-admin";
 
 function appWithPrincipal() {
   const app = express();

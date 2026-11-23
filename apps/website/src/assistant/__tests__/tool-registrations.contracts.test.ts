@@ -110,7 +110,7 @@ import { mailProviderAgentToolCatalog } from "../../features/mail-status/provide
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
 import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
-import { menusAgentToolCatalog } from "../../features/navigation/index.js";
+import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";

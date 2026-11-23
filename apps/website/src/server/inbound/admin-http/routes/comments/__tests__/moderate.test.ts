@@ -14,7 +14,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminCommentsModerateRoutes, type AdminCommentsModerateDeps } from "../moderate.js";
+import { registerAdminCommentsModerateRoutes, type AdminCommentsModerateDeps } from "#src/server/runtime/composition/modules/comments-moderation";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

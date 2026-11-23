@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminCommentsModerationQueueRoute, type AdminCommentsModerationQueueDeps } from "../moderation-queue.js";
+import { registerAdminCommentsModerationQueueRoute, type AdminCommentsModerationQueueDeps } from "#src/server/runtime/composition/modules/comments-moderation";
 
 /**
  * @file Unit-tier branch coverage for `GET .../comments/queue` (ADR-031 §6, SPEC-033). The

@@ -3,18 +3,11 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EntityNotLiveError } from '@jini-ai/cms/core';
-import {
-  InMemoryMenuRepo,
-  InMemoryNavLocationBindingRepo,
-  MenuConflictError,
-  MenuNotFoundError,
-  type NavMenuEntry,
-} from '#src/features/navigation/index';
-import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
-import type { MenuRouteDeps } from '#src/server/inbound/admin-http/http/menus';
+import { MenuConflictError, MenuNotFoundError } from '@jini-ai/cms/navigation/node';
+import { MenuVersionConflictError, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from '@jini-ai/cms/navigation';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMenuAssignLocationRoute } from '../assign-location.js';
+import { registerAdminMenuAssignLocationRoute, type MenuRouteDeps } from '#src/server/runtime/composition/modules/menus';
 
 const path = `${BASE}/menus/menu/locations`;
 const now = '2026-10-20T00:00:00.000Z';

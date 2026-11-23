@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { createMenu } from "#src/features/navigation/index";
+import { createMenu } from "@jini-ai/cms/navigation/node";
 import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
 import { seededPosts } from "#src/server/runtime/configuration/seed";
 import { createRouteDeps } from "../../runtime/composition/app.js";

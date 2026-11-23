@@ -11,10 +11,9 @@ import { createCommentsCapability } from "#src/features/comments/provider-select
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc, createNavMenuReadModel } from "@jini-ai/cms/navigation";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import type { SiteStore } from "../open-site-store.js";

@@ -7,8 +7,8 @@ import express from "express";
 import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
-import { registerAdminContentTypeLifecycleRoute } from "../../inbound/admin-http/routes/content-types/lifecycle.js";
+import { registerAdminContentTypeRegisterRoute } from "../../runtime/composition/modules/content-types.js";
+import { registerAdminContentTypeLifecycleRoute } from "../../runtime/composition/modules/content-types.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

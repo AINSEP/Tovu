@@ -123,7 +123,7 @@ test('page and raw HTML serialization bound deeply nested imported markup', () =
 });
 
 test('region HTTP placement normalization keeps content and rejects malformed content/duplicate slots', async () => {
-  const { parseWidgetRegionPlacements } = await import('#src/server/inbound/admin-http/routes/widgets/region-mutate-placements');
+  const { parseWidgetRegionPlacements } = await import('@jini-ai/cms/admin-http/routes/widgets/region-mutate-placements');
   const content = { items: [{ slug: 'photo' }] };
   assert.deepEqual(parseWidgetRegionPlacements({ raw: [{ placementId: 'p', widgetEntryId: 'w', enabled: true, content, forged: true }] }), [{ placementId: 'p', widgetEntryId: 'w', enabled: true, content }]);
   assert.equal(parseWidgetRegionPlacements({ raw: [{ placementId: 'p', widgetEntryId: 'w', enabled: true, content: [] }] }), null);

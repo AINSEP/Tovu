@@ -8,10 +8,10 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginA
 import { assertAdminResponse } from "../../inbound/admin-http/http/__tests__/assert-admin-response.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminContentTypeListRoute } from "../../inbound/admin-http/routes/content-types/list.js";
-import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../../inbound/admin-http/routes/content-types/update-fields.js";
-import { registerAdminContentTypeLifecycleRoute } from "../../inbound/admin-http/routes/content-types/lifecycle.js";
+import { registerAdminContentTypeListRoute } from "../../runtime/composition/modules/content-types.js";
+import { registerAdminContentTypeRegisterRoute } from "../../runtime/composition/modules/content-types.js";
+import { registerAdminContentTypeUpdateFieldsRoute } from "../../runtime/composition/modules/content-types.js";
+import { registerAdminContentTypeLifecycleRoute } from "../../runtime/composition/modules/content-types.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

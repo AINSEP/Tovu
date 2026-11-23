@@ -1568,21 +1568,31 @@ test("admin widgets routes: `req.params.workspaceId ?? \"\"` fallback, forced vi
 
 test("admin widgets agent tools: `req.body ?? {}` fallback on widgets.place/create/remove, forced via direct handler calls with req.body omitted entirely", async (t) => {
   const { app, deps } = buildTestApp();
+  // These routes are now Jini specs: the shared JSON-route adapter authenticates before it parses
+  // the body, so the body fallback is only reachable for a signed-in principal (as in production).
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
 
   const placeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/place");
   const placeCapture = createCapturingResponse();
+  placeCapture.res.locals.principal = ownerPrincipal;
   await placeHandler({ params: { workspaceId: deps.workspaceId } }, placeCapture.res); // no `body` key at all
   assert.equal(placeCapture.capture.statusCode, 400);
   assert.equal((placeCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 
   const createHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/create");
   const createCapture = createCapturingResponse();
+  createCapture.res.locals.principal = ownerPrincipal;
   await createHandler({ params: { workspaceId: deps.workspaceId } }, createCapture.res);
   assert.equal(createCapture.capture.statusCode, 400);
   assert.equal((createCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 
   const removeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove");
   const removeCapture = createCapturingResponse();
+  removeCapture.res.locals.principal = ownerPrincipal;
   await removeHandler({ params: { workspaceId: deps.workspaceId } }, removeCapture.res);
   assert.equal(removeCapture.capture.statusCode, 400);
   assert.equal((removeCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");

@@ -1,8 +1,6 @@
 import type { CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
-import {
-  createCustomCredentialConnectionPort,
-  createFormDestinationDeliverer,
-} from "#src/features/form-destinations/index";
+import { createCustomCredentialConnectionPort } from "#src/features/form-destinations/connection-port";
+import { createFormDestinationDeliverer } from "#src/features/form-destinations/deliver";
 import type { FormDestinationKit, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { createOAuthFormDeliveryConnectionPort } from "#src/features/api-connections/form-delivery-connection";

@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWidgetEmbedInsertRoute } from "../../embed-insert.js";
+import { registerAdminWidgetEmbedInsertRoute } from "#src/server/runtime/composition/modules/widgets";
 
 const path = "/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds";
 const host = {

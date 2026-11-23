@@ -6,13 +6,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
-import {
-  InMemoryMenuRepo,
-  InMemoryNavLocationBindingRepo,
-  type NavMenuDoc,
-  type NavMenuEntry,
-} from "../index.js";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuDoc, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "../publish-content.js";
 

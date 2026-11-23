@@ -9,9 +9,9 @@ import express from "express";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
-import { registerAdminFormsGetRoute } from "../../inbound/admin-http/routes/forms/get-by-id.js";
-import { registerAdminFormsListRoute } from "../../inbound/admin-http/routes/forms/list.js";
-import { registerAdminFormsUpdateRoute } from "../../inbound/admin-http/routes/forms/update.js";
+import { registerAdminFormsGetRoute } from "../../runtime/composition/modules/forms-admin.js";
+import { registerAdminFormsListRoute } from "../../runtime/composition/modules/forms-admin.js";
+import { registerAdminFormsUpdateRoute } from "../../runtime/composition/modules/forms-admin.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

@@ -9,7 +9,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminTaxonomyListRoute } from "../list.js";
+import { registerAdminTaxonomyListRoute } from "#src/server/runtime/composition/modules/taxonomy";
 import type { TaxonomyRouteDeps } from "../deps.js";
 
 /** The same SQLite adapters `createRouteDeps` composes, over a private in-memory database. (The CMS

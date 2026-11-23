@@ -8,7 +8,7 @@ import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
-import { rebuildNavLocationBindings } from "#src/features/navigation/index";
+import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveSiteBindingOverride } from "./overrides.js";
 import type { createMediaBlobStore } from "#src/features/object-storage/index";
