@@ -3,7 +3,6 @@ import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observabi
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { CreateSitePort } from "#src/platform/site-dir/index";
 import type { CreateSiteResult } from "@jini-ai/core/contracts/site/platform-site-dir";
@@ -18,6 +17,7 @@ import {
   requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
   type ParsedSiteImportInput, type SiteImportSource, type SiteImportView,
 } from "./import-backend-steps.js";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export type { SiteImportSource, SiteImportView } from "./import-backend-steps.js";
 export interface SiteImportBackend {

@@ -2,9 +2,10 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { MessageRow, clearExtEventRenderers, mcpUiSurfaceSlotKey, registerExtEventRenderer } from "@jini-ai/chat/react";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import { buildConfirmationSurface, type McpUiHostProps } from "@jini-ai/ui/mcp-ui";
 import { OverflowAwareMcpUiSurfaceCard } from "../../OverflowAwareMcpUiSurfaceCard";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 // Only the cross-origin iframe boundary is replaced; grouping, receipts, expiry and
 // the dock wrapper use their production implementations. Surface script behavior is

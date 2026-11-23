@@ -8,8 +8,8 @@
  */
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlEntry, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { PluginInstallError, readPluginArchive } from "@jini-ai/plugins/host/node";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 
 /** True for a Unix-authored entry whose file-type bits are neither unset, a regular file nor a directory. */

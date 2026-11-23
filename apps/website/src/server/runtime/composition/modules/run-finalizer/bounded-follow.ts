@@ -1,4 +1,3 @@
-import type { AgentEvent } from "@jini-ai/chat/core";
 import type { RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
 
 import type { RunSettlement } from "#src/assistant/index";
@@ -7,6 +6,7 @@ import type { RunDaemonClient, RunDaemonRequest } from "../run-daemon-http-clien
 import type { RunTimerPort, RunWatchOutcome } from "./ports.js";
 import type { StreamReader, StreamResult } from "./stream.js";
 import { interruptionEvents, stopWatch, type Watch } from "./watch-state.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file Follows one watched run to a terminal outcome or to a bounded resolution. A dropped or

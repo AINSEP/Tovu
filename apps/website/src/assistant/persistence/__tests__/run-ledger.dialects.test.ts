@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { AgentEvent } from "@jini-ai/chat/core";
 
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { createChatRunLedger, type RunRef } from "../run-ledger.js";
 import { createTenantScopedChatStore } from "../tenant-scope.js";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file The run ledger's one Kysely body on SQLite and PGlite (storage plan §4): every method, a

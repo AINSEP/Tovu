@@ -46,9 +46,9 @@ import {
   maxAgentPluginInstallArchiveBytes,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
-  type InstalledAgentPlugin,
 } from "./lifecycle.js";
 import { listInstalledPlugins } from "./lifecycle.js";
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
 

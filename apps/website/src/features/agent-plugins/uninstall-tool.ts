@@ -13,9 +13,9 @@ import {
   AgentPluginNotUninstallableError,
   previewAgentPluginUninstall,
   uninstallAgentPlugin,
-  type AgentPluginUninstallPreview,
   type UninstallAgentPluginRequired,
 } from "./lifecycle.js";
+import type { AgentPluginUninstallPreview } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-ui.js";
 
 /**

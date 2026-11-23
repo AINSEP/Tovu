@@ -34,9 +34,10 @@ import type {
   WorkspaceChatStartInput,
   WorkspaceChatStartResult,
 } from '../contracts/workspace-chat.js';
-import type { AgentEvent, ChatMessage, ReattachRunOptions, RunHandlers, StartRunInput } from '@jini-ai/chat/core';
+import type { ChatMessage, ReattachRunOptions, RunHandlers, StartRunInput } from '@jini-ai/chat/core';
 import { RUN_PROTOCOL_VERSION } from '@jini-ai/protocol';
 import type { RunAgentPayload, RunEndPayload, RunErrorPayload, RunProtocolEvent } from '@jini-ai/protocol';
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 // ---------------------------------------------------------------------------------------------
 // Fixtures

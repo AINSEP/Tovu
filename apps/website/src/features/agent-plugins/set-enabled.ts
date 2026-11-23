@@ -39,12 +39,11 @@ import type { NotifyToolAccessChanged } from '../../contracts/core/tool-access-c
 
 import { createTovuAgentPluginLifecycle, explicitRootSoonCatalog } from "./lifecycle.js";
 import { assertAgentPluginReady } from "./soon-lock.js";
+import type { SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 export { AgentPluginNotReadyError } from "./soon-lock.js";
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "./provider-plugin-link.js";
 export { AgentPluginLinkedError } from "./provider-plugin-link.js";
-import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
-export type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 import type { SetAgentPluginEnabledInput } from '@jini-ai/core/contracts/headless/plugin-host';
 
 /**
