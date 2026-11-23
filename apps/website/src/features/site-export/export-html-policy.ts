@@ -1,6 +1,6 @@
 import { escapeHtml } from "#src/platform/html/escape";
 import { withoutNativeFormTools } from "#src/platform/html/published-webmcp-strip";
-import { attribute, editedHtml, elements, type Edit, type Element } from "#src/platform/html/source-edits";
+import { attribute, editedHtml, elements, type Edit, type Element } from "@jini-ai/cms/html/site/source-edits";
 
 /** Identity and omitted discovery documents cannot truthfully advertise a public address. */
 function omittedMetadata({ node }: { node: Element }, _options = {}): boolean {

@@ -1,19 +1,19 @@
 import { buildUIToolResult } from "./mcp-ui.js";
+import { isRecord } from "@jini-ai/core/records";
 import { type UIResource } from "@jini-ai/protocol/mcp-ui";
 
 const HTML_MIME_TYPES: ReadonlySet<string> = new Set(["text/html", "text/html;profile=mcp-app", "text/html+skybridge"]);
 
 /** Narrows the renderer's unknown package boundary without casting a required presentation port. */
 export function isAskChoiceUiResource(required: { ui: unknown }, _optional: Record<string, never> = {}): required is { ui: UIResource } {
-  const { ui } = required;
-  if (!isRecord(ui) || ui.type !== "resource" || !isRecord(ui.resource)) return false;
-  return hasUiUri({ resource: ui.resource }) && hasHtmlText({ resource: ui.resource });
-}
-
-/** Any non-null object; properties are then read as unknown. A positional parameter because a type
- * predicate cannot name a destructured binding. */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  // Any non-null object; properties are then read as unknown. A positional parameter would be needed because a type
+  // predicate cannot name a destructured binding; core's `isRecord` instead narrows `required.value`, so each
+  // candidate is bound in a `{ value }` first.
+  const envelope = { value: required.ui };
+  if (!isRecord(envelope) || envelope.value.type !== "resource") return false;
+  const resource = { value: envelope.value.resource };
+  if (!isRecord(resource)) return false;
+  return hasUiUri({ resource: resource.value }) && hasHtmlText({ resource: resource.value });
 }
 
 /** The resource names a `ui://` URI. */

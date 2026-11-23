@@ -10,7 +10,11 @@ import { readPromptFromFlags } from "@jini-ai/cli";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { countLegacyOwnerStore, readLegacyOwnerStore } from "@jini-ai/server/owner-store";
-import { OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup, type LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { openSqliteFileKernel } from "@jini-ai/db/kernel/sqlite";
+import { countOwnerStoreRows, listOwnerDestinations, listOwnerEntryRows, type LegacyOwnerDatabase } from "@jini-ai/db/owner-store";
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
+import { OWNER_WORKSPACE_ID, openLegacyOwnerVault, OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup, readLegacyOwnerEntry, type LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
 import { isCopyableKind, SecretsVaultService, type VaultPutInput } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VAULT_KINDS,
@@ -206,9 +210,15 @@ async function deleteProjectKey({ target, request }: { target: OwnerTarget; requ
   } });
 }
 
+/** The legacy readers' collaborators: Jini's owner-store wiring imports no implementation, the host passes them. */
+const LEGACY_OWNER_PORTS = { countOwnerStoreRows, listOwnerEntryRows, listOwnerDestinations, ownerWorkspaceId: OWNER_WORKSPACE_ID, openLegacyOwnerVault, readLegacyOwnerEntry,
+  openKernel: (...args: Parameters<typeof openSqliteFileKernel>) => openSqliteFileKernel<LegacyOwnerDatabase>(...args),
+  // Kysely's DB generic is invariant. The vault sees only its table on this same read-only connection.
+  createVaultRepo: ({ kernel }: { kernel: KyselyKernel<LegacyOwnerDatabase> }) => new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }) };
+
 /** The profile's legacy owner store, never created, migrated or written by this process. */
 function legacyFiles({ userDataDir }: { userDataDir: string }, _options = {}) {
-  return { filePath: join(userDataDir, 'owner.db'), keyFilePath: join(userDataDir, 'owner.key'), open: openNativeSqlite };
+  return { filePath: join(userDataDir, 'owner.db'), keyFilePath: join(userDataDir, 'owner.key'), open: openNativeSqlite, ports: LEGACY_OWNER_PORTS };
 }
 
 /** Read-only state for the desktop's start-up cleanup: only `empty` (0 entries AND 0 grants) may be
