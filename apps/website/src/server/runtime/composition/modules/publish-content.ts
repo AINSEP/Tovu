@@ -7,7 +7,7 @@ import { registerPublishContentExportRoute } from "#src/server/inbound/admin-htt
 import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/publish-content/blobs-probe";
 import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
 import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
-import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
+import { registerPublishContentBundleCreateRoute } from "./publish-content-ingest.js";
 import { registerPublishContentCapabilitiesRoute } from "#src/server/inbound/admin-http/routes/publish-content/capabilities";
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
 import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes } from "./publish-content-transport.js";
