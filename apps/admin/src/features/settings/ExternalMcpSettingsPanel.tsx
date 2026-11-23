@@ -1,4 +1,5 @@
-import { ExternalMcpSharedChoice } from "./ExternalMcpSharedChoice";
+import { ExternalMcpSharedChoice } from "@jini-ai/admin/screens/settings/ExternalMcpSharedChoice";
+import { useHostExternalMcpSharedChoice } from "../../integrations/jini-admin/settings-external-mcp-shared-choice.hooks";
 import { useState } from "react";
 import {
   Icon,
@@ -366,7 +367,7 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
       </div>
       <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
       {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
-        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} />}
+        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />}
 
       {toolsOpen ? (
         <ExternalMcpToolsModal

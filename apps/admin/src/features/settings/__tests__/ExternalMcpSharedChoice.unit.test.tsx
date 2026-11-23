@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { integrationsApi } from '@/features/integrations/api/integrations-api';
-import { ExternalMcpSharedChoice } from '../ExternalMcpSharedChoice';
+import { ExternalMcpSharedChoice } from '@jini-ai/admin/screens/settings/ExternalMcpSharedChoice';
+import { useHostExternalMcpSharedChoice } from '@/integrations/jini-admin/settings-external-mcp-shared-choice.hooks';
 import { t as translate } from '../external-mcp-i18n';
 
 const language = vi.hoisted(() => ({ locale: 'en' }));
@@ -16,7 +17,7 @@ describe('explicit saved MCP choices', () => {
     vi.spyOn(integrationsApi, 'stopSharedMcpConnection').mockImplementation(async () => {
       list.mockResolvedValue({ available: true, connections: [], current: { credentialId: 'saved', status: 'connected', granted: false } });
     });
-    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} />);
+    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />);
     fireEvent.click(screen.getByRole('button', { name: 'Usar una conexión guardada en este Mac' }));
     expect(await screen.findByRole('option', { name: 'Owner label' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Iniciar sesión y guardar en este Mac' })).toBeInTheDocument();
@@ -32,7 +33,7 @@ describe('explicit saved MCP choices', () => {
   it('translates the unavailable explanation in Spanish', async () => {
     language.locale = 'es';
     vi.spyOn(integrationsApi, 'listSharedMcpConnections').mockResolvedValue({ available: false, connections: [], current: null });
-    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} />);
+    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />);
     fireEvent.click(screen.getByRole('button', { name: 'Usar una conexión guardada en este Mac' }));
     expect(await screen.findByText('Las conexiones guardadas están disponibles en el perfil del propietario de la aplicación de escritorio.')).toBeInTheDocument();
   });
@@ -45,7 +46,7 @@ describe('explicit saved MCP choices', () => {
     const stopHere = vi.spyOn(integrationsApi, 'stopSharedMcpConnection').mockResolvedValue(undefined);
     const signIn = vi.fn();
     const onChanged = vi.fn();
-    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={signIn} onChanged={onChanged} />);
+    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={signIn} onChanged={onChanged} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />);
     expect(list).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Use a saved connection on this Mac' }));
     await screen.findByRole('option', { name: 'Saved MCP' });
@@ -64,7 +65,7 @@ describe('explicit saved MCP choices', () => {
 
   it('gives a concrete unavailable state without offering saving on an unbound host', async () => {
     vi.spyOn(integrationsApi, 'listSharedMcpConnections').mockResolvedValue({ available: false, connections: [], current: null });
-    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} />);
+    render(<ExternalMcpSharedChoice t={t} serverId="server-a" busy={false} signIn={vi.fn()} onChanged={vi.fn()} useExternalMcpSharedChoiceHook={useHostExternalMcpSharedChoice} />);
     fireEvent.click(screen.getByRole('button', { name: 'Use a saved connection on this Mac' }));
     expect(await screen.findByText('Saved connections are available in the desktop owner profile.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign in and save on this Mac' })).toBeNull();

@@ -4,7 +4,7 @@ import { t as tApp } from "../../app-i18n";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
-import { t as tSettings } from "./settings-i18n";
+import { t as tSettings } from "@jini-ai/admin/screens/settings/settings-i18n";
 
 export function createSettingsUiTranslators({ settingsLocale }: { settingsLocale: string }, _options = {}) {
   /**

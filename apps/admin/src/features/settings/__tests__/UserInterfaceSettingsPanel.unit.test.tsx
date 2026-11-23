@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_INTERFACE } from "@/lib/settings-tabs";
 import { useUserInterfaceTab } from "../hooks/use-user-interface-tab.hooks";
-import { t } from "../settings-interface-i18n";
+import { t } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
 import { UserInterfaceSettingsPanel } from "../UserInterfaceSettingsPanel";
 
 /**
