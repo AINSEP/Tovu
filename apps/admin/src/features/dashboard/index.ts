@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import "../../admin-themes/jini-admin-tokens.css";
 import "@jini-ai/admin/screens/dashboard/dashboard.css";
 import { Dashboard as DashboardScreen, type DashboardLinks } from "@jini-ai/admin/screens/dashboard/Dashboard";
 import { activityRowHref } from "@jini-ai/admin/screens/dashboard/rules";

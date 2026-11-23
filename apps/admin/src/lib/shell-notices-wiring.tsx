@@ -1,3 +1,4 @@
+import "../admin-themes/jini-admin-tokens.css";
 import "@jini-ai/admin/shell/components/AdminFailureNotice/admin-failure-notice.css";
 import "@jini-ai/admin/shell/components/ServerRestartingBanner/server-restarting-banner.css";
 import { AdminFailureNotice, type AdminFailureNoticeProps } from "@jini-ai/admin/shell/components/AdminFailureNotice/AdminFailureNotice";

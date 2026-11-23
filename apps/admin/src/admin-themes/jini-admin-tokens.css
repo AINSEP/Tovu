@@ -1,0 +1,30 @@
+/*
+ * This admin's theme bound into `@jini-ai/admin`'s own CSS namespace. Jini screen stylesheets read
+ * `--jini-admin-*` (plus the shared `--jini-*` tokens) and never this app's token names, so the binding
+ * lives here with the themes. Declared on `:root`, where every admin theme sets its tokens (including the
+ * dark variants), so each binding resolves to the active theme's value.
+ */
+:root {
+  --jini-admin-border: var(--border);
+  --jini-admin-danger: var(--danger);
+  --jini-admin-faint: var(--faint);
+  --jini-admin-fg: var(--fg);
+  --jini-admin-fg-2: var(--fg-2);
+  --jini-admin-font-display: var(--font-display);
+  --jini-admin-link: var(--link);
+  --jini-admin-muted: var(--muted);
+  --jini-admin-primary: var(--primary);
+  --jini-admin-r-lg: var(--r-lg);
+  --jini-admin-r-md: var(--r-md);
+  --jini-admin-r-sm: var(--r-sm);
+  --jini-admin-shadow-sm: var(--shadow-sm);
+  --jini-admin-surface: var(--surface);
+  --jini-admin-surface-2: var(--surface-2);
+  --jini-admin-surface-3: var(--surface-3);
+  --jini-admin-text-2xs: var(--text-2xs);
+  --jini-admin-text-base: var(--text-base);
+  --jini-admin-text-sm: var(--text-sm);
+  --jini-admin-text-xs: var(--text-xs);
+  --jini-admin-warning: var(--warning);
+  --jini-admin-warning-bg: var(--warning-bg);
+}
