@@ -1,4 +1,4 @@
-import { toSlug } from "../../platform/html/slug.js";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 
 /** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. Exported for the same
  * reason as {@link MAX_TITLE_LENGTH}. */

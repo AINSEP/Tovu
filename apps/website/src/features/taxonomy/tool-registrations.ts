@@ -26,7 +26,7 @@ import {
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { toSlug } from "../../platform/html/slug.js";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 import type { PostRepoPort } from "../post/index.js";
 import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "./content-targets.js";
 import type { CollectionOwnerLookupPort, MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";

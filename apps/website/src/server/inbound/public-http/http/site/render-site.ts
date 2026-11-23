@@ -10,7 +10,7 @@ import { renderStaticPage } from "#src/features/theme/static-render";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "./render/site-assistant-mount.js";
 import { pageShell } from "./render/document-shell.js";

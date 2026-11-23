@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { escapeHtml, escapeXml } from "../escape.js";
+import { escapeHtml, escapeXml } from "@jini-ai/core/text";
 
 // The one HTML/XML escaper the public renderers, exporter, store, newsletter pages and MCP-UI dialog
 // share. It replaced twelve hand-rolled copies (build-vs-borrow-verified 2026-09-28 §3).

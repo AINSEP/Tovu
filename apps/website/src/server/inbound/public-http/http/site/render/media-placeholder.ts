@@ -1,5 +1,5 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { str } from "./value-readers.js";
 import { safeAspectRatio } from "@jini-ai/cms/html/style-values";
 

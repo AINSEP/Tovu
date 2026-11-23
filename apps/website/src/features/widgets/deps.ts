@@ -46,7 +46,7 @@ import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictEr
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
 import { extractEntryRefs } from "@jini-ai/cms/widgets";
-import { toSlug } from "../../platform/html/slug.js";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";
 import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 

@@ -1,6 +1,6 @@
 import type { SiteRenderContext } from "../../render-context.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { str, arr, obj } from "../value-readers.js";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 
