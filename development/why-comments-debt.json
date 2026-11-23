@@ -3488,6 +3488,78 @@
     {
       "id": "319b30ec56cf",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
+    },
+    {
+      "id": "81909c9ca564",
+      "reason": "Obsolete by owner rule (hook arrives as a REQUIRED prop, no default hook in Jini): the defaulted-hook test seam it documented is gone; Jini content-analysis/ContentAnalysisCard.tsx documents the required useContentAnalysisHook prop instead (w3-screens)."
+    },
+    {
+      "id": "1221734c7125",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/content-analysis/ContentAnalysisCard.tsx (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "662711d6df4d",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (@file header; dictionary split with content-analysis-i18n-rows-rtl-asia.ts) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "427a8368a991",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (lookup-chain doc, now ADMIN_COMMON_I18N) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "5c7e1dc27b55",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/content-analysis/hooks/use-content-analysis.hooks.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "bfd3554bcc97",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/content-analysis/rules.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b2dceec37943",
+      "reason": "Obsolete: documented the optional probe test seam defaulting to the Tovu fs-files api; the hook moved to Jini fs-files/hooks/use-native-folder-picker.hooks.ts where probe is a required host-bound input field documented there (w3-screens)."
+    },
+    {
+      "id": "74798eaed19e",
+      "reason": "Obsolete: documented the optional pick test seam defaulting to the Tovu fs-files api; in Jini fs-files/hooks/use-native-folder-picker.hooks.ts pick is a required host-bound input field documented there (w3-screens)."
+    },
+    {
+      "id": "2ace7e77e6be",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/fs-files/hooks/use-native-folder-picker.hooks.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d84f85410888",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/fs-files/hooks/use-native-folder-picker.hooks.ts (now via the injected isDialogAlreadyOpen; Tovu maps 409 in fs-files-api isFolderPickerBusyError) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9193e97cfced",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useTranslate doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "c89ae80a59ec",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useGitBackup doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "bf49905aa55a",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useTransferTranslate doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "cca16bb73f77",
+      "reason": "Reworded with the move: Jini import-export/ImportExport.tsx ImportExportProps.useSitesAvailable doc (required prop now, no default; w3-screens)."
+    },
+    {
+      "id": "3418bbfa939e",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/import-export/__tests__/GitBackupCard.unit.test.tsx (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2d85855f8d8f",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/import-export/import-export-tabs.tsx (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "34cf28e9cfa8",
+      "reason": "Obsolete: header of the deleted import-export/index.ts barrel (no re-export files rule); importers point at the concrete Jini modules / ImportExportPanel (w3-screens)."
+    },
+    {
+      "id": "4d1179423d9f",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/skills/skills-i18n.ts (@file header) (w3-screens A-K2 move); the Tovu file no longer holds the code it explained."
     }
   ]
 }
