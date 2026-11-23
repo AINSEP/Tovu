@@ -1,8 +1,8 @@
 import { Icon } from "@jini-ai/ui";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
-import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
+import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";

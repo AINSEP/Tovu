@@ -12,4 +12,3 @@ export { SiteImportTab } from "./SiteImportTab";
 // The Sites dictionary, not the transfer one alone: these screens also read words it owns (New
 // site, Open, Ready…), so the Import & Export page translates them exactly as Sites did.
 export { t as sitesTranslator } from "./sites-i18n";
-export { useSitesSnapshot } from "./hooks/use-sites-snapshot.hooks";

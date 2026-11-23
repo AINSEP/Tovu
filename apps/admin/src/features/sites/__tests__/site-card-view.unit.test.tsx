@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
-import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
+import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 import {
   buildSiteCardMenuItems,
   resolveSiteCardMeta,

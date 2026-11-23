@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { expect, it } from "vitest";
 import { AllSitesTab, SiteTrashTab } from "../sites-list-tabs";
+import { resolveLocalSiteCard } from "../Sites.hooks";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
-import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
+import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 
 function localSnapshot(): AdminSitesSnapshot {
   return { switchingEnabled: true, localManagementEnabled: true, canSwitchNow: true,
@@ -149,4 +150,21 @@ it("Trash reads an absent trash list as empty, and a card with no separate displ
   const card = screen.getByRole("group", { name: "Site Trash" });
   expect(within(card).getByText("beta")).toBeInTheDocument();
   expect(card.querySelector(".jini-site-card-display-name")).toBeNull();
+});
+
+it("card facts protect serving/starting/crashed-with-live-pid and open only ready admin origins", () => {
+  const snapshot = localSnapshot();
+  snapshot.sites = [];
+  const site = { name: "alpha", dir: "/sites/alpha", displayName: "Alpha", active: false, createdAt: "" };
+  snapshot.localSites = [{ name: "alpha", status: "starting", pid: 42, port: 3101, daemonPort: 3102, adminUrl: "https://localhost:3101/admin/" }];
+  let view = resolveLocalSiteCard({ site, snapshot, busyName: null });
+  expect(view.action).toBe("stop"); expect(view.openUrl).toBeNull();
+  snapshot.localSites[0].status = "running";
+  expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).openUrl).toBe("https://localhost:3101/admin/");
+  snapshot.localSites[0].status = "crashed";
+  expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).action).toBe("stop");
+  snapshot.localSites[0].pid = null;
+  expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).action).toBe("start");
+  view = resolveLocalSiteCard({ site: { ...site, dir: "/sites/owner" }, snapshot, busyName: null });
+  expect(view.serving).toBe(true); expect(view.openUrl).toBe("/admin/"); expect(view.switchEnabled).toBe(false);
 });

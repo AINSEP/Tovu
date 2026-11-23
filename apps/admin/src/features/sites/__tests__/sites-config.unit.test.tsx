@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSitesConfig } from "../hooks/use-sites-config.hooks";
-import type { SitesUserConfig, SitesUserConfigPatch } from "@/features/sites/api/sites-api.types";
+import type { SitesUserConfig, SitesUserConfigPatch } from "@jini-ai/core/contracts/site/admin-sites";
 const config: SitesUserConfig = { sitesHome: "/old", siteRoots: ["/extra"], databases: "inSite", configPath: "/data/config.json", appData: "/data",
   overrides: { sitesHome: false, siteRoots: false }, warning: { provider: "OneDrive", message: "Exact warning", localHome: "/user/Tovu" } };
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;

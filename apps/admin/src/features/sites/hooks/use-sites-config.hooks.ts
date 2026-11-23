@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAsyncAction } from "@jini-ai/ui/panel-kit";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import type { SitesUserConfig, SitesUserConfigPatch } from "@/features/sites/api/sites-api.types";
+import type { SitesUserConfig, SitesUserConfigPatch } from "@jini-ai/core/contracts/site/admin-sites";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { KEYS } from "../rules";
 

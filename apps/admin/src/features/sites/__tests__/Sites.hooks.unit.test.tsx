@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import {
   resolveDatabaseOptionClassName,
   resolveSiteCardTitle,

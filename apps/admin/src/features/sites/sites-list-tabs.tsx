@@ -7,8 +7,8 @@ import {
 } from "@jini-ai/ui/site-card";
 import type { Translate } from "@jini-ai/core/text";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
-import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
+import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 import {
   resolveSiteListItems, resolveSiteSubtitle, resolveSitesEmpty, resolveSitesRowHandles, resolveTrashCardActions,
 } from "@jini-ai/admin/screens/sites/sites-list-rules";
