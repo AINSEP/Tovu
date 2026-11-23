@@ -1,6 +1,6 @@
 import type { SettingScope } from "@jini-ai/core/settings";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
+import { WORKSPACE_ID } from "./config";
+import { authenticatedAdminRequest } from "./request";
 import { type SettingResolvedValue, shareSettingsEffectiveRead } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import type { SettingValueResponse } from "./settings-api.types";
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../admin-http/settings-api";
 import { ApiError } from "../admin-http/request";
 import { loadExecutionConfig } from "../execution-settings";
 import { loadInterface, loadLanguage } from "../settings-tabs";

@@ -68,7 +68,7 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
 
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
-import { settingsApi } from "../features/settings/api/settings-api";
+import { settingsApi } from "./admin-http/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingResolvedValue } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import type { SettingScope } from "@jini-ai/core/settings";

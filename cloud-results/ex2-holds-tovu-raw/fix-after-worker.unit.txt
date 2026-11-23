@@ -1,0 +1,19 @@
+✔ main() refuses to run outside a worker (1.287712ms)
+✔ startIfWorker() does nothing on the main thread and runs main() inside a worker (0.181294ms)
+✔ main() posts the call's reply using the injected importer (0.890598ms)
+✔ main() without an importer resolves both SDK specifiers to the same module outside the repo and runs its filter (40.960627ms)
+✔ under tsx, importPluginModule unwraps a default export that carries __esModule (dev-only CJS interop) (2.925355ms)
+✔ main() treats an imported module that is null as having no default export, and posts runTier2Call's refusal for it (0.469222ms)
+✔ main() treats an imported module that is not an object as having no default export, and posts runTier2Call's refusal for it (0.145274ms)
+✔ the C043 import policy is SDK-only, plus exactly the two specifiers content-analyzer's entry imports (0.108408ms)
+✔ main() with an injected importer does no filesystem set-up for the entry path (0.321869ms)
+✔ main() without an importer answers a malformed entry file URL with an import-stage reply (0.316141ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 422.610403
+exit=0
