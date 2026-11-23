@@ -3088,6 +3088,14 @@
     {
       "id": "cecd3ebf4521",
       "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
+    },
+    {
+      "id": "2d08032d1ce7",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/connection-sign-in.ts (file header + apiConnectionSignInRoute doc); reworded only to name the injected deps."
+    },
+    {
+      "id": "3ee15d1a6c29",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/connection-sign-in.ts (file header + apiConnectionSignInRoute doc); reworded only to name the injected deps."
     }
   ]
 }
