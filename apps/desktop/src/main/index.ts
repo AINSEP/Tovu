@@ -147,7 +147,9 @@ import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
+import { createUpdateCheckNow, registerUpdateCheckIpc } from "@jini-ai/desktop-host/electron/updates";
+import { describeUpdateErrorForLog, updateCheckCopy } from "../update-check-now.ts";
+import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from "../contracts/app-version.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
 import { writeSiteName } from "../site-config.ts";
@@ -773,7 +775,7 @@ function currentUpdaterSkipReason(): string | null {
 
 /**
  * Settings › Check for updates…, from any open copy: the check runs in this process, through the
- * native updater the controller listens to — see `update-check-now.ts`.
+ * native updater the controller listens to — Jini's `createUpdateCheckNow`, with copy from `update-check-now.ts`.
  */
 const updateCheck = createUpdateCheckNow({
   isPackaged: app.isPackaged,
@@ -785,6 +787,7 @@ const updateCheck = createUpdateCheckNow({
   showReadyPrompt: desktopUpdater.showReadyPrompt,
   notify: showDesktopNotice,
   log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
+  copy: updateCheckCopy, describeErrorForLog: describeUpdateErrorForLog,
 });
 
 /** One native message box: the update check's notices and the legacy shared-key import notice. */
@@ -1038,7 +1041,7 @@ function bootSitesHomeMode(): void {
       controller: ownerStore,
     }),
     settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
-    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
+    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, checkNow: updateCheck.checkNow }),
     registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
     registerGuestNavigationPolicy,
     installMenu: installAppWideMenu,

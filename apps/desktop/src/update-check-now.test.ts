@@ -2,8 +2,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from './contracts/app-version.ts';
-import { createUpdateCheckNow, plainUpdateError, registerUpdateCheckIpc } from './update-check-now.ts';
-import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice } from './update-check-now.ts';
+import { createUpdateCheckNow, registerUpdateCheckIpc } from '@jini-ai/desktop-host/electron/updates';
+import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice } from '@jini-ai/desktop-host/electron/updates';
+import { describeUpdateErrorForLog, plainUpdateError, updateCheckCopy } from './update-check-now.ts';
 
 type CheckResult = Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>;
 
@@ -28,6 +29,8 @@ function harness({ result = Promise.resolve<CheckResult>(null), ...overrides }: 
     showReadyPrompt: async ({ version }) => { prompts.push(version); },
     notify: (notice) => { notices.push(notice); },
     log: ({ message }) => { logs.push(message); },
+    copy: updateCheckCopy,
+    describeErrorForLog: describeUpdateErrorForLog,
     ...overrides,
   };
   return { check: createUpdateCheckNow(deps), updater, notices, logs, prompts, loads: () => loads, checks: () => checks };
@@ -127,6 +130,7 @@ test('the IPC handler registers the contract channel and resolves after the chec
   let checks = 0;
   registerUpdateCheckIpc({
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
+    channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL,
     checkNow: async () => { checks++; return { kind: 'up-to-date', version: '1' }; },
   });
   assert.equal(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, 'runner:app:check-for-updates');

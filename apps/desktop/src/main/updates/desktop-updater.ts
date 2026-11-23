@@ -7,7 +7,7 @@
 import { createAutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";
 import { updaterSkipReason } from "../../update-policy.ts";
 import type { AutoUpdateController, AutoUpdateControllerDeps } from "@jini-ai/desktop-host/shell/auto-update-controller";
-import type { CheckableUpdater } from "../../update-check-now.ts";
+import type { CheckableUpdater } from "@jini-ai/desktop-host/electron/updates";
 
 /** electron-updater's `autoUpdater`, as both the controller and a manual check use it. */
 export type NativeUpdater = AutoUpdateControllerDeps["updater"] & CheckableUpdater;
