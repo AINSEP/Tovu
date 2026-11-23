@@ -1,4 +1,4 @@
-import { pluginManagementToolIds, pluginSourceToolIds } from './plugin-tool-ids.js';
+import { pluginManagementToolIds, pluginSourceToolIds } from '@jini-ai/plugins/runtime/plugin-tool-ids';
 /** Host catalogs, canonical command/fingerprint owners, approval transport and telemetry. */
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { approvalToolHandler, notConfirmedResult, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';

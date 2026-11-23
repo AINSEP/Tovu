@@ -4,7 +4,7 @@ import type { AdminSourceControlProviderDescriptor } from "../features/source-co
 /**
  * @file Renders a plugin descriptor's own text (host labels, help, credential guidance) in the
  * viewer's locale, from the `i18n` block the plugin ships beside it (`{ locale: { English: translation } }`,
- * see the server's `features/agent-plugins/descriptor-i18n.ts`). The admin names no host string: a
+ * see the server's parser, `@jini-ai/core/text`'s `parseDescriptorI18n`). The admin names no host string: a
  * plugin translates its own copy, and any string without a translation stays in its English.
  *
  * Applied once where a hook receives descriptors ({@link localizePublishTargets},

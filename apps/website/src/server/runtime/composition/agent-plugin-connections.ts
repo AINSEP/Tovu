@@ -24,11 +24,11 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "@jini-ai/agent-plugins/connect/executable";
 import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "#src/features/agent-plugins/admin-surfaces/handlers";
-import { createAdminSurfaceCapabilities } from "#src/features/agent-plugins/admin-surfaces/capabilities";
+import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
-import { createSurfaceForms } from "#src/features/agent-plugins/admin-surfaces/forms";
+import { createSurfaceForms } from "@jini-ai/agent-plugins/site/admin-surfaces/forms";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 

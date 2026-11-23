@@ -2,7 +2,7 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps } from "@jini-ai/plugins/host/node";
-import { pluginInstallConsent } from "#src/features/plugin-runtime/install-consent";
+import { pluginInstallConsent } from "@jini-ai/plugins/runtime/install-consent";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";

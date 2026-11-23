@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ADMIN_LOCALES } from "#src/contracts/core/admin-locales";
-import { memoryText } from "../../memory-i18n.js";
+import { memoryText } from "@jini-ai/agent-plugins/site/memory-i18n";
 
 /** @file The Agent Plugin dialog copy (`memory-i18n.ts`): lookup, English fallback, and coverage of every offered admin locale. */
 

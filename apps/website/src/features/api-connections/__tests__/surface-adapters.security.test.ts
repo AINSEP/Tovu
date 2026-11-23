@@ -31,7 +31,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
 import { createAdminSurfacePublicConfig, PUBLIC_CONFIG_REFUSED_MESSAGE } from "../../agent-plugins/admin-surfaces/public-config.js";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "@jini-ai/agent-plugins/connect/executable";
-import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfaces/capabilities.js";
+import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";

@@ -3276,6 +3276,14 @@
     {
       "id": "b9484b5d239f",
       "reason": "Moved to Jini @jini-ai/cms media/site/__tests__/public-path.test.ts header (Jini bc0a9a4c, X-media-1), the source-path citation reworded to the relative module; the Tovu test is deleted."
+    },
+    {
+      "id": "99d57d50db5a",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/admin-surfaces/capabilities.ts header (Jini 5b01f58a8, X-agent-plugins-1.J); product name reworded to \"the host\" per N1, rest identical."
+    },
+    {
+      "id": "37e1c39b50ae",
+      "reason": "Moved to Jini @jini-ai/core/text descriptor-i18n.ts header (canonical parser; the X-agent-plugins-1.J forwarding module was removed per review rv-d, host consumers import @jini-ai/core/text directly); host path citations reworded neutral per N2."
     }
   ]
 }
