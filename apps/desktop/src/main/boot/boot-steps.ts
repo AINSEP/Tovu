@@ -5,6 +5,7 @@
  * env reads in `startup-env.ts` are imported directly.
  */
 import path from "node:path";
+import { prepareNodeToolchainEnvBestEffort, type NodeToolchainSetupEvent } from "@jini-ai/desktop-host/node-toolchain";
 import { sitesUiRequested, type StartupEnv } from "../../startup-env.ts";
 
 /** `TOVU_DESKTOP_USER_DATA_DIR`, trimmed, or `undefined` when unset or blank. */
@@ -53,6 +54,13 @@ export function applyUserDataDir({ env, defaultUserDataDir, resolvePath, setUser
   return { overridden: override !== undefined };
 }
 
+/** This host's warning for a launch that runs without the bundled toolchain. @complexity O(1). */
+export function nodeToolchainWarning({ event }: { event: NodeToolchainSetupEvent }, _optional = {}): string {
+  return event.kind === "transient-launch"
+    ? "tovu desktop: running from a disk image — the bundled node toolchain is off for this launch; move Tovu to Applications to use it."
+    : `tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(event.error as Error).message}`;
+}
+
 /**
  * The bundled node/npm/npx shims' env contract (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`),
  * or `undefined` if writing them failed — see `node-toolchain.ts` and
@@ -61,9 +69,8 @@ export function applyUserDataDir({ env, defaultUserDataDir, resolvePath, setUser
  * `startTovuServer` call so a stdio MCP server naming `npx`/`npm`/`node` can be found
  * without a system Node install.
  *
- * Best-effort like every other `userData` write in `main.ts`: a failure here (a read-only volume, a
- * full disk) must degrade to the old identity behaviour — no bundled toolchain, same as before this
- * slice existed — never crash the app over a feature that is itself an upgrade.
+ * Best-effort, never a crash: the mechanics (and why) are Jini's `prepareNodeToolchainEnvBestEffort`;
+ * this binding adds only this app's warning copy.
  *
  * @param required.writeNodeToolchain `node-toolchain.ts`'s writer; `null` from a disk image. May throw.
  * @complexity O(1) beyond the writer's own I/O.
@@ -76,14 +83,8 @@ export function prepareNodeToolchainEnv({ userDataDir, electronPath, npmRoot, wr
   buildNodeToolchainEnv: (input: { toolchainDir: string; npmRoot: string }) => Record<string, string>;
   warn: (required: { message: string }) => void;
 }, _optional = {}): Record<string, string> | undefined {
-  try {
-    const toolchain = writeNodeToolchain({ userDataDir, electronPath, npmRoot });
-    if (toolchain) return buildNodeToolchainEnv({ toolchainDir: toolchain.toolchainDir, npmRoot });
-    warn({ message: "tovu desktop: running from a disk image — the bundled node toolchain is off for this launch; move Tovu to Applications to use it." });
-  } catch (error) {
-    warn({ message: `tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(error as Error).message}` });
-  }
-  return undefined;
+  return prepareNodeToolchainEnvBestEffort({ userDataDir, electronPath, npmRoot, writeNodeToolchain, buildNodeToolchainEnv,
+    report: (event) => warn({ message: nodeToolchainWarning({ event }) }) });
 }
 
 /** Which of `main.ts`'s three boot modes this launch opens. */
@@ -148,36 +149,6 @@ export function settleDevFallbackRows<ClassifySiteDir>({ projectsPath, devFallba
   // And its inverse: once the dev site moved into the single home, the seeded checkout row is a dead card.
   retireDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   return true;
-}
-
-/**
- * The sites-home `discoverSites` dependency with its two independent cancellation lanes, plus the
- * `before-quit` abort of both. A new scan supersedes the previous scan of the SAME lane only.
- * @param required.discover `site-discovery.ts`'s `discoverDesktopSites`, bound to this launch's paths.
- * @complexity O(1) per call beyond the scan.
- */
-export function createSiteDiscoveryLanes<T>({ discover }: {
-  discover: (required: { scanRoots: string[] | undefined; signal: AbortSignal }) => Promise<T>;
-}, _optional = {}) {
-  let siteDiscoveryAbort: AbortController | undefined;
-  let siteValidationAbort: AbortController | undefined;
-  return {
-    // `async`, as the inline original was: a synchronous throw from `discover` still rejects.
-    async discoverSites({ scanRoots }: { scanRoots?: string[] }, _options = {}): Promise<T> {
-      // Picker validation must not cancel a live rescan, or be cancelled by one.
-      if (scanRoots) siteValidationAbort?.abort();
-      else siteDiscoveryAbort?.abort();
-      const current = new AbortController();
-      if (scanRoots) siteValidationAbort = current;
-      else siteDiscoveryAbort = current;
-      return discover({ scanRoots, signal: current.signal });
-    },
-    /** `before-quit`: stop whatever scan of either lane is still running. */
-    abortAll(_required = {}, _options = {}): void {
-      siteDiscoveryAbort?.abort();
-      siteValidationAbort?.abort();
-    },
-  };
 }
 
 /** The four files a legacy owner store consists of — the only files an empty one may lose. */

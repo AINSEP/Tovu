@@ -124,8 +124,7 @@ import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as r
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
 import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow } from "../site-child-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
-import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
-import { createChildEntries } from "@jini-ai/sidecar/supervisor";
+import { createKeyedSerializer, createChildEntries } from "@jini-ai/sidecar/supervisor";
 import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
@@ -198,7 +197,8 @@ import { agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
-import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { createSiteDiscoveryLanes } from "@jini-ai/desktop-host/node-toolchain";
 import { appWideMenuTemplate, openSingleWindow, runDesktopBoot, runSitesHomeBoot, type SingleWindowPorts } from "./boot/boot-sequence.ts";
 
 /** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
