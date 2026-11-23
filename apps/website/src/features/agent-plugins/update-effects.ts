@@ -1,6 +1,6 @@
 import { AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from '@jini-ai/agent-plugins/lifecycle';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from './federate-mcp.js';
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 
 type ProvisionDeps = Parameters<typeof provisionAgentPluginMcpServers>[0];
 export type UpdateMcpDeps = {

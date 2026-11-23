@@ -2,10 +2,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { verifySiteImport } from "../import-verifier.js";
 import { SHARE_LIMITS, type ShareDatabaseProjection, type ShareDatabaseSanitizer } from "../share-policy.js";
 import { admitProjectedDocuments, type DocumentAdmission } from "../import-verifier-projection.js";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 // The reader contract permits absent sizes and partial streams. Model those adapter
 // outcomes directly; real ZIP decoding and preflight are exercised in import-malicious.
 const schema = { index: 7, tag: "schema" };

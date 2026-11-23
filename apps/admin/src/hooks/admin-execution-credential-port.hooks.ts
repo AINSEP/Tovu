@@ -1,4 +1,4 @@
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
 /**
  * @file What `useAdminExecutionCredential` needs from the outside world, as an interface rather than

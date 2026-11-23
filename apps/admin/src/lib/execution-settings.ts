@@ -66,7 +66,7 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    `createExecutionPort` below.
  */
 
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
 import { settingsApi } from "../features/settings/api/settings-api";
 import { ApiError } from "./admin-http/request";

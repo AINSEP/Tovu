@@ -9,7 +9,7 @@ interface Identity { readonly id: string; readonly pluginId: string; readonly ar
 /** Every capability closes over its owning plugin. Caller-controlled ids/kinds are rejected. */
 export function buildPluginMemoryRegistrations(required: {
   withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
-  sources: readonly Identity[]; workspaceId: string; agentPluginLayout: import("./layout.js").AgentPluginLayout;
+  sources: readonly Identity[]; workspaceId: string; agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   gate: { isCallable(plugin: { pluginId: string; archiveDigest: string }): Promise<boolean> };
 }, _optional: {} = {}): ToolRegistration[] {
   const { agentPluginLayout, ...rest } = required;

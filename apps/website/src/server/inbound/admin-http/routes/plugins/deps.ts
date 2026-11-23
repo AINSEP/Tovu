@@ -29,7 +29,7 @@ export interface PluginsRouteDeps {
   /** Existing provider/assistant-face owner, bound by the site composition. */
   providerFaces?: Pick<import('#src/features/plugin-runtime/service-ports').PluginProviderFacesPort, 'affectedPluginIds'>;
   /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */
-  tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   /** Records the owner's enable as the site plugin's approved capability set (consent gap, 2026-10-12). */
   pluginSource?: Pick<import('@jini-ai/plugins/host/node').PluginSourcePort, "recordApproval">;

@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@jini-ai/chat/core";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /** Exact read-only capture of chat.db conversation fdfde658 position 9 (sqlite3 -readonly). */
 const fixture: AgentEvent[] = [

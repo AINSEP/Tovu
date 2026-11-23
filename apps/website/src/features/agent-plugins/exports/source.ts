@@ -1,8 +1,10 @@
 /** Tovu's public-export catalog over the lifecycle's bundled digest and containment gates. */
 import { readFile } from "node:fs/promises";
 import { orFallback } from "@jini-ai/core/errors/idioms";
-import { parseAgentPluginManifest, type AgentPluginExport, type AgentPluginExportMetadata } from "@jini-ai/agent-plugins/manifest";
+import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/manifest";
 import type { TrustedPluginPackage, TovuAgentPluginLifecycle } from "../lifecycle.js";
+import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
+import type { AgentPluginExportMetadata } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export const PLUGIN_EXPORT_FILES_PREFIX = "/api/agent-plugin-exports/v1";
 export interface PluginExportPackage extends AgentPluginExportMetadata {

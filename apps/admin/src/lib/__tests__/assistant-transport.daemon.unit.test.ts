@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file The local-CLI run path (`@jini-ai/http`'s `/api/runs*` surface) — `startRun`'s default

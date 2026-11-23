@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { Sidebar } from "@jini-ai/admin/react";
-import type { AdminNavGroup } from "@/nav";
+import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { useSitesSidebarNav, type SitesSidebarNavOptions } from "@/hooks/use-sites-sidebar-nav.hooks";
 
 /** The shared sidebar renders the row; only its visible Sites label is supplied by this adapter. */

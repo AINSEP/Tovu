@@ -2,7 +2,7 @@ import type { LoadInstalledDeployTargets } from "./deploy-targets/types.js";
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import type { SiteConsentService } from '#src/features/consent/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
-import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
@@ -83,5 +83,5 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   historyStore?: PublishHistoryStore;
   /** `RouteDeps.observability`, forwarded so a confirmed publish's deploy egress is traced. */
   readonly observability?: ObservabilityPort;
-  readonly tracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  readonly tracker?: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
 }

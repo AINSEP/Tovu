@@ -1,7 +1,8 @@
 import type { Page, Request, Route } from "@playwright/test";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import { assistantContentFromEvents } from "@jini-ai/chat/core";
 import { translateRunAgentPayload, type RunAgentPayload } from "../../../apps/website/src/contracts/core/assistant-run-events.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 const RUN_ID = "journey-run-1";
 

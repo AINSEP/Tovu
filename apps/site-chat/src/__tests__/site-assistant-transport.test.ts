@@ -6,10 +6,11 @@ import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { createSiteAssistantTransport } from "../site-assistant-transport";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * SPEC-046/ADR-054 Task 2. `createSiteAssistantTransport` is the only export — everything else in

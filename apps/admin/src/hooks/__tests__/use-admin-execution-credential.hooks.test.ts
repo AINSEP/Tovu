@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../../features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError as FakeApiError } from "../../lib/admin-http/request";
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
 import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";

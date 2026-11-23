@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { BootModuleResult, ModuleLifecycleStatus } from "#src/server/runtime/lifecycle/boot-lifecycle";
+import type { BootModuleResult, ModuleLifecycleStatus } from "@jini-ai/core/contracts/site/lifecycle-boot-lifecycle";
 import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 
 /** These 3 routes need no `RouteDeps` at all (health is dependency-free; readyz reads the

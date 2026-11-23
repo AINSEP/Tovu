@@ -1,4 +1,4 @@
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { loadAdminExecutionCredential, saveAdminExecutionCredential } from "../lib/execution-settings";
 import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
 

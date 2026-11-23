@@ -8,8 +8,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from "node:module";
 import * as yauzl from "yauzl";
-import type { AgentPluginArchiveEntry } from "@jini-ai/agent-plugins/lifecycle";
 import { createShareArchiveReader } from "../import-archive-reader.js";
+import type { AgentPluginArchiveEntry } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 const { ZipFile } = createRequire(import.meta.url)("yazl");
 const LOCAL_SIGNATURE = 0x04034b50;

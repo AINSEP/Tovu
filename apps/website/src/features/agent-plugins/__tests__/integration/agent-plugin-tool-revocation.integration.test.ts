@@ -22,8 +22,8 @@ import {
   installAgentPlugin,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
-  type InstalledAgentPlugin,
 } from "../../lifecycle.js";
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
 import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";

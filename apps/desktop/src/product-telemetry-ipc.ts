@@ -1,5 +1,5 @@
 /** Admit only the trusted shell's main frame and the existing product catalog. */
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { PRODUCT_EVENTS } from '../../website/src/server/runtime/composition/product-events.ts';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from './contracts/product-telemetry.ts';

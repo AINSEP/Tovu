@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';

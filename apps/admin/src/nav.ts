@@ -1,4 +1,5 @@
-import { buildNav, type AdminNavGroup, type AdminNavItem } from "@jini-ai/admin/core";
+import { buildNav } from "@jini-ai/admin/core";
+import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { ADMIN_PANELS } from "./panels";
 import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
 
@@ -49,8 +50,6 @@ import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
  * The host now injects Placeholder into panel rendering, cutting that cycle while keeping this cache.
 
  */
-export type { AdminNavGroup, AdminNavItem };
-
 let cachedNav: readonly AdminNavGroup[] | undefined;
 
 /**

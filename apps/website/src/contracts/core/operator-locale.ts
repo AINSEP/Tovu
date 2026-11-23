@@ -10,7 +10,8 @@ import { orFallback } from "@jini-ai/core/errors/idioms";
  * the admin's own Language selector writes; this reads it the same way `settings_get_effective` does.
  */
 
-import type { OperatorLocaleDeps, GetEffectiveSetting } from '../headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
+import type { GetEffectiveSetting } from '@jini-ai/core/contracts/headless/operator-locale';
 
 const FALLBACK_LOCALE = "en";
 

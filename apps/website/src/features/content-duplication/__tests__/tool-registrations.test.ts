@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { ContentDuplicationToolDeps } from "../tool-registrations.js";
-import type { DuplicateResourceHandlerContributor } from "../../../assistant/duplicate-resource-registry.js";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

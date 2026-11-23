@@ -12,7 +12,7 @@ import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
 import { dispatchJsonRequest, dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 
-async function fixture(enabled: boolean, scriptDeclarations?: import('#src/contracts/headless/index').SiteCookieConsentDeps['scriptDeclarations']) {
+async function fixture(enabled: boolean, scriptDeclarations?: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps['scriptDeclarations']) {
   let reads = 0;
   let regionReads = 0;
   let draftReads = 0;
@@ -145,7 +145,7 @@ test('embed delivery accessor uses the published snapshot with no page-time poli
 test('embed delivery preserves the last good mode while refreshing and after failure', async () => {
   let fail = false;
   let release: (() => void) | undefined;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'pending-embed-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/pending-embed-policy' }, clock: { nowMs: Date.now },
     consentStore: { readPublished: async () => { if (fail) throw new Error('fixture unavailable'); await new Promise<void>(resolve => { release = resolve; }); return { id: 'published', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }; } },
   } as unknown as RouteDeps;
@@ -168,7 +168,7 @@ test('embed delivery preserves the last good mode while refreshing and after fai
 test('a refresh during document rendering keeps off-mode embeds active when the final assets omit the banner', async () => {
   let release: (() => void) | undefined;
   let pause = false;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'render-refresh-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/render-refresh-policy' }, clock: { nowMs: Date.now },
     consentStore: { readPublished: async () => {
       if (pause) await new Promise<void>(resolve => { release = resolve; });
@@ -193,7 +193,7 @@ test('a refresh during document rendering keeps off-mode embeds active when the 
 
 test('embed delivery follows resolved policy while unrelated script declarations are pending', async () => {
   let release: (() => void) | undefined;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = {
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = {
     regionResolvers: async () => [],
     scriptDeclarations: async () => { await new Promise<void>(resolve => { release = resolve; }); return { scripts: [], problems: [] }; },
   };
@@ -212,7 +212,7 @@ test('embed delivery follows resolved policy while unrelated script declarations
 test('repeated mounts share one snapshot and its one read; publication reaches every app', async () => {
   let reads = 0;
   let releaseFirst: (() => void) | undefined;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'remounted-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/remounted-policy' }, clock: { nowMs: Date.now },
     consentStore: { readPublished: async () => {
       const first = ++reads === 1;
@@ -363,7 +363,7 @@ test('an owner settings write before first publication refreshes an off construc
 
 test('slow initial readiness does not discard a late successful policy', { timeout: 2000 }, async () => {
   let release!: () => void;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'late-policy', clock: { nowMs: Date.now },
     siteConsentReady: new Promise<void>(resolve => { release = resolve; }), siteBinding: { dir: '/tmp/late-policy' },
     consentStore: { readPublished: async () => ({ id: 'late', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }) },
@@ -415,7 +415,7 @@ test('missing browser bundles warn without stopping route mounting', async t => 
 test('a declaration failure does not release a still-running policy read for another refresh', { timeout: 3000 }, async () => {
   let now = 0, reads = 0;
   let release!: () => void;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [], scriptDeclarations: async () => { throw new Error('fixture declaration failure'); } };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [], scriptDeclarations: async () => { throw new Error('fixture declaration failure'); } };
   const deps = { cookieConsent: consent, workspaceId: 'pending-policy-declarations', siteConsentReady: Promise.resolve(), clock: { nowMs: () => now }, siteBinding: { dir: '/tmp/pending-policy-declarations' },
     consentStore: { readPublished: async () => { reads++; await new Promise<void>(resolve => { release = resolve; }); return { id: 'late', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }; } },
   } as unknown as RouteDeps;
@@ -432,7 +432,7 @@ test('a declaration failure does not release a still-running policy read for ano
 
 test('a later export run does not retain the previous run unavailable-policy warning', async () => {
   let ready!: () => void;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'export-warning-reset', siteConsentReady: new Promise<void>(resolve => { ready = resolve; }), clock: { nowMs: Date.now }, siteBinding: { dir: '/tmp/export-warning-reset' },
     consentStore: { readPublished: async () => ({ id: 'published', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }) },
   } as unknown as RouteDeps;
@@ -445,9 +445,9 @@ test('a later export run does not retain the previous run unavailable-policy war
   assert.equal(await consent.exportWarning!(), undefined);
 });
 
-function goodPolicyFixture(workspaceId: string, extra: Partial<import('#src/contracts/headless/index').SiteCookieConsentDeps> = {}) {
+function goodPolicyFixture(workspaceId: string, extra: Partial<import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps> = {}) {
   let failing = false, reads = 0;
-  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [], ...extra };
+  const consent: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps = { regionResolvers: async () => [], ...extra };
   const deps = { cookieConsent: consent, workspaceId, siteConsentReady: Promise.resolve(), clock: { nowMs: Date.now }, siteBinding: { dir: `/tmp/${workspaceId}` },
     consentStore: { readPublished: async () => { reads++; if (failing) throw new Error('fixture unavailable'); return { id: 'good', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }; } },
   } as unknown as RouteDeps;

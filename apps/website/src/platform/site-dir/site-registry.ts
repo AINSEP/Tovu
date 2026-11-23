@@ -4,7 +4,8 @@ import { withFileLock, type DirectoryRecord, type DirectoryRunningRecord } from 
 import path from "node:path";
 
 import { ValidationError, InitDirNotEmptyError } from "./errors.js";
-import type { InitSitePort, InitSiteResult, InitSiteRestorePort } from "./init-site.js";
+import type { InitSitePort, InitSiteRestorePort } from "./init-site.js";
+import type { CreateSiteResult, SiteBinding, SiteCreationAllocation } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
@@ -169,12 +170,6 @@ export interface CreateSiteRequired {
   name: string;
   adminPassword?: string;
   displayName?: string;
-}
-
-export interface SiteCreationAllocation extends InitSiteResult { name: string; dbPath: string }
-
-export interface CreateSiteResult extends InitSiteResult {
-  name: string;
 }
 
 export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation, optional?: Record<string, never>) => void; beforeRegister?: (required: CreateSiteResult) => void };
@@ -379,48 +374,6 @@ export function includeServingSite(required: IncludeServingSiteRequired, { stat 
   const served = readServingDirStat({ dir: binding.dir, stat });
   if (served === null) return registered;
   return [...registered, describeUnregisteredServingSite(binding, served)];
-}
-
-/** What THIS process is actually bound to right now — see {@link describeSiteBinding}. */
-export interface SiteBinding {
-  /** Absolute path this process resolved at boot (`resolveSiteRoot()`), re-derived fresh. */
-  dir: string;
-  /** `dir`'s folder name — the `TOVU_SITE` vocabulary `persistActiveSite` writes in. */
-  name: string;
-  /**
-   * True when `TOVU_SITE_DIR` is set in this process's environment.
-   *
-   * Load-bearing for the admin Sites screen, not a diagnostic nicety: `resolveSiteRoot`'s
-   * precedence puts `TOVU_SITE_DIR` ABOVE the `TOVU_SITE` line `persistActiveSite` writes, so when
-   * this is true an activate is inert — the next boot resolves the override and ignores the
-   * persisted choice entirely. A UI that offered Activate without saying so would promise a switch
-   * that cannot happen.
-   */
-  dirOverridden: boolean;
-  /**
-   * False when `dir` was resolved from an explicit, arbitrary install-dir argument (`tovu serve
-   * <dir>` / `bootSiteDir`) rather than from THIS function's own `{cwd, env}`-relative
-   * `<cwd>/sites/<name>` convention.
-   *
-   * `listSites`/`createSite`/`persistActiveSite`/`sites_duplicate_site` all resolve their OWN
-   * `sites/` root from a `cwd` — `process.cwd()` by default, which is a DIFFERENT computation from
-   * whatever `dir` this binding names. The Sites routes and tools therefore never let it default:
-   * they pass {@link switcherBaseForBinding}'s base, which exists only when this is `true`. `false`
-   * tells those write paths to refuse rather than silently write under an unrelated `<cwd>/sites`.
-   *
-   * `describeSiteBinding` used to hardcode this `true`, on the stated reasoning that its own
-   * `{cwd, env}` resolution always agrees with the switcher's. That reasoning did not cover
-   * `TOVU_SITE_DIR`, which `resolveSiteRoot` honors outright and which can name any path on the
-   * disk — so an override pointing outside `<cwd>/sites` produced a binding that CLAIMED to be
-   * switchable while the switcher's own root was somewhere else entirely. It is computed now (see
-   * {@link describeSiteBinding}), and additionally forced off by
-   * {@link SITE_BINDING_NOT_SWITCHABLE_ENV} for the one case no path comparison can detect: a
-   * `tovu serve <dir>` boot whose `<dir>` happens to sit under `<cwd>/sites` but was still pinned
-   * by an explicit argument rather than chosen through the switcher.
-   */
-  switcherCompatible: boolean;
-  /** Repo base is independent of the selected shared home; .env remains repo-owned. */
-  switcherBase?: string;
 }
 
 /**

@@ -47,7 +47,7 @@ import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
-import type { AdminNavGroup } from "./nav";
+import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern

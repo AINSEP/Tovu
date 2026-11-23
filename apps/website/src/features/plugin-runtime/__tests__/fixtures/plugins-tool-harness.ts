@@ -5,16 +5,16 @@ import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext, ToolRegistr
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
 import { InMemoryPluginActivationRepo, type PluginActivationRecord, type PluginConflict, type PluginSourcePolicyPort, type RemovePluginFn } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/host/node";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
-import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "../../../../contracts/headless/index.js";
+import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "@jini-ai/core/contracts/headless/plugin-host";
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../../../agent-plugins/provider-plugin-link.js";
 import type { PluginProviderFacesPort } from "../../service-ports.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 /** Typed fakes for the Plugins tool handlers (`tool-registrations.ts`): every port the handlers read,
  * recording each observable call into one ordered log. The approval transport, `executeCommand` and

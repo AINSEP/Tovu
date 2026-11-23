@@ -11,7 +11,7 @@ const TOOL_RENAMES_ACTOR = "system:tool-renames";
 
 export interface ApplyAgentPluginToolRenamesDeps {
   readonly workspaceId: string;
-  readonly agentPluginLayout: import("./layout.js").AgentPluginLayout;
+  readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   readonly externalMcpServerRepo: AgentPluginMcpPort["repo"];
   readonly clock: ClockPort;
   /** Injected for tests. Defaults to `import-access-token.ts`'s `listInstalledAgentPluginServers`. */

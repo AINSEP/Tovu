@@ -1,5 +1,5 @@
 import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**

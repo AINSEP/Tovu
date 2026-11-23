@@ -4,7 +4,8 @@ import type { RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
 import { loadSiteConsentBridges, loadSiteConsentScripts, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
 import type { RouteDeps } from '#src/server/routes/types';
-import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics, type SiteCookieConsentDeps } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 
 /** Region readers are re-read at most once a minute, so switching a host plugin on or off applies
  * without a restart and a page view never waits on the plugin directory. */

@@ -5,7 +5,7 @@ import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
