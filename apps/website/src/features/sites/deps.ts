@@ -6,9 +6,9 @@ import {
   listSites as listSitesReal,
   type DuplicateSiteResult,
   switcherBaseForBinding,
-  type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";

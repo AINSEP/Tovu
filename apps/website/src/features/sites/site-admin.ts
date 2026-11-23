@@ -9,9 +9,9 @@ import {
   resolveNewSiteAdminPassword,
   readSiteRunning as readSiteRunningReal,
   runningSiteUrl,
-  type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
 import {

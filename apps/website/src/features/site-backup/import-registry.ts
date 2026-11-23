@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
-import type { SiteCreationAllocation } from "#src/platform/site-dir/index";
+import type { SiteCreationAllocation } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { SiteShareRefusal } from "./share-policy.js";
 
 const UPLOAD_METADATA_SUFFIX = ".upload.json";

@@ -14,7 +14,7 @@ import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
 import { isBarePageChoice } from '#src/features/theme/index';
 import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
-import type { ConsentProblem } from '#src/contracts/core/consent-refusal';
+import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';

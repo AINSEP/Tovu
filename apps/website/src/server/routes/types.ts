@@ -13,7 +13,7 @@ import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
-import type { SiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { RemoveEntity, TrashDb, TrashKindMover } from "#src/features/trash/index";

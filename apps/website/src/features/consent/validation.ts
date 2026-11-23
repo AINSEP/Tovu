@@ -3,7 +3,7 @@ import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import { compileConsentCss, safeHref } from '@jini-ai/cookie-consent/render';
 import { ToolInputError } from '@jini-ai/core';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
-import type { ConsentProblem } from "#src/contracts/core/consent-refusal";
+import type { ConsentProblem } from "@jini-ai/core/contracts/site/core-consent-refusal";
 
 const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss', 'allowUnsafeEval', 'reopen', 'bannerMode'];
 
