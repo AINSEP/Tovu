@@ -3,7 +3,7 @@ import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { createAnalyticsForwardLimiter, ingestHit } from "@jini-ai/analytics";
-import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps as IngestDeps } from "#src/features/analytics/jini-adapters";
+import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps as IngestDeps } from "@jini-ai/analytics/site/jini-adapters";
 import type { IngestBeacon, IngestContext } from "@jini-ai/analytics";
 
 type AnalyticsIngestRouteDeps = IngestDeps<Request>;

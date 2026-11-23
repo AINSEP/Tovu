@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import type { NormalizedHit } from "@jini-ai/analytics";
-import { createLocalAnalyticsSink } from "../jini-adapters.js";
+import { createLocalAnalyticsSink } from "@jini-ai/analytics/site/jini-adapters";
 import { buildAnalyticsRegistrations, contributeAnalyticsTools, analyticsDerivedRisk } from "../tool-registrations.js";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
