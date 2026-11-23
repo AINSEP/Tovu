@@ -1,8 +1,7 @@
-import { captureMediaUploaded } from "./analytics.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
-export type { MediaPublicUrlDeps } from "./contracts.js";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
@@ -16,7 +15,7 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { getLatestTransformDefinition, sniffContentType } from "./index.js";
 import { assertAllowedSniffedContentType } from "@jini-ai/cms/media/site/upload-content-type";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
-import type { MediaPublicUrlDeps, RemoveMediaFn } from "./contracts.js";
+import type { MediaPublicUrlDeps, RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };

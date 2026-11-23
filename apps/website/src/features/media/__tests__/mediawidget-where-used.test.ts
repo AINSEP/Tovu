@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Clock } from '@jini-ai/core/primitives';
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
-import { findMediaWhereUsed } from '#src/features/media/where-used';
+import { findMediaWhereUsed } from '@jini-ai/cms/media/site/where-used';
+import { purgeMedia } from '@jini-ai/cms/media/site/purge-media';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -54,7 +55,7 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
 
 // Exercise the purge adapter, not a second copy of the scanner or deletion ladder.
 test('Tovu purge refuses retired slug references from current post bodies and succeeds after removal', async () => {
-  const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
+  const { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
   const workspaceId = 'purge-ws', entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
   const mediaRepo = new InMemoryVersionedMediaRepo({});
   const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => Date.now() } };
@@ -86,7 +87,7 @@ test('usage reports an html-format post body under bodyHtml and never counts a s
 });
 
 test('cleanup usage includes restorable posts when requested and purge refuses their media', async () => {
-  const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
+  const { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
   const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo({}), mediaRepo = new InMemoryVersionedMediaRepo({});
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'restorable', workspaceId, title: 'Trash', slug: 'trash', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'asset' } }] } } });

@@ -81,7 +81,7 @@ import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-
 // `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
-import type { RemoveMediaFn } from "../../features/media/contracts.js";
+import type { RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";

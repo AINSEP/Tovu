@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "./analytics.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { requireInputRecord, requireString, ToolInputError, type ToolRegistration } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';

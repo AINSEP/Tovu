@@ -2,8 +2,8 @@ import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-a
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { Request, Response } from "express";
 
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import {
-  captureMediaUploaded,
   MediaConflictError,
   MediaValidationError,
   uploadMedia,

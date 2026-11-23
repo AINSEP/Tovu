@@ -6,7 +6,9 @@ import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-
 import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
-import { findMediaWhereUsed, getMediaProviderCredentials, purgeMedia, uploadMedia, type MediaRecord } from "#src/features/media/index";
+import { getMediaProviderCredentials, uploadMedia, type MediaRecord } from "#src/features/media/index";
+import { findMediaWhereUsed } from "@jini-ai/cms/media/site/where-used";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { fetchImage } from "#src/features/media-import/fetch-image";
 import { EgressRefusedError } from "#src/platform/http/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";

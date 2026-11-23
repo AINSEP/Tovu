@@ -2,7 +2,7 @@
 import { matchesFormAttachmentCleanupEvidence, reconcileFormAttachments, retainedJsonReferencesAttachment, type FormAttachmentCandidate, type FormAttachmentInspection, type FormOutboxPort } from '@jini-ai/cms/forms';
 import { DEFAULT_GC_GRACE_MS, trashMedia } from '@jini-ai/cms/media';
 import type { ContentKernel } from '#src/platform/db/content-kernel';
-import { purgeMedia } from '#src/features/media/index';
+import { purgeMedia } from '@jini-ai/cms/media/site/purge-media';
 import { createFormMediaCleanup } from './form-file-purge.js';
 
 type MaintenanceDeps = {

@@ -129,12 +129,8 @@ export {
   saveMediaProviderCredentials,
 } from "./provider-credential-store.js";
 
-export { purgeMedia } from "./purge-media.js";
-
 export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, validateDocumentIngress, decodeDocumentUtf8, documentDisplayFilename, DOCUMENT_TEXT_PAGE_BYTES, readDocumentText, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";
 
 export { saveLibraryDocument } from "./library-save-attachment.js";
 export { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "./read-chat-attachment.js";
-export { captureMediaUploaded } from "./analytics.js";
-export { findMediaWhereUsed } from "./where-used.js";

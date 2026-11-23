@@ -6,7 +6,7 @@ import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { createTaxonomyPurgeFollowUp } from "@jini-ai/cms/taxonomy";
 import { createTermPurgeFollowUp } from "@jini-ai/cms/taxonomy";
-import { purgeMedia as purgeFormMedia } from "#src/features/media/index";
+import { purgeMedia as purgeFormMedia } from "@jini-ai/cms/media/site/purge-media";
 import { restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
 import { trashMedia as trashFormMedia } from "#src/features/media/index";
 import type { SiteStore } from "../open-site-store.js";

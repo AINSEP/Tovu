@@ -8,7 +8,8 @@ import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaToolDeps, type MediaTrashToolDeps } from "#src/features/media/tool-registrations";
+import { buildMediaRegistrationsForTovu, type MediaToolDeps, type MediaTrashToolDeps } from "#src/features/media/tool-registrations";
+import type { MediaPublicUrlDeps } from "@jini-ai/cms/media/site/contracts";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";

@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "../media/index.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";

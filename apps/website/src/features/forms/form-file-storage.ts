@@ -1,5 +1,6 @@
 /** Site adapter for anonymous form uploads. Media owns blobs, assets, deduplication and renditions. */
-import { sniffContentType, uploadMedia, trashMedia, purgeMedia, type UploadMediaDeps } from "../media/index.js";
+import { sniffContentType, uploadMedia, trashMedia, type UploadMediaDeps } from "../media/index.js";
+import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
 import { type MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 /** Structural until the updated Jini forms declarations are built; no new runtime package imports. */
 export interface FormFileStorage {

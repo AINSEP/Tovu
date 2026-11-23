@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "../media/index.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media-import';
