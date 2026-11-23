@@ -10,7 +10,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { installSkill, uninstallSkill, setSkillEnabled } from "../../install-service.js";
 import { registerInstalledSkillTools } from "../../tool-registrations.js";
-import { createSkillRefreshMiddleware } from "../../live-registration.js";
+import { createSkillRefreshMiddleware } from "@jini-ai/agentic/skills/site/live-registration";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 const ctx = testSiteLayoutContext({ workspaceId: "ws-hot-test" });

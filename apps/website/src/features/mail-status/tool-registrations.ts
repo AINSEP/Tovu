@@ -11,7 +11,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort, MailStatusReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "../../platform/mail/index.js";
-import { mailStatusAgentToolCatalog } from "./agent-tools.js";
+import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
 import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
 import { asToolInputError, currentLanesDetail } from "./provider-tool-registrations.js";

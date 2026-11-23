@@ -8,7 +8,7 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import type { PositionalMailer as MailerPort, MailProviderConfiguration } from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "../feedback-setup.js";
-import { MAIL_PERMISSION_IDS } from "../permissions.js";
+import { MAIL_PERMISSION_IDS } from "@jini-ai/user-management/mail/status/permissions";
 import {
   listMailSuppressions, MailActivityForbiddenError, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
   type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry,

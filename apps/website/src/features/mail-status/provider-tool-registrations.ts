@@ -8,7 +8,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailProviderControl } from "../../platform/mail/index.js";
 import type { MailProviderConfigurationReport } from "@jini-ai/platform/mail";
-import { mailProviderAgentToolCatalog } from "./provider-agent-tools.js";
+import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from "../agent-plugins/tool-registrations.js";
 import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";

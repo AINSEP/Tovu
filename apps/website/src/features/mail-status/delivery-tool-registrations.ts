@@ -5,14 +5,14 @@ import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
-import { mailDeliveryAgentToolCatalog } from "./delivery-agent-tools.js";
+import { mailDeliveryAgentToolCatalog } from "@jini-ai/user-management/mail/status/delivery-agent-tools";
 import {
   getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError, planMailSuppressionRemoval,
   readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval, type MailSuppressionRemovalPlan,
 } from "@jini-ai/platform/mail";
-import { mailDomainDepsFrom, type MailHostActivityDeps } from "./domain-deps.js";
+import { mailDomainDepsFrom, type MailHostActivityDeps } from "@jini-ai/user-management/mail/status/domain-deps";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "./feedback-setup.js";
-import { MAIL_STATUS_PERMISSION } from "./permissions.js";
+import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "./use-readiness.js";
 
 /**

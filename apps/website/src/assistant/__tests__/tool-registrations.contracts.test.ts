@@ -104,10 +104,10 @@ import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-t
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
-import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
-import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
+import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
+import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
-import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
+import { mailDeliveryAgentToolCatalog } from "@jini-ai/user-management/mail/status/delivery-agent-tools";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";

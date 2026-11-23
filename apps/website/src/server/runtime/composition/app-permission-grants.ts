@@ -5,7 +5,7 @@ import { registerRoleManagePermissionGrants } from "#src/features/identity/role-
 import { registerSiteKeyPermissionGrants } from "#src/features/identity/site-key-permission";
 import { registerPagesPermissionGrants } from "#src/features/pages/permissions";
 import { registerPublishContentPermissionGrants } from "#src/features/publish-content/permissions";
-import { registerMailPermissionGrants } from "#src/features/mail-status/permissions";
+import { registerMailPermissionGrants } from "@jini-ai/user-management/mail/status/permissions";
 import { registerVisitorToolsPermissionGrants } from "#src/features/settings/visitor-tools-permissions";
 
 /**

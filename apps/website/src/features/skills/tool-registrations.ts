@@ -7,7 +7,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
-import { createLiveSkillRegistration, type SkillsRefreshRegistry } from "./live-registration.js";
+import { createLiveSkillRegistration, type SkillsRefreshRegistry } from "@jini-ai/agentic/skills/site/live-registration";
 import { readSkillState } from "./state.js";
 import type { SkillLayout } from "./layout.js";
 
