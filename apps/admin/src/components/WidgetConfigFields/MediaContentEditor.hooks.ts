@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject, type UIEvent } from "react";
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { acceptedMediaItems, useMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 import { defaultMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";

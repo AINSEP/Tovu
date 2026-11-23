@@ -1,5 +1,5 @@
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";

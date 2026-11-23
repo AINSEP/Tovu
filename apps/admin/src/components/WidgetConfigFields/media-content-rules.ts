@@ -1,4 +1,4 @@
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
 

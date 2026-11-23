@@ -18,6 +18,8 @@ The media library behind the sidebar's **Content → Media** entry.
 
 ## Wiring
 
+- `hooks/media-dependencies.hooks.ts` binds `@jini-ai/admin/screens/media/hooks/media-port.hooks`'s
+  `MediaPort` to `api/media-api.ts`; `AdminMedia` rows come from `@jini-ai/core/contracts/site/cms-admin-media`.
 - `Media.tsx`'s `EditMediaModal` binds `openLightboxDialog` / `closeLightboxDialog` from the host
   kit (`useAdminKitValues()`, provided by `main.tsx`'s `<AdminKitProvider kit={adminKit}>`) and
   passes them, with `open`/`onClose`, as required args to

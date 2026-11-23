@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "../../features/media/api/media-api";
 import { settingsApi } from "../../lib/admin-http/settings-api";
 import { ApiError } from "../../lib/admin-http/request";

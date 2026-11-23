@@ -1,4 +1,4 @@
-import type { AdminMedia } from "./api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { describeApiError } from "../../lib/admin-http/request";
 import type { MediaHtmlAttributeError } from "@jini-ai/admin/media";
 import type { RowMenuItem } from "@jini-ai/admin/react";

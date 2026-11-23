@@ -35,7 +35,7 @@ import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
-import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
+import { buildListPendingChatAttachmentsTool } from "@jini-ai/cms/media/site/list-pending-chat-attachments";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";

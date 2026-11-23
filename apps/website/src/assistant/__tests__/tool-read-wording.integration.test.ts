@@ -65,7 +65,6 @@ const HAND_BUILT_FLAG_SITES: Readonly<Record<string, string>> = {
   "assistant/mcp-federation/registrations.ts": "only ever forces readOnly: false when the host policy needs approval; a remote declaration never grants read-only",
   "assistant/site/visitor-executor.ts": "defaults a visitor capability to readOnly: true; the visitor catalog is search_published_entries, get_published_entry, list_categories and site_guide, all reads of published content, and page tools set it from their own risk",
   "assistant/site/visitor-page-tools.ts": "readOnly: capability.risk === 'read' from the reviewed page-capability contract",
-  "features/media/list-pending-chat-attachments.ts": "listPendingForOwner only filters the store's in-memory records; it claims, prunes and deletes nothing (comment beside the flag)",
   "server/inbound/assistant/agent-daemon-site-tools.ts": "parses the flag a site's own tool RPC reports; the site's registry already derived it through the kit",
   "server/inbound/assistant/durable-run-routes.ts": "local variable asking the registry whether a tool id is read-only; sets nothing",
 };

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";

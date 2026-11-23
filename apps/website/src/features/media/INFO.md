@@ -110,3 +110,7 @@ Same JSON/relational split guidance as `post`'s INFO.md: `MediaRecord`'s
 editorial fields are plain relational columns here (no JSON body yet, unlike
 `post.bodyJson`) since there's no rich-content payload for a media asset in
 this pass — just scalar editorial metadata.
+
+## Wiring
+
+- `server/runtime/composition/modules/assistant-tool-exec.ts` builds `chat_list_pending_attachments` from `@jini-ai/cms/media/site/list-pending-chat-attachments`, injecting the daemon attachment store lookup.

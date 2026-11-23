@@ -5,7 +5,7 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
 import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
 import "../../styles/native-domain-dialogs.css";

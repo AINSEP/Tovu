@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";

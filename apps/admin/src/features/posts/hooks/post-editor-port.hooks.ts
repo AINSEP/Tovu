@@ -1,4 +1,4 @@
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import type { AdminPostCreateInput, AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";

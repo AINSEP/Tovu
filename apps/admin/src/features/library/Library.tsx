@@ -1,14 +1,15 @@
-import { createRenameKeyDown, createPreviewKeyDown } from "./Library.hooks";
+import { createRenameKeyDown, createPreviewKeyDown } from "@jini-ai/admin/screens/library/Library.hooks";
 import { useLayoutEffect, useRef, useState } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { FileDropzone, Icon, Toast } from "@jini-ai/ui";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import { goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
-import { useWiredLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "./hooks/use-library.hooks";
+import { goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "@jini-ai/admin/screens/library/Library.hooks";
+import type { LibraryController, LibraryPreviewState, LibraryUploadRow } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
+import { useWiredLibrary } from "./hooks/use-wired-library.hooks";
 import {
   LIBRARY_ACCEPT,
   documentExtensionSuffix,
@@ -17,7 +18,7 @@ import {
   documentTypeLabel,
   documentUploaderLabel,
   formatLibraryBytes,
-} from "./rules";
+} from "@jini-ai/admin/screens/library/rules";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
