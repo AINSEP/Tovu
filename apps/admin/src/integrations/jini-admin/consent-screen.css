@@ -54,3 +54,21 @@
 :where(.jini-consent-page) .jini-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 :where(.jini-consent-page) .jini-status-ok { background: var(--ok-bg); color: var(--ok); }
 :where(.jini-consent-page) .jini-status-neutral { background: var(--surface-3); color: var(--muted); }
+
+/* The Jini consent sheet reads its paint through `--jini-admin-*` names (each falls back to a shared
+   `--jini-*` token for hosts that map nothing). Map every one to the admin's own name, declared on
+   each element that sheet can style (every rule there is scoped by a `jini-consent-*` class on the
+   element or an ancestor), so each value resolves exactly where it is read and a pinned palette or a
+   nested colour scheme keeps its own values. Zero specificity: nothing else sets these names. */
+:where([class*="jini-consent-"], [class*="jini-consent-"] *) {
+  --jini-admin-space-1: var(--space-1); --jini-admin-space-2: var(--space-2); --jini-admin-space-3: var(--space-3);
+  --jini-admin-space-4: var(--space-4); --jini-admin-space-5: var(--space-5);
+  --jini-admin-border: var(--border); --jini-admin-border-strong: var(--border-strong);
+  --jini-admin-fg: var(--fg); --jini-admin-fg-2: var(--fg-2); --jini-admin-muted: var(--muted);
+  --jini-admin-text-xs: var(--text-xs); --jini-admin-text-sm: var(--text-sm); --jini-admin-text-base: var(--text-base);
+  --jini-admin-primary: var(--primary); --jini-admin-focus-ring: var(--focus-ring); --jini-admin-danger: var(--danger);
+  --jini-admin-font-ui: var(--font-ui); --jini-admin-font-mono: var(--font-mono);
+  --jini-admin-r-sm: var(--r-sm); --jini-admin-r-md: var(--r-md);
+  --jini-admin-surface: var(--surface); --jini-admin-surface-2: var(--surface-2);
+  --jini-admin-accent-text: var(--accent-text, var(--accent));
+}

@@ -307,3 +307,11 @@
    after the name (DeepSeek Reasonix); an empty tagline must not create punctuation at all. */
 .settings-page .jini-agent-card-name-divider { display: none; }
 .settings-page .jini-agent-card-tagline:not(:empty)::before { content: '·\00a0'; }
+
+/* Settings → User Interface: `@jini-ai/admin/screens/settings/user-interface-settings.css` reads its
+   paint through `--jini-admin-*` names (each falls back to a shared `--jini-*` token). Map them to the
+   admin's own names on the rows themselves, so a pinned Settings palette resolves where it is read. */
+:where([class*="jini-settings-interface-"]) {
+  --jini-admin-space-3: var(--space-3); --jini-admin-space-4: var(--space-4);
+  --jini-admin-fg: var(--fg); --jini-admin-muted: var(--muted); --jini-admin-text-sm: var(--text-sm, 0.875rem);
+}
