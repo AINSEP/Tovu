@@ -64,30 +64,10 @@ async function supersedeConfirmationTokens({ deps, input, now }: {
 }
 
 /**
- * B176 — the shared double-opt-in precondition. With no Members consent binding a confirmation
- * link can only ever land on the confirm page's plain 503, so issuing one would spend the
- * subscriber's last working link and send mail that cannot complete. Callers that write their
- * own state first (subscribe) call this before that write; the issuer calls it before anything.
- *
- * @throws NewsletterConsentUnavailableError When `consentCapability` is unbound.
- */
-export function refuseUnboundConsent(
-  { consentCapability }: { consentCapability: MembersConsentCapability | null },
-  _optional: Record<string, never> = {}
-): void {
-  if (!consentCapability) {
-    throw new NewsletterConsentUnavailableError(
-      "MembersConsentCapability is unbound — Newsletter cannot send a confirmation link until Members ships a real binding (ADR-PIPE-011)"
-    );
-  }
-}
-
-/**
  * Mint a new confirmation token, invalidating every prior unconsumed token for this subscription
  * first ("newest wins" — behavior.spec.md §2.1), then send the confirm email. Does NOT change
  * `SubscriptionRow.status` (stays `pending` until `consumeConfirmationToken` succeeds).
  *
- * @throws NewsletterConsentUnavailableError When consent is unbound — before any token write or send.
  * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
  *   sender configured — before any token is written.
  */
@@ -96,9 +76,8 @@ export async function issueConfirmationToken(required: {
   input: { workspaceId: UUID; subscriptionId: UUID; recipientEmail: string };
 }, _optional: Record<string, never> = {}): Promise<{ tokenId: UUID; expiresAt: string }> {
   const { deps, input } = required;
-  refuseUnboundConsent({ consentCapability: deps.consentCapability });
   const now = deps.clock.nowIso();
-  // Resolved next: a missing sender refuses before any prior token is superseded, so the
+  // Resolved first: a missing sender refuses before any prior token is superseded, so the
   // subscriber's last working link survives a send that could never have gone out.
   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
     .resolve({ workspaceId: input.workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER });

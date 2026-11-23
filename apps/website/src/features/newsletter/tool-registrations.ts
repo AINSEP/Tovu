@@ -35,13 +35,12 @@ import {
   saveCampaign,
   type CampaignWriteServiceDeps,
 } from "./campaign-write-service.js";
-import { issueConfirmationToken, refuseUnboundConsent } from "./confirmation.js";
+import { issueConfirmationToken } from "./confirmation.js";
 import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
   NewsletterConflictError,
-  NewsletterConsentUnavailableError,
   NewsletterDefaultListProtectedError,
   NewsletterForbiddenError,
   NewsletterListNotFoundError,
@@ -265,34 +264,17 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: NewsletterCampaignNotEditableError, code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE" },
   { error: NewsletterDefaultListProtectedError, code: "NEWSLETTER_DEFAULT_LIST_PROTECTED" },
   {
-    error: NewsletterConsentUnavailableError,
-    code: "NEWSLETTER_CONSENT_UNAVAILABLE",
-    guidance: "Nothing was written or sent. Subscriber consent is not connected yet, so double opt-in subscriptions cannot be created until it is.",
-  },
-  {
     error: NewsletterConflictError,
     code: "NEWSLETTER_CONFLICT",
     guidance: "Nothing was written. Re-read the record to get its current version and resend with that as expectedVersion.",
   },
 ];
 
-/** B176 refusal acknowledgement. Consent binding is workspace-wide, so this is the same for every
- * subscription id and leaks nothing about which subscriptions or contacts exist. */
-const CONSENT_UNAVAILABLE_ACK = {
-  delivered: false,
-  mailDeliveryAvailable: true,
-  reason: "consent_unavailable",
-  note: "Subscriber consent is not connected yet, so no confirmation link was sent and nothing was changed.",
-} as const;
-
 async function resendPendingSubscriptionConfirmation(
   { deps, subscriptionId, signal }: { deps: NewsletterToolDeps; subscriptionId: string; signal: AbortSignal },
   _options: Record<string, never> = {},
 ) {
   try {
-    // Refused before the lookup, not via the issuer: refusing only for pending subscriptions with a
-    // contact would turn the constant acknowledgement below into an enumeration oracle.
-    refuseUnboundConsent({ consentCapability: deps.membersConsentCapability });
     const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
     // Constant acknowledgement for missing subscriptions, missing contacts and non-pending records.
     if (!subscription || subscription.status !== "pending") return { delivered: true, mailDeliveryAvailable: true };
@@ -305,7 +287,6 @@ async function resendPendingSubscriptionConfirmation(
       });
     }
   } catch (error) {
-    if (error instanceof NewsletterConsentUnavailableError) return CONSENT_UNAVAILABLE_ACK;
     let errorDiagnostic = "[diagnostic unavailable]";
     try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.

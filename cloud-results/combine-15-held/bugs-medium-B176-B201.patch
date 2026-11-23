@@ -1,0 +1,835 @@
+diff --git a/apps/admin/src/features/providers/Providers.tsx b/apps/admin/src/features/providers/Providers.tsx
+index ee25d3173a..87f3517ffa 100644
+--- a/apps/admin/src/features/providers/Providers.tsx
++++ b/apps/admin/src/features/providers/Providers.tsx
+@@ -117,6 +117,10 @@ export interface ProvidersProps {
+   /** The `?tab=` query value from `panels.tsx`'s `providers` route (`URLSearchParams.get` returns
+    *  `null` when the param is absent). See {@link resolveProvidersTabId}. */
+   tabId?: string | null;
++  /** The `?server=` query value: the External MCP connection id the chat's reauth link names
++   *  (website `externalMcpSettingsDeepLink`, B201). Handed to the External MCP panel, which selects
++   *  the matching connection once its list loads. `null`/absent selects nothing. */
++  serverId?: string | null;
+   /** DI seam for tests — same convention `SecurityProps.useAccessTokensHook` follows. */
+   useProvidersHook?: typeof useProviders;
+   /** DI seam for the Webhooks tab's own list/create/delete state — carried over from
+@@ -271,6 +275,7 @@ function ProvidersView(props: ProvidersProps & {
+           <ExternalMcpSettingsPanel
+             dependencies={p.externalMcp.dependencies}
+             showTitle={false}
++            selectedServerId={props.serverId ?? null}
+             saveStatusLabel={
+               p.externalMcp.restartRequired
+                 ? t({ locale: locale, key: "Saved — restart Tovu to connect" })
+diff --git a/apps/admin/src/features/providers/__tests__/Providers.unit.test.tsx b/apps/admin/src/features/providers/__tests__/Providers.unit.test.tsx
+index 76fe6a5e82..7f4e453396 100644
+--- a/apps/admin/src/features/providers/__tests__/Providers.unit.test.tsx
++++ b/apps/admin/src/features/providers/__tests__/Providers.unit.test.tsx
+@@ -1,4 +1,6 @@
+-import { render, screen, within } from "@/__tests__/render-with-jini-kits";
++import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
++import { cloneElement, type ReactElement } from "react";
++import { ADMIN_PANELS } from "../../../panels";
+ import userEvent from "@testing-library/user-event";
+ import { afterEach, describe, expect, it, vi } from "vitest";
+ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
+@@ -202,3 +204,37 @@ describe("Providers — injected hooks", () => {
+     expect(useFakeLocale).toHaveBeenCalled();
+   });
+ });
++
++// B201: the chat reauth card links to `externalMcpSettingsDeepLink`'s exact shape
++// (`apps/website/src/features/external-mcp/external-mcp-oauth.ts`). Driven through the REAL
++// `providers` panel route so a dropped `server` query value anywhere on the way fails here.
++describe("Providers — External MCP reauth deep link selects its connection (B201)", () => {
++  const REAUTH_URL = `/addons/integrations?tab=external-mcp&server=${encodeURIComponent("linear prod")}`;
++
++  function reauthFixture(): ProvidersController {
++    const stdio = (id: string): SourceConfigItem => ({ id, fields: { id, transport: "stdio", authMode: "none", command: "npx" } });
++    return {
++      externalMcp: {
++        dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({ sources: [stdio("alpha"), stdio("linear prod"), stdio("zeta")], createSource: (input) => stdio(input.fields.id ?? "new-server") }),
++        restartRequired: false,
++      },
++    };
++  }
++
++  it("opens the reauth URL on the External MCP tab with the matching connection selected after load", async () => {
++    const route = ADMIN_PANELS.find((panel) => panel.id === "providers");
++    expect(route?.allowedQueryParams).toHaveProperty("server");
++    const query = new URLSearchParams(REAUTH_URL.split("?")[1]);
++    const boundary = route!.render({ view: null, params: {}, query, Placeholder: () => null }) as ReactElement<{ children: ReactElement }>;
++    // Keep every prop the route threaded; only the data hook is swapped for a fixture.
++    const page = cloneElement(boundary.props.children, { useProvidersHook: () => reauthFixture() } as never);
++    const { container } = render(<FetchQueryProvider>{page}</FetchQueryProvider>);
++
++    expect(await screen.findByRole("tab", { name: /^External MCP/ })).toHaveAttribute("aria-selected", "true");
++    await screen.findAllByTestId("source-config-item-card");
++    const selected = container.querySelectorAll(".external-mcp-source[aria-current='true']");
++    expect(selected).toHaveLength(1);
++    expect(selected[0]).toHaveAttribute("data-server-id", "linear prod");
++    await waitFor(() => expect(document.activeElement).toBe(selected[0]));
++  });
++});
+diff --git a/apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx b/apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx
+index 40e3dee3ec..169441c162 100644
+--- a/apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx
++++ b/apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx
+@@ -1,5 +1,5 @@
+ import { ExternalMcpSharedChoice } from "./ExternalMcpSharedChoice";
+-import { useState } from "react";
++import { useEffect, useRef, useState } from "react";
+ import {
+   Icon,
+   SourceConfigAddForm,
+@@ -306,11 +306,14 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
+   /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
+    *  see this file's own "Remove asks first" header note. */
+   onRequestRemove: (sourceId: string) => void;
++  /** Whether a deep link (`?server=<id>`, B201) named this row — see {@link useSelectedRowFocus}. */
++  selected: boolean;
+   /** Test seam for the sign-in flow. */
+   useConnect?: typeof useExternalMcpOAuthConnect;
+ }) {
+-  const { source, cardHandle, list, tDrift, onRequestRemove } = props;
++  const { source, cardHandle, list, tDrift, onRequestRemove, selected } = props;
+   const [toolsOpen, setToolsOpen] = useState(false);
++  const rowRef = useSelectedRowFocus({ selected });
+   const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, { t: tDrift });
+   // The SAVED count, not the picker's own draft — see this file's header on why.
+   const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
+@@ -323,7 +326,15 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
+   const showConnect = externalMcpNeedsSignIn({ source }) || signIn.state.phase !== "idle";
+ 
+   return (
+-    <div className="external-mcp-source">
++    <div
++      ref={rowRef}
++      className="external-mcp-source"
++      data-server-id={source.id}
++      // `aria-current` (not `aria-selected`, which needs a listbox/grid role) marks the row the
++      // reauth link pointed at; `tabIndex={-1}` lets it take focus without joining the tab order.
++      aria-current={selected ? "true" : undefined}
++      tabIndex={selected ? -1 : undefined}
++    >
+       <div className="external-mcp-source-row">
+         <div className="external-mcp-source-card">
+           <ExternalMcpConnectionCard
+@@ -385,6 +396,21 @@ function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...prop
+   );
+ }
+ 
++/** B201: moves focus to (and scrolls to) the row a `?server=<id>` deep link named. Rows only mount
++ *  once the list has loaded (the section renders a loading status before that), so running on
++ *  mount IS "after load". Focus, not just a highlight, so a screen-reader user lands on the
++ *  connection the chat's reauth card sent them to fix. */
++function useSelectedRowFocus({ selected }: { selected: boolean }, _optional: Record<string, never> = {}) {
++  const rowRef = useRef<HTMLDivElement>(null);
++  useEffect(() => {
++    if (!selected) return;
++    // `scrollIntoView` is optional-called: jsdom does not implement it.
++    rowRef.current?.scrollIntoView?.({ block: "center" });
++    rowRef.current?.focus();
++  }, [selected]);
++  return rowRef;
++}
++
+ /** The loading / empty-state / configured-server-list body, split out for the same
+  *  complexity-budget reason as {@link ExternalMcpAddFormSection} above — the triple-branch
+  *  loading/empty/list ternary was the parent's deepest nesting. Each configured server is now one
+@@ -398,8 +424,10 @@ function ExternalMcpSourcesSection(props: {
+   /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
+    *  see this file's own "Remove asks first" header note. */
+   onRequestRemove: (sourceId: string) => void;
++  /** The connection id a deep link named, or `null` — see {@link ExternalMcpSettingsPanelProps.selectedServerId}. */
++  selectedServerId: string | null;
+ }) {
+-  const { list, cardHandles, t, tDrift, onRequestRemove } = props;
++  const { list, cardHandles, t, tDrift, onRequestRemove, selectedServerId } = props;
+ 
+   if (list.loading) {
+     return (
+@@ -430,6 +458,7 @@ function ExternalMcpSourcesSection(props: {
+           list={list}
+           tDrift={tDrift}
+           onRequestRemove={onRequestRemove}
++          selected={source.id === selectedServerId}
+         />
+       ))}
+     </div>
+@@ -482,6 +511,9 @@ export interface ExternalMcpSettingsPanelProps {
+    *  place that explains what this specific tab configures; `Providers.tsx`'s own page-level
+    *  description covers all four of its tabs, not this one alone. */
+   showTitle?: boolean;
++  /** The connection id from `?server=` (the chat's reauth deep link, B201). The matching row is
++   *  marked `aria-current` and focused once the list loads; an id matching no row selects nothing. */
++  selectedServerId?: string | null;
+   useTHook?: typeof useT;
+   useWiredSourceConfigListHook?: typeof useWiredSourceConfigList;
+   useExternalMcpAddFormHook?: typeof useExternalMcpAddForm;
+@@ -489,7 +521,7 @@ export interface ExternalMcpSettingsPanelProps {
+   useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
+ }
+ 
+-export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions,
++export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, selectedServerId = null, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions,
+   useTHook = useT,
+   useWiredSourceConfigListHook = useWiredSourceConfigList,
+   useExternalMcpAddFormHook = useExternalMcpAddForm,
+@@ -550,6 +582,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
+         t={t}
+         tDrift={tDrift}
+         onRequestRemove={setConfirmRemoveId}
++        selectedServerId={selectedServerId}
+       />
+ 
+       <ExternalMcpRemoveConfirmSection
+diff --git a/apps/admin/src/features/settings/README.md b/apps/admin/src/features/settings/README.md
+index c9076f8475..9491a78c47 100644
+--- a/apps/admin/src/features/settings/README.md
++++ b/apps/admin/src/features/settings/README.md
+@@ -20,3 +20,12 @@ there is no sibling left to keep separate from this one.
+ 
+ `SettingsUi.tsx` has **no unit test**. Treat a change here as unverified until you have driven it in
+ a browser.
++
++## Wiring
++
++- `ExternalMcpSettingsPanel` is mounted by `features/providers/Providers.tsx` (External MCP tab of
++  `/admin/addons/integrations`). `panels.tsx`'s `providers` route reads `?tab=` and `?server=`;
++  `server` (the connection id in the chat reauth link, website `externalMcpSettingsDeepLink`) is
++  threaded `Providers` -> `selectedServerId` -> the matching row, which is marked `aria-current`
++  and focused once the list loads (B201).
++- Data and test seams arrive as props (`dependencies`, `use*Hook`); the panel owns no fetch wiring.
+diff --git a/apps/admin/src/panels.tsx b/apps/admin/src/panels.tsx
+index 7272e75f80..4d919182c8 100644
+--- a/apps/admin/src/panels.tsx
++++ b/apps/admin/src/panels.tsx
+@@ -29,7 +29,7 @@ import {
+   Authentication,
+   Roles,
+   SettingsUi,
+-  Seo, SeoModuleLoading, useModulePanel,
++  Seo,
+   Redirects,
+   Plugins,
+   AgentPlugins,
+@@ -757,7 +757,8 @@ const PANELS: readonly TovuAdminPanel[] = [
+     // "access-tokens"` labelled "Secrets" is the same call, made for the same reason).
+     id: "providers",
+     description: "Connect integrations and configure provider access.",
+-    allowedQueryParams: {"tab": null},
++    // `server` is the External MCP connection id the chat reauth card links to (B201).
++    allowedQueryParams: {"tab": null, "server": null},
+     // Every tab that reads anything — External MCP (the landing tab), Always allow, Webhooks — checks
+     // `admin.integrations.manage` (`routes/external-mcp/guard.ts`, `routes/integrations/*.ts`); MCP
+     // Server is a coming-soon placeholder. Without this an editor saw the row and landed on a 403.
+@@ -768,7 +769,9 @@ const PANELS: readonly TovuAdminPanel[] = [
+     // (External MCP, MCP Server, Webhooks — owner's explicit order); see
+     // `Providers.tsx`'s own header for the absorption of the retired `integrations` panel's two
+     // tabs.
+-    render: (ctx, _options = {}) => <Providers tabId={ctx.query.get("tab")} />,
++    // `?server=<id>` comes from the chat's External MCP reauth link (website
++    // `externalMcpSettingsDeepLink`); the screen selects that connection once the list loads (B201).
++    render: (ctx, _options = {}) => <Providers tabId={ctx.query.get("tab")} serverId={ctx.query.get("server")} />,
+     nav: {
+       // Third and last row in the group — after Plugins, Agent Plugins (owner's row-order call; see
+       // the group comment above).
+@@ -1231,7 +1234,7 @@ const PANELS: readonly TovuAdminPanel[] = [
+     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
+     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
+     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
+-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} />,
++    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} />,
+     nav: {
+       label: "SEO & Metadata",
+       group: "Marketing",
+diff --git a/apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts b/apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts
+index 9744155037..5f3dda4fb8 100644
+--- a/apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts
++++ b/apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts
+@@ -114,7 +114,7 @@ function seedSubscription(overrides: Partial<SubscriptionRow> = {}): Subscriptio
+   };
+ }
+ 
+-function fakeRouteDeps(options: { allow?: boolean } = {}) {
++function fakeRouteDeps(options: { allow?: boolean; consentBound?: boolean } = {}) {
+   const allow = options.allow ?? true;
+   const newsletterCampaignRepo = new InMemoryNewsletterCampaignRepo();
+   const newsletterListRepo = new InMemoryNewsletterListRepo();
+@@ -171,7 +171,12 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
+     mailer,
+     // The fake reports no non-delivering driver, so a send needs the site's configured sender.
+     mailSenderIdentity: { resolve: async () => ({ email: "hello@example.test", name: "Example Site" }) },
+-    membersConsentCapability: null,
++    // Bound unless a test opts out: confirmation mail refuses while consent is unbound (B176).
++    membersConsentCapability: options.consentBound === false ? null : {
++      request: async () => ({ requested: true as const }),
++      confirm: async () => ({ status: "granted" as const, consentRevisionId: "rev-1" }),
++      revoke: async () => ({ status: "revoked" as const }),
++    },
+     originRegistry,
+   };
+ 
+@@ -491,6 +496,23 @@ test("newsletter_resend_confirmation: sends the confirmation link, preserving th
+   assert.notEqual(tokens[0].id, prior.id);
+ });
+ 
++test("newsletter_resend_confirmation: unbound consent refuses with zero token writes and zero sends, the same for every id (B176)", async () => {
++  const { deps, newsletterSubscriptionRepo, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps({ consentBound: false });
++  await newsletterSubscriptionRepo.save(seedSubscription({ id: "sub-1", subscriberId: "subscriber-1" }));
++  const prior = { id: "tok-prior", workspaceId: WORKSPACE_ID, subscriptionId: "sub-1", tokenHash: "h", purpose: "newsletter_subscription_confirm" as const, createdAt: NOW, expiresAt: NOW, consumedAt: null };
++  await newsletterConfirmationTokenRepo.save(prior);
++  let tokenWrites = 0;
++  const realSave = newsletterConfirmationTokenRepo.save.bind(newsletterConfirmationTokenRepo);
++  newsletterConfirmationTokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
++  const refusal = { delivered: false, mailDeliveryAvailable: true, reason: "consent_unavailable", note: "Subscriber consent is not connected yet, so no confirmation link was sent and nothing was changed." };
++  assert.deepEqual(await resendDirectly(deps, "sub-1"), refusal);
++  // Workspace-wide condition: an unknown id gets the identical refusal, so it is no enumeration oracle.
++  assert.deepEqual(await resendDirectly(deps, "unknown"), refusal);
++  assert.equal(tokenWrites, 0);
++  assert.deepEqual(sentMail, []);
++  assert.deepEqual(await newsletterConfirmationTokenRepo.findById({ workspaceId: WORKSPACE_ID, id: "tok-prior" }), prior);
++});
++
+ test("newsletter_resend_confirmation: unknown subscription writes no token or mail", async () => {
+   const { deps, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps();
+   // An unknown subscription gets the same constant acknowledgement as a real one, so the tool is
+diff --git a/apps/website/src/features/newsletter/__tests__/confirmation.test.ts b/apps/website/src/features/newsletter/__tests__/confirmation.test.ts
+index c8e39f05e3..b339c2d6e8 100644
+--- a/apps/website/src/features/newsletter/__tests__/confirmation.test.ts
++++ b/apps/website/src/features/newsletter/__tests__/confirmation.test.ts
+@@ -6,7 +6,7 @@ import test from "node:test";
+ 
+ import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
+ import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
+-import { NewsletterConfirmTokenInvalidError } from "../errors.js";
++import { NewsletterConfirmTokenInvalidError, NewsletterConsentUnavailableError } from "../errors.js";
+ import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+ import type { MembersConsentCapability } from "../ports.js";
+ import type { SubscriptionRow } from "../types.js";
+@@ -90,7 +90,7 @@ function makeDeps(consentCapability: MembersConsentCapability | null) {
+ }
+ 
+ test("issueConfirmationToken: sends the confirm email WITHOUT changing subscription status yet (AC-14)", async () => {
+-  const { deps, subscriptionRepo, sentEmails } = makeDeps(null);
++  const { deps, subscriptionRepo, sentEmails } = makeDeps(makeCallOrderSpy().capability);
+   await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
+ 
+   assert.equal(sentEmails.length, 1);
+@@ -100,7 +100,7 @@ test("issueConfirmationToken: sends the confirm email WITHOUT changing subscript
+ });
+ 
+ test("issueConfirmationToken: at most one unconsumed token exists — reissuance invalidates the prior one (behavior.spec §2.1, AC-16)", async () => {
+-  const { deps } = makeDeps(null);
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   const first = await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
+   const second = await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
+ 
+@@ -233,8 +233,10 @@ test("consumeConfirmationToken: a removed subscription leaves its valid token un
+ });
+ 
+ test("consumeConfirmationToken: an unbound consentCapability is a hard error (ADR-PIPE-011 — never stub to succeed)", async () => {
+-  const { deps } = makeDeps(null); // no consentCapability
++  // An EXISTING link (issued while bound) clicked after the binding went away: the plain 503 path.
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   const rawToken = await issueRawToken(deps);
++  deps.consentCapability = null;
+   await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), {
+     message: "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)",
+   });
+@@ -324,7 +326,7 @@ function makeRecordingMailer(driver: string): { mailer: MailerPort; sends: { mes
+ 
+ test("issueConfirmationToken sends as transactional mail on the interactive lane", async () => {
+   const { mailer, sends } = makeRecordingMailer("console");
+-  const { deps } = makeDeps(null);
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+   assert.equal(sends.length, 1);
+   assert.equal(sends[0]!.options.purpose, "transactional");
+@@ -333,7 +335,7 @@ test("issueConfirmationToken sends as transactional mail on the interactive lane
+ 
+ test("issueConfirmationToken keeps the no-reply@newsletter.local placeholder while the mailer is non-delivering", async () => {
+   const { mailer, sends } = makeRecordingMailer("console");
+-  const { deps } = makeDeps(null);
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+   assert.deepEqual(sends[0]!.message.from, { email: "no-reply@newsletter.local", name: "Newsletter" });
+ });
+@@ -343,13 +345,13 @@ test("issueConfirmationToken sends from the site's configured sender through the
+   const senderIdentity = createMailSenderIdentityResolver({ mailer }, {
+     readConfiguredSender: async ({ workspaceId }) => (workspaceId === WS ? { email: "news@example.com" } : null),
+   });
+-  const { deps } = makeDeps(null);
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   await issueConfirmationToken({ deps: { ...deps, mailer, senderIdentity }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+   assert.deepEqual(sends[0]!.message.from, { email: "news@example.com", name: "Newsletter" });
+ });
+ 
+ test("issueConfirmationToken on a delivering mailer with no sender refuses before superseding the prior token", async () => {
+-  const { deps } = makeDeps(null);
++  const { deps } = makeDeps(makeCallOrderSpy().capability);
+   await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+   const [prior] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+   assert.ok(prior);
+@@ -362,3 +364,24 @@ test("issueConfirmationToken on a delivering mailer with no sender refuses befor
+   const unconsumed = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+   assert.deepEqual(unconsumed.map((token) => token.id), [prior.id], "the subscriber's last working link survives");
+ });
++
++test("issueConfirmationToken refuses an unbound consent binding before superseding, persisting or sending (B176)", async () => {
++  // A link minted while Members consent is unbound can only ever land on the 503 page, so the
++  // issuer must refuse first — and the subscriber's last working link must survive the refusal.
++  const { deps, sentEmails } = makeDeps(makeCallOrderSpy().capability);
++  await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
++  const [prior] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
++  assert.ok(prior);
++  sentEmails.length = 0;
++  let tokenWrites = 0;
++  const realSave = deps.tokenRepo.save.bind(deps.tokenRepo);
++  deps.tokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
++  deps.consentCapability = null;
++  await assert.rejects(
++    issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } }),
++    NewsletterConsentUnavailableError
++  );
++  assert.equal(tokenWrites, 0, "no prior token superseded and no new token persisted");
++  assert.equal(sentEmails.length, 0, "no confirmation email sent");
++  assert.deepEqual(await deps.tokenRepo.findById({ workspaceId: WS, id: prior.id }), prior);
++});
+diff --git a/apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts b/apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts
+index a5dce9208f..d37a8bad71 100644
+--- a/apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts
++++ b/apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts
+@@ -13,6 +13,7 @@ import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeli
+ import type { SendBatchJob } from "../ports.js";
+ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
+ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
++import { boundConsentForTests } from "./helpers/bound-consent.js";
+ 
+ 
+ const NOW = "2026-10-01T00:00:00.000Z";
+@@ -374,6 +375,7 @@ test("approval does not survive permission revocation while the card is open", a
+ 
+ test("an aborted resend refuses before looking up a subscriber", async () => {
+   const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+   const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
+   const abort = new AbortController(); abort.abort();
+   h.deps.newsletterSubscriptionRepo.findById = async () => { assert.fail("aborted resend must not look up subscriptions"); };
+@@ -400,6 +402,7 @@ test("resend runs directly and hides missing contacts and subscription status",
+     { exists: true, contact: true, status: "unsubscribed", sends: 0 },
+   ] as const) {
+     const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+     if (scenario.exists) await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: scenario.status, source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+     h.deps.newsletterSubscriberDirectory.getContact = async () => scenario.contact ? ({ workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true }) : null;
+     const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find((tool) => tool.descriptor.id === "newsletter_resend_confirmation")!;
+@@ -413,6 +416,7 @@ test("resend runs directly and hides missing contacts and subscription status",
+ test("resend acknowledgement does not expose contact or provider failures", async () => {
+   for (const failureAt of ["contact", "origin"]) {
+     const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+     await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+     h.deps.newsletterSubscriberDirectory.getContact = async () => {
+       if (failureAt === "contact") throw new ToolInputError({ message: "reader@example.com lookup failed" });
+@@ -458,6 +462,7 @@ test("resend with an in-memory mail driver refuses before subscriber lookup", as
+ 
+ test("resend abandoned during contact lookup creates no token or mail", async () => {
+   const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+   const abort = new AbortController();
+   const subscription = { id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending" as const, source: "admin" as const, subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW };
+   await h.deps.newsletterSubscriptionRepo.save(subscription);
+@@ -480,6 +485,7 @@ test("resend abandoned during contact lookup creates no token or mail", async ()
+ for (const scenario of ["pending", "missing", "subscribed", "no-contact", "aborted-contact"] as const) {
+   test(`L299 resend preserves acknowledgement and side effects: ${scenario}`, async () => {
+     const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+     const abort = new AbortController();
+     if (scenario !== "missing") {
+       await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: scenario === "subscribed" ? "subscribed" : "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+@@ -508,6 +514,7 @@ for (const scenario of ["pending", "missing", "subscribed", "no-contact", "abort
+ for (const failureAt of ["subscription", "contact", "send"] as const) {
+   test(`L299 resend hides ${failureAt} failures and logs only its fixed diagnostic`, async (t) => {
+     const h = await fixture();
++    h.deps.membersConsentCapability = boundConsentForTests(); // B176: resend needs a binding
+     await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+     const failure = Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET reader@example.com"), { code: "EIO" });
+     if (failureAt === "subscription") h.deps.newsletterSubscriptionRepo.findById = async () => { throw failure; };
+diff --git a/apps/website/src/features/newsletter/__tests__/helpers/bound-consent.ts b/apps/website/src/features/newsletter/__tests__/helpers/bound-consent.ts
+new file mode 100644
+index 0000000000..3a5d8522fe
+--- /dev/null
++++ b/apps/website/src/features/newsletter/__tests__/helpers/bound-consent.ts
+@@ -0,0 +1,15 @@
++import type { MembersConsentCapability } from "../../ports.js";
++
++/**
++ * A granting Members consent binding for tests that exercise double opt-in mail. Production binds
++ * `membersConsentCapability: null` until Members ships one, and confirmation issuance refuses while
++ * it is unbound (B176) — so a test that expects a confirmation token or email has to opt in here,
++ * explicitly, rather than relying on the unbound default.
++ */
++export function boundConsentForTests(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): MembersConsentCapability {
++  return {
++    request: async () => ({ requested: true }),
++    confirm: async () => ({ status: "granted", consentRevisionId: "rev-test" }),
++    revoke: async () => ({ status: "revoked" }),
++  };
++}
+diff --git a/apps/website/src/features/newsletter/__tests__/subscriptions.test.ts b/apps/website/src/features/newsletter/__tests__/subscriptions.test.ts
+index 1ca2b80702..890228592d 100644
+--- a/apps/website/src/features/newsletter/__tests__/subscriptions.test.ts
++++ b/apps/website/src/features/newsletter/__tests__/subscriptions.test.ts
+@@ -6,6 +6,7 @@ import test from "node:test";
+ 
+ import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions.js";
+ import {
++  NewsletterConsentUnavailableError,
+   NewsletterListNotFoundError,
+   NewsletterSubscriberNotFoundError,
+   NewsletterSubscriptionNotFoundError,
+@@ -43,7 +44,8 @@ function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
+       send: async (message) => { sentEmails.push(message); return { ok: true as const, providerMessageId: "m1", acceptedAt: NOW }; },
+       sendBatch: async () => [],
+     },
+-    consentCapability: null,
++    // Bound by default: double opt-in refuses outright while consent is unbound (B176 test below).
++    consentCapability: { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "rev-1" }), revoke: async () => ({ status: "revoked" }) },
+     originRegistry: {
+       canonicalOrigin: async () => ({ scheme: "https" as const, host: "acme.test", verifiedAt: "2026-07-13T00:00:00.000Z", source: "workspace-setting" as const }),
+       isAllowedRedirectTarget: async () => true,
+@@ -290,3 +292,18 @@ test("saveSubscription and importSubscriptions refuse an archived list before an
+   await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-old", subscribers: [{ subscriberId: "subscriber-1", source: "import" }] } }), archived);
+   assert.equal(deps.sentEmails.length, 0);
+ });
++
++// B176: with Members consent unbound a confirmation link can only ever 503, so subscribe refuses
++// with the typed error before any subscription row, confirmation token or email is written.
++test("saveSubscription and importSubscriptions refuse an unbound consent binding with zero token writes and zero sends", async () => {
++  const deps = makeDeps();
++  deps.confirmationDeps.consentCapability = null;
++  let tokenWrites = 0;
++  const realSave = deps.confirmationDeps.tokenRepo.save.bind(deps.confirmationDeps.tokenRepo);
++  deps.confirmationDeps.tokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
++  await assert.rejects(saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "admin" } }), NewsletterConsentUnavailableError);
++  await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "subscriber-2", source: "import" }] } }), NewsletterConsentUnavailableError);
++  assert.equal(tokenWrites, 0);
++  assert.equal(deps.sentEmails.length, 0);
++  assert.deepEqual((await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 10 })).items, []);
++});
+diff --git a/apps/website/src/features/newsletter/__tests__/tool-registrations.model-facing-errors.test.ts b/apps/website/src/features/newsletter/__tests__/tool-registrations.model-facing-errors.test.ts
+index 87e95e8552..e2cbb58aa8 100644
+--- a/apps/website/src/features/newsletter/__tests__/tool-registrations.model-facing-errors.test.ts
++++ b/apps/website/src/features/newsletter/__tests__/tool-registrations.model-facing-errors.test.ts
+@@ -29,6 +29,7 @@ import {
+ } from "../repo.memory.js";
+ import { buildNewsletterRegistrations, contributeNewsletterTools, newsletterDerivedRisk, type NewsletterToolDeps } from "../tool-registrations.js";
+ import { reportRouteInternalError } from "@jini-ai/http-kit";
++import { boundConsentForTests } from "./helpers/bound-consent.js";
+ 
+ const WORKSPACE_ID = "ws-newsletter-errors";
+ const PRINCIPAL_ID = "principal-1";
+@@ -54,7 +55,7 @@ function makeRouteDeps(options: { allow?: boolean; readOnly?: boolean } = {}): N
+     newsletterConfirmationTokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
+     newsletterSubscriberDirectory: { getContact: async () => null } as unknown as NewsletterToolDeps["newsletterSubscriberDirectory"],
+     newsletterHooks: createHookRegistry(),
+-    membersConsentCapability: null,
++    membersConsentCapability: boundConsentForTests(), // B176: subscription tools mail a confirmation
+     authorize: async (request) => ((options.readOnly ? ["admin.newsletter.read", "admin.newsletter.subscriber.read"].includes(request.permission) : allow) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
+   };
+ }
+diff --git a/apps/website/src/features/newsletter/agent-tools.ts b/apps/website/src/features/newsletter/agent-tools.ts
+index 89bd001064..c5faf2b17b 100644
+--- a/apps/website/src/features/newsletter/agent-tools.ts
++++ b/apps/website/src/features/newsletter/agent-tools.ts
+@@ -250,7 +250,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
+   {
+     name: "newsletter_resend_confirmation",
+     description:
+-      "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Requires subscriber-management permission.",
++      "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent, or {delivered:false,mailDeliveryAvailable:true,reason:'consent_unavailable',note} when subscriber consent is not connected and nothing was changed. Requires subscriber-management permission.",
+     sideEffects: MUTATES_DURABLE_STATE,
+     authorization: { permission: "admin.newsletter.subscriber.manage" },
+     inputSchema: {
+diff --git a/apps/website/src/features/newsletter/confirmation.ts b/apps/website/src/features/newsletter/confirmation.ts
+index 4fc021466e..ab0324673c 100644
+--- a/apps/website/src/features/newsletter/confirmation.ts
++++ b/apps/website/src/features/newsletter/confirmation.ts
+@@ -63,11 +63,31 @@ async function supersedeConfirmationTokens({ deps, input, now }: {
+   }
+ }
+ 
++/**
++ * B176 — the shared double-opt-in precondition. With no Members consent binding a confirmation
++ * link can only ever land on the confirm page's plain 503, so issuing one would spend the
++ * subscriber's last working link and send mail that cannot complete. Callers that write their
++ * own state first (subscribe) call this before that write; the issuer calls it before anything.
++ *
++ * @throws NewsletterConsentUnavailableError When `consentCapability` is unbound.
++ */
++export function refuseUnboundConsent(
++  { consentCapability }: { consentCapability: MembersConsentCapability | null },
++  _optional: Record<string, never> = {}
++): void {
++  if (!consentCapability) {
++    throw new NewsletterConsentUnavailableError(
++      "MembersConsentCapability is unbound — Newsletter cannot send a confirmation link until Members ships a real binding (ADR-PIPE-011)"
++    );
++  }
++}
++
+ /**
+  * Mint a new confirmation token, invalidating every prior unconsumed token for this subscription
+  * first ("newest wins" — behavior.spec.md §2.1), then send the confirm email. Does NOT change
+  * `SubscriptionRow.status` (stays `pending` until `consumeConfirmationToken` succeeds).
+  *
++ * @throws NewsletterConsentUnavailableError When consent is unbound — before any token write or send.
+  * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
+  *   sender configured — before any token is written.
+  */
+@@ -76,8 +96,9 @@ export async function issueConfirmationToken(required: {
+   input: { workspaceId: UUID; subscriptionId: UUID; recipientEmail: string };
+ }, _optional: Record<string, never> = {}): Promise<{ tokenId: UUID; expiresAt: string }> {
+   const { deps, input } = required;
++  refuseUnboundConsent({ consentCapability: deps.consentCapability });
+   const now = deps.clock.nowIso();
+-  // Resolved first: a missing sender refuses before any prior token is superseded, so the
++  // Resolved next: a missing sender refuses before any prior token is superseded, so the
+   // subscriber's last working link survives a send that could never have gone out.
+   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
+     .resolve({ workspaceId: input.workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER });
+diff --git a/apps/website/src/features/newsletter/subscriptions.ts b/apps/website/src/features/newsletter/subscriptions.ts
+index 0e1344bf26..857e556396 100644
+--- a/apps/website/src/features/newsletter/subscriptions.ts
++++ b/apps/website/src/features/newsletter/subscriptions.ts
+@@ -7,7 +7,7 @@
+  * `SubscriberDirectoryPort`, read-only.
+  */
+ import type { UUID } from "@jini-ai/core/primitives";
+-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
++import { issueConfirmationToken, refuseUnboundConsent, type ConfirmationDeps } from "./confirmation.js";
+ import {
+   NewsletterListNotFoundError,
+   NewsletterSubscriberNotFoundError,
+@@ -47,6 +47,9 @@ export async function saveSubscription(required: {
+     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
+   }
+   refuseArchivedList({ list });
++  // B176: refuse before the pending row is written — a subscription that can never be confirmed
++  // must not be left behind (the issuer repeats this guard for its other callers).
++  refuseUnboundConsent({ consentCapability: deps.confirmationDeps.consentCapability });
+ 
+   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
+   if (!contact) {
+@@ -148,6 +151,9 @@ export async function importSubscriptions(required: {
+     throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
+   }
+   refuseArchivedList({ list });
++  // Batch-wide like the list checks above: an unbound consent binding refuses every row, so it is
++  // one typed refusal (503), not N identical per-row failures (B176).
++  refuseUnboundConsent({ consentCapability: deps.confirmationDeps.consentCapability });
+ 
+   const created: SubscriptionRow[] = [];
+   const failed: { index: number; code: string; message: string }[] = [];
+diff --git a/apps/website/src/features/newsletter/tool-registrations.ts b/apps/website/src/features/newsletter/tool-registrations.ts
+index 8a14bfe073..31a6331201 100644
+--- a/apps/website/src/features/newsletter/tool-registrations.ts
++++ b/apps/website/src/features/newsletter/tool-registrations.ts
+@@ -35,12 +35,13 @@ import {
+   saveCampaign,
+   type CampaignWriteServiceDeps,
+ } from "./campaign-write-service.js";
+-import { issueConfirmationToken } from "./confirmation.js";
++import { issueConfirmationToken, refuseUnboundConsent } from "./confirmation.js";
+ import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
+ import {
+   NewsletterCampaignNotEditableError,
+   NewsletterCampaignNotFoundError,
+   NewsletterConflictError,
++  NewsletterConsentUnavailableError,
+   NewsletterDefaultListProtectedError,
+   NewsletterForbiddenError,
+   NewsletterListNotFoundError,
+@@ -263,6 +264,11 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+   { error: NewsletterValidationError, code: "NEWSLETTER_VALIDATION_FAILED" },
+   { error: NewsletterCampaignNotEditableError, code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE" },
+   { error: NewsletterDefaultListProtectedError, code: "NEWSLETTER_DEFAULT_LIST_PROTECTED" },
++  {
++    error: NewsletterConsentUnavailableError,
++    code: "NEWSLETTER_CONSENT_UNAVAILABLE",
++    guidance: "Nothing was written or sent. Subscriber consent is not connected yet, so double opt-in subscriptions cannot be created until it is.",
++  },
+   {
+     error: NewsletterConflictError,
+     code: "NEWSLETTER_CONFLICT",
+@@ -270,11 +276,23 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+   },
+ ];
+ 
++/** B176 refusal acknowledgement. Consent binding is workspace-wide, so this is the same for every
++ * subscription id and leaks nothing about which subscriptions or contacts exist. */
++const CONSENT_UNAVAILABLE_ACK = {
++  delivered: false,
++  mailDeliveryAvailable: true,
++  reason: "consent_unavailable",
++  note: "Subscriber consent is not connected yet, so no confirmation link was sent and nothing was changed.",
++} as const;
++
+ async function resendPendingSubscriptionConfirmation(
+   { deps, subscriptionId, signal }: { deps: NewsletterToolDeps; subscriptionId: string; signal: AbortSignal },
+   _options: Record<string, never> = {},
+ ) {
+   try {
++    // Refused before the lookup, not via the issuer: refusing only for pending subscriptions with a
++    // contact would turn the constant acknowledgement below into an enumeration oracle.
++    refuseUnboundConsent({ consentCapability: deps.membersConsentCapability });
+     const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+     // Constant acknowledgement for missing subscriptions, missing contacts and non-pending records.
+     if (!subscription || subscription.status !== "pending") return { delivered: true, mailDeliveryAvailable: true };
+@@ -287,6 +305,7 @@ async function resendPendingSubscriptionConfirmation(
+       });
+     }
+   } catch (error) {
++    if (error instanceof NewsletterConsentUnavailableError) return CONSENT_UNAVAILABLE_ACK;
+     let errorDiagnostic = "[diagnostic unavailable]";
+     try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+     // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
+diff --git a/apps/website/src/features/site-inspection/admin-screens.generated.ts b/apps/website/src/features/site-inspection/admin-screens.generated.ts
+index d21419fab1..9176fc5e14 100644
+--- a/apps/website/src/features/site-inspection/admin-screens.generated.ts
++++ b/apps/website/src/features/site-inspection/admin-screens.generated.ts
+@@ -37,7 +37,7 @@ export const ADMIN_SCREENS: readonly AgentNavigationScreen[] = [
+   {"id":"plugins","label":"Plugins","description":"Manage site plugins: install, inspect and turn them on or off.","path":"/addons/plugins","routeTemplates":["/addons/plugins"],"allowedQueryParams":{"tab":null,"plugin":null},"entityTargets":[]},
+   {"id":"agent-plugins","label":"Agent Plugins","description":"Manage agent plugins: install, view details, turn on/off.","path":"/addons/agent-plugins","routeTemplates":["/addons/agent-plugins"],"allowedQueryParams":{"tab":["installed","downloaded","add","marketplace"]},"entityTargets":[{"type":"agent-plugin","routeTemplate":"/addons/agent-plugins"}]},
+   {"id":"skills","label":"Skills","description":"Manage the skills available to your agents.","path":"/addons/skills","routeTemplates":["/addons/skills"],"allowedQueryParams":{},"entityTargets":[]},
+-  {"id":"providers","label":"Integrations","description":"Connect integrations and configure provider access.","path":"/addons/integrations","routeTemplates":["/addons/integrations"],"allowedQueryParams":{"tab":null},"entityTargets":[]},
++  {"id":"providers","label":"Integrations","description":"Connect integrations and configure provider access.","path":"/addons/integrations","routeTemplates":["/addons/integrations"],"allowedQueryParams":{"tab":null,"server":null},"entityTargets":[]},
+   {"id":"integrations","label":"Integrations","description":"Review webhook subscriptions and delivery results.","path":"/addons/integrations?tab=webhooks","routeTemplates":["/addons/integrations","/addons/integrations/:subscriptionId"],"allowedQueryParams":{},"entityTargets":[]},
+   {"id":"orders","label":"Orders","description":"Review customer orders and their status.","path":"/orders","routeTemplates":["/orders"],"allowedQueryParams":{},"entityTargets":[]},
+   {"id":"products","label":"Products","description":"Manage products and their catalog details.","path":"/products","routeTemplates":["/products"],"allowedQueryParams":{},"entityTargets":[]},
+diff --git a/apps/website/src/server/__tests__/routes/newsletter-auth.test.ts b/apps/website/src/server/__tests__/routes/newsletter-auth.test.ts
+index b3c9b72009..e43fa6e6fd 100644
+--- a/apps/website/src/server/__tests__/routes/newsletter-auth.test.ts
++++ b/apps/website/src/server/__tests__/routes/newsletter-auth.test.ts
+@@ -11,6 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
+ import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
+ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
++import { boundConsentForTests } from "#src/features/newsletter/__tests__/helpers/bound-consent";
+ 
+ /**
+  * @file SPEC-011 (Newsletter) Stage 5, AC-42 — every one of the 19 admin routes, called by a
+@@ -25,6 +26,8 @@ const BASE = (workspaceId: string) => `/api/admin/v1/workspaces/${workspaceId}/n
+ 
+ function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
+   const deps = createRouteDeps();
++  // B176: subscribe/resend mail a confirmation, which refuses while consent is unbound (production default).
++  deps.membersConsentCapability = boundConsentForTests();
+   const app = express();
+   app.use(express.json());
+   registerAuthRoutes({ app, deps });
+diff --git a/apps/website/src/server/__tests__/routes/newsletter-routes.test.ts b/apps/website/src/server/__tests__/routes/newsletter-routes.test.ts
+index adac47304e..54cf173a21 100644
+--- a/apps/website/src/server/__tests__/routes/newsletter-routes.test.ts
++++ b/apps/website/src/server/__tests__/routes/newsletter-routes.test.ts
+@@ -11,6 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
+ import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
+ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
++import { boundConsentForTests } from "#src/features/newsletter/__tests__/helpers/bound-consent";
+ 
+ /**
+  * @file SPEC-011 (Newsletter) Stage 5 — route-level happy-path integration tests for each route
+@@ -29,6 +30,8 @@ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes
+  */
+ async function buildTestApp(): Promise<{ app: express.Express; deps: NewsletterRouteDeps }> {
+   const deps = await createSiteRouteDeps({}, { dbPath: ":memory:" });
++  // B176: subscribe/resend mail a confirmation, which refuses while consent is unbound (production default).
++  deps.membersConsentCapability = boundConsentForTests();
+   const app = express();
+   app.use(express.json());
+   registerAuthRoutes({ app, deps });
+diff --git a/apps/website/src/server/inbound/admin-http/http/newsletter.ts b/apps/website/src/server/inbound/admin-http/http/newsletter.ts
+index 50911099bd..ff748badb0 100644
+--- a/apps/website/src/server/inbound/admin-http/http/newsletter.ts
++++ b/apps/website/src/server/inbound/admin-http/http/newsletter.ts
+@@ -9,6 +9,7 @@ import {
+   NewsletterCampaignNotEditableError,
+   NewsletterCampaignNotFoundError,
+   NewsletterConflictError,
++  NewsletterConsentUnavailableError,
+   NewsletterDefaultListProtectedError,
+   NewsletterForbiddenError,
+   NewsletterLaunchGateBlockedError,
+@@ -124,6 +125,12 @@ const NEWSLETTER_ERROR_MAPPERS: ReadonlyArray<
+     (err: NewsletterSubscriptionNotFoundError) => ({ status: 404, body: { error: err.message, code: "NEWSLETTER_SUBSCRIPTION_NOT_FOUND" } }),
+   ],
+   [NewsletterForbiddenError, (err: NewsletterForbiddenError) => ({ status: 403, body: { error: err.message, code: "FORBIDDEN" } })],
++  // B176: a missing Members consent binding is a temporary server-side capability gap, not a bad
++  // request — 503 so the admin client shows "not available yet" rather than a validation error.
++  [
++    NewsletterConsentUnavailableError,
++    (err: NewsletterConsentUnavailableError) => ({ status: 503, body: { error: err.message, code: "NEWSLETTER_CONSENT_UNAVAILABLE" } }),
++  ],
+ ];
+ 
+ /**
+diff --git a/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts b/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts
+index 98e910abbe..ec4a00c866 100644
+--- a/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts
++++ b/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts
+@@ -14,6 +14,7 @@ import {
+ import { registerAdminNewsletterImportSubscriptionsRoute } from "../import-subscriptions.js";
+ import type { NewsletterRouteDeps } from "../deps.js";
+ import type { NewsletterListRow } from "#src/features/newsletter/types";
++import { boundConsentForTests } from "#src/features/newsletter/__tests__/helpers/bound-consent";
+ 
+ const WORKSPACE_ID = "workspace-local";
+ 
+@@ -21,7 +22,8 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
+   app: express.Express;
+   deps: NewsletterRouteDeps;
+ } {
+-  const base = createRouteDeps();
++  // B176: confirmation mail refuses while consent is unbound (the production default).
++  const base = { ...createRouteDeps(), membersConsentCapability: boundConsentForTests() };
+   const deps = {
+     ...base,
+     authorize: async () => ({ allowed: true, reason: "matched" }),
+diff --git a/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/resend-confirmation.test.ts b/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/resend-confirmation.test.ts
+index bc83ec188d..7c794b85b9 100644
+--- a/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/resend-confirmation.test.ts
++++ b/apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/resend-confirmation.test.ts
+@@ -12,6 +12,7 @@ import type { NewsletterRouteDeps } from "../deps.js";
+ import type { SubscriberContact } from "#src/features/newsletter/index";
+ import type { SubscriptionRow } from "#src/features/newsletter/types";
+ import type { MailerPort } from "#src/platform/mail/index";
++import { boundConsentForTests } from "#src/features/newsletter/__tests__/helpers/bound-consent";
+ 
+ /**
+  * @file Route-level tests for `RESEND_CONFIRMATION`
+@@ -65,7 +66,8 @@ function recordingMailer(): MailerPort & { sent: Array<{ to: string; subject: st
+ }
+ 
+ async function buildApp(contact: SubscriberContact | null) {
+-  const base = createRouteDeps();
++  // B176: confirmation mail refuses while consent is unbound (the production default).
++  const base = { ...createRouteDeps(), membersConsentCapability: boundConsentForTests() };
+   const mailer = recordingMailer();
+   const deps = {
+     ...base,
+diff --git a/apps/website/src/server/runtime/composition/__tests__/chart-providers.unit.test.ts b/apps/website/src/server/runtime/composition/__tests__/chart-providers.unit.test.ts
+index c794075c2f..57f1a28ee5 100644
+--- a/apps/website/src/server/runtime/composition/__tests__/chart-providers.unit.test.ts
++++ b/apps/website/src/server/runtime/composition/__tests__/chart-providers.unit.test.ts
+@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
+ import test from "node:test";
+ 
+ import { InMemorySettingsRepo, set } from "@jini-ai/core/settings";
+-import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
++import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
+ import { chartProviderAssetUrl, readAdminChartProviderSnapshot } from "../chart-providers.js";
+ 
+ /** The admin chart-provider projection: asset addresses are workspace-scoped and path-free, the

@@ -114,7 +114,7 @@ function seedSubscription(overrides: Partial<SubscriptionRow> = {}): Subscriptio
   };
 }
 
-function fakeRouteDeps(options: { allow?: boolean; consentBound?: boolean } = {}) {
+function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const newsletterCampaignRepo = new InMemoryNewsletterCampaignRepo();
   const newsletterListRepo = new InMemoryNewsletterListRepo();
@@ -171,12 +171,7 @@ function fakeRouteDeps(options: { allow?: boolean; consentBound?: boolean } = {}
     mailer,
     // The fake reports no non-delivering driver, so a send needs the site's configured sender.
     mailSenderIdentity: { resolve: async () => ({ email: "hello@example.test", name: "Example Site" }) },
-    // Bound unless a test opts out: confirmation mail refuses while consent is unbound (B176).
-    membersConsentCapability: options.consentBound === false ? null : {
-      request: async () => ({ requested: true as const }),
-      confirm: async () => ({ status: "granted" as const, consentRevisionId: "rev-1" }),
-      revoke: async () => ({ status: "revoked" as const }),
-    },
+    membersConsentCapability: null,
     originRegistry,
   };
 
@@ -494,23 +489,6 @@ test("newsletter_resend_confirmation: sends the confirmation link, preserving th
   const tokens = await newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: WORKSPACE_ID, subscriptionId: "sub-1" });
   assert.equal(tokens.length, 1);
   assert.notEqual(tokens[0].id, prior.id);
-});
-
-test("newsletter_resend_confirmation: unbound consent refuses with zero token writes and zero sends, the same for every id (B176)", async () => {
-  const { deps, newsletterSubscriptionRepo, newsletterConfirmationTokenRepo, sentMail } = fakeRouteDeps({ consentBound: false });
-  await newsletterSubscriptionRepo.save(seedSubscription({ id: "sub-1", subscriberId: "subscriber-1" }));
-  const prior = { id: "tok-prior", workspaceId: WORKSPACE_ID, subscriptionId: "sub-1", tokenHash: "h", purpose: "newsletter_subscription_confirm" as const, createdAt: NOW, expiresAt: NOW, consumedAt: null };
-  await newsletterConfirmationTokenRepo.save(prior);
-  let tokenWrites = 0;
-  const realSave = newsletterConfirmationTokenRepo.save.bind(newsletterConfirmationTokenRepo);
-  newsletterConfirmationTokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
-  const refusal = { delivered: false, mailDeliveryAvailable: true, reason: "consent_unavailable", note: "Subscriber consent is not connected yet, so no confirmation link was sent and nothing was changed." };
-  assert.deepEqual(await resendDirectly(deps, "sub-1"), refusal);
-  // Workspace-wide condition: an unknown id gets the identical refusal, so it is no enumeration oracle.
-  assert.deepEqual(await resendDirectly(deps, "unknown"), refusal);
-  assert.equal(tokenWrites, 0);
-  assert.deepEqual(sentMail, []);
-  assert.deepEqual(await newsletterConfirmationTokenRepo.findById({ workspaceId: WORKSPACE_ID, id: "tok-prior" }), prior);
 });
 
 test("newsletter_resend_confirmation: unknown subscription writes no token or mail", async () => {

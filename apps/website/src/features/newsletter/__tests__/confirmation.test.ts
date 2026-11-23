@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
 import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
-import { NewsletterConfirmTokenInvalidError, NewsletterConsentUnavailableError } from "../errors.js";
+import { NewsletterConfirmTokenInvalidError } from "../errors.js";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
 import type { MembersConsentCapability } from "../ports.js";
 import type { SubscriptionRow } from "../types.js";
@@ -90,7 +90,7 @@ function makeDeps(consentCapability: MembersConsentCapability | null) {
 }
 
 test("issueConfirmationToken: sends the confirm email WITHOUT changing subscription status yet (AC-14)", async () => {
-  const { deps, subscriptionRepo, sentEmails } = makeDeps(makeCallOrderSpy().capability);
+  const { deps, subscriptionRepo, sentEmails } = makeDeps(null);
   await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
 
   assert.equal(sentEmails.length, 1);
@@ -100,7 +100,7 @@ test("issueConfirmationToken: sends the confirm email WITHOUT changing subscript
 });
 
 test("issueConfirmationToken: at most one unconsumed token exists — reissuance invalidates the prior one (behavior.spec §2.1, AC-16)", async () => {
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null);
   const first = await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
   const second = await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
 
@@ -233,10 +233,8 @@ test("consumeConfirmationToken: a removed subscription leaves its valid token un
 });
 
 test("consumeConfirmationToken: an unbound consentCapability is a hard error (ADR-PIPE-011 — never stub to succeed)", async () => {
-  // An EXISTING link (issued while bound) clicked after the binding went away: the plain 503 path.
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null); // no consentCapability
   const rawToken = await issueRawToken(deps);
-  deps.consentCapability = null;
   await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), {
     message: "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)",
   });
@@ -326,7 +324,7 @@ function makeRecordingMailer(driver: string): { mailer: MailerPort; sends: { mes
 
 test("issueConfirmationToken sends as transactional mail on the interactive lane", async () => {
   const { mailer, sends } = makeRecordingMailer("console");
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null);
   await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.equal(sends.length, 1);
   assert.equal(sends[0]!.options.purpose, "transactional");
@@ -335,7 +333,7 @@ test("issueConfirmationToken sends as transactional mail on the interactive lane
 
 test("issueConfirmationToken keeps the no-reply@newsletter.local placeholder while the mailer is non-delivering", async () => {
   const { mailer, sends } = makeRecordingMailer("console");
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null);
   await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.deepEqual(sends[0]!.message.from, { email: "no-reply@newsletter.local", name: "Newsletter" });
 });
@@ -345,13 +343,13 @@ test("issueConfirmationToken sends from the site's configured sender through the
   const senderIdentity = createMailSenderIdentityResolver({ mailer }, {
     readConfiguredSender: async ({ workspaceId }) => (workspaceId === WS ? { email: "news@example.com" } : null),
   });
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null);
   await issueConfirmationToken({ deps: { ...deps, mailer, senderIdentity }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   assert.deepEqual(sends[0]!.message.from, { email: "news@example.com", name: "Newsletter" });
 });
 
 test("issueConfirmationToken on a delivering mailer with no sender refuses before superseding the prior token", async () => {
-  const { deps } = makeDeps(makeCallOrderSpy().capability);
+  const { deps } = makeDeps(null);
   await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
   const [prior] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
   assert.ok(prior);
@@ -363,25 +361,4 @@ test("issueConfirmationToken on a delivering mailer with no sender refuses befor
   assert.equal(sends.length, 0);
   const unconsumed = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
   assert.deepEqual(unconsumed.map((token) => token.id), [prior.id], "the subscriber's last working link survives");
-});
-
-test("issueConfirmationToken refuses an unbound consent binding before superseding, persisting or sending (B176)", async () => {
-  // A link minted while Members consent is unbound can only ever land on the 503 page, so the
-  // issuer must refuse first — and the subscriber's last working link must survive the refusal.
-  const { deps, sentEmails } = makeDeps(makeCallOrderSpy().capability);
-  await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
-  const [prior] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
-  assert.ok(prior);
-  sentEmails.length = 0;
-  let tokenWrites = 0;
-  const realSave = deps.tokenRepo.save.bind(deps.tokenRepo);
-  deps.tokenRepo.save = async (record) => { tokenWrites += 1; return realSave(record); };
-  deps.consentCapability = null;
-  await assert.rejects(
-    issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } }),
-    NewsletterConsentUnavailableError
-  );
-  assert.equal(tokenWrites, 0, "no prior token superseded and no new token persisted");
-  assert.equal(sentEmails.length, 0, "no confirmation email sent");
-  assert.deepEqual(await deps.tokenRepo.findById({ workspaceId: WS, id: prior.id }), prior);
 });
