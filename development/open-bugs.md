@@ -334,3 +334,4 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - C017 admin CSS targets `.jini-*` classes nothing emits — fixed, dead rules removed (e4e6c62ad6).
 - A369 5 agent-daemon-server source pins stale after refactors — fixed, re-anchored (95690f2f05).
 - A340 static publish project name blank though history has it — fixed (616b6a6634).
+- A312 tests write into the real sites/tovu-dev — fixed in the two boot tests found (f5c1f7a3ed); root fix in `site-deps/overrides.ts` (bind from dbPath) after combine-15, 5 sibling boot tests still leak.
