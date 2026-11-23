@@ -15,9 +15,9 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import {
   registerAdminExternalMcpOAuthConnectRoute,
   registerAdminExternalMcpOAuthDevicePollRoute,
-  registerAdminExternalMcpOAuthDisconnectRoute,
   type ExternalMcpOAuthRouteDeps,
 } from "../oauth.js";
+import { registerAdminExternalMcpOAuthDisconnectRoute } from "#src/server/runtime/composition/modules/external-mcp";
 
 /**
  * @file The parts of `oauth.ts` that `admin-external-mcp-oauth-routes.test.ts` (real service,
