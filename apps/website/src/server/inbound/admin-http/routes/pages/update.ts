@@ -4,7 +4,7 @@ import { processOutbox } from "#src/contracts/core/events/index";
 import { restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
 import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/posts/expected-version";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
+import { resolveFeaturedMediaIdForWrite } from "#src/features/post/featured-image";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

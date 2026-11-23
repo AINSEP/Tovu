@@ -8,7 +8,7 @@ import { ToolInputError, requireObject, requireString } from "@jini-ai/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostKind, PostStatus } from "@jini-ai/cms/core";
 
-import { resolveFeaturedImageRef } from "@jini-ai/cms/posts/featured-image";
+import { resolveFeaturedImageRef } from "#src/features/post/featured-image";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 export function requirePostKind(input: Record<string, unknown>): PublicPostKind {

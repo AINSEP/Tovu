@@ -7,7 +7,7 @@ import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@
 import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { PostTemplateDeps } from "./template-options.js";
 import type { PostSearchPort } from "@jini-ai/cms/posts/search";
-import type { FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
+import type { FeaturedImageDeps } from "#src/features/post/featured-image";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 /**

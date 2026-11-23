@@ -4,7 +4,7 @@ import { processOutbox } from "#src/contracts/core/events/index";
 import { getAdminPostByIdOrSlug, restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
 import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/posts/expected-version";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
+import { resolveFeaturedMediaIdForWrite } from "#src/features/post/featured-image";
 import type { Response } from "express";
 
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";

@@ -10,7 +10,7 @@ import { postPreviewAgentToolCatalog } from "#src/features/post/preview-tool";
 import { pagesAgentToolCatalog } from "#src/features/pages/agent-tools";
 import { mediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
-import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
+import { mediaImportAgentToolCatalog } from "#src/features/media-import/tool-registrations";
 import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/agent-tools";
 import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 

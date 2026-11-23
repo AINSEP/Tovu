@@ -15,14 +15,14 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryMediaRepo } from "../../media/index.js";
-import type { FeaturedImageResolution } from "@jini-ai/cms/posts/featured-image";
+import type { FeaturedImageResolution } from "#src/features/post/featured-image";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostToolDeps } from "../post-tool-deps.js";
 
 const WS = "workspace-1";
 
 const resolveFeaturedImageRef = async (): Promise<FeaturedImageResolution> => ({ ok: false, reason: "not-image" });
-mock.module("@jini-ai/cms/posts/featured-image", { namedExports: { resolveFeaturedImageRef } });
+mock.module("#src/features/post/featured-image", { namedExports: { resolveFeaturedImageRef } });
 const { buildPostRegistrations } = await import("../tool-registrations.js");
 
 test("content_post_create: a not-image refusal with no recorded content type says 'not an image' and writes nothing", async () => {
