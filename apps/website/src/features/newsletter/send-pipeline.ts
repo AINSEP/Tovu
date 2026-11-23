@@ -162,6 +162,28 @@ async function materializeAudience({ deps, input }: {
   return { now, snapshotId, snapshot, sendRows };
 }
 
+/** Ledger rows are read in keyset pages of this size; a single oversized read could silently truncate. */
+const SEND_LEDGER_PAGE_SIZE = 1000;
+
+/**
+ * Every send id of a campaign, read page by page. A single `limit: N` read silently dropped rows beyond
+ * N, so a very large campaign would have been sent (and reported) as only its first N recipients.
+ * @complexity O(n) time, O(n) ids (the caller needs them all to enqueue batches), one query per page.
+ */
+async function listAllSendIds(required: { deps: SendPipelineDeps; workspaceId: string; campaignId: string }, optional: { pageSize?: number } = {}): Promise<string[]> {
+  const { deps, workspaceId, campaignId } = required;
+  const { pageSize = SEND_LEDGER_PAGE_SIZE } = optional;
+  const ids: string[] = [];
+  let afterId: string | undefined;
+  for (;;) {
+    const rows = await deps.sendRepo.listByCampaign({ workspaceId, campaignId, afterId, limit: pageSize });
+    for (const row of rows) ids.push(row.id);
+    const last = rows.at(-1);
+    if (rows.length < pageSize || last === undefined) return ids;
+    afterId = last.id;
+  }
+}
+
 /**
  * REQ-16 — materialize `subscribed` subscriptions into 1 snapshot + N send rows. Idempotent by
  * presence-check (INV-06/orchestrator.spec §6): a retry for a campaign that already has
@@ -171,16 +193,17 @@ async function materializeAudience({ deps, input }: {
 export async function freezeAudience(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string; listId: string };
-}, _optional: Record<string, never> = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
+}, optional: { pageSize?: number } = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
   const { deps, input } = required;
+  const { pageSize = SEND_LEDGER_PAGE_SIZE } = optional;
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
 
   if (campaign.audienceSnapshotId) {
     const existing = await deps.audienceSnapshotRepo.findById({ workspaceId: input.workspaceId, id: campaign.audienceSnapshotId });
     if (existing) {
-      const rows = await deps.sendRepo.listByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId, limit: 100000 });
-      return { snapshot: existing, sendIds: rows.map((r) => r.id) };
+      const sendIds = await listAllSendIds({ deps, workspaceId: input.workspaceId, campaignId: input.campaignId }, { pageSize });
+      return { snapshot: existing, sendIds };
     }
   }
 

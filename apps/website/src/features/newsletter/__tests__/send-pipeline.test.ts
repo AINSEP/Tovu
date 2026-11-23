@@ -220,6 +220,22 @@ test("freezeAudience: a dangling snapshot reference is replaced with a persisted
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.audienceSnapshotId, result.snapshot.id);
 });
 
+test("B261 freezeAudience: an already-frozen campaign returns EVERY send id across ledger pages, never a silently capped first page", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ audienceSnapshotId: "snap-1" })] });
+  await rig.audienceSnapshotRepo.save({ id: "snap-1", workspaceId: WS, campaignId: "camp-1", listId: "list-1", recipientCount: 5, createdAt: clock.nowIso() });
+  const ids = ["send-0", "send-1", "send-2", "send-3", "send-4"];
+  for (const id of ids) await rig.sendRepo.save(makeSendRow({ id, idempotencyKey: `key-${id}` }));
+  // A repo that never returns more than the page size it was asked for (the real repos clamp too).
+  const listByCampaign = rig.sendRepo.listByCampaign.bind(rig.sendRepo);
+  const calls: Array<{ afterId?: string; limit?: number }> = [];
+  rig.sendRepo.listByCampaign = async (input) => { calls.push({ afterId: input.afterId, limit: input.limit }); return listByCampaign({ ...input, limit: Math.min(input.limit ?? 2, 2) }); };
+
+  const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } }, { pageSize: 2 });
+
+  assert.deepEqual(result.sendIds, ids);
+  assert.deepEqual(calls, [{ afterId: undefined, limit: 2 }, { afterId: "send-1", limit: 2 }, { afterId: "send-3", limit: 2 }]);
+});
+
 test("dispatchRow: an already sent row preserves its provider receipt without resending", async () => {
   const mailer = makeMailer();
   const rig = makeRig({ mailer });
