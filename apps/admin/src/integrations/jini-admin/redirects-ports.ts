@@ -7,7 +7,7 @@ import { ApiError } from '../../lib/admin-http/request';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { serverLabel } from '../../components/status-labels';
-import { actionsForRedirectLabel, createdLabel, failedItemLabel, importResultSummary, t as translateRedirects } from '../../features/redirects/redirects-i18n';
+import { actionsForRedirectLabel, createdLabel, failedItemLabel, importResultSummary, t as translateRedirects } from '@jini-ai/admin/screens/redirects/redirects-i18n';
 import { mediaTransport } from './media-ports';
 
 import { interpolate } from '@jini-ai/core/text';

@@ -21,7 +21,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/pages", moduleId: "pages", exports: ["PageEditor", "Pages"] },
   { modulePath: "../../features/members", moduleId: "members", exports: ["Members"] },
   { modulePath: "../../features/comments", moduleId: "comments", exports: ["Comments"] },
-  { modulePath: "../../features/analytics", moduleId: "analytics", exports: ["Analytics"] },
+  { modulePath: "../../integrations/jini-admin/analytics-page", moduleId: "analytics", exports: ["Analytics"] },
   { modulePath: "../../features/library", moduleId: "library", exports: ["Library"] },
   { modulePath: "../../features/menus", moduleId: "menus", exports: ["Menus", "MenuEditor"] },
   { modulePath: "../../features/providers", moduleId: "providers", exports: ["Providers"] },
@@ -30,7 +30,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/roles", moduleId: "roles", exports: ["Roles"] },
   { modulePath: "../../features/settings", moduleId: "settings", exports: ["SettingsUi"] },
   { modulePath: "@jini-ai/admin/screens/seo", moduleId: "seo", exports: ["Seo"] },
-  { modulePath: "../../features/redirects", moduleId: "redirects", exports: ["Redirects"] },
+  { modulePath: "@jini-ai/admin/screens/redirects", moduleId: "redirects", exports: ["Redirects"] },
   { modulePath: "../../features/plugins", moduleId: "plugins", exports: ["Plugins", "AgentPlugins"] },
   { modulePath: "../../features/forms", moduleId: "forms", exports: ["FormsList", "FormEditor"] },
   { modulePath: "../../features/collections", moduleId: "collections", exports: ["Collections", "CollectionEntries", "CollectionEntryEditor"] },
@@ -88,6 +88,7 @@ beforeEach(() => {
   // media picker, publish button) are stubbed at the same thin-adapter seam.
   vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
   vi.doMock("../../integrations/jini-admin/seo-module.hooks", () => ({ SeoModuleLoading: () => null }));
+  vi.doMock("../../integrations/jini-admin/redirects-module.hooks", () => ({ RedirectsModuleLoading: () => null }));
 });
 
 // Fake the Jini page boundary beneath a thin, synchronous host adapter. Module evaluation and
