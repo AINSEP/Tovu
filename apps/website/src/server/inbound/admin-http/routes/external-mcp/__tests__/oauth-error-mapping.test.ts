@@ -7,7 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { ExternalMcpReauthRequiredError } from "../../../../../../features/external-mcp/external-mcp-oauth.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
-import { type ExternalMcpOAuthService } from "../../../../../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter, RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

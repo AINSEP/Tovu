@@ -2,7 +2,7 @@ import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { deleteExternalMcpVaultEnvelope, externalMcpVaultRecord, persistExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
-import type { ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord } from "./contracts.js";
+import type { ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 
 /**

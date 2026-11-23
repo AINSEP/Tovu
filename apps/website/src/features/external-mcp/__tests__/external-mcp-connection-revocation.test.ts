@@ -9,7 +9,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createExternalMcpConnectionGate } from "../external-mcp-oauth.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import { deleteExternalMcpServer, toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
-import { type ExternalMcpServerRepoPort } from "../contracts.js";
+import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { InMemoryMcpSession } from "../../../assistant/mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../../../assistant/mcp-federation/bootstrap.js";

@@ -30,7 +30,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { notifyExternalMcpRosterChanged } from "../../assistant/mcp-services.js";
-import { type ExternalMcpAccessSnapshot, type ExternalMcpServerRecord, type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
+import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ExternalMcpToolDeps } from "./deps.js";
 import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
 import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAVE_TOOL_ID, type ExternalMcpSaveInput } from "./save-form.js";

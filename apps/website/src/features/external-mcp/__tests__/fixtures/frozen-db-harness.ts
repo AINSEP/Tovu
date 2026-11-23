@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createTovuOAuthGuard } from "../../../../platform/oauth/endpoint-safety.js";
 import type { ContentKernel } from "../../../../platform/db/content-kernel.js";
-import type { ExternalMcpServerRecord } from "../../contracts.js";
+import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
 import { SqlExternalMcpServerRepo } from "../../external-mcp-repo.js";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../external-mcp-store.js";

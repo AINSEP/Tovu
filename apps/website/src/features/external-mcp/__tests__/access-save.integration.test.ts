@@ -8,7 +8,8 @@ import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '../save-form.js';
 import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
-import type { ExternalMcpServerRecord, ExternalMcpServerView } from '../contracts.js';
+import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
+import type { ExternalMcpServerView } from '../contracts.js';
 import type { ExternalMcpToolDeps } from '../deps.js';
 
 const now = '2026-11-06T04:00:00.000Z';

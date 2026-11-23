@@ -6,7 +6,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
-import type { SaveExternalMcpServerInput } from "../contracts.js";
+import type { SaveExternalMcpServerInput } from "@jini-ai/core/contracts/hosted-mcp";
 
 /**
  * @file Lost updates on the external-MCP form save (design S1): the edit write compares the version

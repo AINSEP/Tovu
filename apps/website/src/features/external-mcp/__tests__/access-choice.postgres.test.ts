@@ -9,7 +9,7 @@ import type { ContentKernel } from '../../../platform/db/content-kernel.js';
 import { ensureVaultRepoFixture } from '../../../platform/db/repos/__tests__/vault-repo.fixture.js';
 import { SqlExternalMcpServerRepo } from '../external-mcp-repo.js';
 import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
-import type { ExternalMcpServerRecord } from '../contracts.js';
+import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
 
 const database = 'tovu_external_mcp_choice_test';
 const identity = { workspaceId: 'ws-choice', serverId: 'source' };

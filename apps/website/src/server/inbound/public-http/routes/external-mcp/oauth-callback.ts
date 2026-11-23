@@ -4,7 +4,7 @@ import { clearedBrowserBindingCookie, readBrowserBinding, EXTERNAL_MCP_BROWSER_B
 
 import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
-import type { ExternalMcpOAuthService } from "../../../../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
-import { type ExternalMcpOAuthService } from "../../../../../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";

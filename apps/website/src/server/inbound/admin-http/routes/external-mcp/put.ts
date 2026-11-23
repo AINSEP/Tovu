@@ -7,7 +7,7 @@ import { describeExternalMcpOwnership } from "@jini-ai/mcp/external/built-in-con
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
-import { type SaveExternalMcpOAuthInput } from "../../../../../features/external-mcp/contracts.js";
+import type { SaveExternalMcpOAuthInput } from "@jini-ai/core/contracts/hosted-mcp";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";

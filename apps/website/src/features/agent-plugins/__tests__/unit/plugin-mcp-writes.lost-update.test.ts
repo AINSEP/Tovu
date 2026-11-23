@@ -6,7 +6,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
-import type { ExternalMcpServerRepoPort } from "../../../external-mcp/contracts.js";
+import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import { applyAgentPluginToolRenames } from "../../apply-tool-renames.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import { mcpTestPort } from "../fixtures/connection-service-ports.js";

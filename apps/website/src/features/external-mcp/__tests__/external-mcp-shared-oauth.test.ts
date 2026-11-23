@@ -14,7 +14,7 @@ import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExterna
 import { toResolvedFederatedConnections } from '@jini-ai/mcp/federation/hosted';
 import { createTovuOAuthGuard } from '../../../platform/oauth/endpoint-safety.js';
 import type { OAuthFetch, OAuthProviderDescriptor } from '@jini-ai/oauth';
-import type { ExternalMcpOAuthGrant } from '../contracts.js';
+import type { ExternalMcpOAuthGrant } from '@jini-ai/core/contracts/hosted-mcp';
 
 const provider: OAuthProviderDescriptor = { providerId: 'fixture', label: 'Synthetic provider', supportedGrants: ['authorization_code', 'device_code'],
   authorizationEndpoint: 'https://auth.example/authorize', tokenEndpoint: 'https://auth.example/token', deviceAuthorizationEndpoint: 'https://auth.example/device',

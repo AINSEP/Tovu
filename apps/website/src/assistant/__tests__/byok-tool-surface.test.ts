@@ -44,7 +44,7 @@ import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/exter
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
 const contributions = {

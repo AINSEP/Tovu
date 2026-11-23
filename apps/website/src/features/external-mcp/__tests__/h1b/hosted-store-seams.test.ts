@@ -15,7 +15,7 @@ import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../external-mcp-store.js";
 import * as vaultShim from "../../external-mcp-vault.js";
-import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "../../external-mcp-revocation.js";
+import { ExternalMcpConnectionRevokedError } from "../../external-mcp-revocation.js";
 
 const keyring = new InMemoryKeyring();
 const inner = new AesGcmSecretSealer(keyring);
@@ -67,7 +67,6 @@ test("error identity and one envelope module instance (package dist, not source)
   assert.ok(revoked instanceof hosted.ExternalMcpConnectionRevokedError && revoked instanceof ToolInputError);
   assert.deepEqual([revoked.name, revoked.code, revoked.retryable, revoked.message],
     ["ExternalMcpConnectionRevokedError", "EXTERNAL_MCP_CONNECTION_REVOKED", false, '"s1" was removed from Integrations → External MCP, so its tools no longer work. Do not retry this tool.']);
-  assert.equal(rosterRefusalFor, hosted.rosterRefusalFor);
   assert.equal(vaultShim.externalMcpVaultEnvelope, hosted.externalMcpVaultEnvelope);
   assert.equal(vaultShim.deleteExternalMcpVaultEnvelope, hosted.deleteExternalMcpVaultEnvelope);
   const resolved = import.meta.resolve("@jini-ai/mcp/federation/hosted");

@@ -8,7 +8,7 @@ import type { McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation"
 import { probeExternalMcpServer as probeHostedMcpServer, type ExternalMcpProbeFailure, type ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";
 import { readEnabledExternalMcpConfigs } from "./external-mcp-store.js";
-import type { ExternalMcpOAuthService } from "./contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ExternalMcpToolDeps } from "./deps.js";
 
 export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer"> & {

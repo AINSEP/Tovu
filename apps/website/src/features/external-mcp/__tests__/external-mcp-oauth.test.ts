@@ -17,7 +17,7 @@ import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
-import { type ExternalMcpServerRepoPort } from "../contracts.js";
+import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 
 /**

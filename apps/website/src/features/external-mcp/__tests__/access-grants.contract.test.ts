@@ -3,7 +3,7 @@ import { describe, test } from 'node:test';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { SqlExternalMcpServerRepo } from '../external-mcp-repo.js';
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from '../contracts.js';
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from '@jini-ai/core/contracts/hosted-mcp';
 import { describeEachDialect } from '../../../platform/db/kernel/__tests__/dialect-matrix.js';
 import { ensureVaultRepoFixture } from '../../../platform/db/repos/__tests__/vault-repo.fixture.js';
 import type { ContentKernel } from '../../../platform/db/content-kernel.js';

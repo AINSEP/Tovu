@@ -10,7 +10,7 @@ import path from "node:path";
 import { contentKernel } from "../../content-kernel.js";
 import { openContentDb, openSqliteContentConnection } from "../../sqlite/content-db.js";
 
-import type { ExternalMcpServerRecord } from "../../../../features/external-mcp/contracts.js";
+import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-repo.js";

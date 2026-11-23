@@ -9,10 +9,10 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { createFederatedCallConfirmer, type FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import { createExternalMcpConnectionGate } from "../features/external-mcp/external-mcp-oauth.js";
-import { type ExternalMcpOAuthService } from "../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { readEnabledExternalMcpConfigs } from "../features/external-mcp/external-mcp-store.js";
 import { toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
-import { type ExternalMcpOAuthTokenResolverPort, type ExternalMcpServerConfig, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthTokenResolverPort, ExternalMcpServerConfig, ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";

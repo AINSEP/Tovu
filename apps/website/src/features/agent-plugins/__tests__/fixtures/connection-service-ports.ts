@@ -1,7 +1,7 @@
 import { applyPluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
-import type { ExternalMcpStoreDeps } from "../../../external-mcp/contracts.js";
+import type { ExternalMcpStoreDeps } from "@jini-ai/core/contracts/hosted-mcp";
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../../../custom-credentials/plugin-credential-card.js";
 import { probeCredentialConnection } from "../../../custom-credentials/credentialed-request.js";
 import type { HttpClientPort } from "../../../../platform/http/index.js";

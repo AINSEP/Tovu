@@ -1,4 +1,5 @@
-import type { ExternalMcpOAuthDeps, ExternalMcpOAuthService } from "./contracts.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import type { ExternalMcpOAuthDeps } from "./contracts.js";
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
 import { hostedMcpSignInLink } from '../api-connections/browser-binding.js';
 import { formatAad } from "@jini-ai/platform/secrets";
@@ -11,7 +12,7 @@ import { createHostedMcpConnectionGate, type ExternalMcpConnectionGateDeps, type
 import { isOAuthError, OAuthError, oauthFlowOperations } from "@jini-ai/oauth";
 import { createHostedMcpSignInService, type HostedMcpSignInPorts } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
-import type { ExternalMcpServerRecord } from "./contracts.js";
+import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
 
 export { createHostedMcpConnectionGate, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";
 export { createDeviceAuthorizationStore, createHostedMcpSignInService } from "@jini-ai/integrations/api-connections/hosted-mcp";

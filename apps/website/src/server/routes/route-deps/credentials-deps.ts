@@ -10,7 +10,8 @@ import type { HttpClientPort } from "../../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../../features/vendor-credentials/index.js";
 import type { MediaProviderCredentialRepoPort } from "../../../features/media/index.js";
-import type { ExternalMcpServerRepoPort, DeviceAuthorizationStore, ExternalMcpOAuthService } from "../../../features/external-mcp/contracts.js";
+import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
+import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ExternalMcpToolApprovalRepoPort } from "../../../assistant/mcp-services.js";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 
