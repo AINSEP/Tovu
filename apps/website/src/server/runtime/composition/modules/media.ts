@@ -22,7 +22,11 @@ import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/rout
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
 import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
 import { registerAdminMediaReplaceRoute } from "#src/server/inbound/admin-http/routes/media/replace";
-import { registerAdminMediaImportUrlRoute, type MediaImportUrlRouteDeps } from "#src/server/inbound/admin-http/routes/media/import-url";
+import { mediaImportUrlRoute } from "@jini-ai/cms/admin-http/routes/media/import-url";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
+import { uploadMedia } from "#src/features/media/index";
+import { fetchImage } from "#src/features/media-import/fetch-image";
+import { EgressRefusedError } from "#src/platform/http/index";
 import type { MediaProviderRouteDeps, MediaProviderRouteRegistrar, MediaRenditionRouteDeps, MediaRouteDeps, MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
@@ -75,8 +79,9 @@ import type { ServerModuleHandle } from "./types.js";
  * only here, at registration, and each mount builds that route's own small deps. The host services
  * those specs need are injected here: the recorded-type/public-URL/blob-size lookups, the
  * transactional trash flip, the reference-checked purge and the provider credential store with its
- * error refusals. list, where-used, upload, import-url, replace, original and text stay hand-written
- * (headers, custom 403 bodies, multipart/raw bodies and byte responses — see the K1 report).
+ * error refusals. where-used and import-url (w3 C4/C4b) answer their own 403 bodies through `forbidden`.
+ * list, upload, replace, original and text stay hand-written (multipart/raw bodies and byte responses —
+ * see the K1 report).
  */
 
 /** The two port fields every media mount passes. `authorize` is read per request, as the hand-written
@@ -128,6 +133,41 @@ export function registerAdminMediaWhereUsedRoute({ app, deps }: { app: Express; 
     findWhereUsed: (input) => findMediaWhereUsed({ deps, input }),
   } }, mountOptions({ operation: "routes/media/where-used", authorization: "direct" }, {
     forbidden: () => ({ status: 403, body: { error: "media.read is required", code: "FORBIDDEN" } }),
+  }));
+}
+
+/** The deps import-url reads: the media route deps plus its dedicated egress client. */
+export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
+
+/** `import-url`: Jini `mediaImportUrlRoute` with the host's guarded fetch, upload pipeline, type store and
+ *  public-URL resolver bound. Its hand-written check called `deps.authorize` directly (`"direct"`) and denied
+ *  with its own body, kept by `forbidden`. An `EgressRefusedError` is the host's refusal: its full diagnosis
+ *  goes to `logEgressRefusal` (operator console by default), only its caller-safe text to the caller.
+ *  @complexity O(n) in bounded downloaded bytes, plus fixed-count repository calls. */
+export function registerAdminMediaImportUrlRoute(
+  required: { app: Express; deps: MediaImportUrlRouteDeps },
+  optional: { logEgressRefusal?: (line: string) => void } = {},
+): void {
+  const { app, deps } = required;
+  const importDeps = {
+    ...mediaPortDeps({ deps }),
+    // This is the dedicated MEDIA_IMPORT_EGRESS_POLICY client from composition, never the
+    // credentialed-request client (which has a smaller cap and a different redirect policy).
+    fetchImage: ({ url }: { url: string }) => fetchImage({ deps: { httpClient: deps.mediaImportHttpClient }, url }),
+    uploadMedia: (input: Omit<Parameters<typeof uploadMedia>[0]["input"], "workspaceId">) => uploadMedia({
+      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+      input: { workspaceId: deps.workspaceId, ...input },
+    }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    recordContentType: ({ sha256, contentType }: { sha256: string; contentType: string }) => deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType }),
+    resolvePublicUrl: mediaAssetLookups({ deps }).resolvePublicUrl,
+    egressRefusalMessage: ({ error }: { error: unknown }) => {
+      if (!(error instanceof EgressRefusedError)) return undefined;
+      (optional.logEgressRefusal ?? console.warn)(`[media-import] admin URL import refused: ${error.message}`);
+      return error.callerSafeMessage;
+    },
+  };
+  mountAdminJsonRoute({ app, spec: mediaImportUrlRoute, deps: importDeps }, mountOptions({ operation: "routes/media/import-url", authorization: "direct" }, {
+    forbidden: ({ reason }) => ({ status: 403, body: { error: "not authorized for media.upload", code: "FORBIDDEN", details: { permission: "media.upload", reason } } }),
   }));
 }
 

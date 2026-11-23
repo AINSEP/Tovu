@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminMediaDeleteRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaImportUrlRoute } from '../import-url.js';
+import { registerAdminMediaImportUrlRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaListRoute } from '../list.js';
 import { registerAdminMediaOriginalRoute, resolveMediaOriginalBlob } from '../original.js';
 import { registerAdminMediaPutProvidersRoute } from '#src/server/runtime/composition/modules/media';
