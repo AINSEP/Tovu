@@ -79,6 +79,7 @@ const SYSTEM_PRINCIPAL = "system-settings-migration";
 function ledgerDeps() {
   return {
     settingsRepo: new InMemorySettingsRepo(),
+    ensureSettingDefinitions,
     clock: { nowIso: () => "2026-11-17T00:00:00.000Z", nowMs: () => Date.parse("2026-11-17T00:00:00.000Z") },
     ids: { newId: (() => { let next = 0; return () => `lease-test-id-${++next}`; })() },
     principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),

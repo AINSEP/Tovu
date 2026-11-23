@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
 import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
@@ -113,7 +113,7 @@ async function ledger() {
   const ids = { newId: () => `form-delivery-id-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const counter = { authorizeCalls: 0 };
   const authorize: AuthorizeFn = async () => { counter.authorizeCalls += 1; return { allowed: true, reason: "test" }; };
   return { settingsRepo, counter, deps: { repo: settingsRepo, clock, ids, authorize, principals } };
@@ -130,7 +130,7 @@ test("the validating write refuses a secret-carrying list before the ledger is t
   assert.equal(counter.authorizeCalls, 0, "refused before the settings write ran");
   const stored = await getEffective({ deps: { repo: settingsRepo }, namespace: "core.forms", key: "deliveryBindings", scopeContext: { workspaceId: WS } });
   assert.deepEqual(stored?.value, [], "the ledger still holds the default");
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }), []);
 });
 
 test("the host settings chokepoint (generic settings route and tools) refuses the same list", async () => {
@@ -141,7 +141,7 @@ test("the host settings chokepoint (generic settings route and tools) refuses th
     (error: unknown) => error instanceof ValueValidationFailedError && /"config\.header" holds a value that looks like a credential/.test(error.message),
   );
   assert.equal(counter.authorizeCalls, 0);
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }), []);
 });
 
 // F6 fix wave (L7 Stryker: 12 Regex survivors in SECRET_KEY / SECRET_VALUES / BASIC_VALUE). Each

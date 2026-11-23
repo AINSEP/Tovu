@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo } from "@jini-ai/core/settings";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import type { Logger } from "@jini-ai/core/primitives";
 import { resolveSiteTimeZone } from "@jini-ai/cms/settings/site/site-timezone";
 
@@ -21,7 +21,7 @@ test("a failed core.site.timezone read logs fixed text without the error's secre
   failing.findActiveDefinition = async () => { throw new Error(`connect failed for ${secret}`); };
 
   const zone = await resolveSiteTimeZone(
-    { settingsRepo: failing, reportFallback: createSiteTimeZoneFallbackReporter({}, { logger }), creationTimeZone: { read: () => "Asia/Kolkata" } },
+    { settingsRepo: failing, getEffective, reportFallback: createSiteTimeZoneFallbackReporter({}, { logger }), creationTimeZone: { read: () => "Asia/Kolkata" } },
     { workspaceId: "ws-1" },
   );
 

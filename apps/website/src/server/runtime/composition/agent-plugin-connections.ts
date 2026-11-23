@@ -9,7 +9,7 @@ import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
-import type { SetValueRequired } from "@jini-ai/core/settings";
+import { getEffective, type SetValueRequired } from "@jini-ai/core/settings";
 
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
@@ -100,7 +100,7 @@ function formDeliveryBindingsStore(required: { settings: SetValueRequired["deps"
   const { settings } = required;
   return {
     isConflict: ({ error }, _options = {}) => error instanceof FormDeliveryBindingsConflictError,
-    read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId }),
+    read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId, getEffective }),
     write: async ({ workspaceId, callerPrincipalId, value, expectedValue }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }, { expectedValue }); },
   };
 }

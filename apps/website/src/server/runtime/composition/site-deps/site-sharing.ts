@@ -84,7 +84,7 @@ export function configureSiteSharing(required: ConfigureSiteSharingRequired, _op
           context: async () => {
             const context = await routeDeps.staticSiteContext();
             const creationZone = createSiteCreationTimeZone({ dir: resolvedSiteBinding.dir });
-            const timeZone = await resolveSiteTimeZone({ settingsRepo, reportFallback: createSiteTimeZoneFallbackReporter(), creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
+            const timeZone = await resolveSiteTimeZone({ settingsRepo, getEffective, reportFallback: createSiteTimeZoneFallbackReporter(), creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
             return { ...context, timeZone };
           },
         },

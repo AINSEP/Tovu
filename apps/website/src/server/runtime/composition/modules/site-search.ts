@@ -1,6 +1,6 @@
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import { afterSettled } from "@jini-ai/core/errors/idioms";
-import type { SetValueRequired, SettingsRepoPort } from "@jini-ai/core/settings";
+import { getEffective, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 import {
   BUILTIN_SEARCH_PROVIDER_ID, createSearchIndexer, createSearchProviderRegistry, createSearchService, searchIndexName,
   type SearchAccessPort, type SearchDocumentSource, type SearchIndexer, type SearchIndexStatePort, type SearchProvider,
@@ -408,7 +408,7 @@ export interface SiteSearchBindings {
  */
 export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Record<string, never> = {}): SiteSearchPorts {
   const { workspaceId, kernel, now } = required;
-  const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo });
+  const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo, getEffective });
   const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps, writeSetting: set });
   return {
     workspaceId,

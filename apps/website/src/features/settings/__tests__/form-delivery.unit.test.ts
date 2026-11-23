@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
 import { enforceFormDeliveryBindingsWrite, ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "@jini-ai/cms/settings/site/form-delivery";
@@ -44,7 +44,7 @@ async function ledger({ register = true }: { register?: boolean } = {}) {
   const ids = { newId: () => `form-delivery-unit-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  const ensureDeps = { settingsRepo, clock, ids, principals };
+  const ensureDeps = { settingsRepo, clock, ids, principals, ensureSettingDefinitions };
   if (register) await ensureFormDeliverySettings({ deps: ensureDeps, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
   const deps: SetValueRequired["deps"] = { repo: settingsRepo, clock, ids, authorize, principals };
@@ -67,27 +67,27 @@ test("registering again keeps an owner's stored values", async () => {
   await write("autoPull", false);
   await write("deliveryBindings", [storedBinding()]);
   await ensureFormDeliverySettings({ deps: ensureDeps, systemPrincipalId: "system" });
-  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), false);
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), [binding()]);
+  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS, getEffective }), false);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }), [binding()]);
 });
 
 test("automatic pull reads as on when the definition was never registered", async () => {
   const { settingsRepo } = await ledger({ register: false });
-  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), true);
+  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS, getEffective }), true);
 });
 
 test("automatic pull reads the stored value fresh on every call", async () => {
   const { settingsRepo, write } = await ledger();
-  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), true);
+  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS, getEffective }), true);
   await write("autoPull", false);
-  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), false);
+  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS, getEffective }), false);
   await write("autoPull", true);
-  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), true);
+  assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS, getEffective }), true);
 });
 
 test("delivery bindings read as none when the definition was never registered", async () => {
   const { settingsRepo } = await ledger({ register: false });
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }), []);
 });
 
 test("a valid list written through the host chokepoint is stored as written and read back parsed", async () => {
@@ -95,14 +95,14 @@ test("a valid list written through the host chokepoint is stored as written and 
   const list = [storedBinding(), storedBinding({ bindingId: "rows-b", adapterId: "rows", enabled: false, formIds: ["form-1"], config: { table: "t", columns: [1, true, null] } })];
   const saved = await write("deliveryBindings", list);
   assert.deepEqual(saved.value, list);
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), list);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }), list);
 });
 
 test("a stored list that breaks a rule (written past the host chokepoint) is refused when read for planning", async () => {
   const { settingsRepo, deps } = await ledger();
   // The package's own `set` skips the host rules; planning still refuses what it reads.
   await packageSet({ deps, input: { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value: [storedBinding(), storedBinding()] } });
-  await assert.rejects(readFormDeliveryBindings({ settingsRepo, workspaceId: WS }),
+  await assert.rejects(readFormDeliveryBindings({ settingsRepo, workspaceId: WS, getEffective }),
     (error: unknown) => error instanceof ValueValidationFailedError && error.message === `${PREFIX}binding 2 repeats bindingId "sheet-a"; give every binding its own id.`);
 });
 

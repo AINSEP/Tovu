@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   createSearchProviderRegistry, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProvider, type SearchProviderContext,
@@ -526,7 +526,7 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
   const ids = { newId: () => { counter += 1; return `setting-${counter}`; } };
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-  await ensureSearchProviderSetting({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureSearchProviderSetting({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const memberCalls: unknown[] = [];
   const credentialCalls: unknown[] = [];
   const contributionCalls: unknown[] = [];

@@ -25,6 +25,7 @@ import { formsMailOutboxReady } from "@jini-ai/cms/forms/site/mail-outbox-readin
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import { readMailSenderSetting } from "@jini-ai/cms/settings/site/mail-sender";
+import { getEffective } from "@jini-ai/core/settings";
 import { resolvePublishContentPeerHttpClient } from "../publish-content-http.js";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 
@@ -73,8 +74,8 @@ export function composeMailHttp(required: ComposeMailHttpRequired, _optional = {
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
     delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
-    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
-    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
+    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId, getEffective })).email,
+    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId, getEffective }),
   }, { durableOutboxReady: required => mailDurableOutboxReady(required),
     setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle, notifyRosterChanged: notifyExternalMcpRosterChanged }) });
   // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.

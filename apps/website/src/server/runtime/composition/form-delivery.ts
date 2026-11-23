@@ -1,7 +1,7 @@
 import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob,
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
-import type { SettingsRepoPort } from "@jini-ai/core/settings";
+import { getEffective, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDeliveryForm } from "@jini-ai/cms/forms/site/form-destination-manifest";
 import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 
@@ -44,7 +44,7 @@ export function composeFormDelivery(
   const warn = optional.warn ?? ((message: string) => console.warn(message));
   const planner = {
     plans: required.plans,
-    bindings: ({ workspaceId }: { workspaceId: string }) => readFormDeliveryBindings({ settingsRepo: required.settingsRepo, workspaceId }),
+    bindings: ({ workspaceId }: { workspaceId: string }) => readFormDeliveryBindings({ settingsRepo: required.settingsRepo, workspaceId, getEffective }),
     snapshot: async (input: { workspaceId: string; submissionId: string; formId: string }) =>
       readDeliverySnapshot({ deps: required, ...input }),
     newId: () => required.idGen.newId(),

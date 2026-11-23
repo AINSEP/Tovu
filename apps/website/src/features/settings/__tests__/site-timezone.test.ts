@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo, resolveDefinitionRaw, set, type AuthorizeFn, type SettingsRepoPort } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, resolveDefinitionRaw, set, type AuthorizeFn, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 import {
   createSiteTimeZonePort,
@@ -35,7 +35,7 @@ const ids = { newId: () => `site-tz-id-${++idCounter}` };
 const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
 
 async function makeLedger(options: { register?: boolean } = {}) {
-  const ledger = { settingsRepo: new InMemorySettingsRepo(), clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }) };
+  const ledger = { settingsRepo: new InMemorySettingsRepo(), ensureSettingDefinitions, clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }) };
   if (options.register !== false) await ensureSiteTimeZoneSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   return ledger;
 }
@@ -60,38 +60,38 @@ test("registers core.site.timezone as a per-workspace string setting defaulting 
 test("an owner-set workspace zone wins over the creation zone", async () => {
   const ledger = await makeLedger();
   await ownerSet(ledger, "ws-1", "Asia/Tokyo");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
 });
 
 test("an owner's explicit UTC also wins over the creation zone", async () => {
   const ledger = await makeLedger();
   await ownerSet(ledger, "ws-1", "UTC");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "UTC");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "UTC");
 });
 
 test("without an owner value, the zone detected at site creation applies, else UTC", async () => {
   const ledger = await makeLedger();
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") }, { workspaceId: "ws-1" }), "America/Los_Angeles");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone(undefined) }, { workspaceId: "ws-1" }), "UTC");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo }, { workspaceId: "ws-1" }), "UTC");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") }, { workspaceId: "ws-1" }), "America/Los_Angeles");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone(undefined) }, { workspaceId: "ws-1" }), "UTC");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo }, { workspaceId: "ws-1" }), "UTC");
 });
 
 test("an invalid owner value falls through to the creation zone; an invalid creation zone falls to UTC", async () => {
   const ledger = await makeLedger();
   await ownerSet(ledger, "ws-1", "Not/A_Zone");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Mars/Base") }, { workspaceId: "ws-1" }), "UTC");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("Mars/Base") }, { workspaceId: "ws-1" }), "UTC");
 });
 
 test("an unregistered definition or a failing settings read never throws: the creation zone, else UTC", async () => {
   const unregistered = await makeLedger({ register: false });
-  assert.equal(await resolveSiteTimeZone({ reportFallback: () => {}, settingsRepo: unregistered.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
+  assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: () => {}, settingsRepo: unregistered.settingsRepo, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
   const failing = new Proxy({} as SettingsRepoPort, { get: () => async () => { throw new Error("settings db down"); } });
   const errors: unknown[] = [];
   const originalError = console.error;
   console.error = (...args: unknown[]) => { errors.push(args); };
   try {
-    assert.equal(await resolveSiteTimeZone({ reportFallback: createSiteTimeZoneFallbackReporter(), settingsRepo: failing, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
+    assert.equal(await resolveSiteTimeZone({ getEffective, reportFallback: createSiteTimeZoneFallbackReporter(), settingsRepo: failing, creationTimeZone: creationZone("Asia/Tokyo") }, { workspaceId: "ws-1" }), "Asia/Tokyo");
   } finally {
     console.error = originalError;
   }
@@ -102,7 +102,7 @@ test("an unregistered definition or a failing settings read never throws: the cr
 test("createSiteTimeZonePort binds the resolver to its deps for the render ports", async () => {
   const ledger = await makeLedger();
   await ownerSet(ledger, "ws-2", "Asia/Tokyo");
-  const port = createSiteTimeZonePort({ reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") });
+  const port = createSiteTimeZonePort({ getEffective, reportFallback: () => {}, settingsRepo: ledger.settingsRepo, creationTimeZone: creationZone("America/Los_Angeles") });
   assert.equal(await port.resolveTimeZone({ workspaceId: "ws-2" }), "Asia/Tokyo");
   assert.equal(await port.resolveTimeZone({ workspaceId: "ws-3" }), "America/Los_Angeles");
 });

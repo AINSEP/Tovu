@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo, set } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, set } from "@jini-ai/core/settings";
 import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
 import { chartProviderAssetUrl, readAdminChartProviderSnapshot } from "../chart-providers.js";
 
@@ -45,7 +45,7 @@ test("snapshot projects admitted providers with an optional stylesheet and the d
 async function chartSettings({ stored }: { stored?: string } = {}) {
   let nextId = 0;
   const settingsRepo = new InMemorySettingsRepo();
-  const deps = { settingsRepo, clock: { nowMs: () => 0 }, ids: { newId: () => `chart-setting-${++nextId}` },
+  const deps = { settingsRepo, ensureSettingDefinitions, clock: { nowMs: () => 0 }, ids: { newId: () => `chart-setting-${++nextId}` },
     principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } };
   await ensureChartProviderSetting({ deps, systemPrincipalId: "boot" });
   if (stored !== undefined) await set({ deps: { ...deps, repo: settingsRepo, authorize: async () => ({ allowed: true, reason: "fixture" }) }, input: {

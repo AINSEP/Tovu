@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { InMemorySettingsRepo } from '@jini-ai/core/settings';
+import { ensureSettingDefinitions, InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
@@ -51,7 +51,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const idGen = { newId: () => `id-${++counter}` };
   const principalRecords = new InMemoryPrincipalRepo({});
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
-  const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
+  const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, ensureSettingDefinitions, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const preferences = composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
     principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } });

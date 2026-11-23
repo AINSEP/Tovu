@@ -1,6 +1,6 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
-import type { SetValueRequired, SettingsRepoPort } from "@jini-ai/core/settings";
+import { getEffective, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { set } from "./site-title-write.js";
@@ -28,7 +28,7 @@ export function guardedBindingsRepo(
 ): SettingsRepoPort {
   return new Proxy(required.repo, { get(target, key) {
     if (key === "saveWorkspaceValue") return async (record: Parameters<SettingsRepoPort["saveWorkspaceValue"]>[0]) => {
-      const current = await readFormDeliveryBindings({ settingsRepo: target, workspaceId: required.workspaceId });
+      const current = await readFormDeliveryBindings({ settingsRepo: target, workspaceId: required.workspaceId, getEffective });
       if (JSON.stringify(current) !== JSON.stringify(required.expectedValue)) throw new FormDeliveryBindingsConflictError();
       await target.saveWorkspaceValue(record);
     };

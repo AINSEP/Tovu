@@ -27,7 +27,7 @@ import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-deli
 import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
-import { ensureSettingDefinitions } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
@@ -89,14 +89,14 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions };
   const { siteSettingsReady, siteTitleReady } = startPersistentSiteSettings({ analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore });
   return { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady };
 }
 
 function startPersistentSiteSettings(required: {
   analyticsSettingsReady: Promise<void>;
-  siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
+  siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; ensureSettingDefinitions: typeof ensureSettingDefinitions; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
   siteTitlePreservationStore: SqliteSiteTitlePreservationStore;
 }, _options = {}) {
   const { analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore } = required;
@@ -207,6 +207,7 @@ function compositionSiteDisplaySources(
   // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
+    getEffective,
     reportFallback: createSiteTimeZoneFallbackReporter(),
     ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
   });

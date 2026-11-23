@@ -12,6 +12,7 @@ import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/c
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 
 /**
  * @file forms-multidest-owned / G15 T3: two panels share one bindings setting. Real settings
@@ -45,11 +46,11 @@ async function fixture(required: { t: TestContext; initial?: readonly FormDelive
   const principals = { findActiveById: async () => null };
   const settings = { repo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: "test admin" }) };
   db.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: clock.nowIso() }).run();
-  await ensureFormDeliverySettings({ deps: { settingsRepo: repo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo: repo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const write = (input: { value: readonly FormDeliveryBinding[] }, optional: { expectedValue?: readonly FormDeliveryBinding[] } = {}) =>
     writeFormDeliveryBindings({ deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "admin", value: input.value }, optional);
   await write({ value: required.initial ?? [] });
-  const read = () => readFormDeliveryBindings({ settingsRepo: repo, workspaceId: WORKSPACE });
+  const read = () => readFormDeliveryBindings({ settingsRepo: repo, workspaceId: WORKSPACE, getEffective });
   let pendingRead: { captured: ReturnType<typeof barrier>; resume: ReturnType<typeof barrier> } | undefined;
   const bindings: FormDeliveryBindingsStore = {
     isConflict: ({ error }) => error instanceof FormDeliveryBindingsConflictError,

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { ensureFormDestinationSetting, readFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
@@ -18,17 +18,17 @@ const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRe
 
 test("an ensured receiver setting reads back its 'auto' default", async () => {
   const settingsRepo = new InMemorySettingsRepo();
-  await ensureFormDestinationSetting({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
-  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1" }), "auto");
+  await ensureFormDestinationSetting({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
+  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1", getEffective }), "auto");
 });
 
 test("a missing definition, or a non-string stored default, reads as undefined", async () => {
   const settingsRepo = new InMemorySettingsRepo();
-  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1" }), undefined);
+  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1", getEffective }), undefined);
 
-  await ensureFormDestinationSetting({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDestinationSetting({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const definition = await settingsRepo.findActiveDefinition({ namespace: "core.forms", key: "receiver", workspaceId: null });
   assert.ok(definition);
   await settingsRepo.saveDefinition({ ...definition, defaultValue: 42 });
-  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1" }), undefined);
+  assert.equal(await readFormDestinationSetting({ settingsRepo, workspaceId: "ws-1", getEffective }), undefined);
 });

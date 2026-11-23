@@ -1,6 +1,7 @@
 import { observed } from "@jini-ai/core/errors/idioms";
 import { InMemorySiteTitlePreservationStore, ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
 import { ensureAdminInterfaceSettingDefinitions } from "@jini-ai/cms/settings/site/admin-interface";
+import { ensureSettingDefinitions } from "@jini-ai/core/settings";
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../../configuration/seed.js";
 import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-provider";
 import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
@@ -19,7 +20,7 @@ export function composeSiteTitleSettings(required: { settingsRepo: InMemorySetti
   // no pre-existing workspace (EC-03) and the pin is a no-op. Chained after `analyticsSettingsReady`
   // for the single-SQLite-connection-transaction reason every registration above documents.
   const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions };
   const siteSettingsReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.

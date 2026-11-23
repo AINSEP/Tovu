@@ -5,7 +5,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
@@ -67,7 +67,7 @@ async function settingsWith(workspaceId: string, bindings: readonly { bindingId:
   const ids = { newId: () => `setting-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
   await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId, callerPrincipalId: "owner",
     value: bindings.map(binding => ({ ...binding, enabled: true, config: { table: "leads" } })) });

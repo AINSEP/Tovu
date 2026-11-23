@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
 import { ensureMailSenderSettings, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE, readMailSenderSetting } from "@jini-ai/cms/settings/site/mail-sender";
@@ -24,7 +24,7 @@ async function ledger({ register = true }: { register?: boolean } = {}) {
   } };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  if (register) await ensureMailSenderSettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  if (register) await ensureMailSenderSettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
   const deps: SetValueRequired["deps"] = { repo: settingsRepo, clock, ids, authorize, principals };
   const write = (key: string, value: string) =>
@@ -42,30 +42,30 @@ test("ensureMailSenderSettings registers core.mail.senderEmail and senderName, b
 
 test("readMailSenderSetting reads nothing configured from the registered defaults", async () => {
   const { settingsRepo } = await ledger();
-  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS }), {});
+  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS, getEffective }), {});
 });
 
 test("readMailSenderSetting reads nothing configured when the definitions were never registered", async () => {
   const { settingsRepo } = await ledger({ register: false });
-  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS }), {});
+  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS, getEffective }), {});
 });
 
 test("readMailSenderSetting returns the saved address and display name, trimmed", async () => {
   const { settingsRepo, write } = await ledger();
   await write(MAIL_SENDER_EMAIL_KEY, "  hello@example.com ");
   await write(MAIL_SENDER_NAME_KEY, " Example Site ");
-  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS }), { email: "hello@example.com", name: "Example Site" });
+  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS, getEffective }), { email: "hello@example.com", name: "Example Site" });
 });
 
 test("readMailSenderSetting leaves a blank value out, so an address alone reads without a name", async () => {
   const { settingsRepo, write } = await ledger();
   await write(MAIL_SENDER_EMAIL_KEY, "hello@example.com");
   await write(MAIL_SENDER_NAME_KEY, "   ");
-  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS }), { email: "hello@example.com" });
+  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: WS, getEffective }), { email: "hello@example.com" });
 });
 
 test("readMailSenderSetting is scoped to the workspace it is asked about", async () => {
   const { settingsRepo, write } = await ledger();
   await write(MAIL_SENDER_EMAIL_KEY, "hello@example.com");
-  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: "ws-other" }), {});
+  assert.deepEqual(await readMailSenderSetting({ settingsRepo, workspaceId: "ws-other", getEffective }), {});
 });

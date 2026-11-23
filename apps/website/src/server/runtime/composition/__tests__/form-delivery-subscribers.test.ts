@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryPlan, type FormDeliveryPlanPort } from "@jini-ai/cms/forms";
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
@@ -29,7 +29,7 @@ async function settingsSelectingEveryForm() {
   const ids = { newId: () => `setting-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
   await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId: W, callerPrincipalId: "owner",
     value: [{ bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { table: "leads" } }] });
