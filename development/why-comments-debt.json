@@ -2804,6 +2804,10 @@
     {
       "id": "28f706b8b49b",
       "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/router.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "178e43d79674",
+      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
     }
-]
+  ]
 }
