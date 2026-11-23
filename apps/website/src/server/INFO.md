@@ -43,3 +43,8 @@ the heal scheduler is built once per registration and injected. The custom list/
 composed in that module (built from `createAdminJsonRoutePorts`) whose `authenticate` also records the
 request's credential kind for the owner-session gates. The publish GET list (a pinned direct-call rejection)
 and `routes/system/credential-copy.ts` (socket/headers, `Cache-Control: no-store`) stay hand-written.
+Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings specs `"direct"` with failure
+`{ operation: "routes/settings", message: "The settings request could not finish." }`, binding readiness, the
+ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,
+mail-cache invalidation) and the `settings.user.read` cross-principal policy from
+`inbound/admin-http/routes/settings/shared.ts` (host composition). The SSE feed (`events.ts`) stays hand-written.
