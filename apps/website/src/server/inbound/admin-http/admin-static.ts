@@ -5,8 +5,8 @@ import express from "express";
 import type { Express, Response } from "express";
 
 import { createAdminDevProxyRequestHandler } from "./admin-dev-proxy.js";
-import { seaApi } from "./sea-runtime.js";
-import type { SeaApi } from "./sea-runtime.js";
+import { seaApi } from "@jini-ai/cms/admin-http/sea-runtime";
+import type { SeaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",

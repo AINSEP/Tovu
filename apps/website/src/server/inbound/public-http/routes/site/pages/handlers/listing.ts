@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { parseListingBatchPath, parseListingPagePath } from "@jini-ai/cms/listing";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { listingState } from "../listing/listing-state.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { tryRedirectPhase } from "../redirect-phase.js";
 
 /** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers

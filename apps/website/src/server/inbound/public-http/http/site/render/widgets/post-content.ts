@@ -1,6 +1,6 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
-import { isObject, str } from "../value-readers.js";
+import { isObject, str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "../doc/doc-nodes.js";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
