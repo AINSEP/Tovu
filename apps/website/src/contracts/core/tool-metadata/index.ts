@@ -1,7 +1,7 @@
 import { toolMetadata as commerce } from './commerce.js';
 import { toolMetadata as consent } from './consent.js';
 import { projectToolMetadata } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from './approval-policy.js';
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 import { toolMetadata as agent_plugins } from './agent-plugins.js';
 import { toolMetadata as analytics } from './analytics.js';
 import { toolMetadata as assistant } from './assistant.js';
@@ -61,13 +61,24 @@ import { toolMetadata as webhooks } from './webhooks.js';
 import { toolMetadata as widgets } from './widgets.js';
 import { toolMetadata as workspace } from './workspace.js';
 
+/** Owner policy: classify the action rather than the input's write-shaped fields.
+ * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which
+ * includes publishing or unpublishing on this site) and trash (restorable from the Trash).
+ * Only what cannot be undone from here asks — see {@link approvalClassAsks}.
+ * `publish` means the action leaves this site: the live site, a deploy, a git host, an email.
+ * Plan entries describe domain facts through Jini; human forms stay on their secret-card engine.
+ * New native registrations fail closed until their owner declares an action policy. */
+export type HostToolApprovalRule = 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' | 'theme-activation';
+/** The core contract leaves `rule` open to any host; this app's catalog and evaluator use its own six rule names. */
+export type HostToolApprovalPolicy = ToolApprovalPolicy<HostToolApprovalRule>;
+
 /**
  * One projection pass over domain-owned registration contracts, never handler-derived risk.
  * Shared placement lets the session callback gate read these facts without importing handlers
  * or creating feature dependency cycles. Side effects and derived risk retain their independent
  * owners; these declarations do not reclassify either.
  */
-export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ domains: [
+export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ domains: [
   { domain: 'agent-plugins', tools: agent_plugins },
   { domain: 'analytics', tools: analytics },
   { domain: 'assistant', tools: assistant },

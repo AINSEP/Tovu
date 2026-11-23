@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { readAssistantPermanentDeletesPolicy } from "#src/assistant/runtime-settings";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
-import { rejectSettingsRequest } from "../settings/shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 /** Mount this site's owner policy on the shared acknowledged/audited grant ceremony.
  * Reject the complete selection before any receipt or value write; never silently discard bad ids.
@@ -22,7 +22,7 @@ export function registerAdminAssistantPermanentDeletesRoutes(required: { app: Ex
       const validIds = Array.isArray(allowedToolIds) && allowedToolIds.length <= PERMANENT_DELETE_TOOLS.length
         && !allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id));
       if (!validKeys || !validIds || new Set(allowedToolIds).size !== allowedToolIds.length) {
-        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "allowedToolIds must contain unique ids from the 13 supported permanent delete tools. Unknown and forbidden ids are rejected." });
+        rejectRoute({ status: 400, code: "VALIDATION_ERROR", error: "allowedToolIds must contain unique ids from the 13 supported permanent delete tools. Unknown and forbidden ids are rejected." });
       }
       return { enabled: body.enabled as boolean, allowedToolIds: [...allowedToolIds] as string[] };
     }, value: ({ settings }, _optional = {}) => ({ enabled: settings.enabled, allowedToolIds: settings.allowedToolIds }),

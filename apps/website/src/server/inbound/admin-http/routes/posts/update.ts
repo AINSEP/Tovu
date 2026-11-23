@@ -18,10 +18,8 @@ import {
 import type { Response } from "express";
 
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
-import {
-  CONTENT_ENTRY_MAX_BODY_BYTES,
-  rejectOversizedJsonBody,
-} from "#src/server/inbound/shared/body-size-limit";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { ContentRouteRegistrar } from "../content/deps.js";
