@@ -14,7 +14,7 @@ import { computeBlobStorageKey, findMediaByIdOrSlug, sniffContentType } from "./
  * - the row is here and its bytes are in the blob store (else nothing can be served);
  * - its content type is recorded — the only thing the embed resolver reads to choose `<video>` over
  *   `<img>`. A missing one is repaired by sniffing the stored bytes, exactly as the admin Media
- *   list's read-path backfill does (`routes/media/content-type.ts`), so a row published by an older
+ *   list's read-path backfill does (`@jini-ai/cms/media/site/content-type-resolution`), so a row published by an older
  *   build heals the next time a run carries it, even `unchanged`;
  * - every other media its `htmlAttributes` names by `/m/{key}/` URL (a video's `poster`) exists here.
  *
