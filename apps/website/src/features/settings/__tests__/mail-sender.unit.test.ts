@@ -5,7 +5,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
-import { ensureMailSenderSettings, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE, readMailSenderSetting } from "../mail-sender.js";
+import { ensureMailSenderSettings, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE, readMailSenderSetting } from "@jini-ai/cms/settings/site/mail-sender";
 
 /**
  * @file The site's outbound mail sender settings (`core.mail.senderEmail`/`senderName`): their

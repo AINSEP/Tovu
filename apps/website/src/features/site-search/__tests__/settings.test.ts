@@ -7,7 +7,7 @@ import { InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, ty
 import { createSettingsPrincipalLookup, set } from "../../settings/index.js";
 import {
   ensureSearchProviderSetting, isSearchProviderId, readSearchProviderSetting, SEARCH_PROVIDER_KEY, SEARCH_SETTINGS_NAMESPACE, writeSearchProviderSetting,
-} from "../settings.js";
+} from "@jini-ai/search/site/settings";
 
 /** @file `core.search/provider` on the real settings ledger (in-memory repo): default, typed write, grammar on both sides. */
 

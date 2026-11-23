@@ -7,7 +7,8 @@ import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
-import { ensureFormDeliverySettings, FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "../index.js";
+import { FormDeliveryBindingsConflictError, writeFormDeliveryBindings } from "../index.js";
+import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";

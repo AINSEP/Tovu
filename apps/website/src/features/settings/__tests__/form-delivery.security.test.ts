@@ -5,7 +5,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
-import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "../form-delivery.js";
+import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { writeFormDeliveryBindings } from "../form-delivery-write.js";
 
 /**

@@ -7,7 +7,7 @@ import {
   type SettingsRepoPort,
 } from "../settings/index.js";
 import { LOCAL_ANALYTICS_SINK_ID } from "@jini-ai/analytics";
-import type { AnalyticsConfigPort } from "./ports.js";
+import type { AnalyticsConfigPort } from "@jini-ai/analytics/site/ports";
 import type { AnalyticsSiteConfig } from "@jini-ai/analytics";
 
 /**

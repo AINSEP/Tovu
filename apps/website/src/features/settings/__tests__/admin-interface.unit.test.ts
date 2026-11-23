@@ -17,7 +17,7 @@ import {
   PREFER_SUBAGENTS_KEY,
   REPLY_LENGTH_KEY,
   USE_CLAUDE_IN_CHROME_KEY,
-} from "../admin-interface.js";
+} from "@jini-ai/cms/settings/site/admin-interface";
 
 /**
  * @file The assistant dock's Chat settings → Display keys (owner, 2026-10-11) as the server registers
