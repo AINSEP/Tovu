@@ -318,3 +318,27 @@ test("another starting site waits past 125 seconds and reuses the active builder
   assert.equal(elapsed, 225_000);
   assert.equal(fs.existsSync(lockPath), false);
 });
+
+test("B187: a failed admin build is reported to the waiter instead of polled as missing until the backstop", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-failed-marker-"));
+  t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
+  await assert.rejects(journeyAdminBundle({ runtimeDir, repoRoot: "/repo" }, { build: async () => { throw new Error("build failed"); } }), /build failed/);
+  let polls = 0;
+  await assert.rejects(
+    waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => { if (++polls > 3) throw new Error("still polling a failed build"); } }),
+    /admin panel build for local sites failed/,
+  );
+  assert.equal(polls, 0);
+});
+
+test("B187: a retry clears the previous attempt's failed marker so its waiters wait for the new build", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-failed-retry-"));
+  t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
+  const required = { runtimeDir, repoRoot: "/repo" };
+  await assert.rejects(journeyAdminBundle(required, { build: async () => { throw new Error("build failed"); } }), /build failed/);
+  const failedMarker = path.join(runtimeDir, "admin-build", "failed");
+  let markerDuringRetry: boolean | undefined;
+  await journeyAdminBundle(required, { build: async () => { markerDuringRetry = fs.existsSync(failedMarker); } });
+  assert.equal(markerDuringRetry, false, "a stale failure must not fail waiters of the retry in progress");
+  await waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => assert.fail("build finished") });
+});

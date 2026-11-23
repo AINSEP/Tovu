@@ -143,6 +143,8 @@ export async function journeyAdminBundle(
     // A shared bundle must resolve public links against its serving origin, not the API port of
     // whichever site won the build lock. The static admin proxy forwards these public routes.
     delete env.VITE_TOVU_SITE_URL;
+    // A retry is a fresh attempt: drop the previous attempt's failure so its waiters wait for this one.
+    await rm(path.join(root, "failed"), { force: true });
     try {
       await build({ repoRoot, output, env });
       await writeFile(path.join(root, "ready"), "ready");
@@ -160,7 +162,7 @@ export async function journeyAdminBundle(
  * @param required Shared runtime directory and child liveness port.
  * @param optional Polling delay and monotonic clock ports; no process is launched here.
  * @returns Once the bundle is ready or the child has exited.
- * @throws When preparation exceeds the build backstop.
+ * @throws When preparation exceeds the build backstop, or when the builder recorded a failed build.
  * @complexity O(p) filesystem checks for p polls, O(1) storage.
  */
 export async function waitForLocalAdminBuild(
@@ -172,6 +174,10 @@ export async function waitForLocalAdminBuild(
   const started = monotonicMs();
   // Lock absence can mean the child has not started yet; only completion proves readiness.
   while (!exited() && !existsSync(path.join(root, "ready"))) {
+    // The builder's failure marker ends the wait at once instead of polling until the backstop.
+    if (existsSync(path.join(root, "failed"))) {
+      throw new Error("The admin panel build for local sites failed, so this site cannot open its admin yet. Check the build output above, then start the site again to retry the build.");
+    }
     if (monotonicMs() - started >= ADMIN_BUILD_BACKSTOP_MS) {
       throw new Error(`Journey admin preparation did not finish after ${ADMIN_BUILD_BACKSTOP_MS} ms`);
     }
