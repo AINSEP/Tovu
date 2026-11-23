@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { useAdminSession } from "../../App.hooks";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { postsApi } from "../../features/posts/api/posts-api";
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../../lib/admin-http/settings-api";
 import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
 

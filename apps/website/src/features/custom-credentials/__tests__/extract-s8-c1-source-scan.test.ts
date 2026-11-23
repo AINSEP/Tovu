@@ -1,33 +1,30 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 
-import * as generic from "../sets/store.js";
+import * as generic from "@jini-ai/integrations/credentialed-http/sets";
 import * as store from "../store.js";
-import { CredentialSetVaultRepo } from "../sets/vault-repo.js";
+import { CredentialSetVaultRepo } from "@jini-ai/integrations/credentialed-http/sets";
 import { CustomCredentialVaultRepo, customVaultRecord, customVaultScope } from "../vault-repo.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 
 /**
- * @file EXTRACT-S8 C1 seam: (1) the host-wired `sets/` files import only `@jini-ai/core` and each
- * other — no db/platform/UI/Tovu/project/vendor path and no product owner literal — so they can move
- * into Jini unchanged; (2) the Tovu old entries keep their identity: same error class objects,
+ * @file EXTRACT-S8 C1 seam: (1) the moved host-wired `sets/` code in Jini imports only `@jini-ai/core`
+ * and same-directory files — no db/platform/UI/Tovu/project/vendor path and no product owner literal —
+ * and the old Tovu re-export shells are gone (SH-3: importers use the Jini entry directly); (2) the Tovu old entries keep their identity: same error class objects,
  * same repository class/constructor shape, same vault object, canonical `VaultError` codes and the
  * historical raw UNIQUE message.
  */
 
-const SETS = ["host.ts", "vault-repo.ts", "store.ts"].map(name => new URL(`../sets/${name}`, import.meta.url));
+const OLD_SHELLS = ["host.ts", "vault-repo.ts", "store.ts"].map(name => new URL(`../sets/${name}`, import.meta.url));
 
-test("sets/ shims import only the Jini entry; the moved code imports nothing but @jini-ai/core subpaths and same-directory files", () => {
-  for (const file of SETS) {
-    const source = readFileSync(file, "utf8");
-    const specifiers = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map(match => match[1]!);
-    assert.deepEqual(specifiers, ["@jini-ai/integrations/credentialed-http/sets"], `${file.pathname}: shim imports only the entry`);
-  }
+test("the sets/ re-export shells are gone; the moved code imports nothing but @jini-ai/core subpaths and same-directory files", () => {
+  // Why: SH-3 deleted the three shells; a shell coming back would give the moved code a second Tovu path.
+  for (const file of OLD_SHELLS) assert.equal(existsSync(file), false, `${file.pathname}: re-export shell must not exist`);
   const dir = dirname(fileURLToPath(import.meta.resolve("@jini-ai/integrations/credentialed-http/sets")));
   for (const name of ["host", "vault-repo", "store"]) {
     const files = [`${name}.js`, `${name}.d.ts`].map(file => join(dir, file));
