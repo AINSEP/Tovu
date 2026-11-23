@@ -716,16 +716,29 @@ async function preparePluginGuidance({ req, res, run, principal, messages, abort
     system += prefix;
     if (skippedPinned) sse({ res, event: 'agent', data: { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' } });
     res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
-    if (!conversationId) return system;
+    if (!conversationId || abort.signal.aborted) return system;
     return appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }, automaticPluginRuns);
   }
 
 
-async function handleTurn(req: Request, res: Response, context: ByokTurnContext): Promise<void> {
-    const { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns } = context;
+/** Arms the turn's Stop before its first await. `close` fires once, so a listener attached after the
+ * credential/federation awaits (B141) missed a Stop landing during them and the paid call still ran.
+ * Same reasoning as `site-assistant.ts`'s guard: a closed tab must stop the provider call and tools. */
+function armTurnAbort({ res }: { res: Response }, _optional = {}): AbortController {
+  const abort = new AbortController();
+  res.on("close", () => {
+    if (!res.writableEnded) abort.abort();
+  });
+  return abort;
+}
+
+/** Resolves the turn's inputs, tool readiness and system prompt; null once the request was answered
+ * or the owner stopped it, so a stopped turn never opens a stream or reaches the provider.
+ * @complexity One pass over the pre-stream awaits; each is followed by a Stop check. */
+async function prepareTurnOrStop(req: Request, res: Response, context: ByokTurnContext, abort: AbortController): Promise<(ByokTurnInputs & { system: string }) | null> {
+    const { routeDeps, resolvedToolSurface, credentialPort } = context;
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
-    if (!inputs) return undefined;
-    const { messages, principal, credential } = inputs;
+    if (!inputs || abort.signal.aborted) return null;
 
     // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
     // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
@@ -735,6 +748,7 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
     // every turn after the first (the promise is already settled) and for a caller-supplied
     // `toolSurface` that predates this field, which has no `ready` to wait on at all.
     await (resolvedToolSurface.ready ?? Promise.resolve());
+    if (abort.signal.aborted) return null;
 
     // Starts (or awaits) this surface's lazy federation boot pass, bounded to
     // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
@@ -744,27 +758,33 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
     // live — empty before federation has admitted anything, and always when this surface was built
     // with `installExtensions: false` (`federation` is `undefined` there).
     const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
-    let system = await resolveByokSystemPrompt(routeDeps, {
+    const system = await resolveByokSystemPrompt(routeDeps, {
       refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
       stillConnecting: !federationOutcome.settled,
     });
 
+    return abort.signal.aborted ? null : { ...inputs, system };
+  }
+
+async function handleTurn(req: Request, res: Response, context: ByokTurnContext): Promise<void> {
+    const { routeDeps, resolvedToolSurface, liveToolRuns } = context;
+    const abort = armTurnAbort({ res });
+    const prepared = await prepareTurnOrStop(req, res, context, abort);
+    if (!prepared) return undefined;
+    const { messages, principal, credential } = prepared;
+    let { system } = prepared;
+
     const run = { id: randomUUID() };
 
     beginStream(req, res);
-    // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
-    // upstream provider call and any in-flight tool execution, not run to completion unobserved.
-    const abort = new AbortController();
     let finishCleanup!: () => void;
     const done = new Promise<void>(resolve => { finishCleanup = resolve; });
     const liveToolRun = { runId: run.id, agentId: `api:${credential.protocol}`, ...admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }), abort, done, lowered: false, res };
     liveToolRuns.set(run.id, liveToolRun);
     try {
-      res.on("close", () => {
-        if (!res.writableEnded) abort.abort();
-      });
-
       system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system }, context);
+      // A Stop during plugin preparation ends here, before the paid provider call starts.
+      if (abort.signal.aborted) return undefined;
 
       // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
       const toolRun = resolvedToolSurface.createRun?.({ principal, run });
