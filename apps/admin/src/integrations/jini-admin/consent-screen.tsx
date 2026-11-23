@@ -1,6 +1,7 @@
 import { CookieConsent as ConsentPage } from '@jini-ai/admin/screens/consent/CookieConsent';
 import { consentErrors, consentUi, defaultConsentRevisionsPort, useConsentTranslate } from './consent-ports';
 import '@jini-ai/admin/screens/consent/consent-settings.css';
+import './consent-screen.css';
 
 /** @file Mounts the Jini Cookie Consent page with this admin's port, error reader, locale and the
  * consent engine's sections. `panel-pages.ts` lazy-loads it. */
