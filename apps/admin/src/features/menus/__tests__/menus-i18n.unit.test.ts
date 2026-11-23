@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -211,7 +212,10 @@ describe("MENUS_DICT: copy the menus screens actually render", () => {
   // Presence, not `t(locale, key) !== key`: fr "Description" is legitimately the same word.
   it.each(LOCALES)("carries every rendered key in %s", (locale) => {
     const screenKeys = ["Menus.tsx", "MenuEditor.tsx"].flatMap((name) => {
-      const keys = translationKeys(readFileSync(path.resolve(__dirname, "..", name), "utf8"));
+      // `Menus.tsx` moved to `@jini-ai/admin/screens/menus/Menus`; its shipped build still calls
+      // `t("…")` with the same literal keys, so the scanner reads that module.
+      const file = name === "Menus.tsx" ? createRequire(import.meta.url).resolve("@jini-ai/admin/screens/menus/Menus") : path.resolve(__dirname, "..", name);
+      const keys = translationKeys(readFileSync(file, "utf8"));
       expect(keys, `${name}: scanner must see the loading branch`).toContain(name === "Menus.tsx" ? "Loading menus…" : "Loading menu…");
       return keys;
     });

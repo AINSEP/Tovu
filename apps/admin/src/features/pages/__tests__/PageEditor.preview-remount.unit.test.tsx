@@ -19,7 +19,7 @@ import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.ho
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 // Same stub `PageEditor.interactive-flush.unit.test.tsx` uses: the taxonomy box fetches on its own.
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: () => <div data-testid="term-picker" />,
 }));
 

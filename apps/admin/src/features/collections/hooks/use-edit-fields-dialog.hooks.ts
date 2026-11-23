@@ -2,17 +2,8 @@ import { useRef, useState } from "react";
 
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
-import {
-  addDraftField,
-  describeEditFieldsError,
-  draftFieldsFromContentType,
-  KEYS,
-  removeDraftField,
-  stripDraftFieldRowIds,
-  updateDraftField,
-  validateEditFieldsDraft,
-  type DraftField,
-} from "../rules";
+import { addDraftField, draftFieldsFromContentType, KEYS, removeDraftField, stripDraftFieldRowIds, updateDraftField, type DraftField } from "@jini-ai/admin/screens/collections/rules";
+import { describeEditFieldsError, validateEditFieldsDraft } from "../collections-host-ports";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "../collections-host-ports";

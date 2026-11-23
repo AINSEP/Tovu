@@ -27,7 +27,12 @@ as module-level singletons, plus `taxonomyHostKit` — this host's `taxonomy-i18
 `ApiError`/`describeApiError` and admin failure channel — and `createTaxonomyBlockedError` (the real
 `ApiError` the fake taxonomy port throws for a blocked delete). `taxonomy-wired.hooks.ts` binds each
 `@jini-ai/admin` taxonomy hook to `useAdminLocale()`, its live port and the kit (`useWiredX`);
-`Taxonomy.tsx`/`TermPicker.tsx` mount those. Every hook (including `useTaxonomy` and
+`Taxonomy.tsx` mounts those. The Categories & Tags box is `@jini-ai/admin/screens/taxonomy/TermPicker`;
+its two hooks are required props, so each editor that mounts it (`posts/editor/PostSavedPanels.tsx`,
+`pages/PageEditor.tsx`, `collections/CollectionEntryEditor.tsx`) passes
+`useTermPickerHook={useWiredTermPicker}` and `useTermListRevealHook={useTermListReveal}`. It emits only
+`jini-term-picker*` classes; `styles.css` lists each one as a twin next to its original `.term-picker*`
+rule (`styles/__tests__/term-picker-css.unit.test.ts` guards the twins). Every hook (including `useTaxonomy` and
 `useTermPicker`, now split into sub-hooks inside `@jini-ai/admin`) takes one object
 `{ options | target, port, locale, kit }` (`useTaxonomy` adds the bound `t`). Tests compose the Jini hooks with the in-memory `createFake*Port`s
 from `@jini-ai/admin/screens/taxonomy/hooks/*-dependencies.hooks`.

@@ -1,7 +1,6 @@
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
-export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";

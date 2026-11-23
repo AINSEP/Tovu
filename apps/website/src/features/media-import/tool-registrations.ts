@@ -26,8 +26,9 @@ import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
-import type { FsRootId } from "../fs-files/layout.js";
-import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
+import { FS_ROOT_IDS, type FsRootId } from "../fs-files/layout.js";
+import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
+import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
 import { replaceMediaFile, MediaValidationError, type ImageCodecPort, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
@@ -52,6 +53,12 @@ import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
  * that incident). This handler records it on the same line of reasoning `media_generate_asset` does —
  * a failure to record propagates rather than reporting a false success.
  */
+
+/** Owner-controlled recovery for a path outside the file browser's roots; never set roots from a tool. */
+const LOCAL_FILE_IMPORT_RECOVERY = FS_FOLDER_READ_RECOVERY;
+
+/** This host's media-import catalog: the Jini builder bound to fs-files' root ids and recovery text. */
+export const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: LOCAL_FILE_IMPORT_RECOVERY });
 
 export interface MediaImportToolDeps {
   tracker?: Tracker;
@@ -405,7 +412,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
-    catalogModule: "features/media-import/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/media/site-import/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: mediaImportDerivedRisk,

@@ -2,16 +2,8 @@ import { useRef, useState } from "react";
 
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
-import {
-  addDraftField,
-  emptyField,
-  KEYS,
-  removeDraftField,
-  stripDraftFieldRowIds,
-  updateDraftField,
-  validateNewContentTypeDraft,
-  type DraftField,
-} from "../rules";
+import { addDraftField, emptyField, KEYS, removeDraftField, stripDraftFieldRowIds, updateDraftField, type DraftField } from "@jini-ai/admin/screens/collections/rules";
+import { validateNewContentTypeDraft } from "../collections-host-ports";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../collections-i18n";
 import { defaultNewContentTypeDialogPort } from "../collections-host-ports";

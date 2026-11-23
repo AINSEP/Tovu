@@ -2,7 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TermPicker } from "../TermPicker";
+import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 import { useTermPicker, type TermPickerController } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-picker.hooks";
 import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -64,7 +65,7 @@ function controller(overrides: Partial<TermPickerController> = {}): TermPickerCo
 
 function renderPicker(overrides: Partial<TermPickerController> = {}) {
   const useHook = vi.fn(() => controller(overrides));
-  render(<TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} />);
+  render(<TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} useTermListRevealHook={useTermListReveal} />);
   return useHook;
 }
 
@@ -77,7 +78,7 @@ async function renderRealPickerInForm() {
     return ctrl;
   }
   render(<FetchQueryProvider><form onSubmit={onSubmit}>
-    <TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} />
+    <TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} useTermListRevealHook={useTermListReveal} />
     <button type="submit">Save editor</button>
   </form></FetchQueryProvider>);
   const input = await screen.findByRole("combobox", { name: "Term name" });

@@ -13,7 +13,7 @@ import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
 // branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),

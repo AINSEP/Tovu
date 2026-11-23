@@ -1,6 +1,6 @@
 import { CONTENT_TYPE_FIELD_KINDS, type ContentTypeFieldKind } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { type DraftField } from "./rules";
+import { type DraftField } from "@jini-ai/admin/screens/collections/rules";
 
 
 

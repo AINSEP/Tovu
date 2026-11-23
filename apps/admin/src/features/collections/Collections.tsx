@@ -2,7 +2,8 @@ import { type AdminContentType } from "@jini-ai/admin/screens/collections/api/co
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
+import { type LifecycleConfirmOp } from "@jini-ai/admin/screens/collections/rules";
+import { contentTypeMenuItems } from "./collections-host-ports";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";

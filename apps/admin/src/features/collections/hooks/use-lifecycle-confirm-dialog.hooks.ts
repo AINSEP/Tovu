@@ -1,4 +1,5 @@
-import { autoFocusCancelForLifecycleOp, lifecycleCopy, type LifecycleConfirmOp } from "../rules";
+import { autoFocusCancelForLifecycleOp, type LifecycleConfirmOp } from "@jini-ai/admin/screens/collections/rules";
+import { lifecycleCopy } from "../collections-host-ports";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**

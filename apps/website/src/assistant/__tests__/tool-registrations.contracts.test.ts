@@ -103,7 +103,7 @@ import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-ge
 import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
 const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS });
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
-import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
+import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { mediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";

@@ -17,7 +17,8 @@ import {
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
-import { mediaImportAgentToolCatalog } from "../agent-tools.js";
+import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
+import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
@@ -25,6 +26,7 @@ import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
+const mediaImportAgentToolCatalog = buildMediaImportAgentToolCatalog({ fsRootIds: FS_ROOT_IDS, fsFolderReadRecovery: FS_FOLDER_READ_RECOVERY });
 const LOCAL_IMPORT_MAX_ITEMS = 50;
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 32]), Buffer.from("ftypisom"), Buffer.from([0, 0, 0, 0]), Buffer.from("isomiso2avc1mp41")]);

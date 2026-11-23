@@ -7,7 +7,7 @@ import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { KEYS } from "../rules";
+import { KEYS } from "@jini-ai/admin/screens/collections/rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { createFakeCollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";

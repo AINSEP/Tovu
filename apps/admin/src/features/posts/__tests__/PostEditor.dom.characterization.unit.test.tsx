@@ -29,7 +29,7 @@ import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
  * - One toolbar snapshot per `TOOLBAR_PROBES` entry made active, pinning probe → control mapping.
  */
 
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),

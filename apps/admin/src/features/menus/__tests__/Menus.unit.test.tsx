@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Menus } from "../Menus";
-import type { MenusController } from "../hooks/use-menus.hooks";
+import { Menus } from "../menus-panel";
+import type { MenusController } from "@jini-ai/admin/screens/menus/hooks/use-menus.hooks";
 
 /**
  * @file `Menus` — Trash rewrite (2026-09-21, `trash-delete-architecture.md`): every delete now

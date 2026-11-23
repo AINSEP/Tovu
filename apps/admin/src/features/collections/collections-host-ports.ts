@@ -1,4 +1,8 @@
-import { request } from "@/lib/admin-http/request";
+import { ApiError, describeApiError, request } from "@/lib/admin-http/request";
+import { isVersionConflict } from "@/lib/version-conflict";
+import type { CollectionsHostKit } from "@jini-ai/admin/screens/collections/collections-host-kit";
+import { bindCollectionsRules } from "@jini-ai/admin/screens/collections/rules";
+import { t as translate } from "./collections-i18n";
 import { createCollectionsApi } from "@jini-ai/admin/screens/collections/api/collections-api";
 import { createCollectionEntriesPort } from "@jini-ai/admin/screens/collections/hooks/collection-entries-dependencies.hooks";
 import { createCollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-dependencies.hooks";
@@ -28,3 +32,25 @@ export const defaultEditFieldsDialogPort = createEditFieldsDialogPort({ api: col
 
 /** The live `NewContentTypeDialogPort` over {@link collectionsApi}. */
 export const defaultNewContentTypeDialogPort = createNewContentTypeDialogPort({ api: collectionsApi });
+
+/** The collections rules' host kit: this host's collections dictionary, admin request error class
+ *  (with its base-case copy) and version-conflict test (`@jini-ai/admin/screens/collections/collections-host-kit`). */
+export const collectionsHostKit: CollectionsHostKit = {
+  translate,
+  isApiError: (e): e is ApiError => e instanceof ApiError,
+  describeApiError,
+  isVersionConflict,
+};
+
+/** `@jini-ai/admin`'s kit-reading collections rules, bound once to {@link collectionsHostKit}. */
+export const {
+  visibleEntryEditorError,
+  validateKey,
+  validateFieldName,
+  firstDraftFieldError,
+  validateNewContentTypeDraft,
+  validateEditFieldsDraft,
+  describeEditFieldsError,
+  lifecycleCopy,
+  contentTypeMenuItems,
+} = bindCollectionsRules({ kit: collectionsHostKit });

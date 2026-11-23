@@ -1,5 +1,6 @@
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
-import { request } from "@/lib/admin-http/request";
+import { ApiError, request } from "@/lib/admin-http/request";
+import type { MenusHostKit } from "@jini-ai/admin/screens/menus/menus-host-kit";
 import { createMenusApi } from "@jini-ai/admin/screens/menus/api/menus-api";
 import { createMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { pagesApi } from "@/features/pages/api/pages-api";
@@ -21,3 +22,9 @@ export const defaultMenusPort = createMenusPort({
   trash: trashApi,
   listPages: async (_required, _optional = {}) => ({ pages: (await pagesApi.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath({ slug: post.slug }) })) }),
 });
+
+/** The menus hooks' host kit: this host's admin request error class, as the trash classifier's
+ *  predicate (`@jini-ai/admin/screens/menus/menus-host-kit`). */
+export const menusHostKit: MenusHostKit = {
+  isApiError: (e): e is ApiError => e instanceof ApiError,
+};

@@ -1,28 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  ADMIN_SYSTEM_CONTENT_TYPES,
-  addDraftField,
-  autoFocusCancelForLifecycleOp,
-  collectionEmbedSnippet,
-  contentTypeMenuItems,
-  describeEditFieldsError,
-  draftFieldsFromContentType,
-  emptyField,
-  firstDraftFieldError,
-  isUserCollection,
-  LIFECYCLE_COPY,
-  removeDraftField,
-  STALE_VERSION_MESSAGE,
-  stripDraftFieldRowIds,
-  updateDraftField,
-  validateEditFieldsDraft,
-  validateFieldName,
-  validateKey,
-  validateNewContentTypeDraft,
-  visibleEntryEditorError,
-  type DraftField,
-} from "../rules";
+import { ADMIN_SYSTEM_CONTENT_TYPES, addDraftField, autoFocusCancelForLifecycleOp, collectionEmbedSnippet, draftFieldsFromContentType, emptyField, isUserCollection, LIFECYCLE_COPY, removeDraftField, STALE_VERSION_MESSAGE, stripDraftFieldRowIds, updateDraftField, type DraftField } from "@jini-ai/admin/screens/collections/rules";
+import { contentTypeMenuItems, describeEditFieldsError, firstDraftFieldError, validateEditFieldsDraft, validateFieldName, validateKey, validateNewContentTypeDraft, visibleEntryEditorError } from "../collections-host-ports";
 import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 

@@ -1,6 +1,11 @@
 {
   "version": 1,
   "allow": [
+    { "id": "c4c36b8ab0df", "reason": "Moved to Jini @jini-ai/cms/media/site-import/agent-tools.ts with the catalog builder; header kept, product name and host paths reworded neutrally (N2)." },
+    { "id": "6017f863acbc", "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2)." },
+    { "id": "e4c9a8cc8241", "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2); the host naming policy is now the injected deriveDuplicateName." },
+    { "id": "d84b6fbc4c4a", "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2); @param for the injected deriveDuplicateName added." },
+    { "id": "b350f74e74b8", "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2) (composition root and dependency-rule references)." },
     { "id": "204a0379b225", "reason": "Moved to Jini @jini-ai/cms/media/site-generation/agent-tools.ts with the catalog builder; header kept, product name and host paths reworded neutrally (N2)." },
     { "id": "2400f5ca847f", "reason": "Subject deleted: the pre-bound mediaGenerationAgentToolCatalog constant is gone; Jini cannot import the media-providers catalogue, so host call sites bind IMAGE_MODEL_IDS (see media INFO.md Wiring)." },
     { "id": "434a6d54ed2f", "reason": "Moved to Jini @jini-ai/cms/media/site/view-image-tool.ts with the module; host file paths reworded neutrally (N2)." },

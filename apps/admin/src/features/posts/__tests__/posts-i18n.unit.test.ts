@@ -109,7 +109,7 @@ vi.mock("@/hooks/use-admin-locale.hooks", () => ({
   useAdminLocale: () => language.locale,
   useWiredAdminLocale: () => language.locale,
 }));
-vi.mock("../../taxonomy/TermPicker", () => ({ TermPicker: () => null }));
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({ TermPicker: () => null }));
 vi.mock("../../content-analysis/ContentAnalysisCard", () => ({ ContentAnalysisCard: () => null }));
 vi.mock("@/components/EmbedInsertControl/EmbedInsertControl", () => ({ EmbedInsertControl: () => null }));
 

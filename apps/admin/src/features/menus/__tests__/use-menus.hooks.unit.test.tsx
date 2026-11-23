@@ -7,9 +7,9 @@ import { trashApi } from "@/features/trash/api/trash-api";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/menus-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
-import { defaultMenusPort } from "../menus-host-ports";
+import { defaultMenusPort, menusHostKit } from "../menus-host-ports";
 import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
-import { useMenus } from "../hooks/use-menus.hooks";
+import { useMenus } from "@jini-ai/admin/screens/menus/hooks/use-menus.hooks";
 
 /**
  * @file `useMenus` driven against the injected `MenusPort`, no `fetch` stub and no `api` spy.
@@ -44,7 +44,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(menusApi, "listMenus");
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
 
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     expect(listSpy).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("keeps menus unresolved and reports an initial list failure", async () => {
     const port = createFakeMenusPort();
     port.listMenus = vi.fn().mockRejectedValue(new Error("list unavailable"));
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
 
     await waitFor(() => expect(result.current.error).toBe("list unavailable"));
     expect(result.current.menus).toBeNull();
@@ -63,7 +63,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     let rejectTrash!: (error: Error) => void;
     port.trash = () => new Promise((_resolve, reject) => { rejectTrash = reject; });
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     expect(result.current.trashing).toBe(false);
     act(() => result.current.requestTrash(MENU));
@@ -88,7 +88,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     const trashSpy = vi.spyOn(trashApi, "trash");
     const port = createFakeMenusPort({ menus: [MENU] });
     const portTrashSpy = vi.spyOn(port, "trash");
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
     act(() => {
@@ -112,7 +112,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const trashFn = vi.fn(port.trash);
     port.trash = trashFn;
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
     act(() => {
@@ -134,7 +134,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     port.trash = vi.fn(() => {
       throw new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND" });
     });
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
     act(() => {
@@ -155,7 +155,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     port.trash = vi.fn(() => {
       throw new ApiError({ message: "stale", status: 409 }, { code: "TRASH_VERSION_CHANGED" });
     });
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
     act(() => {
@@ -177,7 +177,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("does not resolve `menus` while the injected port's list call is still pending", () => {
     const port = createFakeMenusPort();
     port.listMenus = () => new Promise(() => {});
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k, kit: menusHostKit }));
     expect(result.current.menus).toBeNull();
   });
 });
@@ -239,7 +239,7 @@ describe("useMenus error and confirmation edges", () => {
   it("uses the load fallback for a non-Error rejection", async () => {
     const port = createFakeMenusPort();
     port.listMenus = async () => { throw "offline"; };
-    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key, kit: menusHostKit }));
     await waitFor(() => expect(result.current.error).toBe("failed to load menus"));
     expect(result.current.menus).toBeNull();
   });
@@ -250,7 +250,7 @@ describe("useMenus error and confirmation edges", () => {
   ])("shows $message for an unclassified trash rejection", async ({ failure, message }) => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.trash = async () => { throw failure; };
-    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     act(() => result.current.requestTrash(MENU));
     await act(async () => { await result.current.confirmTrash(); });
@@ -264,7 +264,7 @@ describe("useMenus error and confirmation edges", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const writes: string[] = [];
     port.trash = async ({ id }) => { writes.push(id); return { ok: true, version: 1 }; };
-    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     await act(async () => { await result.current.confirmTrash(); });
     expect(writes).toEqual([]);
@@ -277,7 +277,7 @@ describe("useMenus error and confirmation edges", () => {
     const port = createFakeMenusPort({ menus: [MENU, other] });
     const releases = new Map<string, () => void>();
     port.trash = ({ id }) => new Promise((resolve) => { releases.set(id, () => resolve({ ok: true, version: 1 })); });
-    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU, other]));
     act(() => result.current.requestTrash(MENU));
     let first!: Promise<void>;
@@ -299,7 +299,7 @@ describe("useMenus error and confirmation edges", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     let release!: () => void;
     port.trash = () => new Promise((resolve) => { release = () => resolve({ ok: true, version: 1 }); });
-    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key, kit: menusHostKit }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     act(() => result.current.requestTrash(MENU));
     let pending!: Promise<void>;
@@ -357,7 +357,7 @@ describe("useMenus — overlapping list reads keep the newest", () => {
     const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
     const releases = holdReadsAfterMount(port);
     const { result } = renderHook(() => ({
-      ...useMenus({ port, t: (k) => k }),
+      ...useMenus({ port, t: (k) => k, kit: menusHostKit }),
       listCache: useCachedLoader({ key: ["menus", "list"], fetch: async () => (await port.listMenus()).menus }),
     }));
     await waitFor(() => expect(result.current.menus).toHaveLength(2));
@@ -380,7 +380,7 @@ describe("useMenus — overlapping list reads keep the newest", () => {
     const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
     const releases = holdReadsAfterMount(port);
     const { result } = renderHook(() => ({
-      ...useMenus({ port, t: (k) => k }),
+      ...useMenus({ port, t: (k) => k, kit: menusHostKit }),
       listCache: useCachedLoader({ key: ["menus", "list"], fetch: async () => (await port.listMenus()).menus }),
     }));
     await waitFor(() => expect(result.current.menus).toHaveLength(2));
@@ -404,7 +404,7 @@ it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps ad
   const port = createFakeMenusPort();
   vi.spyOn(port, "listMenus").mockRejectedValue(cause);
   const { result } = renderHook(() => {
-    useMenus({ port, t: k => k });
+    useMenus({ port, t: k => k, kit: menusHostKit });
     return useFetchQuery({ key: ["menus", "list"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
   });
   await waitFor(() => expect(result.current.error).toBeTruthy());

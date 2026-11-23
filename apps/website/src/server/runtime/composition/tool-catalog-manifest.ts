@@ -118,7 +118,9 @@ import { contributeWorkspaceTools } from "#src/features/workspace/index";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools, contributeMediaDuplicateHandlers, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
+import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
+import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
 import { contributeMediaViewImageTools } from "@jini-ai/cms/media/site/view-image-tool";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";
@@ -713,7 +715,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   for (const contributor of [
     ...contributePostDuplicateHandlers(),
     ...contributeFormsDuplicateHandlers(),
-    ...contributeMediaDuplicateHandlers(),
+    ...contributeMediaDuplicateHandlers({ deriveDuplicateName }),
   ]) {
     registerDuplicateResourceHandler(contributor);
   }
