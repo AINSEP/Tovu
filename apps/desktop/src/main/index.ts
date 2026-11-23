@@ -136,7 +136,8 @@ import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowO
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
-import { registerImportHandoffIpc } from "../import-handoff-ipc.ts";
+import { registerHandoffForwarding } from "@jini-ai/desktop-host/electron/handoff";
+import { IMPORT_HANDOFF_CHANNELS, IMPORT_HANDOFF_SENDER_REFUSED, importHandoffRequest } from "../contracts/import-handoff.ts";
 import { registerRunnerIpcStubs } from "../runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "../app-version-ipc.ts";
 import { createDesktopResources } from "../desktop-resources.ts";
@@ -845,7 +846,8 @@ function registerAppWideIpc(): void {
   // The web admin's "Open Import in Tovu" (owner, 2026-11-10): admin pages only reach it through
   // their preload's `tovuImport`, behind the speech channels' sender check. App-wide for the same
   // reason as speech; with no sites home window open it answers `opened: false`.
-  registerImportHandoffIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), sitesHomeWindows: openSitesHomeWindows });
+  registerHandoffForwarding({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), windows: openSitesHomeWindows,
+    channels: IMPORT_HANDOFF_CHANNELS, parse: importHandoffRequest, senderRefused: IMPORT_HANDOFF_SENDER_REFUSED });
   registerSiteViewPreferenceIpc({ ipcMain,
     allowed: ({ sender }: { sender: WebContents }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),
