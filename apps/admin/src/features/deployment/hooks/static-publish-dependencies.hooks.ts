@@ -1,4 +1,4 @@
-import type { AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishDestination, AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
 import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
@@ -9,9 +9,10 @@ export const defaultStaticPublishPort: StaticPublishPort = {
   getPublishPreview: (config, _options = {}) => deploymentApi.getPublishPreview(config),
   triggerPublish: (input, _options = {}) => deploymentApi.triggerPublish(input),
   getPublishStatus: () => deploymentApi.getPublishStatus(),
+  listPublishDestinations: () => deploymentApi.listPublishDestinations(),
 };
 
-/** An in-memory {@link StaticPublishPort} for tests. Each of the four calls defaults to a neutral,
+/** An in-memory {@link StaticPublishPort} for tests. Each of the five calls defaults to a neutral,
  *  overridable stub — unlike `createFakeStaticExportPort`'s single shared seed, this port has no one
  *  value that naturally serves all three (a preview and a run snapshot are unrelated shapes), so a
  *  test supplies exactly the ones it exercises. */
@@ -21,6 +22,7 @@ export function createFakeStaticPublishPort(
     getPublishPreview?: StaticPublishPort["getPublishPreview"];
     triggerPublish?: StaticPublishPort["triggerPublish"];
     getPublishStatus?: () => Promise<AdminPublishRunSnapshot>;
+    listPublishDestinations?: () => Promise<AdminPublishDestination[]>;
   } = {}
 ): StaticPublishPort {
   const idlePreview: AdminStaticPublishPreview = {
@@ -38,5 +40,8 @@ export function createFakeStaticPublishPort(
     getPublishPreview: overrides.getPublishPreview ?? (() => Promise.resolve(idlePreview)),
     triggerPublish: overrides.triggerPublish ?? (() => Promise.resolve({ ...idleRun, status: "running" })),
     getPublishStatus: overrides.getPublishStatus ?? (() => Promise.resolve(idleRun)),
+    // Empty history by default: a test that does not care about past publishes sees a form that
+    // starts blank, exactly as a brand-new site's would.
+    listPublishDestinations: overrides.listPublishDestinations ?? (() => Promise.resolve([])),
   };
 }

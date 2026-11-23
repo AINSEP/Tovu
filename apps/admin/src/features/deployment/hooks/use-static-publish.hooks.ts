@@ -25,6 +25,7 @@ import {
   type StaticPublishProjectNameCopy,
 } from "../rules";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
+import { useStaticPublishProjectName } from "./static-publish-project-name.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -157,7 +158,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
   const selectedTarget = publishTargetById({ targets, id: target });
   const [valuesByTarget, setValuesByTarget] = useState<Record<AdminStaticPublishTargetId, Record<string, string>>>({});
   const configValues = valuesByTarget[target] ?? {};
-  const [projectName, setProjectName] = useState("");
+  const { projectName, setProjectName } = useStaticPublishProjectName({ port, target });
 
   const [preview, setPreview] = useState<AdminStaticPublishPreview | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);

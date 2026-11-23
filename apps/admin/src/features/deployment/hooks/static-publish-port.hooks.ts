@@ -1,4 +1,4 @@
-import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishDestination, AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file What `useStaticPublish` needs from the outside world, as an interface rather than a direct
@@ -19,4 +19,7 @@ export interface StaticPublishPort {
   triggerPublish(input: { config: AdminStaticPublishConfig; projectName: string; credentialId?: string }, optional?: {}): Promise<AdminPublishRunSnapshot>;
   /** The current/most recent publish run's status — polled while `status === "running"`. */
   getPublishStatus(): Promise<AdminPublishRunSnapshot>;
+  /** Where this site was published before, newest first (`GET .../system/publish/destinations`).
+   *  Read-only; the form only reads the project name a past static publish used from it. */
+  listPublishDestinations(): Promise<AdminPublishDestination[]>;
 }
