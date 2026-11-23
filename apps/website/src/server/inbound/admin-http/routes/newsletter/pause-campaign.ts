@@ -1,4 +1,4 @@
-import { pauseCampaign } from "#src/features/newsletter/send-pipeline";
+import { pauseCampaign } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";

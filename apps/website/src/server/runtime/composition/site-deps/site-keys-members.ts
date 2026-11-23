@@ -1,6 +1,6 @@
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { MembersSubscriberDirectory } from "#src/features/members/subscriber-directory";
+import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/subscriber-directory";
 import { SqliteMemberRepo } from "#src/features/members/repo.sqlite";
 import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";

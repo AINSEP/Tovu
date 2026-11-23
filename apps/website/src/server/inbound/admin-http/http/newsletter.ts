@@ -17,6 +17,16 @@ import {
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
 } from "@jini-ai/user-management/newsletter/errors";
+/**
+ * @file Typed domain errors for `newsletter` (SPEC-011 errors.spec.md §2).
+ *
+ * Purpose:
+ * One class per error this module originates, mirroring the
+ * `DefinitionNotFoundError`/`ForbiddenError` convention in `Jini packages/core/src/settings/errors.ts` and
+ * `apps/website/src/features/members/types.ts`'s error-class pattern. Route handlers map these 1:1 to the HTTP codes in
+ * errors.spec.md §2 (see `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s error-mapping helper).
+ */
+// Now: these error classes live in `@jini-ai/user-management/newsletter/errors`; this helper is the error mapping the comment above names.
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface

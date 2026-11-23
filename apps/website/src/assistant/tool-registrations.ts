@@ -188,7 +188,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   TrashItemToolDeps &
   import("../features/identity/delete-user-service.js").TrashUserToolDeps &
   import("./admin-screen-link-tool.js").AdminScreenLinkToolDeps &
-  import("../features/observability/tool-registrations.js").ObservabilityToolDeps;
+  import("@jini-ai/diagnostics/observability/tool-registrations").ObservabilityToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.

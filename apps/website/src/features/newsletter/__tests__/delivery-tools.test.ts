@@ -9,7 +9,7 @@ import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
-import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeline.js";
+import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { SendBatchJob } from "@jini-ai/user-management/newsletter/ports";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

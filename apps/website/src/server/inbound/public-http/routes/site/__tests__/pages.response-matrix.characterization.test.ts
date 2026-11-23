@@ -358,7 +358,7 @@ test("static-tier finisher: partials, embeds, menus, previews, collections, rend
   ].join(""));
 
   const out = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: undefined } }, {});
-  const access = await import("#src/features/members/access-resolver");
+  const access = await import("@jini-ai/user-management/members/access-resolver");
   const resolver = access.createMemberAccessResolver({ deps });
   log.length = 0;
   const gated = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: { resolver, context: { kind: "anonymous" } as never } } }, {});

@@ -596,7 +596,7 @@ test("memory audience snapshots miss on either lookup key and remain immutable w
   const second = { ...row, id: "snapshot-2", campaignId: "camp-2" };
   await repo.save(second);
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-2" }), second);
-  await assert.rejects(repo.save({ ...row, recipientCount: 99 }), { message: "AudienceSnapshotRow snapshot-1 already exists and is immutable (INV-06)" });
+  await assert.rejects(repo.save({ ...row, recipientCount: 99 }), { message: "AudienceSnapshotRow snapshot-1 already exists and is immutable" });
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-1" }), row);
 });
 

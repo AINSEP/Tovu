@@ -1,7 +1,7 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
-import { authorizeSend, claimBatch, freezeAudience } from "#src/features/newsletter/send-pipeline";
+import { authorizeSend, claimBatch, freezeAudience } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
-import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

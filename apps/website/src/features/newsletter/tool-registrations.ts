@@ -1,5 +1,5 @@
 import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
-import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/newsletter';
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
@@ -60,7 +60,7 @@ import type {
   NewsletterSubscriptionRepoPort,
   SubscriberDirectoryPort,
 } from "@jini-ai/user-management/newsletter/ports";
-import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
+import { pauseCampaign, type SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 import {
   saveSubscription,

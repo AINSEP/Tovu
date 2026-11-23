@@ -9,7 +9,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createAdminNewsletterSendCampaignRoute, registerAdminNewsletterSendCampaignRoute } from "../send-campaign.js";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "../deps.js";
-import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 import type { MailerPort } from "#src/platform/mail/index";

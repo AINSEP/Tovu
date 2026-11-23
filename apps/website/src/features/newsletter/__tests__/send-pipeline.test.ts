@@ -14,7 +14,6 @@ import {
   authorizeSend,
   claimBatch,
   completeIfDrained,
-  createHookRegistry,
   dispatchRow,
   freezeAudience,
   handleSendBatchClaimed,
@@ -25,7 +24,9 @@ import {
   sendTestCampaign,
   SEND_BATCH_CLAIMED_EVENT,
   type SendPipelineDeps,
-} from "../send-pipeline.js";
+} from "@jini-ai/user-management/newsletter/send-pipeline";
+import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import { newsletterSendHostBindings } from "../deps-builders.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
@@ -205,6 +206,7 @@ function makeRig(opts: {
     bus,
     clock,
     ids,
+    ...newsletterSendHostBindings,
   };
   return { deps, campaignRepo, subscriptionRepo, audienceSnapshotRepo, sendRepo, outbox, bus };
 }
@@ -383,7 +385,7 @@ async function runResendBatch(optional: { inlineSleep: boolean }) {
   await rig.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => handleSendBatchClaimed({ deps, job: event.payload as SendBatchJob }) });
   await rig.outbox.enqueue({ id: "batch-1", name: SEND_BATCH_CLAIMED_EVENT, occurredAt: movingClock.nowIso(), workspaceId: WS, payload: makeJob({ sendIds }) } as never);
   for (let round = 0; round < 200 && [...rig.outbox.rows.values()].some((row) => row.status !== "delivered" && row.status !== "failed"); round++) {
-    if ((await claimBatch({ deps: { outbox: rig.outbox, bus: rig.bus, clock: movingClock } })) === 0) {
+    if ((await claimBatch({ deps: { outbox: rig.outbox, bus: rig.bus, clock: movingClock, processOutbox: newsletterSendHostBindings.processOutbox } })) === 0) {
       const due = [...rig.outbox.rows.values()].filter((row) => row.status === "pending").map((row) => Date.parse(row.nextAttemptAt));
       nowMs = Math.max(nowMs, Math.min(...due));
     }
@@ -641,7 +643,7 @@ test("claimBatch: delegates to processOutbox with the default batchSize=20", asy
   const received: string[] = [];
   await bus.subscribe({ eventName: "test.event", handler: async (event) => { received.push(event.id); } });
   for (let i = 0; i < 25; i++) await outbox.enqueue(makeOutboxEvent(`evt-${i}`) as never);
-  const claimedCount = await claimBatch({ deps: { outbox, bus, clock } });
+  const claimedCount = await claimBatch({ deps: { outbox, bus, clock, processOutbox: newsletterSendHostBindings.processOutbox } });
   assert.equal(claimedCount, 20);
   assert.deepEqual(received, Array.from({ length: 20 }, (_, i) => `evt-${i}`));
 });
@@ -650,7 +652,7 @@ test("claimBatch: honors an explicit batchSize override", async () => {
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   for (let i = 0; i < 25; i++) await outbox.enqueue(makeOutboxEvent(`evt-${i}`) as never);
-  const claimedCount = await claimBatch({ deps: { outbox, bus, clock } }, { batchSize: 5 });
+  const claimedCount = await claimBatch({ deps: { outbox, bus, clock, processOutbox: newsletterSendHostBindings.processOutbox } }, { batchSize: 5 });
   assert.equal(claimedCount, 5);
 });
 

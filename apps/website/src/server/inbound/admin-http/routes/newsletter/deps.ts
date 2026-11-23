@@ -29,7 +29,7 @@ import type { CampaignWriteServiceDeps } from "@jini-ai/user-management/newslett
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import type { ListsDeps } from "@jini-ai/user-management/newsletter/lists";
-import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";

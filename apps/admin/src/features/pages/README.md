@@ -13,6 +13,13 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 - `hooks/use-page-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
   `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
   separate from the editor's save settlement).
+- `hooks/page-editor-wiring.hooks.ts` binds the editor's two `@jini-ai/admin` leaf hooks for
+  `usePageEditor`: `useWiredInteractiveEditorFlush` gives
+  `@jini-ai/admin/pages/hooks/use-interactive-flush.hooks` this app's `isEditorSourceError`
+  (`@jini-ai/ui/html-editor`), `normalizeEmbedMarkerQuoting` (`@jini-ai/cms/widgets/markers`) and
+  `adminLogger` (`lib/shell-collaborators.ts`); `useWiredEditorHtmlJump` gives
+  `@jini-ai/admin/pages/hooks/use-editor-html-jump.hooks` `findEditorBlockOpening`
+  (`@jini-ai/ui/html-editor`). Their tests moved with them to `@jini-ai/admin`.
 
 ## What this feature does not own
 
