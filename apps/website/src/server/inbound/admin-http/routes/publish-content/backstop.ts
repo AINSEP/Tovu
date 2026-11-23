@@ -9,7 +9,7 @@ import type { BackstopPorts, BackstopSelection, RawFilePort } from "@jini-ai/cms
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
 import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { entityKey } from "#src/features/publish-content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";

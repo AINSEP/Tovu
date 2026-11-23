@@ -65,7 +65,7 @@
  */
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { ColumnDecl, ColumnType as PluginColumnType } from "@jini-ai/db/data-modules";
+import type { ColumnDecl, ColumnType as PluginColumnType } from "@jini-ai/core/contracts/site/db-data-modules";
 import { topologicalTableCopyOrder, type TableCopyDependency } from "@jini-ai/db/transfer";
 import * as schema from "../schema.sqlite.js";
 

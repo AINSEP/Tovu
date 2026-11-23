@@ -20,7 +20,7 @@ import {
   notWired,
   tombstonedAtDestination,
   trashedAtDestination,
-} from "../../precheck-reasons.js";
+} from "@jini-ai/cms/publish/content/precheck-reasons";
 import {
   countSelectedPublishing,
   friendlyPublishReason,

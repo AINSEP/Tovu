@@ -3,11 +3,11 @@
  */
 import { basename, matchesGlob } from "node:path";
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MAX_DOCUMENT_BYTES, MediaValidationError, validateDocumentIngress } from "@jini-ai/cms/media";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { toolMetadata } from "#src/contracts/core/tool-metadata/files-copy";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/files-copy";
 import { isShapeRejection as isThemeShapeRejection } from "../theme/asset-operations.js";
 import { fetchImage, MEDIA_IMPORT_POLICY } from "../media-import/fetch-image.js";
 import { isImportShapeRejection, withCallerSafeEgressRefusal } from "../media-import/tool-registrations.js";

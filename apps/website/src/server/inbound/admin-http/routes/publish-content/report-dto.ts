@@ -1,5 +1,5 @@
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
-import type { PublishContentReportDto } from "#src/features/publish-content/report-contract";
+import type { PublishContentReportDto } from "@jini-ai/cms/publish/content/report-contract";
 
 /** Maps the planner's domain result to the one client-safe wire DTO at the HTTP boundary. */
 export function toPublishContentReportDto(report: PublishContentReport): PublishContentReportDto {

@@ -7,7 +7,8 @@ import { sql } from "kysely";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { listColumns, listIndexes, listTables } from "@jini-ai/db/kernel";
-import { type DataModuleDecl, declareDataModule } from "@jini-ai/db/data-modules";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries, stageJournalPhase } from "@jini-ai/db/data-modules";
 import { checkNamespaceAdoption, getPluginIdentity } from "@jini-ai/db/data-modules";
 

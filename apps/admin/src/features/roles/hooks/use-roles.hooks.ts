@@ -2,7 +2,7 @@ import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/r
 import { describeApiError } from "../rules";
 import { t } from "../roles-i18n";
 import { defaultRolesPort } from "./roles-dependencies.hooks";
-import type { RolesPort } from "@jini-ai/user-management/react";
+import type { RolesPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { createRolesController } from "./roles-controller";
 import { createRoleActions, createPolicyActions } from "./roles-row-actions";
 import { createPermissionLoader, createPermissionWriter, createPermissionRemovalActions } from "./roles-permission-actions";

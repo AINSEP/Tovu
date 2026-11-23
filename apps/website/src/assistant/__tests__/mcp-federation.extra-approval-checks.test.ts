@@ -9,7 +9,8 @@ import { createFederatedCallConfirmer } from "../external-mcp-call-confirmation.
 import * as shared from "@jini-ai/mcp/federation";
 import { WRITE_SHAPED_INPUT_WORDS, admitRemoteTools, type FederatedToolIdentity } from "@jini-ai/mcp/federation";
 import { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
-import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
+import type { ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";

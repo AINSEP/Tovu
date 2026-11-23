@@ -24,8 +24,8 @@ import {
   type FormsPackageToolDeps,
   type FormSubmissionRepoPort,
 } from "@jini-ai/cms/forms";
-import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
-import { toolMetadata } from "../../contracts/core/tool-metadata/forms.js";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/forms";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import type { FormDeliveryStatusPort } from "./delivery-status.js";
 import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";

@@ -3,7 +3,7 @@
  * is complete. This is a host adapter over Tovu's separate post store, with no new persisted data. */
 import type { EntryRefRow, EntryRefsRepoPort } from '@jini-ai/cms/widgets';
 import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
-import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
+import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
 
 type WhereUsedPostReader = {
   list(required: { workspaceId: string }): Promise<readonly {

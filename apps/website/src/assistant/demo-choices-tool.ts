@@ -10,10 +10,10 @@ import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
   askOnce,
-  type AssistantSurfaceDeps,
   type SurfaceExchange,
   type SurfaceMessage,
 } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and

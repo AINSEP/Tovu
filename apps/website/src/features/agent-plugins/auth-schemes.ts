@@ -1,5 +1,6 @@
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
-import { parseCredentialSchemesFile, type CredentialSchemeRule, type CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
+import { parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
+import type { CredentialSchemeRule, CredentialSchemeRegistry } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 
 // Token-prefix rationale: Jini/packages/integrations/src/credentialed-http/auth-schemes.ts; plugin trust stays here.
 import { type LoadPluginContributions, loadPluginContributionsFromSource, type PluginContributionDefinition, type TrustedPluginPackage } from "./lifecycle.js";
@@ -53,8 +54,6 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  *
  * One rule entry, or the reason it is invalid. @complexity O(1).
  */
-
-export type { CredentialSchemeRule, CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
 
 /** The file a plugin ships at its root to contribute self-describing token scheme rules. */
 export const CREDENTIAL_SCHEMES_FILENAME = "jini-credential-schemes.json";

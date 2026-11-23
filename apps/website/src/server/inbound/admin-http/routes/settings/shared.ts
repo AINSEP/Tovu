@@ -9,6 +9,7 @@ import {
   type RouteInputContext,
 } from "@jini-ai/core/contracts/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
 import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";

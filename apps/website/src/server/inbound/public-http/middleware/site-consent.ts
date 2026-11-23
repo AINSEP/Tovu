@@ -1,7 +1,7 @@
 /** Public consent policy and host bindings. No HTML processing or response rewriting. */
 import type { Request } from 'express';
-import type { ConsentConfig } from '@jini-ai/cookie-consent';
-import type { RateLimitProfile } from '#src/contracts/core/rate-limit/rate-limit';
+import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
+import type { RateLimitProfile } from '@jini-ai/core/contracts/site/http-kit-rate-limit';
 import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
 import { withSiteConsentDefaultCss } from '#src/features/consent/config';
 import { createSiteConsentConfig } from '#src/features/consent/settings';

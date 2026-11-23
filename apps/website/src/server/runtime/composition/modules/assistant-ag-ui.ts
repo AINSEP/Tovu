@@ -1,4 +1,4 @@
-import type { TrackerSpan } from "@jini-ai/diagnostics/observability";
+import type { TrackerSpan } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { AgentRunTrackingOutcome } from "@jini-ai/core/contracts/observability";
 /**
  * @file ADR-059 — the admin assistant's AG-UI canary transport (Agent-User Interaction Protocol,

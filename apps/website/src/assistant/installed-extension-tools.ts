@@ -19,7 +19,7 @@
  * `modules/assistant-byok.ts`'s turn route awaits once before dispatching a turn.
  */
 import { createToolRegistrationScope, toolRegistryRevision, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";

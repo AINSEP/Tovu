@@ -9,7 +9,7 @@ import {
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 /**
  * @file A development-only agent tool exercising the A2UI (a2ui-project/a2ui v1.0) inbound

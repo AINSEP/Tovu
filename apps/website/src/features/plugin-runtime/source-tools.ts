@@ -1,7 +1,7 @@
 import { pluginSourceToolIds } from './plugin-tool-ids.js';
 export { pluginSourceAgentToolCatalog } from './source-tool-catalog.js';
 import type { ToolContributor, ToolRegistration } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import { buildPluginSourceRegistrations as portableSourceRegistrations, pluginSourceDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginSourceTools } from './host-tool-binding.js';

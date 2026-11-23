@@ -4,11 +4,11 @@ import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/cont
 import type { ExternalMcpConnectStart } from "@jini-ai/core/contracts/hosted-mcp";
 import type { AgentPluginMcpPort as PortableAgentPluginMcpPort, AgentPluginMcpProjectionPorts, AgentPluginMcpServicesPort as PortableAgentPluginMcpServicesPort } from "@jini-ai/agent-plugins/connect";
 /** The MCP ports live in `@jini-ai/agent-plugins/connect`; these two bind them to Tovu's tool-access change record. */
-export type AgentPluginMcpPort = PortableAgentPluginMcpPort<import("@jini-ai/daemon").ToolAccessChange>;
-export type AgentPluginMcpServicesPort = PortableAgentPluginMcpServicesPort<import("@jini-ai/daemon").ToolAccessChange>;
+export type AgentPluginMcpPort = PortableAgentPluginMcpPort<import("@jini-ai/core/contracts/site/daemon").ToolAccessChange>;
+export type AgentPluginMcpServicesPort = PortableAgentPluginMcpServicesPort<import("@jini-ai/core/contracts/site/daemon").ToolAccessChange>;
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
-import type { ApiConnectionConnectStatus } from "@jini-ai/integrations/api-connections";
+import type { ApiConnectionConnectStatus } from "@jini-ai/core/contracts/site/integrations-api-connections";
 
 
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */

@@ -1,6 +1,7 @@
 import { buildToolGapsRegistrations, toolGapsDerivedRisk, type ToolGapsToolDeps } from "./tool-gaps-tool.js";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
-import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
+import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
@@ -36,13 +37,13 @@ import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-too
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
 import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
-export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
@@ -104,7 +105,7 @@ export type ToolContributor = import("@jini-ai/core").ToolContributor<AssistantT
 export type DerivedToolContributor = import("@jini-ai/core").DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type AssistantToolContributions = GenericToolContributions<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type PeerSiteReads = GenericPeerSiteReads<AssistantToolRegistryDeps>;
-export type DuplicateResourceHandlerContributor = import("./tool-contributions.js").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
+export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contracts/site/assistant-tool-contributions").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
 
 
 /**

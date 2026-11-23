@@ -1,3 +1,4 @@
+import type { AssistantPermanentDeletesPolicy, ChatPermanentDeleteToolId } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 
 const SETTINGS_DELETES = "Settings deletes";
 
@@ -20,9 +21,7 @@ export const PERMANENT_DELETE_TOOLS = [
   { id: "webhooks_delete_subscription", group: SETTINGS_DELETES, label: "Delete a webhook subscription", adminPath: "/admin/addons/integrations?tab=webhooks" },
   { id: "identity_role_delete", group: SETTINGS_DELETES, label: "Delete a custom role", adminPath: "/admin/roles" },
   { id: "identity_policy_delete", group: SETTINGS_DELETES, label: "Delete a custom policy and its permissions", adminPath: "/admin/roles" },
-] as const;
-export type ChatPermanentDeleteToolId = typeof PERMANENT_DELETE_TOOLS[number]["id"];
-export interface AssistantPermanentDeletesPolicy { enabled: boolean; allowedToolIds: string[] }
+] as const satisfies readonly { readonly id: ChatPermanentDeleteToolId; readonly group: string; readonly label: string; readonly adminPath: string | null }[];
 export const ASSISTANT_PERMANENT_DELETES_NAMESPACE = "core.assistant-permanent-deletes";
 export const ASSISTANT_PERMANENT_DELETES_KEY = "policy";
 export const ASSISTANT_PERMANENT_DELETES_WRITE_REASON = "Only the owner can change permanent delete access through the Admin AI Assistant danger confirmation.";

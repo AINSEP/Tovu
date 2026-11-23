@@ -1,4 +1,4 @@
-import type { ToolAccessChange } from "@jini-ai/daemon";
+import type { ToolAccessChange } from "@jini-ai/core/contracts/site/daemon";
 
 /** Host effect used after saving a decision that lowers tool access. */
 export type NotifyToolAccessChanged = (input?: { readonly lowered?: ToolAccessChange }) => Promise<void>;

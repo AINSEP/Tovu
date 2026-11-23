@@ -1,6 +1,6 @@
 /** Admin assistant adapter; no public executor or generic settings path enters these handlers. */
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AccessApprovalResource, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/visitor-tools.js";

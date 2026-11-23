@@ -25,7 +25,7 @@ import {
   forbiddenRule,
 } from "../../contracts/core/model-facing-tool-errors.js";
 import { type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 // Types only: the egress refusal is recognised through the request port's `classifyError`
 // (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).

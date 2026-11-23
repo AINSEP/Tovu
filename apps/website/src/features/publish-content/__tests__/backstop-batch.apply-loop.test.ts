@@ -10,7 +10,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contributeRawRowPublish } from "../raw-row-contributor.js";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
-import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
+import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";

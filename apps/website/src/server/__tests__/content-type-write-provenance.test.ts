@@ -20,7 +20,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 
 // content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed

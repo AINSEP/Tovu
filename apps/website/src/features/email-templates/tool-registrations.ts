@@ -1,5 +1,5 @@
 import { requireExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
-import { toolMetadata } from "../../contracts/core/tool-metadata/email-templates.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/email-templates";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";

@@ -2,9 +2,10 @@ import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { type PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
+import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import { providerInputOf } from "./provider-plugins.js";
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 
 /**
  * @file The one save rule for a provider plugin's settings (2026-10-25), shared by the admin settings

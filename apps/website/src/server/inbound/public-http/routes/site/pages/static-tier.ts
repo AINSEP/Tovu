@@ -158,7 +158,7 @@ async function resolveStaticTierData({ deps, theme, assembled, currentPath, stat
 }
 
 /** Static pages and diagnostic templates share the theme's declared-script defaults. */
-export function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): readonly import('@jini-ai/cookie-consent').DeclaredScript[] {
+export function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): readonly import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[] {
   return theme.manifest.scripts ?? [];
 }
 

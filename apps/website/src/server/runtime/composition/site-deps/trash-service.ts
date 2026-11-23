@@ -1,5 +1,5 @@
 import { PLUGIN_ENTITY_TYPE } from "#src/features/trash/index";
-import type { RemovePluginFn } from "@jini-ai/plugins/host";
+import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import { TRASH_RETENTION_DAYS } from "#src/features/trash/index";
 import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

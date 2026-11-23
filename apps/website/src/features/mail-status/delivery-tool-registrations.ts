@@ -1,8 +1,8 @@
-import { toolMetadata } from "../../contracts/core/tool-metadata/mail-status.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/mail-status";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { mailDeliveryAgentToolCatalog } from "./delivery-agent-tools.js";

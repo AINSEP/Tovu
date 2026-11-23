@@ -3,7 +3,7 @@ import { ToolInputError } from '@jini-ai/core';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
 import type { DeployTargetInspection } from '../deploy-targets/types.js';
-import type { FormDestinationForm } from '@jini-ai/cms/forms';
+import type { FormDestinationForm } from '@jini-ai/core/contracts/site/cms-forms';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';
 import { redactDeployTargetMessage, toDeployTargetCredential } from './credentials.js';
 import type { StaticPublishConfig } from './types.js';

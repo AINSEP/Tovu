@@ -1,9 +1,11 @@
-import type { ProviderKeyUsage } from "../project-keys/service.js";
+import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import { requireInputRecord, requireString, ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
-import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
-import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SecretCardField, SecretCardForm } from "@jini-ai/core/contracts/cards";
+import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
 
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";

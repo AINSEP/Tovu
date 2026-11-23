@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { sqlitePluginActivationRepoFor } from "../../repo.sqlite.js";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 
 /**
  * @file C-013 shared contract-test suite for `PluginActivationRepoPort`, run against both

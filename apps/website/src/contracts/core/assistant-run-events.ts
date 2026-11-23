@@ -2,11 +2,11 @@
 
 import * as owner from "@jini-ai/chat/core/run-events";
 
-import type { AgentEvent } from "@jini-ai/chat/core";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
-export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/chat/core/run-events";
+export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/core/contracts/site/core-run-events";
 
-import type { RunAgentPayload, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/chat/core/run-events";
+import type { RunAgentPayload, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/core/contracts/site/core-run-events";
 
 export function asString({ v }: { v: unknown }, _options = {}): string { return owner.asString({ value: v }, {}); }
 

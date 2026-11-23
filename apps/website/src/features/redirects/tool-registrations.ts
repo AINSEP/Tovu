@@ -1,7 +1,8 @@
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { buildRedirectsToolRegistrations, redirectsDerivedRisk, type RedirectHitSink, type RedirectRepoPort, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { toolMetadata } from "../../contracts/core/tool-metadata/redirects.js";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
 import { AgentPluginActivationsBusyError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
-import type { PluginActivationRecord } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";

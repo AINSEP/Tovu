@@ -1,6 +1,10 @@
 import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
 import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
-import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 /**
  * The Node implementations of the OS-facing ports one `@jini-ai/daemon` agent executor needs (spawn, process

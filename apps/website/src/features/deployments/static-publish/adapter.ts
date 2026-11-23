@@ -11,13 +11,13 @@ import { withDeclaredHosts } from "@jini-ai/core/contracts/server/security-heade
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget  } from "#src/features/deployments/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
 // the barrel would add the plugin loader and the credential vault to it.
 import { rewriteFormActions } from "#src/features/form-destinations/rewrite-actions";
-import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "@jini-ai/cms/forms";
+import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "@jini-ai/core/contracts/site/cms-forms";
 
 import type { ExportReport } from "#src/contracts/core/export-report";
 /**

@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { VIDEO_MAX_FRAMES, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_INPUT_BYTES, VIDEO_MAX_OUTPUT_BYTES, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_SHEETS, type VideoFrameExtractor } from '@jini-ai/cms/media';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';

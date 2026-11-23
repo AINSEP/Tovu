@@ -1,5 +1,5 @@
 import { rolesApi } from "@/features/roles/api/roles-api";
-import type { RolesPort } from "@jini-ai/user-management/react";
+import type { RolesPort } from "@jini-ai/core/contracts/site/user-management-react";
 
 /**
  * @file The live Jini RolesPort binding — the only place `use-roles.hooks.ts` reaches `lib/api`.

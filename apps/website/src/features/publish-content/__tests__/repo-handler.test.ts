@@ -9,14 +9,14 @@ import type {
 } from "@jini-ai/core/contracts/events";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { contentHash } from "../content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import {
   addressHeldByOther,
   addressHeldInTrash,
   changedSincePlan,
   notWired,
   trashedAtDestination,
-} from "../precheck-reasons.js";
+} from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler } from "../repo-handler.js";
 import type { RepoPublishTypeConfig } from "../repo-handler.js";
 import type { PackedEntity, PublishContentDeps, PublishContentHandler } from "../type-registry.js";

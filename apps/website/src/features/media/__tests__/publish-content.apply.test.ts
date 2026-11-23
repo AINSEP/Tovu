@@ -43,7 +43,7 @@ import {
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
-import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { planImport } from "#src/features/publish-content/planner";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";

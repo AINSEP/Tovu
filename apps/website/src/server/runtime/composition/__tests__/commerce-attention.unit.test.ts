@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createContributionRegistry, type ToolContributor, type DerivedToolContributor } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';

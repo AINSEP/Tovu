@@ -11,7 +11,7 @@ import { tovuEnableAccessMessages } from "./enable-access.js";
 import { CONNECT_DECLINED_ACTOR } from "./apply-connect-defaults.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { LegacyToolAuthorizeFn as AuthorizeFn, ToolExecutionContext } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";

@@ -11,7 +11,7 @@ import { createContributionRegistry, type ToolExecutionContext } from '@jini-ai/
 import type { ToolAttemptAuditSink } from '@jini-ai/daemon/tool-audit';
 import type { ToolContributor, DerivedToolContributor } from '@jini-ai/core';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { toAssistantRegistryDeps } from '#src/assistant/__tests__/fixtures/registry-deps';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';

@@ -241,7 +241,7 @@ test('repeated mounts share one snapshot and its one read; publication reaches e
 /** Mutable publication and declarations exercise the real mounted construction hook. */
 async function changingFixture({ preview = false, failAtBoot = false } = {}) {
   let now = 0, reads = 0, declarations = 0, failing = failAtBoot, enabled = false;
-  let scripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [{ src: '/ordinary.js' }, { src: '/optional.js', consent: ['analytics'] }];
+  let scripts: import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[] = [{ src: '/ordinary.js' }, { src: '/optional.js', consent: ['analytics'] }];
   const consent = { regionResolvers: async () => [], scriptDeclarations: async () => { declarations++; return { scripts, problems: [] }; } };
   const deps = { cookieConsent: consent, workspaceId: 'refresh-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/refresh-policy' }, clock: { nowMs: () => now },
     consentStore: { readPublished: async () => { reads++; if (failing) throw new Error('fixture unavailable'); return { id: 'published', config: { ...SITE_CONSENT_DEFAULTS, enabled, privacyPolicyUrl: '/privacy' } }; } },

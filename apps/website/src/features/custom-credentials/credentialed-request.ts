@@ -593,8 +593,8 @@ import {
   type CredentialedRequestExecutedResult,
   type CustomCredentialVerificationResult,
   type MakeCredentialedRequestInput as JiniRequestInput,
-  type CredentialSchemeRule,
 } from "@jini-ai/integrations/credentialed-http";
+import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 // EgressRefusedError is a runtime import so REQUEST_POLICY preserves refusal identity; the barrel
 // otherwise supplies types, and feature code must receive its guarded client from composition.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";

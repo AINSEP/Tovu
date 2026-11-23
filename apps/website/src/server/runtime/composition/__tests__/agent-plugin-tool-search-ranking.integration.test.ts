@@ -1,6 +1,6 @@
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";

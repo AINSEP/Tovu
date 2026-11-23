@@ -2,7 +2,8 @@ import { SECRET_FORM_CARD_DEFINITIONS } from '../../../contracts/headless/index.
 import { credentialText } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
-import { askThenReport, type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { DeployOpsSecretCards, SetSecretInput, SecretConfirm } from '@jini-ai/devops/deploy';
 import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';

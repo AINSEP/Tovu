@@ -15,7 +15,8 @@ import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentia
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
 import { FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 
-import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/api-connections/host";
 import { resolveApiConnectionRuntime } from '../../../contracts/core/runtime-mode.js';
 export { resolveApiConnectionRuntime };

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createContributionRegistry, type ToolExecutionContext } from '@jini-ai/core';
 import type { ToolContributor, DerivedToolContributor } from '@jini-ai/core';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';

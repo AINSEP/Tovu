@@ -35,7 +35,7 @@ import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/to
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
-import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
+import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/agent-tools";
 import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";

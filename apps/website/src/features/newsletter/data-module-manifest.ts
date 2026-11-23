@@ -18,7 +18,8 @@
  * `apps/website/src/features/plugins/store/manifest.ts` / `Jini packages/commerce/src/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
  * this repo's only other real caller of `declareDataModule()`.
  */
-import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "@jini-ai/db/data-modules";
+import { type DataModuleStore, declareDataModule } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 

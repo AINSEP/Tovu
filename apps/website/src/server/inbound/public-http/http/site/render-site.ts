@@ -1,5 +1,5 @@
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
-import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import { type SiteChatSelection } from "./site-chat-markup.js";

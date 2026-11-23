@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";

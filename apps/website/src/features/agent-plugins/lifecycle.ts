@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */
@@ -23,6 +23,8 @@ import {
   type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugins";
+import { writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
+import { readBootIdentity, withFileLock } from "@jini-ai/platform/fs/file-lock";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
@@ -262,7 +264,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   const unbound = async (): Promise<never> => { throw new Error(UNBOUND_LIFECYCLE_MESSAGE); };
   const policy = buildLifecyclePolicy({ optional, ownerRef: () => owner });
   const owner = createAgentPluginLifecycle({
-    ...createNodeAgentPluginEffects({}, optional),
+    ...createNodeAgentPluginEffects({ withFileLock, writeJsonFileAtomicAsync, readBootIdentity }, optional),
     // Boot chooses the site root before binding this owner; requests keep that same layout.
     layout: ownerLayout(required.layout),
     productName: "Tovu", extensionNamespace: "jini", bundledArchiveMagic: "TOVUPKG1\n",

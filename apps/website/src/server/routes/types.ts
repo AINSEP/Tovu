@@ -63,7 +63,7 @@ import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort
 import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
-import type { CredentialSchemeRule } from "../../features/agent-plugins/auth-schemes.js";
+import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type {
   AssetBlobRepoPort,
@@ -124,16 +124,16 @@ import type {
 } from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
-import type { RemovePluginFn } from "@jini-ai/plugins/host";
+import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
+import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
@@ -751,9 +751,9 @@ export interface ObservabilityDeps {
    * How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Hermetic roots supply the no-provider facade. */
-  tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  tracker: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   /** Public event admission follows visitor consent, independent of admin usage telemetry. */
-  visitorTracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  visitorTracker?: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
   observabilityEnabled?: () => boolean;
   flushTelemetry?: () => Promise<void>;
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
@@ -1101,8 +1101,8 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & import("../../features/source-control/commit-site.js").StaticSiteHostPorts & {
-  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
-  declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
+  documentAssets?: (required: { scripts: readonly import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
+  declaredScripts?: import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */

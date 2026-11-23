@@ -24,10 +24,8 @@ import "../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-cata
 import { testSiteLayoutContext } from "../../apps/website/src/__tests__/fixtures/site-layout-context.js";
 import { createContributionRegistry, createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
 import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
-import {
-  buildAssistantToolRegistrations,
-  type AssistantSurfaceDeps,
-} from "../../apps/website/src/assistant/tool-registrations.js";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 import type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";

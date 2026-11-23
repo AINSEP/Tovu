@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";

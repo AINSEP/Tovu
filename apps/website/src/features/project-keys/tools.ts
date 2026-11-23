@@ -1,5 +1,5 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolDefinition, type ToolExecutionContext, type DerivedRiskByToolId } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/custom-credentials.js";
 import type { DevRestartPort } from "../../platform/dev-supervisor/dev-restart.js";

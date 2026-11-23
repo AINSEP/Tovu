@@ -17,7 +17,7 @@
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
-import type { DataModuleDecl } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 /* ------------------------------------------------------------------------------------------------
  * 1. Campaign editorial state — reuses ADR-022 `entries` (content-type `newsletter_campaign`)

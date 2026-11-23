@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
+import { createNoopTracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { ProductTelemetry, ProductConsent, bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './product-telemetry.ts';

@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/database-transfer';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
@@ -14,8 +14,8 @@ import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
   SURFACE_DISMISSED_PARAM,
-  type AssistantSurfaceDeps,
 } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
 import { countPartialExclusions } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort } from "./destination-store.js";

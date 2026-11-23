@@ -1,4 +1,5 @@
-import { issueCredentialSetup, type ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
+import type { ToolFailureDiagnostic } from "@jini-ai/core/contracts/site/daemon-tool-recovery";
 import { CustomCredentialNotFoundError } from "./store.js";
 
 export interface CredentialSetupFailure {

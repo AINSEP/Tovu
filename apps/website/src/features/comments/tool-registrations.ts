@@ -12,7 +12,8 @@ import { contentReadVocabulary } from "../../contracts/core/tool-metadata/conten
 import { buildCommentsToolRegistrations, commentsDerivedRisk, type CommentRepoPort, type CommentsPackageToolDeps, type CommentWriteService } from "@jini-ai/cms/comments";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';

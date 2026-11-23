@@ -1,6 +1,6 @@
 import { pluginManagementToolIds, pluginSourceToolIds } from './plugin-tool-ids.js';
 /** Host catalogs, canonical command/fingerprint owners, approval transport and telemetry. */
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { approvalToolHandler, notConfirmedResult, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
 import { federatedToolApprovalFingerprint } from '@jini-ai/mcp/federation';
 import { executeCommand } from '../../contracts/core/commands/index.js';

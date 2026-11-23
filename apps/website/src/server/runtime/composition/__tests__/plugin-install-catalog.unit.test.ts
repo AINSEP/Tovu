@@ -3,7 +3,7 @@ import test from "node:test";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toolSearchKeywords } from "#src/assistant/tool-search-keywords";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 

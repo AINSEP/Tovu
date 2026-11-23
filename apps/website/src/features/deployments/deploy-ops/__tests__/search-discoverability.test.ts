@@ -1,4 +1,4 @@
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { createContributionRegistry } from "@jini-ai/core";

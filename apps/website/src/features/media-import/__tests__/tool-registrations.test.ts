@@ -3,7 +3,8 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
-import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";

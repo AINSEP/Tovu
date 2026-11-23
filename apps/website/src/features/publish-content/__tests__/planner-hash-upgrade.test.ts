@@ -1,10 +1,10 @@
 import { entityKey } from "../plan-rows.js";
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import { contentHash } from "../content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 
 // Simulate the next release without changing the actual wire format or stored v1 rows.
-mock.module(new URL("../content-hash.ts", import.meta.url).href, {
+mock.module(import.meta.resolve("@jini-ai/cms/publish/content/content-hash"), {
   namedExports: { CONTENT_HASH_VERSION: 2, contentHash },
 });
 const { planImport } = await import("../planner.js");
@@ -63,7 +63,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
     namedExports: { readBackstopMetadata: () => null },
   });
   const { createPublishContentApplyPort } = await import("../apply-port.js");
-  const { InMemoryPublishContentBaselineRepo } = await import("../baseline-repo.js");
+  const { InMemoryPublishContentBaselineRepo } = await import("@jini-ai/cms/publish/content/baseline-repo");
   const { InMemoryPublishContentBundleRepo, stageBundle } = await import("@jini-ai/cms/publish/transfer");
   const { InMemoryPublishContentRunRepo } = await import("../run-repo.js");
   resetPublishContentContributorsForTests();

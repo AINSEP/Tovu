@@ -5,7 +5,7 @@ import { toolApprovalPolicyFor } from '../../assistant-tool-approval-policy.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { buildThemesRegistrations } from "../../../features/theme/tool-registrations.js";
 import { type ThemeToolDeps } from "../../../features/theme/asset-operations.js";
 import { buildImportThemeFileRegistrations, type ImportThemeFileToolDeps } from '../../../features/theme/import-theme-file-tool.js';

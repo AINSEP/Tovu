@@ -1,6 +1,6 @@
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
-import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
-import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
+import type { SecretCardForm } from "@jini-ai/core/contracts/cards";
 
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 

@@ -1,7 +1,8 @@
 /** Full-site boot, shared with journeys: same static admin bundle + ordinary index entrypoint.
  * The watchdog runs before bundle work too; a killed host cannot strand a Vite build process.
  */
-import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell } from "@jini-ai/node-adapters/process";
+import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import type { ProcessControlPort } from "@jini-ai/core/contracts/runtime";
 import { realpathSync } from "node:fs";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
@@ -9,6 +10,9 @@ import { pathToFileURL } from "node:url";
 import { journeyAdminBundle } from "./local-admin-bundle.js";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 /** The slice of `process` this entry reads and signals; the real `process` in production. */
 export interface LocalSiteChildProcess {

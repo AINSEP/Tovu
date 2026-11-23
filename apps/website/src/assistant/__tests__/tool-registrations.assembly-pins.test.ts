@@ -2,14 +2,14 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry, type ToolRegistration } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { isSiteSwitcherEnabled } from "../../platform/site-dir/index.js";
 import { devRestartPortFromEnv, type DevRestartPort } from "../../platform/dev-supervisor/index.js";
 import { toAssistantRegistryDeps } from "./fixtures/registry-deps.js";
 import { buildAssistantToolRegistrations, type AssistantToolRegistryDeps } from "../tool-registrations.js";
 import type { AssistantToolContributions, ToolContributor, DerivedToolContributor } from "../tool-registrations.js";
-import type { AssistantPermanentDeletesPolicy } from "../../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 
 function contributions(_required: object, _optional = {}): AssistantToolContributions {
   return {

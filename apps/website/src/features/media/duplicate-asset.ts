@@ -8,7 +8,7 @@ import {
 import { ToolInputError } from "@jini-ai/core";
 import { rollbackUploadedMedia, uploadMedia } from "@jini-ai/cms/media";
 
-import type { DuplicateResourceHandlerContributor } from "#src/assistant/tool-contributions";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import type { MediaPublicUrlDeps } from "./contracts.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";

@@ -22,8 +22,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
-import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
+import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
+import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import type { StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import {

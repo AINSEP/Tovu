@@ -3,7 +3,8 @@ import { resolveCustomCredentialByLabel, listCustomCredentials, type CustomCrede
 import { formReceiverKey } from "./key-store.js";
 import { assertSubmitUrl } from "./rewrite-actions.js";
 import { selectFormReceiver, type FormReceiverSelection } from "./select.js";
-import type { FormDestinationCredential, FormDestinationForm, FormDestinationRegistry, FormReceiverPlan, FormReceiverPort, FormSubmissionsInspection, LoadedFormDestination } from "@jini-ai/cms/forms";
+import type { FormDestinationRegistry, LoadedFormDestination } from "@jini-ai/cms/forms";
+import type { FormDestinationCredential, FormDestinationForm, FormReceiverPlan, FormReceiverPort, FormSubmissionsInspection } from "@jini-ai/core/contracts/site/cms-forms";
 
 /**
  * @file The publish-side form receiver port static publishing calls: the site's active forms, the

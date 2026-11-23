@@ -20,7 +20,8 @@ import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delet
 import { nativeToolMetadata } from './tool-metadata/index.js';
 import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation, type SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
 import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 import { approvalText } from './approval-i18n.js';
 

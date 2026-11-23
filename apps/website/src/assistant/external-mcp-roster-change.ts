@@ -1,6 +1,6 @@
 import { ToolAccessLoweringError } from "../contracts/core/tool-access-change.js";
 export { ToolAccessLoweringError } from "../contracts/core/tool-access-change.js";
-import type { ToolAccessChange } from '@jini-ai/daemon';
+import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 /**
  * @file A keyed, last-wins fan-out for "the external-MCP roster changed" — the seam that lets every
  * process holding a live federated-tool registry (the agent daemon's own, and BYOK's per-request

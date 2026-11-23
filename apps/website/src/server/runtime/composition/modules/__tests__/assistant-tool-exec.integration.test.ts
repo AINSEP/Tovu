@@ -15,7 +15,7 @@ import { toWriteServiceDeps } from "../../../../inbound/admin-http/routes/settin
 import { POST_ENTITY_TYPE } from "../../../../../features/trash/adapters/post.js";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../../../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../../tool-catalog-manifest.js";
 import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read-only-tool-constraint.js";

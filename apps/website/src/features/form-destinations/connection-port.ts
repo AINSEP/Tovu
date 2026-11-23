@@ -1,5 +1,5 @@
 import { resolveCustomCredentialByLabel, type CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
-import type { FormDeliveryConnectionPort } from "@jini-ai/cms/forms";
+import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 
 /**
  * @file The connection port this build ships: a binding's `connectionRef` is the stable id of a

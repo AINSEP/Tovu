@@ -1,4 +1,4 @@
-import type { PasskeySettingsPort, PasskeySignInPort } from '@jini-ai/user-management/react';
+import type { PasskeySettingsPort, PasskeySignInPort } from '@jini-ai/core/contracts/site/user-management-react';
 import { requestOnce } from './admin-http/request';
 
 /** Explicit ceremonies are single-send requests; lost responses never trigger proof replay. */

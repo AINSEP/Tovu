@@ -4,11 +4,11 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * content/chat kernels for the retained local repositories. Memory never opens a database. */
 import path from "node:path";
 import { getEffective, InMemorySettingsRepo, INSTRUCTIONS_NAMESPACE, type SettingsRepoPort } from "@jini-ai/core/settings";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
-import type { ConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-ports";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { DaemonCoreError, type DaemonCoreSnapshot, type DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
 import { openSiteDbClient, type SiteDbClient, type ImportSiteDbDriver, type ResolvePostgresConnectionString } from "#src/platform/db/client/open-site-db-client";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
