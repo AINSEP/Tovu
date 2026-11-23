@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { processServerLogSource } from "#src/features/server-logs/process-source";
-import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "#src/features/server-logs/read-server-logs";
+import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

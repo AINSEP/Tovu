@@ -7,7 +7,7 @@ import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { serverLogsAgentToolCatalog } from "./agent-tools.js";
 import { processServerLogSource } from "./process-source.js";
-import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "./read-server-logs.js";
+import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 
 export interface ServerLogsToolDeps {
   authorize: AuthorizeFn;

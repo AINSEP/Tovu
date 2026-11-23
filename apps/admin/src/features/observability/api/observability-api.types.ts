@@ -34,7 +34,7 @@ export interface AdminServerLogEntry {
 }
 
 /** `GET /system/server-logs` — mirrors `ServerLogsResult` in
- *  `apps/website/src/features/server-logs/read-server-logs.ts`. `capturing: false` means nothing is
+ *  `@jini-ai/diagnostics/server-logs/read-server-logs`. `capturing: false` means nothing is
  *  recording lines, so an empty list is not proof of no errors. */
 export interface AdminServerLogs {
   entries: AdminServerLogEntry[];

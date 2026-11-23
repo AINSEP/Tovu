@@ -1,4 +1,4 @@
-import { MAX_CONTAINS_LENGTH, MAX_SERVER_LOG_LIMIT, SERVER_LOG_LEVELS } from "./read-server-logs.js";
+import { MAX_CONTAINS_LENGTH, MAX_SERVER_LOG_LIMIT, SERVER_LOG_LEVELS } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 
 /** Catalog for the read-only server-log diagnostic (gap A-04). */
 export const serverLogsAgentToolCatalog = [{
