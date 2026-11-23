@@ -13,7 +13,8 @@ import { PostSavedPanels } from "./editor/PostSavedPanels";
 import { useWiredPostEditor } from "./hooks/use-post-editor.hooks";
 import { usePostEditorScreen } from "./hooks/use-post-editor-screen.hooks";
 import { PostCoverImage } from "./PostCoverImage";
-import { PostSettingsDialog } from "./PostSettingsDialog";
+import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import "../../styles/native-domain-dialogs.css";
 
 /**
  * @file The post/page editor screen — markup only.

@@ -246,10 +246,10 @@ describe("PostEditor DOM — states", () => {
 
   it("template picker for a theme with no templates, and none rendered for an html page", async () => {
     const withNone = await renderScreen(harness({ post: SAVED_POST }));
-    expect(withNone.container.querySelector(".editor-template-picker select[disabled]")).not.toBeNull();
+    expect(withNone.container.querySelector(".jini-editor-template-picker select[disabled]")).not.toBeNull();
     withNone.unmount();
     const htmlPage = await renderScreen(harness({ post: { ...SAVED_POST, bodyFormat: "html" } }));
-    expect(htmlPage.container.querySelector(".editor-template-picker")).toBeNull();
+    expect(htmlPage.container.querySelector(".jini-editor-template-picker")).toBeNull();
   });
 
   it("template source modal gate", async () => {

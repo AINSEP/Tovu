@@ -868,7 +868,7 @@ describe("Template picker", () => {
     render(<PostEditor postId="pg1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
-    expect(document.querySelector(".editor-template-picker")).not.toBeInTheDocument();
+    expect(document.querySelector(".jini-editor-template-picker")).not.toBeInTheDocument();
   });
 
   it("the View Template button is disabled once 'No template chosen' is selected", async () => {

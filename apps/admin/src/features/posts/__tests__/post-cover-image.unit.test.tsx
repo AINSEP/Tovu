@@ -5,7 +5,8 @@ import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
-import { PostSettingsDialog } from "../PostSettingsDialog";
+import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { PostCoverImage } from "../PostCoverImage";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
 
@@ -230,6 +231,7 @@ describe("Hide the cover image in the body, under the cover slot (owner, 2026-10
   it("the settings modal has no Image tab any more", () => {
     render(
       <PostSettingsDialog
+        hooks={{ useTabBarKeyboard }}
         dialog={{ open: true, tab: "author", setTab: vi.fn(), openDialog: vi.fn(), closeDialog: vi.fn() }}
         kindLabel="post"
         author=""

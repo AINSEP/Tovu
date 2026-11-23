@@ -2311,8 +2311,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    on a layout mode; a bare `<select>` and `<button>` both default to `inline-block`, which would
    sit them side by side with no controlled gap. `align-items: center` keeps the button's own
    padding from making it taller than the select and pushing it out of vertical alignment. */
-.editor-template-picker { display: flex; align-items: center; gap: 0.5rem; }
-.editor-template-picker select { width: 14rem; font-size: 0.85rem; }
+.editor-template-picker, .jini-editor-template-picker { display: flex; align-items: center; gap: 0.5rem; }
+.editor-template-picker select, .jini-editor-template-picker select { width: 14rem; font-size: 0.85rem; }
 /* Icon-only "View Template" trigger (2026-09-22 owner ask, moved left of the picker and reduced
    from a `.btn-secondary` text button to an eye glyph). `width`/`height: 37px` matches the shared
    `input, select, textarea { min-height: 37px }` rule exactly (not the 2rem/32px
@@ -2341,8 +2341,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   .editor-title-row .editor-title { max-width: 100%; }
   .editor-slug { justify-content: center; text-align: center; }
   .editor-id { margin-left: 0; padding-left: 0.75rem; justify-content: center; }
-  .editor-template-picker select { width: 100%; }
-  .editor-template-picker { flex-wrap: wrap; }
+  .editor-template-picker select, .jini-editor-template-picker select { width: 100%; }
+  .editor-template-picker, .jini-editor-template-picker { flex-wrap: wrap; }
   /* `width: 100%` here (pre-2026-08-11) was the actual mobile bug: a full-width flex child inside
      `.editor-slug`'s wrapping row always isolates itself onto its own line, forcing the `/` prefix
      above it and `view ↗` below it — three stacked lines instead of one. `.editor-slug` is a flex
@@ -2524,7 +2524,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .tb-select-label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 /* CharacterCount readout (`Toolbar`, 2026-08-11) — `margin-left: auto` pushes it to the far end of
    the flex-wrap row, trailing every button/select group rather than sitting between them. */
-.editor-toolbar-count { margin-left: auto; padding: 0 4px; font-size: 12px; color: var(--faint); white-space: nowrap; }
+.jini-post-toolbar__count { margin-left: auto; padding: 0 4px; font-size: 12px; color: var(--faint); white-space: nowrap; }
 /* Phones (2026-10-06 mobile catalog PO-2): wrapped, this toolbar was ~6 ragged rows (~200px) with
    items clipped at the right edge and labels breaking inside their buttons ("• / List"). One row that
    scrolls sideways instead, every group and label kept whole, buttons at a 40px touch size. Nothing
@@ -2548,19 +2548,19 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 @container admin-content (max-width: 620px) {
   .editor-toolbar { gap: 2px; }
   .editor-toolbar .grp { display: contents; }
-  .editor-toolbar .grp > *, .editor-toolbar-count { order: 1; }
+  .editor-toolbar .grp > *, .jini-post-toolbar__count { order: 1; }
   .editor-toolbar .grp > [data-tb="primary"] { order: 0; }
   .editor-toolbar .jini-post-toolbar__more { display: inline-grid; order: 0; margin-left: auto; }
   .editor-toolbar .grp > [data-tb="primary"]:not([data-tb-rank="0"]) { margin-left: auto; }
   .editor-toolbar .tb-btn, .editor-toolbar .jini-post-toolbar__btn { white-space: nowrap; }
   .editor-toolbar:not([data-more-open="true"]) .grp > :not([data-tb="primary"]),
-  .editor-toolbar:not([data-more-open="true"]) .editor-toolbar-count { display: none; }
+  .editor-toolbar:not([data-more-open="true"]) .jini-post-toolbar__count { display: none; }
   .editor-toolbar[data-more-open="true"] { position: static; }
   .editor-toolbar[data-more-open="true"]::after { content: ""; order: 0; flex-basis: 100%; height: 0; margin-block: 2px; border-top: 1px solid var(--border); }
   .editor-toolbar[data-more-open="true"] .jini-post-toolbar__more { background: var(--surface); border-color: var(--border); }
   /* Open, the count wraps onto its own last row; pushed right there it sat under the floating chat
      button (owner 2026-10-16: the FAB covered "910 characters"). Left, it starts the row instead. */
-  .editor-toolbar[data-more-open="true"] .editor-toolbar-count { margin-left: 0; }
+  .editor-toolbar[data-more-open="true"] .jini-post-toolbar__count { margin-left: 0; }
 }
 @media (max-width: 640px) {
   .editor-toolbar .tb-btn, .editor-toolbar .jini-post-toolbar__btn { min-width: 44px; height: 44px; white-space: nowrap; }
@@ -6796,8 +6796,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      same classes whichever stylesheet loads last. */
   .page-editor-toolbar .page-editor-toolbar-end { flex-wrap: nowrap; width: 100%; justify-content: space-between; }
   .page-editor-toolbar .page-editor-toolbar-end .page-editor-width { display: none; }
-  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-end; }
-  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
+  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker,
+  .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-end; }
+  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select,
+  .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
 }
 @media (max-width: 640px) {
   /* Save stays in reach while scrolling a long body: the row pins under the top bar. `top` is minus

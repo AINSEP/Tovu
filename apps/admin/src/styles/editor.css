@@ -299,8 +299,10 @@
   /* The shared phone rule stretches the template group across the row and its select with it;
      here the select keeps its own width and the group stays right-aligned. */
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
-  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: none; }
-  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker,
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select,
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .jini-editor-template-picker select { flex: none; }
 }
 @media (max-width: 640px) {
   /* The status/Save/Delete group stays together at its natural size (owner: the stretched
@@ -346,24 +348,25 @@
 /* The template and Draft/Published selects are as wide as the chosen value, not a fixed 14rem
  * (owner, 2026-10-10: "adjust to the length of the template name"). */
 .content-editor-page .editor-template-picker select,
+.content-editor-page .jini-editor-template-picker select,
 .content-editor-page .content-action-group > select { width: auto; field-sizing: content; max-width: 100%; }
 
 /* The gear's modal: Author / Publish / Image tabs. */
-.post-settings-dialog { --admin-dialog-width: 34rem; }
-.post-settings-tabs { align-self: flex-start; margin-bottom: var(--space-4); }
-.post-settings-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-height: 3rem; }
-.post-settings-panel .jini-post-publishing__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.jini-post-settings-dialog { --admin-dialog-width: 34rem; }
+.jini-post-settings-tabs { align-self: flex-start; margin-bottom: var(--space-4); }
+.jini-post-settings-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-height: 3rem; }
+.jini-post-settings-panel .jini-post-publishing__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
 /* Publish tab: the label sits above the date box, so the browser's calendar opens straight under it
  * from the modal's left edge instead of hanging off the right side of a narrow window. */
-.post-settings-panel > .jini-post-publishing__field:has(> input[type="datetime-local"]) { flex-direction: column; align-items: flex-start; }
-.post-settings-dialog .widget-picker-footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+.jini-post-settings-panel > .jini-post-publishing__field:has(> input[type="datetime-local"]) { flex-direction: column; align-items: flex-start; }
+.jini-post-settings-dialog .widget-picker-footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
 /* Container (2026-10-11): pairs with that shared rule (PO-3 in `styles.css`), now container-based. */
 @container admin-content (max-width: 620px) {
   /* The shared phone rule puts every publishing label on its own line above a full-width control,
      which split "Show post author" from its checkbox. Keep that pair on one line. */
-  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
-  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .jini-field-label { flex-basis: auto; }
-  .post-settings-panel .jini-post-publishing__field > input[type="checkbox"] { width: 16px; }
+  .jini-post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
+  .jini-post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .jini-field-label { flex-basis: auto; }
+  .jini-post-settings-panel .jini-post-publishing__field > input[type="checkbox"] { width: 16px; }
 }
 
 /* Editor-only: override TipTap’s fixed iframe dimensions without altering saved/public HTML. */

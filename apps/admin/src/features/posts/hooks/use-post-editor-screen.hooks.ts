@@ -16,7 +16,7 @@ import type { PostEditorTemplateModalGate } from "../editor/template/PostEditorT
 import { VIEW_TABS } from "../editor/view-bar/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
-import type { PostSettingsDialog } from "../PostSettingsDialog";
+import type { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
 import { usePostSettingsDialog, type PostSettingsDialogController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostEditorController, PostEditorView, useWiredPostEditor } from "./use-post-editor.hooks";
 
@@ -123,6 +123,7 @@ function actionsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEdi
 
 function settingsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEditorReadyScreen["settings"] {
   return {
+    hooks: { useTabBarKeyboard },
     dialog: settingsDialog,
     kindLabel,
     author: ctrl.author,

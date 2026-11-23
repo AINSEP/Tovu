@@ -292,13 +292,6 @@
       "text": "YouTube"
     },
     {
-      "file": "features/posts/PostUrlDialog.tsx",
-      "line": 13,
-      "kind": "placeholder",
-      "text": "https://",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "features/posts/Posts.tsx",
       "line": 206,
       "kind": "text",
