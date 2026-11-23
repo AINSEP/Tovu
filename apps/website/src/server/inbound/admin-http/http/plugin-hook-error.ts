@@ -1,55 +1,33 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { createPluginHookErrorEnvelope } from "@jini-ai/cms/admin-http/http/plugin-hook-error";
 import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
+export type { PluginHookErrorResponse, PluginHookFailedBody } from "@jini-ai/cms/admin-http/http/plugin-hook-error";
+
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
- * @file P0c fix (hooks v2 plan, 2026-09-23) — `PluginHookFailedError`'s own doc comment
- * (`hook-registry.ts`) has always claimed it is "caught by the caller, mapped to 500
- * `PLUGIN_HOOK_FAILED`", but no route ever actually did that: every content-save route's local
- * `send*Error` function fell through to the generic `{error:"internal error"}` 500 with no `code`
- * at all, so a client (admin UI or an agent tool) could never tell a plugin's hook failure apart
- * from any other internal error. One shared function so every content-save route's error mapper
- * gets the SAME shape instead of re-typing it (and risking a drift) at each call site.
- */
-
-/** The only part of Express's `Response` this function writes through (`status().json()`). Narrow
- *  so a caller's real `Response` fits as-is and a unit test can pass a two-method capturing fake. */
-export interface PluginHookErrorResponse {
-  status(code: number): { json(body: unknown): unknown };
-}
-
-export interface PluginHookFailedBody {
-  readonly error: string;
-  readonly code: "PLUGIN_HOOK_FAILED";
-  readonly pluginId: string;
-}
-
-/**
- * The `PLUGIN_HOOK_FAILED` envelope every HTTP route returns for a hook refusal. `error` is fixed
- * text (`pluginHookRefusalText`, or `publicText` when the route is not a save), never `err.message`:
- * that quotes the plugin's own thrown error, which can carry a credential, SQL or a path — agent
- * tools redact it the same way. The redacted message goes to the server log instead, the only place the
- * cause survives for a preview (a save's also lands in the quarantine reason).
+ * @file Tovu's binding of the Jini `PLUGIN_HOOK_FAILED` envelope (RT-K1-adm-plugin-hook-error).
  *
- * @complexity O(n) in the diagnostic text scanned for secrets.
+ * The envelope (status, code, which fields leave the server, the redacted log line) moved to
+ * `@jini-ai/cms/admin-http/http/plugin-hook-error`. What stays here is Tovu's own half, which the
+ * engine cannot name: the plugin host's error class, Tovu's public refusal copy
+ * (`pluginHookRefusalText`) and its secret redaction. The callers (`widgets.ts`, plugin preview,
+ * publish-content import errors, the posts/pages save registrars) call these with no args object,
+ * so the copy has nowhere else to be bound (K3: the binding stays host-side).
  */
-export function pluginHookFailedBody(err: PluginHookFailedError, optional: { publicText?: string } = {}): PluginHookFailedBody {
-  consoleLogger.warn({ message: redactSecretShapes({ text: `[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}` }).text });
-  return { error: optional.publicText ?? pluginHookRefusalText(err), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
-}
+const envelope = createPluginHookErrorEnvelope<PluginHookFailedError>({
+  isPluginHookFailure: (err): err is PluginHookFailedError => err instanceof PluginHookFailedError,
+  refusalText: pluginHookRefusalText,
+  redact: (text) => redactSecretShapes({ text }).text,
+  warn: (message) => consoleLogger.warn({ message }),
+});
 
-/**
- * If `err` is a `PluginHookFailedError`, writes the 500 `PLUGIN_HOOK_FAILED` envelope
- * ({@link pluginHookFailedBody}) and returns `true`. Returns `false` (writes nothing) for any other
- * error, so a route's own error mapper can call this first and fall through to its remaining
- * branches unchanged.
- * @complexity O(n) in the diagnostic text when a hook failure is handled.
- */
-export function sendPluginHookFailedError({ res, err }: { res: PluginHookErrorResponse; err: unknown }, _optional = {}): boolean {
-  if (!(err instanceof PluginHookFailedError)) return false;
-  res.status(500).json(pluginHookFailedBody(err));
-  return true;
-}
+/** The 500 `PLUGIN_HOOK_FAILED` body with Tovu's refusal copy; logs the redacted cause. */
+export const pluginHookFailedBody = envelope.pluginHookFailedBody;
+/** Writes the envelope for a `PluginHookFailedError` and returns `true`; `false` (writes nothing) otherwise. */
+export const sendPluginHookFailedError = envelope.sendPluginHookFailedError;
+/** For Jini route specs: throws the flat 500 refusal for a hook failure; returns for anything else. */
+export const rejectPluginHookFailure = envelope.rejectPluginHookFailure;
