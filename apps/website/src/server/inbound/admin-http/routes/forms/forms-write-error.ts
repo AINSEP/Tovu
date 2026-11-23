@@ -13,7 +13,8 @@ import { formsWriteErrorAnswer } from "@jini-ai/cms/admin-http/routes/forms/writ
  * (caller falls through to its own generic 500).
  */
 export function mapFormsWriteError({ err, res }: { err: unknown; res: Response }, _optional = {}): boolean {
-  const answer = formsWriteErrorAnswer({ err });
+  // The admin surface's outward copy for a classified domain error is that error's own message.
+  const answer = formsWriteErrorAnswer({ err, outwardErrorMessage: ({ error }) => error.message });
   if (!answer) return false;
   res.status(answer.status).json(answer.body);
   return true;

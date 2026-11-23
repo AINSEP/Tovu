@@ -75,6 +75,8 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
   mountAdminJsonRoute({ app, spec: formsUpdateRoute, deps: {
     ...formsPortDeps({ deps }),
     formDefinitionRepo: deps.formDefinitionRepo,
+    // The admin surface's outward copy for a classified domain error is that error's own message.
+    outwardErrorMessage: ({ error }) => error.message,
     updateFormDefinition: ({ input }) => updateFormDefinition({ deps: formWriteDeps({ deps }), input }),
     setFormDefinitionStatus: ({ input }) => setFormDefinitionStatus({ deps: formWriteDeps({ deps }), input }),
   } }, { failure: { operation: "routes/forms/update", code: "INTERNAL_ERROR" } });

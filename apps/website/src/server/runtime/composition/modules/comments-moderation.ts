@@ -79,7 +79,12 @@ function commentsPortDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "aut
 const directMountOptions = (operation: string) => ({ authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } });
 
 export function registerAdminCommentsModerationQueueRoute({ app, deps }: { app: Express; deps: AdminCommentsModerationQueueDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: commentsModerationQueueRoute, deps: { ...commentsPortDeps({ deps }), commentRepo: deps.commentRepo } }, directMountOptions("routes/comments/moderation-queue"));
+  mountAdminJsonRoute({ app, spec: commentsModerationQueueRoute, deps: {
+    ...commentsPortDeps({ deps }),
+    commentRepo: deps.commentRepo,
+    // The admin surface's outward copy for a classified domain error is that error's own message.
+    outwardErrorMessage: ({ error }) => error.message,
+  } }, directMountOptions("routes/comments/moderation-queue"));
 }
 
 /** approve/spam/trash/restore first, then purge — the hand-written registrar's order. */
@@ -102,6 +107,8 @@ export const registerAdminCommentsPutSettingsRoute = ({ app, deps }: { app: Expr
   mountAdminJsonRoute({ app, spec: commentsPutSettingsRoute, deps: {
     ...commentsPortDeps({ deps }),
     commentsSettingsReady: deps.commentsSettingsReady,
+    // The admin surface's outward copy for a classified domain error is that error's own message.
+    outwardErrorMessage: ({ error }) => error.message,
     setCommentsSettings: (input) => setCommentsSettings(
       { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: deps.authorize, principals: deps.principalRepo },
       input,

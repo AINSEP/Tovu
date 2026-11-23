@@ -310,7 +310,11 @@ test("moderate: a 204 success ends the response with no body and never calls res
   const { app, jsonBodies } = buildApp();
   const baseUrl = await startTestServer(app, t);
   for (const action of ["approve", "purge"]) {
-    const res = await fetch(`${baseUrl}${BASE}/c1/${action}`, { method: "POST" });
+    const res = await fetch(`${baseUrl}${BASE}/c1/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedVersion: 1 }),
+    });
     assert.equal(res.status, 204, action);
     assert.equal(await res.text(), "", action);
     assert.equal(res.headers.get("content-type"), null, action);
