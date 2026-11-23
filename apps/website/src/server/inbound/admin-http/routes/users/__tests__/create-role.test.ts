@@ -169,3 +169,20 @@ test("CREATE_ROLE route: 500 internal error when unexpected error is thrown", as
   const body = (await res.json()) as { error: string };
   assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The role operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"role operation"} });
 });
+
+test("CREATE_ROLE route (B227): a taken role name is a 409 with plain words, not a 500", async (t) => {
+  const { app, deps } = await buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const post = () => fetch(`${baseUrl}${URL_BASE}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "dup-role" }),
+  });
+
+  assert.equal((await post()).status, 201);
+  const res = await post();
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: 'A role named "dup-role" already exists. Pick another name.', code: "RESOURCE_CONFLICT", details: { field: "name" } });
+  const roles = await deps.roleRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.equal(roles.filter((role) => role.name === "dup-role").length, 1);
+});

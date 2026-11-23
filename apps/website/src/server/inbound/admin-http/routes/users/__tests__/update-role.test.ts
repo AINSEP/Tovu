@@ -231,3 +231,19 @@ test("UPDATE_ROLE route: 500 internal error when an unexpected error is thrown",
   const body = (await res.json()) as { error: string };
   assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The role save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save role"} });
 });
+
+test("UPDATE_ROLE route (B227): renaming onto a taken role name is a 409 with plain words, not a 500", async (t) => {
+  const { app, deps, ownerId } = await buildApp();
+  await createCustomRole(deps, ownerId, "taken-name");
+  const roleId = await createCustomRole(deps, ownerId, "free-name");
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${urlFor(roleId)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "taken-name" }),
+  });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: 'A role named "taken-name" already exists. Pick another name.', code: "RESOURCE_CONFLICT", details: { field: "name" } });
+  assert.equal((await deps.roleRepo.findById({ workspaceId: WORKSPACE_ID, id: roleId }))?.name, "free-name");
+});

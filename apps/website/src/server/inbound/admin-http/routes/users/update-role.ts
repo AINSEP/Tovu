@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { IdentityConflictError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
 import { updateRole } from "@jini-ai/user-management/server";
 import { toAdminRoleResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -16,6 +16,11 @@ function sendRoleUpdateError({ res, err }: { res: Response; err: unknown }, _opt
   }
   if (err instanceof IdentityValidationError) {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  // B227: the role service refuses a name another role already holds (plain-words message).
+  if (err instanceof IdentityConflictError) {
+    res.status(409).json({ error: err.message, code: "RESOURCE_CONFLICT", details: { field: "name" } });
     return;
   }
   if (err instanceof IdentityNotFoundError) {
