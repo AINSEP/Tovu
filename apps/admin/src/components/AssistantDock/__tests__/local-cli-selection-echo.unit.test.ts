@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { isSelectionNormalizationEcho } from "@jini-ai/admin/shell/components/AssistantDock/local-cli-selection-echo";
 import { resolveChatPaneSelection } from "@jini-ai/chat/react";
 
+// Parity cases: the helper over the chat library's REAL resolver, as ChatPane runs it. The
+// resolver-independent rule (including "no inventory, no echo") is pinned beside the helper in
+// Jini (`@jini-ai/admin` shell/components/AssistantDock/__tests__/local-cli-selection-echo.unit.test.ts).
 // ChatPane normalizes to concrete model IDs; aliases and the retired Gemini CLI are excluded.
 const agents = [
   { id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-4-5", label: "Sonnet" }, { id: "claude-opus-4-5", label: "Opus" }] },
@@ -47,10 +50,5 @@ describe("isSelectionNormalizationEcho", () => {
       current: { agentId: "claude", model, reasoning: "high" },
       incoming: { agentId: "claude", model, reasoning: "default" }, agents: reasoningAgents, resolveChatPaneSelection,
     })).toBe(false);
-  });
-
-  it("is false without an inventory, since ChatPane cannot normalize against none", () => {
-    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents: undefined, resolveChatPaneSelection })).toBe(false);
-    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents: [], resolveChatPaneSelection })).toBe(false);
   });
 });
