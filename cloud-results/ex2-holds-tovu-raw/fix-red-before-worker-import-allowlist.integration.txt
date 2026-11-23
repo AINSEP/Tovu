@@ -1,0 +1,296 @@
+✖ a site-layout tier-2 plugin still imports both SDK specifiers and its own relative files (411.020381ms)
+✖ a site-layout tier-2 plugin is refused when it imports "node:fs" (370.97094ms)
+✖ a site-layout tier-2 plugin is refused when it imports "fs" (348.734315ms)
+✖ a site-layout tier-2 plugin is refused when it imports "child_process" (374.270088ms)
+✖ a site-layout tier-2 plugin is refused when it imports "node:child_process" (395.737628ms)
+✖ a site-layout tier-2 plugin is refused when it imports "tier2-fixture-dependency" (455.369459ms)
+✖ a site-layout tier-2 plugin is refused when it imports "@jini-ai/cms/seo/content-analysis" (470.089667ms)
+✖ a site-layout tier-2 plugin is refused when it imports "#src/platform/html/slug" (432.615243ms)
+✖ a site-layout tier-2 plugin is refused when it imports "data:text/javascript,export default 1" (449.567478ms)
+✖ a dynamic import() of a refused specifier inside the plugin is refused as well (478.30986ms)
+✖ a relative path that climbs out of the plugin package is refused (384.486992ms)
+✖ the built-in content-analyzer, which imports host packages, still loads in a real worker (356.38231ms)
+✖ a malformed entry file URL is a structured import-stage reply, not a crashed worker (337.149359ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 0
+ℹ fail 13
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5553.052805
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:4:3
+✖ a site-layout tier-2 plugin still imports both SDK specifiers and its own relative files (411.020381ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   error: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+  +   ok: false,
+  +   stage: 'import'
+  -   hooks: [
+  -     'content.entry.beforeSave'
+  -   ],
+  -   kind: 'probe',
+  -   ok: true
+    }
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:75:14)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:68:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, stage: 'import', error: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined." },
+    expected: { ok: true, kind: 'probe', hooks: [ 'content.entry.beforeSave' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "node:fs" (370.97094ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "node:fs"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "node:fs"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "fs" (348.734315ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "fs"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "fs"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "child_process" (374.270088ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "child_process"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "child_process"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "node:child_process" (395.737628ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "node:child_process"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "node:child_process"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "tier2-fixture-dependency" (455.369459ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "tier2-fixture-dependency"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "tier2-fixture-dependency"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "@jini-ai/cms/seo/content-analysis" (470.089667ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "@jini-ai\/cms\/seo\/content-analysis"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "@jini-ai\/cms\/seo\/content-analysis"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "#src/platform/html/slug" (432.615243ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "#src\/platform\/html\/slug"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "#src\/platform\/html\/slug"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:8:693
+✖ a site-layout tier-2 plugin is refused when it imports "data:text/javascript,export default 1" (449.567478ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "data:text\/javascript,export default 1"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:93:27)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:90:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "data:text\/javascript,export default 1"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:11:89
+✖ a dynamic import() of a refused specifier inside the plugin is refused as well (478.30986ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /may not import "node:child_process"/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at assertRefused (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:84:10)
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:101:25)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:99:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /may not import "node:child_process"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:13:100
+✖ a relative path that climbs out of the plugin package is refused (384.486992ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /outside its own package/. Input:
+  
+  "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined."
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:115:31)
+      at async withPluginPackage (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:55:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:109:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+    expected: /outside its own package/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:17:227
+✖ the built-in content-analyzer, which imports host packages, still loads in a real worker (356.38231ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   error: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined.",
+  +   ok: false,
+  +   stage: 'import'
+  -   hooks: [
+  -     'content.entry.beforeSave'
+  -   ],
+  -   kind: 'probe',
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:125:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, stage: 'import', error: "Cannot destructure property 'sdkSpecifiers' of 'required.policy' as it is undefined." },
+    expected: { ok: true, kind: 'probe', hooks: [ 'content.entry.beforeSave' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts:17:496
+✖ a malformed entry file URL is a structured import-stage reply, not a crashed worker (337.149359ms)
+  TypeError [ERR_INVALID_FILE_URL_PATH]: File URL path must not include encoded / characters
+      at getPathFromURLPosix (node:internal/url:1607:15)
+      at fileURLToPath (node:internal/url:1648:63)
+      at tier2PluginPackageUrl (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/worker.ts:59:62)
+      at main (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/worker.ts:81:28)
+      at startIfWorker (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/worker.ts:94:46)
+      at path (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/worker.ts:99:6)
+      at Object.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/plugin-tier2/worker.ts:99:60)
+      at Module._compile (node:internal/modules/cjs/loader:1929:14)
+      at Object.transformer (/home/user/Tovu/node_modules/tsx/dist/register-BLUABhh3.cjs:9:3252)
+      at Module.load (node:internal/modules/cjs/loader:1651:32) {
+    code: 'ERR_INVALID_FILE_URL_PATH',
+    input: {}
+  }
+exit=1

@@ -48,10 +48,15 @@ const SEAMS = [
  * fails; an entry whose line is reworded makes the test fail until the entry is removed:
  * - `federate-mcp.ts` predates the feature and uses "picker" as the plain English word for a UI list
  *   of tools (not the provider's file picker);
+ * - `bundled-catalog.ts` is the host's inventory of bundled plugin ids, so it lists the provider
+ *   plugins (`google-login`, `google-workspace`, `google-forms`) by id, as every other provider's.
  */
 const ALLOWED = new Set([
   'apps/website/src/features/agent-plugins/federate-mcp.ts: * like an operator-typed one: the same allowlist/"may write" tool picker, the same enable toggle,',
   "apps/website/src/features/agent-plugins/federate-mcp.ts: *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets",
+  "apps/website/src/features/agent-plugins/bundled-catalog.ts:  \"github\", \"resend\", \"meilisearch\", \"google-login\", \"composio\", \"supabase\", \"higgsfield-media\", \"commerce\", \"stripe\",",
+  "apps/website/src/features/agent-plugins/bundled-catalog.ts:  \"posthog\", \"sentry\", \"opentelemetry\", \"google-workspace\", \"charts-recharts\", \"google-forms\", \"calendly\",",
+  "apps/website/src/features/agent-plugins/bundled-catalog.ts:export const HOST_SOON_AGENT_PLUGINS: ReadonlySet<string> = new Set([\"posthog\", \"opentelemetry\", \"stripe\", \"sentry\", \"google-forms\"]);",
 ]);
 
 /** Every scannable file under `target` (a file or a folder), skipping installs and build output. */
