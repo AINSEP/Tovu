@@ -1,3 +1,4 @@
+import { createSafeMarkdownRenderer } from '@jini-ai/chat/vanilla';
 import { createVisitorPageControl } from './visitor-page-control';
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
@@ -33,25 +34,12 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
     scheduleFrame: ({ callback }: { callback: () => void }) => {
       const handle = requestAnimationFrame(callback); return () => cancelAnimationFrame(handle);
     },
-    renderMarkdown: ({ content, element: target }: { content: string; element: HTMLElement }) => {
-      // micromark is already installed in this host. Defaults escape raw HTML and reject unsafe
-      // protocols; never enable allowDangerousHtml or allowDangerousProtocol for visitor replies.
-      // Footnotes are disabled: per-message IDs otherwise collide and expose an unstyled sr-only heading.
-      const template = document.createElement('template');
-      template.innerHTML = micromark(content, { extensions: [gfm(), { disable: { null: ['gfmFootnoteDefinition', 'gfmFootnoteCall', 'gfmPotentialFootnoteCall'] } }], htmlExtensions: [gfmHtml()] });
-      // Filter the detached fragment before insertion so an untrusted image never starts a request.
-      const base = new URL(document.baseURI);
-      for (const image of template.content.querySelectorAll<HTMLImageElement>('img')) {
-        const source = image.getAttribute('src');
-        if (!source) { image.remove(); continue; }
-        try {
-          const url = new URL(source, base);
-          if (!['http:', 'https:'].includes(url.protocol) || url.origin !== base.origin) image.remove();
-        } catch { image.remove(); }
-      }
-      target.replaceChildren(template.content);
-      for (const link of target.querySelectorAll<HTMLAnchorElement>('a[href]')) link.rel = 'noopener noreferrer';
-    },
+    // micromark is the trusted converter createSafeMarkdownRenderer requires: its defaults escape raw
+    // HTML and reject unsafe protocols; never enable allowDangerousHtml or allowDangerousProtocol for
+    // visitor replies. Footnotes are disabled: per-message IDs otherwise collide and expose an unstyled sr-only heading.
+    renderMarkdown: createSafeMarkdownRenderer({ document, toHtml: ({ content }) => micromark(content, {
+      extensions: [gfm(), { disable: { null: ['gfmFootnoteDefinition', 'gfmFootnoteCall', 'gfmPotentialFootnoteCall'] } }], htmlExtensions: [gfmHtml()],
+    }) }),
     copy: { title: t('Ask this site'), fabLabel: t('Chat with this site'), placeholder: t("Ask about this site's posts and pages…"),
       greeting: t('Ask about posts, pages or docs on this site.'), suggestionsLabel: t('Example prompts'),
       send: t('Send'), stop: t('Stop run'), close: t('Close chat'), reset: t('New thread'), resetQuestion: t('Discard chat?'), confirm: t('Discard chat'), confirmDraft: t('Discard draft'), keep: t('Cancel'),

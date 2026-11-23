@@ -40,3 +40,12 @@ test('encoded executable links and GFM footnotes cannot introduce active links o
   assert.equal(element.querySelector('[id]'), null);
   dom.window.close();
 });
+
+test('an external base element cannot authorize an external visitor image', () => {
+  const dom = new JSDOM('<head><base href="https://evil.test/"></head><div id="root"></div>', { url: 'https://example.test/about' });
+  const element = dom.window.document.getElementById('root')!;
+  const args = createSiteVanillaArgs({ element }, { document: dom.window.document });
+  args.renderMarkdown({ element, content: '![Rebased](/x.png)\n\n![Evil](https://evil.test/y.png)\n\n![Own](https://example.test/z.png)' });
+  assert.deepEqual(Array.from(element.querySelectorAll('img')).map(img => img.getAttribute('src')), ['https://example.test/z.png']);
+  dom.window.close();
+});
