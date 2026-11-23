@@ -1,4 +1,4 @@
-DESIGN COMPLETE
+DESIGN COMPLETE (R1123: revised per `reviews/plans1123.md`; NEEDS / READY WITH FIXES steps carry R1123 blocks; CM-3.2 and CM-3.5 rewritten)
 # ALGO-P4 · Errors — algorithm design
 
 **Run:** unattended cloud design run 2026-11-23 (Opus high), Software Architect skill loaded (`AI-Dev-Shop/agents/software-architect/skills.md`). Drafted by a read-only subagent, merged by the coordinator. Plan: `plans/P4-errors-next.md`; check applied: `reviews/check-P3-P4-P5.md`. Design only — no production code, builds or tests.
@@ -47,10 +47,10 @@ DESIGN COMPLETE
 
 **CM-3 · Core changes shared by J2–J5 (one core changeset `core-route-operation.md`, minor, lands in J2):**
 1. `RecordFailureOptions.attributes?: OperationAttributes` and `DescribeFailureOptions.attributes?` → forwarded into `reportToTracker`'s `context.attributes` and into the host record `meta.attributes`. Values pass `fixedAttribute()` (regex `^[\w.:/-]{1,128}$`, else dropped) so a caller cannot smuggle user text.
-2. **Per-reporter dedupe mark.** Inside `createErrorReporter` a closure `WeakMap<object, string> reported`. `recordIncident`: `if (isObject(error) && reported.has(error)) return {errorId: reported.get(error)}` *before* minting (no second write); after writing, `reported.set(error, errorId)`. `describeFailure`: after the refusal check, `prior = optional.errorId ?? reported.get(error)`; if `prior` → no record. Primitives are never marked (limit, documented). Per-reporter, not module-global: no hidden process state, tests isolate by building a reporter. Purpose: a failure that crosses two boundaries in one process (tool → route, handler → IPC) keeps one id and one report.
+2. **R1123 (Codex J2): explicit incident receipt, not a reporter-wide mark.** The `WeakMap` is removed; the reporter is stateless. `record` returns an `IncidentReceipt = { readonly errorId: string }`, and the receipt travels **with that one failure's propagation**, explicitly, in one of two carriers: (a) a **stamped result** (`{ …result, errorId }`, read by `readToolErrorId`) when a boundary converts the failure into a value; (b) a **`ReportedFailure`** (new class in `J/core/src/errors/reported-failure.ts`, `{ receipt, cause }`, `name: 'ReportedFailure'`) when a boundary must rethrow. `describeFailure` / `recordIncident` first call `findReceipt(error)` — `error instanceof ReportedFailure` → its receipt; else walk `error.cause` (bounded depth 8, cycle-safe) for a `ReportedFailure`; else `optional.errorId`. Found → reuse the id, **no second write**. Not found → mint + write + return a new receipt. Consequences: the same `Error` instance thrown by two requests records **two** ids (no identity-keyed memory); a wrapper (`new Error('ctx', { cause: carrier })`) keeps the id; a thrown primitive is wrapped into a `ReportedFailure` at the first boundary, so it dedupes too. Tests: **«Two requests throwing the same Error instance record two IDs»** (mutation: reintroduce a reporter-wide `WeakMap` → one id → red) and **«One failure crossing two boundaries keeps one ID»** (inner boundary records and throws `ReportedFailure`, outer describes; mutation: outer ignores the carrier → two ids → red), plus `a wrapped carrier keeps its id` and `a thrown string keeps one id across two boundaries`.
 3. `runOperation` gains two optional fields in its **required** object (two-object API kept): `classify?: (value: T) => OperationVerdict` where `OperationVerdict = { outcome: 'completed'|'refused'|'failed'|'cancelled'; failed: boolean; attributes?: OperationAttributes }` (default `{completed,false}`), and `settle?: (error: unknown) => OperationVerdict | undefined` (a thrown value the caller classifies *without* a report — used only for client disconnect). New result arm `{ ok: true; value: T; verdict }`.
 4. `runOperation` body rewritten as three helpers (each ≤ 25 lines, complexity ≤ 4): `startOperation` (`attempt(() => trackOperation(...), NOOP_OPERATION_TRACKER)`), `settleThrown` (`settle?.(error) ?? describe(...)`), `endOnce` (`attempt(() => tracker.end(verdict))`). `end` is called **outside** the try, exactly once. `NOOP_OPERATION_TRACKER = { run: (fn) => fn(), end: () => {} }` exported from `reporter.ts` (needed by J4/J5 for observability-disabled hosts).
-5. `ClientFacingError` moves to `J/core/src/contracts/server/client-facing-error.ts` so `json-route.ts` can runtime-import `runOperation` without a cycle (`reporter.ts:11` imports `ClientFacingError` from `json-route.ts`; `scripts/runtime-cycles.depcruise.mjs` exists). Importers are updated to the new owner file and the `contracts/server` barrel exports it from there (no shell left in `json-route.ts`). STOP-check: run the depcruise cycle rule before and after.
+5. **R1123 (Codex J2): `ClientFacingError` keeps its supported entry.** The class's owner file becomes `J/core/src/errors/client-facing-error.ts` (runtime stays out of `src/contracts`, owner rule), `json-route.ts` and `reporter.ts` import it from the owner (breaks the cycle), and **every package entry that exports it today keeps exporting the same constructor** (the `contracts/server` entry's barrel adds an export line from the owner file — an entry barrel, not a shim file). Test `ClientFacingError is the same constructor from every supported entry` (`instanceof` across the root and `contracts/server` entries; `api:check` unchanged for that symbol). Mutation: a duplicate class in the old location → `instanceof` fails → red. STOP-check: depcruise cycle rule before and after.
 6. `RouteErrorPorts` (core, in `contracts/server/json-route.ts`): `{ readonly reporter: ErrorReporter; readonly observability: Pick<ObservabilityPort, 'trackOperation'> }`, added as `RouteHostContext.errors?: RouteErrorPorts` (`json-route.ts:69-75`). Because `RouteHostContext` already flows to the Express adapter (`adapter.ts:37`), the fetch route (`json-route.ts:179`), the daemon route table (`J/daemon/src/http/route-table.ts:56`) and the preset extensions (`create-local-node-daemon.ts:375`), **one field reaches every HTTP boundary** with no new parameter threading.
 
 **CM-4 · The shared operation flow (order of effects is normative).**
@@ -121,6 +121,14 @@ Use a tagged return (`{kind:'text',message}|{kind:'sentence',sentence}`) rather 
 
 ---
 ## P4-J2 · Jini · HTTP route boundary + one `http.route` span
+
+> **R1123 revision (Codex: NEEDS) — supersedes the WeakMap dedupe (CM-3.2, rewritten above) and pins the open behaviours.**
+> - **Dedupe = incident receipt** (CM-3.2). §4's "reporter is stateless except the WeakMap" now reads "the reporter is stateless".
+> - **Thrown cancellation:** a proven client-disconnect abort (`settle` returns a verdict only when `request.aborted && error.name === 'AbortError'`, Q-J2c) → `{ ok: false, verdict: { outcome: 'cancelled', failed: false }, status: 499, write: 'none' }`: no report, no reply write, span ends `cancelled`. Any other abort-shaped error is an incident.
+> - **Returned errors — final status:** a returned `{ status ≥ 500 }` reply → verdict `failed`; if it carries `errorId` (stamped) the id is reused, **otherwise the boundary records it now** so every 5xx has exactly one receipt; the reply status is the returned status. Returned 4xx → `refused`, no record. 2xx/3xx → `completed`.
+> - **Express `onError` write ownership:** `onError` runs inside the operation; after it returns, `res.headersSent === true` → the host owns the reply (the boundary writes nothing; verdict from `res.statusCode`); `false` → the boundary writes the standard reply. A throwing `onError` records `policyError` with the **original receipt id** as `attributes.errorId` and the boundary writes the standard 500 with the original id.
+> - **Response-write failure:** the success body is serialized **inside** `work` (a cyclic/BigInt value becomes a failed incident with an id, I2.11); the final `res.end` failure is a transport fact: `logger.warn('http.reply_write_failed', { errorId? })`, `res.destroy?.()`, verdict unchanged, no new incident.
+> - New tests: **I2.11** `a non-serializable success body is one failed incident with an id` (mutation: serialize after `runOperation` → 200 attempted, span `completed` → red); **I2.12** `onError that writes owns the reply; one that does not gets the standard reply`; **I2.13** `a returned 500 without an id is recorded once by the boundary`.
 
 **1 Data model.**
 - Core (CM-3): `RouteErrorPorts`, `RouteHostContext.errors?`, `runOperation` `classify`/`settle`, `record`/`describe` `attributes`, per-reporter dedupe, `NOOP_OPERATION_TRACKER`, `ClientFacingError` file move. Changeset `core-route-operation.md` (minor).
@@ -218,6 +226,8 @@ Function splits: `answerJsonRoute` (≤ 20), `legacyAnswer` (today's body), `tra
 ---
 ## P4-J3 · Jini · retire http-kit/core `onInternalError` sinks (after J4 and the Tovu replacements)
 
+> **R1123 revision (Codex: READY WITH FIXES).** Two stages: (1) Tovu HTTP and tool replacements (T2/T3) land **against the compatibility artifact** (J2/J4 minor, where legacy sinks are still accepted but ignored when `errors` is passed); (2) the sinks are removed in the coordinated **breaking** release. **Deletion gate = typecheck + an exhaustively enumerated consumer build**, not grep: `tsc -b` and build of Jini (all packages, `examples/minimal-host`, `examples/reference-web`, `examples/reference-desktop`) and Tovu (`apps/website`, `apps/admin`, `apps/desktop`, `apps/site-chat`) against the packed pre-release artifact, each listed by name in the release checklist; any type error naming `onInternalError`/`reportRouteInternalError` blocks. I3.4's grep stays as an informational count only.
+
 **1 Data model.** Removals (one breaking release, grouped with J4 per the check): core `RouteHostContext.onInternalError` (`json-route.ts:74`), `RouteHostInternalErrorContext` (`:48-57`), the `optional.onInternalError` arm of `ReportRouteInternalError` (`:63-66`), legacy `exceptionAnswer` SEC-005 branch (`:260-277`); http-kit `reportRouteInternalError` + `deliverRouteInternalError` + `logRouteInternalError` + `RouteInternalErrorContext` + `RouteInternalErrorSink` (`internal-error.ts:1-66`), the legacy branch of `sendRouteException` (`adapter.ts:114-147`). `RouteHostContext.errors` becomes **required** for any host that mounts a JSON route; `ReportRouteInternalError` keeps its shape `(required{report,logSource,message}, _optional?: Record<string,never>) => ServerApiError` so the 75 daemon call sites only lose their `{ onInternalError }` argument. Verified counts (non-test): core 6, daemon 75, http-kit 11, server 0, sidecar 0 = 92. Changesets: `@jini-ai/core` major (add to the core release notes, per the check), `@jini-ai/http-kit` major, `@jini-ai/server` minor (config `errors` becomes required? → **major** if required; see Q-J3a).
 
 **2 Algorithm (ordered migration; each line is one commit).**
@@ -243,6 +253,12 @@ Function splits: `answerJsonRoute` (≤ 20), `legacyAnswer` (today's body), `tra
 
 ---
 ## P4-J4 · Jini · daemon routes + tool boundary
+
+> **R1123 revision (Codex: NEEDS).**
+> - **Mandatory boundary, tracing or not.** The tool decorator records every failed result that is internal or timed-out **whether or not observability is enabled**: `tracker` may be `NOOP_OPERATION_TRACKER`, `reporter.record` is unconditional. A stamped result (already carries `errorId`) is **reported at the decorator** with that id if no receipt exists for it in this propagation, and never re-minted downstream.
+> - **Receipt preserved through recovery, audit and delegated disclosure.** Each recovery attempt that fails records its own receipt (two attempts of a reused `Error` → two ids, because there is no identity memory); the final result carries the **last** attempt's `errorId`; the audit row and the delegated disclosure read `errorId` from the stamped result or the `ReportedFailure` carrier — they never call `record` themselves. `delegated-tools.ts` describe: `errorId = findReceipt(error)?.errorId ?? context.errorId ?? reporter.record(...).errorId`.
+> - **Cancellation delegation narrowed:** only a failure **without** a receipt (pre-decorator cancellation / principal resolution, Q-J4a) is left for the route to record.
+> - Tests: **I4.9** `two attempts of the same reused error record two ids and the result carries the second` (mutation: dedupe by identity → one id → red); **I4.10 (real path)** `one tool failure on the model-proxy SSE path shows one id in the SSE text, the audit row and the host record` — real `model-proxy.ts` route with a fake upstream and the real stack + audit sink, observability **disabled** (mutation: skip `record` when the tracker is NOOP → no host record → red). I4.6's mutation text changes from "remove the reporter dedupe" to "outer boundary ignores the carrier".
 
 **1 Data model.**
 - Daemon route registrars: drop the `{ onInternalError }` second argument at every `host.reportInternalError(...)` / `deps.reportInternalError(...)` call (`model-proxy.ts:402`, `runs.ts:91`, `terminals.ts:99`, `connectors.ts:164`, `db-ops.ts:239`, `attachments.ts:219`, `attachment-lookup-routes.ts:77`, …; 75 refs) and remove `onInternalError` from each `*HttpDeps` (`InternalErrorSink` type at `model-proxy.ts:400` etc.).
@@ -323,6 +339,12 @@ The delegated route copies `readToolErrorId({result})` into `context.errorId` wh
 ---
 ## P4-J5 · Jini · sidecar boundary
 
+> **R1123 revision (Codex: NEEDS).**
+> - **`HANDLER_ERROR` stays the fixed fallback** on the raw IPC boundary, with a **fixed** message (`"The request failed."`) and `errorId` — `run.failure.error.message` is no longer sent.
+> - **Refusal copy only from an audited catalog:** `createJsonIpcServer(…, { errors: { reporter, observability?, methodOf?, refusals? } })` where `refusals: Readonly<Record<string, string>>` is a host-supplied, reviewed catalog (code → plain sentence). A thrown `ClientFacingError` whose `code` is in the catalog → `{ code: 'HANDLER_ERROR', reason: code, message: refusals[code] }` (no incident); not in the catalog → treated as an incident (fixed message + id). Test `an uncatalogued refusal code never echoes its message`. Mutation: echo `error.message` → red.
+> - **Serialize inside the operation:** `work: async () => { const value = await handler({ message }); return serializeReply({ ok: true, result: value }); }` — a cyclic/BigInt result throws **inside** `runOperation`, becomes one failed incident, and the peer gets the `HANDLER_ERROR` reply with that id. `safeEnd(socket, text)` only writes pre-serialized text. Test **«Cyclic handler result produces one correlated failure»** (span `failed`, one host record, reply carries the same id). Mutation: serialize after `runOperation` returns → span `completed` + write failure → red.
+> - The Tovu Electron binding (`D/main/boot/site-backend.ts`) stays **explicitly deferred**.
+
 **1 Data model.** `createJsonIpcServer` second object (`json-ipc.ts:169-174`) gains `errors?: { reporter: ErrorReporter; observability?: Pick<ObservabilityPort,'trackOperation'>; methodOf?: (message: unknown) => string | undefined }` and `logger?: Pick<Logger,'error'|'warn'>`. Threaded via `bindJsonIpcSocket` → `dispatchJsonIpcHandler` (`:356`) as one `IpcFailurePorts` object. Changeset `@jini-ai/sidecar` minor.
 
 **2 Algorithm** (`dispatchJsonIpcHandler`, reporter mode; legacy = today `:359-393`):
@@ -380,6 +402,13 @@ Fixture: `W/server/runtime/composition/__tests__/process-root-parity.test.ts:426
 ---
 ## P4-T2 · Tovu · reader compat, then the reporter behind `reportServerFailure` (+ C115)
 
+> **R1123 revision (Codex: NEEDS, T2–T3).**
+> - **Carry C115 from `46fc4f901`** (rebase onto it); the inline `correlatedAdminIncident` re-design below is **withdrawn** — T2 only adds the reporter arm around C115's existing order (disk-space classification before minting, `failure.errorId ?? errorId`).
+> - **Redacted diagnostic to the tracker.** `createTovuErrorReporter`'s observability adapter passes `new Error(formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS))` — exactly what `reportServerFailure` does today (`admin-failure.ts:55–64`: `adminDiagnostic` → `tracker.error({ error: new Error(diagnostic) })`). The line "The synthetic `new Error(diagnostic)` disappears on the reporter path" is **withdrawn**; Q-T2b's STOP becomes a required test.
+> - **One reporter threaded through every entry point, independent of request tracking:** website app (`app.ts`, middleware mounted **before** the request-tracking middleware and not behind its suppression flag), public routes (the 14 public-http files, `commerce-http.ts:57`, `federation-reload-route.ts:51`), the agent-daemon composition, the standalone scope binding (`agent-daemon-server.ts:248–256`) and the BYOK/site-server executor path. Each is listed in the feature `## Wiring` section with its binding line.
+> - **I7.7 ("238 calling files do not change") is dropped.**
+> - Tests: **I7.8 canary** — an error whose message contains `sk-canary-1123` → absent from the local log line, the tracker export payload and the HTTP response, while the same `errorId` appears in all three. Mutation: adapter passes the raw error → tracker payload contains the canary → red. **I7.9** `public route with request tracking disabled still records one id` and **I7.10** `daemon route with request tracking disabled still records one id` (real routes, `observabilityEnabled: () => false`). Mutation: set `res.locals.failureReporter` inside the tracking middleware → no reporter → red.
+
 **1 Data model.**
 - New Tovu factory `createTovuErrorReporter({ logger, tracker, versions })` in `W/server/runtime/composition/error-reporter.ts`: ports `ids = { newId: () => mintToolErrorId({ randomHex: ({bytes}) => randomBytes(bytes).toString('hex') }) }`, `clock`, `logger` (Tovu server logger), `observability = trackerReportPort(tracker)` (adapter: `reportError({error, context}) => tracker.error({ error: asError(error) }, { context })`; `Tracker.error` takes `{ error: Error }`, `J/diagnostics/src/observability/tracker-types.ts:49`), `catalog = createErrorCatalog(...)` (`J/core/src/errors/catalog.ts:172`) with the Tovu sentence sets — **no Tovu catalog exists on the base** (`git grep createErrorCatalog` in Tovu: no hits), so T2 creates a minimal one (empty bindings for scope `admin`; refusals keep going through callers), `versions`, redaction `TOVU_ERROR_REDACTION_OPTIONS`.
 - `AdminFailurePorts` (`W/server/inbound/shared/admin-failure.ts:32`) → `{ tracker?: Pick<Tracker,'error'>; reporter?: Pick<ErrorReporter,'record'> }`.
@@ -435,6 +464,8 @@ Reordered versus the base (base mints for the body at `:75`, then reports at `:7
 ---
 ## P4-T3 · Tovu · tool failures through the reporter
 
+> **R1123 revision (Codex: NEEDS, with T2).** Pass-through is not enough: T3 binds the **same** reporter (T2's one-per-composition instance) at the decorator, the delegated route and the admin boundary on **all** executor paths — daemon scope (`agent-daemon-scope-tools.ts:120`), standalone scope, public/site-server and BYOK — including when request tracking is suppressed. Tests: I8.2 extends to all four paths (table-driven, tracking disabled); I8.5 canary through a tool failure (local log, tracker export, model-visible text) with one id.
+
 **1 Data model.** `W/assistant/tool-recovery-preset.ts`: `RedactedToolFailuresDeps` (`:70`) → `{ mintErrorId? }` (no `onFailure`); `failurePorts` (`:75-79`) drops the `console.error` `[tool-failure]` sink; `AssistantToolExecutorDeps` (`:99-106`) gains **required** `reporter`; `withRedactedToolFailures` (`:90-92`), `describeDelegatedInternalError` (`:93-95`), `delegatedToolErrorDisclosure` (`:96-98`) take `reporter`.
 
 **2 Algorithm.** Bind the composition reporter (T2) along every executor path: (a) agent daemon `createScopeToolExecutor` (`W/server/inbound/assistant/agent-daemon-scope-tools.ts:120`) — add `reporter` to its arguments from the daemon composition; (b) delegated-tool route disclosure (`delegatedToolErrorDisclosure({}, { reporter })`); (c) BYOK/site-server executor path (same `createAssistantToolExecutor`). Pass-through only; algorithm = J4 §2.
@@ -458,6 +489,8 @@ Only regression reconcile is designed.
 
 ---
 ## P4-T5 · Tovu · delete proven-duplicate sinks only
+
+> **R1123 revision (Codex: READY WITH FIXES).** The sink pairs are enumerated **after** T2/T3 host wiring lands (not from today's three `tracker.error(` calls). Per removal: write the duplicate-count test first and see it **red** (count 2), remove the sink, see it green (count 1). Keep `browser-telemetry.ts:112` (I10.2) and the independent 5xx `http.request` fallback at `observability-middleware.ts:128` (I10.3).
 
 **1 Data model.** A list (in the PR description and a test file header) of boundaries proven to report twice after T2/T3. Base has exactly three `tracker.error(` calls under `W/server/inbound`: `admin-failure.ts:62` (legacy arm of `reportServerFailure`), `observability-middleware.ts:128` (5xx marker, guarded by `scope.reported`), `browser-telemetry.ts:112` (browser-sent errors — independent sink, **keep**).
 
@@ -483,3 +516,11 @@ Only regression reconcile is designed.
 
 ## Approval cards
 P4 adds no destructive user action; no approval card is needed (N/A).
+
+## R1123 · OWNER-Q (P4, consolidated; Codex recommendations adopted)
+- **J2a** bind the node bridge to the reporter. **J2b** default audience anonymous. **J2c** suppress only a proven disconnect abort. **J2d** defer stream-lifetime spans to P10.
+- **J3a** require the reporter binding in the breaking release (after the compatibility stage).
+- **J4a** preserve ids for the existing delegated cancellation/principal failures.
+- **J5a** keep `HANDLER_ERROR`; allow a refusal reason only from the host's audited catalog.
+- **T2a** one reporter per composition. **T2b** redact before tracker export; the canary test (I7.8) is required.
+- **New — R1123-P4-1:** `ReportedFailure` is a new public core class (minor). Recommend **yes**; the alternative (identity memory) is what Codex rejected.
