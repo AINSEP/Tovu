@@ -19,7 +19,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { useAgentScreenEntry } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
-import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
+import { useExternalEntryRefresh } from "@jini-ai/admin/shell/hooks/use-external-entry-refresh.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,

@@ -42,7 +42,7 @@ import {
   type PublishRequestResult,
 } from "@tovu/publish-content-ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { openTabEventSource } from "./lib/tab-event-source";
+import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
