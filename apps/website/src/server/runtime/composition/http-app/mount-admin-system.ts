@@ -5,7 +5,7 @@
  */
 
 import { bindSiteConsentService } from '../site-consent.js';
-import { registerAdminConsentRoutes } from '../../../inbound/admin-http/routes/consent/routes.js';
+import { registerAdminConsentRoutes } from '../modules/consent.js';
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
