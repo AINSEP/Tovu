@@ -22,7 +22,7 @@ import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { OutboundEmail } from "#src/platform/mail/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { createSubscription } from "#src/features/webhooks/subscriptions";
+import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 
 /**
  * @file Behavioral regression for t91 F4.1-A: a SQLite composition's `createSiteApp()`/`runExportSite`

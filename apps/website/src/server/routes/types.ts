@@ -58,7 +58,7 @@ import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/ind
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
-import type { WebhookSigner } from "../../features/webhooks/signing.js";
+import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
 import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";

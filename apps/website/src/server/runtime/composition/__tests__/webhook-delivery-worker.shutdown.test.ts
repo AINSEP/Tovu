@@ -6,7 +6,7 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/features/webhooks/index";
 import { processDueDeliveries } from "#src/features/webhooks/delivery";
-import { createFixedSecretSigner } from "#src/features/webhooks/signing";
+import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";

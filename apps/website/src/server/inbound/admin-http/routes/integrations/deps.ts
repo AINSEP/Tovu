@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { WebhookSubscriptionDeps } from "#src/features/webhooks/index";
+import type { WebhookSubscriptionDeps } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
 
 /**

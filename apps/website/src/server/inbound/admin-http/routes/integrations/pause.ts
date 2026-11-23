@@ -7,7 +7,7 @@ import {
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "#src/features/webhooks/index";
+} from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

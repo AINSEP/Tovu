@@ -2,7 +2,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Request } from "express";
 
-import { createSubscription, WebhookSubscriptionValidationError } from "#src/features/webhooks/index";
+import { createSubscription, WebhookSubscriptionValidationError } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
