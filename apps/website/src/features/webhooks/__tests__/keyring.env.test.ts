@@ -27,8 +27,8 @@ test("recognizes both no-site-key errors without treating other failures as miss
   assert.equal(isNoSiteKeyError({ error: "no site key" }), false);
 });
 
-test("the webhook public surface exports the no-site-key classifier", async () => {
-  const webhooks = await import("../index.js");
+test("keyring.env exports the no-site-key classifier (the webhooks barrel no longer forwards it)", async () => {
+  const webhooks = await import("../keyring.env.js");
   assert.equal(webhooks.isNoSiteKeyError({ error: new Error("no site key") }), true);
 });
 
