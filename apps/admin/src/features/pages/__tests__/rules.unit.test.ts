@@ -686,7 +686,7 @@ describe("pagePickerValue / pickerValueToChoice (bare-page ruling 2026-09-23, S6
 
 describe("sort labels and conflict copy are translated, not English passthrough", () => {
   it("renders German sort labels and a fully German conflict message", async () => {
-    const { t: pagesT } = await import("../pages-i18n");
+    const { t: pagesT } = await import("@jini-ai/admin/pages/pages-i18n");
     const { t: editorT } = await import("../page-editor-i18n");
     const deT = (key: string): string => pagesT({ locale: "de", key });
     expect(columnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");

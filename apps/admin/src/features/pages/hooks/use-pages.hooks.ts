@@ -6,7 +6,7 @@ import { navigate as defaultNavigate } from "@jini-ai/admin/shell/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 
-import { t as translate } from "../pages-i18n";
+import { t as translate } from "@jini-ai/admin/pages/pages-i18n";
 import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";

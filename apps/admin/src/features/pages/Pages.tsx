@@ -1,5 +1,5 @@
 import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
-import { createPagesTabSelect } from "./Pages.hooks";
+import { createPagesTabSelect } from "@jini-ai/admin/pages/Pages.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
 import { agentHandle } from "@jini-ai/core/agent-handles";
@@ -20,7 +20,7 @@ import {
 } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
-import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.hooks";
+import { resolvePagesTabFromUrl, type PagesTabId } from "@jini-ai/admin/pages/hooks/pages-tab-url.hooks";
 import { ThemePagesTab } from "./ThemePagesTab";
 
 import { type Translate, formatTimestamp } from '@jini-ai/core/text';

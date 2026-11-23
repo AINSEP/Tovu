@@ -5,7 +5,7 @@ import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle, Req
 
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
+import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
 import {
   useDevicePreviewDevice,
   usePreviewPaneWidth,
@@ -26,8 +26,9 @@ import {
   type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
-import { createEmbedPlaceholderDescriber } from "../lib/embed-placeholder";
-import { prettifyHtml } from "../lib/prettify-html";
+import { createEmbedPlaceholderDescriber } from "@jini-ai/admin/pages/lib/embed-placeholder";
+import { embedMarkerTarget, parseEmbedMarkerConfig } from "@jini-ai/cms/widgets/markers";
+import { prettifyHtml } from "@jini-ai/admin/pages/lib/prettify-html";
 import { useInteractiveEditorFlush } from "./use-interactive-flush.hooks";
 import { useEditorHtmlJump } from "./use-editor-html-jump.hooks";
 import {
@@ -528,7 +529,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
    */
   // The canvas captures its describer at mount; a ref supplies the latest server readiness.
   const pluginEmbeds = useRef<readonly AdminPagePluginEmbed[]>([]);
-  const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber({ t: boundT }, { pluginEmbeds: () => pluginEmbeds.current }), [boundT]);
+  const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber({ t: boundT, parseEmbedMarkerConfig, embedMarkerTarget }, { pluginEmbeds: () => pluginEmbeds.current }), [boundT]);
   const pageKey = useMemo(() => ["pages", "detail", routeSlug] as const, [routeSlug]);
   const fetchPage = useCallback(async () => {
     const result = await port.getPage({ routeSlug: routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug });

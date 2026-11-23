@@ -17,8 +17,8 @@ import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
-import { describeScriptRevealedContent } from "./hidden-until-script.js";
-import { requirePageAuthoringHtml } from "./authoring-html.js";
+import { describeScriptRevealedContent } from "@jini-ai/cms/pages/hidden-until-script";
+import { requirePageAuthoringHtml } from "@jini-ai/cms/pages/authoring-html";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme, themeRosterPorts, type DiscoveredTheme } from "../theme/index.js";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
@@ -574,7 +574,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
       }
 
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
-      // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
+      // mistake, but a deliberately hidden element is legal (see `@jini-ai/cms/pages/hidden-until-script`).
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan }), ...embedWarningMessages({ store })] });
       return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
     }
