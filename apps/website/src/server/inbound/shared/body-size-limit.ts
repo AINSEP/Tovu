@@ -22,9 +22,6 @@ import { rejectOversizedJsonBody as rejectHttpOversizedJsonBody } from "@jini-ai
  * (looser, whole-app) 15 MiB ceiling has already bounded how large that body could possibly be.
  */
 
-/** 1 MiB — api.spec.md §4 / behavior.spec.md §4 documented cap for the content-entry create and update endpoints (`POST_CREATE`, `PAGE_CREATE`, `POST_UPDATE`, `PAGE_UPDATE`). */
-export const CONTENT_ENTRY_MAX_BODY_BYTES = 1024 * 1024;
-
 export interface BodySizeLimitRequired {
   /** Maximum allowed serialized body size, in bytes. */
   maxBytes: number;
