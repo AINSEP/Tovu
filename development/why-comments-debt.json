@@ -5320,6 +5320,102 @@
     {
       "id": "6caeab351224",
       "reason": "Moved to Jini @jini-ai/devops/source-control/site/static-site-packager-port.ts (K5-source-control-1), verbatim."
+    },
+    {
+      "id": "a6004db0676b",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "02f52aa71d68",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "eaa137548a78",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/__tests__/deployment-i18n.unit.test.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "18fd8667d9cc",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "504185a8c349",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-es-id-de-zh-cn-zh-tw-pt-br.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "063dd7c94bfc",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-audit.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "b8809d69a07f",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-audit.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "08293b511b58",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-candidate-gap.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "1b31520683a3",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n/deployment-credential.ts (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "d932b9eb415a",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "26bbf388e6b9",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "a3613b7368e0",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "090f552e33e0",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "8e6211545d5b",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "68f87cdd503d",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "d90cbb2cfcda",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "597c35cd57df",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "5ae1305fdd17",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "10c5ed417b0a",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "2065013626bb",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "8af2eff1610f",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "c9b5276a0129",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3247d1cb1661",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
+    },
+    {
+      "id": "3733af9f5242",
+      "reason": "Moved to Jini @jini-ai/admin/deployment/deployment-i18n.tsx (A-K2-deployment-1), verbatim."
     }
   ]
 }

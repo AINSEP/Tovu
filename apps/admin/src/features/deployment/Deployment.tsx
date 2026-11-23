@@ -4,7 +4,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t } from "./deployment-i18n";
+import { t } from "./deployment-host-i18n";
 import { OverviewTab } from "./OverviewTab";
 import { StaticSiteTab } from "./StaticSiteTab";
 import { DockerfileTab } from "./DockerfileTab";

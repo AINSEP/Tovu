@@ -14,7 +14,7 @@ import type { AdminPublishExecutionMode } from "../security/api/security-api.typ
 import type { AdminPublishTargetField, AdminStaticPublishPreview, AdminStaticPublishTargetId } from "./api/deployment-api.types";
 import type { AdminExportRunSnapshot } from "@jini-ai/admin/core";
 
-import { t } from "./deployment-i18n";
+import { t } from "./deployment-host-i18n";
 import {
   STATIC_SITE_CAPABILITIES,
   credentialFieldHandleId,
