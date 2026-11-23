@@ -7,7 +7,9 @@ import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 
 import type { LiveOriginSourceDeps } from "./live-url.js";
 import { ADMIN_SCREENS } from "./admin-screens.generated.js";
-import type { SiteCapabilitiesDeps, SiteCapabilityToolRow } from "./site-capabilities.js";
+import type { InspectionFailureReporter } from "@jini-ai/cms/site-inspection/section-collector";
+import type { SiteCapabilitiesDeps, SiteCapabilityToolRow } from "@jini-ai/cms/site-inspection/site-capabilities";
+import { NO_THEME_ID, themeIdCandidates } from "#src/contracts/core/theme-ids";
 import type {
   SiteProfileContentTypeRow,
   SiteProfileDeps,
@@ -16,7 +18,7 @@ import type {
   SiteProfilePluginRow,
   SiteProfilePostRow,
   SiteProfileThemeRow,
-} from "./site-profile.js";
+} from "@jini-ai/cms/site-inspection/site-profile";
 
 /**
  * @file The adapter between a composition root's deps bag and the narrow port bags this domain's
@@ -99,7 +101,7 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
  * Binds a composition root's deps bag down to the narrow read ports `buildSiteProfile` takes.
  *
  * Every closure below is a single read, scoped to `deps.workspaceId`. Nothing here filters,
- * redacts, or post-processes: the projections live in `site-profile.ts` where the DTO is declared,
+ * redacts, or post-processes: the projections live in `@jini-ai/cms/site-inspection/site-profile` where the DTO is declared,
  * so there is one place that decides what a field means and one place that decides whether it is
  * reported at all.
  *
@@ -137,8 +139,24 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
       return (resolved?.value ?? null) as SiteProfileJsonValue | null;
     },
     listContentTypes: () => deps.contentTypeRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
+    // Theme identity is host-owned (retired-id aliases, the "theme off" sentinel); the package
+    // service reads it from here instead of importing a host contract.
+    noThemeId: NO_THEME_ID,
+    themeIdCandidates,
+    reportSectionFailure: logSectionFailure,
   };
 }
+
+/**
+ * The host's server-log line for a failed inspection section: the FULL error goes to the server
+ * log; the package service only ever puts a fixed reason or the class name into the response.
+ *
+ * @complexity O(1).
+ * @example logSectionFailure({ label: "site-profile", section: "theme", error });
+ */
+const logSectionFailure: InspectionFailureReporter = ({ label, section, error }) => {
+  console.error(`[${label}] section '${section}' failed`, error);
+};
 
 /**
  * Binds a composition root's deps bag down to the ports `buildSiteCapabilities` takes.
@@ -161,5 +179,6 @@ export function toSiteCapabilitiesDeps(deps: SiteInspectionToolDeps): SiteCapabi
     listCatalogTools: deps.listCatalogTools,
     listAdminScreens: () => ADMIN_SCREENS,
     listContentTypes: () => deps.contentTypeRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
+    reportSectionFailure: logSectionFailure,
   };
 }

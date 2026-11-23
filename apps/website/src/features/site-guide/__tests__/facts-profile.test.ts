@@ -3,17 +3,17 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { InMemorySettingsRepo, getEffective } from "@jini-ai/core/settings";
-import type { SiteProfile } from "../../site-inspection/index.js";
+import type { SiteProfile } from "@jini-ai/cms/site-inspection/site-profile";
 import type { SiteGuideFactsDeps } from "../facts.js";
 
-const inspection = await import("../../site-inspection/index.js");
+const inspection = await import("@jini-ai/cms/site-inspection/site-profile");
 let sections: SiteProfile["sections"] = {};
 const requests: unknown[] = [];
 const buildSiteProfile: typeof inspection.buildSiteProfile = async (_required, options) => {
   requests.push(options?.sections);
   return { schemaVersion: "1", capturedAt: "2026-10-09T00:00:00Z", completeness: "partial", sections };
 };
-mock.module("#src/features/site-inspection/index", { namedExports: { ...inspection, buildSiteProfile } });
+mock.module("@jini-ai/cms/site-inspection/site-profile", { namedExports: { ...inspection, buildSiteProfile } });
 const { readSiteGuideFacts } = await import("../facts.js");
 const deps: SiteGuideFactsDeps = {
   workspaceId: "site-a", authorize: async () => ({ allowed: true, reason: "test decision" }),

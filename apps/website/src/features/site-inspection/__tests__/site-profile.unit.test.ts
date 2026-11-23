@@ -9,8 +9,8 @@ import {
   SITE_PROFILE_SECTION_PERMISSIONS,
   type SiteProfileDeps,
   type SiteProfileSectionName,
-} from "../site-profile.js";
-import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+} from "@jini-ai/cms/site-inspection/site-profile";
+import { NO_THEME_ID, themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
  * @file `buildSiteProfile()`'s two load-bearing properties, tested directly against fake ports:
@@ -111,6 +111,10 @@ function makeDeps(overrides: {
 
   return {
     workspaceId: WORKSPACE_ID,
+    // The host's theme identity and failure reporter, injected exactly as `toSiteProfileDeps` does.
+    noThemeId: NO_THEME_ID,
+    themeIdCandidates,
+    reportSectionFailure: () => {},
     authorize: async ({ permission, principalId, workspaceId, entityId }) => {
       authorizeLog?.calls.push({ permission, principalId, workspaceId, entityId });
       return allow(permission) ? { allowed: true, reason: "granted" } : { allowed: false, reason: "no-grant" };

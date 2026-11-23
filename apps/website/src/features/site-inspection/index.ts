@@ -8,54 +8,12 @@
  * single declared entry point is what keeps that claim checkable as the module grows. It also keeps
  * `check:architecture`'s "module API surface" cost of this feature at one file instead of three.
  *
- * Internal files (`site-profile.ts`, `site-capabilities.ts`, `section-collector.ts`,
- * `admin-screens.generated.ts`, `published-page.ts`, `deps.ts`, `agent-tools.ts`,
+ * Internal files (`admin-screens.generated.ts`, `published-page.ts`, `deps.ts`, `agent-tools.ts`,
  * `tool-registrations.ts`) import each other by relative path as usual; only crossing the module
- * boundary goes through this file.
+ * boundary goes through this file. The aggregation services (`buildSiteProfile`,
+ * `buildSiteCapabilities`, the section collector) live in `@jini-ai/cms/site-inspection/*`;
+ * consumers import those subpaths directly.
  */
-
-export {
-  buildSiteProfile,
-  DEFAULT_PAGE_ITEMS,
-  MAX_PAGE_ITEMS,
-  SITE_PROFILE_SECTION_NAMES,
-  SITE_PROFILE_SECTION_PERMISSIONS,
-  type BuildSiteProfileOptions,
-  type SiteProfile,
-  type SiteProfileContentTypeSummary,
-  type SiteProfileDeps,
-  type SiteProfileJsonValue,
-  type SiteProfilePages,
-  type SiteProfilePageSummary,
-  type SiteProfilePluginSummary,
-  type SiteProfileSection,
-  type SiteProfileSectionName,
-  type SiteProfileSectionStatus,
-  type SiteProfileSettingSummary,
-  type SiteProfileTheme,
-  type SiteProfileThemeSummary,
-} from "./site-profile.js";
-
-export {
-  buildSiteCapabilities,
-  SITE_CAPABILITIES_SECTION_NAMES,
-  SITE_CAPABILITIES_SECTION_PERMISSIONS,
-  summarizeToolDescription,
-  type BuildSiteCapabilitiesOptions,
-  type SiteCapabilities,
-  type SiteCapabilitiesAdminScreens,
-  type SiteCapabilitiesContentTypes,
-  type SiteCapabilitiesDeps,
-  type SiteCapabilitiesSectionName,
-  type SiteCapabilitiesToolDomain,
-  type SiteCapabilitiesTools,
-  type SiteCapabilitiesToolSummary,
-  type SiteCapabilityAdminScreen,
-  type SiteCapabilityContentTypeRow,
-  type SiteCapabilityToolRow,
-} from "./site-capabilities.js";
-
-export { type InspectionSection, type InspectionSectionStatus } from "./section-collector.js";
 
 export {
   DEFAULT_FETCH_TIMEOUT_MS,
