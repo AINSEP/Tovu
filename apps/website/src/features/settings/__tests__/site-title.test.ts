@@ -25,7 +25,7 @@ import {
   SITE_TITLE_KEY,
   SITE_TITLE_NAMESPACE,
 } from "@jini-ai/cms/settings/site/site-title";
-import { LEGACY_SITE_TITLE } from "../site-title-legacy.js";
+import { LEGACY_SITE_TITLE, siteTitleHostBindings, siteTitlePreservationHostBindings } from "../site-title-legacy.js";
 
 /**
  * @file SPEC-050 v0.2.0, Wiring Order Step 2, over the in-memory settings ledger: the pin for
@@ -54,6 +54,8 @@ interface Ledger {
   ensureSettingDefinitions: typeof ensureSettingDefinitions;
   set: typeof set;
   resolveDefinitionRaw: typeof resolveDefinitionRaw;
+  reportSiteTitleFailure: typeof siteTitlePreservationHostBindings.reportSiteTitleFailure;
+  reportPreservationSummary: typeof siteTitlePreservationHostBindings.reportPreservationSummary;
 }
 
 async function makeLedger(pendingWorkspaceIds: string[] = [], options: { register?: boolean } = {}): Promise<Ledger> {
@@ -66,6 +68,7 @@ async function makeLedger(pendingWorkspaceIds: string[] = [], options: { registe
     ensureSettingDefinitions,
     set,
     resolveDefinitionRaw,
+    ...siteTitlePreservationHostBindings,
   };
   if (options.register !== false) {
     await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE });
@@ -124,8 +127,7 @@ function resolveDeps(
     preservationStore: ledger.preservationStore,
     workspaceRepo,
     siteDisplayName: { read: () => options.siteDisplayName },
-    getEffective,
-    legacySiteTitle: LEGACY_SITE_TITLE,
+    ...siteTitleHostBindings,
   };
 }
 
@@ -203,7 +205,7 @@ test("AC-17 (REQ-11, REQ-07): a pin write that throws for one of two workspaces 
 
   assert.deepEqual(result, { pinnedWorkspaceIds: ["ws-a"], skippedWorkspaceIds: [], failedWorkspaceIds: ["ws-b"] });
   assert.ok(
-    errors.some((args) => args.some((arg) => String(arg).includes("ws-b"))),
+    errors.some((args) => JSON.stringify(args).includes("ws-b")),
     "each failed workspace id is logged"
   );
   assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-b" }), true, "a failed pin stays pending, so the next boot retries it");
@@ -227,7 +229,7 @@ test("REQ-11: with core.site/title not registered, every pending workspace is re
 
   assert.deepEqual(result, { pinnedWorkspaceIds: [], skippedWorkspaceIds: [], failedWorkspaceIds: ["ws-a"] });
   assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-a" }), true);
-  assert.ok(errors.some((args) => args.some((arg) => String(arg).includes("ws-a"))), "the failed workspace id is logged");
+  assert.ok(errors.some((args) => JSON.stringify(args).includes("ws-a")), "the failed workspace id is logged");
 });
 
 test("REQ-06: with nothing pending, preservation writes nothing", async () => {
@@ -495,4 +497,34 @@ test("FIX 3: the host-supplied legacy title is the stored default, the workspace
   const result = await preserveLegacySiteTitles(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: injected });
   assert.deepEqual(result.pinnedWorkspaceIds, ["ws-pre"]);
   assert.deepEqual(await effectiveTitle(ledger, "ws-pre"), { value: injected, sourceLayer: "workspace" });
+});
+
+// ---------------------------------------------------------------------------
+// Log safety: a failure is logged with fixed text plus safe fields, never the error's own message
+// ---------------------------------------------------------------------------
+
+test("log safety: a failed pin, an unregistered pin, and a failed render read log fixed text plus the workspace id and error class only", async (t) => {
+  const secret = "postgres://admin:hunter2-SECRET@db.internal/site";
+  const errors = silenceConsoleError(t);
+
+  const writeFails = await makeLedger(["ws-b"]);
+  writeFails.settingsRepo.saveWorkspaceValue = async () => {
+    throw new Error(`pin write failed for ${secret}`);
+  };
+  await preserve(writeFails);
+  await preserve(await makeLedger(["ws-a"], { register: false }));
+  const readFails = await makeLedger();
+  readFails.preservationStore.isPending = async () => {
+    throw new Error(`marker read failed for ${secret}`);
+  };
+  assert.equal(await resolveSiteTitle(resolveDeps(readFails), { workspaceId: "ws-new" }), "Tovu Demo Site");
+
+  // Deliberate log-content change (secret safety, the same as `core.site.timezone`'s fallback): the
+  // lines used to end with the thrown error's message, which can echo a connection string.
+  assert.deepEqual(errors, [
+    ["preserveLegacySiteTitles: workspace stays pending, pin failed", { workspaceId: "ws-b", errorClass: "Error" }],
+    ["preserveLegacySiteTitles: workspace stays pending, pin failed: core.site/title is not registered", { workspaceId: "ws-a" }],
+    ["resolveSiteTitle: falling back to the legacy title", { workspaceId: "ws-new", errorClass: "Error" }],
+  ]);
+  assert.equal(JSON.stringify(errors).includes("hunter2"), false);
 });

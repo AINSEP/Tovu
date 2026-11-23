@@ -1,5 +1,4 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
-export { contributeVisitorTools, type VisitorToolsToolDeps } from "./visitor-tools-registrations.js";
 import { buildUiLocalesRegistrations, uiLocalesDerivedRisk, type UiLocalesToolDeps } from "@jini-ai/cms/settings/site/ui-locales-tool";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { withToolMetadata } from '@jini-ai/core';

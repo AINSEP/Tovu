@@ -6,7 +6,7 @@ import { ForbiddenError, ValueValidationFailedError } from "@jini-ai/core/settin
 import { registerAdminVisitorToolsRoutes, ADMIN_VISITOR_TOOLS_PATH, type VisitorToolsRouteDeps } from "../visitor-tools.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { visitorManagementFixture } from "#src/features/settings/__tests__/visitor-tools-management.fixture";
-import { VisitorToolsRevisionConflictError } from "#src/features/settings/visitor-tools-write";
+import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
 import { ws } from "#src/features/settings/__tests__/visitor-tools.fixture";
 

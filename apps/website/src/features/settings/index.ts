@@ -149,6 +149,5 @@ export type { AgentToolDefinition } from "@jini-ai/core";
 
 
 
-export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
 
 

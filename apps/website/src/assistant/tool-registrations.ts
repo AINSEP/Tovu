@@ -154,7 +154,7 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   PublishContentToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
-  SettingsToolDeps & import("../features/settings/tool-registrations.js").VisitorToolsToolDeps &
+  SettingsToolDeps & import("@jini-ai/cms/settings/site/visitor-tools-registrations").VisitorToolsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &

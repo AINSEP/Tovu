@@ -34,7 +34,7 @@ import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
 import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
 import { ensureSiteTitleSettingDefinition } from "@jini-ai/cms/settings/site/site-title";
 import { preserveLegacySiteTitles } from "@jini-ai/cms/settings/site/site-title";
-import { LEGACY_SITE_TITLE } from "#src/features/settings/site-title-legacy";
+import { LEGACY_SITE_TITLE, siteTitlePreservationHostBindings } from "#src/features/settings/site-title-legacy";
 import { resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { startSettingsRegistration } from "../settings-registration.js";
 import { startupSecretEnvironment } from "../../../../platform/secrets/startup-secrets.js";
@@ -124,7 +124,7 @@ function startPersistentSiteSettings(required: {
   const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw },
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw, ...siteTitlePreservationHostBindings },
         { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }
       )
     )

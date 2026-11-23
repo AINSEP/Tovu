@@ -5,7 +5,7 @@ import type { Express, Request, Response } from "express";
 import { ForbiddenError, ValueValidationFailedError } from "@jini-ai/core/settings";
 import { VisitorToolPolicyValidationError } from "#src/contracts/site-assistant/visitor-tools";
 import type { VisitorToolsManagementPort } from "#src/contracts/site-assistant/visitor-tools-management";
-import { VisitorToolsRevisionConflictError } from "#src/features/settings/index";
+import { VisitorToolsRevisionConflictError } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 export interface VisitorToolsRouteDeps { workspaceId: string; visitorToolsManagement?: VisitorToolsManagementPort }

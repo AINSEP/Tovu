@@ -6,7 +6,12 @@ import {
   type SiteSettingsSetFn, type SiteSettingsWritePolicies,
 } from "@jini-ai/cms/settings/site/site-title-write";
 
-import { parseVisitorToolPolicy, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, VISITOR_TOOLS_WRITE_REASON } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolsHostContract } from "@jini-ai/cms/settings/site/visitor-tools-contract";
+
+import {
+  parseVisitorToolPolicy, resolveVisitorToolChoice, visitorToolsObject, VisitorToolPolicyValidationError, VISITOR_TOOL_CALLS_PER_TURN,
+  VISITOR_TOOL_DEFAULT_LIMITS, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, VISITOR_TOOLS_WRITE_REASON,
+} from "../../contracts/site-assistant/visitor-tools.js";
 
 /**
  * @file This host's settings write policy, bound once into the package chokepoint
@@ -25,6 +30,15 @@ function validateVisitorToolsWrite({ required }: { required: SetValueRequired },
     throw new ValueValidationFailedError("Invalid visitor-tools policy.");
   }
 }
+
+/** This host's visitor-tools policy contract, bound once for the package's visitor-tools management
+ * (`@jini-ai/cms/settings/site/visitor-tools-*`): the parser, its error, coordinates and limits stay host contracts. */
+export const VISITOR_TOOLS_HOST: VisitorToolsHostContract = {
+  setting: VISITOR_TOOLS_SETTING, permission: VISITOR_TOOLS_PERMISSION,
+  defaultLimits: VISITOR_TOOL_DEFAULT_LIMITS, callsPerTurn: VISITOR_TOOL_CALLS_PER_TURN,
+  ValidationError: VisitorToolPolicyValidationError, object: visitorToolsObject,
+  parsePolicy: parseVisitorToolPolicy, resolveChoice: resolveVisitorToolChoice,
+};
 
 /** The host's dedicated writers, passed on every chokepoint call and to the writers that wrap it. */
 export const SETTINGS_WRITE_POLICIES: SiteSettingsWritePolicies = {

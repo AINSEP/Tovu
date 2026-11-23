@@ -135,7 +135,9 @@ import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content
 import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
 import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
 import { seoSettingsHostBindings } from "#src/features/seo/index";
-import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeSettingsTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
+import { contributeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
+import { VISITOR_TOOLS_TOOL_HOST_POLICY } from "#src/features/settings/visitor-tools-agent-tools";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
@@ -559,7 +561,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
-  contributions.contributors.register({ contribution: contributeVisitorTools() });
+  contributions.contributors.register({ contribution: contributeVisitorTools({ hostPolicy: VISITOR_TOOLS_TOOL_HOST_POLICY }) });
   contributions.contributors.register({ contribution: contributeConsentTools({ host: consentToolHost }) });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
