@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
-import { toExecutionTabAgent } from "../detect-agents.js";
+import { toExecutionTabAgent } from "@jini-ai/cms/admin-http/routes/assistant/detect-agents";
 
 /**
  * @file `toExecutionTabAgent` is the projection from `@jini-ai/agent-runtime`'s `DetectedAgent`

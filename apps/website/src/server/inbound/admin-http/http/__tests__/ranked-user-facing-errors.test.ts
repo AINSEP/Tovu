@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminAssistantGetSettingsRoute } from "../../routes/assistant/get-settings.js";
+import { registerAdminAssistantGetSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
 import { registerAdminPageListRoute } from "../../routes/pages/list.js";
 import { registerAdminPageUpdateRoute } from "../../routes/pages/update.js";
 import { registerAdminMediaListRoute } from "../../routes/media/list.js";

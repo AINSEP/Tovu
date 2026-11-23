@@ -13,14 +13,14 @@ import { InMemorySettingsRepo, createSettingsPrincipalLookup, set, type Resolved
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "../deps.js";
-import { registerAdminAssistantGetExecutionCredentialRoute } from "../get-execution-credential.js";
-import { registerAdminAssistantPutExecutionCredentialRoute } from "../put-execution-credential.js";
-import { registerAdminAssistantDeleteExecutionCredentialRoute } from "../delete-execution-credential.js";
-import { registerAdminAssistantGetSiteCredentialRoute } from "../get-site-credential.js";
-import { registerAdminAssistantDeleteSiteCredentialRoute } from "../delete-site-credential.js";
-import { registerAdminAssistantGetSettingsRoute } from "../get-settings.js";
-import { registerAdminAssistantPutSettingsRoute } from "../put-settings.js";
+import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantGetExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantPutExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantDeleteExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantGetSiteCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantDeleteSiteCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantGetSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
+import { registerAdminAssistantPutSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
 
 // Canonical Jini clocks read `nowMs`; `nowIso` formats it with toISOString(), so NOW keeps millis.
 const NOW = "2026-09-15T01:02:03.000Z";
@@ -240,7 +240,7 @@ test("execution PUT with a null body preserves the caller's saved settings", asy
   });
 });
 
-import { registerAdminAssistantPutSiteCredentialRoute } from "../put-site-credential.js";
+import { registerAdminAssistantPutSiteCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
 import { ValueValidationFailedError } from "#src/features/settings/index";
 
 test("settings PUT maps ledger value validation to the public validation envelope", async () => {

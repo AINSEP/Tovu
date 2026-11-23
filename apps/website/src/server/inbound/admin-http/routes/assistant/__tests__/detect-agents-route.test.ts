@@ -9,7 +9,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory, listAssistantAgents, setAgentModelProberForTesting } from "#src/assistant/agents";
-import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
+import type { AssistantExecutionRouteDeps } from "#src/server/runtime/composition/modules/assistant-execution";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 // Detection is the external PATH/process boundary. Keep route registration and projection real.
@@ -24,7 +24,7 @@ const agents = [{
   id: "claude", name: "Claude Code", bin: "claude", versionArgs: ["--version"], streamFormat: "text",
   available: false, models: [], modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login",
 }] as DetectedAgent[];
-const { registerAdminAssistantDetectAgentsRoute } = await import("../detect-agents.js");
+const { registerAdminAssistantDetectAgentsRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
 const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents";
 
 function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps> = {}) {
