@@ -1,4 +1,4 @@
-PARTIAL __TOVU_SHA__ __JINI_SHA__: K5-observability-1, K5-server-logs-1 (tool-registrations, agent-tools, process-source), K5-tool-audit-1, K5-pages-1, RT-K1-adm-pages-1/2, A-K2-pages-1/2/3 editor half (PageEditor, use-page-editor, theme files), RT-K1-adm-system-2 browser-telemetry, RT-K1-pub-ops-1, observability tab/error-item hooks, Activity Log placeholder (all blocked: in-flight importers, missing prerequisites or owner decisions — see "Skipped")
+PARTIAL 14b4de5830 71002fd75: K5-observability-1, K5-server-logs-1 (tool-registrations, agent-tools, process-source), K5-tool-audit-1, K5-pages-1, RT-K1-adm-pages-1/2, A-K2-pages-1/2/3 editor half (PageEditor, use-page-editor, theme files), RT-K1-adm-system-2 browser-telemetry, RT-K1-pub-ops-1, observability tab/error-item hooks, Activity Log placeholder (all blocked: in-flight importers, missing prerequisites or owner decisions — see "Skipped"); gate red left: Tovu check:why-comments +71 reworded-move blocks (owner call on debt reasons)
 
 # ex6-pages-dash — Pages + Dashboard, Activity Log, Observability (2026-11-23, unattended)
 
@@ -24,7 +24,7 @@ Unattended cloud run. Opus coordinator plus 7 Opus-high batch subagents in two w
 | 5 | opus-high | shared-shell notices (A-adm-shell-components-1/2 lane rows) | `components/AdminFailureNotice/*`, `components/ServerRestartingBanner/*` (5 files) → `@jini-ai/admin/shell/components/*` | new `lib/shell-notices-wiring.tsx` (channel, reconnect store, status hook, copy, Dismiss label); `main.tsx` mounts it; z-order test reads the Jini CSS | 2 Jini suites (5 tests); Tovu wiring suite + z-order green | DONE | `c2f3112ca` | `2de42a64fc` |
 | 6 | opus-high | AX-12/13/14 Dashboard | `Dashboard.tsx`, `rules.ts`, `hooks/dashboard-port.hooks.ts` (+ i18n body, fake port) → `@jini-ai/admin/screens/dashboard/*` | `features/dashboard/index.ts` wiring (useWiredDashboard, publish availability/request, disclosure hook, links, CSS); `use-dashboard.hooks.ts` keeps the host binding; `dashboard-i18n.ts` binds host common dict | 5 Jini suites (89 tests); Tovu dashboard/publish suites green | DONE | `037e47a23` | `85c487e554` |
 | 7 | opus-high | A-K2-pages-2/3 list half | `Pages.tsx` screen, `usePages`, `hooks/pages-port.hooks.ts` (narrow `PageListRow`), list-only rules → `@jini-ai/admin/pages/*` | `features/pages/Pages.tsx` host wiring (theme tab, publish button, labels, sort, paths, hook); `use-pages.hooks.ts` keeps the wired half | 3 Jini suites; Tovu pages+menus+dashboard vitest 896/896 | DONE | `9341328c6` | `1fb90542fb` |
-| fix | coordinator + sonnet | gates | — | hooks via `props.useX()`; `--jini-space-*` / `--jini-admin-*` CSS tokens bound by Tovu `admin-themes/jini-admin-tokens.css`; isolation map entries; ReadonlySet; theme-boundary colours; i18n split by locale group; guard-test repoints; devtools-bundle entry; stale size-debt row | — | — | `c6c5353d8` `f073e05e3` `8f78ebc20` __WHY_JINI__ | `9364551a05` `22797cf615` `422c43ee1a` __WHY_TOVU__ |
+| fix | coordinator + sonnet | gates | — | hooks via `props.useX()`; `--jini-space-*` / `--jini-admin-*` CSS tokens bound by Tovu `admin-themes/jini-admin-tokens.css`; isolation map entries; ReadonlySet; theme-boundary colours; i18n split by locale group; guard-test repoints; devtools-bundle entry; stale size-debt row | — | — | `c6c5353d8` `f073e05e3` `8f78ebc20` `71002fd75` | `9364551a05` `22797cf615` `422c43ee1a` `14b4de5830` |
 
 ## Named mutations (behaviour-changing slices; red, then restored green, `cmp` checked)
 - embed-placeholder injected `embedMarkerTarget` → `undefined`: 5 Jini tests red; restored 39/39.
@@ -59,14 +59,21 @@ Unattended cloud run. Opus coordinator plus 7 Opus-high batch subagents in two w
 - **Foundation-touched files:** several lane files this run moved or edited had import repoints from the foundation branches (`features/observability/api/*`, `use-queries-tab`, `observability-visuals`, dashboard, `Pages.tsx`, `use-pages`, `mount-admin-system.ts`, `main.tsx`, `packages/*/package.json`). Their foundation changes are already in this base; expect rebase conflicts at combine-15 only if those branches change the same lines again.
 
 ## Gates (base-diff; raw under the run's scratch `g/`, summarized)
-__GATES__
+Base = merged unmodified trees (Jini `8fdc482e0`, Tovu `dab5d4127`); tip = after all batches and fixes.
+
+**Jini** (exit base→tip): guard 0→0 (ok); typecheck 0→0; api:check 0→0 (additive: +48 subpaths reported as added); check:cross-package 1→1 (identical); check:size 1→1 (no new findings after the i18n split; base reds in daemon/sidecar); check:complexity 1→1 (same 5 base violations); check:why-comments 1→1 (same 18 base blocks); check:hooks 0→0; check:errors 0→0. Builds of admin/cms/diagnostics 0. Vitest: diagnostics 1104/1104; admin all green after the theme-boundary fix (3709+); cms 2 failures, both base/unrelated (`forms` CHANGELOG version check `0.7.2` vs `0.7.3-next.2`, untouched since 2026-10-20; `create-tables.reference` 5 s timeout under load, passes alone).
+
+**Tovu** (exit base→tip, all 12 identical): check:size 1→1 (only new line was the stale `Pages#1` debt row, now removed); check:boundaries 0→0; typecheck 2→2, typecheck:tests 2→2 (same 2 base errors in `plugin-tier2/worker.ts`); typecheck:scripts 2→2 (same 3); check:errors 0→0; check:complexity 1→1 (same `App.tsx` base violation); check:hooks 0→0; check:architecture 1→1 (no new cross-feature edges); admin tsc 0→0; desktop tsc 0→0.
+- **check:why-comments 1→1, NEW RED:** 82 more deleted comment blocks than base; 11 were restored verbatim beside their code; **71 remain**. They were reworded host-neutral in Jini, or the code they explained changed with the injection (required hooks, injected translators/ports, narrow types), or they name the product. Fixing them needs either `why-comments-debt.json` reasons (an owner call; the run did not add debt entries) or a checker that matches reworded moves. Ids and reasons are in the run's scratch `blocks.json`.
+- Admin vitest (862 files): all green except base-red `JiniMediaPicker.hooks`, `admin-literal-copy`, `credential-input-autocomplete`, `panel-access` (database/redirects evidence paths from fnd-routes) and a load flake in `use-trash`. The new `devtools-bundle` failure (stale entry) is fixed.
+- Node tests (65 files across pages, server-logs, tool-audit, routes/system, observability/server-logs routes, contracts, tool-catalog observability): 64 green; `site-backups.integration` is base-red.
 
 ## FILES LEFT (`scan.mjs` + `plan.mjs` from `origin/plan/whats-left-1122`, clean worktrees)
 
 | tree | moving | shells | **FILES-LEFT** | excl. theme areas (111) |
 |---|---|---|---|---|
 | base `dab5d4127` (merge-13 + provisional foundation) | 2,385 | 0 | **2,385** | **2,274** |
-| tip `__TOVU_SHA__` | 2,352 | 0 | **2,352** | **2,241** |
+| tip `14b4de5830` | 2,352 | 0 | **2,352** | **2,241** |
 
 −33 net: 39 Tovu production files deleted (moved), 3 host wiring/binding files added (`lib/shell-notices-wiring.tsx`, `features/observability/hooks/observability-wiring.hooks.ts`, `admin-themes/jini-admin-tokens.css`), minus files the scanner no longer counts.
 
