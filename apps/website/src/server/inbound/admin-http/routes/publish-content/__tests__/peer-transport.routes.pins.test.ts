@@ -19,7 +19,7 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
-import { registerPublishContentPeerRoutes } from "../peers.js";
+import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { BASE, FailingPeerRepo, recordingAuthorize, routeApp, routeDeps } from "./route-fixture.js";
 
 /**

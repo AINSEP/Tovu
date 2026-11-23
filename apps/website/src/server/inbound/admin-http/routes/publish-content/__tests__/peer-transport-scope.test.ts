@@ -18,7 +18,7 @@ import {
 import type { HttpClientPort } from "#src/platform/http/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
-import { registerPublishContentPeerRoutes } from "../peers.js";
+import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
 
 /**

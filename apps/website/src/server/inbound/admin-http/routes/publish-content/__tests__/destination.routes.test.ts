@@ -16,7 +16,7 @@ import type { PublishTrustProvisioningPort, ProvisioningWrite } from "#src/featu
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
-import { registerPublishContentDestinationRoutes } from "../destination.js";
+import { registerPublishContentDestinationRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 
 /**
  * @file `GET .../publish-content/destination`, `POST .../destination/connect` and

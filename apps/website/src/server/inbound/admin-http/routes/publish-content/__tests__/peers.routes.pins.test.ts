@@ -15,7 +15,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-import { registerPublishContentPeerRoutes } from "../peers.js";
+import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
 import { BASE, FailingPeerRepo, routeApp, routeDeps } from "./route-fixture.js";
 
 /**
