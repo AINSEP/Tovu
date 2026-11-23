@@ -27,7 +27,8 @@ import { useZoom } from './use-zoom.hooks.js';
 import { ResourcesMonitor } from './ResourcesPanel.js';
 import type { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import type { useSiteFolders } from './use-site-folders.hooks.js';
-import { FindBar } from './app/FindBar.js';
+import { FindBar } from '@jini-ai/ui/find-bar';
+import { FIND_BAR_LABELS } from './app/find-bar-labels.js';
 import { TopNav } from './app/TopNav.js';
 import { TabStrip, type ImportTab } from './app/TabStrip.js';
 import { MainArea } from './app/MainArea.js';
@@ -224,7 +225,7 @@ function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavig
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
     <div className="app">
-      <FindBar find={find} />
+      <FindBar find={find} labels={FIND_BAR_LABELS} />
       <AppChrome state={state} navigation={navigation} />
 
       <main className="main">

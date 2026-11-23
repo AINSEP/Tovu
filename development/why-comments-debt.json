@@ -5004,6 +5004,38 @@
     {
       "id": "9adee76e0325",
       "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "fc045f87f485",
+      "reason": "Reworded in place (dui, AX-50): the test now renders @jini-ai/ui/find-bar's FindBar with this app's FIND_BAR_LABELS instead of a local module; same coverage statement kept."
+    },
+    {
+      "id": "b3030040511c",
+      "reason": "Moved to Jini @jini-ai/ui/find-bar/FindBar.tsx (dui, AX-50), reworded neutral: `App`'s root -> the host's root, `useFindInPage`'s close -> the host's find hook's close, 'the Projects grid or a project tab's own bar' -> 'whichever surface is on screen'."
+    },
+    {
+      "id": "60c378db3632",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTableGroup (dui, AX-79), reworded neutral: 'the Tovu app or a running site' -> 'an owner (the host app itself, or one of the things it runs)'."
+    },
+    {
+      "id": "3914ccb7cd35",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTableGroup.stop (dui, AX-79), reworded neutral: 'the Tovu app has no Stop' -> '`null` (e.g. the host app itself) has none'."
+    },
+    {
+      "id": "f8977641ce9c",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx Unknown (dui, AX-79), verbatim."
+    },
+    {
+      "id": "43385c9b89d8",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx MetricCells (dui, AX-79), reworded neutral: CPU unit is the host's format.cpu; the 'percent of one core (the note under the table says so)' half stays in Tovu ResourcesPanel.tsx TABLE_FORMAT doc."
+    },
+    {
+      "id": "68d953912c99",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx (dui, AX-79): first sentence verbatim on ResourceGroupRows; 'Executable basenames only, never command arguments' moved onto ResourceProcessRow.name."
+    },
+    {
+      "id": "359c472e4c4c",
+      "reason": "Moved to Jini @jini-ai/ui/resource-monitor/ResourceTable.tsx ResourceTable (dui, AX-79), extended: '; stateless, so the host owns polling and Stop' added."
     }
   ]
 }
