@@ -233,6 +233,23 @@ function ownerRequiredMessage({ action, targetIsOwner }: { action: UserAccountAc
   return targetIsOwner ? "only an owner can modify an owner principal" : "only an owner can turn an admin account back on";
 }
 
+/** The owner-only gate, split out of {@link assertUserAccountAction} to keep it within the
+ *  complexity cap: a protected (admin/owner or seeded-owner) target needs a caller who holds the
+ *  owner wildcard; a call with no caller (system paths) is not gated here. */
+async function assertCallerMayActOnProtected(required: {
+  deps: AuthServiceDeps;
+  workspaceId: UUID;
+  action: UserAccountAction;
+  callerPrincipalId: UUID | undefined;
+  protectedTarget: boolean;
+  targetIsOwner: boolean;
+}, _optional: Record<string, never> = {}): Promise<void> {
+  const { deps, workspaceId, action, callerPrincipalId, protectedTarget, targetIsOwner } = required;
+  if (callerPrincipalId === undefined || !protectedTarget) return;
+  if (await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId })) return;
+  throw new OwnerRequiredError({ message: ownerRequiredMessage({ action, targetIsOwner }) });
+}
+
 /** Tovu adapter for the owner account contract, pending extraction to Jini. Run inside the
  * same identity transaction as the write. Retention has no caller, but still preserves owners. */
 export async function assertUserAccountAction(required: {
@@ -249,10 +266,9 @@ export async function assertUserAccountAction(required: {
   const target = await deps.repos.principals.findById({ workspaceId, id: principalId });
   if (!target) throw new IdentityNotFoundError({ message: `principal '${principalId}' was not found` });
   const { isOwner: owner, isProtectedAccount } = await userAccountProtection({ deps, workspaceId, principalId });
-  if (callerPrincipalId !== undefined && (isProtectedAccount || principalId === seededOwnerPrincipalId)
-      && !await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId })) {
-    throw new OwnerRequiredError({ message: ownerRequiredMessage({ action, targetIsOwner: owner || principalId === seededOwnerPrincipalId }) });
-  }
+  const isSeededOwner = principalId === seededOwnerPrincipalId;
+  await assertCallerMayActOnProtected({ deps, workspaceId, action, callerPrincipalId,
+    protectedTarget: isProtectedAccount || isSeededOwner, targetIsOwner: owner || isSeededOwner });
   await assertDestructiveAccountInvariants({ deps, workspaceId, principalId, action, targetStatus: target.status, owner },
     { seededOwnerPrincipalId });
 }

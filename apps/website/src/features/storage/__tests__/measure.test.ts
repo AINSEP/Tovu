@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import type { StorageTreeFs } from "@jini-ai/platform/retention";
+import { nodeStorageTreeFs, type StorageTreeFs } from "@jini-ai/platform/retention";
 import { SITE_STORAGE_CATEGORY_CLASS, measureSiteStorage } from "../measure.js";
 
 async function siteFolder(t: test.TestContext): Promise<string> {
@@ -90,10 +90,12 @@ test("an unreadable folder is reported unknown, not 0", async (t) => {
   const locked = at("uploads/2026");
   // Containers run tests as root, which ignores chmod 000, so the refusal is injected.
   const deny: StorageTreeFs = {
-    lstat: (target) => fs.lstat(target),
-    readdir: async (target) => {
+    lstat: (target) => nodeStorageTreeFs.lstat(target),
+    // The walk now opens each folder (no-follow) and lists it through the handle, so the refusal is
+    // injected at open time — the same point a real EACCES surfaces.
+    openDirectory: async (target) => {
       if (target === locked) throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
-      return fs.readdir(target);
+      return nodeStorageTreeFs.openDirectory(target);
     },
   };
   const report = await measureSiteStorage({ siteDir, paths }, { fs: deny });
