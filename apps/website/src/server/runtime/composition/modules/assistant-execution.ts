@@ -1,8 +1,11 @@
+import { detectAgents } from "@jini-ai/agent-runtime";
+import { testAgentRoute } from "@jini-ai/cms/admin-http/routes/assistant/test-agent";
+import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerAdminAssistantDetectAgentsRoute } from "#src/server/inbound/admin-http/routes/assistant/detect-agents";
 import { registerAdminAssistantTestConnectionRoute } from "#src/server/inbound/admin-http/routes/assistant/test-connection";
 import { registerAdminAssistantListModelsRoute } from "#src/server/inbound/admin-http/routes/assistant/list-models";
-import { registerAdminAssistantTestAgentRoute } from "#src/server/inbound/admin-http/routes/assistant/test-agent";
-import type { AssistantExecutionRouteDeps } from "#src/server/inbound/admin-http/routes/assistant/execution-deps";
+import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "#src/server/inbound/admin-http/routes/assistant/execution-deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -19,7 +22,20 @@ import type { ServerModuleHandle } from "./types.js";
  * `ADMIN_ASSISTANT_PERMISSION` and live in the same route directory because
  * they are both part of the AI Assistant admin section, not because they
  * share dependencies.
+ *
+ * The per-agent check is a Jini route spec (`@jini-ai/cms/admin-http/routes/assistant/test-agent`);
+ * its registrar below binds the detection boundary: an injected `deps.detectAgents`, else the
+ * assistant inventory's runtime, else Jini's PATH/process probe — resolved per request, as before.
  */
+export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: testAgentRoute, deps: {
+    workspaceId: deps.workspaceId,
+    authorize: (params) => deps.authorize(params),
+    adminAssistantPermission: ADMIN_ASSISTANT_PERMISSION,
+    detectAgents: (required, optional) => (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)(required, optional),
+  } }, { authorization: "direct", failure: { operation: "routes/assistant/test-agent", code: "INTERNAL_ERROR" } });
+};
+
 export function createAssistantExecutionModule(deps: AssistantExecutionRouteDeps): ServerModuleHandle {
   return {
     name: "assistant-execution",

@@ -225,7 +225,7 @@ test("list-models redacts an authorization-store failure as a generic 500 before
  * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
  * hand-built `req` that deliberately violates that contract.
  */
-const { registerAdminAssistantTestAgentRoute } = await import("../test-agent.js");
+const { registerAdminAssistantTestAgentRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
 for (const [label, registrar] of [
   ["list-models", registerAdminAssistantListModelsRoute],
   ["test-connection", registerAdminAssistantTestConnectionRoute],

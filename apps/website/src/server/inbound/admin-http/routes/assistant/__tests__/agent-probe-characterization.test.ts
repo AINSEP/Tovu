@@ -11,7 +11,7 @@ import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 import { registerAdminAssistantDetectAgentsRoute } from "../detect-agents.js";
-import { registerAdminAssistantTestAgentRoute } from "../test-agent.js";
+import { registerAdminAssistantTestAgentRoute } from "#src/server/runtime/composition/modules/assistant-execution";
 
 const agent: DetectedAgent = {
   id: "fixture-cli", name: "Fixture CLI", bin: "fixture-cli", versionArgs: ["--version"],
@@ -158,7 +158,7 @@ function runDefaultDetector({ binDir, home, agentId }: { binDir: string; home: s
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", DEFAULT_DETECTOR_CHILD], {
     cwd: process.cwd(), encoding: "utf8", timeout: 60_000,
     env: { PATH: binDir, HOME: home, TSX_TSCONFIG_PATH: process.env.TSX_TSCONFIG_PATH ?? "", AGENT_ID: agentId,
-      ROUTE_URL: new URL("../test-agent.ts", import.meta.url).href },
+      ROUTE_URL: new URL("../../../../../runtime/composition/modules/assistant-execution.ts", import.meta.url).href },
   });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout) as { status: number; body: unknown };
