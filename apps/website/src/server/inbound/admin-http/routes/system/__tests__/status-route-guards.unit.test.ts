@@ -14,7 +14,7 @@ import { registerAdminModuleStatusRoute } from "#src/server/runtime/composition/
 import { registerAdminObservabilityStatusRoute } from "../observability-status.js";
 import { registerAdminServerLogsRoute } from "../server-logs.js";
 import { registerAdminDockerfileSourceRoute } from "../dockerfile-source.js";
-import { registerAdminDeploymentOverviewRoute } from "../deployment-overview.js";
+import { registerAdminDeploymentOverviewRoute } from "#src/server/runtime/composition/modules/system-deploy";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
