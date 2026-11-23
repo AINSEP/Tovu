@@ -20,3 +20,9 @@ there is no sibling left to keep separate from this one.
 
 `SettingsUi.tsx` has **no unit test**. Treat a change here as unverified until you have driven it in
 a browser.
+
+## Wiring
+
+- Tab type: `SettingsDialogTab` is imported from `@jini-ai/admin/react/kit` (the kit's structural mirror of `@jini-ai/ui`'s `TabbedDialogTab`; `admin-kit.integration.test.tsx` keeps the two in sync).
+- Kit slots: `I18nProvider`, `SettingsDialogShell` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
+- Residual `@jini-ai/ui` imports: the tab bodies (`ExecutionTab`, `InstructionsTab`, `LanguageTab`, `MemorySettingsPanel`, `NotificationsTab`, `PrivacyTab`), `SETTINGS_DIALOG_DICTIONARIES` and their config types.

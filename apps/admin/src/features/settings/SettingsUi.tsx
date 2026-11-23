@@ -107,22 +107,20 @@ import { useEffect } from "react";
 
 import {
   ExecutionTab,
-  I18nProvider,
   InstructionsTab,
   LanguageTab,
   MemorySettingsPanel,
   NotificationsTab,
   PrivacyTab,
   SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
   type ExecutionConfig,
   type MemoryConfigFlagKey,
   type MemoryEntrySummary,
   type MemoryExtractionRecord,
   type NotificationsPreferences,
   type PrivacyConsentState,
-  type SettingsDialogTab,
 } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";

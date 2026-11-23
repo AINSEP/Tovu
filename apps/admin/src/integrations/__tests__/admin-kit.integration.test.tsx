@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Icon as UiIcon, useT as useUiT, SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES } from "@jini-ai/ui";
 import { UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID } from "@jini-ai/ui/panel-kit";
 import { useT as useChatT } from "@jini-ai/chat/react";
-import { Icon, useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { Icon, SettingsDialogShell, useAdminKitValues, type SettingsDialogTab as KitSettingsDialogTab } from "@jini-ai/admin/react/kit";
+import { SettingsDialogShell as UiSettingsDialogShell, type SettingsDialogTab as UiSettingsDialogTab, type TabbedDialogTab } from "@jini-ai/ui";
 import { render, renderHook } from "@/__tests__/render-with-jini-kits";
 import { adminKit } from "../jini-kits";
 import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
@@ -35,5 +36,29 @@ describe("Tovu's admin kit: the one host locale hook (P12 #6.T, F6.3)", () => {
   it("the kit slot holds the same function App's required useAdminLocaleHook prop receives", () => {
     // main.tsx passes useHostAdminLocale to <App>; a second binding here could disagree on scope or key.
     expect(adminKit.hooks.useAdminLocale).toBe(useHostAdminLocale);
+  });
+});
+
+/** P12 #8 (F8.4): the kit's `SettingsDialogTab` is a structural mirror of `@jini-ai/ui`'s
+ *  `SettingsDialogTab` (= `TabbedDialogTab`). Two declarations on purpose; these assignments keep them
+ *  in sync at typecheck time. Mutation `kit-tab-panel-field-rename` (kit `panel` -> `content`) fails here. */
+type Assignable<A, B> = [A] extends [B] ? true : false;
+type KitOverviewTab = KitSettingsDialogTab<"overview">;
+type UiOverviewTab = UiSettingsDialogTab<"overview">;
+const kitToUi: Assignable<KitOverviewTab, UiOverviewTab> = true;
+const uiToKit: Assignable<UiOverviewTab, KitOverviewTab> = true;
+const kitToTabbed: Assignable<KitOverviewTab, TabbedDialogTab<"overview">> = true;
+const tabbedToKit: Assignable<TabbedDialogTab<"overview">, KitOverviewTab> = true;
+const overviewTab: KitOverviewTab = { id: "overview", label: "Overview", panel: <p>Overview panel body</p> };
+const overviewAsUi: UiOverviewTab = overviewTab;
+const overviewBackToKit: KitOverviewTab = overviewAsUi;
+
+describe("Tovu's admin kit: SettingsDialogTab mirrors the UI owner (P12 #8, F8.4)", () => {
+  it("binds ui's own SettingsDialogShell, and the kit facade renders a kit-typed tab's panel", () => {
+    expect([kitToUi, uiToKit, kitToTabbed, tabbedToKit]).toEqual([true, true, true, true]);
+    expect(overviewBackToKit).toBe(overviewTab);
+    expect(adminKit.components.SettingsDialogShell).toBe(UiSettingsDialogShell);
+    const { getByText } = render(<SettingsDialogShell tabs={[overviewTab]} presentation="inline" />);
+    expect(getByText("Overview panel body")).not.toBeNull();
   });
 });

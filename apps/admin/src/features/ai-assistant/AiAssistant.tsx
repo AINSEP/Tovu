@@ -9,11 +9,9 @@ import { t as tExecution } from '../settings/settings-execution-i18n';
 import {
   ByokProviderForm,
   ExecutionTab,
-  I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
-  type SettingsDialogTab,
 } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { agentHandle } from "@jini-ai/core/agent-handles";

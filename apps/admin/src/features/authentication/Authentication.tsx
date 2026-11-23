@@ -1,12 +1,10 @@
 import { createAuthenticationTranslator } from "./Authentication.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import {
-  I18nProvider,
-  SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
-  type SettingsDialogTab,
-} from "@jini-ai/ui";
+// SettingsDialogShell stays on the UI owner: this screen passes `labels`, which the kit slot's
+// SettingsDialogShellProps does not declare yet (kit gap, see README Wiring).
+import { SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
+import { I18nProvider, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import type { ReactElement } from "react";
 
