@@ -78,6 +78,9 @@ function collectionsPortDeps({ deps }: { deps: ContentTypesRouteDeps }, _options
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
+/** The admin surface's outward copy for a classified domain error is that error's own message. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
 /** The write-route fields shared by every content-type and entry write. */
 function collectionsWriteDeps({ deps }: { deps: ContentTypesRouteDeps }, _options: Record<string, never> = {}) {
   return {
@@ -87,6 +90,7 @@ function collectionsWriteDeps({ deps }: { deps: ContentTypesRouteDeps }, _option
     outbox: deps.outbox,
     contentTypeRepo: deps.contentTypeRepo,
     contentTypeIndexProvisioner: deps.contentTypeIndexProvisioner,
+    outwardErrorMessage,
   };
 }
 

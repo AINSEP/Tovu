@@ -75,11 +75,14 @@ function mountWidgetJsonRoute<Input, Output, Deps>(
   mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...spec, ports: widgetJsonRoutePorts }, deps });
 }
 
-/** The two port fields every widgets mount passes. `authorize` is read per request, as the
+/** The admin surface's outward copy for a classified domain error is that error's own message. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
+/** The two port fields every widgets mount passes, plus the outward error copy every widgets spec refuses with. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
-function widgetPortDeps({ deps }: { deps: RouteDeps }, _options: Record<string, never> = {}): AdminJsonRoutePortDeps {
+function widgetPortDeps({ deps }: { deps: RouteDeps }, _options: Record<string, never> = {}): AdminJsonRoutePortDeps & { outwardErrorMessage: typeof outwardErrorMessage } {
   const authorize: RouteDeps["authorize"] = (params) => deps.authorize(params);
-  return { workspaceId: deps.workspaceId, authorize };
+  return { workspaceId: deps.workspaceId, authorize, outwardErrorMessage };
 }
 
 export const registerAdminWidgetListRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {

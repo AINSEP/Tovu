@@ -10,12 +10,10 @@ import {
   TAXONOMY_RESOURCE,
   visibleTaxonomyError,
   type DeleteBlockedState,
-} from "../rules";
-import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useTaxonomyHtmlEmbed } from "./use-taxonomy-html-embed.hooks";
-import { t as translate } from "../taxonomy-i18n";
-import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
+} from "@jini-ai/admin/screens/taxonomy/rules";
+import { useTaxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy-html-embed.hooks";
 import type { TaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-port.hooks";
+import type { TaxonomyHostKit } from "@jini-ai/admin/screens/taxonomy/taxonomy-host-kit";
 
 /**
  * @file Everything the top-level `Taxonomy` screen does, so `Taxonomy.tsx` is only markup.
@@ -139,6 +137,7 @@ async function runGuardedDelete(
   clearPending: () => void,
   onSuccess: () => void,
   onBlocked: (blocked: DeleteBlockedState) => void,
+  errors: TaxonomyHostKit,
 ): Promise<void> {
   try {
     await mutate({ input: id });
@@ -146,12 +145,12 @@ async function runGuardedDelete(
     onSuccess();
   } catch (e) {
     clearPending();
-    const blocked = describeDeleteBlocked({ e });
+    const blocked = describeDeleteBlocked({ e, errors });
     if (blocked) {
       onBlocked(blocked);
       return;
     }
-    if (describeTrashError({ e: e instanceof Error ? e : null, fallback: "" }).alreadyGone) {
+    if (describeTrashError({ e: e instanceof Error ? e : null, fallback: "", errors }).alreadyGone) {
       onSuccess();
       refetch();
     }
@@ -160,10 +159,10 @@ async function runGuardedDelete(
   }
 }
 
-export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string): TaxonomyController {
+export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string, kit: TaxonomyHostKit): TaxonomyController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listTaxonomies() });
   const taxonomies = list.data?.items ?? null;
-  const { copyHtmlEmbed, copyFeedback } = useTaxonomyHtmlEmbed({ taxonomies, t });
+  const { copyHtmlEmbed, copyFeedback } = useTaxonomyHtmlEmbed({ taxonomies, t, failures: kit.failures });
 
   // Out-of-band writes — today an assistant run that called `taxonomy_create_taxonomy`, later an
   // SSE frame from another tab. Invalidating rather than calling `list.refetch()` keeps this on the
@@ -211,14 +210,15 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   // just for the usual "computes a value" reason, but because the branching here pushed the hook's
   // own complexity over ESLint's ceiling).
   const error = visibleTaxonomyError({
+    errors: kit,
     deleteTermBlocked: deleteTermBlocked !== null,
     deleteTermError: deleteTermMutation.error,
-    deleteTermFallback: translate({ locale: locale, key: "Failed to delete term" }),
+    deleteTermFallback: kit.translate({ locale: locale, key: "Failed to delete term" }),
     deleteTaxonomyBlocked: deleteTaxonomyBlocked !== null,
     deleteTaxonomyError: deleteTaxonomyMutation.error,
-    deleteTaxonomyFallback: translate({ locale: locale, key: "Failed to delete taxonomy" }),
+    deleteTaxonomyFallback: kit.translate({ locale: locale, key: "Failed to delete taxonomy" }),
     listError: list.error,
-    listFallback: translate({ locale: locale, key: "failed to load taxonomies" }),
+    listFallback: kit.translate({ locale: locale, key: "failed to load taxonomies" }),
   });
 
   function requestDeleteTerm(term: AdminTerm | null) {
@@ -245,6 +245,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
         if (selectedTermId === term.id) setSelectedTermId(null);
       },
       (blocked) => setDeleteTermBlocked({ termId: term.id, state: blocked }),
+      kit,
     );
   }
 
@@ -267,6 +268,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
         if (selected?.taxonomy.taxonomy.id === taxonomy.id) setSelectedTermId(null);
       },
       (blocked) => setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked }),
+      kit,
     );
   }
 
@@ -293,17 +295,4 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     confirmDeleteTaxonomy,
     t,
   };
-}
-
-/**
- * Binds the real `/api/.../taxonomy` client and a `TAXONOMY_DICT`-bound translator — see
- * `taxonomy-dependencies.hooks.ts`.
- *
- * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
- * composes this and a test composes {@link useTaxonomy} with `createFakeTaxonomyPort`.
- */
-export function useWiredTaxonomy(): TaxonomyController {
-  const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
-  return useTaxonomy(defaultTaxonomyPort, locale, t);
 }

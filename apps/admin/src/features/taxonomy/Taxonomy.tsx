@@ -4,12 +4,12 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { TaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu";
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
-import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
-import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
-import { useWiredMergeTermSection } from "./hooks/use-merge-term-section.hooks";
-import { useWiredTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
-import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
+import { termDepth, otherMergeTargets, type DeleteBlockedState } from "@jini-ai/admin/screens/taxonomy/rules";
+import { useWiredNewTermForm } from "./taxonomy-wired.hooks";
+import { useWiredNewTaxonomyForm } from "./taxonomy-wired.hooks";
+import { useWiredMergeTermSection } from "./taxonomy-wired.hooks";
+import { useWiredTermDetailPanel } from "./taxonomy-wired.hooks";
+import { useWiredTaxonomy } from "./taxonomy-wired.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 

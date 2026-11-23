@@ -2,8 +2,9 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useId } from "react";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { useWiredTermPicker, type TermPickerController } from "./hooks/use-term-picker.hooks";
-import { useTermListReveal } from "./hooks/use-term-list-reveal.hooks";
+import { type TermPickerController } from "./hooks/use-term-picker.hooks";
+import { useWiredTermPicker } from "./taxonomy-wired.hooks";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
 
 /** Keep the add-term guard shared by the row's loading, pending and blank-name states. */
 function termCreationDisabled({ loading, picker, id }: { loading: boolean; picker: TermPickerController; id: string }): boolean {

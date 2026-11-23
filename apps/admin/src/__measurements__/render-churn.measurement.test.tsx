@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Redirects } from "./redirects-harness";
-import { useWiredTaxonomy } from "../features/taxonomy/hooks/use-taxonomy.hooks";
+import { useWiredTaxonomy } from "../features/taxonomy/taxonomy-wired.hooks";
 
 /**
  * @file Measurement instrument — deliverable C of the request-volume follow-up

@@ -50,7 +50,8 @@ export async function requireWidgetsPermissionOrRespond({ authorize, workspaceId
  * since a `Response` can only be finalized once.
  */
 export function widgetErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): WidgetErrorResponse {
-  const mapped = widgetDomainErrorToResponse({ err });
+  // The admin surface's outward copy for a classified widgets error is that error's own message.
+  const mapped = widgetDomainErrorToResponse({ err, outwardErrorMessage: ({ error }) => error.message });
   if (mapped) return mapped;
   // A post/page save under an embed insert/remove/reorder or a widget tool route can be refused by
   // a plugin's beforeSave hook — the same fixed-text envelope the posts routes and agent tools give.

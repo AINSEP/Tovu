@@ -7,6 +7,7 @@ import { useTermPicker, type TermPickerController } from "../hooks/use-term-pick
 import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `TermPicker` — the Categories & Tags box the post, page and collection-entry editors mount.
@@ -72,7 +73,7 @@ async function renderRealPickerInForm() {
   const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
   let ctrl!: TermPickerController;
   function useHook(target: { contentType: string; contentId: string }) {
-    ctrl = useTermPicker(target, { port, locale: "en" });
+    ctrl = useTermPicker(target, { port, locale: "en", kit: taxonomyHostKit });
     return ctrl;
   }
   render(<FetchQueryProvider><form onSubmit={onSubmit}>

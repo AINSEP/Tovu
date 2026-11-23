@@ -55,13 +55,16 @@ export const registerAdminTaxonomyDeleteRoute: TaxonomyRouteRegistrar = ({ app, 
   );
 };
 
+/** The admin surface's outward copy for a classified domain error is that error's own message. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
 /** The write/assignment routes authorize inside the taxonomy write service through `deps.authorize`
  *  (never the publishing-credential override), so they mount with `"direct"` authentication. */
 function taxonomyWriteDeps({ deps }: { deps: TaxonomyRouteDeps }, _options: Record<string, never> = {}): TaxonomyCreateRouteDeps & AdminJsonRoutePortDeps {
   return {
     ...taxonomyPortDeps({ deps }), clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, taxonomyRepo: deps.taxonomyRepo,
     termRepo: deps.termRepo, entryTermRepo: deps.entryTermRepo, taxonomyRevisionRepo: deps.taxonomyRevisionRepo,
-    stampWatermark: deps.stampWatermark, postRepo: deps.postRepo,
+    stampWatermark: deps.stampWatermark, postRepo: deps.postRepo, outwardErrorMessage,
   };
 }
 

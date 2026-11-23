@@ -54,9 +54,12 @@ function menuPortDeps({ deps }: { deps: MenuRouteDeps }, _options: Record<string
  *  (`PUBLISH_TRUST_ROUTES`), so the two answer identically here. */
 const mountOptions = (operation: string, authorization: AdminRouteAuthorization) => ({ authorization, failure: { operation, code: "INTERNAL_ERROR" } });
 
+/** The admin surface's outward copy for a classified domain error is that error's own message. */
+const outwardErrorMessage = ({ error }: { error: Error }): string => error.message;
+
 /** The menu service's write collaborators, shared by create and update-tree. */
 function menuWriteDeps({ deps }: { deps: MenuRouteDeps }, _options: Record<string, never> = {}) {
-  return { menuRepo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, normalizeMenuHtml };
+  return { menuRepo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, normalizeMenuHtml, outwardErrorMessage };
 }
 
 export const registerAdminMenuListRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -77,13 +80,13 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps
 
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: menuAssignLocationRoute, deps: {
-    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox,
+    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, navLocationBindingRepo: deps.navLocationBindingRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, outwardErrorMessage,
   } }, mountOptions("routes/menus/assign-location", "direct"));
 };
 
 export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: menuDeleteRoute, deps: {
-    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, removeMenu: deps.removeMenu, clock: deps.clock,
+    ...menuPortDeps({ deps }), menuRepo: deps.menuRepo, removeMenu: deps.removeMenu, clock: deps.clock, outwardErrorMessage,
   } }, mountOptions("routes/menus/delete", "guarded"));
 };
 

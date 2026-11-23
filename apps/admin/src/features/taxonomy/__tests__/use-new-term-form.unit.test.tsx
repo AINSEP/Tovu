@@ -2,9 +2,11 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useNewTermForm, useWiredNewTermForm } from "../hooks/use-new-term-form.hooks";
+import { useNewTermForm } from "@jini-ai/admin/screens/taxonomy/hooks/use-new-term-form.hooks";
+import { useWiredNewTermForm } from "../taxonomy-wired.hooks";
 import { createFakeNewTermFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-term-form-dependencies.hooks";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `useNewTermForm` — pins the client-side validation guard (name required, trimmed) and the
@@ -212,7 +214,7 @@ describe("useNewTermForm — injected port", () => {
     const port = createFakeNewTermFormPort();
     const onCreated = vi.fn();
 
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }, port, "en", taxonomyHostKit), { wrapper });
     act(() => {
       result.current.setName("  Child  ");
       result.current.setParentId("p1");
@@ -229,7 +231,7 @@ describe("useNewTermForm — injected port", () => {
 
   it("surfaces a rejected createTerm call's message on the error channel", async () => {
     const port = createFakeNewTermFormPort({ createError: "duplicate name" });
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }, port, "en", taxonomyHostKit), { wrapper });
     act(() => result.current.setName("Dup"));
 
     await act(async () => {

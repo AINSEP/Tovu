@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError, termListView, TERM_PICKER_COLLAPSED_COUNT, TERM_PICKER_MAX_SHOWN } from "../rules";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError, termListView, TERM_PICKER_COLLAPSED_COUNT, TERM_PICKER_MAX_SHOWN } from "@jini-ai/admin/screens/taxonomy/rules";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -145,19 +146,19 @@ describe("findSelectedTerm", () => {
 
 describe("describeDeleteBlocked", () => {
   it("returns null for a plain Error (network failure, etc.) — not an ApiError at all", () => {
-    expect(describeDeleteBlocked({ e: new Error("network down") })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e: new Error("network down") })).toBeNull();
   });
 
   it("returns null for a non-Error thrown value", () => {
-    expect(describeDeleteBlocked({ e: "boom" })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e: "boom" })).toBeNull();
   });
 
   it("returns null for an ApiError whose code isn't TERM_HAS_CHILDREN", () => {
-    expect(describeDeleteBlocked({ e: new ApiError({ message: "not found", status: 404 }, { code: "TERM_NOT_FOUND", body: {} }) })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e: new ApiError({ message: "not found", status: 404 }, { code: "TERM_NOT_FOUND", body: {} }) })).toBeNull();
   });
 
   it("returns null for an ApiError with no code at all", () => {
-    expect(describeDeleteBlocked({ e: new ApiError({ message: "server exploded", status: 500 }) })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e: new ApiError({ message: "server exploded", status: 500 }) })).toBeNull();
   });
 
   // Owner ruling (T8b, 2026-09-21): content/term assignments no longer block a delete at all — a
@@ -166,17 +167,17 @@ describe("describeDeleteBlocked", () => {
   // check regardless) must fall through to null, not a stale blocked state.
   it("returns null for the retired TERM_HAS_ASSIGNMENTS code — assignments no longer block a delete", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_ASSIGNMENTS", body: { assignedCount: 3 } });
-    expect(describeDeleteBlocked({ e })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })).toBeNull();
   });
 
   it("returns null for the retired TAXONOMY_HAS_ASSIGNMENTS code — taxonomies have no blocked case at all", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TAXONOMY_HAS_ASSIGNMENTS", body: { assignedCount: 2 } });
-    expect(describeDeleteBlocked({ e })).toBeNull();
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })).toBeNull();
   });
 
   it("TERM_HAS_CHILDREN: reads count and names the reparent-first remedy", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { count: 4 } });
-    expect(describeDeleteBlocked({ e })).toEqual({
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })).toEqual({
       code: "TERM_HAS_CHILDREN",
       count: 4,
       message: "This term has 4 sub-terms. Move them under another parent or delete them first.",
@@ -185,40 +186,40 @@ describe("describeDeleteBlocked", () => {
 
   it("TERM_HAS_CHILDREN: singular count reads 'sub-term', not 'sub-terms'", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { count: 1 } });
-    expect(describeDeleteBlocked({ e })?.message).toBe(
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })?.message).toBe(
       "This term has 1 sub-term. Move them under another parent or delete them first."
     );
   });
 
   it("defaults count to 0 (not a crash) when the 409 body omits its count field", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_CHILDREN", body: {} });
-    expect(describeDeleteBlocked({ e })?.count).toBe(0);
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })?.count).toBe(0);
   });
 
   it("defaults count to 0 when the body is entirely absent", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_CHILDREN" });
-    expect(describeDeleteBlocked({ e })?.count).toBe(0);
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })?.count).toBe(0);
   });
 
   it("ignores a non-number count value rather than interpolating it raw", () => {
     const e = new ApiError({ message: "blocked", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { count: "many" } });
-    expect(describeDeleteBlocked({ e })?.count).toBe(0);
+    expect(describeDeleteBlocked({ errors: taxonomyHostKit, e })?.count).toBe(0);
   });
 });
 
 describe("describeTrashError", () => {
   it("returns no message and alreadyGone: false for no error at all", () => {
-    expect(describeTrashError({ e: null, fallback: "failed to delete" })).toEqual({ alreadyGone: false, message: null });
+    expect(describeTrashError({ errors: taxonomyHostKit, e: null, fallback: "failed to delete" })).toEqual({ alreadyGone: false, message: null });
   });
 
   it("404: alreadyGone true, no message — a quiet refetch, not a banner", () => {
     const e = new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND", body: {} });
-    expect(describeTrashError({ e, fallback: "failed to delete" })).toEqual({ alreadyGone: true, message: null });
+    expect(describeTrashError({ errors: taxonomyHostKit, e, fallback: "failed to delete" })).toEqual({ alreadyGone: true, message: null });
   });
 
   it("409 TRASH_VERSION_CHANGED: names the reload-and-retry remedy, not the generic fallback", () => {
     const e = new ApiError({ message: "changed", status: 409 }, { code: "TRASH_VERSION_CHANGED", body: {} });
-    expect(describeTrashError({ e, fallback: "failed to delete" })).toEqual({
+    expect(describeTrashError({ errors: taxonomyHostKit, e, fallback: "failed to delete" })).toEqual({
       alreadyGone: false,
       message: "This item changed since you loaded it. Reload and try again.",
     });
@@ -226,18 +227,18 @@ describe("describeTrashError", () => {
 
   it("falls back to describeApiError's generic message for anything else", () => {
     const e = new ApiError({ message: "server exploded", status: 500 }, { code: undefined, body: {} });
-    expect(describeTrashError({ e, fallback: "failed to delete" })).toEqual({ alreadyGone: false, message: "server exploded" });
+    expect(describeTrashError({ errors: taxonomyHostKit, e, fallback: "failed to delete" })).toEqual({ alreadyGone: false, message: "server exploded" });
   });
 
   // Pre-existing defect fixed in passing (T8b2, 2026-09-21): the old version of this test asserted
-  // `describeTrashError(new Error(""), fallback)` returns the fallback text, but `describeApiError`
+  // `describeTrashError({ errors: taxonomyHostKit, ew Error(""), fallback)` returns the fallback text, but `describeApiError`
   // (lib/api.ts) only substitutes the fallback for an `ApiError` with an empty `message` (`e.message
   // || fallback`) — a plain `Error` always surfaces its own `.message` unconditionally (`e
   // instanceof Error ? e.message : fallback`), even when that message is `""`. The assertion was
   // simply wrong for the code it was testing; split into the two real behaviors below rather than
   // patched to expect `""`, since a passing-but-misleading test name is worse than two accurate ones.
   it("surfaces a plain Error's own message unconditionally — describeApiError never substitutes the fallback for a non-ApiError", () => {
-    expect(describeTrashError({ e: new Error("Failed to fetch"), fallback: "failed to delete" })).toEqual({
+    expect(describeTrashError({ errors: taxonomyHostKit, e: new Error("Failed to fetch"), fallback: "failed to delete" })).toEqual({
       alreadyGone: false,
       message: "Failed to fetch",
     });
@@ -245,7 +246,7 @@ describe("describeTrashError", () => {
 
   it("falls back to the given fallback text when the ApiError itself carries no message", () => {
     const e = new ApiError({ message: "", status: 500 }, { code: undefined, body: {} });
-    expect(describeTrashError({ e, fallback: "failed to delete" })).toEqual({
+    expect(describeTrashError({ errors: taxonomyHostKit, e, fallback: "failed to delete" })).toEqual({
       alreadyGone: false,
       message: "failed to delete",
     });
@@ -265,8 +266,8 @@ describe("visibleTaxonomyError", () => {
   };
 
   it("skips a term delete that has no message (no error, or already gone) and shows the taxonomy delete failure", () => {
-    expect(visibleTaxonomyError({ ...base, deleteTaxonomyError: new Error("taxonomy locked") })).toBe("taxonomy locked");
-    expect(visibleTaxonomyError({
+    expect(visibleTaxonomyError({ errors: taxonomyHostKit, ...base, deleteTaxonomyError: new Error("taxonomy locked") })).toBe("taxonomy locked");
+    expect(visibleTaxonomyError({ errors: taxonomyHostKit,
       ...base,
       deleteTermError: new ApiError({ message: "gone", status: 404 }, { code: "NOT_FOUND" }),
       deleteTaxonomyError: new Error("taxonomy locked"),
@@ -274,7 +275,7 @@ describe("visibleTaxonomyError", () => {
   });
 
   it("prefers a term delete failure over the taxonomy one and the list read", () => {
-    expect(visibleTaxonomyError({
+    expect(visibleTaxonomyError({ errors: taxonomyHostKit,
       ...base,
       deleteTermError: new Error("term in use"),
       deleteTaxonomyError: new Error("taxonomy locked"),
@@ -283,7 +284,7 @@ describe("visibleTaxonomyError", () => {
   });
 
   it("ignores blocked deletes (shown in their own slot) and falls through to the list error, else nothing", () => {
-    expect(visibleTaxonomyError({
+    expect(visibleTaxonomyError({ errors: taxonomyHostKit,
       ...base,
       deleteTermBlocked: true,
       deleteTermError: new Error("term in use"),
@@ -291,7 +292,7 @@ describe("visibleTaxonomyError", () => {
       deleteTaxonomyError: new Error("taxonomy locked"),
       listError: new Error("list down"),
     })).toBe("list down");
-    expect(visibleTaxonomyError(base)).toBeNull();
+    expect(visibleTaxonomyError({ errors: taxonomyHostKit, ...base })).toBeNull();
   });
 });
 

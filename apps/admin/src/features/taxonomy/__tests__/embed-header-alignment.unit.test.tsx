@@ -3,13 +3,14 @@ import { expect, it } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
-import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
+import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
+import { createTaxonomyBlockedError, taxonomyHostKit } from "../taxonomy-host-ports";
 
 it("groups copy embed with the taxonomy row actions at the right of the header", async () => {
-  const port = createFakeTaxonomyPort({ groups: [{ taxonomy: {
+  const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [{ taxonomy: {
     id: "categories", name: "Categories", hierarchical: true, status: "active", version: 1, updatedAt: "2026-10-04",
   }, terms: [] }] });
-  render(<FetchQueryProvider><Taxonomy useTaxonomyHook={() => useTaxonomy(port, "en", (key) => key)} /></FetchQueryProvider>);
+  render(<FetchQueryProvider><Taxonomy useTaxonomyHook={() => useTaxonomy(port, "en", (key) => key, taxonomyHostKit)} /></FetchQueryProvider>);
   const copy = await screen.findByRole("button", { name: "Copy HTML embed" });
   expect(copy.parentElement).toHaveClass("page-actions");
   expect(copy.parentElement?.parentElement).toHaveClass("taxonomy-namespace-group-header");

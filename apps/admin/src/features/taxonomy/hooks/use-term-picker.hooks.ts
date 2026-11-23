@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
-import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t } from "../taxonomy-i18n";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
-import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
+import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "@jini-ai/admin/screens/taxonomy/rules";
 
-import { defaultTermPickerPort } from "../taxonomy-host-ports";
 import type { TermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import type { TaxonomyHostKit } from "@jini-ai/admin/screens/taxonomy/taxonomy-host-kit";
 /**
  * @file `TermPicker`'s own state and async action — the Categories & Tags box the post, page and
  * collection-entry editors all mount (`TermPicker.tsx`). One content ref (`contentType` +
@@ -82,6 +79,8 @@ export interface TermPickerController {
 export interface TermPickerDependencies {
   port: TermPickerPort;
   locale: string;
+  /** The host's translator, request-error copy and failure channel. */
+  kit: TaxonomyHostKit;
 }
 
 /** Which post, page or collection entry the picker tags. */
@@ -104,15 +103,16 @@ function missingFrom(from: Iterable<string>, other: ReadonlySet<string>): string
  * @param required - The save mutation's and both queries' errors, and the admin locale.
  * @returns The described error, or `null` when nothing failed.
  */
-function pickerError({ saveError, assignedError, taxonomiesError, locale }: {
+function pickerError({ saveError, assignedError, taxonomiesError, locale, kit }: {
   saveError: unknown;
   assignedError: unknown;
   taxonomiesError: unknown;
   locale: string;
+  kit: TaxonomyHostKit;
 }): string | null {
-  if (saveError) return describeApiError({ e: saveError, fallback: t({ locale: locale, key: "Failed to save categories & tags" }) });
+  if (saveError) return kit.describeApiError({ e: saveError, fallback: kit.translate({ locale: locale, key: "Failed to save categories & tags" }) });
   const loadError = assignedError ?? taxonomiesError;
-  return loadError ? describeApiError({ e: loadError, fallback: t({ locale: locale, key: "Failed to load categories & tags" }) }) : null;
+  return loadError ? kit.describeApiError({ e: loadError, fallback: kit.translate({ locale: locale, key: "Failed to load categories & tags" }) }) : null;
 }
 
 /**
@@ -132,7 +132,7 @@ function pickerStatus({ taxonomiesStatus, assignedStatus, taxonomyCount }: {
 }
 
 export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependencies): TermPickerController {
-  const { port, locale } = deps;
+  const { port, locale, kit } = deps;
   const target = { contentType: props.contentType, contentId: props.contentId };
   const key = KEYS.assignedTerms(props.contentType, props.contentId);
   // Same fetch (and so the same cached `{ items }` shape) as `use-taxonomy.hooks.ts`'s list read —
@@ -272,7 +272,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     setMessage(null);
     try {
       await saveMutation.mutate({ input: { add, remove } });
-      setMessage(t({ locale: locale, key: "Categories & tags saved." }));
+      setMessage(kit.translate({ locale: locale, key: "Categories & tags saved." }));
     } catch {
       // already surfaced through saveMutation.error -> error below
     }
@@ -283,6 +283,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     assignedError: assignedQuery.error,
     taxonomiesError: taxonomiesQuery.error,
     locale,
+    kit,
   });
   const { hidden, loading } = pickerStatus({
     taxonomiesStatus: taxonomiesQuery.status,
@@ -302,7 +303,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     message,
     error,
     save,
-    t: (key) => t({ locale: locale, key: key }),
+    t: (key) => kit.translate({ locale: locale, key: key }),
     canCreate,
     showAddInput,
     showAddTrigger: (taxonomyId) => canCreate && Boolean(groupOf(taxonomyId)) && !showAddInput(taxonomyId),
@@ -315,20 +316,9 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
     createError: (taxonomyId) =>
       createTarget === taxonomyId && createMutation.error
-        ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create term" }) })
+        ? kit.describeApiError({ e: createMutation.error, fallback: kit.translate({ locale: locale, key: "Failed to create term" }) })
         : null,
     suggestions: (taxonomyId) =>
       (groupOf(taxonomyId)?.terms ?? []).filter((term) => !selected.has(term.id)).map((term) => term.name),
   };
-}
-
-/**
- * Binds the real `/api/.../taxonomy` list and `{assigned,assign,unassign}-terms` client and the
- * resolved `useAdminLocale()` value — see `term-picker-dependencies.hooks.ts`. The zero-argument-deps
- * half of the `useX(dependencies)` / `useWiredX()` pair, so `TermPicker.tsx` composes this and a
- * test composes {@link useTermPicker} with `createFakeTermPickerPort`.
- */
-export function useWiredTermPicker(props: TermPickerTarget): TermPickerController {
-  const locale = useAdminLocale();
-  return useTermPicker(props, { port: defaultTermPickerPort, locale });
 }

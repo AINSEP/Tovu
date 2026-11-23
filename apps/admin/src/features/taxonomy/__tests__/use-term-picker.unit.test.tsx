@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
-import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
+import { useTermPicker } from "../hooks/use-term-picker.hooks";
+import { useWiredTermPicker } from "../taxonomy-wired.hooks";
 import type { TermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-port.hooks";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `useTermPicker` — `TermPicker`'s taxonomy list, its ticked set loaded from the content's own
@@ -34,7 +36,7 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 }
 
 async function mountWith(port: TermPickerPort, target = { contentType: "recipe", contentId: "e1" }) {
-  const hook = renderHook(() => useTermPicker(target, { port, locale: "en" }), { wrapper });
+  const hook = renderHook(() => useTermPicker(target, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
 }
@@ -42,7 +44,7 @@ async function mountWith(port: TermPickerPort, target = { contentType: "recipe",
 describe("loading the entry's terms", () => {
   it("starts loading, then shows the entry's own terms ticked and nothing to save", async () => {
     const port = createFakeTermPickerPort({ assigned: ["t1", "t2"] });
-    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     expect(hook.result.current.loading).toBe(true);
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
     expect(hook.result.current.selected).toEqual(new Set(["t1", "t2"]));
@@ -53,7 +55,7 @@ describe("loading the entry's terms", () => {
   it("stays loading while the content's own terms are still being read, even once the list has landed", async () => {
     const pending = deferred<{ termIds: string[] }>();
     const port: TermPickerPort = { ...createFakeTermPickerPort({ taxonomies: [] }), assignedTerms: () => pending.promise };
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.hidden).toBe(true));
     expect(result.current.loading).toBe(true);
     act(() => pending.resolve({ termIds: [] }));
@@ -62,7 +64,7 @@ describe("loading the entry's terms", () => {
 
   it("a failed read is reported with its own message", async () => {
     const port = createFakeTermPickerPort({ loadError: new Error("read exploded") });
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("read exploded"));
   });
 });
@@ -81,28 +83,28 @@ describe("the taxonomy list and the tagged content", () => {
 
   it("hides the box once the list is known to be empty, not while it loads", async () => {
     const port = createFakeTermPickerPort();
-    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     expect(hook.result.current.hidden).toBe(false);
     await waitFor(() => expect(hook.result.current.hidden).toBe(true));
   });
 
   it("a failed taxonomy list read is reported with its own message", async () => {
     const port = createFakeTermPickerPort({ taxonomiesError: new Error("list exploded") });
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("list exploded"));
     expect(result.current.hidden).toBe(false);
   });
 
   it("when both reads fail, the content's own terms read is the one reported", async () => {
     const port = createFakeTermPickerPort({ loadError: new Error("read exploded"), taxonomiesError: new Error("list exploded") });
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("read exploded");
   });
 
   it("a failed save is reported in place of an earlier failed list read", async () => {
     const port = createFakeTermPickerPort({ taxonomiesError: new Error("list exploded"), saveError: new Error("server exploded") });
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("list exploded"));
     act(() => result.current.toggle("t1"));
     await act(async () => {
@@ -113,7 +115,7 @@ describe("the taxonomy list and the tagged content", () => {
 
   it("tags a post by its own content ref and names it a post", async () => {
     const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
-    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "en" }), { wrapper });
+    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
     expect(hook.result.current.subject).toBe("post");
     act(() => hook.result.current.toggle("t1"));
@@ -132,7 +134,7 @@ describe("the taxonomy list and the tagged content", () => {
 
   it("speaks the admin locale", async () => {
     const port = createFakeTermPickerPort();
-    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "es" }), { wrapper });
+    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "es", kit: taxonomyHostKit }), { wrapper });
     await waitFor(() => expect(hook.result.current.loading).toBe(false));
     expect(hook.result.current.t("Save categories & tags")).toBe("Guardar categorías y etiquetas");
     act(() => hook.result.current.toggle("t1"));
@@ -336,7 +338,7 @@ describe("adding a term by name", () => {
   it("re-reads the new content's assignments and resets its draft when the target changes", async () => {
     const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
     const assigned = vi.spyOn(port, "assignedTerms").mockImplementation(async ({ contentId }) => ({ termIds: contentId === "p1" ? ["t1"] : ["t2"] }));
-    const { result, rerender } = renderHook(({ contentId }) => useTermPicker({ contentType: "post", contentId }, { port, locale: "en" }), { initialProps: { contentId: "p1" }, wrapper });
+    const { result, rerender } = renderHook(({ contentId }) => useTermPicker({ contentType: "post", contentId }, { port, locale: "en", kit: taxonomyHostKit }), { initialProps: { contentId: "p1" }, wrapper });
     await waitFor(() => expect(result.current.selected).toEqual(new Set(["t1"])));
     act(() => result.current.toggle("unsaved"));
     rerender({ contentId: "p2" });

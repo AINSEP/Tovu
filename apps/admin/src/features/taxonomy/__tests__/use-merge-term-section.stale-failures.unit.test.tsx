@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { createFakeMergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-dependencies.hooks";
-import { useMergeTermSection } from "../hooks/use-merge-term-section.hooks";
+import { useMergeTermSection } from "@jini-ai/admin/screens/taxonomy/hooks/use-merge-term-section.hooks";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 // The main suite is being edited by another coverage worker. Reuse its port/provider owners
 // here without modifying that worker's file.
@@ -38,7 +39,7 @@ describe("merge wizard stale failures", () => {
       port.executeMergeTerm = () => { attempted = true; return held; };
     }
     const { result, rerender } = renderHook(
-      ({ currentTerm }) => useMergeTermSection({ term: currentTerm, onMerged }, port, "en"),
+      ({ currentTerm }) => useMergeTermSection({ term: currentTerm, onMerged }, port, "en", taxonomyHostKit),
       { initialProps: { currentTerm: term }, wrapper },
     );
     act(() => result.current.setIntoTermId("into1"));

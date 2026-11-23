@@ -43,15 +43,15 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/collections/Collections.tsx",
-      "line": 85,
+      "file": "features/collections/ContentTypeFieldsSection.tsx",
+      "line": 48,
       "kind": "placeholder",
       "text": "e.g. prep_time",
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/collections/Collections.tsx",
-      "line": 198,
+      "file": "features/collections/NewContentTypeDialog.tsx",
+      "line": 48,
       "kind": "placeholder",
       "text": "e.g. recipe",
       "reason": "Literal example of a URL, identifier or markup."
