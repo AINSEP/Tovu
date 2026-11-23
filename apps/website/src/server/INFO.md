@@ -28,3 +28,18 @@ still precedes the missing-session 500, as in the hand-written routes; `authoriz
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+Users (`runtime/composition/modules/users.ts` for the 9 principal routes, `modules/users-access.ts`
+for 7 role/policy routes) mount `@jini-ai/user-management/admin-http/routes/users/*`, all `"direct"`.
+Each registrar binds the identity service its spec calls from `@jini-ai/user-management/server`, the
+identity deps assembler (`identityServiceDepsFrom`, per request), the Trash index/move, the
+account-protection guard and the host error classes as predicates. list-roles, list-policies,
+list-policy-permissions and remove-policy-permission are still hand-written (`routes/users/`): their
+authorize call sends no `entityType` / their 204 is a bare `res.send()`. `routes/users/deps.ts` stays
+(the `UsersRouteDeps` bag and `identityServiceDepsFrom`, ~40 composition importers).
+Owner MFA: `modules/owner-auth.ts` binds `ownerMfaDepsFrom` to Jini's `composeOwnerMfaDeps`; the
+owner MFA/passkey/recovery route files stay hand-written in `inbound/admin-http/`.
+Newsletter (`modules/newsletter.ts`) mounts all 19 `@jini-ai/cms/admin-http/routes/newsletter/*`
+specs, `"direct"`, `failure.operation` `http/newsletter` with the pre-move 500 copy pinned
+(`NEWSLETTER_FAILURE_COPY`). The newsletter services stay in `features/newsletter/` and are bound per
+route; `features/newsletter/http-error-responses.ts` is the injected error-class → response table
+(`http/newsletter.ts` is gone). `routes/newsletter/deps.ts` stays (its bag + `toSendPipelineDeps`).

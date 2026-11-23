@@ -2988,6 +2988,110 @@
     {
       "id": "0a60dc7d8e68",
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
+    },
+    {
+      "id": "f5e9094370c4",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/http/newsletter.ts (file header), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:21-34."
+    },
+    {
+      "id": "e6a79e7ea341",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/shared.ts (authorizeNewsletter / admitNewsletterRequest), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:38-43."
+    },
+    {
+      "id": "e6098dc71b55",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/shared.ts (rejectNewsletterError); the class table doc is in apps/website/src/features/newsletter/http-error-responses.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:144-144."
+    },
+    {
+      "id": "da1d314a5ed5",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/create-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/create-campaign.ts:43-51."
+    },
+    {
+      "id": "6c32e9308245",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/create-subscription.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts:9-13."
+    },
+    {
+      "id": "bef950d3f2b7",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/remove-subscription.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/remove-subscription.ts:8-18."
+    },
+    {
+      "id": "e62ae935b6a4",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/resend-confirmation.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/resend-confirmation.ts:8-18."
+    },
+    {
+      "id": "ea9bbabab57f",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/schedule-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/schedule-campaign.ts:15-17."
+    },
+    {
+      "id": "b4812604ae84",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/send-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts:21-41."
+    },
+    {
+      "id": "3ab4fd7fcfb0",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/update-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts:69-75."
+    },
+    {
+      "id": "8413023ead0f",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/update-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts:91-118."
+    },
+    {
+      "id": "d391f3a59eb8",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create-policy.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create-policy.ts:11-12."
+    },
+    {
+      "id": "b9a6093ca3af",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:13-14."
+    },
+    {
+      "id": "d5477697986b",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:46-57."
+    },
+    {
+      "id": "383fc81ab1b8",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:66-76."
+    },
+    {
+      "id": "83b5c2c020c9",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/delete.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/delete.ts:40-48."
+    },
+    {
+      "id": "545f2a2b8530",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/shared.ts (adminUserForPrincipal), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/disable.ts:12-19."
+    },
+    {
+      "id": "e7b022d606a1",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/disable.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/disable.ts:63-72."
+    },
+    {
+      "id": "98424681a16d",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/enable.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/enable.ts:44-49."
+    },
+    {
+      "id": "f6ff79ed9cfa",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/list.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/list.ts:8-23."
+    },
+    {
+      "id": "998961b16b3c",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/list.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/list.ts:64-68."
+    },
+    {
+      "id": "96d40118543a",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/reset-password.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts:12-16."
+    },
+    {
+      "id": "82fb115cae55",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/reset-password.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts:45-53."
+    },
+    {
+      "id": "cdff539d9f78",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/update.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/update.ts:12-13."
+    },
+    {
+      "id": "1093b546ac97",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/update.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/update.ts:22-29."
+    },
+    {
+      "id": "17085e5685cf",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/access-shared.ts (accessPermissionUnknown), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts:10-12."
     }
   ]
 }
