@@ -117,7 +117,7 @@ import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-the
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
-import { contributeWorkspaceTools } from "#src/features/workspace/index";
+import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";

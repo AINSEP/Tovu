@@ -1,6 +1,6 @@
 import { Workspace as WorkspaceScreen } from "@jini-ai/admin/screens/workspace/Workspace";
 
-import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
+import { useWiredWorkspace } from "./hooks/workspace-dependencies.hooks";
 import "./workspace.css";
 
 /**

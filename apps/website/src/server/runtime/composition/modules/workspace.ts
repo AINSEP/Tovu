@@ -4,7 +4,9 @@ import { workspaceGetRoute } from "@jini-ai/cms/admin-http/routes/workspace/get"
 import { workspaceListRoute } from "@jini-ai/cms/admin-http/routes/workspace/list";
 import { workspaceUpdateRoute } from "@jini-ai/cms/admin-http/routes/workspace/update";
 import { processOutbox } from "#src/contracts/core/events/index";
-import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "#src/server/inbound/admin-http/routes/workspace/deps";
+import type { Express } from "express";
+
+import type { RouteDeps } from "#src/server/routes/types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -20,6 +22,22 @@ import type { ServerModuleHandle } from "./types.js";
  * admin ports. `create`'s outbox flush stays host-owned (the outbox runtime has no neutral owner
  * yet) and reaches the spec as its injected `flushOutbox`.
  */
+
+/**
+ * `RouteDeps` narrowing for the `workspace` admin routes (SPEC-044).
+ *
+ * Purpose:
+ * Mirrors `apps/website/src/server/inbound/admin-http/routes/users/deps.ts`'s `UsersRouteDeps` — a genuine `Pick<RouteDeps, ...>`
+ * narrowing to exactly the fields the 5 workspace registrars read, so this module doesn't take a
+ * dependency on the full `RouteDeps` service-locator shape (`apps/website/src/server/runtime/composition/modules/types.ts`'s own
+ * `ServerModuleHandle` convention doc: "never the full RouteDeps service locator").
+ * (Lives here since the workspace route specs moved to `@jini-ai/cms/admin-http/routes/workspace/*`: these
+ * registrars are its only reader; the specs' own neutral deps are that package's `deps`.)
+ */
+export type WorkspaceRouteDeps = Pick<RouteDeps, "workspaceId" | "workspaceRepo" | "authorize" | "clock" | "idGen" | "outbox" | "bus">;
+
+/** Registrar signature for the workspace route modules (mirrors `UsersRouteRegistrar`). */
+export type WorkspaceRouteRegistrar = (required: { app: Express; deps: WorkspaceRouteDeps }, optional?: Record<string, never>) => void;
 
 /** The route's own deps plus the two port fields. `authorize` is read per request, as the
  *  hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */

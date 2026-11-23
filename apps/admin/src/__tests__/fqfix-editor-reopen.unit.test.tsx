@@ -12,7 +12,9 @@ import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dep
 import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
 import { useMenuEditor } from '@/features/menus/hooks/use-menu-editor.hooks';
 import { createFakeMenusPort } from '@/features/menus/hooks/menus-dependencies.hooks';
-import { useWorkspace } from '@/features/workspace/hooks/use-workspace.hooks';
+import { useWorkspace } from '@jini-ai/admin/screens/workspace/hooks/use-workspace.hooks';
+import { describeApiError as describeWorkspaceError } from '@/features/workspace/rules';
+import { t as workspaceT } from '@/features/workspace/workspace-i18n';
 import { createFakeWorkspacePort } from '@/features/workspace/hooks/workspace-dependencies.hooks';
 import { useAgentPluginMemory } from '@/features/plugins/hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '@/features/plugins/hooks/agent-plugin-memory-port.hooks';
@@ -84,7 +86,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const workspace: AdminWorkspace = { id: 'ws1', name: 'Cached workspace', slug: 'cached', createdAt: '2026-10-01T00:00:00Z', version: 1 };
     const port = createFakeWorkspacePort({ workspace });
     let current!: ReturnType<typeof useWorkspace>;
-    function Probe() { current = useWorkspace({ port }); return null; }
+    function Probe() { current = useWorkspace({ port, locale: 'en', translate: workspaceT, describeError: describeWorkspaceError }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.name).toBe('Cached workspace'));
     view.rerender(<Scope />);

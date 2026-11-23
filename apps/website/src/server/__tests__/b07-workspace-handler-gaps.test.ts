@@ -4,7 +4,7 @@ import express from "express";
 import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import { registerAdminWorkspaceGetRoute, registerAdminWorkspaceListRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
-import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "../inbound/admin-http/routes/workspace/deps.js";
+import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "../runtime/composition/modules/workspace.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 const WS = "ws-b07";

@@ -2,7 +2,7 @@ import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminWorkspaceCreateRoute, registerAdminWorkspaceDeleteRoute, registerAdminWorkspaceGetRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
 

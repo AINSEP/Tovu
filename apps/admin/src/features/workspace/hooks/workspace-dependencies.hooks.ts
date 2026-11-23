@@ -1,6 +1,11 @@
 import type { AdminWorkspaceResponse as AdminWorkspace } from "@jini-ai/core/contracts/site/cms-workspace";
 import { workspaceApi } from "@/features/workspace/api/workspace-api";
 import type { WorkspacePort } from "@jini-ai/admin/screens/workspace/hooks/workspace-port.hooks";
+import type { WorkspaceController } from "@jini-ai/admin/screens/workspace/Workspace";
+import { useWorkspace } from "@jini-ai/admin/screens/workspace/hooks/use-workspace.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { describeApiError } from "../rules";
+import { t } from "../workspace-i18n";
 
 /**
  * @file The only place under `features/workspace` that reaches `lib/api` — see
@@ -51,4 +56,18 @@ export function createFakeWorkspacePort(options: FakeWorkspacePortOptions = {}):
       return { workspace: current };
     },
   };
+}
+
+/**
+ * Binds the real `/api/.../workspaces/{id}` client — see {@link defaultWorkspacePort} above.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `Workspace.tsx` composes this and a test composes `useWorkspace` (now
+ * `@jini-ai/admin/screens/workspace/hooks/use-workspace.hooks`) with `createFakeWorkspacePort`.
+ * This install's locale (`useAdminLocale()`), its workspace dictionary and its error-code copy
+ * (`rules.ts`'s `describeApiError`) are injected here, because the shared hook owns none of them.
+ */
+export function useWiredWorkspace(): WorkspaceController {
+  const locale = useAdminLocale();
+  return useWorkspace({ port: defaultWorkspacePort, locale, translate: t, describeError: describeApiError });
 }

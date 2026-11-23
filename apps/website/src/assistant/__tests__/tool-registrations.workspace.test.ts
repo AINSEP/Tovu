@@ -6,7 +6,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { type AgentToolDefinition as WorkspaceAgentToolDefinition } from "@jini-ai/core";
-import { getWorkspaceAgentToolCatalog, InMemoryWorkspaceRepo } from "../../features/workspace/index.js";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
+import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools.js";
 import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";

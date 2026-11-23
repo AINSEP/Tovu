@@ -77,7 +77,7 @@ import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.j
 import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
-import type { WorkspaceToolDeps } from "../features/workspace/index.js";
+import type { WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";

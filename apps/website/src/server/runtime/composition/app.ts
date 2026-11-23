@@ -51,7 +51,7 @@ import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/ind
 import { InMemorySettingsRepo, set } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
-import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
+import { InMemoryWorkspaceRepo } from "@jini-ai/cms/workspace";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { builtInThemesDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
