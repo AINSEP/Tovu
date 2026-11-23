@@ -26,11 +26,13 @@ import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhoo
 import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
-import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { composeFormDelivery } from "../form-delivery.js";
 import { composeFormDeliveryDeliverer } from "../form-delivery-deliverer.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Harness for the G14b end-to-end proof that a form submission reaches a push destination
@@ -216,7 +218,7 @@ export async function createOAuthDeliverySite(required: {
     },
     async setPluginSetting({ pluginId, key, value }) { await host.pluginState.forPlugin({ workspaceId: WORKSPACE, pluginId }).set({ key, value }); },
     async bind({ bindings }) {
-      await writeFormDeliveryBindings({ deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
+      await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
     },
     bindings: () => readFormDeliveryBindings({ settingsRepo, workspaceId: WORKSPACE, getEffective }),
     async surfaceAction({ pluginId, surfaceId, action, payload = {} }, optional = {}) {

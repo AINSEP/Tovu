@@ -6,9 +6,11 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDelive
 import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { composeFormDelivery, type FormDeliveryCompositionDeps } from "../form-delivery.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file `composeFormDelivery` on its own, over in-memory repos: what the planner freezes from the
@@ -29,7 +31,7 @@ async function settingsSelectingEveryForm(): Promise<InMemorySettingsRepo> {
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-  await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId: W, callerPrincipalId: "owner",
+  await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId: W, callerPrincipalId: "owner",
     value: [{ bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { table: "leads" } }] });
   return settingsRepo;
 }

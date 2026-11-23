@@ -13,7 +13,7 @@ import { getEffective, type SetValueRequired } from "@jini-ai/core/settings";
 
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
-import { FormDeliveryBindingsConflictError, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { FormDeliveryBindingsConflictError, writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -32,6 +32,7 @@ import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#
 import { createSurfaceForms } from "@jini-ai/agent-plugins/site/admin-surfaces/forms";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file One site's binding of the three plugin-facing host seams that share a connection port:
@@ -101,7 +102,7 @@ function formDeliveryBindingsStore(required: { settings: SetValueRequired["deps"
   return {
     isConflict: ({ error }, _options = {}) => error instanceof FormDeliveryBindingsConflictError,
     read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId, getEffective }),
-    write: async ({ workspaceId, callerPrincipalId, value, expectedValue }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }, { expectedValue }); },
+    write: async ({ workspaceId, callerPrincipalId, value, expectedValue }) => { await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: settings, workspaceId, callerPrincipalId, value }, { expectedValue }); },
   };
 }
 

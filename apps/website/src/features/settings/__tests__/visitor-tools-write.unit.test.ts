@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureSettingDefinitions, getEffective, ForbiddenError, InMemorySettingsRepo, ValueValidationFailedError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { readVisitorToolPolicy } from "../../../assistant/site/visitor-tool-settings.js";
-import { clear, resetNamespace, set } from "../site-title-write.js";
+import { clear, resetNamespace, set } from "../settings-write-policies.js";
 import { guardVisitorToolsRevision, readVisitorToolsRevision, readVisitorToolsSnapshot, writeVisitorTools, VisitorToolsRevisionConflictError } from "../visitor-tools-write.js";
 import { VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING } from "../../../contracts/site-assistant/visitor-tools.js";
 

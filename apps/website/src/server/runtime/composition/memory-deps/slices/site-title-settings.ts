@@ -23,14 +23,14 @@ export function composeSiteTitleSettings(required: { settingsRepo: InMemorySetti
   const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions };
   const siteSettingsReady = analyticsSettingsReady
-    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
+    // `core.interface` (`@jini-ai/cms/settings/site/admin-interface`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }))
-    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
+    // Bug D: `core.site.timezone` (`@jini-ai/cms/settings/site/site-timezone`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
   // Public title reads already handle pending pins; consent must not inherit this migration wait.
   const siteTitleReady = siteSettingsReady

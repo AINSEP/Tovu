@@ -25,7 +25,7 @@ import { ensureChartProviderSetting } from "@jini-ai/cms/settings/site/chart-pro
 import { ensureCommerceSetting } from "../commerce-settings.js";
 import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
-import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
+import { ensureMailProviderSettings } from "@jini-ai/cms/settings/site/mail-provider";
 import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
 import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, set } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
@@ -102,7 +102,7 @@ function startPersistentSiteSettings(required: {
 }, _options = {}) {
   const { analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore } = required;
   const siteSettingsReady = analyticsSettingsReady
-    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
+    // `core.interface` (`@jini-ai/cms/settings/site/admin-interface`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -110,14 +110,14 @@ function startPersistentSiteSettings(required: {
     .then(() => ensureMediaObjectStoreSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, ensureSettingDefinitions }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
+    // `core.mail.senderEmail`/`senderName` (`@jini-ai/cms/settings/site/mail-sender`): system mail's From.
     .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // `core.mail.provider`/`testMode` (`features/settings/mail-provider.ts`): explicit provider per lane.
+    // `core.mail.provider`/`testMode` (`@jini-ai/cms/settings/site/mail-provider`): explicit provider per lane.
     .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }))
-    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
+    // Bug D: `core.site.timezone` (`@jini-ai/cms/settings/site/site-timezone`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureCommerceSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
   // Public title reads already handle pending pins; consent must not inherit this migration wait.

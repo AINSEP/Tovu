@@ -2,7 +2,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { resolveDefinitionRaw, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { parseVisitorToolPolicy, VisitorToolPolicyValidationError, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, type VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
-import { set } from "./site-title-write.js";
+import { set } from "./settings-write-policies.js";
 
 /** A stale page/chat snapshot; refetch rather than replaying a publication approval. */
 export class VisitorToolsRevisionConflictError extends Error {}

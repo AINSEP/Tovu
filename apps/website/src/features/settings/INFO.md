@@ -1,7 +1,8 @@
 # settings Overview
 
-Owns Tovu's host side of the settings ledger: the SQLite repository, the settings write chokepoint
-(`site-title-write.ts`), typed writes and the host's tool wiring. The ledger itself
+Owns Tovu's host side of the settings ledger: the SQLite repository, the host write policy bound
+into the settings write chokepoint (`settings-write-policies.ts`; the chokepoint itself is
+`@jini-ai/cms/settings/site/site-title-write`), and the host's tool wiring. The ledger itself
 (`ensureSettingDefinitions`, `getEffective`, `set`) lives in `@jini-ai/core/settings`; the site
 settings helpers live in `@jini-ai/cms/settings/site/*` and `@jini-ai/search/site/settings`.
 
@@ -27,3 +28,13 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   `preserveLegacySiteTitles`' deps), and through `siteTitleHostBindings` (the legacy title plus
   `getEffective`) on every `resolveSiteTitle` call site (render context, `llms.ts`, `feed.ts`, the
   templated preview, site consent).
+- `settings-write-policies.ts` owns the visitor-tools dedicated writer (`VISITOR_TOOLS_*` and
+  `parseVisitorToolPolicy` from `contracts/site-assistant/visitor-tools.ts`) and binds it once as
+  `SETTINGS_WRITE_POLICIES` into the package chokepoint. The barrel's `set`/`clear`/`resetNamespace`/
+  `refuseDedicatedSetting*` are those bound functions, so every existing caller (admin settings route,
+  `RouteDeps.set`, comments, SEO, visitor tools) keeps its call shape. The typed writers that wrap the
+  chokepoint (`writeFormDeliveryBindings`, `writeMailProviderSetting`, from `@jini-ai/cms/settings/site/*`)
+  take `writePolicies: SETTINGS_WRITE_POLICIES` at their call sites (`composition/site-mailer.ts`,
+  `composition/agent-plugin-connections.ts`).
+- `tool-registrations.ts` binds `validateRuntimeSelection` (`@jini-ai/agent-runtime`) on
+  `prepareChatExecutionWrite`, and narrows `SettingsToolDeps` to Tovu's `AssistantAgentInventory`.

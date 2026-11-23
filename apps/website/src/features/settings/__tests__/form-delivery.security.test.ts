@@ -6,7 +6,8 @@ import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, ValueVali
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
 import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
-import { writeFormDeliveryBindings } from "../form-delivery-write.js";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Phase-A security pins for `core.forms/deliveryBindings`: config never carries a secret
@@ -124,7 +125,7 @@ const WS = "ws-form-delivery";
 test("the validating write refuses a secret-carrying list before the ledger is touched", async () => {
   const { settingsRepo, counter, deps } = await ledger();
   await assert.rejects(
-    writeFormDeliveryBindings({ deps, workspaceId: WS, callerPrincipalId: "owner", value: [binding({ config: { apiKey: "a" } })] }),
+    writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps, workspaceId: WS, callerPrincipalId: "owner", value: [binding({ config: { apiKey: "a" } })] }),
     (error: unknown) => error instanceof ValueValidationFailedError && /"config\.apiKey" is named like a secret/.test(error.message),
   );
   assert.equal(counter.authorizeCalls, 0, "refused before the settings write ran");

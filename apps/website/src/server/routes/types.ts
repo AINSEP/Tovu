@@ -835,7 +835,7 @@ export interface AnalyticsDeps {
    * Independent of title preservation: public reads must work while a title pin is pending. */
   siteConsentReady: Promise<void>;
   /**
-   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
+   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `@jini-ai/cms/settings/site/site-timezone`).
    * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.
    */
   siteTimeZone?: SiteTimeZonePort;

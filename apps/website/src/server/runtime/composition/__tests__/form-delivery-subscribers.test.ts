@@ -7,11 +7,13 @@ import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
-import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { composeFormDelivery } from "../form-delivery.js";
 import { createIntegrationsModule } from "../modules/integrations.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file The delivery planner beside the other `form.submission.received` subscribers. The bus runs
@@ -31,7 +33,7 @@ async function settingsSelectingEveryForm() {
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-  await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId: W, callerPrincipalId: "owner",
+  await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: settingsRepo, clock, ids, authorize, principals }, workspaceId: W, callerPrincipalId: "owner",
     value: [{ bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { table: "leads" } }] });
   return settingsRepo;
 }

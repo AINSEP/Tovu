@@ -39,14 +39,18 @@ import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration } fro
 import { buildSettingsRegistrations as buildCmsSettingsRegistrations, AGENT_WRITE_CONFIRMATION_SETTINGS, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { DEDICATED_SETTINGS_WRITERS, set } from "./site-title-write.js";
+import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import { DEDICATED_SETTINGS_WRITERS, set } from "./settings-write-policies.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";
-import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
+import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "@jini-ai/cms/settings/site/chat-execution-write";
 
 export { settingsDerivedRisk } from "@jini-ai/core/settings";
 
-import type { SettingsToolDeps } from "./tool-deps.js";
-export type { SettingsToolDeps } from "./tool-deps.js";
+import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
+import type { SettingsToolDeps as SiteSettingsToolDeps } from "@jini-ai/cms/settings/site/tool-deps";
+
+/** The settings tools' deps bound to this host's full chat-picker inventory. */
+export type SettingsToolDeps = SiteSettingsToolDeps<AssistantAgentInventory>;
 
 /** Where visitors' form answers go: delivery bindings send every new submission to outside
  * destinations, and the receiver collects a static site's submissions. Both always ask, because a
@@ -95,7 +99,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
     confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, expectedRevisionSeq, value, reason }, options?: ToolExecutionOptions) => {
       const request = { ctx, toolId, namespace, key, scope, value };
-      const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request });
+      const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request, validateRuntimeSelection });
       // Enabling a plugin does not approve later setting changes; preserve its admitted identity
       // across the fresh card while the settings owner retains authorization and revision checks.
       const handler = approvalToolHandler({ surfaces,
@@ -123,7 +127,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
         run: async ({ ctx: snapshot, prepared }) => {
           // The model/effort depends on the selected runtime too. Consent must not drift to a
           // different selection if another picker changes it while this card is held open.
-          const currentSelection = await prepareChatExecutionWrite({ deps: routeDeps, request: { ...request, ctx: snapshot } });
+          const currentSelection = await prepareChatExecutionWrite({ deps: routeDeps, request: { ...request, ctx: snapshot }, validateRuntimeSelection });
           const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
           return { confirmed: !snapshot.signal.aborted && currentKey === prepared.identityKey && currentSelection === selectionSnapshot };
         },

@@ -43,7 +43,7 @@ export interface FormSubmissionsCompositionDeps {
   readonly idGen: IdGenerator;
   readonly credentials: CustomCredentialWriteDeps;
   readonly loadFormDestinations: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<FormDestinationRegistry>;
-  /** For the site's `core.forms` `receiver` read (`features/settings/form-destination.ts`). */
+  /** For the site's `core.forms` `receiver` read (`@jini-ai/cms/settings/site/form-destination`). */
   readonly settingsRepo: SettingsRepoPort;
 }
 
