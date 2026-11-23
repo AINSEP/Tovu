@@ -7,7 +7,7 @@ import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { SqlPrincipalRepo } from "../../identity/repo.js";
 import { SqlMemberRepo, SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberExternalIdentityRepo } from "../../members/repo.js";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo } from "@jini-ai/user-management/members/repo.memory";
-import { resolveFederatedIdentity, type MemberLoginLinkDeps } from "../link-service.js";
+import { resolveFederatedIdentity, type MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, provider } from "./fixtures.js";
 
@@ -17,7 +17,7 @@ function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {
     members: new SqlMemberRepo(kernel), sessions: new SqlMemberSessionRepo(kernel), magicLinks: new SqlMagicLinkTokenRepo(kernel),
     identities: new SqlMemberExternalIdentityRepo({ kernel }), principals: new SqlPrincipalRepo(kernel),
     tiers: new InMemoryMemberTierRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(),
-    transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key),
+    transaction: run => kernel.transaction(run), lockKey: key => kernel.lockKey(key), reportFailure: () => undefined,
     mailTransport: membersMailTransport,
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => { throw new Error("no mail in authoritative login"); }, sendBatch: async () => [] } };

@@ -12,8 +12,11 @@ this app into it. `panels.tsx` imports only `index.ts`.
 - `useObservabilityStatusHook`, `useRecentServerErrorsHook`, `useQueriesTabHook`, `QueryCachePanel` —
   from `hooks/observability-wiring.hooks.ts` (this admin's API client, locale, translator, error copy
   and the TanStack devtools panel).
-- `useRecentErrorItemHook` (`hooks/use-recent-error-item.hooks.ts`), `useObservabilityTabHook`
-  (`hooks/use-observability-tab.hooks.ts`, the `?tab=` URL adapter).
+- `useRecentErrorItemHook` and `useObservabilityTabHook` (the `?tab=` URL adapter) — Jini's
+  `@jini-ai/admin/screens/observability/hooks/use-recent-error-item.hooks` and
+  `.../use-observability-tab.hooks`. They read `useCopyToClipboard`, `useTabbedDialog`,
+  `findActiveTab` and `resolveInitialActiveTabId` from the admin kit, which
+  `integrations/jini-kits.ts` binds from `@jini-ai/ui`.
 - `readToolGaps` — `observabilityApi.getToolGaps()` (`api/observability-api.ts`).
 - `useAdminThemeBoundaryHook` — `admin-themes/use-admin-theme.hooks`.
 - `useAdminKitValuesHook` — `useAdminKitValues` from `@jini-ai/admin/react/kit`.

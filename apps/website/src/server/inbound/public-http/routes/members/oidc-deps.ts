@@ -2,7 +2,7 @@
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { parse } from "cookie";
-import { type MemberLoginLinkDeps } from "#src/features/member-login/index";
+import type { MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import type { OidcLoginDeps, LoginContext } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError, type LoginProvider, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
 import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";

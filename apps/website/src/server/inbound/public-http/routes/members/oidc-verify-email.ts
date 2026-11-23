@@ -1,7 +1,7 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express } from "express";
 import { openLoginEmailContinuation } from "@jini-ai/user-management/member-login/oidc-login";
-import { resolveFederatedIdentity } from "#src/features/member-login/index";
+import { resolveFederatedIdentity } from "@jini-ai/user-management/member-login/link-service";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

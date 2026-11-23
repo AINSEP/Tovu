@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import test from "node:test";
 import express, { type Request, type Response } from "express";
 
-import * as memberLogin from "#src/features/member-login/index";
+import type * as memberLogin from "@jini-ai/user-management/member-login/link-service";
 import * as oidcLogin from "@jini-ai/user-management/member-login/oidc-login";
 import { originFixture } from "#src/features/member-login/__tests__/fixtures";
 import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
@@ -50,7 +50,7 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
   const deps: MemberOidcRouteDeps = { members,
     protocol: portFake<oidcLogin.OidcLoginDeps>({ origin: originFixture() }),
     links: portFake<memberLogin.MemberLoginLinkDeps>({ clock, members: memberRepo, identities,
-      transaction: async run => run(), lockKey: async () => undefined }),
+      transaction: async run => run(), lockKey: async () => undefined, reportFailure: () => undefined }),
     listProviders: async () => [],
   };
   const app = express();

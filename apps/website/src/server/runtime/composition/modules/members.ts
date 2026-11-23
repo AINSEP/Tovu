@@ -5,6 +5,7 @@ import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/rout
 import { registerAdminMemberDisableRoute } from "#src/server/inbound/admin-http/routes/members/disable";
 import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/admin-http/routes/members/request-magic-link";
 import type { MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
@@ -72,7 +73,9 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
       appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
       beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad },
     links: { ...toPublicMembersWriteServiceDeps(members), identities: new SqlMemberExternalIdentityRepo({ kernel }),
-      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key) } };
+      transaction: body => kernel.transaction(body), lockKey: key => kernel.lockKey(key),
+      // The visitor gets only the fixed LOGIN_UNAVAILABLE code; the redacted cause goes to the server log.
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } } };
 }
 
 /** Register the public-only dependency bundle. No admin capability reaches an OIDC handler.

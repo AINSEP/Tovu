@@ -8,7 +8,7 @@ import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRe
 import type { MemberRecord } from "@jini-ai/user-management/members/types";
 import type { OutboundEmail } from "../../../platform/mail/index.js";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
-import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
+import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "@jini-ai/user-management/member-login/link-service";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";
 
@@ -36,6 +36,7 @@ function fixture() {
       try { return await run(); } finally { inTransaction = false; }
     },
     lockKey: async key => { assert.equal(inTransaction, true); locks.push(key); },
+    reportFailure: () => undefined,
   };
   async function seed(status: MemberRecord["status"] = "active", email = identity.email) {
     const member: MemberRecord = { id: "member-1", workspaceId: "ws", email, status,

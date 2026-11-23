@@ -7,8 +7,8 @@
  * Host wiring for the Observability screen (`panels.tsx`/`panel-pages.ts` import from HERE).
  *
  * Binds this admin's real values into `@jini-ai/admin`'s Observability: the product name, the
- * API-bound state hooks, the per-row copy hook and tab/URL adapter (both on UI-library helpers the
- * admin kit does not carry yet), the theme boundary, the TanStack devtools panel, and the
+ * API-bound state hooks, the per-row copy hook and tab/URL adapter (Jini's, reading the UI-library
+ * helpers this admin binds into the admin kit in `integrations/jini-kits.ts`), the theme boundary, the TanStack devtools panel, and the
  * stylesheets. Tests may override any binding through props.
  */
 import { createElement } from "react";
@@ -20,8 +20,8 @@ import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { observabilityApi } from "./api/observability-api";
-import { useObservabilityTab } from "./hooks/use-observability-tab.hooks";
-import { useRecentErrorItem } from "./hooks/use-recent-error-item.hooks";
+import { useObservabilityTab } from "@jini-ai/admin/screens/observability/hooks/use-observability-tab.hooks";
+import { useRecentErrorItem } from "@jini-ai/admin/screens/observability/hooks/use-recent-error-item.hooks";
 import { QueryDevtoolsPanel, useWiredObservabilityStatus, useWiredQueriesTab, useWiredRecentServerErrors } from "./hooks/observability-wiring.hooks";
 
 const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent"> = {
