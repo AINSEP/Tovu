@@ -6,8 +6,9 @@ const HTML_MIME_TYPES: ReadonlySet<string> = new Set(["text/html", "text/html;pr
 
 /** Narrows the renderer's unknown package boundary without casting a required presentation port. */
 export function isAskChoiceUiResource(required: { ui: unknown }, _optional: Record<string, never> = {}): required is { ui: UIResource } {
-  // Any non-null object; properties are then read as unknown. Core's `isRecord` narrows
-  // `required.value` rather than a bare variable, so each candidate is bound in a `{ value }` first.
+  // Any non-null object; properties are then read as unknown. A positional parameter would be needed because a type
+  // predicate cannot name a destructured binding; core's `isRecord` instead narrows `required.value`, so each
+  // candidate is bound in a `{ value }` first.
   const envelope = { value: required.ui };
   if (!isRecord(envelope) || envelope.value.type !== "resource") return false;
   const resource = { value: envelope.value.resource };
