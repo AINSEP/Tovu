@@ -18,12 +18,12 @@ import { captureDaemonRun, daemonFunction } from "./helpers/daemon-source.js";
 
 const DAEMON_ENTRY_SOURCE = daemonFunction("assembleRunPrompt").body!.getText();
 
-test("the run prompt renders decoded.pageContext directly after the dispatch marker", () => {
+test("the run prompt renders decoded.pageContext directly after the (conditional) dispatch marker", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
     // History is selected (resume tail or cold-start context) before this decoration, so the
     // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
+    /prompt = `\$\{dispatchMarker\}\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
   );
 });
 
@@ -34,7 +34,8 @@ test("onStarted forwards page context and the operator's words to the executor",
   };
   const runActiveContexts = createRunActiveContextStore();
   const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts });
-  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock({ context: pageContext })}\n\nPlease edit this page.`);
+  // The fixture site dir reaches no AI-Dev-Shop pipeline, so no dispatch marker (C095).
+  assert.equal(input.prompt, `${buildPageContextPromptBlock({ context: pageContext })}\n\nPlease edit this page.`);
   // The same decoded screen is what `GET /api/active` answers from while the run is live.
   const active = runActiveContexts.read();
   assert.equal(active.active, true);

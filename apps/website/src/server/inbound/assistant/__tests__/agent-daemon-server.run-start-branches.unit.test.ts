@@ -214,7 +214,7 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
   test("the server's joined automatic and pinned prefix reaches the executor ahead of the prompt", async () => {
     const run = conversationRun();
     const input = await start({ prompt: "go" }, run, { siteTools: site(async () => ({ prefix: "PINNED\n\nAUTOMATIC", refusalPrefix: "" })) });
-    assert.equal(input.prompt, "PINNED\n\nAUTOMATIC\n\n<<SUBAGENT_DISPATCH>>\n\ngo");
+    assert.equal(input.prompt, "PINNED\n\nAUTOMATIC\n\ngo");
   });
 
   test("the daemon sends only its run id and cancellation signal to server plugin preflight", async () => {
@@ -231,7 +231,7 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
   test("an unavailable automatic preflight is warned about and the run starts without it", async () => {
     const run = conversationRun();
     const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); }) });
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
+    assert.equal(input.prompt, "go");
     assert.equal(run.calls.warnings.length, 1);
     assert.match(run.calls.warnings[0] ?? '', /automatic preflight unavailable.*Error.*EIO/);
     assert.doesNotMatch(run.calls.warnings[0] ?? '', /boom|SECRETSECRETSECRETSECRET/);
@@ -246,24 +246,24 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
   test("a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context", async () => {
     const run = conversationRun();
     const input = await start({ prompt: "tail", coldStartContext: "full transcript" }, run);
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\nfull transcript");
+    assert.equal(input.prompt, "full transcript");
   });
 
   test("a resumed turn keeps its tail prompt even when a cold-start context is sent", async () => {
     const run = conversationRun({ stored: "stored-session" });
     const input = await start({ prompt: "tail", coldStartContext: "full transcript" }, run);
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ntail");
+    assert.equal(input.prompt, "tail");
   });
 
   test("a cold start of an agent without its own memory keeps the prompt it was sent", async () => {
     const run = conversationRun();
     const input = await start({ prompt: "tail", coldStartContext: "full transcript" }, run, { agentCarriesOwnMemory: () => false });
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ntail");
+    assert.equal(input.prompt, "tail");
   });
 
   test("a cold start without a cold-start context keeps the prompt it was sent", async () => {
     const run = conversationRun();
     const input = await start({ prompt: "tail" }, run);
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ntail");
+    assert.equal(input.prompt, "tail");
   });
 });

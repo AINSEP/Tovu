@@ -19,6 +19,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { type Principal } from "@jini-ai/core";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createAgentExecutor } from "@jini-ai/daemon";
@@ -358,7 +359,7 @@ await launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: pluginPre
 }
 
 function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginPreparation: { refusalPrefix: string }; pluginPromptPrefix: string }, _optional = {}) {
-  const { sessionBinding, attachmentRunFields, pluginPreparation, pluginPromptPrefix, coldStartContext, pageContext, env, agentCarriesOwnMemory, buildPageContextPromptBlock } = ports;
+  const { sessionBinding, attachmentRunFields, pluginPreparation, pluginPromptPrefix, coldStartContext, pageContext, env, agentCarriesOwnMemory, buildPageContextPromptBlock, routeDeps, existsSync } = ports;
   let { prompt } = ports.runState;
   // The browser cannot know whether the daemon still has a native session to resume.
   prompt = selectRunHistoryPrompt({ prompt, coldStartContext, resumeSessionId: sessionBinding.sessionFields.resumeSessionId,
@@ -371,11 +372,14 @@ function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding
   // every chat-pane run re-runs the full dev-tooling bootstrap (reads AGENTS.md, prints the
   // startup banner, offers to install slash commands) before touching the user's actual request
   // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
-  // this repo's own AI-Dev-Shop pipeline.
+  // this repo's own AI-Dev-Shop pipeline. It is sent only when the run's site actually reaches
+  // that pipeline (C095): a client site's agent never reads AGENTS.md, so the token would be noise
+  // from a foreign dev toolchain in every one of its prompts.
   // The admin screen this message was sent from goes AFTER the marker (the marker only works as
   // the prompt's first line) and directly before the operator's words, so "this page" has
   // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-  prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
+  const dispatchMarker = siteCarriesDevPipeline({ siteDir: routeDeps.siteBinding.dir }, { existsSync }) ? "<<SUBAGENT_DISPATCH>>\n\n" : "";
+  prompt = `${dispatchMarker}${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
   prompt += attachmentRunFields.attachmentNotice ?? "";
   // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
   // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
@@ -388,6 +392,16 @@ function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding
   prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: pluginPreparation.refusalPrefix });
   prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix });
   ports.runState.prompt = prompt;
+}
+
+/** Whether an agent launched in `siteDir` would discover an AI-Dev-Shop pipeline: the CLI's
+ * instruction lookup walks from its cwd up through every ancestor, so the dev site nested inside
+ * this checkout reaches the root `AI-Dev-Shop/AGENTS.md` while a client site elsewhere does not. */
+export function siteCarriesDevPipeline({ siteDir }: { siteDir: string }, { existsSync: fileExists = existsSync }: { existsSync?: (file: string) => boolean } = {}): boolean {
+  for (let dir = siteDir; ; dir = dirname(dir)) {
+    if (fileExists(join(dir, "AI-Dev-Shop", "AGENTS.md"))) return true;
+    if (dirname(dir) === dir) return false;
+  }
 }
 
 /** The server owns pinned guidance and automatic consent, including later tool-triggered

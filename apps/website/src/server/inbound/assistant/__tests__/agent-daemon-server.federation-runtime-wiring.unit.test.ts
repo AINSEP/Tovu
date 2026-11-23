@@ -19,10 +19,10 @@ test("onStarted reads the site's federation refusal prefix afresh for each run",
   let prefix = "boot refusal";
   const siteTools = { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: prefix }), withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} };
   const first = await captureDaemonRun({ prompt: "Inspect tools" }, { bindings: { siteTools } });
-  assert.equal(first.prompt, "boot refusal\n\n<<SUBAGENT_DISPATCH>>\n\nInspect tools");
+  assert.equal(first.prompt, "boot refusal\n\nInspect tools");
   prefix = "reload refusal";
   const second = await captureDaemonRun({ prompt: "Inspect tools" }, { bindings: { siteTools } });
-  assert.equal(second.prompt, "reload refusal\n\n<<SUBAGENT_DISPATCH>>\n\nInspect tools");
+  assert.equal(second.prompt, "reload refusal\n\nInspect tools");
 });
 
 test("the server executor diagnoses a refusal introduced after construction", async () => {
