@@ -46,3 +46,8 @@ Cancel and Skills GitHub/upload/confirmation controls. Browser page tools cannot
 supply file bytes; file/folder inputs are tagged for discovery, but users or a browser
 upload driver must provide those files. The shared add card has no border/shadow at
 any width, including the 390px Skills tab.
+
+## Wiring
+
+- `@jini-ai/admin/screens/webmcp/admin-page-tools` holds `registerAdminPageWebMcpTools`. `App.hooks.ts` (and the WebMCP tests here) spread `adminPageToolCollaborators` (`admin-page-tool-collaborators.ts`) into its first argument: `@jini-ai/agentic`'s `PAGE_CAPABILITIES`, `executePageCapability`, `toWebMcpTool` and `getAgentModelContext`, `@tovu/headless`'s `directPageAction` policy, the browser-agent preference (`isBrowserAgentEnabled`, default for `isEnabled`) and the `[admin] WebMCP registration failed` warning (`reportRegistrationError`, default for `onError`).
+- `@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel` is mounted by `features/settings/SettingsUi.tsx`, which injects its required `useBrowserAgentSettingsHook` prop (`useBrowserAgentSettings` from `browser-agent-settings.hooks.ts`, which stays here: it owns the `tovu.admin.webmcp.enabled` storage key). Its `jini-toggle-row*`/`jini-settings-*` classes are already styled by the host. Its dictionary is `@jini-ai/admin/screens/webmcp/webmcp-i18n`.

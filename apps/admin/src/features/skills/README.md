@@ -15,6 +15,8 @@ batch w3-screens B). What moved, and what the host supplies:
 | `Skills.hooks` | `useSkillsTranslator({ locale })` | `Skills.tsx` (Tovu) passes it as the default of its `useSkillsTranslatorHook` prop |
 | `skill-upload` | `prepareSkillUpload({ files }, { paths })` | nothing; `use-skill-install.hooks.ts` (Tovu) calls it |
 | `api/skills-api.types` | `InstalledSkill`, `SkillInstallPayload` wire types | nothing; `api.ts` (Tovu) types its requests with them |
+| `skill-drop` | `captureSkillDrop({ event, proposeFiles, fallback }, { onError })`, the bounded browser folder walk for chat skill drops | nothing is injected at import; `composer-files.hooks.ts` (AssistantDock) passes `proposeFiles` (from `use-skill-install.hooks.ts`), the host's folder `fallback` and `onError` in the call |
+| `use-skills-tabs.hooks` | `useSkillsTabs()`, the URL-backed `?tab=skills\|add` tabs (replacement navigation to `/addons/skills`) | nothing: it reads the Jini router (`shell/lib/router`) directly; `use-skills.hooks.ts` (Tovu) calls it |
 
 Still in Tovu, and why:
 
@@ -31,8 +33,6 @@ Still in Tovu, and why:
 - `use-skills.hooks.ts`, `SkillRemoveConfirmDialog.tsx`, `SkillInstallConfirmation.tsx`: depend on
   the files above. `skills-visuals.tsx` renders the plugins stylesheet's `agent-plugin-chevron-glyph`
   class and its only consumer is `SkillRow.tsx`.
-- `skill-drop.ts`, `use-skills-tabs.hooks.ts`: not in this step's sheet (the chat dock owns the drop
-  capture; the tabs hook's only consumer is `use-skills.hooks.ts`).
 
 Stylesheets: `skills.css` and `@jini-ai/ui/settings-dialog.css` are still imported by the Tovu
 components; no moved module renders markup, so no `jini-*` class aliases are needed yet.

@@ -1,5 +1,5 @@
 import { partitionChatPackages } from "./chat-package-kind";
-import { captureSkillDrop } from "@/features/skills/skill-drop";
+import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
 import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkingDirectoryAccess } from "@jini-ai/chat/react";
 import { type ExecutionConfig } from "@jini-ai/ui";

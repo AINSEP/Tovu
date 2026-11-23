@@ -176,7 +176,7 @@
 .page > .editor-action-row + .post-preview-surface > .post-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
 .page > .editor-action-row:has(+ .post-preview-surface) > .post-settings-trigger { margin-right: 37px; }
 
-/* Content analysis card (`features/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
+/* Content analysis card (`@jini-ai/admin/screens/content-analysis/ContentAnalysisCard`, AW-7 Tier 2) — sits
    above the Categories & Tags box in the post editor. Reuses `.card`, `.dash-stat-*` type styles
    and the `.status` pills; only the layout below is its own. The stats are NOT `.dash-stat` boxes:
    those are link cards with a hover lift, and nothing here is clickable. */
