@@ -8,9 +8,10 @@ storage, SQL query bodies and row codecs. Tovu imports these owners directly.
 
 ## Retained product wiring
 
-- `phase-handler.ts`: registers Jini resolution in Tovu's routing phases, with
-  owner-scoped replacement/disposal and `onError: "skip"`. Composition injects
-  the repo, matcher, existing Phase 19 verified-origin oracle and host policy;
+- Routing-phase registration moved to `@jini-ai/cms/redirects/site/phase-handler`
+  (owner-scoped replacement/disposal, `onError: "skip"`). Composition injects
+  the repo, matcher, existing Phase 19 verified-origin oracle, host policy and
+  the bound `registerResolvePhase` from `#src/platform/routing/adapter`;
   optional hit recording remains independent of serving. Jini's
   `target-gate.ts` checks every fully interpolated Location (INV-03).
 - `repo.sqlite.ts`: binds the site's `ContentKernel`/`ContentDb` to Jini's SQL

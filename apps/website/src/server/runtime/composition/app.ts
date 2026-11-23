@@ -64,8 +64,8 @@ import {
 } from "../configuration/seed.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
-import { registerSlugChangeCapture } from "#src/platform/routing/adapter";
+import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";
+import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
@@ -286,6 +286,7 @@ function createMemoryRedirects(context: ReturnType<typeof createMemoryRuntime> &
     matcher: redirectMatcher,
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
+    registerResolvePhase,
   }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });

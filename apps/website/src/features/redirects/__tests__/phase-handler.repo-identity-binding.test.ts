@@ -27,7 +27,7 @@ import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
  * HTTP route" test — read THAT file for the actual security guarantee and its own note on why it
  * (unlike this one) is sound to call a security test.
  *
- * What this file actually documents: `registerRedirectsPhaseHandlers` (`redirects/phase-handler.ts`)
+ * What this file actually documents: `registerRedirectsPhaseHandlers` (`@jini-ai/cms/redirects/site/phase-handler`)
  * is called ONCE, at `createRouteDeps()` construction time, with a `RedirectPhaseHandlerResolver`
  * built from a fresh object literal (`{ repo: redirectRepo, matcher, originRegistry, hits }`) — NOT
  * from the `RouteDeps` object itself. The resolver's `this.deps.repo` is therefore bound by OBJECT
