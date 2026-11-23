@@ -2751,7 +2751,7 @@
     },
     {
       "id": "37e1c39b50ae",
-      "reason": "Moved to Jini @jini-ai/agent-plugins/site/descriptor-i18n.ts header (Jini 5b01f58a8, X-agent-plugins-1.J); host path citations reworded neutral per N2, rest identical."
+      "reason": "Moved to Jini @jini-ai/core/text descriptor-i18n.ts header (canonical parser; the X-agent-plugins-1.J forwarding module was removed per review rv-d, host consumers import @jini-ai/core/text directly); host path citations reworded neutral per N2."
     }
   ]
 }

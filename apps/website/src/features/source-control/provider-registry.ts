@@ -4,7 +4,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import * as sourceControl from "@jini-ai/devops/source-control";
 
-import { parseDescriptorI18n, type DescriptorI18n } from "@jini-ai/agent-plugins/site/descriptor-i18n";
+import { parseDescriptorI18n, type DescriptorI18n } from "@jini-ai/core/text";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { HttpClientPort } from "#src/platform/http/index";
