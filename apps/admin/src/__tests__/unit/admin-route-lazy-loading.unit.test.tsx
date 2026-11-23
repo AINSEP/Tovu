@@ -16,7 +16,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/admin-ui", moduleId: "admin-ui", exports: ["AdminUi"] },
   { modulePath: "../../features/dashboard", moduleId: "dashboard", exports: ["Dashboard"] },
   { modulePath: "../../features/import-export", moduleId: "import-export", exports: ["ImportExport"] },
-  { modulePath: "../../features/consent", moduleId: "consent", exports: ["CookieConsent"] },
+  { modulePath: "../../integrations/jini-admin/consent-screen", moduleId: "consent", exports: ["CookieConsent"] },
   { modulePath: "../../features/posts", moduleId: "posts", exports: ["PostEditor", "Posts"] },
   { modulePath: "../../features/pages", moduleId: "pages", exports: ["PageEditor", "Pages"] },
   { modulePath: "../../features/members", moduleId: "members", exports: ["Members"] },
