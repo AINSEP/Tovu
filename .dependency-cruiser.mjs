@@ -450,10 +450,7 @@ const COMPOSITION_ROOTS = [
   // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
   // `serve-listen.ts` is the `app.listen` half split out of `serve.ts` (2026-11: serveBootedSite under 50
   // lines), so it keeps `serve.ts`'s composition-root reach into `site-dir/boot-site-dir.ts` and `schema-guard.ts`.
-  // `storage-report.ts` (P11 ST-16, 2026-11-23) is one more CLI composition root of `adopt.ts`'s shape:
-  // it reaches the boot-only `resolve-install-dir-target.ts` and `site-databases.ts` (called with
-  // `reserveIdentity: false`) directly, because the barrel deliberately does not re-export them.
-  "^apps/website/src/cli/commands/(serve|serve-listen|init|introspect|export|adopt|storage-report)\\.ts$",
+  "^apps/website/src/cli/commands/(serve|serve-listen|init|introspect|export|adopt)\\.ts$",
 ];
 
 // Tests need concrete internals to exercise implementations. Match the architecture checker's

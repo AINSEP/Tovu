@@ -21,8 +21,8 @@ function privateExportMetadata(required: { sealedPassword?: SiteShareRecord["sea
 }
 
 /** The one receiver for locally generated and authenticated management-uploaded artifacts. */
-export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"]; shareId?: string; expiresAt?: string | null; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
-  const row: SiteShareRecord = { shareId: optional.shareId ?? newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}), ...(optional.expiresAt ? { expiresAt: optional.expiresAt } : {}), ...privateExportMetadata(optional) };
+export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"]; shareId?: string; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
+  const row: SiteShareRecord = { shareId: optional.shareId ?? newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}), ...privateExportMetadata(optional) };
   if (!SHARE_FILE.test(row.file)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share file name." });
   await required.registry.reserveToken(row);
   try {
@@ -33,27 +33,15 @@ export async function receiveSiteShareArtifact(required: { registry: SiteShareRe
 }
 
 /** Persist before delivery; publish a URL only after an anonymous verification succeeds. O(bytes). */
-export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; expiresAt?: string | null; signal?: AbortSignal; filename?: string; identity?: { shareId: string; token: string }; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
-  requireExpiryServedHere({ delivery: optional.delivery, expiresAt: optional.expiresAt });
+export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal; filename?: string; identity?: { shareId: string; token: string }; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[]; credentialWarnings?: readonly CredentialWarning[] } = {}): Promise<SiteShareRecord> {
   const identity = optional.identity ?? newShareIdentity({});
   // The derived stem always satisfies SHARE_FILE; receiveSiteShareArtifact re-checks it before any write.
   const file = optional.filename ?? `${shareFileStem({ name: required.name })}.tovu.zip`;
   const key = `_share/${identity.token}/${file}`;
-  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, { shareId: identity.shareId, expiresAt: optional.expiresAt, sealedPassword: optional.sealedPassword, notices: optional.notices, notes: optional.notes, credentialWarnings: optional.credentialWarnings, ...(optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {}) });
+  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, { shareId: identity.shareId, sealedPassword: optional.sealedPassword, notices: optional.notices, notes: optional.notes, credentialWarnings: optional.credentialWarnings, ...(optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {}) });
   if (optional.signal?.aborted) await cancelReceivedShare({ registry: required.registry, row });
   if (!optional.delivery || row.needsAcknowledgement) return row;
   return deliverShare({ registry: required.registry, row, delivery: optional.delivery, key, file, archive: required.archive }, { signal: optional.signal });
-}
-
-/**
- * Only this server's own token route checks `expiresAt`, so an expiry is accepted only for a link it
- * serves itself. A remote provider would keep serving its copy past the stated date (P11 ST-12a; the
- * remote half needs ST-12b's delete-and-retry pass first).
- */
-function requireExpiryServedHere(required: { delivery?: ShareDelivery; expiresAt?: string | null }): void {
-  const { delivery, expiresAt } = required;
-  if (!expiresAt || !delivery || isOwnShareFolder({ storage: delivery })) return;
-  throw new SiteShareRefusal({ code: "INVALID_INPUT", message: `Links stored with ${delivery.provider} can't expire yet. Choose Never, or turn off that storage for this export.` });
 }
 
 /** A lowercase, dash-separated file stem of at most 80 characters; `site` when nothing is left. */

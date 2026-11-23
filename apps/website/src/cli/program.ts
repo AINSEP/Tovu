@@ -11,7 +11,6 @@ import { runInitCommand } from "./commands/init.js";
 import { runImportSiteCommand } from "./commands/import-site.js";
 import { OWNER_STORE_ACTIONS, runOwnerStoreCommand } from "./commands/owner-store.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
-import { runStorageReportCommand } from "./commands/storage-report.js";
 import { runSiteRenameCommand } from "./commands/site-rename.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
@@ -115,18 +114,9 @@ function registerStorageCommands(program: Command): void {
       await runTokenSignInPluginsCommand({});
     });
 
-  const storage = program
+  program
     .command("storage")
-    .description("see how much disk a site uses, or change where it keeps its data");
-  storage
-    .command("report")
-    .description("show how much disk a website folder uses, by category; read-only, safe while the site runs")
-    .argument("<dir>", "site directory")
-    .option("--json", "print one JSON document")
-    .action(async (dir: string, options: { json?: boolean }) => {
-      await runStorageReportCommand({ dir, json: options.json === true });
-    });
-  storage
+    .description("change where a site keeps its data")
     .command("move")
     .description("move a stopped PGlite site onto an empty Postgres database (the PGlite data dir is kept)")
     .argument("<dir>", "site directory")

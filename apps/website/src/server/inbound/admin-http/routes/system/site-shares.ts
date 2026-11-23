@@ -1,5 +1,4 @@
 import { createSiteSharePasswordHandler, sendSiteShareFailure } from "./site-share-password.js";
-import { SHARE_EXPIRY_DAYS } from "#src/features/site-backup/share-expiry";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -10,24 +9,13 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 
-export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string; expiresInDays?: number | null } {
+export function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
   const raw = body ?? {};
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId" && key !== "expiresInDays")) {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) {
     throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Start an export with {}, or poll with jobId only." });
   }
   const jobId = shareInputJob({ value: (raw as Record<string, unknown>).jobId });
-  const expiry = shareInputExpiry({ value: (raw as Record<string, unknown>).expiresInDays });
-  return { ...(jobId ? { jobId } : {}), ...expiry };
-}
-
-/** P11 ST-12a: the owner's link expiry, Never (absent or null) unless 7, 30 or 90 days was chosen. */
-function shareInputExpiry(required: { value: unknown }, _options = {}): { expiresInDays?: number | null } {
-  const days = required.value;
-  if (days === undefined) return {};
-  if (days !== null && !(SHARE_EXPIRY_DAYS as readonly unknown[]).includes(days)) {
-    throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "A share link can expire after 7, 30 or 90 days, or never." });
-  }
-  return { expiresInDays: days as number | null };
+  return jobId ? { jobId } : {};
 }
 
 function shareInputJob(required: { value: unknown }, _options = {}): string | undefined {

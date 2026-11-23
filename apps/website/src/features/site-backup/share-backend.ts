@@ -1,5 +1,4 @@
 import type { CredentialWarning } from "./credential-warnings.js";
-import { shareExpiresAt } from "./share-expiry.js";
 import { randomUUID } from "node:crypto";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";
@@ -21,7 +20,7 @@ export interface SiteShareBackend {
   /** Current export/upload lifecycle, independent of polling and retained finished job records. */
   hasWork?(required: Record<string, never>, optional?: Record<string, never>): boolean;
   staticOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
-  create(required: { principalId: string; jobId?: string; signal: AbortSignal; includeSavedKeys?: boolean; expiresInDays?: number | null; format?: "static"; themeIds?: readonly string[]; publicUrl?: string }, optional?: { waitMs?: number }): Promise<unknown>;
+  create(required: { principalId: string; jobId?: string; signal: AbortSignal; includeSavedKeys?: boolean; format?: "static"; themeIds?: readonly string[]; publicUrl?: string }, optional?: { waitMs?: number }): Promise<unknown>;
   acknowledge(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
   revealPassword(required: { principalId: string; shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly SiteShareView[]>;
@@ -150,7 +149,7 @@ type ShareBackendRequired = {
 type ShareBackendOptional = { now?: () => number; appVersion?: string; jiniVersion?: string };
 /** What every share operation reads: the ports, the job table, and the one-at-a-time lane (`lane.active`). */
 type ShareBackendContext = { required: ShareBackendRequired; jobs: SiteBackupPushJobs<ExportedShare>; lane: { active: string | null }; now: () => number; boundaryVersion: string | undefined; jiniVersion: string | undefined };
-type ShareExportInput = { signal: AbortSignal; progress: SiteBackupPushProgress; expiresAt: string | null; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean };
+type ShareExportInput = { signal: AbortSignal; progress: SiteBackupPushProgress; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean };
 type ShareExportStage = { step: SiteShareExportStep; appVersion: string | undefined };
 
 /** The static-site flavour of an export: capture the selected themes, archive and deliver them. */
@@ -164,7 +163,7 @@ async function exportStaticShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   stage.step = "archive";
   const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress: input.progress, notices, credentialWarnings });
   stage.step = "delivery";
-  return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, expiresAt: input.expiresAt, notices, credentialWarnings });
+  return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
 }
 
 /** The full-backup flavour of an export: prepare the content, archive and deliver it. */
@@ -186,7 +185,7 @@ async function exportBackupShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   const delivery = await required.delivery({});
   bounded.throwIfAborted();
   if (delivery) requireNoShareCredentialWarnings({ credentialWarnings });
-  const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, expiresAt: input.expiresAt, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes, credentialWarnings });
+  const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes, credentialWarnings });
   // Plugins left out of the archive are told to the exporter, never dropped silently.
   return notes.length > 0 ? { ...record, notes } : record;
 }
@@ -201,12 +200,12 @@ async function exportShare({ ctx, input }: { ctx: ShareBackendContext; input: Sh
 }
 
 /** Starts a new export job, refusing a resume of an unknown job and a second export on this site. */
-function startExport({ ctx, startRequired }: { ctx: ShareBackendContext; startRequired: { key: PushJobKey; resumedJobId: string | undefined; expiresAt: string | null; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean } }, _options = {}) {
+function startExport({ ctx, startRequired }: { ctx: ShareBackendContext; startRequired: { key: PushJobKey; resumedJobId: string | undefined; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean } }, _options = {}) {
   const { key } = startRequired;
   if (startRequired.resumedJobId) throw new SiteShareRefusal({ code: "JOB_NOT_FOUND", message: "Share job expired or belongs to another principal. Create a new export." });
   if (ctx.lane.active) throw new SiteShareRefusal({ code: "BUSY", message: "Another share export is running for this site. Wait for it to finish." });
   ctx.lane.active = key.planId;
-  return ctx.jobs.start({ key, progress: { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, run: ({ signal, progress }) => exportShare({ ctx, input: { signal, progress, expiresAt: startRequired.expiresAt, format: startRequired.format, themeIds: startRequired.themeIds, publicUrl: startRequired.publicUrl, includeSavedKeys: startRequired.includeSavedKeys } }) });
+  return ctx.jobs.start({ key, progress: { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, run: ({ signal, progress }) => exportShare({ ctx, input: { signal, progress, format: startRequired.format, themeIds: startRequired.themeIds, publicUrl: startRequired.publicUrl, includeSavedKeys: startRequired.includeSavedKeys } }) });
 }
 
 async function staticShareOptions({ ctx }: { ctx: ShareBackendContext }, _options = {}): Promise<StaticExportOptions> {
@@ -223,11 +222,9 @@ async function createShare({ ctx, input, options }: { ctx: ShareBackendContext; 
   const { required, jobs } = ctx;
   input.signal.throwIfAborted();
   const selection = input.format === "static" ? parseStaticExportInput({ input: { jobId: input.jobId, themeIds: input.themeIds, publicUrl: input.publicUrl } }) : {};
-  // Validated before any job starts: an unsupported choice is refused, never silently made Never.
-  const expiresAt = shareExpiresAt({ days: input.expiresInDays ?? null, now: ctx.now() });
   const jobId = input.jobId ?? randomUUID();
   const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };
-  const job = jobs.find(key) ?? startExport({ ctx, startRequired: { key, resumedJobId: input.jobId, expiresAt, format: input.format, themeIds: selection.themeIds, publicUrl: selection.publicUrl, includeSavedKeys: input.includeSavedKeys } });
+  const job = jobs.find(key) ?? startExport({ ctx, startRequired: { key, resumedJobId: input.jobId, format: input.format, themeIds: selection.themeIds, publicUrl: selection.publicUrl, includeSavedKeys: input.includeSavedKeys } });
   const waited = await jobs.wait({ job, signal: input.signal, budgetMs: options.waitMs ?? 1500 });
   const outcome = waited.state === "done" ? { ...waited, result: await required.registry.get({ site: required.site, shareId: waited.result.shareId }) ?? waited.result } : waited;
   return createOutcome({ waited: outcome, jobId, format: input.format });

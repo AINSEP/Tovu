@@ -1,7 +1,0 @@
-New: [catch-reads-error] apps/website/src/cli/commands/storage-report.ts (2)
-New: [catch-reads-error] apps/website/src/features/agent-plugins/bundled-id-upgrade.ts (5)
-New: [catch-reads-error] apps/website/src/features/agent-plugins/lifecycle.ts (1)
-Worse: [catch-reads-error] apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts (2 -> 3)
-7 entries improved or are gone: run with --update to lower the debt list.
-Error gate (WARN mode): 4 new or worse entries. Not failing the build yet; fix them or use a named idiom.
-exit 0
