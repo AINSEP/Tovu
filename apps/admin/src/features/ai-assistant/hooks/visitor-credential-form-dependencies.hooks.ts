@@ -1,12 +1,13 @@
 import type { SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import type { ExecutionPort } from "@jini-ai/ui";
+import { groupPresets, isProviderConfigured, nextConfigForPresetSelect, resolveSelectedPreset, type ExecutionPort } from "@jini-ai/ui";
 import { useVisitorCredentialForm } from "@jini-ai/admin/screens/assistant-settings/use-visitor-credential-form.hooks";
 import type {
   VisitorCredentialFormController,
   VisitorCredentialFormDependencies,
   VisitorCredentialFormPort,
   VisitorCredentialFormRules,
+  VisitorPresetRules,
 } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { createExecutionPort } from "@/lib/execution-settings";
@@ -33,10 +34,18 @@ export const visitorCredentialFormRules: VisitorCredentialFormRules = {
   storedKeyBlocksProbe: ({ apiKey, stored, baseUrl }) => storedKeyBlocksProbe({ apiKey, stored, baseUrl }),
 };
 
+/** The UI library's preset rules, bound for the engine screen (which imports no UI package).
+ *  `satisfies` is the compatibility proof: a drift between the screen's local shapes and the
+ *  library's fails the typecheck here. */
+export const visitorPresetRules = {
+  groupPresets, isProviderConfigured, nextConfigForPresetSelect, resolveSelectedPreset,
+} satisfies VisitorPresetRules;
+
 /** Everything but the credential client. `useStoredCredential` is what makes both probes work
  *  against a key this browser does not have; Settings → Execution mode deliberately does NOT opt in. */
 const hostBindings: Omit<VisitorCredentialFormDependencies, "port"> = {
   rules: visitorCredentialFormRules,
+  presetRules: visitorPresetRules,
   presets: DEFAULT_PROVIDER_PRESETS,
   defaultPresetId: DEFAULT_VISITOR_PRESET_ID,
   preferredModel: VISITOR_PREFERRED_MODEL,

@@ -380,7 +380,8 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
  *
  * ## Why this never says "restarted successfully" or "healthy"
  *
- * `restart()`'s own contract (`use-assistant-daemon-restart.hooks.ts`) is that a restart being
+ * `restart()`'s own contract (`@jini-ai/admin/react`'s `useProcessRestart`, bound by
+ * `hooks/assistant-daemon-restart-dependencies.hooks.ts`) is that a restart being
  * ACCEPTED and the daemon becoming HEALTHY are two different facts, and only the first one is ever
  * knowable from this button press — there is no "daemon became healthy" signal anywhere in
  * `daemon-supervisor.ts`. This component's copy is written to match that exactly: the result line
@@ -503,7 +504,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  * Writing is an explicit press of one of TWO buttons — "Save key" writes the key, "Save settings"
  * writes provider/base URL/model and never a key (owner ruling, 2026-09-02; the single overloaded
  * Save could not honestly report which of its two jobs it had just done). See
- * `hooks/use-visitor-credential-form.hooks.ts`'s `saveVisitorKey`/`saveVisitorSettings` for that
+ * `@jini-ai/admin/screens/assistant-settings/visitor-credential-form-actions`'s `saveVisitorKey`/`saveVisitorSettings` for that
  * split and for why the earlier debounced auto-save was removed (it made every keystroke in a
  * credential field a write, and destroyed a live key during development), and `dirty` for why a mount
  * or a hydration can never trigger one.
@@ -759,8 +760,9 @@ export function VisitorCredentialForm({
    *
    * Picking an option runs the same `selectPreset` the chips ran (via the hook's
    * `selectPresetById`), so autosave and field population are identical. See
-   * `hooks/use-visitor-credential-form.hooks.ts`'s `selectPreset` for the non-obvious snapshotting
-   * behaviour behind switching providers, and `rules.ts`'s `configuredPresetIds` for what an
+   * `@jini-ai/admin/screens/assistant-settings/use-visitor-credential-form.hooks`'s `selectPreset` for the
+   * non-obvious snapshotting behaviour behind switching providers, and that package's
+   * `visitor-credential-form.rules`'s `configuredPresetIds` for what an
    * option's "(configured)" suffix — the chips' filled dot — actually claims. The default (saved
    * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
    */

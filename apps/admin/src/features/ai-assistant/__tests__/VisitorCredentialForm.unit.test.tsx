@@ -16,6 +16,7 @@ import { visitorCredentialSaveStatusMessage, visitorCredentialSettingsStatusMess
 import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { t as translateAiAssistant } from "../ai-assistant-i18n";
 import { visitorProviderGroups } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form.rules";
+import { visitorPresetRules } from "../hooks/visitor-credential-form-dependencies.hooks";
 import { VisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantPanel";
 import { useVisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-panel.hooks";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
@@ -54,7 +55,7 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     hasStoredKey: false,
     storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
-    providerGroups: visitorProviderGroups({ configuredIds: new Set(), presets: DEFAULT_PROVIDER_PRESETS }),
+    providerGroups: visitorProviderGroups({ configuredIds: new Set(), presets: DEFAULT_PROVIDER_PRESETS, groupPresets: visitorPresetRules.groupPresets }),
     selectPresetById: vi.fn(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
@@ -470,7 +471,7 @@ describe("in-flight and settled states of the visitor key and settings controls"
   it("marks a provider that already holds a saved key as configured", () => {
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
     render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
-      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]), presets: DEFAULT_PROVIDER_PRESETS }),
+      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]), presets: DEFAULT_PROVIDER_PRESETS, groupPresets: visitorPresetRules.groupPresets }),
     })} />);
     expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
   });

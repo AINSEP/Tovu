@@ -18,7 +18,8 @@ import type { AiAssistantPort } from "./ai-assistant-port.hooks";
  *
  * `deps.port` is injected (see `ai-assistant-port.hooks.ts`) rather than reaching for `lib/api`'s
  * `api` directly — the same `useX(dependencies)` / `useWiredX()` split `redirects`/`widgets`/
- * `plugins`/`members`/`workspace` use. `use-visitor-credential-form.hooks.ts` — the other hook this
+ * `plugins`/`members`/`workspace` use. `useVisitorCredentialForm` (`@jini-ai/admin/screens/assistant-settings`,
+ * bound by `visitor-credential-form-dependencies.hooks.ts`) — the other hook this
  * screen composes — is NOT part of this conversion: it reaches a much larger `api` surface of its
  * own and is deliberately out of scope here.
  */
