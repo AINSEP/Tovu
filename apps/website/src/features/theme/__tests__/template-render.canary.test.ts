@@ -314,7 +314,7 @@ test("canary: real Post and Page records render their selected templates through
 
 
 test('full-document bundled theme pages report a missing runtime slot until explicitly reviewed', async () => {
-  const { consentDeclarationReadiness } = await import('#src/features/consent/readiness');
+  const { consentDeclarationReadiness } = await import('@jini-ai/cookie-consent/site/readiness');
   const theme = tovuTheme();
   for (const partials of [theme.partials, {}]) {
     for (const pageId of Object.keys(theme.pages)) {

@@ -15,7 +15,7 @@ import { DEFAULT_MAX_AGE_MS as CONSENT_MAX_AGE_MS } from '@jini-ai/cookie-consen
 import { CONSENT_MAX_CSS_LENGTH } from '@jini-ai/cookie-consent/render';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
 import { consentPagePath } from './request.js';
-import { consentDeclarationReadiness, type ConsentDeclarationEvidence } from './readiness.js';
+import { consentDeclarationReadiness, type ConsentDeclarationEvidence } from '@jini-ai/cookie-consent/site/readiness';
 import { renderSiteConsentPreview } from '@jini-ai/cookie-consent/site/cookie-consent';
 
 const CONSENT_CSS_SELECTORS = ['#jini-consent', '.jini-consent', '.jini-consent-reopen'];
