@@ -1,0 +1,38 @@
+=== M-a SDK-only allowlist removed (bare-specifier refusal off) (/home/user/Jini/packages/plugins/dist/host/worker/import-policy.js)
+apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts: ℹ pass 4 ℹ fail 9 
+✖ a dynamic import() of a refused specifier inside the plugin is refused as well (406.907487ms)
+✖ a site-layout tier-2 plugin is refused when it imports "#src/platform/html/slug" (361.056201ms)
+✖ a site-layout tier-2 plugin is refused when it imports "@jini-ai/cms/seo/content-analysis" (386.93611ms)
+✖ a site-layout tier-2 plugin is refused when it imports "child_process" (329.983644ms)
+✖ a site-layout tier-2 plugin is refused when it imports "data:text/javascript,export default 1" (384.192997ms)
+✖ a site-layout tier-2 plugin is refused when it imports "fs" (361.848706ms)
+✖ a site-layout tier-2 plugin is refused when it imports "node:child_process" (411.517769ms)
+✖ a site-layout tier-2 plugin is refused when it imports "node:fs" (369.444195ms)
+✖ a site-layout tier-2 plugin is refused when it imports "tier2-fixture-dependency" (348.414757ms)
+✖ failing tests:
+restored (cmp identical)
+=== M-b stage:import reply lost (policy set up before the call, outside its import-stage handling) (/home/user/Jini/packages/plugins/dist/host/worker/start.js)
+apps/website/src/server/runtime/plugin-tier2/__tests__/worker.unit.test.ts: ℹ pass 9 ℹ fail 1 
+✖ failing tests:
+✖ main() without an importer answers a malformed entry file URL with an import-stage reply (0.352393ms)
+apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts: ℹ pass 12 ℹ fail 1 
+✖ a malformed entry file URL is a structured import-stage reply, not a crashed worker (352.97ms)
+✖ failing tests:
+restored (cmp identical)
+=== M-c content-analyzer trust removed (SDK-only for it too) (apps/website/src/server/runtime/plugin-tier2/worker.ts)
+apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts: ℹ pass 12 ℹ fail 1 
+✖ failing tests:
+✖ the built-in content-analyzer, which imports host packages, still loads in a real worker (374.125571ms)
+restored (cmp identical)
+=== M-d trust widened to every entry (directory-style) (/home/user/Jini/packages/plugins/dist/host/worker/import-policy.js)
+apps/website/src/server/runtime/plugin-tier2/__tests__/worker-import-allowlist.integration.test.ts: ℹ pass 11 ℹ fail 2 
+✖ a site-layout tier-2 plugin is refused when it imports "#src/platform/html/slug" (375.242926ms)
+✖ a site-layout tier-2 plugin is refused when it imports "@jini-ai/cms/seo/content-analysis" (375.610296ms)
+✖ failing tests:
+restored (cmp identical)
+=== M-e C026 allow-list key reworded (exact match) (apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts)
+apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts: ℹ pass 1 ℹ fail 1 
+✖ failing tests:
+✖ no generic seam file names the first provider (123.982962ms)
+restored (cmp identical)
+M-e re-check: the failure list names 'apps/website/src/features/agent-plugins/bundled-catalog.ts:57' (absent without the plant: 25 baseline hits, none in bundled-catalog/shared-owner).

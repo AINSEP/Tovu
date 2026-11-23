@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
 import { useAdminSession } from "../../App.hooks";
 import { Login } from "../../features/auth";
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../../lib/admin-http/settings-api";
 
 /**
  * @file `useAdminSession`'s boot-token redemption (run-from-zip plan S2,

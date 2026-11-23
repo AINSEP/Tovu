@@ -1,0 +1,105 @@
+✔ owner 2026-10-09: both families share one live metadata lookup with workspace isolation (39.443742ms)
+✔ the executable site SDK receives only live metadata methods through the existing loader (12.568582ms)
+✔ the manifest adapter never includes malformed package bytes in its error (3.198829ms)
+✔ legacy metadata warns, preserves the install and never infers provides from permissions (1.987559ms)
+✔ cross-family identity admission refuses duplicates before publication and releases its lock (4.399335ms)
+✔ the composed installer reserves built-in publisher ids even without a cross-family host (5.264365ms)
+✔ plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization (3.716543ms)
+✔ search_tools indexes a site plugin keyword and provides capability (13.494185ms)
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (573.685577ms)
+✔ parallel host adapters serialize duplicate identity admission across plugin kinds (19.525005ms)
+✔ unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs (9.05514ms)
+✔ conflicting revisions retain every publisher reservation even when a bundled ledger selects one (70.628813ms)
+✔ a broken revision cannot hide the only valid operator revision (1.778039ms)
+✔ one malformed identity never hides healthy providers or blocks admission (2.766905ms)
+✔ rejected duplicate site records do not reappear in the host directory (1.642487ms)
+✔ same-name legacy plugins in different families are independently addressable (1.866019ms)
+✔ MCP provisioning logs each server and reason while preserving activation success (14.720175ms)
+Plugin 'media-fixture' has no publisher-qualified id; using 'unknown/media-fixture'.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source false (81.218916ms)
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+[agent-plugins] Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a signed-in connection receives the reviewed plugin defaults: operator source true (55.010761ms)
+✔ L058b site discovery omits invalid identities and propagates activation read failures (3.716145ms)
+✔ L058b default agent activation is resolved through the lifecycle owner (10.859791ms)
+✔ L058b agent revision lookup and admission retain distinct selection contracts (8.263651ms)
+✔ the composed MCP port preserves store errors by identity and persists through the bound store (1.599944ms)
+✖ an approved enable reports the failed server and redacted reason to the owner (2.515148ms)
+✖ an approved enable missing its snapshot cannot provision connections (1.541905ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 22
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3563.672986
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:13600
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (573.685577ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'jini/calendly'
+  - 'tovu/calendly'
+  
+      at TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:202:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'jini/calendly',
+    expected: 'tovu/calendly',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:32164
+✖ an approved enable reports the failed server and redacted reason to the owner (2.515148ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /repository.*provider refused/. Input:
+  
+  'The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ToolInputError'
+  
+      at Object.<anonymous> (/home/user/tovu-base/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:468:12)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.rejects (node:assert:769:3)
+      at async TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:466:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ToolInputError',
+    expected: /repository.*provider refused/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:1:33183
+✖ an approved enable missing its snapshot cannot provision connections (1.541905ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /approved access snapshot is missing/. Input:
+  
+  'ToolInputError: The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ToolInputError'
+  
+      at async TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:482:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ToolInputError: The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ToolInputError
+        at provisionPluginMcp (/home/user/Jini/packages/agent-plugins/src/connect/plugin-host/index.ts:269:41)
+        at Object.provisionMcp (/home/user/Jini/packages/agent-plugins/src/connect/plugin-host/index.ts:311:66)
+        at TestContext.<anonymous> (/home/user/tovu-base/apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:482:90)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /approved access snapshot is missing/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+exit=1
