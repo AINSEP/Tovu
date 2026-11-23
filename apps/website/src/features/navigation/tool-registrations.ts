@@ -7,7 +7,7 @@ import { withToolMetadata } from '@jini-ai/core';
  * register tools or create an assistant-to-feature runtime cycle.
  */
 import type { ToolContributor } from "@jini-ai/core";
-import { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
+import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import {
   buildMenusRegistrations,
   menusDerivedRisk,

@@ -29,7 +29,7 @@ import { toolMetadata } from "@jini-ai/core/tool-metadata/forms";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
-import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
+import type { FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 
 /**
  * The exact slice of the route-deps bag Forms' tool handlers read. Declared structurally (rather

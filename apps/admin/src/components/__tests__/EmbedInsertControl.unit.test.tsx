@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { mediaApi } from "../../features/media/api/media-api";
-import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
 import type { useEmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl.hooks";

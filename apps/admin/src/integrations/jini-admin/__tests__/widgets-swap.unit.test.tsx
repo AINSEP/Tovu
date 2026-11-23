@@ -15,7 +15,7 @@ import { widgetsEvents, widgetsNavigation } from '../widgets-ports';
 import { WidgetsConfigFieldsSlot } from '../widgets-module.hooks';
 import { WidgetAddControl } from '../../../components/WidgetPickerDialog/WidgetPickerDialog';
 import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../../components/WidgetConfigFields/WidgetConfigFields';
-import type { AdminWidgetType as HostWidgetType } from '../../../features/widgets/api/widgets-api.types';
+import type { AdminWidgetType as HostWidgetType } from '@jini-ai/admin/screens/widgets/api/widgets-api.types';
 import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';

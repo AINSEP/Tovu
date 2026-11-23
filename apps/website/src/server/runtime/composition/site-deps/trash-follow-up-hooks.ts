@@ -1,6 +1,6 @@
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
 import type { TrashFollowUpHooks } from "@jini-ai/cms/trash";
-import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
+import { buildMenuTrashFollowUpHooks } from "@jini-ai/cms/navigation/site/menu-trash-follow-ups";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";

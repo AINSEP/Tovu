@@ -20,7 +20,7 @@ import type { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@ji
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import type { TrashDb } from "#src/features/trash/index";
 import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import type { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
+import type { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
 import type { NewsletterRouteDeps } from "../../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";

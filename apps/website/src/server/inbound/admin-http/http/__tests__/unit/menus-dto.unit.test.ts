@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { MENU_RAW_HTML_PERMISSION } from "#src/features/navigation/index";
+import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuDto } from "../../menus.js";
 
 const baseMenu = {

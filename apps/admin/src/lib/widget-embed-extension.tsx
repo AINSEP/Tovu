@@ -1,7 +1,7 @@
 import { createWidgetEmbedTranslator } from "./widget-embed-extension.hooks";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import type { AdminWidget } from "../features/widgets/api/widgets-api.types";
+import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";

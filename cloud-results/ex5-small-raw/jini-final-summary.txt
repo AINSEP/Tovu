@@ -1,0 +1,16 @@
+HEAD c46627a5
+build exit=0 secs=159
+typecheck exit=0 secs=178
+guard exit=1 secs=88
+api-check exit=0 secs=21
+size exit=1 secs=31
+complexity exit=1 secs=34
+hooks exit=0 secs=1
+why-base exit=0 secs=11
+why-default exit=1 secs=0
+log-safety exit=1 secs=29
+error-gate exit=0 secs=27
+cross-package exit=1 secs=1
+cms-test exit=1 secs=126
+admin-test exit=0 secs=102
+DONE

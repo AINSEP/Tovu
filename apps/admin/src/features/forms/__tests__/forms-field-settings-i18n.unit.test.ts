@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FIELD_SETTINGS_KEYS, FIELD_SETTINGS_TRANSLATIONS, FORMS_FIELD_SETTINGS_I18N } from "../forms-field-settings-i18n";
+import { FIELD_SETTINGS_KEYS, FIELD_SETTINGS_TRANSLATIONS, FORMS_FIELD_SETTINGS_I18N } from "@jini-ai/admin/screens/forms/forms-field-settings-i18n";
 import { FORMS_DICT, t } from "../forms-i18n";
 
 /**

@@ -2,11 +2,11 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMenu, AdminMenuItem } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu, AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
-import { menuAuthoringForSave, menuHtmlStarter } from "../html-rules";
+import { menuAuthoringForSave, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 
 /**
  * @file The Edit menu screen's "Options" | "HTML" tabs (HTML-mode menus, backend in Jini 5c11404b +

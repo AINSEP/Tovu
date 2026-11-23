@@ -6,7 +6,7 @@ import { assignLocation, MenuConflictError, updateMenuTree, type MenuRepoPort, t
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { importMenuEntity } from "../import-menu.js";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
-import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
+import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 
 /**

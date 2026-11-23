@@ -1,7 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { toAdminFormSubmissionResponse } from "#src/server/inbound/admin-http/http/forms";
+import { toAdminFormSubmissionResponse } from "@jini-ai/cms/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";

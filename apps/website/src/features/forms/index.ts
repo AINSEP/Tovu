@@ -184,13 +184,3 @@ export function submitForm(
   });
 }
 
-// Form destinations (a static host that stores submissions): the manifest a publish hands the host,
-// and the import that brings stored submissions back. Generic; no host is named in this feature.
-export { buildFormDeliveryForm, buildFormDestinationManifest, type FormDestinationManifestForm } from "./form-destination-manifest.js";
-export {
-  type FormDestinationPullReport,
-  type FormPullCounts,
-  type FormSubmissionsPullResult,
-  type FormsAutoPullPort,
-  type FormSubmissionsPullPort,
-} from "./import-remote-submissions.js";

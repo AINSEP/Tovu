@@ -12,7 +12,7 @@ import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deplo
 import { formDestinationKeyLabel } from "#src/features/form-destinations/index";
 import type { FormDestinationPage, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini-ai/core/settings";
-import { FORM_PULL_LEASE_MS } from "#src/features/form-destinations/index";
+import { FORM_PULL_LEASE_MS } from "@jini-ai/cms/forms/destinations/pull";
 import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlFormPullLeaseRepo } from "@jini-ai/cms/forms/sql";

@@ -7,7 +7,8 @@
  * both directions, since it activates no containment the operator didn't explicitly opt into.
  *
  * This dependency-free policy signal belongs in `core/`: mail and assistant consumers must
- * not depend on their host's server transport module to resolve it.
+ * not depend on their host's server transport module to resolve it. The `RuntimeMode` type itself
+ * lives in `@jini-ai/core/contracts/site/core-runtime-mode` (K4-seam-9); this module resolves it.
  */
 
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";

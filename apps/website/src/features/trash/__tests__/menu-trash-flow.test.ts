@@ -8,7 +8,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
 import { createNavMenuReadModel, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuReadModel } from "#src/features/navigation/index";
-import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
+import { buildMenuTrashFollowUpHooks } from "@jini-ai/cms/navigation/site/menu-trash-follow-ups";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 

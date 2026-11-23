@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminFormDefinition } from "@/features/forms/api/forms-api.types";
+import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 import { formDatesLines } from "@jini-ai/admin/forms";
 import { t } from "../forms-i18n";
 

@@ -8,17 +8,16 @@ import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deplo
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
 import {
   createFormDestinationPort,
-  FORM_PULL_LEASE_MS,
-  formDestinationKey,
   listFormDestinations,
-  pullFromFormDestination,
 } from "#src/features/form-destinations/index";
+import { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination } from "@jini-ai/cms/forms/destinations/pull";
 import type { FormDestinationAddress, FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";
 import { readFormsAutoPull } from "#src/features/settings/index";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { importRemoteFormSubmissions, type FormImportCounts, type FormSubmissionReceiptPort, type RemoteImportResult, type RemoteSubmissionInput } from "@jini-ai/cms/forms/html";
-import { buildFormDestinationManifest, type FormDestinationPullReport, type FormPullCounts, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort } from "#src/features/forms/index";
+import { buildFormDestinationManifest } from "@jini-ai/cms/forms/site/form-destination-manifest";
+import type { FormDestinationPullReport, FormPullCounts, FormSubmissionsPullPort, FormSubmissionsPullResult, FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /**

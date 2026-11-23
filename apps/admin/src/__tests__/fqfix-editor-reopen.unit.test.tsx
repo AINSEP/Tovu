@@ -5,7 +5,7 @@ import { AdminKitProvider } from '@jini-ai/admin/react/kit';
 import { adminKit } from '../integrations/jini-kits';
 import type { ReactNode } from 'react';
 import type { AdminPost } from '@/features/posts/api/posts-api.types';
-import type { AdminMenu } from '@/features/menus/api/menus-api.types';
+import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
 import type { AdminWorkspace } from '@/features/workspace/api/workspace-api.types';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';

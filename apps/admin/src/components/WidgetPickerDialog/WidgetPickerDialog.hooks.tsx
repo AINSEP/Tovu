@@ -1,7 +1,7 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useEffect, useId, useRef, useState } from "react";
-import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { describeApiError } from "../../lib/admin-http/request";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";

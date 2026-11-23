@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from "vitest";
-import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
-import { targetForKind } from "../page-link-rules";
+import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 
 const menu: AdminMenu = { id: "footer", workspaceId: "ws", slug: "footer-nav", title: "Footer", status: "published", locations: [], version: 1, updatedAt: "2026-10-04",
   items: [{ id: "about", label: "About", target: { kind: "url", href: "/about" } }],

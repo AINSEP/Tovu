@@ -1,6 +1,7 @@
 import type { Express, Response } from "express";
 
-import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type NavMenuMode  } from "#src/features/navigation/index";
+import { isMenuHtmlAuthoring, type MenuHtmlAuthoring, type NavMenuMode  } from "#src/features/navigation/index";
+import { MENU_RAW_HTML_PERMISSION } from "@jini-ai/cms/navigation/site/menu-html-permission";
 import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type {

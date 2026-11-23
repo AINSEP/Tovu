@@ -5,9 +5,10 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError, FormSubmissionNotFoundError } from "@jini-ai/cms/forms";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import {
-  mapFormsWriteError, toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,
+  toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,
   toAdminFormSubmissionResponse, toAdminFormSubmissionListResponse,
-} from "../forms.js";
+} from "@jini-ai/cms/admin-http/http/forms";
+import { mapFormsWriteError } from "../../routes/forms/forms-write-error.js";
 
 // F4.1/F4.3: independent, non-default data. Mutation: return the original fields/notify/data
 // rather than copies; changing the response would then corrupt the read model.

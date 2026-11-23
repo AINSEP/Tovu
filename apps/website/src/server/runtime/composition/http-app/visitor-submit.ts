@@ -8,7 +8,8 @@ import { statfs } from "node:fs/promises";
 import { createFormMediaCleanup } from '#src/features/forms/form-file-purge';
 import { analyticsProviderRouteDeps } from "../analytics-providers.js";
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
-import { createCommentsHostPorts, resolveCommentsIpHashSalt } from "#src/features/comments/index";
+import { createCommentsHostPorts } from "#src/features/comments/index";
+import { resolveCommentsIpHashSalt } from "@jini-ai/cms/comments/site/ip-hash-salt";
 import { registerCommentsSubmitRoute } from "../../../inbound/public-http/routes/site/comments-submit.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { registerAnalyticsIngestRoute } from "../../../inbound/public-http/routes/site/analytics-ingest.js";
@@ -35,6 +36,8 @@ export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional
     // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
     ipHashSalt: resolveCommentsIpHashSalt({
       env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
+      // The salt resolver never logs: this host keeps its production fail-safe warning on the server console.
+      warn: (line) => console.warn(line),
     }).then(({ salt }) => salt),
   } });
 }

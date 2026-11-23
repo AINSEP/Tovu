@@ -1,0 +1,18 @@
+HEAD 8ed2b65fb
+size exit=1 secs=26
+boundaries exit=0 secs=33
+admin-tsc exit=2 secs=40
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-live-verify exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=9
+desktop-tsc-main exit=0 secs=30
+typecheck exit=0 secs=56
+hooks exit=0 secs=1
+errors exit=0 secs=26
+worker-import-graph exit=0 secs=18
+complexity exit=0 secs=32
+typecheck-scripts exit=2 secs=31
+why-comments exit=1 secs=30
+typecheck-tests exit=0 secs=71
+architecture exit=1 secs=86
+DONE

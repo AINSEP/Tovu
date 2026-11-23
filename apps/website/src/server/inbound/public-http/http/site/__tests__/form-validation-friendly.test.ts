@@ -4,7 +4,7 @@ import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { encodeFormSubmissionResultQuery, decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
-import { FORM_VALIDATION_COPY } from "../form-validation-i18n.js";
+import { FORM_VALIDATION_COPY } from "@jini-ai/cms/public-http/http/site/form-validation-i18n";
 
 test("native HTML validation uses authored labels and sentences, with localized document language", () => {
   const form = '<form data-tovu-form="contact" data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact" role="alert" hidden></div><label for="email-id">Your email</label><input name="internal_email" id="email-id"></form>';

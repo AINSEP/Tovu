@@ -6,7 +6,7 @@ import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { createCommentTargetLookup } from "#src/features/comments/comment-targets";
+import { createCommentTargetLookup } from "@jini-ai/cms/comments/site/comment-targets";
 import { createCommentsCapability } from "#src/features/comments/provider-selection";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";

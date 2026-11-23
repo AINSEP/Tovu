@@ -17,3 +17,8 @@ The Menus list and the Menu editor — the two screens behind the sidebar's **Co
 
 Both `Menus.tsx` and `MenuEditor.tsx` have unit tests (`__tests__/Menus.unit.test.tsx`,
 `__tests__/MenuEditor.unit.test.tsx`).
+
+## Wiring
+
+- `MenuEditor.tsx` mounts `@jini-ai/admin`'s `MenuPageLinkFields` and injects its required `useMenuPageLinkFields` hook (from `@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks`); tests pass the same hook or a double.
+- The component renders `jini-menu-page-link-{label,visually-hidden,unavailable}` classes; this host styles them as aliases of `.a11y-label-wrap` (`styles/editor.css`), `.visually-hidden` and `.muted-cell` (`styles.css`).

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
 import { trashApi } from "@/features/trash/api/trash-api";
-import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/api/menus-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";

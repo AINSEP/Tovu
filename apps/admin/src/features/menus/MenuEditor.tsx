@@ -1,15 +1,14 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "./api/menus-api.types";
+import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 
 import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-editor.hooks";
-import { useMenuItemRemove } from "./MenuEditor.hooks";
-import { MenuPageLinkFields } from "./MenuPageLinkFields";
-import type { MenuPageChoice } from "./page-link-rules";
-import { useMenuTargetEditor } from "./MenuPageLinkFields.hooks";
+import { useMenuItemRemove } from "@jini-ai/admin/screens/menus/MenuEditor.hooks";
+import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields";
+import type { MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
+import { useMenuPageLinkFields, useMenuTargetEditor } from "@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks";
 import { type Translate } from '@jini-ai/core/text';
-export { targetForKind } from "./page-link-rules";
 
 /**
  * @file Per-menu tree editor (ADR-029 whole-tree replace) — markup only.
@@ -264,7 +263,7 @@ function ItemRow(props: MenuItemFieldProps & {
           </select>
         </label>
         {targetController.isPage
-          ? <MenuPageLinkFields item={item} path={path} pages={pages} onChange={onChange} t={t} />
+          ? <MenuPageLinkFields item={item} path={path} pages={pages} onChange={onChange} t={t} useMenuPageLinkFields={useMenuPageLinkFields} />
           : <MenuItemTargetFields item={item} path={path} onChange={onChange} t={t} />}
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
             and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}

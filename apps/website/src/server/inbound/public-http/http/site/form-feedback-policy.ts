@@ -1,7 +1,7 @@
 import { FORM_SUCCESS_CLASS, FORM_ERROR_CLASS } from "./form-presentation-assets.js";
 import { formValidationMessages as renderValidationMessages, formDocumentLocale } from "@jini-ai/cms/forms/validation-messages";
-import { inspectFormLabels } from "./form-label-inspection.js";
-import { FORM_VALIDATION_COPY, formValidationCopy } from "./form-validation-i18n.js";
+import { inspectFormLabels } from "@jini-ai/cms/public-http/http/site/form-label-inspection";
+import { FORM_VALIDATION_COPY, formValidationCopy } from "@jini-ai/cms/public-http/http/site/form-validation-i18n";
 import { FORM_SUBMISSION_TOO_FAST_MESSAGE } from "@jini-ai/cms/forms/html-render";
 
 export const FORM_RESULT_MARKUP = {

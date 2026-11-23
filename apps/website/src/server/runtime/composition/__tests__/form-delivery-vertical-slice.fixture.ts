@@ -13,7 +13,7 @@ import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { createCustomCredential } from "#src/features/custom-credentials/index";
 import { FORM_DESTINATIONS_FILENAME, formDestinationKeyLabel } from "#src/features/form-destinations/index";
 import type { FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "@jini-ai/cms/forms";
-import type { FormsAutoPullPort } from "#src/features/forms/index";
+import type { FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import type { ContentKernel } from "#src/platform/db/content-kernel";

@@ -12,7 +12,7 @@ import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy/render-entry";
 import { renderWidgetContactForm } from "./contact-form-widget.js";
 import { renderWidgetMediaImage, renderMediaWidget } from "./widgets/media.js";
 import { renderWidgetPostContent } from "./widgets/post-content.js";
-import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
+import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import type { SiteRenderContext } from "../render-context.js";
 
 /**

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderDocNodeWith } from "../render/doc/doc-nodes.js";
-import { WIDGET_PLACEHOLDER_IR } from "../render/widgets/placeholder.js";
+import { WIDGET_PLACEHOLDER_IR } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { renderDocNode } from "../render/content-html.js";
 
 /**

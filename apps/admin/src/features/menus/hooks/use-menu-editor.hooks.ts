@@ -1,18 +1,18 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AdminMenu, AdminMenuItem, AdminMenuMode } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu, AdminMenuItem, AdminMenuMode } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
 import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
+import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
-import type { MenusPort } from "./menus-port.hooks";
-import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
+import type { MenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-port.hooks";
+import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
 import { toSlug } from "../../../../../website/src/platform/html/slug";
 
 import { type Translate } from '@jini-ai/core/text';
