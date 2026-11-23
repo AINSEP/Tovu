@@ -60,3 +60,7 @@ Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings 
 ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,
 mail-cache invalidation) and the `settings.user.read` cross-principal policy from
 `inbound/admin-http/routes/settings/shared.ts` (host composition). The SSE feed (`events.ts`) stays hand-written.
+Assistant owner grants (`runtime/composition/modules/system-assistant.ts`, `registerAssistantOwnerGrantRoutes`) mount
+the Jini `createOwnerGrantRoutes` pairs `"direct"` with the settings failure copy, readiness bound to
+`settingsUiTabsReady`, the `SETTINGS_WRITE_FENCE` and `set` over `toWriteServiceDeps`; the subagents read projection
+(`projectAssistantSubagentsRead`) is host policy and lives there too.
