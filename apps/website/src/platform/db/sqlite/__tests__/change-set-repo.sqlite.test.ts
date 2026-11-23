@@ -59,6 +59,15 @@ function openRepo(): SqliteChangeSetRepo {
   return new SqliteChangeSetRepo({ store: openContentDb(":memory:") });
 }
 
+test("actorKind round-trips through change_sets.actor_kind (P10-H2): an agent's change set reads back 'agent'", async () => {
+  const repo = openRepo();
+  await repo.insert({ record: record({ actorKind: "agent" }), items: [item()] });
+
+  const found = await repo.findById({ workspaceId: WORKSPACE, id: "cs-1" });
+  assert.equal(found?.changeSet.actorKind, "agent");
+  assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE }))[0]?.actorKind, "agent");
+});
+
 test("actorId round-trips as undefined (not null) when the change set has no actor — the null side of `row.actorId ?? undefined`, never hit by any other suite's always-actored fixtures", async () => {
   const repo = openRepo();
   await repo.insert({ record: record({ actorId: undefined }), items: [item()] });
@@ -70,6 +79,9 @@ test("actorId round-trips as undefined (not null) when the change set has no act
       idempotencyKey: undefined,
       intentRef: undefined,
       revertedAt: undefined,
+      // An unstamped change set (every row recorded before migration 0043) has a NULL actor_kind,
+      // which reads back as "unknown", never as a guessed kind.
+      actorKind: undefined,
       ...record({ actorId: undefined }),
     });
     assert.deepEqual(found.items, [{

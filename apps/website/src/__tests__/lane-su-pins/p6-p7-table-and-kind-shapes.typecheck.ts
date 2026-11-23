@@ -28,7 +28,7 @@ export type LaneSuTableShapes = [
   Expect<Equal<ColumnsOf<"asset_blobs">, "id" | "workspace_id" | "sha256" | "storage_key" | "created_by_principal" | "created_at" | "status" | "tombstoned_at" | "document_owned" | "content_type">>,
   Expect<Equal<ColumnsOf<"asset_renditions">, "id" | "workspace_id" | "asset_id" | "transform_name" | "version" | "storage_key" | "created_at">>,
   Expect<Equal<ColumnsOf<"change_set_items">, "id" | "change_set_id" | "entity_type" | "entity_id" | "operation" | "before_revision_id" | "after_revision_id" | "inverse_payload_json" | "entity_version_at_apply" | "position">>,
-  Expect<Equal<ColumnsOf<"change_sets">, "id" | "workspace_id" | "actor_id" | "status" | "summary" | "idempotency_key" | "intent_ref" | "created_at" | "applied_at" | "reverted_at">>,
+  Expect<Equal<ColumnsOf<"change_sets">, "id" | "workspace_id" | "actor_id" | "actor_kind" | "status" | "summary" | "idempotency_key" | "intent_ref" | "created_at" | "applied_at" | "reverted_at">>,
   Expect<Equal<ColumnsOf<"content_type_revisions">, "seq" | "content_type_key" | "workspace_id" | "op" | "state_json" | "actor_id" | "principal_kind" | "delegated_by_workspace_id" | "delegated_by_id" | "recorded_at">>,
   Expect<Equal<ColumnsOf<"content_types">, "id" | "workspace_id" | "key" | "label" | "fields_json" | "status" | "version" | "tombstoned_at">>,
   Expect<Equal<ColumnsOf<"entries">, "id" | "workspace_id" | "type" | "slug" | "status" | "title" | "body_json" | "fields_json" | "published_at" | "created_at" | "updated_at" | "version" | "deleted_at">>,
