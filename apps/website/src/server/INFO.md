@@ -34,3 +34,10 @@ SEO (`runtime/composition/modules/seo.ts`) mounts `@jini-ai/cms/admin-http/route
 put-entry, `entryAuthorize` (the RBAC `deps.authorize` its write chokepoint re-checks with). Put-entry
 mounts `"guarded"` with its operation-only 500 copy pinned (`PUT_ENTRY_FAILURE`); the rest `"direct"`.
 The public sitemap/robots/llms/feed routes in the same module stay hand-written (non-JSON).
+Media (`runtime/composition/modules/media.ts`) mounts `@jini-ai/cms/admin-http/routes/media/{update,trash,
+delete,get-providers,put-providers}` (delete `"guarded"`, the rest `"direct"`) and binds the single-asset
+DTO lookups (recorded content type, public URL, blob size), the transactional `removeMedia` trash flip,
+the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
+`MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
+`@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
+remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).

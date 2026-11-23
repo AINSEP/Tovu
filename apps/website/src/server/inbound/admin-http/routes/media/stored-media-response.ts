@@ -1,6 +1,6 @@
 import type { MediaRecord } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
-import { toAdminMediaResponse, type AdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
+import { toAdminMediaResponse, type AdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteDeps } from "./deps.js";
 
