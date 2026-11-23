@@ -1,0 +1,15 @@
+HEAD f7185f153
+size exit=1 secs=23
+boundaries exit=0 secs=30
+admin-tsc exit=2 secs=35
+desktop-tsc exit=0 secs=24
+typecheck exit=0 secs=44
+hooks exit=0 secs=1
+errors exit=0 secs=27
+worker-import-graph exit=0 secs=22
+complexity exit=0 secs=31
+typecheck-scripts exit=2 secs=26
+why-comments exit=1 secs=0
+typecheck-tests exit=0 secs=71
+architecture exit=1 secs=110
+DONE

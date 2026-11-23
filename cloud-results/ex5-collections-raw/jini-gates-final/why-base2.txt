@@ -1,0 +1,2 @@
+why-comments: 0 files with removed lines checked against 4902a6a1a..HEAD, 0 comment blocks lost (0 allow-listed)
+why-comments: ok

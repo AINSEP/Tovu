@@ -1,0 +1,32 @@
+
+> jini@ check:cross-package /home/user/Jini
+> node --import tsx ./scripts/check-no-cross-package.ts --base 35c4961af
+
+fatal: bad revision '35c4961af'
+node:internal/errors:986
+  const err = new Error(message);
+              ^
+
+Error: Command failed: git diff --name-status -z --find-renames 35c4961af -- packages
+fatal: bad revision '35c4961af'
+
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:943:11)
+    at execFileSync (node:child_process:979:15)
+    at git (/home/user/Jini/scripts/check-no-cross-package.ts:21:10)
+    at changes (/home/user/Jini/scripts/check-no-cross-package.ts:25:18)
+    at checkNoCrossPackage (/home/user/Jini/scripts/check-no-cross-package.ts:251:24)
+    at ts (/home/user/Jini/scripts/check-no-cross-package.ts:274:20)
+    at Object.<anonymous> (/home/user/Jini/scripts/check-no-cross-package.ts:279:1)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14) {
+  status: 128,
+  signal: null,
+  output: [ null, '', "fatal: bad revision '35c4961af'\n" ],
+  pid: 28808,
+  stdout: '',
+  stderr: "fatal: bad revision '35c4961af'\n"
+}
+
+Node.js v24.22.3
+ ELIFECYCLE  Command failed with exit code 1.

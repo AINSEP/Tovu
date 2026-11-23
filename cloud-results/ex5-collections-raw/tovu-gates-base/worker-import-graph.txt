@@ -1,0 +1,34 @@
+✔ handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports (846.274144ms)
+✔ handlebars-worker.ts loads no database, blob-store or agent packages (1084.224827ms)
+✔ liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports (416.921164ms)
+✔ liquid-worker.ts loads no database, blob-store or agent packages (781.74497ms)
+✔ source graph follows unexecuted production edges: import "./leaf.js"; (1.763053ms)
+✔ source graph follows unexecuted production edges: export * from "./leaf.js"; (0.808368ms)
+✔ source graph follows unexecuted production edges: function deferred() { return require("./leaf.js"); } (0.759404ms)
+✔ source graph follows unexecuted production edges: function deferred() { return import("./leaf.js"); } (0.927847ms)
+✔ source graph follows executable imports inside TSX instead of treating JSX text as code (2.183148ms)
+✔ source graph inspects conditional ESM executables behind declarations: import "conditional-leaf"; (2.740111ms)
+✔ source graph inspects conditional ESM executables behind declarations: export * from "conditional-leaf"; (1.188652ms)
+✔ source graph inspects conditional ESM executables behind declarations: function deferred() { return import("conditional-leaf"); } (1.129213ms)
+✔ source graph refuses executable edges that resolve only to declarations (4.507687ms)
+✔ public page requests do not load feature-wide barrels or assistant tools (2869.98088ms)
+✔ ../../routes/site/products.ts keeps public reads separate from feature-wide write/tool barrels (2241.040645ms)
+✔ ../../routes/site/media-rendition.ts keeps public reads separate from feature-wide write/tool barrels (4838.405117ms)
+✔ ../../routes/site/member-pages.ts keeps public reads separate from feature-wide write/tool barrels (2008.603011ms)
+✔ ../../routes/content/posts/get-by-slug.ts keeps public reads separate from feature-wide write/tool barrels (381.407197ms)
+✔ ../../middleware/site-consent.ts keeps public reads separate from feature-wide write/tool barrels (229.573544ms)
+✔ ../../middleware/theme-preview-switcher.ts keeps public reads separate from feature-wide write/tool barrels (688.505185ms)
+✔ ../../http/shared/post.ts keeps public reads separate from feature-wide write/tool barrels (139.723236ms)
+✔ ../../routes/site/feed.ts keeps public reads separate from feature-wide write/tool barrels (498.698373ms)
+✔ ../../middleware/theme-static-assets.ts keeps public reads separate from feature-wide write/tool barrels (433.520134ms)
+✔ ../../middleware/theme-preview-refresh.ts keeps public reads separate from feature-wide write/tool barrels (1720.573694ms)
+✔ ../../routes/plugin-contributions.ts keeps public reads separate from feature-wide write/tool barrels (1714.581754ms)
+✔ visitor publication uses narrow package entries on public HTML responses (427.505901ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22332.089903
