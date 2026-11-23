@@ -1,6 +1,7 @@
 import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
-import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
+import type { MediaProvenance } from "@jini-ai/cms/media";
+import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
@@ -15,6 +16,7 @@ import {
   type MediaProviderRegistry,
   type ProviderCredentials,
 } from "@jini-ai/integrations/media-providers";
+import { nodeMediaGuardedFetch } from "@jini-ai/integrations/media-providers/node";
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
@@ -160,7 +162,7 @@ async function defaultGenerateMedia(
   _optional = {}
 ): Promise<MediaGenerationResult> {
   const { registry } = options;
-  const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient }, {
+  const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient, guardedFetch: nodeMediaGuardedFetch }, {
     catalog: registry,
     credentials: { [options.providerId]: credentials },
     allowStubFallback: options.allowStubFallback,
