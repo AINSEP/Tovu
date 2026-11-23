@@ -3,7 +3,7 @@ import test from 'node:test';
 import { parseAgentPluginMcpConfig } from '@jini-ai/agent-plugins/lifecycle';
 import { parseHostSignalDeclaration } from '../../host-signals.js';
 import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
-import { parseSupersedes } from '../../supersession.js';
+import { parseSupersedes } from '@jini-ai/agent-plugins/site/supersession';
 
 const schema = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json';
 const signal = { env: 'EXAMPLE_HOST', facts: { hosted: true, trustProxyHops: 1 } };

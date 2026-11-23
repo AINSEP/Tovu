@@ -5,7 +5,6 @@ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { agentPluginCardHost } from './card-host-bindings.js';
 import { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from '@jini-ai/agent-plugins/connect';
-export { chooseApiConnectionDestinationWithPorts, type AgentPluginDestinationCardHost } from '@jini-ai/agent-plugins/connect';
 
 export const tovuDestinationCardHost: AgentPluginDestinationCardHost = {
   channel: 'mcp-ui',
