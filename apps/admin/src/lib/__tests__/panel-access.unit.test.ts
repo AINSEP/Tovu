@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { AdminNavGroup } from "@jini-ai/admin/core";
@@ -122,6 +123,11 @@ describe("the direct-URL gate over the real panels", () => {
  * test below; renaming a server permission fails the second.
  */
 const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
+// Routes that left the host as `@jini-ai/cms` route specs: the literal is in the spec's built file
+// (or the `shared.js` beside it that holds that feature's permission guard).
+const requireFromHere = createRequire(import.meta.url);
+const cmsRoute = (spec: string, file: string): string =>
+  join(dirname(requireFromHere.resolve(`@jini-ai/cms/admin-http/routes/${spec}`)), file);
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
   pages: `${ROUTES}/pages/list.ts`,
@@ -129,20 +135,20 @@ const SERVER_EVIDENCE: Record<string, string> = {
   media: `${ROUTES}/media/list.ts`,
   // Library lists `media?kind=document` through the same route and permission.
   library: `${ROUTES}/media/list.ts`,
-  collections: `${ROUTES}/content-types/list.ts`,
-  menus: `${ROUTES}/menus/list.ts`,
-  taxonomy: `${ROUTES}/taxonomy/list.ts`,
-  forms: `${ROUTES}/forms/list.ts`,
+  collections: cmsRoute("content-types/list", "list.js"),
+  menus: cmsRoute("menus/list", "list.js"),
+  taxonomy: cmsRoute("taxonomy/list", "shared.js"),
+  forms: cmsRoute("forms/list", "shared.js"),
   users: `${ROUTES}/users/list.ts`,
   roles: `${ROUTES}/users/list-roles.ts`,
   members: `${ROUTES}/members/list.ts`,
-  comments: `${ROUTES}/comments/moderation-queue.ts`,
+  comments: cmsRoute("comments/moderation-queue", "moderation-queue.js"),
   themes: `${ROUTES}/themes/list.ts`,
   appearance: `${ROUTES}/themes/list.ts`,
   plugins: `${ROUTES}/plugins/list.ts`,
   "agent-plugins": `${ROUTES}/agent-plugins/list.ts`,
   skills: `${ROUTES}/skills/list.ts`,
-  database: `${ROUTES}/database/timeline.ts`,
+  database: cmsRoute("database/timeline", "timeline.js"),
   recovery: `${ROUTES}/recovery/status.ts`,
   deployment: `${ROUTES}/system/deployment-overview.ts`,
   observability: `${ROUTES}/system/observability-status.ts`,
@@ -152,7 +158,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
   seo: `${ROUTES}/seo/get-settings.ts`,
-  redirects: `${ROUTES}/redirects/list.ts`,
+  redirects: cmsRoute("redirects/list", "shared.js"),
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
