@@ -424,3 +424,146 @@ wire tests), `8e668087a` (admin client types), `c20f88365` (why-comments).
 [ ] Jini: build, guard, api:update + api:check (Core + feature baselines), changeset; Tovu: typecheck,
     family + admin-json-route-ports tests, route-table pin diff == base, why-comments ok
 ```
+
+## 9. Request context, replies and raw routes (w3-rtfnd)
+
+The rt-* lanes STOPPED on routes whose wire needs more than body/query/params in and a JSON body out.
+These seams close those gaps without changing any existing mount (every option below is opt-in; the
+route-table pin is unchanged because every mount still registers with `app[method](path, handler)`).
+Jini names: `@jini-ai/core/contracts/server` (`RouteRequestFacts`, `routeReply`, `isRouteReply`,
+`RouteInputContext.headers/facts`) and `@jini-ai/http-kit` (`RouteRequestOptIns`, `defineRawRoute`,
+`mountRawRoute`, `RawRouteSpec`). Tovu names: `admin-http/admin-json-route-ports.ts`,
+`admin-http/admin-request-facts.ts`, `admin-http/admin-raw-route-ports.ts`.
+
+### 9.1 Spec opt-ins (`RouteRequestOptIns`, on JSON and raw specs alike)
+
+The opt-ins are http-kit `JsonRouteSpec`/`RawRouteSpec` fields. A spec built with http-kit's
+`defineJsonRoute` passes them in its second (optional) argument; a spec built with core's
+`defineJsonRoute` (Jini domain packages, which never import http-kit) gets them spread on where the
+composition mounts it. Both are object fields — never positional.
+
+- **`readHeaders`** — the route reads a request header (posts/pages create/update/delete `Idempotency-Key`).
+  Names are lower-cased; `raw.headers` holds ONLY the names asked for, and an absent header has no key.
+  ```ts
+  mountAdminJsonRoute({ app, spec: { ...postsCreateRoute, readHeaders: ["idempotency-key"] }, deps }, { failure });
+  // spec: const key = raw.headers?.["idempotency-key"];   // string | undefined
+  ```
+- **`requestFacts: true`** — the route needs client IP / User-Agent / Host (rate limiting, analytics ingest,
+  publish-trust identity `originOf`, external-mcp probe/poll/connect). `raw.facts` is
+  `{ clientAddress, userAgent?, host? }`; `clientAddress` is Tovu's trust-proxy answer (`captureRequestFacts`
+  → `resolveClientIp(req)`), `host` is `req.get("host")`, `userAgent` is `req.get("user-agent")`. Every
+  Tovu mount (admin and public, JSON and raw) binds the `requestFacts` port; it is consulted only for a spec
+  that opts in (a spec that opts in on a mount without the port throws at mount time).
+  ```ts
+  mountPublicJsonRoute({ app, spec: { ...analyticsIngestRoute, requestFacts: true }, deps, failure });
+  // spec: const limited = deps.limiter.hit({ key: raw.facts!.clientAddress });
+  ```
+- **`responseHeaders`** — a STATIC header on EVERY answer of the route, refusals included, set before the
+  workspace 404 (consent `Cache-Control: no-store`, folder-picker, public search/content).
+  ```ts
+  mountAdminJsonRoute({ app, spec: { ...consentGetRoute, responseHeaders: { "Cache-Control": "no-store" } }, deps });
+  ```
+
+### 9.2 `routeReply` — status, headers or an empty body from a JSON spec
+
+A handler returns `ok(routeReply({ status, body?, headers? }))` when the answer is not "200/successStatus +
+JSON": `Retry-After` on a 429 (members request-magic-link, publish-trust challenge/session, IP limiters),
+`ETag` + bare `304` (skills list), bare `204` (users remove-policy-permission, which used `send()`).
+`body` absent ⇒ `res.status(s).send()` exactly; ordinary return values are unchanged.
+```ts
+if (!limit.allowed) return ok(routeReply({ status: 429, body: { error: "Too many requests", code: "RATE_LIMITED" }, headers: { "Retry-After": String(limit.retryAfterSeconds) } }));
+if (etag === raw.headers?.["if-none-match"]) return ok(routeReply({ status: 304, headers: { ETag: etag } }));
+return ok(routeReply({ status: 204 }));
+```
+
+### 9.3 Raw routes — `mountAdminRawRoute` / `mountPublicRawRoute`
+
+For HTML, XML/text, streams, downloads, `express.raw` uploads, `302` + `Set-Cookie`. The spec is
+`defineRawRoute({ method, path, handle }, { readHeaders?, requestFacts?, responseHeaders?, maxBodyBytes? })`;
+`handle({ raw, deps, context, authorize }, { signal })` returns a web `Response` (each `Set-Cookie` header
+is written on its own line; a `ReadableStream` body is streamed and cancelled on client disconnect, `signal`
+aborts with it; `null` body ⇒ `end()`). Same gate order and the SAME host ports as the JSON mounts (workspace
+404, session, guarded/direct authorize, `sessionCredentialOnly`, `forbidden`, `failureFor`, `failureCopy`,
+the redacted 500). `raw.body` is whatever the route's own parser left on `req.body` (a `Buffer` after an
+`express.raw` registered for that path, ahead of the mount).
+```ts
+mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps: { ...portDeps, installer } }, { failure: { operation: "routes/plugins/install" } });
+mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError: "The sitemap couldn’t load." }, workspaceId: deps.workspaceId });
+// spec: return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8" } });
+```
+
+### 9.4 Admin mount options (`AdminJsonRouteMountOptions`, also taken by `mountAdminRawRoute`)
+
+- **`sessionCredentialOnly: { message, permission }`** — the route called `rejectUnlessSessionCredential`
+  (api-keys, folder-picker, external-mcp shared, admin-surfaces, publish-content import/backstop/bundle/
+  capabilities/peer-transport, plugins provider-settings, system/* credentials). The mount answers that
+  function's exact 403 (`{ error: message, code: "FORBIDDEN", details: { permission, reason:
+  "credential_kind_not_permitted" } }`) in `authenticate`: after the workspace 404, before parse/authorize.
+  ```ts
+  mountAdminJsonRoute({ app, spec: apiKeysIssueRoute, deps }, { authorization: "direct", sessionCredentialOnly: { message: API_KEY_CREDENTIAL_MESSAGE, permission: "admin.api_keys.manage" } });
+  ```
+- **Admin request facts — `adminRequestFactsFor({ context })`** — the route branched on the credential
+  kind (`gatedPrincipalKindFor`) or read the publish-trust grant (`getPublishTrustContext`). Bind the accessor
+  into the spec's deps at the composition; the spec calls it with its `context`. Answers
+  `{ credentialKind: "session" | "api_key" | "publish_key", publishTrust: PublishTrustContext | null }`,
+  keyed on that request's own principal copy (never shared across requests); no Express type reaches the spec.
+  Throws (⇒ the redacted 500) for a context the ports never authenticated — a wiring bug.
+  ```ts
+  mountAdminJsonRoute({ app, spec: publishImportRoute, deps: { ...portDeps, requestFacts: adminRequestFactsFor } });
+  // spec: const { credentialKind, publishTrust } = deps.requestFacts({ context });
+  ```
+- **`forbidden: (decision) => { status, body }`** — the route's denial body was not `authorizeOrRespond`'s
+  (media where-used/text `{ error: "media.read is required", code: "FORBIDDEN" }`, import-url
+  `"not authorized for media.upload"`). Receives `{ principalId, permission, entityType?, entityId?, reason }`.
+  ```ts
+  mountAdminJsonRoute({ app, spec: mediaWhereUsedRoute, deps }, { forbidden: () => ({ status: 403, body: { error: "media.read is required", code: "FORBIDDEN" } }) });
+  ```
+- **`failureFor: (error) => FailureOptions | undefined`** — one route answered two different 500s
+  (agent-plugins memory PUT: a Node system error is `agent-plugins:write-note` + "The note could not be
+  saved."). `undefined` falls back to `failure`.
+  ```ts
+  { failure: { operation: "routes/agent-plugins/memory", code: "INTERNAL_ERROR" }, failureFor: (e) => isNodeSystemError({ error: e }) ? { operation: "agent-plugins:write-note", message: "The note could not be saved." } : undefined }
+  ```
+- **`failureCopy: "operation"`** — the route answered `adminFailureResponse({ error, tracker }, { operation })`
+  directly (presentation PATCH: operation-only copy, not `sendAdminFailure`'s method/route-derived copy).
+  ```ts
+  { failure: { operation: "routes/presentation/patch-active-theme" }, failureCopy: "operation", authorization: "direct" }
+  ```
+- **Authorization without an entity type** — a spec calls `authorize({ permission })` with no `entityType`
+  and the host authorizer receives NO `entityType` key (users list-roles/policies/policy-permissions, which
+  pin exact params). Do not invent an `entityType` any more (the skills/fs-files departures above can drop theirs).
+
+### 9.5 Public mounts
+
+`mountPublicJsonRoute`/`mountPublicRawRoute` take an optional `workspaceId`: when given, a path with
+`:workspaceId` answers the shared `{ error: "workspace was not found" }` 404 before the handler (the
+hand-written `rejectForeignWorkspace`). Without it the mount behaves as before. Facts and response headers
+work as in §9.1. Public routes have no session, so `context` is `undefined` and `authorize` is never wired.
+
+### 9.6 Migration notes — families STOPPED by rt-* now convert with
+
+| STOPPED family (lane) | reason | now use |
+|---|---|---|
+| posts/pages create/update/delete (rt-l1) | `Idempotency-Key` | `readHeaders: ["idempotency-key"]` |
+| presentation PATCH (rt-l1) | operation-only 500 copy | `failureCopy: "operation"` |
+| posts template-preview, themes preview (rt-l1) | HTML, urlencoded, 302 | `mountAdminRawRoute` (+ `express.urlencoded` registered for the path first) |
+| api-keys ×3, folder-picker (rt-i2) | `rejectUnlessSessionCredential` | `sessionCredentialOnly` |
+| folder-picker, consent ×5 (rt-i2) | `Cache-Control: no-store` | `responseHeaders` |
+| skills list (rt-i2) | ETag / 304 | `readHeaders: ["if-none-match"]` + `routeReply({ status: 304, headers })` |
+| publish-trust identity/challenge/session (rt-i2) | `req.get("host")`, 429 `Retry-After` | `requestFacts: true` (`raw.facts.host`) + `routeReply` |
+| members request-magic-link (rt-i2) | 429 `Retry-After` | `requestFacts: true` + `routeReply` |
+| users remove-policy-permission (rt-i2) | bare 204 `send()` | `routeReply({ status: 204 })` |
+| users list-roles/policies/policy-permissions | authorize without entityType | `authorize({ permission })` |
+| public members/commerce/site (rt-l3) | IP, UA, DNT, 204, workspace 404, headers | `requestFacts`, `readHeaders: ["dnt"]`, `routeReply`, `workspaceId` on the public mount; HTML/XML/bytes/303+cookie ⇒ `mountPublicRawRoute` |
+| media where-used / import-url / text (rt-l3) | own 403 body | `forbidden` |
+| external-mcp probe/poll/connect (rt-l4) | IP limiter, `Retry-After`, public origin | `requestFacts: true` + `routeReply` |
+| external-mcp shared, agent-plugins admin-surfaces (rt-l4) | credential-kind gate | `sessionCredentialOnly` |
+| external-mcp browser sign-in (rt-l4) | 302 + `Set-Cookie` | `mountAdminRawRoute` |
+| agent-plugins memory (rt-l4) | two 500 copies | `failureFor` |
+| agent-plugins install, plugins install, blob-put (rt-l4/l5) | `express.raw` upload | `mountAdminRawRoute` (`raw.body` is the `Buffer`) |
+| publish-content import/backstop/bundle/capabilities/peer-transport, plugins provider-settings (rt-l5) | credential kind / grant | `sessionCredentialOnly` and/or `adminRequestFactsFor` |
+| publish-content export, blob-get, chart-providers (rt-l5) | stream / bytes / Cache-Control | `mountAdminRawRoute` + `responseHeaders` |
+
+Still out of scope (raise, do not work around): the asyncRoute `[forwardRejection]` handler name in the pin
+(rt-i2 #3), analytics recent-hits' nested 500 envelope, `/readyz`'s source-regex consumer, blobs-probe's
+413 before the workspace 404, and `res.once("finish")` hooks.

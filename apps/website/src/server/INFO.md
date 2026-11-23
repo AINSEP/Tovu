@@ -28,6 +28,16 @@ without a session, so a spec's `parse` refusal (400) still precedes the missing-
 the hand-written parse-first routes; `authorize` then fails closed. Every other mount fails in
 `authenticate`, before parse, as before. `authorizationByPermission` answers one permission from a
 different source than the mount default.
+w3-rtfnd per-mount opt-ins (all default off, so existing mounts answer as before): `sessionCredentialOnly`
+(`rejectUnlessSessionCredential`'s 403 in `authenticate`), `forbidden` (a route's own denial body), `failureFor`
+(per-error failure options) and `failureCopy: "operation"` (`adminFailureResponse`'s operation-only body). A spec
+that branches on the credential kind or the publish-trust grant gets `adminRequestFactsFor`
+(`inbound/admin-http/admin-request-facts.ts`) bound into its deps, keyed on the request's principal copy. Every
+admin and public mount binds http-kit's `requestFacts` port to `routeRequestFactsFor` (client address via
+`captureRequestFacts`, `User-Agent`, `Host`), read only by a spec that opts in; a public mount given `workspaceId`
+answers the shared workspace 404. Non-JSON specs mount through `admin-raw-route-ports.ts`
+(`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration). An `authorize` call without
+`entityType` reaches `deps.authorize` without the key. Template: `plans/K1-route-template.md` §9.
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
@@ -87,6 +97,14 @@ Site profile (`runtime/composition/modules/site.ts`, mounted from `http-app/moun
 Redirects (`modules/redirects.ts`) now mounts all seven redirects routes as Jini specs; `registerAdminRedirectCreateRoute`
 mounts `redirectCreateRoute` `"guarded"` (the publishing-credential override honoured, as `authorizeOrRespond` did) with
 failure operation `routes/redirects/shared`.
+
+Consent (`runtime/composition/modules/consent.ts`) exports `registerAdminConsentRoutes`, mounting the six Jini
+`@jini-ai/cms/admin-http/routes/consent/routes` specs in the hand-written order (`"guarded"`, failure `consent-admin`
+503 `CONSENT_UNAVAILABLE` with the enforcement copy). It binds the consent service, `readConsentRequest`/`consentRevisionToken`
+from `features/consent/request` and `isConsentConflict` (`SiteConsentConflict`); `Cache-Control: no-store` comes from the spec.
+Presentation PATCH (`modules/presentation.ts` `registerAdminPresentationPatchRoute`) mounts `presentationPatchRoute`
+(`"direct"`, operation `routes/presentation/patch-active-theme`, `failureCopy: "operation"`), binding `setActiveTheme`
+(repo, tracker, clock, `writableThemeIds`), `ThemeStylingRequiredError`, theme discovery, the preview refresh and the DTO.
 
 Content lane (L1): each family's registrars live in `runtime/composition/modules/<family>.ts`
 (`change-sets`, `email-templates`, `pages`, `posts`, `presentation`, `themes`, `theme-explore`);
