@@ -7,7 +7,7 @@ import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
-import { createSubscription } from "#src/features/webhooks/subscriptions";
+import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";

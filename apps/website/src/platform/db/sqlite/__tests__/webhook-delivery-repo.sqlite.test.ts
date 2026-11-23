@@ -7,10 +7,10 @@ import test from "node:test";
 import { openContentDb } from "../content-db.js";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
 import { processDueDeliveries } from "#src/features/webhooks/delivery";
-import { createFixedSecretSigner } from "#src/features/webhooks/signing";
-import { createSubscription } from "#src/features/webhooks/subscriptions";
+import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
+import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
+import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
 import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
 import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
@@ -486,6 +486,6 @@ test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (
 });
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
-for (const each of eachDialect({ tables: ["webhook_deliveries"], make: kernel => new SqlWebhookDeliveryRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["webhook_deliveries"], make: kernel => webhookDeliveriesOn({ kernel }) })) {
   runContractSuite(`kysely/${each.name}`, each.make);
 }

@@ -30,7 +30,7 @@ import { captureSqliteBackupBytes } from "../database-transfer-adapters.js";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
-import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
+import { readBuiltInExternalMcpServerIds } from "@jini-ai/mcp/external/built-in-connections";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolvePublicAssistantAvailability } from "../../../../assistant/index.js";
 import { set } from "#src/features/settings/index";

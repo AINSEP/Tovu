@@ -9,8 +9,8 @@ import {
   updateSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "../subscriptions.js";
-import type { WebhookSubscriptionDeps } from "../subscriptions.js";
+} from "@jini-ai/integrations/webhooks/site/subscriptions";
+import type { WebhookSubscriptionDeps } from "@jini-ai/integrations/webhooks/site/subscriptions";
 
 function makeDeps(overrides: Partial<WebhookSubscriptionDeps> = {}): WebhookSubscriptionDeps {
   let counter = 0;

@@ -482,7 +482,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   applyProductTelemetryEnv({ env, productTelemetry: input.productTelemetry });
   delete env.TOVU_PUBLIC_URL;
   // Ownership comes from the host that registers this connection, never from its display name.
-  env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
+  env.JINI_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
 
   env.TOVU_AGENT_DAEMON_TOKEN = inherited.secrets.TOVU_AGENT_DAEMON_TOKEN || randomBytes(32).toString("hex");
 

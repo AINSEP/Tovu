@@ -1,4 +1,4 @@
-import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
+import { isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";

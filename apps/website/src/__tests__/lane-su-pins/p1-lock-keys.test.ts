@@ -9,7 +9,7 @@ import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
-import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
+import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
@@ -86,7 +86,7 @@ describe("P1 lock keys: taxonomy, trash, claims", () => {
 
   test("webhook delivery claim", async () => {
     const { kernel, keys } = recordingKernel();
-    assert.deepEqual(await new SqlWebhookDeliveryRepo(kernel).claimPending({ batchSize: 5, nowIso: "2026-11-17T00:00:00.000Z" }), []);
+    assert.deepEqual(await webhookDeliveriesOn({ kernel }).claimPending({ batchSize: 5, nowIso: "2026-11-17T00:00:00.000Z" }), []);
     assert.deepEqual(keys, ["webhook_deliveries:claim"]);
   });
 });

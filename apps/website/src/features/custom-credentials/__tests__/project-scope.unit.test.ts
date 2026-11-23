@@ -8,7 +8,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { abortGuardedCredentialRepo } from "../../vendor-credentials/abort-guarded-repo.js";
+import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,

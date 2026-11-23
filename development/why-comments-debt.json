@@ -2752,6 +2752,42 @@
     {
       "id": "37e1c39b50ae",
       "reason": "Moved to Jini @jini-ai/core/text descriptor-i18n.ts header (canonical parser; the X-agent-plugins-1.J forwarding module was removed per review rv-d, host consumers import @jini-ai/core/text directly); host path citations reworded neutral per N2."
+    },
+    {
+      "id": "2cfc15422070",
+      "reason": "Barrel comment for the deleted subscription re-export block (X-webhooks-1): rewritten in place to say the write-service now lives at @jini-ai/integrations/webhooks/site/subscriptions (Jini c2b7ff75); its ADR-036 rationale moved with the code."
+    },
+    {
+      "id": "8eb36fe2be42",
+      "reason": "In-memory adapter comment referred to the deleted ./subscriptions export above; rewritten in place with the same rationale (X-webhooks-1)."
+    },
+    {
+      "id": "7d8db81bc6fc",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/signing.keyring.ts (Jini c2b7ff75), pointer reworded relative."
+    },
+    {
+      "id": "368d4f858a18",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/signing.keyring.ts (Jini c2b7ff75), product name -> \"the host\"."
+    },
+    {
+      "id": "b67c58577970",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/signing.ts (Jini c2b7ff75), pointer reworded relative."
+    },
+    {
+      "id": "4c9357ce50ff",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/signing.ts (Jini c2b7ff75), product name -> \"the host\"."
+    },
+    {
+      "id": "e8200c5da04d",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/signing.ts (Jini c2b7ff75), product name -> \"the host\"."
+    },
+    {
+      "id": "f9060e7b0623",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/subscriptions.ts (Jini c2b7ff75), pointer reworded relative."
+    },
+    {
+      "id": "c0b4e36cf4db",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/sql/webhook-repo.ts (S6b, Jini 95688ca4); host path citations reworded to name the host binding."
     }
   ]
 }

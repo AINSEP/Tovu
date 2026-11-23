@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlWebhookSubscriptionRepo } from "#src/platform/db/repos/webhook-repo";
+import type { SqlWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/sql";
+import { webhookSubscriptionsOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 
 const record = { id: "sub", workspaceId: "ws", ownerPrincipalId: "owner", label: "Original",
@@ -29,5 +30,5 @@ function cases(make: () => SqlWebhookSubscriptionRepo | InMemoryWebhookSubscript
   });
 }
 
-describeEachDialect("webhook subscription lost update", { tables: ["webhook_subscriptions"], make: (kernel) => new SqlWebhookSubscriptionRepo(kernel) }, (make) => cases(make));
+describeEachDialect("webhook subscription lost update", { tables: ["webhook_subscriptions"], make: (kernel) => webhookSubscriptionsOn({ kernel }) }, (make) => cases(make));
 describe("webhook subscription lost update — memory", () => cases(() => new InMemoryWebhookSubscriptionRepo()));

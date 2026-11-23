@@ -1,6 +1,6 @@
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
+import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
