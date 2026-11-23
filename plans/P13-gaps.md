@@ -1,4 +1,4 @@
-PLAN PARTIAL: areas 2, 4 (in progress)
+PLAN PARTIAL: area 4 (in progress)
 
 # P13 — plans for the areas the P12 ledger says have no plan (2026-11-23)
 
@@ -14,7 +14,7 @@ Planner loaded `AI-Dev-Shop/agents/software-architect/skills.md` (v2.3.2) before
 | Area | Files in scope | Moving to Jini (whole or slice) | Staying | Steps | Est. hours |
 |---|---:|---:|---:|---|---:|
 | 1 · Tovu website CLI | 28 | 0 whole files deleted-and-moved except 2 (`help.ts`, `commands/introspect.ts`); generic slices of 5 more | 26 (5 thinned) | P13-C1..C3 | 6.5 |
-| 2 · Site (visitor) chat remainder | _pending_ | | | | |
+| 2 · Site (visitor) chat remainder | 33 (30 site-chat + 3 SDK) | 0 whole files; generic slices of 5 | 33 (12 covered elsewhere, 4 deferred for `codex/visitor-chat-tovu`, 12 stay, 5 thinned) | P13-S1..S5 | 10.5 |
 | 3 · Generic Admin UI + Playground | 7 | 0 | 7 | P13-A1 | 0.75 |
 | 4 · Desktop renderer residual | _pending_ | | | | |
 
@@ -118,7 +118,116 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 ## 2. Site (visitor) chat remainder
 
-_In progress._
+`SC/` = `apps/site-chat/src/`, `J/` = Jini `packages/`. LOC from `wc -l` on base. Importer counts from `git grep -n -F` on base: "all" = every tracked hit, "code" = hits in `apps packages development package.json .github`. None of the 33 paths is deleted on an ex4/ex5 head.
+
+### 2.0 Counts
+
+33 files in scope (30 site-chat incl. `vite-env.d.ts` — the ledger's 29 excludes it — plus 3 SDK) | 12 already covered | 4 deferred for `codex/visitor-chat-tovu` | 5 uncovered with a generic slice → Jini (partial extractions; no Tovu file deleted) | 12 uncovered STAY | 5 steps (P13-S1..S5) | ≈ 10.5 h.
+
+### 2.1 Coverage table
+
+| File | LOC | Covered by / P13 step / STAYS reason |
+|---|---:|---|
+| `apps/site-chat/scripts/measure-bundles.mjs` | 53 | `BX-17/18` (P9K B07 → `devops/build/bundle-size`) |
+| `apps/site-chat/scripts/check-bundle-mounts.mjs` | 353 | **P13-S5** — generic harness → Jini; scenarios, storage keys, mount id stay |
+| `SC/SiteAssistantActivation.hooks.ts` | 67 | `BX-7/8`; importer edited in **P13-S3** |
+| `SC/SiteAssistantHeader.hooks.ts` | 20 | **P13-S1** — Escape-key port → Jini; copy binding stays |
+| `SC/SiteAssistantHeader.tsx` | 19 | STAYS — host header-slot adapter; whether it survives is decided in `BX-8` (OWNER-Q-4), since Jini `EmbedChatWidget` already renders `EmbedChatHeader` (`J/chat/src/embed-widget/react/embed.tsx:51`) |
+| `SC/SiteAssistantWidget.hooks.ts` | 76 | `BX-7/8`; **deferred** (edited on `codex/visitor-chat-tovu`) |
+| `SC/SiteAssistantWidget.tsx` | 92 | `BX-7/8`; **deferred** (edited on `codex/visitor-chat-tovu`) |
+| `SC/SiteToolConfirmation.hooks.ts` | 35 | `BX-13` |
+| `SC/jini-kits.ts` | 9 | STAYS — host kit composition (precedent `stays-in-tovu.md:248`) |
+| `SC/jini-surfaces.ts` | 13 | STAYS — host surface composition (precedent `stays-in-tovu.md:249`) |
+| `SC/loader-entry.ts` | 5 | STAYS — build entry binding Jini `installLazyChatLoader` |
+| `SC/loader-host.ts` | 62 | `BX-7/8` |
+| `SC/main.tsx` | 50 | STAYS — self-mounting IIFE; `MOUNT_ID` `tovu-site-assistant-root` must match server markup |
+| `SC/remixicon-override.ts` | 66 | STAYS — binds the host URL `/site-chat/remixicon.css`; the work is already Jini `installRemixIconStylesheet` (`J/ui/src/react/components/RemixIcon.stylesheet.ts:86`) |
+| `SC/session-store.ts` | 164 | `BX-4/5` |
+| `SC/site-assistant-errors.ts` | 33 | `P6-T1`; **deferred** (edited on `codex/visitor-chat-tovu`) |
+| `SC/site-assistant-transport.ts` | 355 | `BX-1/2/3`, `P6-J1/T1`; **deferred** (edited on `codex/visitor-chat-tovu`) |
+| `SC/site-chat-comparison.ts` | 68 | **P13-S3** — send bridge → Jini; variant detection and product event names stay |
+| `SC/site-chat-i18n.ts` | 46 | **P13-S4** — repoint onto core `createDictionaryTranslator`/`interpolate`; dictionary (product copy) stays |
+| `SC/tool-confirmation.ts` | 33 | `BX-13`; `P6-T2` deletes it |
+| `SC/vanilla-entry.ts` | 7 | STAYS — build entry |
+| `SC/vanilla-host.ts` | 75 | **P13-S2** — safe markdown-to-DOM renderer → Jini; the rest is host composition |
+| `SC/vanilla-tool-confirmation.ts` | 101 | `BX-13` |
+| `SC/visitor-page-control.ts` | 133 | `BX-14/15`, `P6-T3` |
+| `SC/visitor-site-path.ts` | 14 | `BX-16` |
+| `SC/vite-env.d.ts` | 1 | STAYS — Vite ambient types |
+| `apps/site-chat/vite-public-guard.ts` | 28 | STAYS — Vite plugin enforcing Tovu's `apps/admin` boundary (ADR-054); Jini stays vendor-neutral |
+| `apps/site-chat/vite.config.ts` | 96 | STAYS — product build config |
+| `apps/site-chat/vite.lazy.config.ts` | 11 | STAYS — build config |
+| `apps/site-chat/vite.vanilla.config.ts` | 18 | STAYS — build config plus no-React guard |
+| `packages/sdk/src/content-contracts.ts` | 25 | `BX-24` |
+| `packages/sdk/src/hooks.ts` | 79 | `BX-25` |
+| `packages/sdk/src/index.ts` | 209 | `BX-24`, `BX-26` (public SDK entry stays) |
+
+**Deferred until `codex/visitor-chat-tovu` merges:** `SiteAssistantWidget.hooks.ts`, `SiteAssistantWidget.tsx`, `site-assistant-errors.ts`, `site-assistant-transport.ts` — the branch rewrites visitor turn-end, status and error handling in exactly these files. The branch touches none of the five files P13 edits.
+
+### 2.2 Step sheets
+
+#### P13-S1 · Jini then Tovu · Escape-key port for the embed header (~1.5 h)
+
+- **File:** `SC/SiteAssistantHeader.hooks.ts` (20). Only the inline `keyboard.subscribe` (`:8–17`: capture-phase `keydown` on `page.defaultView`, `preventDefault`, `onEscape`, disposer) moves.
+- **Destination:** new `J/chat/src/embed-widget/react/escape-key-port.ts` exporting `createViewEscapeKeyPort({ view }, _optional = {}): EscapeKeyPort`; exported directly from the existing entry file `J/chat/src/embed-widget/react/embed.tsx` (`./react/embed`), which already exports `EscapeKeyPort`. `EscapeKeyPort` is declared at `J/chat/src/embed-widget/react/header.tsx:10`; Jini has no default implementation today.
+- **Importers to repoint:** `git grep -n -F 'SiteAssistantHeader.hooks'` → all 2, code 1 (`SC/SiteAssistantHeader.tsx`); import unchanged (only the hook body changes).
+- **Injected ports/types:** `view: Pick<Window, 'addEventListener' | 'removeEventListener'> | null` (chat-owned). Nothing to `@tovu/contracts`.
+- **Why-comment that moves:** "consume confirmation Escape before the containing dialog closes" (capture phase + `preventDefault`).
+- **Tests first** (`J/chat/src/embed-widget/react/__tests__/escape-key-port.test.ts`): `Escape calls onEscape and prevents default in the capture phase`; `non-Escape keys are ignored`; `the disposer removes the capture listener`; `a null view subscribes nothing and disposes safely`. Tovu green: `SC/__tests__/SiteAssistantHeader.test.ts`. No behaviour change → no mutation.
+- **Tovu change:** `useSiteAssistantHeader` builds `keyboard` with `createViewEscapeKeyPort({ view: page.defaultView })`; the factory is injectable through the existing `_options` pad.
+- **Wiring** (`J/chat/README.md`, embed section): "Hosts pass `keyboard: createViewEscapeKeyPort({ view: document.defaultView })` to `EmbedChatWidget`/`EmbedChatHeader`; the capture listener keeps a confirm-step Escape from also closing the host dialog." Tovu: line in `apps/site-chat/INFO.md` (OWNER-Q-7).
+- **Prerequisites:** none; must land before `BX-8.T`. **Removed from Tovu:** no file (≈ 10 LOC).
+
+#### P13-S2 · Jini then Tovu · safe visitor markdown renderer for the vanilla widget (~2 h)
+
+- **File:** `SC/vanilla-host.ts` (75). Only the `renderMarkdown` body inside `createSiteVanillaArgs` (≈ `:39–56`: template parse, remove every `<img>` that is not same-origin http(s) or is unparsable, `replaceChildren`, `rel="noopener noreferrer"` on links) moves.
+- **Destination:** new `J/chat/src/embed-widget/vanilla/safe-markdown.ts` exporting `createSafeMarkdownRenderer({ toHtml, document }, _optional = {})`, returning the existing `renderMarkdown` port shape (`J/chat/src/embed-widget/vanilla/index.ts:31`); exported from the existing `./vanilla` entry.
+- **Vendor neutrality:** micromark is injected as `toHtml(content) => string`; chat does not depend on micromark. Tovu keeps the micromark call, GFM options and footnote-disable list (OWNER-Q-8).
+- **Why-comments:** "Defaults escape raw HTML and reject unsafe protocols; never enable allowDangerousHtml…" becomes the `toHtml` contract doc; "Filter the detached fragment before insertion so an untrusted image never starts a request" moves with the code.
+- **Importers:** `git grep -n -F 'vanilla-host'` → all 36, code 7 (`SC/vanilla-entry.ts`, 4 tests, `development/scripts/error-gate-debt.json`, `development/scripts/extraction-dossier.mjs`); none changes (`createSiteVanillaArgs` keeps its signature). If the moved `catch { image.remove(); }` is the `vanilla-host.ts` `catch-reads-error` entry in `error-gate-debt.json`, ratchet it down (NOT-CHECKED).
+- **Tests first** (`J/chat/src/embed-widget/vanilla/__tests__/safe-markdown.test.ts`, jsdom is a chat devDependency): `a cross-origin, protocol-relative, data: or unparsable image never enters the DOM`; `same-origin relative and absolute images are kept`; `links get noopener noreferrer`; `the fragment is filtered before insertion`. **Named mutation:** keep images whose origin differs → cross-origin test red. Tovu green: `SC/__tests__/vanilla-host.test.ts`.
+- **Wiring** (`J/chat/README.md`, vanilla section): "`renderMarkdown: createSafeMarkdownRenderer({ toHtml, document })`. `toHtml` must escape raw HTML and reject unsafe protocols; the renderer only removes off-origin images and hardens links."
+- **Prerequisites:** none for J. T edits `vanilla-host.ts`, also edited by `BX-3.T`, `BX-13.T`, `BX-15.T`, `P6-T2` and P13-S3.T → serial with all of them. **Removed from Tovu:** no file (≈ 15 LOC).
+
+#### P13-S3 · Jini then Tovu · embed remote-send bridge (generic half of the comparison channel) (~2.5 h)
+
+- **File:** `SC/site-chat-comparison.ts` (68). Moves: the `installSiteChatComparisonSend` body (CustomEvent request/`done` validation, one in-flight request, `jini-chat-open` dispatch, `dataset.compareReady`, parent `postMessage` ready signal, disposer) and `createReactSiteComparisonControl` (adapter to `ChatPaneProps['agentControl'].bridgeAccess`, rejecting a pending send on unmount). Stays: `readSiteChatComparisonVariant`/`parseComparisonVariant` (the `/__compare/site-chat` path, mount id, `data-chat-compare`, cross-origin catch) and the host-supplied names `tovu-compare-send`, `tovu-site-chat-ready`, invocation id `site-chat-comparison`.
+- **Destination:** new `J/chat/src/embed-widget/browser/embed-send-bridge.ts` exporting `installEmbedSendBridge({ root, send, requestEventName, readyMessageType, enabled }, _optional = {})` and `createEmbedSendAgentControl({ root, enabled, invocationId, ...names }, _optional = {})`; new subpath `./browser/embed-send-bridge` in `J/chat/package.json` (`jini.entries` → `"browser"`). The control type is a type-only import of `ChatPaneAgentControlOptions` (`J/chat/src/react/features/chat-pane/types.ts:147`).
+- **Why-comments:** "never opens a parallel transport or edits its DOM"; "One in-flight … prevents a double-click from starting duplicate runs".
+- **Importers:** `git grep -n -F 'site-chat-comparison'` → all 38, code 10. Repoint `SC/SiteAssistantActivation.hooks.ts:3` → `createEmbedSendAgentControl` with names; `SC/vanilla-host.ts:6` → `installEmbedSendBridge`. Unchanged: `SC/loader-host.ts:2`, `SC/session-store.ts:3` (variant reader only). Test `SC/__tests__/site-chat-comparison.test.ts` (4 hits) keeps its variant tests. Re-check the `error-gate-debt.json` `catch-reads-error` entry (NOT-CHECKED). The Tovu file must not re-export the Jini functions.
+- **Injected ports:** `send`, `enabled` (host variant decision), event/message names, `invocationId`, `capabilityId` (default `chat.send_message`).
+- **Tests first** (`J/chat/src/embed-widget/browser/__tests__/embed-send-bridge.test.ts`): `disabled installs no listener and returns a no-op disposer`; `a second request while one is in flight is refused with the busy sentence`; `malformed requests are ignored`; `a non-Error failure is reported as text`; `the disposer removes the listener and the ready flag`; `unmounting rejects a send still in flight`. **Named mutation:** drop the busy guard → duplicate-request test red. Tovu green: `SC/__tests__/site-chat-comparison.test.ts`, `SC/__tests__/loader-host.test.ts`.
+- **Wiring** (`J/chat/README.md`): "An embedding page can drive a mounted widget through `installEmbedSendBridge`. The host decides `enabled` and names the events; ordinary visitors get no listener."
+- **Prerequisites:** P13-S2.T (shares `vanilla-host.ts`); land before `BX-8.T` (`SiteAssistantActivation.hooks.ts`) or fold into it. OWNER-Q-5. **Removed from Tovu:** no file (≈ 45 LOC).
+
+#### P13-S4 · Tovu (optional Jini) · visitor i18n onto core translators (~1.5 h)
+
+- **File:** `SC/site-chat-i18n.ts` (46). `SITE_CHAT_DICTIONARY` (product copy) stays. `createSiteChatI18n`'s lookup and `{name}` fill are replaced by `createDictionaryTranslator({ featureDictionary: SITE_CHAT_DICTIONARY })` and `interpolate` from `@jini-ai/core/text` (`J/core/src/text/index.ts:10,12`).
+- **Importers:** `git grep -n -F 'site-chat-i18n'` → all 11, code 4 (`SiteAssistantActivation.hooks.ts`, `SiteAssistantHeader.hooks.ts`, `vanilla-host.ts`, the test); none changes (`{ locale, t }` kept). No new ports.
+- **Tests first** (add to `SC/__tests__/site-chat-i18n.test.ts`): `an unknown key falls back to the English source key`; `an inherited property name is not treated as a translation` (key `constructor`). Existing tests stay green. Behaviour note: core `interpolate` uses `key in vars`, Tovu uses `vars[name] === undefined`; they differ only for an explicit `undefined`, which the type forbids — no mutation.
+- **If OWNER-Q-6 is accepted:** J adds a React-free subpath `@jini-ai/ui/i18n/locale` for the existing `J/ui/src/features/i18n/locale.ts` (`resolveSystemLocale`, `:33`; today reachable only via the `@jini-ai/ui` root, which also exports React context and trips the vanilla no-React guard), runtime universal, ≈ 0.5 h. T matches the locale with `resolveSystemLocale({ languages: [lang], supportedLocales })`. New tests: `pt resolves to pt-BR`, `zh-Hant resolves to zh-TW`. **Named mutation:** remove the base-language fallback → `pt` test red.
+- **Wiring:** creates `apps/site-chat/INFO.md` (OWNER-Q-7) with "Visitor copy lives in `site-chat-i18n.ts`; lookup and placeholders are `@jini-ai/core/text`."
+- **Prerequisites:** none. **Removed from Tovu:** no file (≈ 12 LOC).
+
+#### P13-S5 · Jini then Tovu · built-bundle mount smoke harness (~3 h)
+
+- **File:** `apps/site-chat/scripts/check-bundle-mounts.mjs` (353) + `check-bundle-mounts.d.mts`. Moves: `BundleCheckError`/`fail` (`:63–68`), `isNavigationError` (`:87–90`), `failOnErrors` (`:92–96`), `stubBrowserGaps` (`:98–110`), `runScenario` (`:117–186`), `checkBundleMounts` (`:312–316`), `readBundle` (`:319–325`), `main` (`:332–345`), `isEntryPoint` (`:348–350`). Stays: `scenarios` (`:188–311`), `PAGE_CONTENT_HTML`, `MOUNT_ID`, storage keys, `BUNDLE_PATH`.
+- **Destination:** new `J/devops/src/build/bundle-mount-smoke.ts` (directory does not exist on merge-14), subpath `./build/bundle-mount-smoke` (`jini.entries` → `"node"`): `runBundleScenario({ scenario, bundleSource, createDom, mountId, pageHtml, url }, { settleMs = 150, log } = {})`, `checkBundleMounts`, `runBundleCheckCli`, `isEntryPoint`. `BX-18` should reuse this `isEntryPoint` (duplicate at `measure-bundles.mjs:48`).
+- **Vendor neutrality:** jsdom injected as `createDom(html, { url }) => { window, onConsoleError }`; devops gets no jsdom dependency — Jini tests use a hand-built fake DOM. Neutrality rename: stub markers `__tovuScrollIntoViewCalls`/`__tovuLastScrollIntoViewOptions` → `__jiniScrollIntoView*` (read at `check-bundle-mounts.mjs:251` and `SC/__tests__/check-bundle-mounts.test.ts:41,83,84`, updated in T).
+- **Why-comments that move:** why execute instead of grep; fresh DOM per scenario (self-mounting IIFE); jsdom navigation as the signal; the rAF/`scrollIntoView`/`matchMedia` stubs; the 150 ms settle (React 19 scheduler). SPEC-046 sections stay with the Tovu scenarios.
+- **Importers:** `git grep -n -F 'check-bundle-mounts'` → all 30, code 14: `apps/site-chat/package.json` (2, unchanged — script path kept), the `.d.mts` (shrinks), the script itself (3), `SC/__tests__/check-bundle-mounts.test.ts` (7 — split: harness tests move to Jini, scenario tests stay), `development/e2e/journeys/site-chat.pins.journey.ts` (comment only).
+- **Injected ports:** `createDom`, `mountId`, `pageHtml`, `url`, CLI `readText`/`error`/`exit` (devops-owned).
+- **Tests first** (`J/devops/src/build/__tests__/bundle-mount-smoke.test.ts`): `a throw while evaluating fails before the mount check`; `an error after evaluation is a post-mount failure`; `a removed or empty mount point fails`; `scenarios run in order and stop at the first failure`; `the CLI reports an unreadable bundle with exit 1`; `isEntryPoint is true only for the started script`. **Named mutation:** skip the post-settle `failOnErrors` → post-mount test red. Tovu keeps its scenario tests.
+- **Wiring:** `J/devops/README.md` and `J/devops/API.md`: "Post-build smoke: the host supplies `createDom` (e.g. jsdom), the mount id, page HTML and scenarios; Jini executes the built bundle per scenario in a fresh DOM and fails on any load or post-mount error." Row in `J/devops/source-map.md`.
+- **Prerequisites:** none; J half serial with `BX-17.J` (same devops manifest/API files). **Removed from Tovu:** no file (≈ 150 LOC).
+
+### 2.3 Area 2 owner questions — listed in §5 as OWNER-Q-4 … OWNER-Q-8.
+
+### 2.4 Parallelism
+
+- Jini: S1.J → S2.J → S3.J serial (all touch `J/chat/package.json`/API baseline) or one Jini PR. S5.J disjoint from them; serial with `BX-17.J`. Optional S4.J (`J/ui/package.json`) disjoint.
+- Tovu: S1.T, S4.T, S5.T mutually disjoint. S2.T then S3.T serial (`vanilla-host.ts`), and both before or folded into `BX-3.T`/`BX-13.T`/`BX-15.T`/`P6-T2`; S1.T and S3.T before `BX-8.T`.
+- No P13-S step needs `codex/visitor-chat-tovu` merged.
 
 ---
 
@@ -163,6 +272,12 @@ _In progress._
 - **OWNER-Q-1 (Area 1):** Should the Tovu command bodies (`init`, `adopt`, `export`, `serve`, `import-*`, `storage-move`, `owner-store*`, `deploy-config`) stay in Tovu as product wiring, with only the generic slices in P13-C1..C3 moving? **Recommended: yes.** Every body opens a Tovu site directory, Tovu composition or Tovu feature; their feature imports are already repointed by K5/D steps, so they shrink to wiring without P13 moving them.
 - **OWNER-Q-2 (Area 1):** `@jini-ai/cli` is "a CLI transport shell for driving a Jini daemon over HTTP". P13-C1 adds a host-bin run loop with commander-compatible error codes (as strings, no `commander` dependency). Accept that scope widening? **Recommended: yes** — the package already exports commander-shaped introspection (`introspection.ts`) and Tovu-Runner-style hosts need the same exit-code contract.
 - **OWNER-Q-3 (Area 3):** Jini already has `@jini-ai/admin/playground` (a port of this Playground). Keep Tovu's own Playground screen (current owner decision) or later replace it by mounting the Jini page? **Recommended: keep the owner decision now; revisit after `ex5-fnd-kit-tovu` merges**, when both use the same `@jini-ai/admin` bus and a swap is a mount change with no move.
+
+- **OWNER-Q-4 (Area 2):** Should `SC/SiteAssistantHeader.tsx` survive `BX-8`? Jini `EmbedChatWidget` already renders `EmbedChatHeader` with injected copy and keyboard but has no `closeAction`. **Recommended:** `BX-8` adds an optional `closeAction` slot to `EmbedChatWidgetArgs` and Tovu deletes `SiteAssistantHeader.tsx` there, not in P13.
+- **OWNER-Q-5 (Area 2):** Is the React-vs-vanilla comparison channel product diagnostics or a generic embed capability? **Recommended: generic** — it already speaks Jini's `jini-chat-open` and `chat.send_message`; only variant detection and names are product-specific, so P13-S3 proceeds.
+- **OWNER-Q-6 (Area 2):** Use Jini `resolveSystemLocale` for visitor locale matching via a new React-free `@jini-ai/ui/i18n/locale` subpath? Visible change: `pt` shows pt-BR copy and `zh-Hant` shows zh-TW instead of English. **Recommended: yes** (dedupe that fixes real misses).
+- **OWNER-Q-7 (Area 2):** `apps/site-chat` has no README/INFO.md. **Recommended:** the first P13 Tovu step to land creates `apps/site-chat/INFO.md`; each later step appends its binding line.
+- **OWNER-Q-8 (Area 2):** Give P13-S2 a default `toHtml` from `@jini-ai/ui/renderers` (`renderMarkdownToSafeHtml`)? **Recommended: no** — that renderer does not disable GFM footnotes (the duplicate-id case `vanilla-host.test.ts` covers) and chat would gain a micromark coupling.
 
 ## 6. Step order for builders
 
