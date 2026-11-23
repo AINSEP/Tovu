@@ -318,3 +318,40 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## bugs-low-b (Tovu `codex/bugs-low-b-tovu`, Jini `codex/bugs-low-b-jini`, 2026-11-23)
+
+Lane B LOW/LOW-MED + re-verified NOT-CHECKED rows + morning-run skips. Details: `cloud-results/bugs-low-b.md`.
+
+- `B178` FIXED `45fa974ae1` — explicit `preheader: null` clears it on campaign update.
+- `B200` FIXED `ebbed6734a` — External MCP save says "no longer current" only for a stale snapshot.
+- `B018` FIXED `0ceece1e63` — released SiteKey exports imported directly; overdue aliases dropped.
+- `JiniMediaPicker-base-red` FIXED `c419666819` — tests follow the structured error; single `role=alert`.
+- `B141` FIXED `21549f7cc0` — BYOK Stop armed before the pre-stream awaits.
+- `B128` FIXED `b00098f537` — relay cancels upstream when the client left before headers.
+- `B150` FIXED `65735c56d7` — trash list fills a page with visible rows (bounded reads).
+- `B261` FIXED `7144f0d719` — frozen audience read pages through every send row.
+- `B163` FIXED `af279319ea` — export status description: a failed asset flips ok.
+- `B240` FIXED `b58ef46f16` — fatal boot exits go through the injectable exit.
+- `B191` FIXED `4f32ced63c` — Copy link catches a refused clipboard write.
+- `B154` FIXED `e450aa6211` — desktop pt/pt-PT get the pt-BR copy.
+- `B012` FIXED `00c51ab66f` — attachment uploader reads global fetch at call time.
+- `B057` FIXED `242f5a37e3` — link-jini defaults to the sibling ../Jini/packages.
+- `B083` FIXED `f6656893b6` — theme import tools point photos at Media.
+- `B135`/`B136` FIXED `ed4bbe9b72` — media providers partial merge save + explicit per-id delete (Security screen after combine-15).
+- `B137` FIXED `2e9b3edfa3` — modal closes only on clicks outside the dialog box (2 modals after combine-15).
+- `B179` FIXED `f8c79f12a8` — campaign status filter applied in the repo query before the page cap.
+- `B055` FIXED `b428ccb0f4` (+ Jini) — host env passed to the ffmpeg extractor.
+- `B262` FIXED `b7a6c8de0f` (+ Jini) — login time written with a targeted update.
+- `B227` FIXED `4310f74722` (+ Jini) — duplicate role name answers 409.
+- `B161` FIXED `23b40cb975` — failed theme normalization rolls back.
+- `B134` FIXED `b73e48a782` — key-store read failure no longer reported as a missing key.
+- `B127` FIXED `b34ccbb05b` — could-not-bind names the live spawn port.
+- `B187` FIXED `4a97ae6ac5` — failed admin build reported to waiters.
+- `B188` FIXED `2b7313bc9f` — import resurrects a tombstoned blob under the sha256 lock.
+- `B149` FIXED `099c309505` (limit part) — fractional delivery-log limit returns one row.
+- `B231` FIXED `0d431f104c` + `9b52571bb9` — failed label heal no longer fails a saved key; redacted.
+- `B115` FIXED `416f9e71f7` (IPC half) — desktop chat/theme-preview IPC refuse non-shell frames.
+- `B091`/`B092` FIXED `0de863c9fe` — stale comment corrected; unknown-tool reply pinned.
+- `B226` FIXED `5d09afbaf0` — cached publish verification dropped when a host's key changes.
+- Jini only (`codex/bugs-low-b-jini`): `B133`, `B046`, `B246`, `B024`, `B256`, `B122`, `B014`, `B090`.
