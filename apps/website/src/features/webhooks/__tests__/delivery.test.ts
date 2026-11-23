@@ -13,7 +13,8 @@ import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createFixedSecretSigner, verifySignature } from "@jini-ai/integrations/webhooks/site/signing";
 import { createSubscription, pauseSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import type { WebhookBeforeDispatchHook } from "@jini-ai/integrations/webhooks";
@@ -29,7 +30,7 @@ function makeRig(options: { nowIso?: string } = {}) {
   let idCounter = 0;
   const idGenerator = { newId: () => `id-${++idCounter}` };
 
-  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deliveryRepo = new InMemoryWebhookDeliveryRepo();
   const envelopeStore = new InMemoryDeliveryEnvelopeStore();
 
@@ -653,7 +654,7 @@ test("a claimed row whose subscription was hard-removed from the repo fails (sub
   // Simulate the subscription row being gone by pointing a fresh, empty subscription repo at
   // the same delivery row (the port surface has no hard-delete, so this is the only way to
   // exercise the "not found" branch without reaching into repo internals).
-  const emptySubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const emptySubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const httpClient = new RecordingHttpClient();
 
   const result = await processDueDeliveries({

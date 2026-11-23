@@ -19,7 +19,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { contributeWebhooksTools, type IntegrationsToolDeps } from "../tool-registrations.js";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 
@@ -77,7 +78,7 @@ function seededDelivery(id: string, subscriptionId: string, createdAt: string): 
 
 async function makeFixture(): Promise<Fixture> {
   let counter = 0;
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const deliveries = new InMemoryWebhookDeliveryRepo();
   const saves = { count: 0 };
   const originalSave = repo.save.bind(repo);

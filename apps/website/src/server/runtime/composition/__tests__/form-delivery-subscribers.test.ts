@@ -8,7 +8,8 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { composeFormDelivery } from "../form-delivery.js";
 import { createIntegrationsModule } from "../modules/integrations.js";
 
@@ -36,7 +37,7 @@ async function settingsSelectingEveryForm() {
 }
 
 async function webhookSubscribedToSubmissions() {
-  const repo = new InMemoryWebhookSubscriptionRepo();
+  const repo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   await repo.save({ id: "hook-1", workspaceId: W, ownerPrincipalId: "owner", label: "Endpoint", targetUrl: "https://example.com/hooks",
     topics: ["form.submission.received"], secretVersion: 1, previousSecretVersion: null, status: "active", createdByPrincipalId: "owner",
     createdByPluginId: null, createdAt: T0, updatedAt: T0, disabledAt: null, version: 1 });

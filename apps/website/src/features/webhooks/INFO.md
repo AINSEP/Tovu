@@ -33,7 +33,7 @@ runtime logic lands here yet.
 
 `WebhookDeliveryRecord` (types.ts) carries no payload/data column, matching ADR-036 §2's DDL
 sketch — but the delivery worker still needs the original event's `data` to build the envelope
-it signs at Stage B, potentially in a later process/tick than Stage A's fan-out. `repo.memory.ts`
+it signs at Stage B, potentially in a later process/tick than Stage A's fan-out. `@jini-ai/integrations/webhooks/site/repo.memory`
 adds a `DeliveryEnvelopeStore` side-channel (NOT part of the reviewed port surface) as a stand-in
 seam so `enqueueDelivery` and `processDueDeliveries` are independently testable now. The real
 answer — re-hydrate from the core event outbox by `event_id`, add a payload column to
@@ -46,9 +46,9 @@ SQLite adapters for both ports — `SqliteWebhookSubscriptionRepo implements Web
 and `SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort` — already exist and are live-wired
 into the composition root (`server/runtime/composition/deps.ts`). **Deviation from every sibling
 feature's convention worth knowing**: they live at `platform/db/sqlite/webhook-repo.sqlite.ts`, not a
-co-located `repo.sqlite.ts` next to `repo.memory.ts` the way `features/post/repo.sqlite.ts` and others
-do — that forces a few outside callers to deep-import `repo.memory.ts`'s `DeliveryEnvelopeStore` type
-directly rather than through this feature's own surface. Not fixed here; flagged so the next person who
+co-located `repo.sqlite.ts` the way `features/post/repo.sqlite.ts` and others do (the in-memory
+adapters moved to `@jini-ai/integrations/webhooks/site/repo.memory`; callers import that subpath and the
+`DeliveryEnvelopeStorePort` type from `@jini-ai/integrations/webhooks` directly). Not fixed here; flagged so the next person who
 touches webhook persistence doesn't have to rediscover it.
 
 ## Future direction

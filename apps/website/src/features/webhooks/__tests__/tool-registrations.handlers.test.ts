@@ -4,7 +4,8 @@ import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { webhooksDerivedRisk } from "@jini-ai/integrations/webhooks/tools";
 import { buildWebhooksRegistrations, contributeWebhooksTools, type IntegrationsToolDeps } from "../tool-registrations.js";
 
@@ -47,7 +48,7 @@ function makeHarness() {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: deliveries,
     originRegistry: { isAllowedEgressTarget: async () => true } as unknown as IntegrationsToolDeps["originRegistry"],
     authorize: async () => ({ allowed: true, reason: "matched" }),

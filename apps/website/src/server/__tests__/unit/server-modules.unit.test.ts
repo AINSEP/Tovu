@@ -11,7 +11,8 @@ import { createIntegrationsModule } from "../../runtime/composition/modules/inte
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
@@ -39,7 +40,7 @@ test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", a
 
 test("createIntegrationsModule().start() enqueues a webhook delivery when a form.submission.received event fires", async () => {
   const bus = new InMemoryEventBus();
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const nowIso = "2026-07-16T00:00:00.000Z";
   const clock = { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso };

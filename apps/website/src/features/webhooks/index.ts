@@ -39,14 +39,8 @@ export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./
 // (the integrations admin routes). It now lives at `@jini-ai/integrations/webhooks/site/subscriptions`,
 // and the routes, the delivery worker and AI tools import it from there (no re-export shell here).
 
-// In-memory repo adapters (the local-dev/test half of each ADR-006 rule-of-two), exported here so the
-// admin HTTP API and its tests reach them through this index.
-export {
-  InMemoryDeliveryEnvelopeStore,
-  InMemoryWebhookDeliveryRepo,
-  InMemoryWebhookSubscriptionRepo,
-} from "./repo.memory.js";
-export type { DeliveryEnvelopeStore } from "./repo.memory.js";
+// In-memory repo adapters (the local-dev/test half of each ADR-006 rule-of-two) live at
+// `@jini-ai/integrations/webhooks/site/repo.memory`; callers import them from there (no re-export shell here).
 
 // ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — contract-tested at
 // `db/sqlite/__tests__/webhook-*-repo.sqlite.test.ts` and wired into the real composition root at

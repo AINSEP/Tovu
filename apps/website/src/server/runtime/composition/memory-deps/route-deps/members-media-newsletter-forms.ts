@@ -3,7 +3,8 @@ import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import type { OutboundEmail } from "#src/platform/mail/index";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/index";
+import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
 import { InMemoryImageTransformer } from "#src/features/media/index";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
@@ -64,7 +65,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     }),
     menuRepo,
     navLocationBindingRepo,
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     // ADR-PIPE-015 Phase 1 T017: the real createKeyringBackedSigner code path, backed by an
     // in-memory KeyringPort so this hermetic test/dev composition never touches a real file or

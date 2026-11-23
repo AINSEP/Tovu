@@ -5,14 +5,15 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { processDueDeliveries } from "#src/features/webhooks/delivery";
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { webhookDeliveriesOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
-import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks";
 import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
 import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "@jini-ai/integrations/webhooks";
 
@@ -390,7 +391,7 @@ async function prepareWebhookReplay() {
   const dbPath = join(dir, "content.db");
   const time = { iso: "2026-07-10T00:00:00.000Z" };
   const clock = { nowIso: () => time.iso };
-  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   for (const id of ["sub-1", "sub-2"]) {
     await createSubscription({
       deps: { repo: subscriptionRepo, clock, idGenerator: { newId: () => id }, isAllowedTarget: async () => true },
