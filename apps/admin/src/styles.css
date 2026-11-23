@@ -165,7 +165,10 @@ input[type="checkbox"], input[type="radio"] {
    outside what explicitly adopts them changes size or layout. */
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field input, .field select, .field textarea { width: 100%; }
-.field-label {
+/* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
+   Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
+.field-label,
+.jini-post-publishing__field > .jini-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
@@ -1093,7 +1096,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   margin-top: calc(-1 * var(--space-3));
 }
 .jini-post-publishing__field { display: flex; align-items: center; gap: var(--space-2); }
-.jini-post-publishing__field .field-label { margin: 0; }
+.jini-post-publishing__field > .jini-field-label { margin: 0; }
 /* A featured asset that will not load (deleted, or a non-image saved before the server refused
    those) — an empty hatched box, never a broken image with spilled alt text. The cover slot sizes it;
    the settings Image tab's 2.25rem thumb it was first drawn for is gone (2026-10-11). */
@@ -6728,7 +6731,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   /* PO-3: labels start their own line; featured-image controls can still sit beside each other. */
   .page > .jini-post-publishing__fields { justify-content: flex-start; align-items: stretch; }
   .jini-post-publishing__fields > .jini-post-publishing__field { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
-  .jini-post-publishing__fields .field-label { flex-basis: 100%; text-align: left; }
+  .jini-post-publishing__fields .jini-field-label { flex-basis: 100%; text-align: left; }
   .jini-post-publishing__fields input { width: 100%; min-width: 0; }
 
   /* DE-3: keep the overview title intact, with the explanatory badge on the next line. */

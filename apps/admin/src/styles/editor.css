@@ -361,7 +361,7 @@
   /* The shared phone rule puts every publishing label on its own line above a full-width control,
      which split "Show post author" from its checkbox. Keep that pair on one line. */
   .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
-  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .field-label { flex-basis: auto; }
+  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .jini-field-label { flex-basis: auto; }
   .post-settings-panel .jini-post-publishing__field > input[type="checkbox"] { width: 16px; }
 }
 
