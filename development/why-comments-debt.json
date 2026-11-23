@@ -3120,6 +3120,22 @@
     {
       "id": "47f3adad7117",
       "reason": "Moved to Jini @jini-ai/cms admin-http/routes/publish-content/peers.ts (RT-K1-adm-publish-content) with the spec, its mapping table (transport-shared.ts) and views; host binding notes in runtime/composition/modules/publish-content-transport.ts."
+    },
+    {
+      "id": "48d2a03e9a96",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "4d6918704e2b",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "4f33b7419b46",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "5b7aef8c7f82",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
     }
   ]
 }
