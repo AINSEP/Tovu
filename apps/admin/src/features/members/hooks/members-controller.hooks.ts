@@ -3,7 +3,7 @@ import { useMembers as useJiniMembers, type MembersController as JiniController,
 import type { MembersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
+import { contentRefreshApplies, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { defaultMembersPort, MEMBERS_RESOURCE } from "./members-dependencies.hooks";
 import { t } from "../members-i18n";
 

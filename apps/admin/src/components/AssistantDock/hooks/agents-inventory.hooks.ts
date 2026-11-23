@@ -5,7 +5,7 @@ import { type ChatPaneAgent } from "@jini-ai/chat/react";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
-import { useAdminBootScope } from "@/lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { CachedLoader } from "@jini-ai/core/fetch";
 
 /**

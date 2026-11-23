@@ -10,7 +10,7 @@ import {
   readLegacyLocalCredential,
 } from "../lib/execution-settings";
 
-import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,
   hasUsableKey,

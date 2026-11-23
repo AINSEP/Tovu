@@ -5,9 +5,10 @@ import {
   DEVICE_PREVIEW_WIDTHS,
   devicePreviewButtonHandleProps,
   type DevicePreviewDevice,
-} from "./DevicePreview.hooks";
+} from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import { agentHandle } from "@jini-ai/core/agent-handles";
 /**
  * The Desktop/Tablet/Mobile segmented control plus its "1280px" readout — the one copy
  * `PageEditor.tsx`, `ThemeExplore.tsx` and `PostEditor.tsx` all render (see `DevicePreview.hooks.ts`).
@@ -40,7 +41,7 @@ export function DevicePreviewToggle({
             title={t(entry.label)}
             className={device === entry.key ? "is-active" : undefined}
             onClick={() => setDevice(entry.key)}
-            {...devicePreviewButtonHandleProps({ handlePrefix, entry })}
+            {...devicePreviewButtonHandleProps({ handlePrefix, entry, agentHandle })}
           >
             <DeviceIcon />
           </button>

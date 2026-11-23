@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { navigate, useRouteLocation } from "../../lib/router";
+import { navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 const SKILLS_TAB_IDS = ["skills", "add"] as const;

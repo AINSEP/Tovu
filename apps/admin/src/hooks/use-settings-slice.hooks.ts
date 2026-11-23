@@ -3,7 +3,7 @@ import {
   useSettingsSlice as useSlice, mergeSaveStates as mergeStates,
   type SettingsSliceOptions as JiniOptions, type SettingsSliceRefreshPort, type SettingsSlice, type SaveState,
 } from "@jini-ai/ui/panel-kit";
-import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 export { SAVE_DEBOUNCE_MS, canAcceptRefresh } from "@jini-ai/ui/panel-kit";
 export type { SettingsSliceRefreshPort, SettingsSlice, SaveState } from "@jini-ai/ui/panel-kit";
 /** Existing tabs share the host bus; an injected port can scope another settings surface. */

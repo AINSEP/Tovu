@@ -4,7 +4,7 @@ import {
   useDevicePreviewDevice,
   usePreviewPaneWidth,
   type DevicePreviewDevice,
-} from "../../../components/DevicePreview/DevicePreview.hooks";
+} from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 
 /**
  * @file View-only state for the email template editor's Pages-style layout (owner, 2026-10-22):

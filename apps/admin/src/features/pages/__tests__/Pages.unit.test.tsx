@@ -6,7 +6,7 @@ import { Pages, pagesListNotice } from "../Pages";
 import { buildPageRowMenuHandleMap } from "../rules";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
-import { adminHref, navigate } from "@/lib/router";
+import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";
 
@@ -25,8 +25,8 @@ const identityT = (key: string): string => key;
  * that prepends the base would make those assertions self-fulfilling — they would pass just as
  * happily if `Pages.tsx` emitted a route path with no base at all.
  */
-vi.mock("../../../lib/router", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../../lib/router")>()),
+vi.mock("@jini-ai/admin/shell/lib/router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@jini-ai/admin/shell/lib/router")>()),
   navigate: vi.fn(),
 }));
 

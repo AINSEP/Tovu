@@ -5,7 +5,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AdminSitesSnapshot } from "./api/sites-api.types";
 import { describeApiError } from "../../lib/admin-http/request";
 
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { AllSitesTab } from "./AllSitesTab";
 import { SitesHomeSetting } from "./SitesHomeSetting";

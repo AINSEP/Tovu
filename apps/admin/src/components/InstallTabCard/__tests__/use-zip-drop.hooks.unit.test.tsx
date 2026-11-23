@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { ZipDropZone } from "../InstallTabCard";
-import { useZipDrop } from "../use-zip-drop.hooks";
+import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
 
 function renderDropZone() {
   const received: File[][] = [];

@@ -2,7 +2,7 @@ import type { SettingsThemeChoice } from "@jini-ai/ui";
 import type { MatchMediaPort } from "@jini-ai/ui/theme";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useAdminBootScope } from "../lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { useAdminAppearanceSnapshot } from "../hooks/use-admin-appearance-snapshot.hooks";
 import {
   APPEARANCE_NAMESPACE,

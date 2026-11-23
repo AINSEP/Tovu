@@ -1,3 +1,4 @@
+import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "../../lib/shell-collaborators";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
@@ -6,15 +7,15 @@ import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
-import { publishContentRefresh } from "@/lib/content-refresh-bus";
-import { useCmsSidebarLabelTooltips } from "@/hooks/use-cms-sidebar-label-tooltips.hooks";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
+import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "../SitesSidebarNav";
 
 const groups: AdminNavGroup[] = [{ items: [{ id: "sites", label: "Sites", href: "/sites", icon: "", order: 1 }] }];
 function snapshot(name = "plannie"): AdminSitesSnapshot {
   return { switchingEnabled: true, sites: [], currentSite: { name, dir: `/sites/${name}`, listed: false, dirOverridden: false }, persistedSiteName: "pending-site" };
 }
-function ExistingTooltips() { useCmsSidebarLabelTooltips({}); return null; }
+function ExistingTooltips() { useCmsSidebarLabelTooltips(SIDEBAR_TOOLTIP_ITEMS, { ownsTitle: sidebarOwnsTitle }); return null; }
 
 describe("Sites sidebar label", () => {
   function mount({ name = "plannie", locale = "en", widths = { scrollWidth: 80, clientWidth: 80 }, collapsed = false } = {}) {
@@ -112,11 +113,11 @@ describe("Sites sidebar label", () => {
     await screen.findByRole("link", { name: "Sites (plannie)" });
     expect(reads).toBe(1);
     current = snapshot("next-site");
-    act(() => publishContentRefresh(["sites"]));
+    act(() => publishContentRefresh({ resources: ["sites"] }));
     const link = await screen.findByRole("link", { name: "Sites (next-site)" });
     expect(link.getAttribute("data-cms-sites-split")).toBe("");
     current = snapshot("");
-    act(() => publishContentRefresh(["sites"]));
+    act(() => publishContentRefresh({ resources: ["sites"] }));
     await screen.findByRole("link", { name: "Sites" });
     await waitFor(() => expect(link.getAttribute("data-cms-sites-split")).toBeNull());
     expect(link.querySelector(".cms-sites-label")).toBeNull();

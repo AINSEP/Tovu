@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
@@ -657,11 +657,11 @@ describe("useAccessTokens — content refresh bus", () => {
     port.custom.list = () =>
       Promise.resolve({ credentials: [customCredential(), customCredential({ id: "custom-2", label: "Second host" })] });
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.totalCount).toBe(1);
 
-    act(() => publishContentRefresh([ACCESS_TOKENS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [ACCESS_TOKENS_RESOURCE] }));
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 

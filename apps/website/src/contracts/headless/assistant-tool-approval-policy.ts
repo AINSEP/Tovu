@@ -1,5 +1,4 @@
-import { nativeToolMetadata } from '../core/tool-metadata/index.js';
-import type { HostToolApprovalPolicy as ToolApprovalPolicy } from '../core/tool-metadata/index.js';
+import { nativeToolMetadata, type HostToolApprovalPolicy as ToolApprovalPolicy } from '../core/tool-metadata/index.js';
 import type { ToolRegistration } from '@jini-ai/core';
 
 /** The assistant owns classification; composition supplies it to feature registration builders. */

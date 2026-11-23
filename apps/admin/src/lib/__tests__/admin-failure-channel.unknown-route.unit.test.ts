@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { authenticatedAdminRequest } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
-import { setAdminDraftIdentity } from "../admin-draft-identity";
+import { setAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 
 // A route missing from ADMIN_FAILURE_VOCABULARY used to render only "Load information (HTTP 503)" and
 // drop the server's own `{error, code}`, so the notice named neither what failed nor why.

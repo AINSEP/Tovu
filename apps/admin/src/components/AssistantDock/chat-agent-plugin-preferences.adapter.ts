@@ -1,6 +1,6 @@
 /** Bind the plugin preference to the same per-person ledger and live feed as chat display. */
 import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
-import { subscribeToSettingsRefresh } from '@/lib/settings-refresh-bus';
+import { subscribeToSettingsRefresh } from '@jini-ai/admin/shell/lib/settings-refresh-bus';
 import { CHAT_DISPLAY_NAMESPACE, type ChatDisplayLedgerPort } from './chat-display-preferences';
 import { loadChatAgentPlugins, saveChatAgentPlugins, type ChatAgentPlugins } from './chat-agent-plugin-preferences';
 import { useChatAgentPlugins, type ChatAgentPluginsController, type ChatAgentPluginsPort } from './hooks/use-chat-agent-plugins.hooks';

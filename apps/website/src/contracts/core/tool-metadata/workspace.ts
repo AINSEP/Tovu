@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from "@jini-ai/core/contracts/site/tool-metadata-approval-policy";
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** workspace registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {

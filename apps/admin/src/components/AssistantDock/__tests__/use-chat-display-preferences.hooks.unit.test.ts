@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { defaultChatDisplayPreferencesPort, useChatDisplayPreferences as useDefaultChatDisplayPreferences } from "../chat-display-preferences.adapter";
 import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
 import {

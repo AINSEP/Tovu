@@ -6,7 +6,7 @@ import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/co
 import { emptyComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
 import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
 import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@/lib/assistant-daemon-activation";
-import { resetAssistantDockBus } from "@/lib/assistant-dock-bus";
+import { resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { AssistantDock } from "../AssistantDock";
 import { useAssistantTransport } from "../hooks/assistant-transport.hooks";

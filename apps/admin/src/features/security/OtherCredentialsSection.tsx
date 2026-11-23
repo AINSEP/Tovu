@@ -9,7 +9,7 @@ import type { OtherCredentialRowState, OtherCredentialsController } from "./hook
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 

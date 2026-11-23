@@ -1,7 +1,7 @@
 import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/core/settings";
 import { t as tApp } from "../../app-i18n";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
 import { t as tSettings } from "./settings-i18n";

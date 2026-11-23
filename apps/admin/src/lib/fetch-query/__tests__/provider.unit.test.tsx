@@ -6,7 +6,7 @@ import { useCachedLoader, useFetchMutation, useFetchQuery } from '@jini-ai/ui/fe
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useContext, type ReactNode } from 'react';
 import { FetchQueryProvider } from '../provider';
-import { AdminFetchQueryAdapterContext } from '../adapter-context';
+import { AdminFetchQueryAdapterContext } from '@jini-ai/admin/shell/lib/fetch-query/adapter-context';
 
 describe('admin TanStack provider composition', () => {
   afterEach(() => vi.unstubAllGlobals());

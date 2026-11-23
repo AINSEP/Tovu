@@ -8,7 +8,7 @@ import { DEFAULT_INTERACTIVE_UI_REGISTRY } from "@jini-ai/ui/interactive-ui";
 import { createChartProviderRegistry } from "@jini-ai/ui/charts";
 import { createChartInteractiveRegistry } from "@jini-ai/ui/charts/react";
 import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
-import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@/lib/playground-render-target-bus";
+import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 
 // A test supplies its own clock port; the system clock lives in the platform package.

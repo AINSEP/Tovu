@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError as FakeApiError } from "../../lib/admin-http/request";
-import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import { resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";
 
 /**
@@ -323,7 +323,7 @@ describe("useAdminExecutionCredential — cross-mount staleness (Finding 2)", ()
     await waitFor(() => expect(result.current.stored).not.toBeNull());
     getAdminExecutionCredential.mockClear();
 
-    const { publishSettingsRefresh } = await import("../../lib/settings-refresh-bus");
+    const { publishSettingsRefresh } = await import("@jini-ai/admin/shell/lib/settings-refresh-bus");
     await act(async () => {
       publishSettingsRefresh(["core.presentation"]);
     });

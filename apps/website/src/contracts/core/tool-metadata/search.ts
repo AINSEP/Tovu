@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from "@jini-ai/core/contracts/site/tool-metadata-approval-policy";
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** site-search registration declarations; shared placement rationale is in ./index.ts.
  * The two writes are `plan`: their own handler asks the human (`server/runtime/composition/site-search-tools.ts`),

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultPageEditorPort } from "@/features/pages/hooks/page-editor-dependencies.hooks";
 import { defaultPostEditorPort } from "@/features/posts/hooks/post-editor-dependencies.hooks";
-import { editorTemplateOptions } from "../editor-template-options.rules";
+import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 
 afterEach(() => vi.unstubAllGlobals());
 

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
 import type { LibraryPort } from "../hooks/library-port.hooks";
 import { useLibrary, useWiredLibrary } from "../hooks/use-library.hooks";
@@ -298,7 +298,7 @@ describe("useLibrary list, uploaders and refresh", () => {
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toEqual([]));
     port.items.push(fakeDocument({ filename: "agent.md" }));
-    act(() => publishContentRefresh(["media"]));
+    act(() => publishContentRefresh({ resources: ["media"] }));
     await waitFor(() => expect(result.current.documents?.map((doc) => doc.id)).toEqual(["doc-agent.md"]));
     expect(listDocuments.mock.calls.length).toBeGreaterThanOrEqual(2);
   });

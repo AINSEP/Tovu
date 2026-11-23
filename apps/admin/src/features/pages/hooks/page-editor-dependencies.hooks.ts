@@ -1,4 +1,4 @@
-import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
+import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";

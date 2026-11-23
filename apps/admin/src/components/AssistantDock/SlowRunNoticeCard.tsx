@@ -1,6 +1,6 @@
 import { useT, type ExtEventRenderProps } from "@jini-ai/chat/react";
 
-import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCard.hooks";
+import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard.hooks";
 
 /**
  * @file Renders Jini's slow-run notice inline in the transcript — the wall-clock "still working"
@@ -28,7 +28,7 @@ import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCar
 // by name from this file — re-exporting keeps that import path working with zero test-file churn, the
 // same "a hook with a consumer gets re-exported by name from the component file" rule `AssistantDock.tsx`
 // already uses for `resolveComposerDiscoveryOutcome`.
-export { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCard.hooks";
+export { isSlowRunNoticeVisible, resolveSlowRunDetail } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard.hooks";
 
 export function SlowRunNoticeCard({ events, runStreaming, runSucceeded, awaitingAnswer,
   useTHook = useT }: (ExtEventRenderProps) & {

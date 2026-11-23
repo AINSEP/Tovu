@@ -1,9 +1,9 @@
-import { adminFrontendTabId } from "../../../lib/admin-frontend-session";
+import { adminFrontendTabId } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
 import { useMemo } from "react";
 import { type FrontendSessionBridge } from "@jini-ai/chat/react";
 
-import { readAgentScreenContext, type AgentScreenContext } from "@/lib/agent-screen-context";
+import { readAgentScreenContext, type AgentScreenContext } from "@jini-ai/admin/shell/lib/agent-screen-context";
 
 /** `value === undefined ? {} : { [key]: value }` as a named helper — same complexity-budget
  *  rationale as `use-external-mcp.hooks.ts`'s `includeIfDefined`: moves this branch out of

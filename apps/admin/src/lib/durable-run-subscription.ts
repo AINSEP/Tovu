@@ -2,8 +2,8 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { followDurableRun as follow } from "@jini-ai/chat/transports/http";
 import type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
-import { subscriptionEnded, type TrackedRunHandlers } from "./stream-activity";
-import { querySuffix } from "./query-suffix";
+import { subscriptionEnded, type TrackedRunHandlers } from "@jini-ai/admin/shell/lib/stream-activity";
+import { querySuffix } from "@jini-ai/core/admin-runtime";
 export type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 export const durableRunBindings = new Map<string, DurableRunBinding>();
 /** Jini owns recovery, continuation, polling and terminal disposal. A missing durable row ends

@@ -70,7 +70,7 @@ import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "@j
 import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
 import { settingsApi } from "../features/settings/api/settings-api";
 import { ApiError } from "./admin-http/request";
-import type { SettingResolvedValue } from "./settings-effective-reads";
+import type { SettingResolvedValue } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import type { SettingScope } from "@jini-ai/core/settings";
 import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
 
