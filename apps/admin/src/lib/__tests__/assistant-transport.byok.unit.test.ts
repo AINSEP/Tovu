@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { createTovuAssistantTransport, parseFrame } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file The BYOK run path (`startByokRun`, `readSseFrames`, and the BYOK branches of

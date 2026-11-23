@@ -19,7 +19,7 @@ import {
   type AdminExecutionCredentialController,
 } from "@/hooks/use-admin-execution-credential.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
-import type { AdminExecutionCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import {
   GOOGLE,

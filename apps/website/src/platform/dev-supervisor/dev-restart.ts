@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { createNodeAtomicFilesystem, writeFileAtomic } from "@jini-ai/platform/fs";
+import type { DevRestartDecision, DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
 
 /**
  * @file Dev restart-on-request channel (owner decision OD-S1): after `sites_switch_site`,
@@ -26,16 +27,6 @@ export const DEV_RESTART_REQUEST_FILE_ENV = "TOVU_DEV_RESTART_REQUEST_FILE";
 /** How long a request waits before it is written, so the tool result and the assistant's short
  *  reply reach the chat before the server (and the daemon running the turn) goes down. */
 export const DEV_RESTART_DELAY_MS = 3000;
-
-export type DevRestartDecision = { accepted: true } | { accepted: false; reason: string };
-
-export interface DevRestartPort {
-  /** False when the launcher is pinned by an explicit shell site override. */
-  canSwitchSite?: boolean;
-  /** Legacy requests write after the chat delivery delay. Opt-in callers await the supervisor's
-   * precheck; acceptance schedules a restart and does not claim a completed boot. */
-  requestRestart(required: { reason: string }, optional?: { awaitAcceptance?: boolean }): void | Promise<DevRestartDecision | void>;
-}
 
 export interface DevRestartPortOptional {
   env?: Readonly<Record<string, string | undefined>>;

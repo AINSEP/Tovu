@@ -1,6 +1,6 @@
 import type { Request, RequestHandler, Response } from "express";
 import type { SiteShareBackend } from "#src/features/site-backup/share-backend";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { isSameOriginBrowserWrite } from "@jini-ai/core/contracts/server";

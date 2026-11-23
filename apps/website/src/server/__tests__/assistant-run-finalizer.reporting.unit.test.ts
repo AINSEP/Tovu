@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import type { RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import {
   end, flush, liveStream, manualScheduler, recordingLedger, runningMessage, text, unhandledRejections, until,
 } from "./run-finalizer-characterization.fixture.js";

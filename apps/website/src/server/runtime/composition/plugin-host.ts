@@ -4,10 +4,9 @@ import type { Clock } from "@jini-ai/core/primitives";
 import path from 'node:path';
 import { withFileLock } from '@jini-ai/platform/fs/file-lock';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
-import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
+import type { AgentPluginHostCapability, PluginHostPort } from '@jini-ai/core/contracts/headless/plugin-host';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
 import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
@@ -21,6 +20,7 @@ import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/gr
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { provisionAgentPluginMcpServers as provisionPortableMcpServers } from '@jini-ai/agent-plugins/connect';
 import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
 const tovuPluginHostMessages: PluginHostMessages = {

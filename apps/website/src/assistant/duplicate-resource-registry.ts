@@ -34,8 +34,7 @@
 
 import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
 
-import type { DuplicateResourceHandlerContributor } from "./tool-contributions.js";
-export type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } from "./tool-contributions.js";
+import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 
 // The host binds registration, storage and listing to the same deps; no dependency erasure.
 let contributors: DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>[] = [];

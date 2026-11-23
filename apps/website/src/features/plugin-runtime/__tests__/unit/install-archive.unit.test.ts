@@ -2,11 +2,11 @@
  * A typed scripted reader drives the policy directly; real yazl archives drive the yauzl guard. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { buildZipFixture } from "../../../agent-plugins/__tests__/fixtures/build-zip.js";
 import { readSitePluginArchive } from "../../install-archive.js";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 const MiB = 1024 * 1024;
 const EMPTY = new Uint8Array(0);

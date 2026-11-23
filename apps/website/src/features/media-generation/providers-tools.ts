@@ -4,7 +4,7 @@ import { assertCredentialFreeField } from '../../contracts/core/credential-token
 import { CREDENTIAL_MESSAGES, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";

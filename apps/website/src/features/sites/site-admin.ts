@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import {
   type CreateSitePort,
   listSites as listSitesReal,
@@ -9,11 +9,11 @@ import {
   resolveNewSiteAdminPassword,
   readSiteRunning as readSiteRunningReal,
   runningSiteUrl,
-  type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
+import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
 import {
   firstNewSiteAgentPluginTokenRefusal,
   parseNewSiteAgentPluginTokens,

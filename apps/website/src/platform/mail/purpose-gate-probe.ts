@@ -7,7 +7,7 @@
  * gate (`server/runtime/composition/deps.ts`); this file never decides readiness itself.
  */
 import { isPurposeGateOpen } from "@jini-ai/platform/mail";
-import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 export type MailPurposeGateProbe = (required: { capabilityName: string; lane: "interactive" | "notification" }) => Promise<boolean>;
 

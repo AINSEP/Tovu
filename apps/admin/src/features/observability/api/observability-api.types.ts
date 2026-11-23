@@ -23,8 +23,8 @@ export interface AdminTelemetryTestResult {
   providers: { providerId: string; signals: ("error" | "span" | "analytics" | "metric")[] }[];
 }
 
-/** One captured server log line — mirrors `ServerLogEntry` in
- *  `apps/website/src/platform/server-logs/log-buffer.ts`. `message` is already secret-redacted. */
+/** One captured server log line — mirrors `ServerLogEntry` in `@jini-ai/core/contracts/site/platform-server-logs`
+ *  (used by `apps/website/src/platform/server-logs/log-buffer.ts`). `message` is already secret-redacted. */
 export interface AdminServerLogEntry {
   seq: number;
   at: string;

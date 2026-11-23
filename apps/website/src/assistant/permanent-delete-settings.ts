@@ -1,5 +1,6 @@
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";
 export interface PermanentDeleteSettingsDeps {
   settingsRepo: SettingsRepoPort; getEffective: typeof getEffective; settingsReady: Promise<void>; workspaceId: string;
 }

@@ -8,7 +8,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { InitDirNotEmptyError, ValidationError, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
+import { InitDirNotEmptyError, ValidationError, type SiteListEntry } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 import { activateSite, createSiteForOwner, resolveSiteSwitchBase, SITE_SWITCH_RESTART_INSTRUCTIONS, SITE_SWITCH_RESTARTING_NOTICE } from "../site-admin.js";
 

@@ -1,7 +1,7 @@
-import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import type { PluginExportPackage, PluginExportSource } from "../../exports/source.js";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import type { LoginProvider } from "@jini-ai/user-management/server";
+import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
 export const workspaceId = "ws-embeds";
 export const template = '<a class="plugin-demo-button" href="{{host.signIn}}"><img src="{{host.assets.mark}}" alt=""><span>{{props.label}}</span></a>';

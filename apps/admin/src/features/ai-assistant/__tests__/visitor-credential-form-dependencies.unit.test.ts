@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 
 /**
  * @file Coverage for `visitor-credential-form-dependencies.hooks.ts` (2/6 funcs) —

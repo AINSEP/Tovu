@@ -15,12 +15,7 @@
  * 2's round-2 partial-boot-rollback correction).
  */
 
-export type ModuleLifecycleStatus =
-  | { status: "ready" }
-  | { status: "disabled"; reasonCode: string; remediationHint: string }
-  | { status: "failed"; reasonCode: string; remediationHint: string };
-
-export type BootCriticality = "critical" | "optional";
+import type { BootCriticality, BootModuleResult } from "@jini-ai/core/contracts/site/lifecycle-boot-lifecycle";
 
 export interface BootModule {
   name: string;
@@ -32,13 +27,6 @@ export interface BootModule {
   start: () => Promise<void>;
   /** Idempotent. Releases whatever `prepare`/`start` acquired. Never called for the module currently failing — see file header. */
   stop: () => Promise<void>;
-}
-
-export interface BootModuleResult {
-  name: string;
-  owner: string;
-  criticality: BootCriticality;
-  lifecycle: ModuleLifecycleStatus;
 }
 
 export interface BootResult {

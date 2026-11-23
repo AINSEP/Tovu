@@ -1,7 +1,8 @@
 /** Electron policy over the shared product tracker, consent and native crash-upload ports. */
 import path from 'node:path';
 import { formatErrorForLog } from '@jini-ai/core';
-import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
+import { createNoopTracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
 import { bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import type { ProductTelemetry, ProductConsent } from '@tovu/contracts/product-telemetry';

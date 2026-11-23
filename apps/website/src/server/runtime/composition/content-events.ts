@@ -1,5 +1,5 @@
 import type { EventBusPort } from "@jini-ai/core/contracts/events";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
 function contentEventName({ topic, kind }: { topic: string; kind: string }, _optional = {}): string {
   if (topic === "content.created") return `${kind}_created`;

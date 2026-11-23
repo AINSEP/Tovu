@@ -3,7 +3,7 @@ import { withChatPreview } from "./chat-preview.js";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
 export type { MediaPublicUrlDeps } from "./contracts.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/site/media';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 

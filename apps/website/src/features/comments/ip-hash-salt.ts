@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 /**
  * @file The salt `POST /api/site/comments` folds into `authorIpHash` (2026-10-08 hardwiring audit

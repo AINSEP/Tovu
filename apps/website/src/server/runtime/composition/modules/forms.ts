@@ -17,7 +17,7 @@
  * the manifest back.
  */
 import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { ServerModuleHandle } from "./types.js";
