@@ -9,7 +9,7 @@ import { resolveRenderThemeId } from "../../../../middleware/render-theme-overri
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { comparePostsByDisplayDate } from "#src/contracts/core/scheduled-publish";
+import { comparePostsByDisplayDate } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { renderSite } from "../../../../http/site/render-site.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import type { SiteRequestDeps, PostPreviewsAccess } from "../render-context/deps.js";

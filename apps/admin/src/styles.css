@@ -3060,7 +3060,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .settings-detail-panel h2 { margin: 0; font-family: var(--font-mono); font-size: 1rem; }
 .settings-layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.7rem; }
 .settings-layer-cell { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border-radius: var(--r-md); padding: 0.5rem 0.6rem; font-size: 0.85rem; }
-.taxonomy-term-detail .settings-layer-cell > .status { align-self: flex-start; }
+.taxonomy-term-detail .settings-layer-cell > .status, .jini-taxonomy-term-detail .settings-layer-cell > .status { align-self: flex-start; }
 .settings-layer-effective { border: 1.5px solid var(--accent-text); }
 .settings-layer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
 /* Groups Workspace's read-only ID/Created facts with the rename form above them (nested inside the
@@ -3337,10 +3337,10 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    across the app, most of them small inline row-action groups that must NOT get a top margin). */
 .term-picker-actions, .jini-term-picker-actions { margin-top: var(--space-5); }
 
-.taxonomy-new-term-form { margin-top: 0.7rem; }
+.taxonomy-new-term-form, .jini-taxonomy-new-term-form { margin-top: 0.7rem; }
 /* Collapsed resting state of the same form (web-design pass, 2026-08-05) — same top margin as the
    form it replaces at rest, so opening/closing it doesn't shift the group card's height budget. */
-.taxonomy-add-term-trigger { margin-top: 0.7rem; }
+.taxonomy-add-term-trigger, .jini-taxonomy-add-term-trigger { margin-top: 0.7rem; }
 
 /* Web-design pass (2026-08-05), visual-parity fix: Taxonomy.tsx reuses the since-deleted
    `settings-raw/Settings.tsx`'s SPEC-007 raw-ledger classes (`.settings-namespace-group`/
@@ -3353,14 +3353,14 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    ordinary term/taxonomy names. Taxonomy.tsx is now the only live consumer of the base rules;
    they're kept as-is rather than folded into the taxonomy-scoped ones, since a future raw-ledger
    screen would want the un-overridden originals back. */
-.taxonomy-namespace-group { padding: var(--space-5) var(--space-6); } /* was 1rem 1.1rem — `.card`'s roomier padding, matching every other content-list wrapper's weight */
-.taxonomy-term-list .settings-row-key { font-family: var(--font-ui); font-size: var(--text-sm); } /* was --font-mono, right for a namespace.key string, wrong for a term name */
-.taxonomy-term-detail h2 { font-family: var(--font-display); } /* was --font-mono via `.settings-detail-panel h2`; matches every other page's h1/h2 display font */
+.taxonomy-namespace-group, .jini-taxonomy-namespace-group { padding: var(--space-5) var(--space-6); } /* was 1rem 1.1rem — `.card`'s roomier padding, matching every other content-list wrapper's weight */
+.taxonomy-term-list .settings-row-key, .jini-taxonomy-term-list .settings-row-key { font-family: var(--font-ui); font-size: var(--text-sm); } /* was --font-mono, right for a namespace.key string, wrong for a term name */
+.taxonomy-term-detail h2, .jini-taxonomy-term-detail h2 { font-family: var(--font-display); } /* was --font-mono via `.settings-detail-panel h2`; matches every other page's h1/h2 display font */
 
 /* Delete UI (web-design pass, 2026-08-05): the group's own `<h2>` now shares its row with a
    `RowMenu` ("Delete taxonomy") — `.settings-namespace-group h2`'s own margin-bottom rule still
    applies (descendant selector, unaffected by this wrapper), so this only adds the row layout. */
-.taxonomy-namespace-group-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.taxonomy-namespace-group-header, .jini-taxonomy-namespace-group-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 
 /* Redirects — bulk-import affordance (SPEC-037 REQ-04) */
 /* 2026-10-16 (owner: "it looks bad"): the `.notice` frame now matches the add-rule `.card` above it,

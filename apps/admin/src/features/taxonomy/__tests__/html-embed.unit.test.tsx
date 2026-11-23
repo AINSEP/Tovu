@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomy } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { Taxonomy } from "../Taxonomy";
+import { Taxonomy } from "../TaxonomyScreen";
 import { useTaxonomy } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Taxonomy } from "../Taxonomy";
+import { Taxonomy } from "../TaxonomyScreen";
 import type { TaxonomyController } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
 
 /**

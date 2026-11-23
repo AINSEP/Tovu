@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { createPost } from "../post-create.js";
 import { findPublishedPostById, findPublishedPostBySlug, getPublishedPostBySlug, listPublishedPostPreviews, listPublishedPosts } from "../post-read.js";
 import { normalizePublishAt } from "@jini-ai/cms/posts/post-write-fields";

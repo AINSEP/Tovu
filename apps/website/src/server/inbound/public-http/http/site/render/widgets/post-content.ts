@@ -6,7 +6,7 @@ import type { MediaAssetRenderMeta } from "../../render-context.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "#src/platform/html/escape";
 import { renderWidgetPlaceholder } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { formatDateLabel } from "@jini-ai/cms/widgets/date-label";
 import { styleForAlign } from "@jini-ai/cms/html/text-layout";
 

@@ -19,7 +19,7 @@ import { resolvePostMemberAccess } from "../members/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/index.js";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
-import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
+import { isScheduledAt, isLiveAt, postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";

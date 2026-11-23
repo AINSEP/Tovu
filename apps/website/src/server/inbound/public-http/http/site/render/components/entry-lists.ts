@@ -5,7 +5,7 @@ import { featuredImageView, formatProductMoney } from "../template-render-data.j
 import { renderCoverImageTag } from "#src/features/theme/static-render-content";
 import { escapeHtml } from "#src/platform/html/escape";
 import { shortDate } from "../post-body.js";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { postDisplayDateIso } from "@jini-ai/core/contracts/site/scheduled-publish";
 
 export function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   const layout = typeof props.layout === "string" ? props.layout : "index";

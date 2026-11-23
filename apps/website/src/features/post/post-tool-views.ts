@@ -3,7 +3,7 @@ import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { entryPublicPath } from "#src/platform/routing/index";
-import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
+import { currentIso, isScheduledAt } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
 

@@ -9,7 +9,7 @@ import {
   type PostRevisionInput,
   type PostRevisionRecord,
 } from "@jini-ai/cms/posts/post";
-import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+import { comparePostsByDisplayDate, currentIso, isLiveAt } from "@jini-ai/core/contracts/site/scheduled-publish";
 import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**

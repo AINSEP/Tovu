@@ -206,7 +206,7 @@ export const posts = sqliteTable(
      * Scheduled publishing (2026-10-05, migration 0008) — ISO UTC instant a `published` row goes
      * live, or `NULL` for "live as soon as published" (every pre-existing row). A `published` row
      * whose `publish_at` is still in the future is SCHEDULED: stored as published, hidden from every
-     * public read until the instant passes (render-time check, `contracts/core/scheduled-publish.ts`).
+     * public read until the instant passes (render-time check, `@jini-ai/core/contracts/site/scheduled-publish`).
      */
     publishAt: text("publish_at"),
     /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a

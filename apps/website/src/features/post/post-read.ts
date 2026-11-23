@@ -2,7 +2,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { type PublicPostRecord, type PostRepoPort, isPublicPost, PostNotFoundError } from "@jini-ai/cms/posts/post";
 import type { PublicPostKind } from "@jini-ai/cms/core";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+import { currentIso, isLiveAt } from "@jini-ai/core/contracts/site/scheduled-publish";
 
 /** Kind-filtered storage view; callers retain ownership of publication and trash visibility. */
 export interface PublicPostReaderPort {
