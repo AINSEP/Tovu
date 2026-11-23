@@ -13,13 +13,15 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
-import { contributeRedirectPublish } from "../publish-content.js";
+import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
- * @file S2 (`redirect` publish type) — `features/redirects/publish-content.ts`. Mirrors
+ * @file S2 (`redirect` publish type) — `@jini-ai/cms/redirects/site/publish-content`. Mirrors
  * `redirects.test.ts`'s own `makeDeps()` fixture exactly (same real `redirectMatcher`, real
  * `OriginRegistry`, `InMemoryOutbox`, `removeVia`) rather than a second, drifting fake write-deps
  * builder, so this file's `precheck()`/`apply()` assertions exercise the SAME validation rules the
@@ -80,7 +82,7 @@ function packedEntity(id: string, state: Record<string, unknown>): PackedEntity 
 // ---------------------------------------------------------------------------
 
 test("pack() yields nothing when redirectsWriteDeps is absent", async () => {
-  const handler = contributeRedirectPublish().build(makePublishDeps(undefined));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(undefined));
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
   assert.deepEqual(entities, []);
@@ -98,7 +100,7 @@ test("pack() skips a disabled (tombstoned) row and packs an active one, keyed by
   });
   await tombstoneRedirect({ deps: writeDeps, input: { workspaceId: WORKSPACE_ID, id: disabledSeed.id, actorId: ACTOR_ID } });
 
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
 
@@ -124,7 +126,7 @@ test("pack() packs a plain-English title so the Publish dialog never falls back 
     input: { workspaceId: WORKSPACE_ID, matchType: "prefix", fromPattern: "/blog", toTarget: "/posts", statusCode: 301, actorId: ACTOR_ID },
   });
 
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
   const entities: PackedEntity[] = [];
   for await (const entity of handler.pack()) entities.push(entity);
   const titleByFromPattern = new Map(entities.map((e) => [e.state.fromPattern, e.state.title]));
@@ -143,7 +145,7 @@ test("inspect() resolves an existing destination row by natural key, not by the 
     deps: writeDeps,
     input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-docs", toTarget: "/new-docs", statusCode: 301, actorId: ACTOR_ID },
   });
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   const naturalKeyId = "exact:/old-docs";
   assert.notEqual(naturalKeyId, record.id, "the natural key must not collide with the minted row id");
@@ -155,11 +157,11 @@ test("inspect() resolves an existing destination row by natural key, not by the 
 
 test("inspect() returns null for a malformed id, a missing row, or an absent redirectsWriteDeps", async () => {
   const writeDeps = makeWriteDeps();
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
   assert.equal(await handler.inspect({ id: "no-colon-in-this-id" }), null);
   assert.equal(await handler.inspect({ id: "exact:/does-not-exist" }), null);
 
-  const noDepsHandler = contributeRedirectPublish().build(makePublishDeps(undefined));
+  const noDepsHandler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(undefined));
   assert.equal(await noDepsHandler.inspect({ id: "exact:/whatever" }), null);
 });
 
@@ -173,7 +175,7 @@ test("precheck() rejects a loop with the exact chokepoint message text", async (
     deps: writeDeps,
     input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301, actorId: ACTOR_ID },
   });
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   const reason = await handler.precheck({ entity: packedEntity("exact:/b", { matchType: "exact", fromPattern: "/b", toTarget: "/a", statusCode: 301, status: "active", override: false, priority: 0 }) });
 
@@ -181,7 +183,7 @@ test("precheck() rejects a loop with the exact chokepoint message text", async (
 });
 
 test("precheck() reports a message rather than throwing when redirectsWriteDeps is absent", async () => {
-  const handler = contributeRedirectPublish().build(makePublishDeps(undefined));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(undefined));
   const reason = await handler.precheck({ entity: packedEntity("exact:/x", {}) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /no redirect port wired/);
@@ -194,7 +196,7 @@ test("precheck() reports a message rather than throwing when redirectsWriteDeps 
 for (const statusCode of [301, 302, 307, 308] as const) {
 test(`apply() creates a ${statusCode} redirect and carries all transferred fields including override`, async () => {
   const writeDeps = makeWriteDeps();
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   const { changeSetId } = await handler.apply({
     entity: packedEntity("exact:/folded-stub", {
@@ -228,7 +230,7 @@ test("apply() updates an existing destination row, re-resolved by natural key", 
     deps: writeDeps,
     input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-docs", toTarget: "/new-docs", statusCode: 301, actorId: ACTOR_ID },
   });
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   const { changeSetId } = await handler.apply({
     entity: packedEntity("exact:/old-docs", {
@@ -253,7 +255,7 @@ test("apply() updates an existing destination row, re-resolved by natural key", 
 });
 
 test("apply() throws loudly (not a row downgrade) when redirectsWriteDeps is absent", async () => {
-  const handler = contributeRedirectPublish().build(makePublishDeps(undefined));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(undefined));
   await assert.rejects(
     () =>
       handler.apply({
@@ -268,7 +270,7 @@ test("apply() throws loudly (not a row downgrade) when redirectsWriteDeps is abs
 
 test("apply() downgrades a refused write (disallowed target) to a blocked row instead of aborting the run", async () => {
   const writeDeps = makeWriteDeps(); // empty allowlist -> an off-site absolute target is refused
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   await assert.rejects(
     () =>
@@ -292,7 +294,7 @@ test("apply() downgrades a refused write (disallowed target) to a blocked row in
 
 test("apply() reports a conflict when the destination row disappeared between plan and apply", async () => {
   const writeDeps = makeWriteDeps();
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   await assert.rejects(
     () =>
@@ -320,7 +322,7 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
     workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-docs", toTarget: "/initial",
     statusCode: 301, actorId: ACTOR_ID,
   } });
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
   const planned = await handler.inspect({ id: "exact:/old-docs" });
   await updateRedirect({ deps: writeDeps, input: {
     workspaceId: WORKSPACE_ID, id: seed.id,
@@ -343,7 +345,7 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
 });
 
 test("precheck() names a malformed natural key instead of validating fields", async () => {
-  const handler = contributeRedirectPublish().build(makePublishDeps(makeWriteDeps()));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(makeWriteDeps()));
   const reason = await handler.precheck({ entity: packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /no-colon/);
@@ -353,7 +355,7 @@ test("precheck() names a malformed natural key instead of validating fields", as
 
 test("apply() refuses a malformed natural key loudly before any write", async () => {
   const writeDeps = makeWriteDeps();
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
   await assert.rejects(
     () => handler.apply({ entity: packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }),
       expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "idem-bad" }),
@@ -368,7 +370,7 @@ test("apply() updating a row from a bundle with no status keeps the redirect act
     deps: writeDeps,
     input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-faq", toTarget: "/faq", statusCode: 301, actorId: ACTOR_ID },
   });
-  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const handler = contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }).build(makePublishDeps(writeDeps));
 
   await handler.apply({
     entity: packedEntity("exact:/old-faq", { matchType: "exact", fromPattern: "/old-faq", toTarget: "/help", statusCode: 301, override: false, priority: 0 }),

@@ -128,7 +128,9 @@ import { contributeMembersTools } from "#src/features/members/tool-registrations
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
-import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
+import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
@@ -548,7 +550,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // Idempotent: re-registering replaces by entity type.
   installFirstPartyPublishContentTypes();
   contributions.contributors.register({ contribution: contributeRecoveryTools() });
-  contributions.contributors.register({ contribution: contributeRedirectsTools() });
+  contributions.contributors.register({ contribution: contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }) });
   contributions.contributors.register({ contribution: contributeSeoTools() });
   // Site search (S6, 2026-10-21): query/status reads plus the human-confirmed reindex and provider
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).

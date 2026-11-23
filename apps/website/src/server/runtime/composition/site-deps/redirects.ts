@@ -8,7 +8,7 @@ import { registerRedirectHitOutboxHandler } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";
 import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
-import type { SqliteRedirectRepo } from "#src/features/redirects/index";
+import type { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import type { createTrashService } from "@jini-ai/cms/trash";
 import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";

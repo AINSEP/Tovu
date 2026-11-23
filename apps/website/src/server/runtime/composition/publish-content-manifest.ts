@@ -8,7 +8,9 @@ import { registerPublishContentContributor } from "#src/features/publish-content
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish } from "#src/features/publish-content/raw-file-contributor";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
-import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
+import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
+import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 import { contributeSiteSettingPublish } from "#src/features/settings/publish-content";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";
 import { contributeThemeFilesPublish } from "#src/features/theme/publish-content";
@@ -53,7 +55,7 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor({ contributor: contributePostPublish() });
   registerPublishContentContributor({ contributor: contributePagePublish() });
   registerPublishContentContributor({ contributor: contributeMediaPublish() });
-  registerPublishContentContributor({ contributor: contributeRedirectPublish() });
+  registerPublishContentContributor({ contributor: contributeRedirectPublish({ createRepoPublishHandler, redirectsTable: REDIRECT_TABLES.redirects }) });
   registerPublishContentContributor({ contributor: contributeMenusPublish() });
   registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   registerPublishContentContributor({ contributor: contributeFormPublish() });

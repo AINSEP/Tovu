@@ -16,7 +16,9 @@ import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
-import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
+import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
@@ -78,7 +80,7 @@ async function seedRule(deps: RedirectsToolDeps, overrides: { fromPattern?: stri
 }
 
 function buildRegistrations(deps: RedirectsToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(buildRedirectsRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildRedirectsRegistrations({ deps, toolMetadata, hostReads: contentReadVocabulary }).map((r) => [r.descriptor.id, r]));
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {

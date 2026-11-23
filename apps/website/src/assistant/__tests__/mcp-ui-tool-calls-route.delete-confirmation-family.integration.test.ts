@@ -47,7 +47,10 @@ import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/__tests__/remove-redirect-double";
-import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
+import { buildRedirectsRegistrations } from "@jini-ai/cms/redirects/site/tool-registrations";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
 import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
@@ -277,7 +280,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
   });
 
   const registry = createToolRegistry({});
-  for (const registration of buildRedirectsRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildRedirectsRegistrations({ deps, toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

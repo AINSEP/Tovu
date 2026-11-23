@@ -47,7 +47,7 @@ import { discoverAllBuiltInThemes } from '#src/features/theme/index';
 import { SqliteCommentRepo } from '#src/features/comments/repo.sqlite';
 import { SqliteMemberRepo, SqliteMemberTierRepo, SqliteMemberSubscriptionRepo } from '#src/features/members/index';
 import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo, SqliteNewsletterSubscriptionRepo, SqliteNewsletterAudienceSnapshotRepo, SqliteNewsletterSendRepo } from '#src/features/newsletter/repo.sqlite';
-import { SqliteRedirectRepo } from '#src/features/redirects/index';
+import { SqliteRedirectRepo } from '#src/features/redirects/repo.sqlite';
 import { createSeoDeps } from '#src/features/seo/index';
 import { SqliteWidgetRegionBindingRepo } from '#src/features/widgets/repo.sqlite';
 import { SqliteTrashRepo } from '#src/features/trash/index';

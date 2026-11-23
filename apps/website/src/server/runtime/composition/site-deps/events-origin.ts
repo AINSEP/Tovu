@@ -4,7 +4,7 @@ import { RedirectHitSinkImpl } from "@jini-ai/cms/redirects";
 import { SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { SqliteRedirectRepo } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { deriveDevScheme } from "../../../../platform/dev-host/dev-tls.js";
 import { planOriginBoot } from "#src/features/origin/index";

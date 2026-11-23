@@ -90,7 +90,7 @@ import type { MembersToolDeps } from "../features/members/tool-registrations.js"
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
 import type { NewsletterDeliveryToolDeps } from "../features/newsletter/delivery/tool-registrations.js";
-import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
+import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
