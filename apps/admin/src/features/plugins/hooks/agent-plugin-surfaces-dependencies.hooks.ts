@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import type { AdminSurfaceBootstrap } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hooks";
 

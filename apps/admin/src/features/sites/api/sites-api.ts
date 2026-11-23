@@ -1,5 +1,5 @@
 import { adminFailureChannel } from "../../../lib/admin-failure-channel";
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminGeneratedSiteKey, AdminImportedSiteKey, AdminLocalSiteAction, AdminRevealedSiteKey, AdminSiteActivation, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminSitesSnapshot, AdminStartedFreshSiteKey, AdminTokenSignInPlugin, SitesUserConfig, SitesUserConfigPatch } from "./sites-api.types";
 

@@ -5,7 +5,7 @@ import { menusApi } from "../../features/menus/api/menus-api";
 import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 
 /**

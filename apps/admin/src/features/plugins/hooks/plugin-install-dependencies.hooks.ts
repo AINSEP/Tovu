@@ -1,5 +1,5 @@
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 
 function installRequest({ input, preview }: { input: PluginInstallSource & { expectedDigest?: string }; preview: boolean }, _optional = {}) {

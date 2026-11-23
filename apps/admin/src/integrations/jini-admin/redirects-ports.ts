@@ -4,7 +4,7 @@ import { REDIRECTS_RESOURCE, type AdminRedirectsPort, type RedirectsEventsPort, 
 import { AdminApiError } from '@jini-ai/core/admin-runtime';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { ApiError } from '../../lib/admin-http/request';
-import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { serverLabel } from '../../components/status-labels';
 import { actionsForRedirectLabel, createdLabel, failedItemLabel, importResultSummary, t as translateRedirects } from '../../features/redirects/redirects-i18n';

@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, request } from "../../../lib/admin-http/request";
 import type { AdminCredentialCopyResult, AdminCredentialCopySource, AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialsSnapshot, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialsSnapshot, AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "./security-api.types";
 

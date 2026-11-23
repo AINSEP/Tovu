@@ -3,7 +3,7 @@ import { resolvePageNavigation, type AgentNavigationScreen, type PageEntityLooku
 import type { DomPageDriverPage } from "@jini-ai/agentic/dom";
 import { ADMIN_PANELS } from "../panels";
 import { currentRoutePath, navigate } from "@jini-ai/admin/shell/lib/router";
-import { ADDONS_PANEL_PATHS } from "@jini-ai/admin/shell/lib/addons-routes";
+import { ADDONS_PANEL_PATHS } from "./addons-routes";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { lookupAdminNavigationEntity } from "./agent-navigation-entities";
 

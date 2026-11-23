@@ -1,6 +1,6 @@
 import { buildNav, type AdminNavGroup, type AdminNavItem } from "@jini-ai/admin/core";
 import { ADMIN_PANELS } from "./panels";
-import { ADDONS_PANEL_PATHS } from "@jini-ai/admin/shell/lib/addons-routes";
+import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
 
 /**
  * @file Admin sidebar navigation model (grouped) — derived from `panels.tsx`.

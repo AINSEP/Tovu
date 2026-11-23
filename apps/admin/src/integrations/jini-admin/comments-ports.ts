@@ -6,7 +6,7 @@ import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateComments } from '../../features/comments/comments-i18n';
 import { translateAdminNavLabel } from '@jini-ai/admin/shell/lib/admin-nav-i18n';
 import { serverLabel } from '../../components/status-labels';
-import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';
 

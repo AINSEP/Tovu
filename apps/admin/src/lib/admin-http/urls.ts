@@ -1,4 +1,4 @@
-import { BASE, WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { BASE, WORKSPACE_ID } from "./config";
 
 export function authenticatedAdminUrl({ path }: { path: string }, _optional: Record<string, never> = {}): string {
   return `${BASE}${path}`;

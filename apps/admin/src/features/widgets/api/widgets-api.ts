@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
 import type { AdminWidget, AdminWidgetType, AdminWidgetWhereUsed } from "./widgets-api.types";

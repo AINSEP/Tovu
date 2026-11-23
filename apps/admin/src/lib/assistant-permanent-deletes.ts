@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "./admin-http/config";
 import type { AssistantPermanentDeletesPolicy } from "@tovu/headless";
 export { PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS, ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "@tovu/headless";
 export interface AssistantPermanentDeletesSettings extends AssistantPermanentDeletesPolicy { canEdit: boolean }

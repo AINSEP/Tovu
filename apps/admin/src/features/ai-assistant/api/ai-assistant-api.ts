@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { ApiError, authenticatedAdminRequest, fetchOrThrowUnreachable } from "../../../lib/admin-http/request";
 import type { AdminExecutionCredential, AdminExecutionCredentialPatch, AdminExecutionDetectedAgent, PublicAssistantSettings, SiteAssistantCredential, SiteAssistantCredentialPatch } from "./ai-assistant-api.types";
 

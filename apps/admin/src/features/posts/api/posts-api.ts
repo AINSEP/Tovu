@@ -1,4 +1,4 @@
-import { BASE, WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
+import { BASE, WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { bodyFitsKeepalive, request } from "../../../lib/admin-http/request";
 import { siteUrl } from "../../../lib/site-url";
 import type { AdminPost, AdminPostCreateInput } from "./posts-api.types";

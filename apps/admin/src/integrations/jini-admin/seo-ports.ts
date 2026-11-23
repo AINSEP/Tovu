@@ -2,7 +2,7 @@
 import { createHttpSeoApi, type SeoTransportPort, type SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import type { AdminSeoPort, SeoEventsPort, SeoTranslator, SeoErrorFormatter } from '@jini-ai/admin/seo';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
-import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { describeApiError } from '../../lib/admin-http/request';
 import { siteUrl } from '../../lib/site-url';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';

@@ -21,6 +21,7 @@ import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
 import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
+import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
 import { IntegrationsRedirect } from "./features/integrations";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
@@ -145,7 +146,7 @@ export function parseRoute({ routePath }: { routePath: string }, _options: Recor
 
   // Sites' old Export/Import tabs first: their new home is not under Add-ons, and the redirect has to
   // win before `renderRoute`'s Sites gate would send the route to the dashboard.
-  const moved = resolveImportExportRoute({ routePath }) ?? resolveAddonsRoute({ routePath });
+  const moved = resolveImportExportRoute({ routePath, policy: IMPORT_EXPORT_ROUTE_POLICY }) ?? resolveAddonsRoute({ routePath, policy: ADDONS_ROUTE_POLICY });
   return { ...matchRoute({ routePath: moved.matchPath, panels: ADMIN_PANELS }), redirectPath: moved.redirectPath };
 }
 
