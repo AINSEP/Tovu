@@ -3496,6 +3496,10 @@
     {
       "id": "73584ff700c8",
       "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "178e43d79674",
+      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
     }
   ]
 }

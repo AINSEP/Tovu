@@ -2,7 +2,7 @@
 import type { CommentsProviderAdapter, CommentsProviderDefinition, CommentThreadRendererPort } from '@jini-ai/core/contracts/site/capability-providers-comments';
 import type { CommentRepoPort, CommentIngressPolicy, CommentWriteService, CommentsSettings, CommentRecord } from '@jini-ai/cms/comments';
 import { ToolInputError } from '@jini-ai/core';
-import { escapeHtml } from '#src/platform/html/escape';
+import { escapeHtml } from '@jini-ai/core/text';
 
 export const BUILTIN_COMMENTS_DEFINITION: CommentsProviderDefinition = {
   id: 'built-in', label: 'Built-in', kind: 'stored', consentCategory: 'functional', implementation: 'adapter',

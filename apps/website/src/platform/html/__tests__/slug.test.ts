@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toSlug } from "../slug.js";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 
 // `toSlug` replaced five hand-rolled `[^a-z0-9]+ → -` copies (post slugs, form slugs, widget slugs,
 // region handles, heading anchors). Stored slugs are never recomputed, but heading anchors are, at

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { menuLinkRelAttr } from "@jini-ai/cms/navigation/menu-render";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 
 /** JINI CANDIDATE: framework-free rendering; the host supplies its URL policy as a port. */
 export interface HtmlMenuItem {

@@ -5,7 +5,7 @@
  * plugin wiring in `./plugin.ts`.
  */
 import { analyzeContent as analyzeWithSlugify, type AnalyzeContentOptional, type AnalyzeContentRequired, type ContentAnalysisReport } from "@jini-ai/cms/seo/content-analysis";
-import { toSlug } from "#src/platform/html/slug";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 
 /** Scores one piece of content with the renderer's slug rule; see `analyzeContent` in Jini. */
 export function analyzeContent(required: Omit<AnalyzeContentRequired, "slugify">, optional: AnalyzeContentOptional = {}): ContentAnalysisReport {

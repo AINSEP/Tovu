@@ -13,7 +13,7 @@ import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-port.hooks";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
-import { toSlug } from "../../../../../website/src/platform/html/slug";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

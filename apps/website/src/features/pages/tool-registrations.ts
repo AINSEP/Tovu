@@ -30,7 +30,7 @@ import {
   type PagesHtmlDocumentStorePort,
 } from "./html-document-store.sqlite.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
-import { toSlug } from "../../platform/html/slug.js";
+import { toSlug } from "@jini-ai/cms/html/site/slug";
 import { scanHtmlRegions } from "@jini-ai/vibecoding/html/node";
 import {
   handlesMadeAmbiguous,

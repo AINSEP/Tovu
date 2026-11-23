@@ -1,5 +1,5 @@
 import { parse, parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import type { PreviewSwitcher } from "./preview-switcher.js";
 
 interface PreviewPage {

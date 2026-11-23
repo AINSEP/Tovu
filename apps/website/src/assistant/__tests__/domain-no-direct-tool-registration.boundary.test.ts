@@ -257,7 +257,7 @@ test("plugin boundary preserves owned modules, shared contracts, pure platform h
       import { contract } from "#src/contracts/core/contract";
       import { port } from "../../contracts/headless/index.js";
       import { markdown } from "#src/platform/markdown/frontmatter";
-      import { html } from "#src/platform/html/slug";
+      import { toSlug } from "@jini-ai/cms/html/site/slug";
       import { OAuthError } from "../../platform/oauth/errors.js";
       import { owner } from "@jini-ai/core";
       import fs from "node:fs";

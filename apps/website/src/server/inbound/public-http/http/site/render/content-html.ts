@@ -4,7 +4,7 @@ import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "./doc/doc-node
 import { randomUUID } from "node:crypto";
 import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-markers";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { str, isObject } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "./widgets/social-entries.js";
 import { renderWidgetMenu } from "@jini-ai/cms/navigation/menu-render";

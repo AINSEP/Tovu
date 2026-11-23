@@ -1,6 +1,6 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import { obj, str, arr } from "@jini-ai/cms/public-http/http/site/render/value-readers";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import type { SiteRenderContext } from "../../render-context.js";
 import { mediaPlaceholder } from "../media-placeholder.js";
