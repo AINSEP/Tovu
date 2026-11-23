@@ -15,8 +15,8 @@ import { createCapturingResponse, startTestServer } from "#src/server/__tests__/
 import type { ContentRouteDeps } from "../../content/deps.js";
 import { registerAdminPageCreateRoute } from "../create.js";
 import { registerAdminPageDeleteRoute } from "../delete.js";
-import { registerAdminPageGetRoute } from "../get-by-id.js";
-import { registerAdminPageListRoute } from "../list.js";
+import { registerAdminPageGetRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageUpdateHtmlRoute } from "../update-html.js";
 import { registerAdminPageUpdateRoute } from "../update.js";
 
