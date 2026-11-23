@@ -14,7 +14,7 @@ import { providerFacesFor } from "../../../plugin-runtime/__tests__/fixtures/plu
 import type { TovuPluginHostDeps } from "#src/server/runtime/composition/plugin-host";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
+import type { AgentPluginUninstallHostDeps as AgentPluginUninstallToolDeps } from "../../uninstall-host.js";
 
 /**
  * @file The `plugins_uninstall` registration these integration tests call with `family: "agent-plugin"`.

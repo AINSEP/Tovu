@@ -30,8 +30,9 @@ import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, pluginCapabilityToolDerivedRisk, registerEnabledPluginCapabilityTools, type PluginCapabilityToolDeps } from "../../capability-tool-registrations.js";
 import { derivedRisk as installDerivedRisk } from "../../install-tool.js";
 import { pluginSourceDerivedRisk } from "../../source-tools.js";
-import { describeEnableApproval, pluginsDerivedRisk } from "../../tool-registrations.js";
-import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
+import { pluginsDerivedRisk } from "../../tool-registrations.js";
+import { describeEnableApproval } from "@jini-ai/plugins/runtime/enable-confirmation-ui";
+import { describeUninstallApproval } from "@jini-ai/plugins/runtime/uninstall-confirmation-ui";
 import { PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, noDialog, siteRecord } from "./plugins-tool-harness.js";
 import { requiredPostReader } from "./plugin-post-read.js";
 

@@ -24,3 +24,13 @@ take `AgentPluginConnectResult`, `ResolvedAgentPluginForConnect`, `InstalledAgen
 keeps its three error re-exports (`AgentPluginNotReadyError`, `AgentPluginLinkedError`,
 `AgentPluginNotInstalledError`) only because the route registration
 `server/inbound/admin-http/routes/agent-plugins/set-enabled.ts` still imports them from here.
+
+## Wiring (uninstall branch)
+
+The Agent Plugin branch of `plugins_uninstall` lives at `@jini-ai/agent-plugins/site/uninstall-tool`
+(`runAgentPluginUninstall`). `uninstall-host.ts` binds `agentPluginUninstallHost`: this host's
+lifecycle preview/uninstall owner (`lifecycle.ts`), approval owner and not-confirmed result
+(`contracts/core/human-confirm.ts`), dialog (`uninstall-confirmation-ui.ts`) and model-facing copy
+(product name from `plugin-runtime/plugin-host-copy.ts`, `PLUGINS_UNINSTALL_TOOL_ID`, the External MCP
+settings path). The composition root (`server/runtime/composition/plugin-host.ts`) adds it to the deps
+bag as `uninstallHost` at its one call site.

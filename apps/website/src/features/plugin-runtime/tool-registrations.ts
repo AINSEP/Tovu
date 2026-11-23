@@ -14,7 +14,6 @@ import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, plu
 import { bindPluginApprovalIdentity, bindPluginManagementTools } from './host-tool-binding.js';
 import type { PluginFamily } from '@jini-ai/plugins/runtime/agent-tools';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
-export { describeEnableApproval, type EnableConfirmationSubject } from './enable-confirmation-ui.js';
 
 
 /** Host dependency slice kept structural so tool wiring does not import the server RouteDeps composition root. */

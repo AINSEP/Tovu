@@ -15,3 +15,8 @@
 
 `capability-tool-registrations.ts` re-exports nothing: `PluginCapabilityToolSource` and
 `PluginCapabilityFieldSource` come from `@jini-ai/plugins/host`.
+
+`host-tool-binding.ts` passes `describeEnableApproval` (`@jini-ai/plugins/runtime/enable-confirmation-ui`)
+and `describeUninstallApproval` (`@jini-ai/plugins/runtime/uninstall-confirmation-ui`) as the
+management tools' `descriptions`; the returned `HumanConfirmSpec` type is imported from
+`@jini-ai/core/contracts/site/human-confirm` and rendered by `contracts/core/human-confirm.ts`.

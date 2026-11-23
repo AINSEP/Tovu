@@ -97,7 +97,7 @@ async function withInstalledPlugin<T>(fn: (installed: InstalledAgentPlugin) => P
 }
 
 /** A full `PluginsToolDeps` — `plugins_uninstall`'s Agent Plugin branch reads only `authorize` and
- *  `workspaceId` (`AgentPluginUninstallToolDeps`, `agent-plugins/uninstall-tool.ts`), but the merged
+ *  `workspaceId` (`AgentPluginUninstallToolDeps`, `@jini-ai/agent-plugins/site/uninstall-tool`), but the merged
  *  tool's own type is the wider `PluginsToolDeps`, so this fixture satisfies it for real rather than
  *  casting — every other field below is never invoked by this test's own path. */
 function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
