@@ -18,7 +18,7 @@ import {
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { parseSiteStorage } from "./site-storage.js";
-import { writeJsonFileAtomic } from "./atomic-write.js";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 
 /**
@@ -214,7 +214,7 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
     // .site-meta.json — the commit marker, written LAST on success (mirrors initSite's own
     // CIC U-003-ORD1), carrying the SOURCE's own schema stamp verbatim (see this file's header's
     // "THE SCHEMA-STAMP TRAP" paragraph) and a brand-new siteId.
-    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: duplicateMeta({ siteId, createdAt, sourceMeta, storage }) }, {});
+    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: duplicateMeta({ siteId, createdAt, sourceMeta, storage }), fs: createNodeAtomicFilesystem({}, {}) }, {});
 
     return { siteId, dir: target };
   } catch (err) {
@@ -274,7 +274,7 @@ function writeDuplicateFolder({ source, target, resolvedName, sourceConfig, prog
   // config.json — new display name, domain/port reset (see this file's own header).
   const config: ConfigJson = { name: resolvedName, domain: null, port: null,
     ...(sourceConfig.timezone === undefined ? {} : { timezone: sourceConfig.timezone }) };
-  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
+  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
 
 /**
