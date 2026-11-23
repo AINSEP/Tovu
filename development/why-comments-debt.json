@@ -3596,6 +3596,26 @@
     {
       "id": "b169dfcdd8bc",
       "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
+    },
+    {
+      "id": "233ac6f79e9c",
+      "reason": "Moved to Jini @jini-ai/core/src/contracts/headless/__tests__/admin-post-response.type.test.ts @file header (w3-fnd C-contracts-headless-1); host repo paths reworded to 'the host admin' per N2, why-sentences kept."
+    },
+    {
+      "id": "286d4730e4b2",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/core-custom-credential-categories.ts CustomCredentialCategoryId doc (w3-fnd K4-seam-15); host paths reworded neutral per N2, why kept."
+    },
+    {
+      "id": "7fd1b0e034d5",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/ui-sections.ts PublishSection.typePluralLabelKeys doc (w3-fnd K4-seam-21), verbatim; only the declaration moved, the host keeps PUBLISH_SECTIONS."
+    },
+    {
+      "id": "aa5ec62f9632",
+      "reason": "The host SiteKeyState file is deleted (ex6-fnd-shared-a): its plan/alias-wiring @file header described a host-only staging step that no longer exists; the type's purpose and its runtime-list parity rule now live on @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyState doc (w3-fnd, rv1123e shared-a FIX 2)."
+    },
+    {
+      "id": "f35d66f3ea31",
+      "reason": "Moved to Jini @jini-ai/core/contracts/site/site-key.ts AdminSiteKeyState doc (w3-fnd, rv1123e shared-a FIX 2): all five per-state explanations carried, host file names reworded neutral per N2."
     }
   ]
 }
