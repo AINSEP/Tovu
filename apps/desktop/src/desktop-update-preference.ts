@@ -1,22 +1,18 @@
-/** Tovu's app-wide update choice; Jini owns locking, atomic persistence and update coordination. */
+/** Tovu's app-wide update choice: its key, default and menu copy. Jini owns the preference
+ * mechanics (`@jini-ai/desktop-host/electron/preferences`) and the locking/atomic JSON persistence. */
+import { persistedCheckbox, readPreferenceValue, writePreferenceValue } from '@jini-ai/desktop-host/electron/preferences';
 import { readJsonFile, withFileLock, writeJsonFileAtomic } from './durable-json-file.ts';
 import { desktopCopy } from './desktop-i18n.ts';
 
-function settingsAt({ preferencePath }: { preferencePath: string }, _options = {}): Record<string, unknown> {
-  const read = readJsonFile({ filePath: preferencePath });
-  if (read.state !== 'ok') return {};
-  const value = read.value;
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
+const file = { read: readJsonFile, withLock: withFileLock, writeAtomic: writeJsonFileAtomic };
+const KEY = 'automaticUpdates';
+
+/** On unless the operator saved `false`; bad values and unreadable files cannot disable updates. */
 export function readAutomaticUpdates({ preferencePath }: { preferencePath: string }, _optionalArgs = {}): boolean {
-  return settingsAt({ preferencePath }).automaticUpdates !== false;
+  return readPreferenceValue({ file, filePath: preferencePath, key: KEY, parse: ({ value }) => value !== false, fallback: true });
 }
 export function writeAutomaticUpdates({ preferencePath, enabled }: { preferencePath: string; enabled: boolean }, _optionalArgs = {}): void {
-  withFileLock({ filePath: preferencePath, critical: () => {
-    // Preserve damaged bytes rather than silently replacing an unreadable preferences file.
-    if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt({ preferencePath }), automaticUpdates: enabled } });
-  } });
+  writePreferenceValue({ file, filePath: preferencePath, key: KEY, value: enabled });
 }
 
 export function automaticUpdatesMenu({ locale, enabled, setEnabled, onError }: {
@@ -26,17 +22,9 @@ export function automaticUpdatesMenu({ locale, enabled, setEnabled, onError }: {
   onError: (args: { error: unknown }) => void;
 }, _optionalArgs = {}) {
   const copy = desktopCopy({ locale });
-  let currentEnabled = enabled;
   return {
     label: copy.settings,
-    submenu: [{
-      type: 'checkbox' as const,
-      label: copy.automaticUpdates,
-      checked: enabled,
-      click(item: { checked: boolean }) {
-        try { setEnabled({ enabled: item.checked }); currentEnabled = item.checked; }
-        catch (error) { item.checked = currentEnabled; onError({ error }); }
-      },
-    }],
+    submenu: [persistedCheckbox({ label: copy.automaticUpdates, checked: enabled,
+      save: ({ checked }) => setEnabled({ enabled: checked }), onError })],
   };
 }

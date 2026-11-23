@@ -53,7 +53,7 @@ test("verifyPublishSignature: a malformed public key never reaches createPublicK
     },
   };
 
-  const { verifyPublishSignature, derivePublishSigningKey } = await import("../keys.js");
+  const { verifyPublishSignature, derivePublishSigningKey } = await import("@jini-ai/cms/publish/trust/keys");
 
   const key = await derivePublishSigningKey({
     keyring: fixedKeyring(),

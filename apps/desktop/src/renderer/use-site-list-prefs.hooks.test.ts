@@ -1,6 +1,6 @@
 /**
  * @file The Websites grid's stored sort, pins and hidden sites: the read and write helpers directly,
- * and `useSiteListPrefs` rendered from its real module with storage injected through its port.
+ * and `useWiredSiteListPrefs` (Jini's `useSiteListPrefs` bound to this store) rendered from its real module with storage injected through its port.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -11,7 +11,7 @@ import { renderHook } from './dom-hook-harness.js';
 import {
   readSiteListPrefs,
   SITE_LIST_STORAGE_KEY,
-  useSiteListPrefs,
+  useWiredSiteListPrefs,
   writeSiteListPrefs,
   type SiteListStorage,
 } from './use-site-list-prefs.hooks.js';
@@ -62,7 +62,7 @@ test('the hook starts from storage, reads it once, and a change updates the scre
   const memory = memoryStorage(JSON.stringify(CHOSEN));
   let reads = 0;
   const counted: SiteListStorage = { ...memory.storage, getItem: ({ key }) => { reads += 1; return memory.storage.getItem({ key }); } };
-  const hook = renderHook({ t, useHook: () => useSiteListPrefs({}, { storage: counted }) });
+  const hook = renderHook({ t, useHook: () => useWiredSiteListPrefs({}, { storage: counted }) });
   assert.deepEqual(hook.current().prefs, CHOSEN);
   hook.rerender();
   assert.equal(reads, 1, 'storage is read when the grid mounts, not on every render');
@@ -74,7 +74,7 @@ test('the hook starts from storage, reads it once, and a change updates the scre
 });
 
 test('with storage denied a change still applies for this session', (t) => {
-  const hook = renderHook({ t, useHook: () => useSiteListPrefs({}, { storage: deniedStorage }) });
+  const hook = renderHook({ t, useHook: () => useWiredSiteListPrefs({}, { storage: deniedStorage }) });
   assert.equal(hook.current().prefs, DEFAULT_SITE_LIST_PREFS);
   act(() => hook.current().onPrefsChange(CHOSEN));
   assert.equal(hook.current().prefs, CHOSEN);
@@ -82,11 +82,11 @@ test('with storage denied a change still applies for this session', (t) => {
 
 test('with no storage given the hook uses the window store, and that store really persists', (t) => {
   // Reached through the default parameter, so the `window.localStorage` adapter itself is exercised.
-  const first = renderHook({ t, useHook: () => useSiteListPrefs() });
+  const first = renderHook({ t, useHook: () => useWiredSiteListPrefs() });
   act(() => first.current().onPrefsChange(CHOSEN));
   assert.equal(window.localStorage.getItem(SITE_LIST_STORAGE_KEY), JSON.stringify(CHOSEN));
   first.unmount();
-  const second = renderHook({ t, useHook: () => useSiteListPrefs() });
+  const second = renderHook({ t, useHook: () => useWiredSiteListPrefs() });
   assert.deepEqual(second.current().prefs, CHOSEN);
   window.localStorage.removeItem(SITE_LIST_STORAGE_KEY);
 });

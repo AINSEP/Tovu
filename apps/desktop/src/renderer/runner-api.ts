@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@jini-ai/chat/core';
-import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
+import type { AgentInventorySummary } from '@jini-ai/core/contracts/agents/inventory';
 import type {
   SiteRecord,
   SiteFolders,
@@ -55,8 +55,8 @@ export interface RunnerInventoryBridge {
   setMaximumLiveSiteViews?: (required: { maximum: number }, options?: {}) => Promise<number>;
   /** Fires when the operator picks another limit (native menu or stepper); returns its teardown. */
   onMaximumLiveSiteViewsChanged?: (required: { listener: (maximum: number) => void }, options?: {}) => () => void;
-  listAgents: () => Promise<readonly RunnerAgentSummary[]>;
-  rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
+  listAgents: () => Promise<readonly AgentInventorySummary[]>;
+  rescanAgents: () => Promise<readonly AgentInventorySummary[]>;
   daemonOnline: () => Promise<boolean>;
   listSites: () => Promise<readonly SiteRecord[]>;
   /** Adopts any untracked Tovu site found on disk and returns the refreshed list. Never resurrects

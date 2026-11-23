@@ -27,7 +27,6 @@ import test from 'node:test';
 import * as barrel from './App.hooks.js';
 import * as createForm from './use-create-website-form.hooks.js';
 import * as deleteConfirmation from './use-delete-confirmation.hooks.js';
-import * as expandedMode from './use-expanded-mode.hooks.js';
 import * as projectMutations from './use-project-mutations.hooks.js';
 import * as projectTabs from './use-project-tabs.hooks.js';
 import * as runnerConversations from './use-runner-conversations.hooks.js';
@@ -45,7 +44,6 @@ const HOMES: Record<string, Record<string, unknown>> = {
   useProjectTabs: projectTabs,
   useProjectMutations: projectMutations,
   deriveSitesHomeView: sitesHomeView, appPresentation: sitesHomeView,
-  useExpandedMode: expandedMode,
   useDeleteConfirmation: deleteConfirmation,
   performSiteStart: siteStart, useSiteStart: siteStart, startThenNotify: siteStart,
   useWebviewLoadFailure: webviewLoadFailure,

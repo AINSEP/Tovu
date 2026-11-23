@@ -250,7 +250,8 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
       );
     },
   };
-  installGuestWindowOpenPolicy({ contents,
+  installGuestWindowOpenPolicy({
+    contents,
     isSupervisedGuestUrl: () => false,
     openExternal: () => {
       throw new Error("boom");

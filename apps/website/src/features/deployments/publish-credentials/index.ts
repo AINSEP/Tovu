@@ -1,13 +1,6 @@
 /**
  * @file Public surface for the `publish-credentials` sub-feature (ADR-009 §1).
  */
-export type {
-  PublishConnectionInput,
-  PublishCredentialScope,
-  PublishCredentialSummary,
-  PublishProviderId,
-} from "./types.js";
-
 export {
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
@@ -33,13 +26,6 @@ export {
 
 export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode.js";
 export { publishHostsForCredential } from "./store.js";
-
-export {
-  createAccountLabelHealScheduler,
-  idsNeedingAccountLabelHeal,
-  type AccountLabelHealScheduler,
-  type AccountLabelHealSchedulerDeps,
-} from "./account-label-heal-scheduler.js";
 
 export { bindPublishCompatibility, type PublishCompatibilitySource } from "./compatibility-port.js";
 export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

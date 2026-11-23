@@ -45,7 +45,7 @@ export interface WorkspaceChatStartInput {
   subscriptionId: string;
   /** The already-flattened transcript sent to the agent CLI as this turn's prompt. */
   prompt: string;
-  /** A `RunnerAgentSummary.id` from the runtime inventory. */
+  /** An `AgentInventorySummary.id` from the runtime inventory. */
   agentId: string;
   /** Stable conversation identity for automatic fallback audit attribution. */
   conversationId?: string;

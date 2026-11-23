@@ -21,7 +21,7 @@ import { startProductMemoryTelemetry } from "../../product-memory-telemetry.ts";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import type { VisibilitySource } from "@jini-ai/ui/visible-interval";
 import { refreshProductMenu, SHARING_SAVE_ERROR } from "./settings-menu.ts";
-import type { ApplicationMenuPort } from "./settings-menu.ts";
+import type { ApplicationMenuPort } from "@jini-ai/desktop-host/electron/preferences";
 
 /** What `main.ts` held in `desktopProduct` and `productDisposers`; `before-quit` drains both. */
 export interface DesktopProductState {

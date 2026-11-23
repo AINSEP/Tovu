@@ -1,7 +1,8 @@
 /**
- * @file Behavioural proof for `move-to-applications.ts`: when the "Move to Applications" prompt is
- * offered at all, how "Not Now" is remembered, what a name clash in /Applications does, and the whole
- * prompt flow with Electron's calls injected.
+ * @file Host-binding proof for `move-to-applications.ts`: Tovu's copy, app name, decline file under
+ * `userData` and the real durable JSON / `fs` bindings, run through the Jini policy. The policy's
+ * own rules are proven against fake ports in Jini
+ * `packages/devops/src/packaging/electron/__tests__/move-to-applications.test.ts`.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,21 +11,18 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  MOVE_PROMPT,
-  applicationsTargetPath,
-  bundlePathFromExecPath,
-  compareVersions,
-  decideMoveConflict,
-  moveDeclineFilePath,
   movePromptSkipReason,
   readBundleVersion,
   readDeclinedVersion,
   recordDeclinedVersion,
   runMoveToApplicationsPrompt,
-} from "./move-to-applications.ts";
-import type { MovePromptDeps, MovePromptEnvironment } from "./move-to-applications.ts";
+} from "@jini-ai/devops/packaging/electron/move-to-applications";
+import type { MovePromptDeps, MovePromptEnvironment } from "@jini-ai/devops/packaging/electron/move-to-applications";
+
+import { MOVE_PROMPT, MOVE_PROMPT_APP_NAME, moveDeclineFilePath, moveDeclineStore, readBundleTextFile } from "./move-to-applications.ts";
 
 const OFFER: MovePromptEnvironment = {
+  appName: MOVE_PROMPT_APP_NAME,
   platform: "darwin",
   isPackaged: true,
   isMas: false,
@@ -40,11 +38,7 @@ function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-move-to-apps-"));
 }
 
-// --- When the prompt is offered ------------------------------------------------------------------
-
-test("a packaged macOS copy outside Applications, alone, never declined, is offered the move", () => {
-  assert.equal(movePromptSkipReason(OFFER), null);
-});
+// --- Skip reasons, with Tovu's name -----------------------------------------------------------------
 
 test("every reason not to offer the move is its own named skip", () => {
   assert.equal(movePromptSkipReason({ ...OFFER, isPackaged: false }), "not packaged (dev launch)");
@@ -58,88 +52,44 @@ test("every reason not to offer the move is its own named skip", () => {
   assert.equal(movePromptSkipReason({ ...OFFER, declinedVersion: "0.1.8" }), "declined for this version");
 });
 
-test("Not Now for an older version does not silence the prompt after an update", () => {
-  assert.equal(movePromptSkipReason({ ...OFFER, declinedVersion: "0.1.7" }), null);
-});
-
 // --- Not Now, remembered per version -------------------------------------------------------------
 
 test("Not Now is remembered per version in userData, and read back", () => {
   const userDataDir = tempDir();
   const file = moveDeclineFilePath({ userDataDir });
   assert.equal(file, path.join(userDataDir, "move-to-applications.json"));
-  assert.equal(readDeclinedVersion({ filePath: file }), null);
-  recordDeclinedVersion({ filePath: file, version: "0.1.8" });
-  assert.equal(readDeclinedVersion({ filePath: file }), "0.1.8");
-  recordDeclinedVersion({ filePath: file, version: "0.1.9" });
-  assert.equal(readDeclinedVersion({ filePath: file }), "0.1.9");
+  assert.equal(readDeclinedVersion({ filePath: file, store: moveDeclineStore }), null);
+  recordDeclinedVersion({ filePath: file, version: "0.1.8", store: moveDeclineStore });
+  assert.equal(readDeclinedVersion({ filePath: file, store: moveDeclineStore }), "0.1.8");
+  recordDeclinedVersion({ filePath: file, version: "0.1.9", store: moveDeclineStore });
+  assert.equal(readDeclinedVersion({ filePath: file, store: moveDeclineStore }), "0.1.9");
 });
 
 test("a corrupt or wrong-shaped decline file reads as never declined", () => {
   const file = moveDeclineFilePath({ userDataDir: tempDir() });
   fs.writeFileSync(file, "{not json");
-  assert.equal(readDeclinedVersion({ filePath: file }), null);
+  assert.equal(readDeclinedVersion({ filePath: file, store: moveDeclineStore }), null);
   fs.writeFileSync(file, JSON.stringify({ declinedVersion: 7 }));
-  assert.equal(readDeclinedVersion({ filePath: file }), null);
+  assert.equal(readDeclinedVersion({ filePath: file, store: moveDeclineStore }), null);
 });
 
-// --- Paths and versions --------------------------------------------------------------------------
-
-test("bundlePathFromExecPath finds the .app from its executable, null outside a bundle", () => {
-  assert.equal(bundlePathFromExecPath({ execPath: "/Volumes/Tovu 0.1.8/Tovu.app/Contents/MacOS/Tovu" }), "/Volumes/Tovu 0.1.8/Tovu.app");
-  assert.equal(bundlePathFromExecPath({ execPath: "/usr/local/bin/electron" }), null);
-});
-
-test("applicationsTargetPath is /Applications/<bundle name>, where Electron moves it", () => {
-  assert.equal(applicationsTargetPath({ bundlePath: "/Users/me/Downloads/Tovu.app" }), "/Applications/Tovu.app");
-});
-
-test("compareVersions orders numeric dotted versions and returns null for anything else", () => {
-  assert.equal(compareVersions({ a: "0.1.8", b: "0.1.7" }), 1);
-  assert.equal(compareVersions({ a: "0.1.7", b: "0.1.8" }), -1);
-  assert.equal(compareVersions({ a: "0.1.10", b: "0.1.9" }), 1);
-  assert.equal(compareVersions({ a: "1.0", b: "1.0.0" }), 0);
-  assert.equal(compareVersions({ a: "1.0.0", b: "1.0" }), 0, "the missing part reads as 0 on either side");
-  assert.equal(compareVersions({ a: "1.0.1", b: "1.0" }), 1);
-  assert.equal(compareVersions({ a: "0.2.0-beta.1", b: "0.1.9" }), 1);
-  assert.equal(compareVersions({ a: "garbage", b: "0.1.9" }), null);
-  assert.equal(compareVersions({ a: null, b: "0.1.9" }), null);
-});
+// --- Bundle version, read through the real fs binding --------------------------------------------
 
 test("readBundleVersion reads CFBundleShortVersionString from an XML Info.plist, null when it cannot", () => {
   const bundle = path.join(tempDir(), "Tovu.app");
-  assert.equal(readBundleVersion({ bundlePath: bundle }), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), null);
   fs.mkdirSync(path.join(bundle, "Contents"), { recursive: true });
   fs.writeFileSync(
     path.join(bundle, "Contents", "Info.plist"),
     '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n<key>CFBundleShortVersionString</key>\n\t<string>0.1.7</string>\n</dict></plist>',
   );
-  assert.equal(readBundleVersion({ bundlePath: bundle }), "0.1.7");
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), "0.1.7");
   // A readable plist that simply has no version key (a hand-built or foreign bundle) is unknown too.
   fs.writeFileSync(path.join(bundle, "Contents", "Info.plist"), '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n</dict></plist>');
-  assert.equal(readBundleVersion({ bundlePath: bundle }), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), null);
 });
 
-// --- A Tovu already in /Applications -------------------------------------------------------------
-
-test("an older, same, or unreadable copy in Applications that is not running is replaced (Electron moves it to the Trash)", () => {
-  assert.equal(decideMoveConflict({ conflictType: "exists", existingVersion: "0.1.7", currentVersion: "0.1.8" }), "replace");
-  assert.equal(decideMoveConflict({ conflictType: "exists", existingVersion: "0.1.8", currentVersion: "0.1.8" }), "replace");
-  assert.equal(decideMoveConflict({ conflictType: "exists", existingVersion: null, currentVersion: "0.1.8" }), "replace");
-});
-
-test("a newer copy in Applications is kept and opened instead, running or not", () => {
-  assert.equal(decideMoveConflict({ conflictType: "exists", existingVersion: "0.1.9", currentVersion: "0.1.8" }), "open-existing");
-  assert.equal(decideMoveConflict({ conflictType: "existsAndRunning", existingVersion: "0.1.9", currentVersion: "0.1.8" }), "open-existing");
-  assert.equal(decideMoveConflict({ conflictType: "existsAndRunning", existingVersion: "0.1.8", currentVersion: "0.1.8" }), "open-existing");
-});
-
-test("an older or unreadable copy that is RUNNING is never replaced under it: this copy keeps running", () => {
-  assert.equal(decideMoveConflict({ conflictType: "existsAndRunning", existingVersion: "0.1.7", currentVersion: "0.1.8" }), "blocked-by-running-copy");
-  assert.equal(decideMoveConflict({ conflictType: "existsAndRunning", existingVersion: null, currentVersion: "0.1.8" }), "blocked-by-running-copy");
-});
-
-// --- The whole flow ------------------------------------------------------------------------------
+// --- The whole flow, showing Tovu's copy ----------------------------------------------------------
 
 interface Recorded {
   calls: string[];
@@ -152,6 +102,7 @@ function fakeDeps(overrides: Partial<MovePromptDeps> = {}): { deps: MovePromptDe
   const deps: MovePromptDeps = {
     currentVersion: "0.1.8",
     targetPath: "/Applications/Tovu.app",
+    messages: MOVE_PROMPT,
     ask: async () => "move",
     move: () => {
       seen.calls.push("move");
@@ -178,32 +129,6 @@ function fakeDeps(overrides: Partial<MovePromptDeps> = {}): { deps: MovePromptDe
   return { deps, seen };
 }
 
-test("Not Now records the decline and moves nothing", async () => {
-  const { deps, seen } = fakeDeps({ ask: async () => "not-now" });
-  assert.equal(await runMoveToApplicationsPrompt(deps), "declined");
-  assert.deepEqual(seen.calls, ["declined"]);
-});
-
-test("Move with no clash moves (Electron relaunches from Applications itself)", async () => {
-  const { deps, seen } = fakeDeps();
-  assert.equal(await runMoveToApplicationsPrompt(deps), "moved");
-  assert.deepEqual(seen.calls, ["move"]);
-  assert.deepEqual(seen.errors, []);
-});
-
-test("Move hands Electron a conflict handler that answers from decideMoveConflict", async () => {
-  const answers: boolean[] = [];
-  const { deps } = fakeDeps({
-    readExistingVersion: () => "0.1.7",
-    move: ({ conflictHandler }) => {
-      answers.push(conflictHandler("exists"));
-      return true;
-    },
-  });
-  await runMoveToApplicationsPrompt(deps);
-  assert.deepEqual(answers, [true]);
-});
-
 test("Move onto a newer, not-running copy opens that copy and quits this one", async () => {
   const { deps, seen } = fakeDeps({
     readExistingVersion: () => "0.1.9",
@@ -212,20 +137,6 @@ test("Move onto a newer, not-running copy opens that copy and quits this one", a
   assert.equal(await runMoveToApplicationsPrompt(deps), "opened-existing");
   assert.deepEqual(seen.calls, ["open /Applications/Tovu.app", "quit"]);
   assert.equal(seen.infos.length, 1);
-});
-
-test("Move onto a newer, running copy lets Electron focus it and quit this one (its own default)", async () => {
-  const answers: boolean[] = [];
-  const { deps, seen } = fakeDeps({
-    readExistingVersion: () => "0.1.9",
-    move: ({ conflictHandler }) => {
-      answers.push(conflictHandler("existsAndRunning"));
-      return true;
-    },
-  });
-  await runMoveToApplicationsPrompt(deps);
-  assert.deepEqual(answers, [true]);
-  assert.deepEqual(seen.calls, []);
 });
 
 test("Move onto an older copy that is running explains why and keeps this copy running", async () => {

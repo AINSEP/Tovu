@@ -5,7 +5,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { redeemBootSession, hasValidSession, endSiteSession } from "./desktop-auth.ts";
-import type { AuthBodyRequest, AuthRequestOptions } from "./desktop-auth.ts";
+import type { SessionBodyRequest as AuthBodyRequest, SessionRequestOptions as AuthRequestOptions } from "@jini-ai/desktop-host/electron/session-bootstrap";
 
 const adminUrl = "http://127.0.0.1:3210/admin/";
 

@@ -122,11 +122,9 @@ import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
 import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
-import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow } from "../site-child-registry.ts";
+import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow, agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
-import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
-import { createChildEntries } from "@jini-ai/sidecar/supervisor";
-import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
+import { createKeyedSerializer, createChildEntries, createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
@@ -147,7 +145,9 @@ import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
+import { createUpdateCheckNow, registerUpdateCheckIpc, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
+import { describeUpdateErrorForLog, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
+import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from "../contracts/app-version.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
 import { writeSiteName } from "../site-config.ts";
@@ -187,16 +187,16 @@ import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-nav
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
-import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice, type DesktopNotice } from "./updates/native-notices.ts";
+import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
-import { agentServiceRegistryPath } from "../site-child-registry.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
-import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { createSiteDiscoveryLanes } from "@jini-ai/desktop-host/node-toolchain";
 import { appWideMenuTemplate, openSingleWindow, runDesktopBoot, runSitesHomeBoot, type SingleWindowPorts } from "./boot/boot-sequence.ts";
 
 /** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
@@ -773,7 +773,7 @@ function currentUpdaterSkipReason(): string | null {
 
 /**
  * Settings › Check for updates…, from any open copy: the check runs in this process, through the
- * native updater the controller listens to — see `update-check-now.ts`.
+ * native updater the controller listens to — Jini's `createUpdateCheckNow`, with copy from `update-check-now.ts`.
  */
 const updateCheck = createUpdateCheckNow({
   isPackaged: app.isPackaged,
@@ -785,6 +785,7 @@ const updateCheck = createUpdateCheckNow({
   showReadyPrompt: desktopUpdater.showReadyPrompt,
   notify: showDesktopNotice,
   log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
+  copy: updateCheckCopy, describeErrorForLog: describeUpdateErrorForLog, describeErrorMessage: updateErrorMessage,
 });
 
 /** One native message box: the update check's notices and the legacy shared-key import notice. */
@@ -1038,7 +1039,7 @@ function bootSitesHomeMode(): void {
       controller: ownerStore,
     }),
     settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
-    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
+    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, checkNow: updateCheck.checkNow }),
     registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
     registerGuestNavigationPolicy,
     installMenu: installAppWideMenu,

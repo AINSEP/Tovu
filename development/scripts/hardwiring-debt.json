@@ -73,13 +73,6 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/renderer/folder-drop.ts",
-      "line": 87,
-      "reason": "Export folderPathsFromDataTransfer duplicates a Jini function without using its owner.",
-      "fingerprint": "cd8915ef0b1a190bed7fd378dff05974b866cd758d5da3fcefbbdb3aa6a47353"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/desktop/src/shell-staleness.ts",
       "line": 42,
       "reason": "Export isBundleInput duplicates a Jini function without using its owner.",
@@ -91,13 +84,6 @@
       "line": 64,
       "reason": "Export shellStalenessFailure duplicates a Jini function without using its owner.",
       "fingerprint": "d5c594ad5b71bb8617746a873dbea5493600c84c82cc9c2c9cb33dca29cc72d0"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/tree-quiet.ts",
-      "line": 88,
-      "reason": "Export treeQuietProblems duplicates a Jini function without using its owner.",
-      "fingerprint": "31ecdcd28cf5d2c9ab0483f6f85319ab4fbe3ba30674eac1e61afd7eaa96fd47"
     },
     {
       "rule": "HW8-provider-url",

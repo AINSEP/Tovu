@@ -22,12 +22,10 @@ export function createBootOutputSink(
   _optional = {},
 ): ChildReadinessOutputSink {
   // The framed sink redacts BEFORE either copy is retained or mirrored, even across chunks.
-  return createRedactedOutputSink({ sink: { write(safe: string) {
-    state.outputTail += safe;
-    // Amortize tail copies across small log lines; diagnostics expose only the latest 16 KiB.
-    if (state.outputTail.length > 2 * OUTPUT_TAIL_KEEP_CHARS) state.outputTail = state.outputTail.slice(-OUTPUT_TAIL_KEEP_CHARS);
-    return mirror[stream].write(safe);
-  } }, redact: ({ text }, _redactOptional = {}) => redactOutput({ text }) }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
+  return createRedactedOutputSink(
+    { sink: mirror[stream], redact: ({ text }, _redactOptional = {}) => redactOutput({ text }) },
+    { maxLength: MAX_ECHOED_OUTPUT_CHARS, retain: state, tailKeepChars: OUTPUT_TAIL_KEEP_CHARS },
+  );
 }
 
 /** Compose the most useful failure message available: Tovu's own error line, else the raw tail.

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { deriveInstallationId, derivePublishSigningKey, verifyPublishSignature } from "../keys.js";
+import { deriveInstallationId, derivePublishSigningKey, verifyPublishSignature } from "@jini-ai/cms/publish/trust/keys";
 import { mintPublishSession, verifyPublishSession } from "../session.js";
 import { createFixedKeyring } from "./support/fixed-keyring.js";
 

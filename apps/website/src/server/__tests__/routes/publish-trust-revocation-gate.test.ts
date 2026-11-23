@@ -10,7 +10,7 @@ import test from "node:test";
 
 import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
 import { PUBLISH_TRUST_GRANT_VERSION } from "#src/features/publish-trust/grant";
-import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
+import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";

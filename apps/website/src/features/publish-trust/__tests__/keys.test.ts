@@ -9,7 +9,7 @@ import {
   deriveInstallationId,
   publishPrincipalIdFor,
   verifyPublishSignature,
-} from "../keys.js";
+} from "@jini-ai/cms/publish/trust/keys";
 
 /**
  * @file Security proofs for the derived publishing keypair.

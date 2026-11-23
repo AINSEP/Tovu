@@ -21,7 +21,7 @@ import {
   expandedAfterWorkspaceChange,
   nextExpanded,
   workspaceOnScreen,
-} from './expanded-mode.js';
+} from '@jini-ai/ui/app-shell';
 import type { SiteRecord } from '../contracts/project.js';
 
 /** A `SiteRecord` stand-in: nothing under test here reads anything but `id`. */

@@ -1,9 +1,8 @@
 import { navAvailability } from '../nav-availability.js';
 import { reportShellTelemetry } from '../product-telemetry.js';
 import { GearIcon, MenuIcon } from '../icons.js';
-import type { ThemePreference } from '../theme.js';
-import { settingsControlHandlers, useDismissibleDropdown } from '../use-dropdown-menu.hooks.js';
-import { useMenuKeyboard } from '@jini-ai/ui/browser';
+import type { ColorSchemePreference as ThemePreference } from '@jini-ai/ui/theme';
+import { settingsControlHandlers, useDismissibleDropdown, useMenuKeyboard } from '@jini-ai/ui/browser';
 import { useUpdateCheck } from '../use-update-check.hooks.js';
 import { SitesFoldersDialog } from '../SitesFolders.js';
 import { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';

@@ -17,7 +17,7 @@ import { sitesHomeBoundsPath } from "./window-bounds-json-store.ts";
 import type { SpellCheckWebContents } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 
 /** The sites home window's own `webContents`, as the setup below uses it. */
-type SitesHomeWebContents = NavigableContents & SpellCheckWebContents & {
+type SitesHomeWebContents = ElectronNavigableContents & SpellCheckWebContents & {
   on(event: "will-attach-webview", listener: (event: { preventDefault(): void }, webPreferences: GuestWebPreferences, params: { src?: unknown }) => void): unknown;
   on(event: "did-attach-webview", listener: (event: unknown, contents: SpellCheckWebContents) => void): unknown;
 };
@@ -101,7 +101,7 @@ function sitesHomeWindowOptions<W extends SitesHomeWindow>(
 ): SitesHomeWindowOptions {
   // Reopen where the operator left it, on whichever display still has it — `resolveWindowBounds`
   // is what refuses a remembered spot that no display covers anymore (an unplugged monitor), so
-  // this never seeds the constructor with an off-screen `x`/`y`. See `window-bounds-store.ts`.
+  // this never seeds the constructor with an off-screen `x`/`y`. See Jini `desktop-host/electron/usability`.
   const resolvedBounds = resolveWindowBounds({
     stored: ports.readWindowBounds({ boundsPath }),
     displays: ports.getAllDisplays(),
@@ -142,7 +142,7 @@ function rememberBounds<W extends SitesHomeWindow>(
 /** The project tabs' `<webview>` guests: who may attach, and what each one gets. @complexity O(1) registration. */
 function installGuestAttachPolicy<W extends SitesHomeWindow>({ window, ports }: { window: W; ports: SitesHomePorts<W> }, _optional = {}): void {
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
-  // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
+  // Jini `desktop-host/electron/navigation-policy` for why assigning is strictly stronger than the `delete` this
   // replaced, and for the symptom it fixes: the embedded admin telling the operator that voice
   // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
   // site's origin, so a guest pointed anywhere else is refused before it attaches.
@@ -213,7 +213,7 @@ function openSitesHomeWindow<W extends SitesHomeWindow>(
 
   // Only the renderer's own file may load in this window: it holds the `tovuRunner` bridge with
   // `sandbox: false`, and the page's CSP does not follow a navigation (a dropped link, say) to
-  // another page. See `window-navigation-policy.ts`.
+  // another page. See Jini `desktop-host/electron/navigation-policy`.
   installRendererNavigationPolicy({
     contents: window.webContents,
     rendererFileUrl: pathToFileURL(ports.rendererPath).href,

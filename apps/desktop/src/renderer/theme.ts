@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react';
-
-export type ThemePreference = 'light' | 'system' | 'dark';
+/**
+ * @file The desktop shell's theme wiring: the storage key, the default and the browser ports this
+ * app injects into Jini's `useThemePreference` (which owns the resolve/apply/persist behaviour).
+ */
+import { useMemo } from 'react';
+import { useThemePreference, type ThemePreferencePorts } from '@jini-ai/ui/app-shell';
+import type { ColorSchemePreference } from '@jini-ai/ui/theme';
 
 const STORAGE_KEY = 'tovu-runner.theme';
 
@@ -10,41 +14,17 @@ const STORAGE_KEY = 'tovu-runner.theme';
  * right" answerable without first asking what the OS is set to. `system` is one
  * click away for anyone who wants it.
  */
-const DEFAULT: ThemePreference = 'light';
+const DEFAULT: ColorSchemePreference = 'light';
 
-function readStored(): ThemePreference {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT;
-}
-
-/**
- * `data-theme` on the root element is always the *resolved* value — `light` or
- * `dark`, never `system`. That keeps the stylesheet to a single dark block instead
- * of repeating the whole palette once for the explicit choice and again inside a
- * `prefers-color-scheme` query, which is the usual way these two drift apart.
- */
-export function useTheme(): [ThemePreference, (next: ThemePreference) => void] {
-  const [preference, setPreference] = useState<ThemePreference>(readStored);
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const apply = () => {
-      let resolved = preference;
-      if (preference === 'system') resolved = media.matches ? 'dark' : 'light';
-      document.documentElement.dataset['theme'] = resolved;
-      // Tells the engine which form controls and scrollbars to draw.
-      document.documentElement.style.colorScheme = resolved;
-    };
-
-    apply();
-    localStorage.setItem(STORAGE_KEY, preference);
-
-    // Only `system` tracks the OS; an explicit choice must not move underneath you.
-    if (preference !== 'system') return undefined;
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
-  }, [preference]);
-
-  return [preference, setPreference];
+/** The persisted theme preference, applied to `<html>` as `data-theme` and `color-scheme`. */
+export function useTheme(): [ColorSchemePreference, (next: ColorSchemePreference) => void] {
+  // Read once per mount: the ports are effect dependencies, so they must stay the same objects.
+  const ports = useMemo((): ThemePreferencePorts => ({
+    storage: localStorage,
+    storageKey: STORAGE_KEY,
+    defaultPreference: DEFAULT,
+    matchMedia: (query) => window.matchMedia(query),
+    root: document.documentElement,
+  }), []);
+  return useThemePreference(ports);
 }

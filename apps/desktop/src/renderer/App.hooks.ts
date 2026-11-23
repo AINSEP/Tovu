@@ -34,7 +34,6 @@ export { navLinkClick, useRunnerNavigation, useSectionNav, type SectionNavState 
 export { useProjectTabs, type ProjectTabsState } from './use-project-tabs.hooks.js';
 export { useProjectMutations, type SiteMutationsState } from './use-project-mutations.hooks.js';
 export { appPresentation, deriveSitesHomeView, type SitesHomeView } from './sites-home-view.js';
-export { useExpandedMode } from './use-expanded-mode.hooks.js';
 export { useDeleteConfirmation } from './use-delete-confirmation.hooks.js';
 export { performSiteStart, startThenNotify, useSiteStart, type SiteStartResult } from './use-site-start.hooks.js';
 export { useWebviewLoadFailure } from './use-webview-load-failure.hooks.js';
