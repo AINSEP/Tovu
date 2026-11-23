@@ -11,7 +11,7 @@ import {
   readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval, type MailSuppressionRemovalPlan,
 } from "@jini-ai/platform/mail";
 import { mailDomainDepsFrom, type MailHostActivityDeps } from "@jini-ai/user-management/mail/status/domain-deps";
-import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "./feedback-setup.js";
+import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "./use-readiness.js";
 

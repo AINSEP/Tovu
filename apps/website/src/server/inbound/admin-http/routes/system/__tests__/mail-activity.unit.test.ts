@@ -7,6 +7,8 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { PositionalMailer as MailerPort, MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "../mail-activity.js";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
 
 /**
  * @file The Email page's phase-4 admin adapters, as direct handler calls: each route answers the
@@ -44,6 +46,7 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
     mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
     mailSenderIdentity: { resolve: async () => ({ email: "sender@example.com" }) }, mailPurposeGate: async () => true,
     formDefinitionRepo: { list: async () => [] },
+    listCustomCredentials, mailWebhookSecretLabels,
     mailActivity: {
       list: async () => [ROW],
       get: async ({ idempotencyKey }) => (idempotencyKey === ROW.idempotencyKey ? { record: ROW, feedback: [] } : null),

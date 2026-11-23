@@ -8,7 +8,7 @@ import {
 } from "@jini-ai/platform/mail";
 import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-tool-registrations";
 import { mailDomainDepsFrom } from "@jini-ai/user-management/mail/status/domain-deps";
-import { readMailFeedbackSetup } from "#src/features/mail-status/feedback-setup";
+import { readMailFeedbackSetup } from "@jini-ai/platform/mail/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness } from "#src/features/mail-status/use-readiness";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

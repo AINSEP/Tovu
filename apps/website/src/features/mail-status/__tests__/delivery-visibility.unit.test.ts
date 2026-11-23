@@ -6,6 +6,8 @@ import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "@jini-ai/platform/mail";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
+import { listCustomCredentials } from "../../custom-credentials/index.js";
+import { mailWebhookSecretLabels } from "../../mail/index.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
@@ -259,7 +261,7 @@ const ctx: ToolExecutionContext = { executionId: "e", principal: { id: "owner" }
 
 function tools(overrides: Partial<MailDeliveryToolDeps> = {}, granted = ["*"]) {
   const { newsletterLaunchGate: _gate, ...host } = readinessDeps();
-  const deps: MailDeliveryToolDeps = { ...host, authorize: grants(granted), mailActivity: memoryActivity([record("a", 1)]), ...overrides };
+  const deps: MailDeliveryToolDeps = { ...host, authorize: grants(granted), mailActivity: memoryActivity([record("a", 1)]), listCustomCredentials, mailWebhookSecretLabels, ...overrides };
   // No card is shown by these read-only tools; the removal card is exercised in suppressions-feedback.unit.test.ts.
   const registrations = buildMailDeliveryRegistrations(deps, {} as never);
   return { registrations, call: (name: string, input: unknown = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }) };

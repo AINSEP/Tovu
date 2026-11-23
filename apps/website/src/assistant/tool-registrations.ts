@@ -137,6 +137,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   AssistantHistoryHostDeps &
   import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
+  Pick<import("@jini-ai/platform/mail/feedback-setup").MailFeedbackSetupDeps, "listCustomCredentials" | "mailWebhookSecretLabels"> &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
   { getEffective: typeof getEffectiveSetting } &

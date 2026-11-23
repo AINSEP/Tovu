@@ -655,11 +655,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/mail-status/feedback-setup.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/mail-status/provider-operations.ts",
     "rule": "failure-text-from-catalog",
     "value": 1

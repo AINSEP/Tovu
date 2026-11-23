@@ -14,3 +14,8 @@ The catalogs, permission ids/grant registrar and `mailDomainDepsFrom` live in
   `mailSenderIdentity` and `mailTestFallbackSender` (the product-named placeholder From) through the
   site mailer's `operations` in `server/runtime/composition/site-mailer.ts`; they reach the
   `mail_send_test` tool and the mail-test-send route through the site deps bag.
+- Feedback setup (`readMailFeedbackSetup`) lives at `@jini-ai/platform/mail/feedback-setup`. The host
+  injects `listCustomCredentials` (`features/custom-credentials`) and `mailWebhookSecretLabels`
+  (`features/mail/index.ts`, the persisted "Tovu Mail — …" labels) as route-deps fields, bound in
+  `server/runtime/composition/site-deps/route-deps-members-mail.ts` and, for the in-memory root,
+  `server/runtime/composition/memory-deps/route-deps/members-media-newsletter-forms.ts`.

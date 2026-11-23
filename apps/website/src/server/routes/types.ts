@@ -449,6 +449,10 @@ export interface MembersDeps {
   mailPurposeGate?: import("@jini-ai/platform/mail").MailPurposeGateProbe;
   /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
   mailSuppressionAdmin?: import("@jini-ai/platform/mail").MailSuppressionAdminRepo;
+  /** Feedback setup's credential lister (`@jini-ai/platform/mail/feedback-setup`): labels and update times only. */
+  listCustomCredentials: typeof import("../../features/custom-credentials/index.js").listCustomCredentials;
+  /** Feedback setup's persisted product-prefixed signing-secret labels (`features/mail/index.ts`). */
+  mailWebhookSecretLabels: typeof import("../../features/mail/index.js").mailWebhookSecretLabels;
 }
 
 /**

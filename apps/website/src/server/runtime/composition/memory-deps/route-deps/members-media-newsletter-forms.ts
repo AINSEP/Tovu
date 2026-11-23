@@ -10,6 +10,8 @@ import { InMemoryImageTransformer } from "#src/features/media/index";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { seededWorkspace } from "../../../configuration/seed.js";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "#src/features/newsletter/repo.memory";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
@@ -107,6 +109,9 @@ export function memoryNewsletterFormsDeps(required: MemoryRootContext, _optional
     trash,
   } = required;
   return {
+    // Feedback setup (`@jini-ai/platform/mail/feedback-setup`): the credential lister and the persisted secret labels.
+    listCustomCredentials,
+    mailWebhookSecretLabels,
     // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
     // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `apps/website/src/server/runtime/composition/deps.ts`'s
     // real fire-and-forget install. `membersConsentCapability` stays `null` (unbound) — see that
