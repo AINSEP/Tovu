@@ -1,5 +1,5 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { MAX_FS_FILE_BYTES } from "./fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
 import { FS_WRITE_LIMITS } from "./write-files.js";

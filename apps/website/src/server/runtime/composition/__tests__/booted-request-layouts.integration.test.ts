@@ -19,7 +19,7 @@ import { pluginMemory } from "#src/features/agent-plugins/memory";
 import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "#src/features/skills/install-service";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { resolveFsRoots } from "#src/features/fs-files/layout";
-import { setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
+import { setCustomFsRoot } from "@jini-ai/cms/fs-files/custom-root-store";
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
 import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
 import { registerSkillFilesRoute } from "#src/server/inbound/admin-http/routes/skills/files";

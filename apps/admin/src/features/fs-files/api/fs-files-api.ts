@@ -1,5 +1,5 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
-import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
+import { ApiError, authenticatedAdminRequest } from "../../../lib/admin-http/request";
 
 /** The admin API calls of the fs-files feature. */
 export const fsFilesApi = {
@@ -18,4 +18,12 @@ export const fsFilesApi = {
   // `POST` opens the OS folder dialog there and resolves `{ path: null }` on Cancel.
   getFolderPicker: () => authenticatedAdminRequest<{ available: true }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
   pickFolder: () => authenticatedAdminRequest<{ path: string | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
+};
+
+/** Binds the composer folder button's hook (`useNativeFolderPicker`) to the calls above; a 409 means
+ * another tab's dialog is already open, which is not a failure. */
+export const nativeFolderPickerDeps = {
+  probe: fsFilesApi.getFolderPicker,
+  pick: fsFilesApi.pickFolder,
+  isDialogAlreadyOpen: (error: unknown): boolean => error instanceof ApiError && error.status === 409,
 };

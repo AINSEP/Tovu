@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import { registerAdminFsFilesFolderPickerRoutes } from "../folder-picker.js";
 
 type Deps = Parameters<typeof registerAdminFsFilesFolderPickerRoutes>[0]["deps"];

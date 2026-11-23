@@ -1,4 +1,4 @@
-import { assertExistingAbsoluteDirectory } from "#src/features/fs-files/custom-root-store";
+import { assertExistingAbsoluteDirectory } from "@jini-ai/cms/fs-files/custom-root-store";
 /**
  * @file The admin screen a chat message was sent from — decoded off a run's `contextRef` and
  * rendered into the block `agent-daemon-server.ts`'s `onStarted` puts directly in front of the
