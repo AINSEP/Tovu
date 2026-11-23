@@ -22,25 +22,49 @@ import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
-test("the shared backup-route failure sender preserves typed disk refusals and their diagnosis", t => {
-  t.mock.method(console, "error", () => {});
+type Reply = { status: number; body: Record<string, unknown> };
+function capturingResponse(): { res: { status(status: number): { json(body: unknown): void } }; replies: Reply[] } {
+  const replies: Reply[] = [];
+  return { replies, res: { status(status: number) { return { json(body: unknown) { replies.push({ status, body: body as Record<string, unknown> }); } }; } } };
+}
+
+// C115: a full disk is an owner-facing refusal with its own plain fix, not a server incident, so it
+// is classified before anything is logged or reported, and carries no error ID that points nowhere.
+test("the shared backup-route failure sender returns a typed disk refusal as a plain 507, with no incident logged or reported", t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const tracked: unknown[] = [];
   const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 50 * 1024 * 1024 });
-  let actual: { status: number; body: unknown } | undefined;
-  const res = { status(status: number) { return { json(body: unknown) { actual = { status, body }; } }; } };
-  sendAdminFailure({ res, error }, { code: "BACKUP_FAILED", field: "message" });
-  assert.equal(actual?.status, 507);
-  const body = actual?.body as { code: string; message: string; errorId: string };
-  assert.equal(body.code, "INSUFFICIENT_STORAGE");
-  assert.equal(body.message, error.message);
-  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the shared disk refusal returns a standard correlated incident ID");
+  const { res, replies } = capturingResponse();
+  sendAdminFailure({ res, error, tracker: { error: (...args: unknown[]) => { tracked.push(args); } } }, { code: "BACKUP_FAILED", field: "message" });
+  assert.deepEqual(replies, [{ status: 507, body: { code: "INSUFFICIENT_STORAGE", message: error.message } }]);
+  assert.equal(logged.mock.callCount(), 0, "no incident in the local log");
+  assert.deepEqual(tracked, [], "no incident in the tracker");
 });
 
-test("disk budget refusal is HTTP 507 with its actionable typed message", t => {
-  t.mock.method(console, "error", () => {});
+for (const order of [["disk", "crash"], ["crash", "disk"]] as const) {
+  test(`disk refusal and a real failure through the same sender (${order.join(" then ")}): only the real failure is an incident`, t => {
+    const logged = t.mock.method(console, "error", () => {});
+    const tracked: unknown[] = [];
+    const tracker = { error: (...args: unknown[]) => { tracked.push(args); } };
+    const { res, replies } = capturingResponse();
+    const disk = new DatabaseDiskSpaceError({ freeBytes: 1024 * 1024, requiredBytes: 60 * 1024 * 1024 });
+    for (const kind of order) sendAdminFailure({ res, error: kind === "disk" ? disk : new Error("database is locked"), tracker });
+    const byKind = Object.fromEntries(order.map((kind, index) => [kind, replies[index]!]));
+    assert.deepEqual(byKind.disk, { status: 507, body: { code: "INSUFFICIENT_STORAGE", error: disk.message } });
+    assert.equal(byKind.crash!.status, 500);
+    assert.match(String(byKind.crash!.body.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+    assert.equal(logged.mock.callCount(), 1, "exactly one incident logged: the real failure");
+    assert.equal(tracked.length, 1, "exactly one incident reported: the real failure");
+    assert.match(JSON.stringify(logged.mock.calls[0]!.arguments), new RegExp(String(byKind.crash!.body.errorId)));
+  });
+}
+
+test("disk budget refusal is HTTP 507 with its actionable typed message and no incident", t => {
+  const logged = t.mock.method(console, "error", () => {});
   const err = new DatabaseDiskSpaceError({ freeBytes: 12 * 1024 * 1024, requiredBytes: 62 * 1024 * 1024 });
   const response = importErrorResponse({ err });
-  assert.match(response.body.errorId!, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the import disk refusal returns a standard correlated incident ID");
-  assert.deepEqual(response, { status: 507, body: { error: err.message, code: "INSUFFICIENT_STORAGE", errorId: response.body.errorId } });
+  assert.deepEqual(response, { status: 507, body: { error: err.message, code: "INSUFFICIENT_STORAGE" } });
+  assert.equal(logged.mock.callCount(), 0);
 });
 
 test("the real pre-publish SQLite capture reaches HTTP 507 before writing, including a separate destination folder", async t => {

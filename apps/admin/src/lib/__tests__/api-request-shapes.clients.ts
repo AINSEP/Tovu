@@ -22,7 +22,7 @@ import { publishContentApi } from "../../features/publish-content/api/publish-co
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { securityApi } from "../../features/security/api/security-api";
-import { settingsApi } from "../../features/settings/api/settings-api";
+import { settingsApi } from "../admin-http/settings-api";
 import { sitesApi } from "../../features/sites/api/sites-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
