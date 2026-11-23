@@ -8,7 +8,7 @@ import { buildCliEnv, buildServeEnv } from '../../../apps/desktop/src/tovu-serve
 import { localSiteChildEnv } from '../../../apps/website/src/server/runtime/lifecycle/local-site-process.ts';
 import { resolveAgentPluginLayout } from '../../../apps/website/src/features/agent-plugins/layout.ts';
 import { resolveSkillLayout } from '../../../apps/website/src/features/skills/layout.ts';
-import { pluginsInstallDir } from '../../../apps/website/src/server/runtime/composition/deps.ts';
+import { pluginsInstallDir } from '../../../apps/website/src/server/runtime/composition/site-paths.ts';
 
 const repoRoot = path.join(os.tmpdir(), 'plugdir-product');
 const overrides = Object.freeze({
