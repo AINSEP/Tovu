@@ -3,10 +3,10 @@ import { sitePluginLocalInstallEnabled } from './install.js';
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { pluginInstallRiskSentence } from '@jini-ai/plugins/runtime/install-consent';
 import { readPluginInstallRequest, readPluginInstallArchive } from './install-source.js';
-import { catalog, PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
+import { PLUGINS_INSTALL_TOOL_ID } from '@jini-ai/plugins/runtime/install-tool-catalog';
+import { pluginsInstallCatalog as catalog, pluginInstallMessages } from './plugin-host-copy.js';
 import type { PluginsInstallToolDeps } from './install-tool.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
-import { pluginInstallMessages } from './plugin-tool-messages.js';
 import type { PluginInstallRequest } from '#src/contracts/headless/index';
 import type { PluginInstallToolsRequired } from '@jini-ai/plugins/host/tools';
 export function bindPluginInstallTools(deps: PluginsInstallToolDeps): PluginInstallToolsRequired<PluginInstallRequest> {

@@ -22,12 +22,12 @@
       "reason": "Host tool-port wording that reaches the model in plugin tool results."
     },
     {
-      "path": "apps/website/src/features/plugin-runtime/plugin-tool-messages.ts",
+      "path": "../Jini/packages/plugins/src/runtime/plugin-tool-messages.ts",
       "kind": "guide",
       "reason": "Plugin tool result and refusal messages the model reads."
     },
     {
-      "path": "apps/website/src/features/plugin-runtime/capability-card.ts",
+      "path": "../Jini/packages/plugins/src/runtime/capability-card.ts",
       "kind": "guide",
       "reason": "Capability card text the model reads before it uses a plugin."
     },

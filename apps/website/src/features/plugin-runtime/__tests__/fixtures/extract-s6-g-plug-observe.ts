@@ -24,12 +24,12 @@ import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runt
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 import { toAdminPluginResponse } from "@jini-ai/plugins/host";
-import { pluginAgentToolCatalog } from "../../agent-tools.js";
+import { pluginAgentToolCatalog, pluginsInstallCatalog as installCatalog, pluginSourceAgentToolCatalog } from "../../plugin-host-copy.js";
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, pluginCapabilityToolDerivedRisk, registerEnabledPluginCapabilityTools, type PluginCapabilityToolDeps } from "../../capability-tool-registrations.js";
-import { catalog as installCatalog, derivedRisk as installDerivedRisk } from "../../install-tool.js";
-import { pluginSourceAgentToolCatalog, pluginSourceDerivedRisk } from "../../source-tools.js";
+import { derivedRisk as installDerivedRisk } from "../../install-tool.js";
+import { pluginSourceDerivedRisk } from "../../source-tools.js";
 import { describeEnableApproval, pluginsDerivedRisk } from "../../tool-registrations.js";
 import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
 import { PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, noDialog, siteRecord } from "./plugins-tool-harness.js";

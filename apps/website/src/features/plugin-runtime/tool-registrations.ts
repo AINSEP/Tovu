@@ -12,7 +12,7 @@ import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugin
 import type { PluginProviderFacesPort } from './service-ports.js';
 import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';
 import { bindPluginApprovalIdentity, bindPluginManagementTools } from './host-tool-binding.js';
-import type { PluginFamily } from './agent-tools.js';
+import type { PluginFamily } from '@jini-ai/plugins/runtime/agent-tools';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledResult } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 export { describeEnableApproval, type EnableConfirmationSubject } from './enable-confirmation-ui.js';
 

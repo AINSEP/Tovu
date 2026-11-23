@@ -3,8 +3,7 @@ import type { PluginsToolDeps } from './tool-registrations.js';
 import { type InstallAttachmentReader } from '#src/contracts/headless/index';
 import { buildPluginInstallRegistrations, pluginInstallDerivedRiskFor } from '@jini-ai/plugins/host/tools';
 import { bindPluginInstallTools } from './install-tool-binding.js';
-import { PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
-export { catalog, PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
+import { PLUGINS_INSTALL_TOOL_ID } from '@jini-ai/plugins/runtime/install-tool-catalog';
 
 /**
  * @file `plugins_install` — the assistant's way to install a SITE plugin (`.tovu-plugin`, the family

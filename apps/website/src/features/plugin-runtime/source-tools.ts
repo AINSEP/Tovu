@@ -1,5 +1,4 @@
 import { pluginSourceToolIds } from '@jini-ai/plugins/runtime/plugin-tool-ids';
-export { pluginSourceAgentToolCatalog } from './source-tool-catalog.js';
 import type { ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { PluginsToolDeps } from './tool-registrations.js';

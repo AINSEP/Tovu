@@ -1,6 +1,6 @@
 import type { AccessApprovalResource } from '@jini-ai/core';
 import type { HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
-import { PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from './agent-tools.js';
+import { PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from '@jini-ai/plugins/runtime/agent-tools';
 
 
 /** What the dialog needs to describe truthfully what is about to be switched on. */

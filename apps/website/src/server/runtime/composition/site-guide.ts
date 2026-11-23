@@ -19,7 +19,7 @@ import { capabilityCard as members } from "#src/features/members/capability-card
 import { capabilityCard as seo } from "#src/features/seo/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
-import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";
+import { capabilityCard as plugins } from "#src/features/plugin-runtime/plugin-host-copy";
 import { capabilityCard as jini } from "#src/features/site-guide/index";
 
 export const TOVU_CAPABILITY_CARDS: readonly CapabilityCard[] = [content, forms, widgets, themes, members, seo, deploy, backup, plugins, jini];

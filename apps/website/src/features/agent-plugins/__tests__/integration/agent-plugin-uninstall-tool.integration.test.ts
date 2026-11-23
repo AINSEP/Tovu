@@ -24,7 +24,7 @@ import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/agent-tools";
+import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/plugin-host-copy";
 import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

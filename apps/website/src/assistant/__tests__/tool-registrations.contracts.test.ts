@@ -70,8 +70,7 @@ import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-to
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
-import { catalog as pluginsInstallCatalog } from "../../features/plugin-runtime/install-tool.js";
+import { pluginAgentToolCatalog, pluginsInstallCatalog, pluginSourceAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { catalog as skillsInstallCatalog } from "../../features/skills/install-tool.js";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
@@ -129,7 +128,6 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";

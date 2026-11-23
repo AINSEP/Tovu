@@ -7,7 +7,7 @@ import test from 'node:test';
 import type { ToolDescriptor } from '@jini-ai/core';
 import { createExpiringSurfaces } from '../../__tests__/support/expiring-surfaces.js';
 import { capabilityCard as widgets } from '../../features/widgets/capability-card.js';
-import { capabilityCard as plugins } from '../../features/plugin-runtime/capability-card.js';
+import { capabilityCard as plugins } from '../../features/plugin-runtime/plugin-host-copy.js';
 import type { GuideTopic as CapabilityCard } from '@jini-ai/agentic/core';
 import { postAgentToolCatalog } from '../../features/post/agent-tools.js';
 import { context, harness } from '../../features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.js';

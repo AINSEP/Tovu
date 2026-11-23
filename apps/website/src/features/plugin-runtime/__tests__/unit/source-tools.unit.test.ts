@@ -5,8 +5,8 @@ import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, t
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { PluginInstallError, PluginSourceError, type PluginSourcePort, type PluginInstallPreview } from '@jini-ai/plugins/host/node';
-import { buildPluginSourceRegistrations, contributePluginSourceTools, pluginSourceAgentToolCatalog, pluginSourceDerivedRisk } from '../../source-tools.js';
-import { pluginAgentToolCatalog } from '../../agent-tools.js';
+import { buildPluginSourceRegistrations, contributePluginSourceTools, pluginSourceDerivedRisk } from '../../source-tools.js';
+import { pluginAgentToolCatalog, pluginSourceAgentToolCatalog } from '../../plugin-host-copy.js';
 import { toolMetadata } from '../../../../contracts/core/tool-metadata/plugin-runtime.js';
 import { resolveBatchableTools } from '../../../../assistant/batch-tool-inputs.js';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';

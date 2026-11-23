@@ -2301,7 +2301,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/plugin-runtime/agent-tools.ts",
+        "path": "../Jini/packages/plugins/src/runtime/agent-tools.ts",
         "ids": [
           "search_agent_plugin_local",
           "content_read.plugin",
@@ -2318,7 +2318,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/plugin-runtime/install-tool-catalog.ts",
+        "path": "../Jini/packages/plugins/src/runtime/install-tool-catalog.ts",
         "ids": [
           "content_read.plugin",
           "plugins_set_enabled",
@@ -2333,7 +2333,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/plugin-runtime/source-tool-catalog.ts",
+        "path": "../Jini/packages/plugins/src/runtime/source-tool-catalog.ts",
         "ids": [
           "plugin_source_create",
           "plugin_source_open",
