@@ -24,9 +24,13 @@ import type { ServerModuleHandle } from "./types.js";
  * silently overwriting that file.
  *
  * Owns all 8 registrations (content-types' list/register/update-fields/lifecycle, entries' list/
- * create/update/lifecycle), same relative order and position. All eight are Jini route specs
+ * create/update/lifecycle) — moved here from `app.ts`'s `createApp()`, same relative order and
+ * position. All eight are Jini route specs
  * (`@jini-ai/cms/admin-http/routes/{content-types,entries}/*`) mounted behind the admin ports;
  * each mount builds its route's own small deps from `ContentTypesRouteDeps` and never passes it whole.
+ *
+ * One combined `ContentTypesRouteDeps` type covers both sub-domains — see its own doc below for why
+ * a two-type split was considered and rejected.
  */
 
 /**

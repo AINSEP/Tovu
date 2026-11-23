@@ -20,7 +20,9 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-034) — the `taxonomy` server module (ADR-044 Categories & Tags).
  *
  * Owns the 9 plain taxonomy routes (list/create-taxonomy/create-term/rename-term/assign-terms/
- * unassign-terms/assigned-terms/delete-taxonomy/delete-term). All 9 are `@jini-ai/cms` route specs
+ * unassign-terms/assigned-terms/delete-taxonomy/delete-term). The first 5 moved here from `app.ts`'s
+ * `createApp()`; `delete-taxonomy`/`delete-term` were added later (guarded-delete backend-gap
+ * closure; `delete-term` has since become a move to the Trash — see its spec's header). All 9 are `@jini-ai/cms` route specs
  * mounted behind the admin ports; each registrar below builds its route's small deps from
  * `TaxonomyRouteDeps`, so the wire bodies and the per-route failure copy are unchanged.
  *

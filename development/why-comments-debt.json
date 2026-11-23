@@ -3544,6 +3544,138 @@
     {
       "id": "690bcf5bd64d",
       "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/posts/get-by-id.ts postGetRoute handler comment (w3-content), host lookup name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "0f7129e7370b",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/navigation/site/import-menu.ts @file doc (w3-content), verbatim apart from neutral host-path wording: \"host-local\" dropped (the chokepoint now lives in Jini), `features/navigation/publish-content.ts` reworded to \"the host's navigation publish-content adapter\" (twice) and `features/post/post.ts` to \"the host post feature\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "75c2a9da2182",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/navigation/site/import-menu.ts importMenuEntity doc (w3-content), verbatim apart from `features/navigation/publish-content.ts` reworded to \"the host's navigation publish-content adapter\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "b85a25ac38ae",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/menus.ts @file doc (w3-content): Purpose/role verbatim, the host `posts.ts` toAdminPostResponse mirror swapped for `./redirects.ts` toAdminRedirectResponse (the posts DTO stays host-side); the MenuRouteDeps paragraph's subject left this file, its why-not-routes/types.ts rationale lives on in the Tovu runtime/composition/modules/menus.ts MenuRouteDeps doc, and MenuRouteRegistrar is deleted (Jini specs); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "54ef5f6db6f9",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/menus.ts authorizeMenuHtml doc (w3-content): first two sentences verbatim; \"Writes the 403 and returns false on a denial, like authorizeOrRespond\" is no longer true (the injected authorizer throws the refusal) and was replaced by that behaviour; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "1ca44bcf583b",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/widgets.ts widgetForbiddenToResponse doc (w3-content), verbatim apart from dropping the host menus/create.ts path example and the \"See widgets-error-code-parity.test.ts\" pointer (no such test exists in either repo any more); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "0aee9b49a1b4",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/widgets.ts WIDGET_ERROR_MAPPERS doc (w3-content): `widgetErrorToResponse` renamed `widgetDomainErrorToResponse`, \"the unconditional 500 fallback\" became \"the caller's own fallback\" (the 500 moved to the host error port); rest verbatim; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "65155d8f2ae8",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/get-settings.ts commentsGetSettingsRoute doc (w3-content): first sentence verbatim, host seo path reworded \"the seo settings GET route\"; the \"Retyped from RouteRegistrar to CommentsModerationRouteDeps, see deps.ts\" sentence's subject is deleted (Express registrar and deps.ts gone; the spec declares its own deps); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "f794a916d00f",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/put-settings.ts commentsPutSettingsRoute doc (w3-content): first sentence verbatim, host seo path reworded \"the seo settings PUT route\"; the \"Retyped from RouteRegistrar to CommentsModerationRouteDeps, see deps.ts\" sentence's subject is deleted (Express registrar and deps.ts gone; the spec declares its own deps); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "5ec2627bf6c9",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/moderate.ts parseModerationBody doc (w3-content): \"`null` means expectedVersion failed validation\" is no longer true (it throws the flat 400 via rejectRoute) and says so instead; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "fc9a0cc9469a",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/moderate.ts refuseModerationResult doc (the not-found/version-conflict split from result.reason) plus moderationActionRoute doc (\"204 on success\") (w3-content); the Express response writer it described is deleted; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "681207b6ace0",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/lifecycle.ts contentTypeLifecycleRoute doc (w3-content), verbatim apart from the host {@link import(...lifecycle-dispatch)} reworded to `ContentTypeLifecycleOp` and the host settings path to \"the settings register-definitions route\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "96036d7784eb",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/list.ts contentTypeListRoute doc (w3-content): pointer restored as `../database/timeline.ts`'s exact shape; the Express step names (getAuthedPrincipal, deps.authorize(), res.json()) reworded to the spec's authenticated principal -> authorize -> the list; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "eb77cf6bd5c3",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/register.ts contentTypeRegisterRoute doc (w3-content), verbatim apart from the host settings path reworded \"the settings register-definitions route\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "c5178fc1d751",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/entries/lifecycle.ts entryLifecycleRoute doc (w3-content): host {@link import(...)} reworded to `EntryLifecycleOp`, sibling pointer restored as `../content-types/lifecycle.ts`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "c3919eea605f",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/get-by-id.ts formsGetByIdRoute handler comment (w3-content), verbatim apart from `FormEditor.tsx`/`use-form-editor.hooks.ts` reworded \"the admin form editor\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "8ac30d9e11a2",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/get-submission.ts findSubmissionScopedToDefinition doc (w3-content), verbatim apart from the host test file reworded \"the host's forms-submissions cross-form-mismatch regression test\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "72b122a45bc2",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/list-submissions.ts handler comment (w3-content), verbatim apart from `FormEditor.tsx` reworded \"the admin form editor\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "69123e19d2d7",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/resolve-definition.ts resolveFormDefinitionByIdOrSlug doc (w3-content), verbatim apart from `FormEditor.tsx` -> \"the admin form editor\" and posts' getAdminPostByIdOrSlug (host path) -> \"posts' admin get-by-id-or-slug lookup\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "88fc527d3e63",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/assign-location.ts parseLocationKey doc (w3-content): \"`null` means missing or blank\" is no longer true (it throws the route's flat 400) and says so instead; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "adf13e3c2b4c",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/create.ts menuCreateRoute doc (w3-content), verbatim apart from dropping the host `members/disable.ts` precedent (not in Jini); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "3dd98847d924",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/create.ts parseMenuCreateBody doc (w3-content): \"or `null` if a present items isn't an array\" is no longer true (rejectRoute flat 400) and says so instead; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "3377177292eb",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/get-by-id.ts handler comment (w3-content), verbatim apart from dropping the host `features/post/post.ts` path; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "6e084c308c3a",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/update-tree.ts parseMenuTreeRequestBody doc (w3-content): \"or `null`\" became the route's flat 400 (rejectRoute); the HTML-mode sentence is verbatim; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "fcb447d10d9f",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/update-tree.ts MENU_UPDATE_TREE_ERROR_MAPPINGS doc (w3-content), verbatim apart from \"logged first\" gaining \"(by the host's error port, which receives it rethrown)\" since logging moved to the host; the Express sender is deleted; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "c5e859fb7729",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/menus/update-tree.ts menuUpdateTreeRoute doc (w3-content), verbatim apart from dropping the host paths `core/commands/appliers.ts` and `members/disable.ts`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "7e27ebe7f0cd",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts assignmentDeps doc (w3-content): \"Jini's write deps\" reworded \"The write service's deps\" (the code is in Jini now); rest verbatim; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "93c4984c0f05",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts parseAssignmentBody doc (w3-content): \"or `null` after answering 400\" became \"or the 400 refusal\" (rejectRoute throws); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "9c7a4ecbe766",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts taxonomyUnassignTermsRoute doc (w3-content), verbatim apart from \"Jini `unassignTerms`\" -> \"`unassignTerms`\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "0d302c329117",
+      "reason": "Subject deleted: removeEmbedPlacement was folded into Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-placement.ts removeWidgetToolPlacement's embed branch, whose doc keeps \"a thin pass-through to removeWidgetEmbed\"; \"kept symmetric with removeRegionPlacement\" no longer describes a separate helper; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "bafa8cae6883",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-placement.ts removeWidgetToolPlacement doc (w3-content), verbatim apart from `placeTarget` renamed `placeWidgetToolTarget`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "a48b6bb44def",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-targets.ts parseCreateToolInput doc (w3-content), verbatim apart from `readTarget` renamed `readWidgetToolTarget`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "1f4f25698362",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/list.ts widgetListRoute doc (w3-content): verbatim, the host menus list path restored as `../menus/list.ts`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "0a60dc7d8e68",
+      "reason": "Rewritten in place: Tovu runtime/composition/modules/menus.ts @file header. The MenuRouteDeps-location paragraph's subject moved into this module (its rationale is the MenuRouteDeps doc just below); \"All 6 registrars already use MenuRouteRegistrar\" and \"same registrar function bodies, no behavior change\" are no longer true (the registrars are Jini route specs now) (rv1123g ex7-coll-small FIX 2)."
     }
   ]
 }
