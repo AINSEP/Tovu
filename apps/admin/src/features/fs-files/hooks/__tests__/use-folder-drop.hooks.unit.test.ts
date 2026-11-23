@@ -5,7 +5,7 @@ import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import type { ChatTransport } from "@jini-ai/chat/core";
 
 import { ApiError } from "../../../../lib/admin-http/request";
-import type { FolderDropPort } from "../../folder-drop-port";
+import type { FolderDropPort } from "@jini-ai/admin/screens/fs-files/folder-drop-port";
 import { useFolderDrop } from "../use-folder-drop.hooks";
 
 /** A manually-resolved/rejected promise, for pinning exact settlement order across overlapping

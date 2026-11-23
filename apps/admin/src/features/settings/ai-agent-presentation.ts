@@ -1,5 +1,5 @@
 import type { DetectedAgent, ExecutionPort } from '@jini-ai/ui';
-import { getFolderDropPort } from '../fs-files/folder-drop-port';
+import { getFolderDropPort } from '@jini-ai/admin/screens/fs-files/folder-drop-port';
 import { getVoiceInputPort } from '../voice-input/voice-input-port';
 import { t } from './settings-execution-i18n';
 
@@ -14,7 +14,8 @@ export function localCliScopeCopy(
 export function isDesktopAdmin(
   {}: Record<string, never>, { targetWindow }: { targetWindow?: Window } = {},
 ): boolean {
-  return getFolderDropPort({ targetWindow }) !== null || getVoiceInputPort({ targetWindow }) !== null;
+  // `tovuFiles` is the folder-drop bridge name the desktop preload exposes.
+  return getFolderDropPort({ targetWindow, bridgeKey: 'tovuFiles' }) !== null || getVoiceInputPort({ targetWindow }) !== null;
 }
 
 /** Unknown authentication is not a refusal. Warn only about a confirmed missing sign-in. */
