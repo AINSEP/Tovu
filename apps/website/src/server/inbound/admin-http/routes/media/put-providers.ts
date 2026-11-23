@@ -6,6 +6,9 @@ import {
   MediaProviderCredentialValidationError,
   saveMediaProviderCredentials,
 } from "#src/features/media/index";
+// Deep import: `features/media/index.ts` is being edited on another branch; fold this into that
+// barrel import once both land.
+import { mergeMediaProviderCredentials } from "#src/features/media/provider-credential-store";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaProviderRouteRegistrar } from "./deps.js";
 
@@ -23,6 +26,12 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * `015-integrations.yaml`) — not `media.write`, which is deprecated and no longer granted to fresh
  * admin roles, so it would silently lock new admins out of a feature legacy admins can still reach.
  *
+ * `?mode=merge` (B135/B136) switches to the PARTIAL save: only the providers the body names are
+ * written, an absent provider is left untouched, and `null` deletes exactly that provider (plugin
+ * vendors included). A screen that holds a possibly stale copy of the map must use it — the
+ * whole-set default would delete a key someone else saved after that copy was read. A query flag,
+ * not a new method, so existing whole-set callers keep working unchanged.
+ *
  * The response never echoes key material — it is the same markers-only map GET returns. Three
  * failure outcomes, mirroring `put-site-credential.ts`'s split: 400 validation (unknown provider
  * id, wrong field type, oversized field), 503 `SECRET_STORE_UNCONFIGURED` (missing
@@ -37,16 +46,16 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
       const params = { principalId: principal.id, permission: "admin.integrations.manage", workspaceId: deps.workspaceId, entityType: "media" };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const providers = await saveMediaProviderCredentials(
-        {
-          repo: deps.mediaProviderCredentialRepo,
-          sealer: deps.siteAssistantSecretSealer,
-          keyring: deps.siteAssistantSecretKeyring,
-          clock: deps.clock,
-          providerCatalog: deps.mediaProviderRegistry,
-        },
-        { workspaceId: deps.workspaceId, providers: (req.body ?? {}) as Record<string, never> }
-      );
+      const merge = isMergeMode({ mode: req.query?.mode });
+      const writeDeps = {
+        repo: deps.mediaProviderCredentialRepo,
+        sealer: deps.siteAssistantSecretSealer,
+        keyring: deps.siteAssistantSecretKeyring,
+        clock: deps.clock,
+        providerCatalog: deps.mediaProviderRegistry,
+      };
+      const input = { workspaceId: deps.workspaceId, providers: (req.body ?? {}) as Record<string, never> };
+      const providers = merge ? await mergeMediaProviderCredentials(writeDeps, input) : await saveMediaProviderCredentials(writeDeps, input);
       res.json(providers);
     } catch (err) {
       if (err instanceof MediaProviderCredentialValidationError) {
@@ -65,3 +74,11 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
     }
   });
 };
+
+/** Absent `mode` keeps the whole-set save; `merge` is the partial one. Anything else is refused
+ *  before any write rather than guessed at, since guessing "whole set" would delete providers. */
+function isMergeMode({ mode }: { mode: unknown }, _optional: Record<string, never> = {}): boolean {
+  if (mode === undefined) return false;
+  if (mode === "merge") return true;
+  throw new MediaProviderCredentialValidationError('mode must be "merge" or left out');
+}

@@ -115,7 +115,9 @@ paths:
       operationId: replace_media_providers
       tags: [media]
       summary: Atomically replace the workspace media-provider credential set
-      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { name: mode, in: query, required: false, schema: { type: string, enum: [merge] }, description: 'Omitted, the body is the whole set and omitted keys are deleted. merge, only the named providers are written, an omitted key is left untouched, and a null value deletes that one provider (plugin vendors included). Any other value is a 400.' }
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/MediaProviderUpdateMap' } } }
@@ -216,7 +218,7 @@ components:
         model: { type: string }
         apiKeyConfigured: { type: boolean, enum: [true] }
         apiKeyTail: { type: string, maxLength: 4 }
-    MediaProviderUpdateMap: { type: object, additionalProperties: { $ref: '#/components/schemas/MediaProviderCredentialInput' }, description: Keys must be engine-canonical provider IDs; omitted keys are deleted. }
+    MediaProviderUpdateMap: { type: object, additionalProperties: { $ref: '#/components/schemas/MediaProviderCredentialInput' }, description: 'Keys must be engine-canonical provider IDs; omitted keys are deleted. With mode=merge, omitted keys are untouched and a value may be null to delete that provider.' }
     MediaProviderMap: { type: object, additionalProperties: { $ref: '#/components/schemas/MediaProviderCredentialView' } }
     ErrorResponse:
       type: object

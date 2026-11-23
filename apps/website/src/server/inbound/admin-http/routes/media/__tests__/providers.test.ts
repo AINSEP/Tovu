@@ -290,3 +290,39 @@ test("put-providers: `req.params.workspaceId ?? \"\"` fallback, forced via a dir
   assert.equal(getStatus(), 404);
   assert.deepEqual(getBody(), { error: "workspace was not found" });
 });
+
+// B135/B136: `?mode=merge` is the partial save the legacy Media providers screen sends — a provider
+// absent from the body is left untouched (a key saved elsewhere after the screen loaded survives),
+// and `null` explicitly deletes exactly that one provider, plugin vendor included.
+test("put-providers ?mode=merge: a provider absent from the body is left untouched, not deleted (B135)", async (t) => {
+  const app = buildApp();
+  assert.equal((await put(t, app, { openai: { apiKey: "sk-openai-123456" } })).status, 200);
+  // Saved "elsewhere" after the stale screen loaded its map of only `openai`.
+  assert.equal((await put(t, app, { grok: { apiKey: "xai-grok-123456" } }, `${PATH}?mode=merge`)).status, 200);
+
+  const merged = await put(t, app, { openai: { baseUrl: "https://api.openai.com/v1" } }, `${PATH}?mode=merge`);
+  assert.equal(merged.status, 200, JSON.stringify(merged.json));
+  assert.deepEqual(Object.keys(merged.json).sort(), ["grok", "openai"]);
+  assert.equal((merged.json as Record<string, { apiKeyConfigured?: boolean }>).openai?.apiKeyConfigured, true);
+});
+
+test("put-providers ?mode=merge: null deletes exactly that provider, a plugin vendor included (B136)", async (t) => {
+  const base = createRouteDeps();
+  const mediaProviderRegistry = createMediaProviderRegistry();
+  const contribution = { provider: { id: "acme-media", label: "Acme Media", hint: "", integrated: true }, models: [], adapters: {} };
+  mediaProviderRegistry.providers.contribute({ definition: mediaProviderDefinition({ contribution }), pluginId: "acme-plugin" });
+  const app = buildApp({ mediaProviderCredentialRepo: base.mediaProviderCredentialRepo, mediaProviderRegistry });
+  assert.equal((await put(t, app, { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } })).status, 200);
+
+  const removed = await put(t, app, { "acme-media": null }, `${PATH}?mode=merge`);
+  assert.equal(removed.status, 200, JSON.stringify(removed.json));
+  assert.deepEqual(Object.keys(removed.json), ["openai"]);
+});
+
+test("put-providers: an unknown mode is refused in plain words, nothing written", async (t) => {
+  const app = buildApp();
+  const res = await put(t, app, { openai: { apiKey: "sk-openai-123456" } }, `${PATH}?mode=patchy`);
+  assert.equal(res.status, 400);
+  assert.match(String((res.json as { error?: string }).error), /mode/);
+  assert.deepEqual((await get(t, app)).json, {});
+});

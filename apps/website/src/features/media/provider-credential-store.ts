@@ -274,19 +274,82 @@ export async function saveMediaProviderCredentials(
   deps: MediaProviderCredentialSaveDeps,
   input: SaveMediaProviderCredentialsInput
 ): Promise<MediaProviderCredentialMap> {
-  const { providers } = input;
+  assertProviderMap({ providers: input.providers });
+  // A plugin vendor's row is never tombstoned by omission: the admin tab renders only built-in
+  // vendors, so its whole-map save would otherwise silently delete a key saved for a plugin vendor.
+  // Keyed on "not built-in", not "registry holds it": a disabled plugin, a restart or a loader
+  // fault drops the vendor from the registry, and its stored key must survive that too.
+  return writeProviderCredentials({ deps, input, tombstones: ({ existingIds, submittedIds }) =>
+    existingIds.filter((providerId) => !submittedIds.has(providerId) && KNOWN_PROVIDER_IDS.has(providerId)) });
+}
+
+/** One provider per key: an object upserts that provider, `null` deletes it, absent leaves it alone. */
+export interface MergeMediaProviderCredentialsInput {
+  workspaceId: UUID;
+  providers: Record<string, MediaProviderCredentialInput | null>;
+}
+
+/**
+ * The PARTIAL save (B135/B136): writes only the providers the body names and never tombstones by
+ * omission. This is what a screen holding a possibly stale copy of the map must use — the
+ * whole-map {@link saveMediaProviderCredentials} would delete any built-in key saved elsewhere
+ * after that copy was read, because "absent" there means "cleared".
+ *
+ * `null` is the explicit, per-provider delete (JSON merge-patch convention). Its id only has to be
+ * credential-free, not registry-held: a disabled plugin's stored key must stay removable, and an id
+ * with nothing stored is a no-op because the repo only tombstones rows it actually read.
+ *
+ * @throws {MediaProviderCredentialValidationError} same as {@link saveMediaProviderCredentials}.
+ * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} same as {@link saveMediaProviderCredentials}.
+ * @complexity O(n) over the submitted providers, bounded like the whole-map save.
+ */
+export async function mergeMediaProviderCredentials(
+  deps: MediaProviderCredentialMergeDeps,
+  input: MergeMediaProviderCredentialsInput
+): Promise<MediaProviderCredentialMap> {
+  assertProviderMap({ providers: input.providers });
+  const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
+  const upserts: Record<string, MediaProviderCredentialInput> = {};
+  const removals: string[] = [];
+  for (const [providerId, entry] of Object.entries(input.providers)) {
+    if (entry !== null) { upserts[providerId] = entry; continue; }
+    rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value: providerId, field: "providerId" }) });
+    removals.push(providerId);
+  }
+  await writeProviderCredentials({ deps, input: { workspaceId: input.workspaceId, providers: upserts }, tombstones: () => removals });
+  // The batch only echoes the rows it wrote; untouched providers are part of the authoritative map
+  // the caller renders, so the answer is a fresh read rather than the write's own result.
+  return toMap(await deps.repo.listByWorkspaceId({ workspaceId: input.workspaceId }));
+}
+
+/** The partial save also reads the whole map back (see {@link mergeMediaProviderCredentials}). */
+export type MediaProviderCredentialMergeDeps = Omit<MediaProviderCredentialWriteDeps, "repo"> & {
+  repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace" | "vault" | "listByWorkspaceId">;
+};
+
+function assertProviderMap({ providers }: { providers: unknown }, _optional: Record<string, never> = {}): void {
   if (providers === null || typeof providers !== "object" || Array.isArray(providers)) {
     throw new MediaProviderCredentialValidationError("providers must be an object keyed by provider id");
   }
+}
 
+/** Which stored rows one write deletes, given the CURRENT rows' ids and the ids the body upserts. */
+type TombstoneRule = (input: { existingIds: readonly string[]; submittedIds: ReadonlySet<string> }) => readonly string[];
+
+/** The shared validate → seal → one-transaction write behind both saves; only the tombstone rule
+ *  differs. See {@link saveMediaProviderCredentials}'s doc for why the order is load-bearing. */
+async function writeProviderCredentials(
+  { deps, input, tombstones }: { deps: MediaProviderCredentialSaveDeps; input: SaveMediaProviderCredentialsInput; tombstones: TombstoneRule },
+  _optional: Record<string, never> = {}
+): Promise<MediaProviderCredentialMap> {
   const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
-  const entries = Object.entries(providers);
+  const entries = Object.entries(input.providers);
   for (const [providerId, entry] of entries) assertValidEntry({ providerId, entry, catalog: deps.providerCatalog, policy });
 
   const now = clockNowIso({ clock: deps.clock });
 
-  // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
-  // why this is the ONLY async step left before the transaction opens.
+  // Seal every new key BEFORE any write — see saveMediaProviderCredentials's doc for why the order
+  // matters, and why this is the ONLY async step left before the transaction opens.
   const sealedByProviderId = await sealNewProviderKeys(deps, input, policy);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
@@ -299,16 +362,7 @@ export async function saveMediaProviderCredentials(
       buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,
         existing: existingByProviderId.get(providerId), fresh: sealedByProviderId.get(providerId), now })
     );
-    return {
-      upserts,
-      // A plugin vendor's row is never tombstoned by omission: the admin tab renders only built-in
-      // vendors, so its whole-map save would otherwise silently delete a key saved for a plugin vendor.
-      // Keyed on "not built-in", not "registry holds it": a disabled plugin, a restart or a loader
-      // fault drops the vendor from the registry, and its stored key must survive that too.
-      tombstoneProviderIds: existingRows
-        .map((row) => row.providerId)
-        .filter((providerId) => !submittedIds.has(providerId) && KNOWN_PROVIDER_IDS.has(providerId)),
-    };
+    return { upserts, tombstoneProviderIds: [...tombstones({ existingIds: existingRows.map((row) => row.providerId), submittedIds })] };
   };
 
   return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
