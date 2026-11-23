@@ -3032,6 +3032,518 @@
     {
       "id": "45e6f55a7076",
       "reason": "The removed paragraph explained why RedirectRouteDeps was reused from its unusual admin-http/http/redirects.ts location; that file moved to Jini and the type now lives in this module, so the location note is obsolete. The rest of the header is kept."
+    },
+    {
+      "id": "08fa709d877e",
+      "reason": "Header rewritten to carry the deleted src/tree-quiet.ts reasoning (AX-103, ex7); nothing dropped."
+    },
+    {
+      "id": "29c7ab6f8b33",
+      "reason": "DTO moved to Jini @jini-ai/core/contracts/agents/inventory (AX-74, ex7); comment repointed to AgentInventorySummary."
+    },
+    {
+      "id": "9787c7571d7c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "ef1934bdf462",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "e68b624f2600",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "808819aa6328",
+      "reason": "Moved to Jini @jini-ai/agent-runtime/inventory (+ vitest) (AX-75, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "1f1e06f00f07",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "0d20f6239d72",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "6b82b8d92733",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "474c68e41384",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "3c000ad98287",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "9a76e90e32af",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "800f009367ea",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "eb5dfa4dc36c",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "1b8e45597249",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "46125a944a2e",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "497aa41dd98d",
+      "reason": "Mechanics moved to Jini @jini-ai/desktop-host/electron/session-bootstrap (exchange/probe/partition/header-arming, AX-112, ex7), reworded neutral; the host keeps endpoints, names and session policy."
+    },
+    {
+      "id": "26e6c6785a7a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (preference-file / persistedCheckbox, AX-93/118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "3c886546b886",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (preference-file / persistedCheckbox, AX-93/118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "416c53ae1a2e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "36ac68533296",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "a9eb2d29a64d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "973b90196a6d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "9eb809adf6be",
+      "reason": "Moved to Jini @jini-ai/desktop-host/node-toolchain boot-setup.ts (prepareNodeToolchainEnvBestEffort / createSiteDiscoveryLanes, AX-130, ex7), reworded neutral; lane tests ported to Jini."
+    },
+    {
+      "id": "384fc10867a5",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "877793959553",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "0b3dfe6befda",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "c716f897d1d8",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "966cd66658e2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "d7b4f544a320",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "4dc0a93d7ab1",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "29311ae24d88",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "33a461405c97",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates desktop-updater.ts (AX-95, ex7), reworded neutral; lifecycle tests ported to Jini vitest."
+    },
+    {
+      "id": "0b827281b073",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates native-notices.ts (AX-95, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "bce6efc12cac",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences menu.ts refreshCheckboxesByLabel (AX-118, ex7)."
+    },
+    {
+      "id": "7506d6ae994f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "2fb7c17d80b3",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "e6e4c03b03c2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "2d5c958f32cf",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "58dcc0c1e958",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "87744ff1d069",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "e02de6dc9aa0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "0dcc232ed146",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "0ddc38429bac",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron (D15 navigation-policy / windows, ex7); the host comment now points at the Jini module."
+    },
+    {
+      "id": "a8c600e26dd0",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "96c8e93cd8d2",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "37f7a26ec304",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "ebaf9913be3b",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "fd786a58eebb",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "215397a037da",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "8eb2d3f40be4",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "4577b319e493",
+      "reason": "Moved to Jini @jini-ai/devops/packaging/electron/move-to-applications (AX-101, ex7), reworded neutral; host keeps copy and bindings."
+    },
+    {
+      "id": "71e26b2d387b",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "a6f6a4e66b6a",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "9445eaba7a8d",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper (NumberStepper / useNumberStepper, AX-62, ex7), reworded neutral."
+    },
+    {
+      "id": "8b5e24ad7e83",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "c09e35497849",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "b0abc59a4c9c",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "4c1402618217",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "d7e3d04ce454",
+      "reason": "Method docs moved to Jini @jini-ai/desktop-host/electron/webview WebviewTagMethods (AX-46, ex7); the host .d.ts keeps globals/JSX and its header was rewritten in place."
+    },
+    {
+      "id": "c3eb1d5f1df0",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "166ca8eba752",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "e9238a4571e0",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "a1fd8cc63d28",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "c7a947310f89",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell expanded-mode.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "4f3e54d666c2",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "8fe0978577e3",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "e418776ac713",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "6a0ab137aaf6",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "9790728aa80a",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "d6220b62e1cb",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "05c9a214162b",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "d61cbca41d41",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "f3635e367b7c",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "f5f669d17975",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "962c424af43d",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "6e0c92d9caaf",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "004dbc840279",
+      "reason": "Duplicate removed (AX-57 DEDUPE): production already used @jini-ai/ui/core folderPathsFromDataTransfer; the reasoning lives in Jini packages/ui/src/features/folder-path-drop/rules.ts and its tests (same case names)."
+    },
+    {
+      "id": "0e7fff9eec94",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell copyable-details.ts (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "79e150af4920",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "3a6e5b2c69a3",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "47b130804545",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "3efee6628791",
+      "reason": "Moved to Jini @jini-ai/ui/browser mount-renderer.ts (+ test) (AX-105 part, ex7), reworded neutral."
+    },
+    {
+      "id": "2c5ec05506c2",
+      "reason": "Comment repointed to the Jini useDismissibleDropdown test that now renders the dismissal rule (AX-58, ex7)."
+    },
+    {
+      "id": "43e1afe1116d",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-delete-confirmation.hooks.ts (AX-60, ex7); the host file is now the binding of humanSiteError and the fallback copy."
+    },
+    {
+      "id": "72d029b01b71",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-delete-confirmation.hooks.ts (AX-60, ex7); the host file is now the binding of humanSiteError and the fallback copy."
+    },
+    {
+      "id": "5d0fe544da0a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "4170f646d238",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "91a83686e8a7",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "827a7bd0845a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "dd7f1ba4b23a",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "46a1e1af724f",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "edebe98f6f38",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "0276bea1c1af",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "58b32d1183f0",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "a5eaf5e32f18",
+      "reason": "Moved to Jini @jini-ai/ui/browser useDismissibleDropdown / settingsControlHandlers (AX-58, ex7), reworded neutral; tests ported to packages/ui/src/browser/__tests__/useDismissibleDropdown.test.tsx and useMenuKeyboard.test.tsx."
+    },
+    {
+      "id": "142490ada58d",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "3db64a9f299f",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "4b89bfd99bca",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "53b48c51a27b",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-expanded-mode.hooks.ts (AX-60, ex7), reworded neutral."
+    },
+    {
+      "id": "7a9cdc10d74b",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "535815554cab",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "d6fc5c0b20c5",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "7e40712e9610",
+      "reason": "Moved to Jini @jini-ai/ui folder-path-drop useClassifiedPathDrop (AX-110, ex7), reworded neutral; the host binds its classifiers in ImportWebsite.tsx."
+    },
+    {
+      "id": "773173432b01",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper number-stepper.ts / use-optimistic-number-setting.hooks.ts (AX-62, ex7), reworded neutral; the host binding keeps bridge, bounds and copy."
+    },
+    {
+      "id": "b8c12266d39a",
+      "reason": "Moved to Jini @jini-ai/ui/number-stepper number-stepper.ts / use-optimistic-number-setting.hooks.ts (AX-62, ex7), reworded neutral; the host binding keeps bridge, bounds and copy."
+    },
+    {
+      "id": "68cc2bc28462",
+      "reason": "Moved to Jini @jini-ai/ui/app-shell use-site-toast.hooks.ts / SiteToast.tsx (AX-107, ex7), reworded neutral; host keeps copy and classes."
+    },
+    {
+      "id": "ebad57ced20f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "29feb1f8d193",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "8c6f8e9e222c",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/preferences (values / refreshRadioGroup / ipc, AX-118, ex7); the host doc was rewritten."
+    },
+    {
+      "id": "de34b4f527a7",
+      "reason": "Tail retention moved to Jini @jini-ai/diagnostics console-tee createRedactedOutputSink retain/tailKeepChars (AX-116, ex7)."
+    },
+    {
+      "id": "2095e3dde653",
+      "reason": "DEDUPE onto Jini @jini-ai/devops/packaging/electron treeQuietProblems (AX-132, ex7); the host rationale moved into apps/desktop/scripts/check-tree-quiet.ts header, the predicate rationale into the Jini doc."
+    },
+    {
+      "id": "13ae8159e60b",
+      "reason": "DEDUPE onto Jini @jini-ai/devops/packaging/electron treeQuietProblems (AX-132, ex7); the host rationale moved into apps/desktop/scripts/check-tree-quiet.ts header, the predicate rationale into the Jini doc."
+    },
+    {
+      "id": "95a37abbf803",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "82478aeef614",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "c4a586ef831d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/electron/updates update-check-now.ts (AX-93, ex7), reworded neutral; host keeps copy."
+    },
+    {
+      "id": "e8fb3e345ad1",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "f6a551c068a0",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "453f8fca9735",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "1035b0607bb7",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "4f15d84f464d",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "7b1b3feaa0dc",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "fdc51a83a6bb",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "a2ddb59f84d2",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler (+ vitest) with a required onHealError reporter (ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "a507555aa1aa",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/types (K5-deployments-1, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "be614b16bf79",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/publish-credentials/types (K5-deployments-1, ex7), reworded neutral; the Tovu file was deleted."
+    },
+    {
+      "id": "2317ea26b381",
+      "reason": "Moved to Jini @jini-ai/cms/publish/trust/keys (K5-publish-trust-1, ex7), reworded neutral (design-note path and table names dropped, reasoning kept); the Tovu file was deleted."
+    },
+    {
+      "id": "acef6d807516",
+      "reason": "Moved to Jini @jini-ai/cms/publish/trust/keys (K5-publish-trust-1, ex7), reworded neutral (design-note path and table names dropped, reasoning kept); the Tovu file was deleted."
     }
   ]
 }
