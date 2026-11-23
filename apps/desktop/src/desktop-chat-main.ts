@@ -10,6 +10,7 @@ import { AGENT_DEFS, runtimeSupportsExternalTools, type NativeAgentRuntime } fro
 import { createDesktopAgentRuntime, type DesktopAgentRuntime } from "./desktop-agent.ts";
 import { buildDesktopAgentTools, UNBUILT_SITE_TOOL_GATEWAY, type SiteToolGateway, type TurnAddressee } from "./desktop-agent-tools.ts";
 import { createAgentInventory } from "@jini-ai/agent-runtime/inventory";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { createConversationStore } from "./workspace-conversation-store.ts";
 import { registerWorkspaceChatIpc, WORKSPACE_CHAT_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
@@ -82,6 +83,7 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
       resolveLaunch: deps.agentRuntime.resolveAgentLaunch,
       probeModels: deps.agentRuntime.probeAgentModels,
       supportsTools: runtimeSupportsExternalTools,
+      orFallback,
     }),
     pickDirectory: deps.pickDirectory,
   });

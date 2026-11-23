@@ -86,5 +86,7 @@ export function useWiredSiteListPrefs(
   { storage = windowStorage }: { storage?: SiteListStorage } = {},
 ): SiteListPrefsState {
   const port = useMemo(() => siteListPrefsPort({ storage }), [storage]);
-  return useSiteListPrefs({ port }, { seed: () => readStoredSiteListPrefs({ storage }) });
+  // The store saves synchronously, so opt into same-turn saves: each click is written before its
+  // handler returns, rather than on the next microtask as for the admin's async ledger.
+  return useSiteListPrefs({ port }, { seed: () => readStoredSiteListPrefs({ storage }), immediateFirstSave: true });
 }

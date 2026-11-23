@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   admitGuestSource, applyGuestWebPreferences, installRendererNavigationPolicy,
-  type ElectronNavigableContents as NavigableContents, type GuestWebPreferences,
+  type ElectronNavigableContents, type GuestWebPreferences,
 } from "@jini-ai/desktop-host/electron/navigation-policy";
 import { resolveWindowBounds, type DisplayLike, type WindowBounds } from "@jini-ai/desktop-host/electron/usability";
 import { sitesHomeBoundsPath } from "./window-bounds-json-store.ts";

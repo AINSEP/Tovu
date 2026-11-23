@@ -18,6 +18,7 @@ import {
   runMoveToApplicationsPrompt,
 } from "@jini-ai/devops/packaging/electron/move-to-applications";
 import type { MovePromptDeps, MovePromptEnvironment } from "@jini-ai/devops/packaging/electron/move-to-applications";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { MOVE_PROMPT, MOVE_PROMPT_APP_NAME, moveDeclineFilePath, moveDeclineStore, readBundleTextFile } from "./move-to-applications.ts";
 
@@ -77,16 +78,16 @@ test("a corrupt or wrong-shaped decline file reads as never declined", () => {
 
 test("readBundleVersion reads CFBundleShortVersionString from an XML Info.plist, null when it cannot", () => {
   const bundle = path.join(tempDir(), "Tovu.app");
-  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile, orFallbackSync }), null);
   fs.mkdirSync(path.join(bundle, "Contents"), { recursive: true });
   fs.writeFileSync(
     path.join(bundle, "Contents", "Info.plist"),
     '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n<key>CFBundleShortVersionString</key>\n\t<string>0.1.7</string>\n</dict></plist>',
   );
-  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), "0.1.7");
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile, orFallbackSync }), "0.1.7");
   // A readable plist that simply has no version key (a hand-built or foreign bundle) is unknown too.
   fs.writeFileSync(path.join(bundle, "Contents", "Info.plist"), '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n</dict></plist>');
-  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile }), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle, readTextFile: readBundleTextFile, orFallbackSync }), null);
 });
 
 // --- The whole flow, showing Tovu's copy ----------------------------------------------------------
