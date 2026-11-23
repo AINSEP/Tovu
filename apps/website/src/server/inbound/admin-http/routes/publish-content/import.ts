@@ -1,12 +1,7 @@
 import type { Request, Response } from "express";
 
-import {
-  authorizeForHooks,
-  confirm,
-  execute,
-  plan,
-  type GatedMutationHooks,
-} from "#src/contracts/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport } from "@jini-ai/cms/publish/content/execute-import";

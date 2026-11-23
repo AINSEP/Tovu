@@ -1,10 +1,5 @@
-import {
-  defineAdminSurfaceContribution,
-  readAdminSurfaceFile,
-  type AdminSurfaceActionHandler,
-  type AdminSurfaceActionOutcome,
-  type LoadedAdminSurface,
-} from "@jini-ai/agent-plugins/admin-surfaces";
+import { defineAdminSurfaceContribution, readAdminSurfaceFile, type AdminSurfaceActionHandler, type LoadedAdminSurface } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceActionOutcome } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import type { TrustedPluginPackage } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";

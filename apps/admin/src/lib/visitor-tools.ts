@@ -1,7 +1,7 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
 import { WORKSPACE_ID } from "./admin-http/config";
 
-/** Mirrors `VisitorToolsView` in `apps/website/src/contracts/site-assistant/visitor-tools-management.ts`.
+/** Mirrors `VisitorToolsView` in `@jini-ai/core/contracts/site/site-assistant-visitor-tools-management`.
  * The admin page and the assistant chat's `visitor_tools_list` read the same service, so this shape
  * is the server's, field for field. `policyState: "invalid"` means the saved policy is unreadable and
  * every tool is effectively Off until the site-wide Off repair succeeds. */

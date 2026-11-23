@@ -1,4 +1,4 @@
-import type { ConsentFieldProblem } from '@jini-ai/cookie-consent/react';
+import type { ConsentFieldProblem } from "@jini-ai/core/contracts/site/cookie-consent-react";
 
 import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentDetectedItem } from './settings.hooks';

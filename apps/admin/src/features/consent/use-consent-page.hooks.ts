@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/cookie-consent/react';
+import type { ConsentFieldProblem, ConsentSettingsView } from "@jini-ai/core/contracts/site/cookie-consent-react";
 
 import { describeApiError } from '@/lib/admin-http/request';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';

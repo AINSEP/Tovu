@@ -4,7 +4,7 @@ import type { ToolRegistry } from "@jini-ai/core";
 import { toolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import { daemonRouteHost } from "../../../../runtime/composition/jini-routes.js";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { statementsFor, evaluateDaemonStatements } from "./daemon-source.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";

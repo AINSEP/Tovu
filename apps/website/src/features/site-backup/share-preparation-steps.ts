@@ -3,7 +3,7 @@ import path from "node:path";
 import type { SiteSavedKeysPort } from "./saved-keys-port.js";
 
 import { MAX_DOCUMENT_BYTES, type BlobStorePort } from "#src/features/media/index";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type CollectedSiteBackupFiles, type PlannedDiskFile, type SiteBackupInclude, type SiteBackupSources } from "./sources.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, type ShareDatabaseSanitizer } from "./share-policy.js";
 

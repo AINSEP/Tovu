@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
-import type { SealedSecret } from "@jini-ai/core/contracts/vault";
-import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { VaultRepoPort, SealedSecret } from "@jini-ai/core/contracts/vault";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import type {

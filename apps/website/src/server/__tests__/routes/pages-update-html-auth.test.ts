@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";

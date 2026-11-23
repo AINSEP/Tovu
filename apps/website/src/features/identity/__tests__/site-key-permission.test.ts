@@ -9,7 +9,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "../wiring.js";
 
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 
 import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";

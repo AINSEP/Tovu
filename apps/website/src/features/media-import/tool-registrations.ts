@@ -30,7 +30,8 @@ import type { FsRootId } from "../fs-files/layout.js";
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
-import { replaceMediaFile, MediaValidationError, type ImageCodecPort, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 
 /**

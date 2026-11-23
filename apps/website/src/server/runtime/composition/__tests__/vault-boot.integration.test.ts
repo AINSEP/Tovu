@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { SecretsVaultService, buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VAULT_KINDS, type VaultKind, type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { acquireOperationLock, releaseOperationLock, isOperationInFlight } from "#src/contracts/core/operation-lock";
 import type { KyselyKernel } from "@jini-ai/db/kernel";

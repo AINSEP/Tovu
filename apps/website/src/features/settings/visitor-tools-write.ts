@@ -1,7 +1,8 @@
 /** The only Tovu management writer for visitor-tool policy, shared by page and chat. */
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { resolveDefinitionRaw, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
-import { parseVisitorToolPolicy, VisitorToolPolicyValidationError, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, type VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
+import { parseVisitorToolPolicy, VisitorToolPolicyValidationError, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolPolicy } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import { set } from "./site-title-write.js";
 
 /** A stale page/chat snapshot; refetch rather than replaying a publication approval. */

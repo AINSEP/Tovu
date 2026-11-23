@@ -23,7 +23,7 @@
  */
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 // Shared phases/events/append contract belong to the daemon; Tovu owns durable storage adapters.
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 /**
  * Per-workspace row cap.

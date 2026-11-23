@@ -15,7 +15,7 @@ import {
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
-import type { MailProviderSetting } from "@jini-ai/platform/mail";
+import type { MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
 

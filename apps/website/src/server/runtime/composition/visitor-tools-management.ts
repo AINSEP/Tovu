@@ -3,7 +3,7 @@ import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
 import { SITE_ASSISTANT_TOOL_SCHEMAS } from "#src/assistant/site/tools";
 import { VISITOR_TOOL_PRESENTATION } from "#src/assistant/site/visitor-tool-presentation";
 import { createVisitorToolsManagement, type VisitorToolsServiceDeps } from "#src/features/settings/visitor-tools-service";
-import type { VisitorToolDescriptor } from "#src/contracts/site-assistant/visitor-tools-management";
+import type { VisitorToolDescriptor } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 /** T1's six reviewed CMS tools plus site_guide. Later visitor-source declarations extend listCatalog,
  * never by enumerating the admin registry. Page actions affect only the visitor's current page.

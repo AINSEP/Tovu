@@ -16,7 +16,8 @@
  * importing it from `./manifest` — see `types.ts`'s file header for why domain code never reads
  * the manifest back.
  */
-import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";

@@ -9,7 +9,7 @@ import { requireInputRecord, requireString } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";

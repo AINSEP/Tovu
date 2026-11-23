@@ -1,6 +1,6 @@
 import { buildUIToolResult } from "./mcp-ui.js";
 import { isRecord } from "@jini-ai/core/records";
-import { type UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 const HTML_MIME_TYPES: ReadonlySet<string> = new Set(["text/html", "text/html;profile=mcp-app", "text/html+skybridge"]);
 

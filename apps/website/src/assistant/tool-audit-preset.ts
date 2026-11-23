@@ -4,7 +4,8 @@ import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { withToolAttemptAudit as withDaemonAttemptAudit, withToolCatalogAudit as withDaemonCatalogAudit,
   appendToolCatalogAttempt as appendDaemonCatalogAttempt } from "@jini-ai/daemon/tool-audit";
-import type { ToolAttemptAuditSink, ToolCatalogAuditIdentity, ToolCatalogAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import type { ToolCatalogAuditIdentity, ToolCatalogAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { readToolErrorId } from "@jini-ai/daemon/tool-recovery";
 export { describeInput, searchToolsAuditDetail, describeToolAuditDetail } from "@jini-ai/daemon/tool-audit";
 export type { ToolCatalogAuditIdentity, ToolCatalogAttemptEvent } from "@jini-ai/daemon/tool-audit";

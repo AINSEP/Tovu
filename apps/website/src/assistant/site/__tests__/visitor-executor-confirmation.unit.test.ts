@@ -3,7 +3,8 @@ import test from "node:test";
 import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit/repo.memory.js";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorExecutionPorts } from "../visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "../visitor-tool-presentation.js";
-import { parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
+import { parseVisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolPolicy } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { ToolConfirmationDirective } from "../visitor-confirmations.js";
 import { confirmationFixture } from "./visitor-confirmations.fixture.js";
 

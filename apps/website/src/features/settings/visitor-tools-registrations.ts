@@ -5,7 +5,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/visitor-tools.js";
 import { visitorToolsObject, VisitorToolPolicyValidationError } from "../../contracts/site-assistant/visitor-tools.js";
-import type { VisitorToolsManagementPort, PreparedVisitorToolsChange } from "../../contracts/site-assistant/visitor-tools-management.js";
+import type { VisitorToolsManagementPort, PreparedVisitorToolsChange } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import { visitorToolsAgentCatalog } from "./visitor-tools-agent-tools.js";
 import { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { requireString, ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
-import type { UserRepoPort, UserRecord } from "@jini-ai/user-management";
+import type { UserRepoPort, UserRecord } from "@jini-ai/core/contracts/site/user-management";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 

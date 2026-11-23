@@ -7,7 +7,7 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
 import { ToolInputError, type ToolHandler } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";

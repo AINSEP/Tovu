@@ -27,7 +27,7 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
-import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

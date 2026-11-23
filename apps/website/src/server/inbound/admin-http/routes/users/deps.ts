@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import type { AuthServiceDeps } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";

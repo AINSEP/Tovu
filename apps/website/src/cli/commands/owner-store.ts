@@ -15,7 +15,7 @@ import { openSqliteFileKernel } from "@jini-ai/db/kernel/sqlite";
 import { countOwnerStoreRows, listOwnerDestinations, listOwnerEntryRows, type LegacyOwnerDatabase } from "@jini-ai/db/owner-store";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { OWNER_WORKSPACE_ID, openLegacyOwnerVault, OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup, readLegacyOwnerEntry, type LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
-import { isCopyableKind, SecretsVaultService, type VaultPutInput } from "@jini-ai/platform/secrets/credential-sets";
+import { isCopyableKind, type VaultPutInput, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VAULT_KINDS,
   VaultError,

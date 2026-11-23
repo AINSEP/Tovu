@@ -21,7 +21,7 @@ import { AesGcmSecretSealer as PlatformSealer } from "@jini-ai/platform/secrets"
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { MailProviderSetting } from "@jini-ai/platform/mail";
+import type { MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

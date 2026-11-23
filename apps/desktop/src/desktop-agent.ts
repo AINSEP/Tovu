@@ -45,7 +45,8 @@ import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-a
 import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
-import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
+import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
+import type { ToolGapEntry } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "@tovu/contracts/assistant-native-fallbacks";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";

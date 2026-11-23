@@ -1,5 +1,5 @@
 /** Minimal Forms learning card, maintained beside its owning code. Live registries supply current types. */
-import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/core/contracts/site/agentic-core";
 
 export const capabilityCard = {
   "id": "forms",

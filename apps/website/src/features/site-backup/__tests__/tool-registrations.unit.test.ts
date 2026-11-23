@@ -8,8 +8,8 @@ import test, { type TestContext } from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
+import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../custom-credentials/store.js";

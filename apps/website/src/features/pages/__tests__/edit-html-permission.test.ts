@@ -3,7 +3,7 @@ import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-manageme
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 
 import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";

@@ -12,7 +12,7 @@
  */
 import { createMailLaneLimiter } from "@jini-ai/platform/mail";
 import { ToolInputError } from "@jini-ai/core";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort, type MailTestApproval } from "../../platform/mail/index.js";
 

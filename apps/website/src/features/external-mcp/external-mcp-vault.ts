@@ -5,8 +5,7 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import type { SealedSecret } from "@jini-ai/core/contracts/vault";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret, KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "../../platform/secrets/vault-kinds.js";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpVaultPorts, Identity, Kind } from "@jini-ai/mcp/federation/hosted";

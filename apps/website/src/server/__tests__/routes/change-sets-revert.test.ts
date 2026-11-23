@@ -11,7 +11,7 @@ import { registerAdminChangeSetRevertRoute } from "../../inbound/admin-http/rout
 import { createRevertRegistry, type EntityReverter } from "../../../contracts/core/commands/index.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
-import type { PrincipalRecord } from "@jini-ai/user-management";
+import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

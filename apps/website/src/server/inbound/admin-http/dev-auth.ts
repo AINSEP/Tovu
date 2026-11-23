@@ -5,13 +5,8 @@ import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
 
-import {
-  AuthInvalidCredentialsError,
-  IdentityValidationError,
-  type IdentityRepos,
-  type PrincipalKind as IdentityPrincipalKind,
-  type PrincipalRecord,
-} from "@jini-ai/user-management";
+import { AuthInvalidCredentialsError, IdentityValidationError, type PrincipalKind as IdentityPrincipalKind } from "@jini-ai/user-management";
+import type { IdentityRepos, PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import {
   beginOwnerLogin,
   beginPrincipalSignIn,

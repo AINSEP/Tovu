@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
+import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { createSubscription, pauseSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";

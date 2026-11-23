@@ -1,6 +1,7 @@
 import { ProjectKeyCreateConflictError } from '#src/contracts/core/credential-store';
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
-import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialConnection } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";

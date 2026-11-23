@@ -7,7 +7,7 @@
  * a secret can rotate without dropping in-flight webhooks: save the new one as current, keep the old
  * one as previous until the provider stops signing with it, then delete it.
  */
-import type { MailFeedbackParser } from "@jini-ai/platform/mail";
+import type { MailFeedbackParser } from "@jini-ai/core/contracts/mail";
 import { resolveCustomCredentialByLabel, type CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
 
 /** The registry shape this needs (`MailAdapterRegistry` structurally); modules are untrusted values. */

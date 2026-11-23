@@ -9,7 +9,7 @@ import { createContentReadFamilyPort } from "#src/assistant/tool-family-port";
 import { buildComponentCatalogQuery, chartCatalogManifests } from "#src/assistant/component-catalog-query";
 import type { DaemonCallContext } from "#src/assistant/daemon-call-context";
 import { withToolCatalogAudit } from "#src/assistant/tool-audit-preset";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 
 const componentResponse = z.object({ snapshot: z.object({
   generation: z.string(), siteProvider: z.string(), providers: z.array(z.object({

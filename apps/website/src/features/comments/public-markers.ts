@@ -1,6 +1,6 @@
 /** Theme-authored {"type":"comments"} placement through the shared HTML marker parser. */
 import { markersOfType, substituteMarkers, withElementKeptIfAttributed } from '@jini-ai/cms/widgets/markers';
-import type { CommentThreadScript, CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentThreadScript, CommentsProviderRegistry } from "@jini-ai/core/contracts/site/capability-providers-comments";
 import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 
 type MarkerOptions = { cursor?: string; scripts?: (required: { scripts: readonly DeclaredScript[] }) => void };

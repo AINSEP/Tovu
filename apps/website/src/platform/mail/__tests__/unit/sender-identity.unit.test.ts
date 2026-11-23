@@ -7,7 +7,7 @@ import {
   SenderIdentityNotConfiguredError,
   type MailSenderIdentityPort,
 } from "../../sender-identity.js";
-import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort } from "@jini-ai/core/contracts/mail";
 
 /**
  * @file The one sender-identity resolver: the configured site sender wins, a non-delivering mailer

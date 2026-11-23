@@ -1,6 +1,6 @@
 import { SqliteDbOpsAdapter as JiniSqliteDbOpsAdapter } from "@jini-ai/db/sqlite";
 
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { contentKernel } from "../content-kernel.js";
 import { readKernelWatermark } from "../watermark-kernel.js";
 import type { ContentDb } from "./content-db.js";

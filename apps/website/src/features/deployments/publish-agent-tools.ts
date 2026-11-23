@@ -17,7 +17,7 @@ import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import type { SecretCardField, SecretCardForm } from "@jini-ai/core/contracts/cards";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
-import { type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
@@ -42,7 +42,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { buildOutcomeSurface } from "@jini-ai/ui/mcp-ui/surfaces";
-import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource, UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 // Type-only ExportReport avoids a runtime export/server cycle. ExportSiteBoundFn names the narrow
 // operation contract locally instead of importing the composition root's RouteDeps type.

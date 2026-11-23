@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { MailFeedbackParser, MailSuppressionRepoPort, MailerFeedbackEvent } from "@jini-ai/platform/mail";
+import type { MailFeedbackParser, MailSuppressionRepoPort, MailerFeedbackEvent } from "@jini-ai/core/contracts/mail";
 import type { CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
 import {
   createMailFeedbackRoute, createPluginMailFeedbackSources, createSiteMailFeedbackRoute, createVaultMailWebhookSecrets,

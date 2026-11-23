@@ -2,7 +2,7 @@ import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inboun
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { PrincipalRecord } from "@jini-ai/user-management";
+import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import {

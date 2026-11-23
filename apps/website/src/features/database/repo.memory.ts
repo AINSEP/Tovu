@@ -2,7 +2,7 @@ import type { LedgerReadPort, LedgerRow } from "@jini-ai/db/tools";
 import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
 import type { RestorePointListPort, RestorePointRecord } from "@jini-ai/db/tools";
 import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
-import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration, SchemaStateSummary } from "./adapter.sqlite.js";
 
 /**
@@ -171,7 +171,7 @@ export class InMemoryMigrationRunsRepo implements MigrationRunsRepoPort {
   }
 }
 
-/** In-memory `DbOpsPort` double (`core/gated-mutations/ports.ts`) — reports the same static
+/** In-memory `DbOpsPort` double (`@jini-ai/core/contracts/site/gated-mutations-ports`) — reports the same static
  * `cheap`/`file-snapshot` capability `db/sqlite/db-ops.ts`'s real `SqliteDbOpsAdapter` reports
  * for a SQLite-backed site (this codebase's only dialect today), and fabricates an in-process
  * `artifactRef` instead of performing a real online backup, since `apps/website/src/server/runtime/composition/app.ts`'s hermetic

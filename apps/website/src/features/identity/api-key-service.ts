@@ -1,5 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-import { GrantExceedsIssuerError, IdentityNotFoundError, IdentityValidationError, type PolicyPermissionRecord, type PrincipalRecord } from "@jini-ai/user-management";
+import { GrantExceedsIssuerError, IdentityNotFoundError, IdentityValidationError, type PolicyPermissionRecord } from "@jini-ai/user-management";
+import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import { resolveEffectivePermissions, assertCallerHasAnyPermission, type AuthServiceDeps, authorizeDepsFrom } from "@jini-ai/user-management/server";
 
 import { decoyKeyHash, mintApiKey, parseApiKey } from "./api-key-secret.js";

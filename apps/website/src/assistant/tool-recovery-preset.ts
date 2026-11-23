@@ -4,7 +4,7 @@ import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolRegistry } from "@jini-ai/core";
 import { redactUserText } from "@jini-ai/chat/core";
 import { buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces";
-import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource, UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { mintToolErrorId as mintCoreErrorId } from "@jini-ai/core/errors/error-id";
@@ -18,7 +18,7 @@ export type { ToolFailureRecord, RedactedToolExecutionResult, DelegatedInternalE
 import { assertCredentialFreeField } from "../contracts/core/credential-token.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { readOnlyRemedyRefusalMessage, tovuReadOnlyToolMessages } from "./read-only-tool-constraint.js";
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 /**
  * The synthetic id this loop opens its own recovery surface's exchange under — NOT a registered
  * `ToolRegistry` tool (calling it through the ordinary tool-execution path would throw "unknown

@@ -9,7 +9,7 @@ import type { TrashItem } from "@jini-ai/cms/trash";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
 import { InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryPrincipalPolicyRepo, InMemoryRoleRepo,
   InMemoryRolePolicyRepo, InMemoryPolicyPermissionRepo } from "@jini-ai/user-management/server";
-import type { PrincipalRecord } from "@jini-ai/user-management";
+import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 
 const row = (id: string, entityType = "post", entityId = `entity-${id}`): TrashItem => ({
   id, workspaceId: "ws", entityType, entityId, trashedAt: "2026-10-01T00:00:00Z", purgeAfter: "2026-12-01T00:00:00Z",

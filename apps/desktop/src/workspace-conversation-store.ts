@@ -1,5 +1,5 @@
 import { decodeToolGapEntry } from '@jini-ai/daemon/tool-audit';
-import type { ToolGapEntry } from "@jini-ai/daemon/tool-audit";
+import type { ToolGapEntry } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 /**
  * @file The desktop chat's ONE conversation store (SPEC-051 REQ-18): app-level, independent of
  * every site's own `/api/assistant/chats`. Backs the six `workspace:conversations:*` channels the

@@ -8,7 +8,7 @@ import type { VaultRepoPort, KeyringPort, SecretSealerPort } from "@jini-ai/core
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
-import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { SetValueRequired } from "@jini-ai/core/settings";
 
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";

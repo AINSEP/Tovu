@@ -1,4 +1,4 @@
-import type { TransformParams } from "@jini-ai/cms/media";
+import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
 
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 export { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";

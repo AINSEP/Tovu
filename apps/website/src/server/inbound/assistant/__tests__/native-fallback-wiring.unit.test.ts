@@ -10,7 +10,7 @@ import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpre
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assistant-system-overlay.js';
 import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import type { RunProtocolEvent } from '@jini-ai/protocol';
-import type { ToolAttemptEvent } from '@jini-ai/daemon/tool-audit';
+import type { ToolAttemptEvent } from "@jini-ai/core/contracts/site/daemon-tool-audit";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 
 test('real local-owner dispatch grants Bash/edit while retaining security denies and audit subscription', async () => {

@@ -12,7 +12,7 @@ import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-managemen
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
 import { applyBuiltinRoleGrants } from "./builtin-role-grants.js";
 import type { PermissionGrantRegistry } from "./permission-grants.js";
-import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/user-management";
+import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { InMemoryApiKeyRepo } from "./repo.memory.js";
 import { ScryptApiKeySecretHasher } from "./api-key-secret.js";

@@ -5,8 +5,7 @@ import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
-import type { Clock } from "@jini-ai/core/primitives";
-import type { HttpClientPort } from "@jini-ai/core/primitives";
+import type { Clock, HttpClientPort } from "@jini-ai/core/primitives";
 import {
   createMediaDispatchEngine,
   resolveProviderCredentialsFromEnv,

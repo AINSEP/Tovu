@@ -1,9 +1,6 @@
 import { buildUIToolResult as buildResult } from "@jini-ai/protocol/mcp-ui";
-import type {
-  UIToolResult as OwnerToolResult,
-  UIResource,
-  TextContent,
-} from "@jini-ai/protocol/mcp-ui";
+import type { UIToolResult as OwnerToolResult, TextContent } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 
 /**
  * @file Tovu's compatibility surface for Jini-owned MCP-UI tool results and wire types.

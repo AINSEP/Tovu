@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 
-import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
+import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/core/contracts/mail";
 import type { MailProviderControl } from "../../../platform/mail/mail-status.js";
 import { buildMailProviderRegistrations, contributeMailProviderTools, currentLanesDetail, mailProviderDerivedRisk, readCurrentLanes, asToolInputError, type MailProviderToolDeps } from "../provider-tool-registrations.js";
 import { buildMailStatusRegistrations } from "../tool-registrations.js";

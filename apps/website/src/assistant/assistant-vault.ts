@@ -8,7 +8,8 @@ import {
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { credentialTokenHint, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { credentialWriteFields } from "./credential-store-fields.js";
 

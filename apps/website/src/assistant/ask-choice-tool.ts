@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
 import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces";
-import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";

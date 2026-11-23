@@ -1,7 +1,7 @@
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { buildTrashToolRegistrations, trashDerivedRisk, type TrashPort, type TrashToolPolicy } from "@jini-ai/cms/trash";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import { toolMetadata } from "../../contracts/core/tool-metadata/trash.js";
 import { filterVisibleTrashItems, trashDaysRemaining, trashPermissionFor, TRASH_PERMISSION_BY_ENTITY_TYPE, TRASH_READ_PERMISSION } from "./permissions.js";
 import type { TrashRegistry } from "@jini-ai/cms/trash";

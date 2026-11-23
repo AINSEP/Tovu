@@ -1,7 +1,6 @@
-import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
+import type { MailTestModeSetting, MailProviderSetting } from "@jini-ai/core/contracts/mail";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, DefinitionNotFoundError, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort, type SettingsValueWriteOptions } from "@jini-ai/core/settings";
-import type { MailProviderSetting } from "@jini-ai/platform/mail";
 
 import { set } from "./site-title-write.js";
 

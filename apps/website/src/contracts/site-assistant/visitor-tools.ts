@@ -1,4 +1,5 @@
 /** T1 policy for Tovu's public CMS capabilities. Eligibility always belongs to code, never settings. */
+import type { VisitorToolChoice, VisitorToolLimits, VisitorToolMode, VisitorToolPolicy } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 export const VISITOR_TOOLS_SETTING = { namespace: "site.assistant", key: "visitor_tools" } as const;
 export const VISITOR_TOOLS_PERMISSION = "visitor-tools.manage";
 export const VISITOR_TOOLS_WRITE_REASON = "Change visitor tools through the visitor-tools management service.";
@@ -19,10 +20,6 @@ export function visitorToolBudgetId({ toolId }: { toolId: string }, _options = {
   return VISITOR_PAGE_LEGACY_IDS[toolId] ?? toolId;
 }
 
-export type VisitorToolMode = "auto" | "ask" | "off";
-export interface VisitorToolLimits { readonly perIpPerHour: number; readonly perSitePerDay: number }
-export interface VisitorToolChoice { readonly mode: VisitorToolMode; readonly limits: VisitorToolLimits }
-export interface VisitorToolPolicy { readonly version: 1; readonly tools: Readonly<Record<string, VisitorToolChoice>> }
 export const EMPTY_VISITOR_TOOL_POLICY: VisitorToolPolicy = { version: 1, tools: {} };
 export class VisitorToolPolicyValidationError extends Error {}
 

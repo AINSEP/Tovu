@@ -11,7 +11,7 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildSeoToolRegistrations, seoDerivedRisk, type createSitemapService, type SeoPackageToolDeps } from "@jini-ai/cms/seo";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { PostRepoPort } from "../post/index.js";

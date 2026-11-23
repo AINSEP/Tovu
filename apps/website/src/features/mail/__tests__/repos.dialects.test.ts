@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import type { MailerFeedbackEvent, OutboundEmail } from "@jini-ai/platform/mail";
+import type { MailerFeedbackEvent, OutboundEmail } from "@jini-ai/core/contracts/mail";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {

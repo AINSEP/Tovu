@@ -4,7 +4,8 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { PoliciesTable, PolicyPermissionsTable, RolesTable } from "../../platform/db/content-database.generated.js";
 
 import type { PolicyPermissionRepoPort, PolicyRepoPort, RoleRepoPort } from "@jini-ai/user-management";
-import type { PolicyPermissionRecord, PolicyRecord, RoleRecord } from "@jini-ai/user-management";
+import type { PolicyPermissionRecord } from "@jini-ai/user-management";
+import type { PolicyRecord, RoleRecord } from "@jini-ai/core/contracts/site/user-management";
 import { createIdentityTransactions } from "./repo.js";
 
 function toRoleRecord(row: Selectable<RolesTable>): RoleRecord {

@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createNoopObservabilityPort, type OperationTrackingInput, type OperationTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

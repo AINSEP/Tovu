@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Request } from "express";
-import type { PrincipalRecord } from "@jini-ai/user-management";
+import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 
 import { createCapturingResponse } from "../../../__tests__/helpers/http-test-server.js";
 import { createRouteDeps } from "../../../runtime/composition/app.js";

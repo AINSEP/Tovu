@@ -28,17 +28,8 @@ import {
   InMemoryTransformDefinitionRepo,
   MediaConflictError,
 } from "@jini-ai/cms/media";
-import type {
-  VersionedMediaRepoPort,
-  AssetBlobRepoPort,
-  AssetRenditionRepoPort,
-  MediaRepoPort,
-  TransformDefinitionRepoPort,
-  AssetBlobRecord,
-  AssetRenditionRecord,
-  MediaRecord,
-  TransformDefinitionRecord,
-} from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort, AssetBlobRepoPort, AssetRenditionRepoPort, TransformDefinitionRepoPort, AssetBlobRecord, AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "@jini-ai/cms/media";
+import type { MediaRepoPort } from "@jini-ai/core/contracts/site/cms-media";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo

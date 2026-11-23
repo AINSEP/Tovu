@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import {
   buildSiteBackupManifest,

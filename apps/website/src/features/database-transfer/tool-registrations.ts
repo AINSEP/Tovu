@@ -10,7 +10,7 @@ import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
   SURFACE_DISMISSED_PARAM,

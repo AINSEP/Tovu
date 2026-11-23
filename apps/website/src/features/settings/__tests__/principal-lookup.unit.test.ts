@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PrincipalRecord, PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRecord, PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { createSettingsPrincipalLookup } from "../index.js";

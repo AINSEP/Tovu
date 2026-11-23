@@ -1,4 +1,4 @@
-import type { VisitorToolPresentation } from "../../contracts/site-assistant/visitor-tools-management.js";
+import type { VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 /** Plain admin copy shared by the reviewed visitor contracts and their management catalog.
  * Keep this separate from model instructions: the admin translates these English dictionary keys.

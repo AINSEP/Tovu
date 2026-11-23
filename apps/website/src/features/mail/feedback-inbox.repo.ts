@@ -1,6 +1,6 @@
 /** @file SQL adapter for Jini's `MailFeedbackInboxPort` (migrations 0023, 0025), one body for SQLite and Postgres. */
 import { sql } from "kysely";
-import type { MailFeedbackInboxPort } from "@jini-ai/platform/mail";
+import type { MailFeedbackInboxPort } from "@jini-ai/core/contracts/site/platform-mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
 
 /**

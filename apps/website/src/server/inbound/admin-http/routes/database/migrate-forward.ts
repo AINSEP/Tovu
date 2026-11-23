@@ -2,7 +2,8 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
-import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import {
   executeMigrateForward,

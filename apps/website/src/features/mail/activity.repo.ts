@@ -19,7 +19,7 @@
  * guessed.
  */
 import { sql, type RawBuilder } from "kysely";
-import type { MailActivityFilter, MailActivityOutcome, MailActivityPosition, MailActivityRecord, MailActivityRepo, MailActivityUse, MailFeedbackRecord } from "@jini-ai/platform/mail";
+import type { MailActivityFilter, MailActivityOutcome, MailActivityPosition, MailActivityRecord, MailActivityRepo, MailActivityUse, MailFeedbackRecord } from "@jini-ai/core/contracts/site/platform-mail";
 import type { MailRepoDeps } from "./ledger.repo.js";
 import { MAIL_ACTIVITY_RETENTION_MS } from "./retention.js";
 
