@@ -7,7 +7,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { type EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import { classifyAddress } from "#src/platform/http/client";
-import { readPublicDomain, readPublicDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "#src/features/domain-dns/index";
+import { readPublicDomain, readPublicDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "#src/features/domain-dns/tools";
 import type { RouteDeps } from "../../routes/types.js";
 
 /** Uses the existing pinned-public-peer guard, with no redirects, dev exemptions, or large bodies. */

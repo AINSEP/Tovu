@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { providerOk, providerRejected } from "@jini-ai/core/provider-registry";
 import { createDnsProviderRegistry, type AuthoritativeDnsPort, type DnsProvider } from "@jini-ai/devops/dns";
-import type { DomainBinding } from "../binding.repo.js";
-import { domainDnsInstructions, planDomainDns, VERIFY_WRITE_ATTEMPTS, verifyDomainDns, verifyDueDomainBindings, type DnsChangePorts } from "../dns-changes.js";
+import type { DomainBinding } from "@jini-ai/devops/dns/site/binding.repo";
+import { domainDnsInstructions, planDomainDns, VERIFY_WRITE_ATTEMPTS, verifyDomainDns, verifyDueDomainBindings, type DnsChangePorts } from "@jini-ai/devops/dns/site/dns-changes";
 import { context, fakeAuthoritative, mailRequirement, memoryBindings, siteRequirement } from "./dns-fakes.js";
 
 /**

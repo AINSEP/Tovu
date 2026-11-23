@@ -56,7 +56,7 @@ export interface MailProviderCredentialInput {
   baseUrl?: string;
 }
 
-// --- DNS (`features/domain-dns/mail-dns-status.ts`) -----------------------------------------
+// --- DNS (`@jini-ai/devops/dns/site/mail-dns-status`) -----------------------------------------
 
 export type MailDnsRecordStatus = "Checking" | "Matches" | "Missing" | "Mismatch" | "Pending" | "Unknown" | "TimedOut";
 

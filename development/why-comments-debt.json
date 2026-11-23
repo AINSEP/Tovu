@@ -4440,6 +4440,370 @@
     {
       "id": "95cf1cf825ec",
       "reason": "Moved to Jini @jini-ai/cms/trash/permanent/agent-tools.ts (X-permanent-delete-1), verbatim on createPermanentDeleteAgentToolCatalog."
+    },
+    {
+      "id": "fdae7b67f846",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "9e5d1921a187",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "8561cc75c888",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4c62d600ec7a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "d1f2c922292a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b3798bb2beb3",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "92bbb54bb04d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "cd34a7e8759f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "269e185cd913",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), reworded neutral: @example now passes the injected `sql` tag; meaning kept."
+    },
+    {
+      "id": "705c1804d280",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/binding.repo (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "24abf11ceedc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), reworded neutral: `one Tovu workspace` became `one host workspace`; meaning kept."
+    },
+    {
+      "id": "678ff44e354e",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "81ea9c94b1a0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4d700bb96a39",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a59e05b92bbf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "86c1a8b687bd",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "cd67437d952d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "83420f383940",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "59e5ce0a99a0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "8534c8866da5",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d694091cdd5c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2347740f3237",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ab7cb84c61ff",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "f27ba9327fba",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1455673b6fec",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7abb2d98a821",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d2b4f693a6c1",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c8e13373df14",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0f0bb90203e8",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "4baf903de5b6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "331c0093322e",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7809b8298a24",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "dafcad828cab",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7e16396031cf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "40e14e96f99d",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "28841a07fdb6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "f20d25fc8073",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "24cdb3bc2421",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5d8a222b1eae",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b7245bb2ee03",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "78379a9abc34",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "3155e5371950",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "69a688550a51",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c836fd7abef0",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "138956962ba9",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "9ca0fd61bd9b",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a611ce6b05ac",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0968fc0bf139",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/dns-changes (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b3a43168fda7",
+      "reason": "Forwarding barrel features/domain-dns/index.ts deleted (K5-domain-dns-1, no re-export files): importers now import the owner subpaths @jini-ai/devops/dns/site/* or features/domain-dns/{tools,dns-tools}; the per-subpath purpose is documented in Jini packages/devops/src/dns/site/README.md."
+    },
+    {
+      "id": "4abfcf1499a4",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), reworded neutral: product page/host route path or host migration numbers replaced by neutral host wording (or SQL tag/kernel now injected); meaning kept."
+    },
+    {
+      "id": "445b1df49396",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "93176dc291d1",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1c7dfd0daad2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "86c3cba500ac",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "23c22fdf3562",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c60df7605cf7",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e065eddc9a06",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7ba17f9752b9",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "269a2ec8433b",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "9029bf231059",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "586e2a5dcbd2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "229207a3e2f5",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "1beba4513e89",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2a315fdddd91",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "23ec42d90951",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e6a696b5436f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "11ab96afde35",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5d8db871e034",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "770043f387f6",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "0986bcfc311c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ae68c79fd43f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "e3d65f61bc51",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "469091abd9bf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "2c990215d8fc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "5846be4d1221",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "ed4d0c619eaf",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "363bfba2beb8",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "145cec25bc9f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "47ee712250ee",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "409ce4ab111f",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d5748a54ebdb",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "be7714bd2ef2",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-status (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d2538db81303",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), reworded neutral: `the Email page` became `a host email settings` section and the host route path `server/inbound/admin-http/routes/system/mail-dns.ts` became `the host admin route (which calls readMailDnsStatus / verifyMailDnsStatus directly)`; meaning kept."
+    },
+    {
+      "id": "069fb0ebc5bc",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "51284285ab16",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "bfff4d6169b7",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "7cd563a6172a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/mail-dns-tools (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "d49a112dcd68",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "c99a411f2b6a",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "6f5f3602e223",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "b06075d0637c",
+      "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
     }
   ]
 }

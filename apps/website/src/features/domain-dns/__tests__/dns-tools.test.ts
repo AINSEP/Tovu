@@ -3,7 +3,8 @@ import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createDnsProviderRegistry } from "@jini-ai/devops/dns";
-import { buildDnsChangeRegistrations, contributeDomainDnsAndChangeTools, dnsChangeDerivedRisk, readDnsChangeInput, type DnsChangeToolDeps } from "../dns-tools.js";
+import { buildDnsChangeRegistrations, contributeDomainDnsAndChangeTools, dnsChangeDerivedRisk, readDnsChangeInput } from "../dns-tools.js";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import { context, fakeAuthoritative, memoryBindings } from "./dns-fakes.js";
 
 /**

@@ -1,7 +1,7 @@
 /** @file In-memory DNS fakes shared by the DNS change tests: no network, deterministic answers. */
 import { providerOk, providerRejected, providerUnknown, type ProviderResult } from "@jini-ai/core/provider-registry";
 import type { AuthoritativeDnsPort, DnsPlanRequirement, DnsProviderContext } from "@jini-ai/devops/dns";
-import type { DomainBinding, DomainBindingStore } from "../binding.repo.js";
+import type { DomainBinding, DomainBindingStore } from "@jini-ai/devops/dns/site/binding.repo";
 
 /**
  * `zones`: zone → its NS set (absent = NXDOMAIN, `"unknown"` = transport failure).

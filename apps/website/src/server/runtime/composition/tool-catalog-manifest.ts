@@ -62,7 +62,7 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
-import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
+import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/dns-tools";
 import { createDefaultHttpClient } from "#src/platform/http/index";
 import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";

@@ -13,14 +13,13 @@ import type { DnsPlanRequirement } from "@jini-ai/devops/dns";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/domain-dns";
-import { domainDnsInstructions, planDomainDns, verifyDomainDns, type DnsChangeRequest, type DomainDnsPlan } from "./dns-changes.js";
+import { domainDnsInstructions, planDomainDns, verifyDomainDns, type DnsChangeRequest, type DomainDnsPlan } from "@jini-ai/devops/dns/site/dns-changes";
 import type { DnsRequirementInclude } from "@jini-ai/devops/dns/site/mail-requirements";
 import { buildDomainDnsRegistrations, domainDnsDerivedRisk, readPublicDnsName, readPublicDomain, type DomainDnsToolDeps } from "./tools.js";
-import { mailDnsRecordStatus } from "./mail-dns-status.js";
-import { buildMailDnsRegistrations, mailDnsDerivedRisk } from "./mail-dns-tools.js";
+import { mailDnsRecordStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
+import { buildMailDnsRegistrations, mailDnsDerivedRisk } from "@jini-ai/devops/dns/site/mail-dns-tools";
 
-import type { DnsChangeToolDeps } from "./tool-deps.js";
-export type { DnsChangeToolDeps } from "./tool-deps.js";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "CAA", "NS", "SRV"] as const;
 const PURPOSES = ["site", "mail", "tls"] as const;

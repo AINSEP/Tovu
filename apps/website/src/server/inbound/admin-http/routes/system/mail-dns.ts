@@ -1,13 +1,15 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
-import { mailDnsPorts, readMailDnsStatus, verifyMailDnsStatus, type DnsChangeToolDeps, type MailDnsStatus } from "#src/features/domain-dns/index";
+import { mailDnsPorts } from "@jini-ai/devops/dns/site/mail-dns-tools";
+import { readMailDnsStatus, verifyMailDnsStatus, type MailDnsStatus } from "@jini-ai/devops/dns/site/mail-dns-status";
+import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file The Email page's **Sender and DNS** section, over the same operations as `mail_dns_status`
- * and `mail_dns_verify` (`features/domain-dns/mail-dns-status.ts`):
+ * and `mail_dns_verify` (`@jini-ai/devops/dns/site/mail-dns-status`):
  * - `GET  /api/admin/v1/workspaces/:workspaceId/system/mail-dns` (`deployments.read`): provider
  *   verdict, copyable rows and one unsaved record-by-record check.
  * - `POST /api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify` (`deployments.publish`):
