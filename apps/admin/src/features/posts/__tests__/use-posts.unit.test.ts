@@ -495,11 +495,11 @@ describe("usePosts — content refresh bus", () => {
     port.posts.push(TRANSLATED_POST);
 
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.posts).toEqual([POST]);
 
-    act(() => publishContentRefresh([POSTS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [POSTS_RESOURCE] }));
     await waitFor(() => expect(result.current.posts).toEqual([POST, TRANSLATED_POST]));
   });
 

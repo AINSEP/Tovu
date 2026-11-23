@@ -477,13 +477,13 @@ describe("useStaticExport — content refresh bus", () => {
     current = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
 
     await act(async () => {
-      publishContentRefresh(["taxonomy"]);
+      publishContentRefresh({ resources: ["taxonomy"] });
       await Promise.resolve();
     });
     expect(result.current.run?.status).toBe("idle");
 
     await act(async () => {
-      publishContentRefresh([DEPLOYMENT_EXPORT_RESOURCE]);
+      publishContentRefresh({ resources: [DEPLOYMENT_EXPORT_RESOURCE] });
       await Promise.resolve();
     });
     await waitFor(() => expect(result.current.run?.status).toBe("running"));

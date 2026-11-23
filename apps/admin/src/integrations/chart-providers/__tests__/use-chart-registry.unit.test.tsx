@@ -101,6 +101,6 @@ it.each(["builtin", "tanstack"] as const)("%s: boot, plugin toggle and site defa
   expect(result.current.snapshot.registry.resolveById({ id: "recharts.line-chart" })?.provider).toBe("plugin.line");
   expect(result.current.snapshot.registry.resolveById({ id: "recharts.bar-chart" })?.provider).toBe("plugin.recharts");
   port.snapshot = { ...port.snapshot, generation: "agent-change", providers: [] };
-  act(() => publishContentRefresh(["plugins"]));
+  act(() => publishContentRefresh({ resources: ["plugins"] }));
   await waitFor(() => expect(result.current.snapshot.generation).toBe("agent-change"));
 });

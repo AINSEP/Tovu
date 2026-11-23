@@ -97,11 +97,11 @@ describe("useMembers — content refresh bus", () => {
 
     port.members[0] = { ...MEMBER, status: "disabled" };
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.members?.[0]?.status).toBe("active");
 
-    act(() => publishContentRefresh([MEMBERS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [MEMBERS_RESOURCE] }));
     await waitFor(() => expect(result.current.members?.[0]?.status).toBe("disabled"));
   });
 

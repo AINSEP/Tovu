@@ -593,11 +593,11 @@ describe("usePages — content refresh bus", () => {
     const callsBefore = listSpy.mock.calls.length;
 
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
-    await act(async () => publishContentRefresh(["taxonomy"]));
+    await act(async () => publishContentRefresh({ resources: ["taxonomy"] }));
     expect(listSpy).toHaveBeenCalledTimes(callsBefore);
     expect(result.current.pages).toEqual([PAGE]);
 
-    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [PAGES_RESOURCE] }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
     expect(listSpy).toHaveBeenCalledTimes(callsBefore + 1);
   });

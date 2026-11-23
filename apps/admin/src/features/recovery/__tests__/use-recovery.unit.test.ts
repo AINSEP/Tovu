@@ -439,11 +439,11 @@ describe("useRecovery — content refresh bus", () => {
 
     listSpy.mockResolvedValue({ items: [POINT, { ...POINT, id: "rp2" }] });
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.points).toEqual([POINT]);
 
-    act(() => publishContentRefresh([RECOVERY_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [RECOVERY_RESOURCE] }));
     await waitFor(() => expect(result.current.points).toHaveLength(2));
   });
 

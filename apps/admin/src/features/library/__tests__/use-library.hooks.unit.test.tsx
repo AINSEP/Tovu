@@ -298,7 +298,7 @@ describe("useLibrary list, uploaders and refresh", () => {
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toEqual([]));
     port.items.push(fakeDocument({ filename: "agent.md" }));
-    act(() => publishContentRefresh(["media"]));
+    act(() => publishContentRefresh({ resources: ["media"] }));
     await waitFor(() => expect(result.current.documents?.map((doc) => doc.id)).toEqual(["doc-agent.md"]));
     expect(listDocuments.mock.calls.length).toBeGreaterThanOrEqual(2);
   });

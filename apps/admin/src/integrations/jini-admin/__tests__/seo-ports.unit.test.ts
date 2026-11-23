@@ -94,13 +94,13 @@ describe('SEO host ports', () => {
   it('filters refresh resources, retains unknown scope and disposes subscriptions', () => {
     const onRefresh = vi.fn();
     const dispose = seoEvents.subscribe({ onRefresh });
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(onRefresh).not.toHaveBeenCalled();
-    publishContentRefresh(['seo']);
+    publishContentRefresh({ resources: ['seo'] });
     publishContentRefresh();
     expect(onRefresh).toHaveBeenCalledTimes(2);
     dispose();
-    publishContentRefresh(['seo']);
+    publishContentRefresh({ resources: ['seo'] });
     expect(onRefresh).toHaveBeenCalledTimes(2);
   });
 });

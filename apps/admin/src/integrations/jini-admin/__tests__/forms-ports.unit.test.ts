@@ -68,12 +68,12 @@ describe('Forms host ports', () => {
     resetContentRefreshBus();
     const onRefresh = vi.fn();
     const unsubscribe = formsEvents.subscribe({ onRefresh });
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(onRefresh).not.toHaveBeenCalled();
-    publishContentRefresh(['forms']);
+    publishContentRefresh({ resources: ['forms'] });
     expect(onRefresh).toHaveBeenCalledOnce();
     unsubscribe();
-    publishContentRefresh(['forms']);
+    publishContentRefresh({ resources: ['forms'] });
     expect(onRefresh).toHaveBeenCalledOnce();
     resetContentRefreshBus();
   });

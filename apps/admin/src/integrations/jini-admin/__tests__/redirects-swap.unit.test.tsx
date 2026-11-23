@@ -122,12 +122,12 @@ describe('Jini redirects host switch', () => {
     const view = render(node());
     await screen.findByRole('heading', { name: 'Redirects' });
     expect(list).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['media']));
+    act(() => publishContentRefresh({ resources: ['media'] }));
     expect(list).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['redirects']));
+    act(() => publishContentRefresh({ resources: ['redirects'] }));
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['redirects']));
+    act(() => publishContentRefresh({ resources: ['redirects'] }));
     expect(list).toHaveBeenCalledTimes(2);
   });
 });

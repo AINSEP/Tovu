@@ -254,11 +254,11 @@ describe("useIntegrations — content refresh bus", () => {
 
     port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.subscriptions).toHaveLength(1);
 
-    act(() => publishContentRefresh([WEBHOOKS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [WEBHOOKS_RESOURCE] }));
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(2));
   });
 

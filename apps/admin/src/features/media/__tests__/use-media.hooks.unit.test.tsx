@@ -536,11 +536,11 @@ describe("useMedia — content refresh bus", () => {
 
     port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.media).toHaveLength(1);
 
-    act(() => publishContentRefresh([MEDIA_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [MEDIA_RESOURCE] }));
     await waitFor(() => expect(result.current.media).toHaveLength(2));
   });
 

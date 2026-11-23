@@ -119,7 +119,7 @@ describe("useSitesSectionAvailable", () => {
     );
     const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: false }));
     await waitFor(() => expect(result.current).toBe(true));
-    act(() => publishContentRefresh([SITES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [SITES_RESOURCE] }));
     await waitFor(() => expect(result.current).toBe(false));
   });
 });

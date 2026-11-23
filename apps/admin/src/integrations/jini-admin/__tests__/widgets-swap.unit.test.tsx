@@ -171,12 +171,12 @@ describe('Jini widgets host switch', () => {
     const read = vi.spyOn(api, 'listWidgets');
     const view = render(node(<WidgetsLibrary />));
     await screen.findByRole('heading', { name: 'Widgets' });
-    act(() => publishContentRefresh(['widgets-regions']));
+    act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(read).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['widgets-library']));
+    act(() => publishContentRefresh({ resources: ['widgets-library'] }));
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['widgets-library']));
+    act(() => publishContentRefresh({ resources: ['widgets-library'] }));
     expect(read).toHaveBeenCalledTimes(2);
   });
 
@@ -205,7 +205,7 @@ describe('Jini widgets host switch', () => {
     fireEvent.click(enabled);
     expect(enabled).not.toBeChecked();
     locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" />));
-    act(() => publishContentRefresh(['widgets-regions']));
+    act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(view.container.querySelector('input[type="checkbox"]')).toBe(enabled);
     expect(enabled).not.toBeChecked();
     expect(read).toHaveBeenCalledTimes(1);

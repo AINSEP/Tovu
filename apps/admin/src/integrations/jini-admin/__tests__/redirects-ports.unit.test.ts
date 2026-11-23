@@ -91,13 +91,13 @@ describe('redirects host ports', () => {
   it('filters named refreshes, retains unknown scope and removes the listener', () => {
     const listener = vi.fn();
     const unsubscribe = redirectsEvents.subscribe(listener);
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(listener).not.toHaveBeenCalled();
-    publishContentRefresh(['redirects']);
+    publishContentRefresh({ resources: ['redirects'] });
     publishContentRefresh();
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
-    publishContentRefresh(['redirects']);
+    publishContentRefresh({ resources: ['redirects'] });
     expect(listener).toHaveBeenCalledTimes(2);
   });
 });

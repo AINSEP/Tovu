@@ -449,7 +449,7 @@ describe("useSites — content refresh bus", () => {
     await waitFor(() => expect(result.current.sites.map((site) => site.name)).toEqual(["alpha", "beta"]));
     snapshot = snapshotFixture({ sites: [{ ...snapshot.sites[0]!, name: "gamma", displayName: "Gamma" }] });
     expect(result.current.sites.map((site) => site.name)).toEqual(["alpha", "beta"]);
-    act(() => publishContentRefresh([SITES_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [SITES_RESOURCE] }));
     await waitFor(() => expect(result.current.sites.map((site) => site.name)).toEqual(["gamma"]));
     expect(result.current.sites[0]?.displayName).toBe("Gamma");
     unmount();

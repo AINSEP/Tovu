@@ -657,11 +657,11 @@ describe("useAccessTokens — content refresh bus", () => {
     port.custom.list = () =>
       Promise.resolve({ credentials: [customCredential(), customCredential({ id: "custom-2", label: "Second host" })] });
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.totalCount).toBe(1);
 
-    act(() => publishContentRefresh([ACCESS_TOKENS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [ACCESS_TOKENS_RESOURCE] }));
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 

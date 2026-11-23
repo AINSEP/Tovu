@@ -112,11 +112,11 @@ describe("Sites sidebar label", () => {
     await screen.findByRole("link", { name: "Sites (plannie)" });
     expect(reads).toBe(1);
     current = snapshot("next-site");
-    act(() => publishContentRefresh(["sites"]));
+    act(() => publishContentRefresh({ resources: ["sites"] }));
     const link = await screen.findByRole("link", { name: "Sites (next-site)" });
     expect(link.getAttribute("data-cms-sites-split")).toBe("");
     current = snapshot("");
-    act(() => publishContentRefresh(["sites"]));
+    act(() => publishContentRefresh({ resources: ["sites"] }));
     await screen.findByRole("link", { name: "Sites" });
     await waitFor(() => expect(link.getAttribute("data-cms-sites-split")).toBeNull());
     expect(link.querySelector(".cms-sites-label")).toBeNull();

@@ -528,7 +528,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
       const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
       await waitFor(() => expect(result.current.plugins).toHaveLength(1));
       port.listPlugins = async () => { throw new Error("refresh offline"); };
-      act(() => publishContentRefresh(["plugins"]));
+      act(() => publishContentRefresh({ resources: ["plugins"] }));
       await waitFor(() => expect(result.current.error).toBe("refresh offline"));
     } finally {
       resetContentRefreshBus();

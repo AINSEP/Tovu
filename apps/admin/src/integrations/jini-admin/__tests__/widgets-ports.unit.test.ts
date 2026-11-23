@@ -45,13 +45,13 @@ describe('widgets host ports', () => {
     const library = vi.fn(), regions = vi.fn();
     const stopLibrary = widgetsEvents.subscribe({ resource: WIDGETS_LIBRARY_RESOURCE, onRefresh: library });
     const stopRegions = widgetsEvents.subscribe({ resource: WIDGETS_REGIONS_RESOURCE, onRefresh: regions });
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(library).not.toHaveBeenCalled();
     expect(regions).not.toHaveBeenCalled();
-    publishContentRefresh(['widgets-library']);
+    publishContentRefresh({ resources: ['widgets-library'] });
     expect(library).toHaveBeenCalledTimes(1);
     expect(regions).not.toHaveBeenCalled();
-    publishContentRefresh(['widgets-regions']);
+    publishContentRefresh({ resources: ['widgets-regions'] });
     expect(regions).toHaveBeenCalledTimes(1);
     publishContentRefresh();
     expect(library).toHaveBeenCalledTimes(2);
