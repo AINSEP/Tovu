@@ -22,7 +22,7 @@ import { registerAdminObservabilityStatusRoute } from "../../../inbound/admin-ht
 import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
 import { registerAdminServerLogsRoute } from "../../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../modules/system-mail.js";
-import { registerAdminMailProviderRoutes } from "../../../inbound/admin-http/routes/system/mail-providers.js";
+import { registerAdminMailProviderRoutes } from "../modules/system-mail.js";
 import { registerAdminMailDnsRoutes } from "../modules/system-mail.js";
 import { registerAdminMailTestSendRoute } from "../modules/system-mail.js";
 import { registerAdminMailActivityRoutes } from "../modules/system-mail.js";
@@ -30,8 +30,8 @@ import { createDnsChangeDepsFactory } from "../dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { assistantDaemonRestartRoute, type AdminAssistantDaemonDeps } from "@jini-ai/cms/admin-http/routes/system/assistant-daemon";
 import { restartAssistantDaemon as restartAssistantDaemonReal } from "#src/server/runtime/lifecycle/daemon-supervisor";
-import { registerAdminAssistantPermanentDeletesRoutes } from "../../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
-import { registerAdminAssistantSubagentsRoutes } from "../../../inbound/admin-http/routes/system/assistant-subagents.js";
+import { registerAdminAssistantPermanentDeletesRoutes } from "../modules/system-assistant.js";
+import { registerAdminAssistantSubagentsRoutes } from "../modules/system-assistant.js";
 import { registerAdminDeploymentOverviewRoute, registerAdminExportSiteRoutes } from "../modules/system-deploy.js";
 import { registerAdminSitesRoutes } from "../modules/sites.js";
 import { registerAdminSiteProfileRoute } from "../../../inbound/admin-http/routes/site/profile.js";
@@ -46,7 +46,7 @@ import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-htt
 import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
 import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
 import { isLocalTovuHost } from "../registered-sites.js";
-import { registerAdminPublishSiteRoutes } from "../../../inbound/admin-http/routes/system/publish-site.js";
+import { registerAdminPublishSiteRoutes } from "../modules/system-deploy.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";

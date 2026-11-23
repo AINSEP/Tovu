@@ -6,6 +6,7 @@ import {
   type MailActivityFailure,
 } from "@jini-ai/cms/admin-http/routes/system/mail-activity";
 import { mailDnsStatusRoute, mailDnsVerifyRoute } from "@jini-ai/cms/admin-http/routes/system/mail-dns";
+import { mailProviderActivateRoute, mailProviderCredentialPlanRoute, mailProvidersListRoute } from "@jini-ai/cms/admin-http/routes/system/mail-providers";
 import { mailStatusRoute } from "@jini-ai/cms/admin-http/routes/system/mail-status";
 import { mailTestSendRoute } from "@jini-ai/cms/admin-http/routes/system/mail-test-send";
 import {
@@ -17,10 +18,14 @@ import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-to
 import { mailDomainDepsFrom } from "#src/features/mail-status/domain-deps";
 import { readMailFeedbackSetup } from "#src/features/mail-status/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "#src/features/mail-status/permissions";
+import { activateMailProvider, planMailProviderCredential, readMailProviderConfigurations } from "#src/features/mail-status/provider-operations";
 import { mailUseReadinessDepsFrom, readMailUseReadiness } from "#src/features/mail-status/use-readiness";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "#src/features/mail-status/test-send";
 import { isMailDeliveryAvailable } from "#src/platform/mail/index";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import {
+  classifyMailProviderError, registerAdminMailProviderCredentialSaveRoute, type AdminMailProviderDeps,
+} from "#src/server/inbound/admin-http/routes/system/mail-providers";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -49,6 +54,25 @@ export function registerAdminMailStatusRoute({ app, deps }: { app: Express; deps
     // A root without a resolved mailer has no status source: the body then carries only availability.
     mailStatus: async (optional) => (deps.mailStatus ? { ...(await deps.mailStatus(optional)) } : {}),
   } }, { authorization: "direct", failure: { operation: "routes/system/mail-status", code: "INTERNAL_ERROR" } });
+}
+
+/** The four mail-provider routes, in their original order: list, credential plan, credential save, activate.
+ * List, plan and activate are Jini specs, all `direct` (the hand-written routes called `deps.authorize`
+ * themselves) with the one `routes/system/mail-providers` failure copy. The credential save STAYS
+ * hand-written (K1 STOP: it reads `res.locals.authCredentialKind` for the owner-session gate).
+ * `mailProviderControl` is read per request, as the hand-written routes read it.
+ * @complexity O(1) setup; one provider operation per request.
+ */
+export function registerAdminMailProviderRoutes({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
+  const options = { authorization: "direct", failure: { operation: "routes/system/mail-providers", code: "INTERNAL_ERROR" } } as const;
+  const ports = { workspaceId: deps.workspaceId, authorize: (params: Parameters<AdminMailProviderDeps["authorize"]>[0]) => deps.authorize(params), classifyMailProviderError };
+  mountAdminJsonRoute({ app, spec: mailProvidersListRoute, deps: { ...ports,
+    readMailProviderConfigurations: () => readMailProviderConfigurations({ control: deps.mailProviderControl }) } }, options);
+  mountAdminJsonRoute({ app, spec: mailProviderCredentialPlanRoute, deps: { ...ports,
+    planMailProviderCredential: ({ providerId }) => planMailProviderCredential({ control: deps.mailProviderControl, providerId }) } }, options);
+  registerAdminMailProviderCredentialSaveRoute({ app, deps });
+  mountAdminJsonRoute({ app, spec: mailProviderActivateRoute, deps: { ...ports,
+    activateMailProvider: ({ providerId, principalId }) => activateMailProvider({ control: deps.mailProviderControl, providerId, principalId }) } }, options);
 }
 
 /** The deps `registerAdminMailDnsRoutes` reads. */

@@ -7,19 +7,26 @@ import {
   type DeploymentOverviewSnapshot as SpecDeploymentOverviewSnapshot,
 } from "@jini-ai/cms/admin-http/routes/system/deployment-overview";
 import { exportSiteStatusRoute, exportSiteTriggerRoute } from "@jini-ai/cms/admin-http/routes/system/export-site";
+import { publishPreviewRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/preview";
+import { publishStatusRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/status";
+import { publishTargetsRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/targets";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
+import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/index";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { inspectSiteKeyMaterial, siteKeySources, type SiteKeyStatus } from "#src/features/webhooks/index";
 import { startupSecretEnvironment } from "#src/platform/secrets/startup-secrets";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import {
+  createPublishSiteContext, publishPreviewFor, publishTargetsFor, registerAdminPublishDestinationsRoute, registerAdminPublishTriggerRoute,
+} from "#src/server/inbound/admin-http/routes/system/publish-site";
 import { resolveSiteKeySources } from "#src/server/inbound/admin-http/routes/system/site-key";
 import type { RouteDeps, SiteStoragePaths } from "#src/server/routes/types";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 
 /**
- * @file The `system` deploy registrars (Deployment panel: Overview, Static Site export): Jini route
- * specs (`@jini-ai/cms/admin-http/routes/system/{deployment-overview,export-site}`) mounted behind
+ * @file The `system` deploy registrars (Deployment panel: Overview, Static Site export, Publish): Jini
+ * route specs (`@jini-ai/cms/admin-http/routes/system/{deployment-overview,export-site,publish-site/*}`) mounted behind
  * the admin ports. `RouteDeps` is read only here, at registration: each mount builds that route's
  * own small deps object, so a spec never sees the whole bag. The Tovu-owned collaborators the specs
  * need are bound here: the live process-state snapshot (runtime mode, env presence, this site's
@@ -160,4 +167,27 @@ export function registerAdminExportSiteRoutes({ app, deps }: { app: Express; dep
       productEvent: { tracker: deps.tracker, userId: actorId, operationId: deps.idGen.newId(), source: "admin" } }),
   } }, directMount("routes/system/export-site"));
   mountAdminJsonRoute({ app, spec: exportSiteStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot } }, directMount("routes/system/export-site"));
+}
+
+/** The deps `registerAdminPublishSiteRoutes` reads (the publish context and trigger take the whole bag). */
+export type AdminPublishSiteDeps = RouteDeps;
+
+/** Every publish route authorized `guarded` (`authorizeOrRespond`: a publishing credential answers from
+ *  its grant) and answered unexpected failures under the one `routes/system/publish-site` operation. */
+const PUBLISH_MOUNT = { authorization: "guarded" as const, failure: { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" } };
+
+/**
+ * `.../system/publish` (trigger, status, preview, destinations) and `.../system/publish-targets`, in the
+ * original registration order. Status, preview and targets are Jini specs; the trigger and the
+ * destinations listing stay hand-written in `routes/system/publish-site.ts` (see each registrar's doc).
+ * @complexity O(1) setup.
+ */
+export function registerAdminPublishSiteRoutes({ app, deps }: { app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
+  const context = createPublishSiteContext({ deps });
+  registerAdminPublishTriggerRoute({ app, context });
+  mountAdminJsonRoute({ app, spec: publishStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot: () => getPublishRunSnapshot() } }, PUBLISH_MOUNT);
+  mountAdminJsonRoute({ app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor(context) } }, PUBLISH_MOUNT);
+  registerAdminPublishDestinationsRoute({ app, context });
+  // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
+  mountAdminJsonRoute({ app, spec: publishTargetsRoute, deps: { ...deployPortDeps({ deps }), listTargets: publishTargetsFor({ deps }) } }, PUBLISH_MOUNT);
 }

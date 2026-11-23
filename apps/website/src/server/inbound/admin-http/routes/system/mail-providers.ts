@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
+import { mailProviderRefusal, type MailProviderFailure } from "@jini-ai/cms/admin-http/routes/system/mail-providers";
 import {
   CustomCredentialDuplicateLabelError,
   CustomCredentialNotFoundError,
@@ -8,57 +9,56 @@ import {
   CustomCredentialValidationError,
 } from "#src/features/custom-credentials/index";
 import {
-  activateMailProvider,
   MailProviderOperationError,
-  planMailProviderCredential,
-  readMailProviderConfigurations,
   saveMailProviderCredential,
   type MailProviderCredentialInput,
-  type MailProviderOperationCode,
 } from "#src/features/mail-status/provider-operations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
- * @file Admin mail provider actions beside `./mail-status.ts` (email phase 2, 2026-10-22). Thin
- * HTTP adapters over `features/mail-status/provider-operations.ts`, the same operations the
- * assistant's `mail_list_providers`, `mail_configure_provider` and `mail_set_provider` call:
+ * @file The one admin mail provider route still hand-written (K1 STOP): `PUT
+ * …/system/mail-providers/:providerId/credential`, body `{token?, username?, baseUrl?}` — creates or
+ * rotates the key in the custom-credentials store WITHOUT activating the provider; the next send
+ * already uses it. `custom-credentials.write`. Never echoes a secret. It stays here because only the
+ * owner's human SESSION may replace a shared key, and that reads `res.locals.authCredentialKind`,
+ * which a Jini spec behind the shared admin ports never sees.
  *
- * - `GET  …/system/mail-providers` — the safe configuration DTO (`admin.forms.manage`, like status).
- * - `GET  …/system/mail-providers/:providerId/credential` — what saving its key takes (label,
- *   category, default endpoint, create vs rotate). `custom-credentials.write`.
- * - `PUT  …/system/mail-providers/:providerId/credential` — body `{token?, username?, baseUrl?}`:
- *   creates or rotates the key in the custom-credentials store WITHOUT activating the provider; the
- *   next send already uses it. `custom-credentials.write`. Never echoes a secret.
- * - `POST …/system/mail-providers/:providerId/activate` — switches BOTH lanes after re-checking the
- *   provider; the click is the person's explicit confirmation. `settings.workspace.write`.
+ * Its siblings (configuration read, credential plan, activate) are Jini specs
+ * (`@jini-ai/cms/admin-http/routes/system/mail-providers`) over the same
+ * `features/mail-status/provider-operations.ts` operations the assistant's `mail_list_providers`,
+ * `mail_configure_provider` and `mail_set_provider` call. `registerAdminMailProviderRoutes`
+ * (`runtime/composition/modules/system-mail.ts`) mounts them and calls this registrar in its original
+ * position. Both halves answer refusals through one table: {@link classifyMailProviderError} maps the
+ * host's error classes, the spec's `mailProviderRefusal` picks the status and body.
  */
 export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "ownerPrincipalId">
   & Partial<Pick<RouteDeps, "mailProviderControl" | "projectKeys">>;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/mail-providers";
 
-const OPERATION_STATUS: Readonly<Record<MailProviderOperationCode, number>> = {
-  MAIL_PROVIDER_CONTROL_UNAVAILABLE: 503, MAIL_PROVIDER_NOT_FOUND: 404, MAIL_PROVIDER_KEYLESS: 409, MAIL_PROVIDER_REFUSED: 409, MAIL_PROVIDER_INPUT: 400, MAIL_PROVIDER_CHANGED: 409,
-};
-
 /** Store errors keep the custom-credentials route's codes. */
-const STORE_ERRORS: readonly [new (...args: never[]) => Error, number, string][] = [
-  [CustomCredentialValidationError, 400, "VALIDATION"],
-  [CustomCredentialDuplicateLabelError, 409, "DUPLICATE_LABEL"],
-  [CustomCredentialNotFoundError, 404, "NOT_FOUND"],
-  [CustomCredentialSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
+const STORE_ERRORS: readonly [new (...args: never[]) => Error, MailProviderFailure & { kind: "store" }][] = [
+  [CustomCredentialValidationError, { kind: "store", code: "VALIDATION" }],
+  [CustomCredentialDuplicateLabelError, { kind: "store", code: "DUPLICATE_LABEL" }],
+  [CustomCredentialNotFoundError, { kind: "store", code: "NOT_FOUND" }],
+  [CustomCredentialSecretStoreUnconfiguredError, { kind: "store", code: "SECRET_STORE_UNCONFIGURED" }],
 ];
+
+/** The host's own error classes, as the mail-provider specs' failures; anything else is unexpected (`undefined`).
+ * @complexity O(1).
+ */
+export function classifyMailProviderError(err: unknown, _optional: Record<string, never> = {}): MailProviderFailure | undefined {
+  if (err instanceof MailProviderOperationError) return { kind: "operation", code: err.code, message: err.message };
+  return STORE_ERRORS.find(([type]) => err instanceof type)?.[1];
+}
 
 /** Maps a refusal to its status; anything else is a logged 500 without the error's text. */
 function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  if (err instanceof MailProviderOperationError) {
-    res.status(OPERATION_STATUS[err.code]).json({ error: err.message, code: err.code });
-    return;
-  }
-  const known = STORE_ERRORS.find(([type]) => err instanceof type);
-  if (known) {
-    res.status(known[1]).json({ error: known[2], code: known[2] });
+  const failure = classifyMailProviderError(err);
+  if (failure) {
+    const { status, body } = mailProviderRefusal(failure);
+    res.status(status).json(body);
     return;
   }
 
@@ -77,44 +77,33 @@ function readCredentialInput({ body }: { body: unknown }, _optional = {}): MailP
   return input;
 }
 
-export function registerAdminMailProviderRoutes({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
-  const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
-
-  /** Workspace match + per-action permission; writes the response and returns null when the caller must stop. */
-  async function authorized(req: Request, res: Response, permission: string): Promise<string | null> {
-    if (req.params.workspaceId !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return null;
-    }
-    const principal = getAuthedPrincipal(res);
-    const result = await deps.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "mail" });
-    if (result.allowed) return principal.id;
-    res.status(403).json({ error: `principal '${principal.id}' is not authorized for '${permission}' (${result.reason})`, code: "FORBIDDEN", details: { permission, reason: result.reason } });
+/** Workspace match + the permission (`direct`: `deps.authorize`, no publishing-credential override); writes the response and returns null when the caller must stop. */
+async function authorized({ req, res, deps, permission }: { req: Request; res: Response; deps: AdminMailProviderDeps; permission: string }, _optional = {}): Promise<string | null> {
+  if (req.params.workspaceId !== deps.workspaceId) {
+    res.status(404).json({ error: "workspace was not found" });
     return null;
   }
+  const principal = getAuthedPrincipal(res);
+  const result = await deps.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "mail" });
+  if (result.allowed) return principal.id;
+  res.status(403).json({ error: `principal '${principal.id}' is not authorized for '${permission}' (${result.reason})`, code: "FORBIDDEN", details: { permission, reason: result.reason } });
+  return null;
+}
 
-  /** One route: authorize, run, answer 200 with the result or the mapped refusal. */
-  const route = (permission: string, run: (required: { req: Request; res: Response; principalId: string }) => Promise<unknown>) => async (req: Request, res: Response) => {
+/** `PUT …/:providerId/credential`: authorize, save (never activates), answer `{ provider }` or the mapped refusal. */
+export function registerAdminMailProviderCredentialSaveRoute({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
+  const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
+  app.put(`${BASE_PATH}/:providerId/credential`, async (req: Request, res: Response) => {
     try {
-      const principalId = await authorized(req, res, permission);
+      const principalId = await authorized({ req, res, deps, permission: "custom-credentials.write" });
       if (principalId === null) return;
-      res.status(200).json(await run({ req, res, principalId }));
+      // Match the custom-credentials route: only the owner's human session can replace a shared key.
+      const ownerSession = res.locals.authCredentialKind === "session" && principalId === await deps.ownerPrincipalId;
+      res.status(200).json({ provider: await saveMailProviderCredential({ control: deps.mailProviderControl,
+        credentials: { ...credentials, allowSharedKeyReplacement: ownerSession }, workspaceId: deps.workspaceId,
+        providerId: String(req.params.providerId), input: readCredentialInput({ body: req.body }) }, { projectKeys: deps.projectKeys }) });
     } catch (err) {
       sendError({ res, err });
     }
-  };
-  const providerId = (req: Request): string => String(req.params.providerId);
-
-  app.get(BASE_PATH, route("admin.forms.manage", () => readMailProviderConfigurations({ control: deps.mailProviderControl })));
-  app.get(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", ({ req }) =>
-    planMailProviderCredential({ control: deps.mailProviderControl, providerId: providerId(req) })));
-  app.put(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", async ({ req, res, principalId }) => {
-    // Match the custom-credentials route: only the owner's human session can replace a shared key.
-    const ownerSession = res.locals.authCredentialKind === "session" && principalId === await deps.ownerPrincipalId;
-    return { provider: await saveMailProviderCredential({ control: deps.mailProviderControl,
-      credentials: { ...credentials, allowSharedKeyReplacement: ownerSession }, workspaceId: deps.workspaceId,
-      providerId: providerId(req), input: readCredentialInput({ body: req.body }) }, { projectKeys: deps.projectKeys }) };
-  }));
-  app.post(`${BASE_PATH}/:providerId/activate`, route("settings.workspace.write", ({ req, principalId }) =>
-    activateMailProvider({ control: deps.mailProviderControl, providerId: providerId(req), principalId })));
+  });
 }

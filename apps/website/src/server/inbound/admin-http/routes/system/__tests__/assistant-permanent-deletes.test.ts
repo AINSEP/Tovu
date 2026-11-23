@@ -5,7 +5,7 @@ import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@j
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
-import { registerAdminAssistantPermanentDeletesRoutes } from "../assistant-permanent-deletes.js";
+import { registerAdminAssistantPermanentDeletesRoutes } from "#src/server/runtime/composition/modules/system-assistant";
 import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";

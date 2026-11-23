@@ -47,6 +47,11 @@ list/update exist but are not mounted until the admin ports carry the credential
 Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
 per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
 per-error failure copy from the admin ports (owner decisions).
+System deploy (`runtime/composition/modules/system-deploy.ts`) mounts the overview and export specs `"direct"` and
+publish status/preview/targets `"guarded"`, binding `buildDeploymentOverviewSnapshot`, `DEFAULT_OWNER_PASSWORD`,
+the export run slot shared with the agent export tools and the publish readers. The publish trigger (blocked-publish
+product events), the destinations listing (publish-trust peer read from `res.locals`) and `dockerfile-source.ts`
+(ETag/If-Match headers) stay hand-written, registered in their original order.
 Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings specs `"direct"` with failure
 `{ operation: "routes/settings", message: "The settings request could not finish." }`, binding readiness, the
 ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,

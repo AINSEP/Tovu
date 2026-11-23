@@ -228,7 +228,7 @@ async function readPublishTriggerConfig(required: {
   return { ok: true, config: read.config };
 }
 
-type PublishSiteContext = { deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource };
+export type PublishSiteContext = { deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource };
 type PublishPrincipal = ReturnType<typeof getAuthedPrincipal>;
 type PublishTriggerBody = { ok: false; status: number; body: Record<string, unknown>; reasonClass: string };
 
@@ -323,20 +323,6 @@ async function handlePublishTrigger({ context, req, res }: { context: PublishSit
   }
 }
 
-async function handlePublishStatus({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {
-  const { deps } = context;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-  try {
-    const { authorized } = await authorizePublishRoute({ res, deps, permission: "system.publish" });
-    if (!authorized) return;
-
-    res.status(200).json(getPublishRunSnapshot());
-  } catch (err) {
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
-  }
-}
-
 /** The preview query's target + config, or the 400 message for whichever part is missing/invalid. */
 async function readPreviewTarget({ deps, query }: { deps: AdminPublishSiteDeps; query: Record<string, unknown> }): Promise<{ ok: true; read: Extract<Awaited<ReturnType<typeof readTargetConfig>>, { ok: true }> } | { ok: false; error: string }> {
   if (typeof query.target !== "string" || query.target.trim() === "") return { ok: false, error: "'target' query param (non-empty string) is required" };
@@ -348,39 +334,22 @@ async function readPreviewTarget({ deps, query }: { deps: AdminPublishSiteDeps; 
   return missing !== null ? { ok: false, error: missing } : { ok: true, read };
 }
 
-async function handlePublishPreview({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {
-  const { deps, credentialSource } = context;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-  try {
-    const { authorized } = await authorizePublishRoute({ res, deps, permission: "system.read" });
-    if (!authorized) return;
-
-    const query = req.query as Record<string, unknown>;
-    const target = await readPreviewTarget({ deps, query });
-    if (!target.ok) {
-      res.status(400).json({ error: target.error });
-      return;
-    }
-
-    // Same reads `deployment_preview_static_publish`'s handler performs (this file's header) — the
-    // registry's plan (config check + base path) and local credential readiness. No export runs.
-    // Authenticated provider inspection is separate from `isConfigured()` (2026-08-15 split, see
-    // `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a
-    // real credential just to read a boolean off it.
-    res.status(200).json(await httpPublishPreview({ deps, credentialSource, registry: target.read.registry, config: target.read.config, query }));
-  } catch (err) {
-    // `credentialSource.isConfigured` is the one awaited call here that can reach a real backing
-    // store (DB-backed source, per this file's header) — a failure there used to escape this
-    // handler entirely (no `try`/`catch` at all; found by an AST scan over every `app.<verb>()`
-    // handler in `src/server/routes/**`).
-    if (err instanceof ToolInputError) {
-      res.status(400).json({ error: err.message, code: "PROVIDER_INSPECTION_FAILED" });
-      return;
-    }
-
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
-  }
+/**
+ * The preview read the `publish/preview` spec (`@jini-ai/cms/admin-http/routes/system/publish-site/preview`)
+ * is bound to: the same reads `deployment_preview_static_publish`'s handler performs (this file's
+ * header) — the registry's plan (config check + base path) and local credential readiness. No export
+ * runs. Authenticated provider inspection is separate from `isConfigured()` (2026-08-15 split, see
+ * `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a real
+ * credential just to read a boolean off it. A `ToolInputError` from the inspection propagates: the spec
+ * answers it `400 PROVIDER_INSPECTION_FAILED`.
+ * @complexity One registry load plus the credential/inspection reads.
+ */
+export function publishPreviewFor({ deps, credentialSource }: PublishSiteContext, _optional: Record<string, never> = {}) {
+  return async ({ query }: { query: Readonly<Record<string, unknown>> }): Promise<{ ok: true; value: Awaited<ReturnType<typeof httpPublishPreview>> } | { ok: false; error: string }> => {
+    const target = await readPreviewTarget({ deps, query: { ...query } });
+    if (!target.ok) return { ok: false, error: target.error };
+    return { ok: true, value: await httpPublishPreview({ deps, credentialSource, registry: target.read.registry, config: target.read.config, query: { ...query } }) };
+  };
 }
 
 /** Peers are omitted, identities included, unless the caller also holds `publish_content.read`. */
@@ -427,42 +396,40 @@ function describePublishTargets({ registry }: { registry: DeployTargetRegistry }
   }));
 }
 
-async function handlePublishTargets({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {
-  const { deps } = context;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-  try {
-    const { authorized } = await authorizePublishRoute({ res, deps, permission: "system.read" });
-    if (!authorized) return;
-
+/** The registry's public target descriptors for this workspace, bound into the `publish-targets` spec;
+ *  registry refusals (a module that did not load) are logged, never returned. @complexity O(t). */
+export function publishTargetsFor({ deps }: { deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}) {
+  return async () => {
     const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
     for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
-    res.status(200).json({ targets: describePublishTargets({ registry }) });
-  } catch (err) {
-    sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
-  }
+    return describePublishTargets({ registry });
+  };
 }
 
-export function registerAdminPublishSiteRoutes({ app, deps }: { app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
-  // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
-  // itself a once-per-process composition step), bound to `deps.workspaceId` — see
-  // `static-publish/credentials.ts`'s `composePublishCredentialSource` header for the DB-first,
-  // env-fallback-only-when-self-hosted composition this now performs.
+/** The per-registration publish context: built once per registrar call (a once-per-process composition
+ *  step), bound to `deps.workspaceId` — see `static-publish/credentials.ts`'s
+ *  `composePublishCredentialSource` header for the DB-first, env-fallback-only-when-self-hosted
+ *  composition this performs. @complexity O(1). */
+export function createPublishSiteContext({ deps }: { deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): PublishSiteContext {
   const credentialSource = composePublishCredentialSource({
     workspaceId: deps.workspaceId,
     executionMode: deps.publishExecutionMode,
     dbDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets },
   });
-  const context: PublishSiteContext = { deps, credentialSource };
-  const base = "/api/admin/v1/workspaces/:workspaceId/system/publish";
+  return { deps, credentialSource };
+}
 
-  app.post(base, (req, res) => handlePublishTrigger({ context, req, res }));
-  app.get(base, (req, res) => handlePublishStatus({ context, req, res }));
-  app.get(`${base}/preview`, (req, res) => handlePublishPreview({ context, req, res }));
-  // Listing is read-only: execution still goes through the system.publish-gated POST above.
-  app.get(`${base}/destinations`, (req, res) => handlePublishDestinations({ context, req, res }));
-  // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
-  // Ids, labels, config field specs, the saved-credential form's field specs and the translations of
-  // that text (`i18n`) only: a module path, a vendor id or a refusal reason stays server-side.
-  app.get(`${base}-targets`, (req, res) => handlePublishTargets({ context, req, res }));
+const PUBLISH_BASE = "/api/admin/v1/workspaces/:workspaceId/system/publish";
+
+/** `POST .../system/publish` — stays hand-written: an authorization denial records a
+ *  `site_publish_blocked` product event before the 403 (see the system-deploy report). */
+export function registerAdminPublishTriggerRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
+  app.post(PUBLISH_BASE, (req, res) => handlePublishTrigger({ context, req, res }));
+}
+
+/** `GET .../system/publish/destinations` — stays hand-written: its peer read authorizes through the
+ *  request's publish-trust context (`res.locals`), which the admin JSON ports do not expose.
+ *  Listing is read-only: execution still goes through the system.publish-gated POST. */
+export function registerAdminPublishDestinationsRoute({ app, context }: { app: Express; context: PublishSiteContext }, _optional: Record<string, never> = {}): void {
+  app.get(`${PUBLISH_BASE}/destinations`, (req, res) => handlePublishDestinations({ context, req, res }));
 }

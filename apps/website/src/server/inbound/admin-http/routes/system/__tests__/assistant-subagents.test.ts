@@ -7,7 +7,7 @@ import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode
 import { readAssistantSubagentsEnabled, readAssistantCliPermissions } from "#src/assistant/subagent-settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE as namespace, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_PERMISSIONS_KEY } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
-import { registerAdminAssistantSubagentsRoutes } from "../assistant-subagents.js";
+import { registerAdminAssistantSubagentsRoutes } from "#src/server/runtime/composition/modules/system-assistant";
 import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
 import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
