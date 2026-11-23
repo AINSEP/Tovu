@@ -95,7 +95,7 @@ import { contributeEmailTemplatesTools } from "#src/features/email-templates/ind
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
-import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
+import { contributeSkillsInstallTools } from "@jini-ai/agentic/skills/site/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
@@ -456,7 +456,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
   // one uninstall id for both plugin families instead of two near-identically-named tools. See
-  // `features/agent-plugins/uninstall-tool.ts`'s header for the merge.
+  // `@jini-ai/agent-plugins/site/uninstall-tool`'s header for the merge.
   contributions.contributors.register({ contribution: contributeCommentsTools() });
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s

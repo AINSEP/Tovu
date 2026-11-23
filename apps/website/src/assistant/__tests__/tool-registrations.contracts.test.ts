@@ -70,7 +70,7 @@ import { staticPublishAgentToolCatalog } from "../../features/deployments/publis
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
 import { pluginAgentToolCatalog, pluginsInstallCatalog, pluginSourceAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
-import { catalog as skillsInstallCatalog } from "../../features/skills/install-tool.js";
+import { catalog as skillsInstallCatalog } from "@jini-ai/agentic/skills/site/install-tool";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
@@ -840,7 +840,7 @@ test("assistant_admin_screen_link is wired into the real assistant tool registry
 // ---------------------------------------------------------------------------
 // 8. plugins_uninstall's Agent Plugin family wiring — present in the REAL ToolRegistry, not merely
 //    compiling. Retargeted (S4, 2026-09-24) from the deleted standalone `agent_plugins_uninstall`;
-//    the branch now lives in `features/agent-plugins/uninstall-tool.ts`, reached through
+//    the branch now lives in `@jini-ai/agent-plugins/site/uninstall-tool`, reached through
 //    `plugins_uninstall` with `family: "agent-plugin"`. See `uninstall.ts`'s file header for the
 //    domain function this wires.
 // ---------------------------------------------------------------------------

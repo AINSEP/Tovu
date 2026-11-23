@@ -124,7 +124,7 @@ export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contract
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("@jini-ai/agentic/skills/site/install-tool").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
     commerce?: import("./host-contracts.js").CommerceToolHost;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };

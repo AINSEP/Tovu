@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import path from "node:path";
-import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
+import { loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

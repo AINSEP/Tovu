@@ -29,7 +29,7 @@ import type { InstalledExtensionRegistrar } from "#src/assistant/installed-exten
 import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
 import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
-import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
+import { registerInstalledSkillTools } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";

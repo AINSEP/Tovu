@@ -665,11 +665,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/mail-status/test-send.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/mail-status/use-readiness.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -958,16 +953,6 @@
     "file": "apps/website/src/features/sites/site-preview/site-preview-store.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/features/skills/layout.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/skills/layout.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/source-control/provider-registry.ts",
