@@ -5,7 +5,7 @@ import { RenderServiceError, type UrlCapturePort } from '@jini-ai/desktop-host';
 import { desktopRenderForHost } from '#src/platform/headless-browser/desktop-render';
 import type { HttpClientPort } from '#src/platform/http/index';
 import { createPlaywrightPageCapture, type PlaywrightPageCaptureOptions } from './playwright-page-capture.js';
-import { PageCaptureError, type PageCapturePort } from './web-screenshot.js';
+import { PageCaptureError, type PageCapturePort } from '@jini-ai/integrations/web-screenshot/web-screenshot';
 
 /** A native window is owned per request; closing this port has no shared browser to terminate.
  * @throws PageCaptureError for every expected native/transport failure.

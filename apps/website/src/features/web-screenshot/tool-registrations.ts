@@ -5,7 +5,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { WEB_SCREENSHOT_PERMISSION, webScreenshotAgentToolCatalog } from "./agent-tools.js";
-import { createWebScreenshotService, readWebScreenshotInput, WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type SaveCaptureFiles, type WebScreenshotPorts, type WebScreenshotService } from "./web-screenshot.js";
+import { createWebScreenshotService, readWebScreenshotInput, WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type SaveCaptureFiles, type WebScreenshotPorts, type WebScreenshotService } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file Maps the `web-screenshot` catalog onto {@link createWebScreenshotService}. The handler gates

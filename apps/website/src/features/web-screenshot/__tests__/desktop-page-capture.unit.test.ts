@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RenderServiceError, type UrlCapturePort } from '@jini-ai/desktop-host';
 import { createDesktopPageCapture, createPageCaptureForHost } from '../desktop-page-capture.js';
-import { VIEWPORT_PRESETS, type PageCaptureRequest } from '../web-screenshot.js';
+import { VIEWPORT_PRESETS, type PageCaptureRequest } from '@jini-ai/integrations/web-screenshot/web-screenshot';
 import type { HttpClientPort } from '#src/platform/http/index';
 
 const request: PageCaptureRequest = { url: 'http://127.0.0.1:4200/about', viewport: VIEWPORT_PRESETS.mobile,

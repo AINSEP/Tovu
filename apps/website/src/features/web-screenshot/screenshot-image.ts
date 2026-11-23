@@ -1,5 +1,5 @@
 import type { ImageCodecPort } from "@jini-ai/cms/media";
-import type { EncodeTiles } from "./web-screenshot.js";
+import type { EncodeTiles } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * Downscales a PNG screenshot to `maxWidth` (never enlarged) and cuts it into JPEG tiles of at most

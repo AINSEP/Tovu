@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { SaveCaptureFiles } from "./web-screenshot.js";
+import type { SaveCaptureFiles } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file Where `web_screenshot_page` keeps its captures: `<siteDir>/.captures/<UTC date>/<name>.jpg`

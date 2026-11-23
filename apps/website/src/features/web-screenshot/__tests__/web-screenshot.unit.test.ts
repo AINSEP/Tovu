@@ -18,7 +18,7 @@ import {
   type PageCaptureRequest,
   type WebScreenshotEvent,
   type WebScreenshotPorts,
-} from "../web-screenshot.js";
+} from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
 
