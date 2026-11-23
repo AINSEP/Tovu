@@ -24,7 +24,7 @@ import type { DesktopAgentRuntime } from "./desktop-agent.ts";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import type { ConversationStore } from "./workspace-conversation-store.ts";
 import type { WorkspaceChatEventMessage, WorkspaceChatReattachInput, WorkspaceChatRunSnapshot, WorkspaceChatStartInput } from "./contracts/workspace-chat.ts";
-import type { RunnerAgentSummary } from "./contracts/runtime-inventory.ts";
+import type { AgentInventorySummary } from "@jini-ai/core/contracts/agents/inventory";
 import type { RenameConversationInput, SaveConversationMessageInput } from "./contracts/workspace-conversations.ts";
 
 const WORKSPACE_CHAT_IPC = Object.freeze({
@@ -89,7 +89,7 @@ interface WorkspaceChatIpcDeps {
   conversations: ConversationStore;
   /** Resolves a renderer-reported site dir to a TRACKED site, or `null`. Never trusts the path itself. */
   resolveAddressee: (input: { siteDir: string }, options?: Record<string, never>) => TurnAddressee | null;
-  listAgents: (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]>;
+  listAgents: (required: { rescan: boolean }) => Promise<AgentInventorySummary[]>;
   pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
 }
 

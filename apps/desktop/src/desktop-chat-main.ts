@@ -9,7 +9,7 @@ import path from "node:path";
 import { AGENT_DEFS, runtimeSupportsExternalTools, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createDesktopAgentRuntime, type DesktopAgentRuntime } from "./desktop-agent.ts";
 import { buildDesktopAgentTools, UNBUILT_SITE_TOOL_GATEWAY, type SiteToolGateway, type TurnAddressee } from "./desktop-agent-tools.ts";
-import { createAgentInventory } from "./desktop-agent-inventory.ts";
+import { createAgentInventory } from "@jini-ai/agent-runtime/inventory";
 import { createConversationStore } from "./workspace-conversation-store.ts";
 import { registerWorkspaceChatIpc, WORKSPACE_CHAT_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
