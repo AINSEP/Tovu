@@ -36,6 +36,16 @@ import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThem
 export type ImportThemeFileToolDeps = ThemeToolDeps &
   Pick<MediaImportToolDeps, "mediaImportHttpClient" | "outboundTestOrigins" | "mediaImportEgressRefusalLog" | "siteBinding" | "resolveRoots">;
 
+/**
+ * One plain sentence both tools carry: without it a model saving "the hero photo" picks the theme `assets/` folder
+ * (the only destination these tools name) and the photo never reaches the owner's Media library, where it can be
+ * edited, reused and kept in the backup. `mediaTool` must be a tool the media-import catalog really registers
+ * (pinned by `tool-registrations.theme-import-file.test.ts`).
+ */
+function mediaGuidance({ mediaTool }: { mediaTool: string }, _optional = {}): string {
+  return `Photos and other content images belong in Media (use ${mediaTool}); a theme's assets/ folder is only for files the theme itself owns, such as its fonts, logo and icons. `;
+}
+
 const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
   name: "theme_import_file_from_url",
   description:
@@ -43,7 +53,7 @@ const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
     "into a theme's folder at the given path, e.g. assets/fonts/display.woff2 — then reference it from the theme's CSS " +
     "(`@font-face { src: url(\"../assets/fonts/display.woff2\") }`) or markup. The file's type is read from its bytes and must match the " +
     `path's extension. Replaces a file already at that path. Max ${THEME_IMPORT_MAX_BYTES / 1_000_000} MB. ` +
-    "SVG and other text files: use web_fetch_page + theme_write_file. To put an image in the media library instead, use media_import_from_url." + THEME_FILE_REPLACEMENT_GUIDANCE,
+    "SVG and other text files: use web_fetch_page + theme_write_file. " + mediaGuidance({ mediaTool: "media_import_from_url" }).trimEnd() + THEME_FILE_REPLACEMENT_GUIDANCE,
   sideEffects: "mutates-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },
   inputSchema: {
@@ -59,7 +69,7 @@ const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
       path: {
         type: "string",
         minLength: 1,
-        description: "Where to save the file, relative to the theme folder, ending in the file type's extension (e.g. assets/fonts/display.woff2, assets/hero.jpg).",
+        description: "Where to save the file, relative to the theme folder, ending in the file type's extension (e.g. assets/fonts/display.woff2, assets/logo.png).",
       },
       url: {
         type: "string",
@@ -78,7 +88,7 @@ export const importThemeFileAgentToolCatalog: AgentToolDefinition[] = [IMPORT_TH
     "Uses the same owner-selected roots and denied-file rules as fs_read_file. The tool cannot choose or widen a root. " +
     "Requires theme.edit; refuses generated/trash/compiled output, unsafe paths, unsupported or mismatched bytes. " +
     "Replaces the destination atomically and reloads the theme. Max 10 MB. " +
-    "Returns {themeId,path,contentType,bytes,sourcePath,status,errors}. For editable content images use media_import_local_file. " +
+    "Returns {themeId,path,contentType,bytes,sourcePath,status,errors}. " + mediaGuidance({ mediaTool: "media_import_local_file" }) +
     "SVG/text: fs_read_file then theme_write_file. For an https source use theme_import_file_from_url." + THEME_FILE_REPLACEMENT_GUIDANCE,
   sideEffects: "mutates-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },

@@ -18,6 +18,7 @@ import {
   importThemeFileDerivedRisk,
   type ImportThemeFileToolDeps,
 } from "#src/features/theme/import-theme-file-tool";
+import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
 
 /**
  * @file `theme_import_file_from_url` (2026-10-08) — the agent-tool seam over
@@ -270,4 +271,15 @@ test("site theme import refuses repo and unpicked paths before reading or creati
   }
   assert.equal(readSpy.mock.callCount(), 0);
   assert.equal(fs.existsSync(path.join(deps.themesDir, 'match/assets/private.woff2')), false);
+});
+
+test("theme import tools steer photos and content images to Media, naming tools that really exist (B083)", () => {
+  const mediaToolNames = new Set(mediaImportAgentToolCatalog.map((tool) => tool.name));
+  const [fromUrl, localFile] = importThemeFileAgentToolCatalog;
+  for (const [tool, mediaTool] of [[fromUrl, "media_import_from_url"], [localFile, "media_import_local_file"]] as const) {
+    assert.ok(tool, "catalog entry present");
+    assert.ok(mediaToolNames.has(mediaTool), `${mediaTool} is a registered media tool`);
+    assert.match(tool.description, new RegExp(`Photos and other content images belong in Media \\(use ${mediaTool}\\)`), `${tool.name} points photos at ${mediaTool}`);
+    assert.match(tool.description, /theme's assets\/ folder is only for files the theme itself owns/, `${tool.name} limits assets/ to theme-owned files`);
+  }
 });
