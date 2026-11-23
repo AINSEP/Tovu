@@ -48,6 +48,29 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
   this slice; `resolveWorkspaceForHost` is accepted as an injected function, and `country`/`region`
   are emitted as `null` pending a `GeoIpPort` that does not exist yet.
 
+## Type model and the removed barrel
+
+`contracts.ts` (`VisitorAnalyticsDeps`, `BrowserAnalyticsSource`) moved to
+`@jini-ai/analytics/site/contracts`; the `index.ts` barrel that re-exported it beside
+`jini-adapters.ts` was deleted, so callers import `#src/features/analytics/jini-adapters` and
+the Jini specifier directly. The barrel's type-model notes are kept here:
+
+The type model behind these ports lives in `@jini-ai/analytics`; this host persists it as follows.
+
+- Reuses core primitives from `src/contracts/core/ports.ts` (UUID/ISODateTime/JsonObject) — this
+  file introduces no new primitive kinds, staying inside ADR-007's workspace-scoping and
+  the frozen serializable ABI (ADR-024 §3 / ADR-005).
+- Row types below are **core-owned single-writer sidecars** in the per-site `content.db`
+  (ADR-012), mirroring the media sidecar precedent (ADR-027 §2): high-volume operational
+  counters that deliberately narrow ADR-022's revision-per-write discipline (INV-3) and
+  carry their own attribution, rather than generating an entry revision per hit.
+
+Design invariant — NO PII AT REST:
+Nothing persisted here is personal data. IP and User-Agent are consumed transiently at
+ingest (IP → country, UA → device class) and then discarded; the only visitor identifier
+is `visitorHash`, a daily-rotating, per-site, salted, non-reversible digest (cookie-less,
+not cross-site, not cross-day). This is the Plausible/Fathom mechanism.
+
 ## Known open items (carried from ADR-035)
 
 - **`KeyringPort` mismatch (Round-2 audit blocker).** `src/webhooks/ports.ts`'s `KeyringPort`

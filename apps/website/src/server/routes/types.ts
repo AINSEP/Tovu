@@ -625,7 +625,7 @@ export interface SettingsDeps {
    */
   settingsRepo: SettingsRepoPort;
   /** Site-owned immutable policies; omitted only by hermetic callers without a durable store. */
-  consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
+  consentStore?: import('@jini-ai/cookie-consent/site/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
   /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
@@ -741,10 +741,10 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
-  browserAnalytics?: import('#src/features/analytics/contracts').BrowserAnalyticsSource;
+  browserAnalytics?: import('@jini-ai/analytics/site/contracts').BrowserAnalyticsSource;
   /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
-  visitorAnalyticsProof?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
-  visitorAnalyticsDeliveryAllowed?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
+  visitorAnalyticsProof?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsProof'];
+  visitorAnalyticsDeliveryAllowed?: import('@jini-ai/analytics/site/contracts').VisitorAnalyticsDeps<Request>['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
   /** One facade for product events, redacted/deduplicated errors and scoped tracing.

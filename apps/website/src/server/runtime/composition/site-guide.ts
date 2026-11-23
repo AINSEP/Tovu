@@ -16,7 +16,7 @@ import { capabilityCard as forms } from "#src/features/forms/capability-card";
 import { capabilityCard as widgets } from "#src/features/widgets/capability-card";
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { capabilityCard as members } from "#src/features/members/capability-card";
-import { capabilityCard as seo } from "#src/features/seo/capability-card";
+import { capabilityCard as seo } from "@jini-ai/cms/seo/site/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
 import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";

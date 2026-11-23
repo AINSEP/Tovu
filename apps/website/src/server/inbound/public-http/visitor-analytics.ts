@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import type { ConsentAnalyticsProof } from "@jini-ai/cookie-consent";
-import type { VisitorAnalyticsDeps as AnalyticsDeps } from '#src/features/analytics/index';
+import type { VisitorAnalyticsDeps as AnalyticsDeps } from '@jini-ai/analytics/site/contracts';
 /** Express belongs to the HTTP adapter; the analytics port is request-type agnostic. */
 export type VisitorAnalyticsDeps = AnalyticsDeps<Request>;
 
