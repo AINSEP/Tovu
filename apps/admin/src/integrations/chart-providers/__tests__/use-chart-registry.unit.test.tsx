@@ -4,8 +4,8 @@ import { afterEach, expect, it } from "vitest";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { ChartProvider } from "@jini-ai/core/contracts/charts";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeChartRegistryPort } from "../chart-registry-dependencies.hooks";
 import { useAdminChartRegistry } from "../use-chart-registry.hooks";
 
@@ -101,6 +101,6 @@ it.each(["builtin", "tanstack"] as const)("%s: boot, plugin toggle and site defa
   expect(result.current.snapshot.registry.resolveById({ id: "recharts.line-chart" })?.provider).toBe("plugin.line");
   expect(result.current.snapshot.registry.resolveById({ id: "recharts.bar-chart" })?.provider).toBe("plugin.recharts");
   port.snapshot = { ...port.snapshot, generation: "agent-change", providers: [] };
-  act(() => publishContentRefresh(["plugins"]));
+  act(() => publishContentRefresh({ resources: ["plugins"] }));
   await waitFor(() => expect(result.current.snapshot.generation).toBe("agent-change"));
 });

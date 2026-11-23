@@ -2,9 +2,9 @@ import { buildAgentScreens } from "@jini-ai/admin/core";
 import { resolvePageNavigation, type AgentNavigationScreen, type PageEntityLookup, type PageNavigationInput } from "@jini-ai/agentic";
 import type { DomPageDriverPage } from "@jini-ai/agentic/dom";
 import { ADMIN_PANELS } from "../panels";
-import { currentRoutePath, navigate } from "./router";
+import { currentRoutePath, navigate } from "@jini-ai/admin/shell/lib/router";
 import { ADDONS_PANEL_PATHS } from "./addons-routes";
-import { publishContentRefresh } from "./content-refresh-bus";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { lookupAdminNavigationEntity } from "./agent-navigation-entities";
 
 /**

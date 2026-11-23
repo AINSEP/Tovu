@@ -126,7 +126,7 @@ import {
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { Workspace } from "../workspace";
 import { t as tWorkspace } from "../workspace/workspace-i18n";
 import { describeSaveStatus, resolveByokConfig } from "./rules";

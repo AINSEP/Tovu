@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
-import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
+import { setAdminDraftIdentity, getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
@@ -11,7 +11,7 @@ import {
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 /** @file The pure (non-hook) pieces of `useAdminSession` in `App.hooks.ts`: session reads, sign-in and sign-out. */
 

@@ -3,7 +3,7 @@ import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRul
 
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { adminKit } from "@/integrations/jini-kits";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";

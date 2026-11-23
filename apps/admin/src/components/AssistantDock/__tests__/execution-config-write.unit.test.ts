@@ -6,10 +6,10 @@ vi.mock("@/lib/execution-settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/execution-settings")>()),
   saveExecutionConfig: vi.fn(),
 }));
-vi.mock("@/lib/settings-refresh-bus", () => ({ publishSettingsRefresh: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/settings-refresh-bus", () => ({ publishSettingsRefresh: vi.fn() }));
 
 import { DEFAULT_EXECUTION_CONFIG, saveExecutionConfig } from "@/lib/execution-settings";
-import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";
 
 const mockSave = vi.mocked(saveExecutionConfig);

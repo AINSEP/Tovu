@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mediaApi, createMediaProvidersPort, mediaSessionGrants, mediaEvents } from '../media-ports';
-import { publishContentRefresh } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-catalog';
 import { ApiError } from '../../../lib/admin-http/request';
 afterEach(() => vi.unstubAllGlobals());
@@ -246,8 +246,8 @@ describe('host media ports', () => {
   });
   it('refreshes only media or unknown changes and unsubscribes on disposal', () => {
     const refresh = vi.fn(); const dispose = mediaEvents.subscribe({ onRefresh: refresh });
-    publishContentRefresh(['posts']); expect(refresh).not.toHaveBeenCalled();
-    publishContentRefresh(['media']); publishContentRefresh(); expect(refresh).toHaveBeenCalledTimes(2);
-    dispose(); publishContentRefresh(['media']); expect(refresh).toHaveBeenCalledTimes(2);
+    publishContentRefresh({ resources: ['posts'] }); expect(refresh).not.toHaveBeenCalled();
+    publishContentRefresh({ resources: ['media'] }); publishContentRefresh(); expect(refresh).toHaveBeenCalledTimes(2);
+    dispose(); publishContentRefresh({ resources: ['media'] }); expect(refresh).toHaveBeenCalledTimes(2);
   });
 });

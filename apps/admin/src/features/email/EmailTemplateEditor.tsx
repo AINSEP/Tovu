@@ -7,10 +7,10 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import "@jini-ai/ui/settings-dialog.css";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { DEVICE_PREVIEW_WIDTHS } from "../../components/DevicePreview/DevicePreview.hooks";
+import { DEVICE_PREVIEW_WIDTHS } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import { ADMIN_BASE, adminHref } from "../../lib/router";
+import { ADMIN_BASE, adminHref } from "@jini-ai/admin/shell/lib/router";
 import { t as pageEditorT } from "../pages/page-editor-i18n";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { t } from "./email-i18n";

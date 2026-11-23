@@ -32,7 +32,7 @@
  */
 import { HttpAgent } from "@ag-ui/client";
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
-import { uniqueId } from "./unique-id";
+import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 /** Must match `apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
 const CUSTOM_EVENT_NAMES = { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." };

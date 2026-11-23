@@ -5,7 +5,7 @@ import { EmailTemplateEditor } from "../EmailTemplateEditor";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 import { createEditorController } from "./email-controller.test-helpers";
 import { TEMPLATE } from "./email.test-helpers";
-import { installInternalLinkInterceptor } from "../../../lib/router";
+import { installInternalLinkInterceptor } from "@jini-ai/admin/shell/lib/router";
 
 vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
 

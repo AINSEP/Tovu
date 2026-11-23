@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useT } from "@jini-ai/chat/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { useMessageOverflowModal } from "./MessageOverflowModal.hooks";
+import { useMessageOverflowModal } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 
 /**
  * @file The chat pane's "Show in modal" surface (owner request, chat-overflow fix 2026-08-30):

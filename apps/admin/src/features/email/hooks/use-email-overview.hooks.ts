@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ApiError } from "@/lib/admin-http/request";
 import { emailApi, type EmailApi, type MailTestSendResult, type MailUseRow } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
-import { uniqueId } from "../../../lib/unique-id";
+import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 
 /**
  * @file Overview tab state beyond the status read: **What uses email** (`GET …/mail-uses`) and

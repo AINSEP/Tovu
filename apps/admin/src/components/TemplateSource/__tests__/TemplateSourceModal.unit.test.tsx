@@ -4,10 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TemplateSourceModal } from "../TemplateSourceModal";
 import type { TemplateSourceFetchState } from "../use-template-source.hooks";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { resolveRequestedThemeExploreSelection } from "@/features/themes/hooks/theme-explore-url.hooks";
 
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
 
 const t = (key: string) => key;
 /** Every case below leaves a real dirty-guard decision out of scope (see the "Edit button" describe

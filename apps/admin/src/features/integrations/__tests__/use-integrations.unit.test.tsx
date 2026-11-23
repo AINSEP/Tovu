@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { WEBHOOKS_RESOURCE } from "../rules";
@@ -254,11 +254,11 @@ describe("useIntegrations — content refresh bus", () => {
 
     port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.subscriptions).toHaveLength(1);
 
-    act(() => publishContentRefresh([WEBHOOKS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [WEBHOOKS_RESOURCE] }));
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(2));
   });
 

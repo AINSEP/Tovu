@@ -3,7 +3,7 @@ import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminSourceControlProviderId } from "./api/source-control-api.types";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
@@ -15,7 +15,7 @@ import type {
 } from "./hooks/use-source-control-credentials.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Providers tab — `SourceControl.tsx`'s one tab today, and this feature's actual content.
  * Three always-visible rows — GitHub, GitLab, Bitbucket, in that order (GitHub is the one that

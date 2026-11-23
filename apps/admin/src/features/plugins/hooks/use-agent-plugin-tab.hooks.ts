@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 const TAB_IDS = ["installed", "downloaded", "add", "marketplace"] as const;

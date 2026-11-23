@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
-import { setAdminDraftIdentity } from "../admin-draft-identity";
+import { setAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 
 // A fresh dev server registers the agent daemon without spawning it, and an idle daemon parks. A page
 // read answered "not running yet" put a red notice on screen although nothing was wrong; the

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiAssistant } from "../AiAssistant";
 import { getNav } from "@/nav";
-import { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } from "../../../lib/assistant-dock-bus";
+import { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 
 /**
  * @file The "AI Assistant" admin screen — the public assistant's master switch plus the

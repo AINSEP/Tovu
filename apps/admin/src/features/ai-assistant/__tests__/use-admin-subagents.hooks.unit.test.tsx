@@ -6,7 +6,7 @@ import {
   useAdminSubagents, useAssistantSubagentsSettings, useDockAgentPermissions, useWiredAdminSubagents, useWiredAssistantSubagentsSettings,
 } from "../hooks/use-admin-subagents.hooks";
 import { assistantSubagentsPort, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
-import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 
 const ALL_ON = { ...assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }), canEdit: true };
 

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "../other-credential-stores";

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
 import { ApiError } from '@/lib/admin-http/request';
-import { navigate } from '@/lib/router';
+import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { adminKit } from '@/integrations/jini-kits';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';
 import { CookieConsent } from '../CookieConsent';
 import type { ConsentRevisionsPort } from '../settings.hooks';
 import { CONSENT_CONFIG, conflict, consentSnapshot, fakeConsentPort, revision, saved } from './consent-fixtures';
 
-vi.mock('@/lib/router', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/router')>()), navigate: vi.fn() }));
+vi.mock('@jini-ai/admin/shell/lib/router', async importOriginal => ({ ...(await importOriginal<typeof import('@jini-ai/admin/shell/lib/router')>()), navigate: vi.fn() }));
 
 /** @file The Cookie Consent page: tab routing, Publish gating, notices, and the inert preview. */
 

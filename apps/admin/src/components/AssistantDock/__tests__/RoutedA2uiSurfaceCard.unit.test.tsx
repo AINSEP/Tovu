@@ -37,7 +37,7 @@ import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import {
   resetPlaygroundRenderTargetBus,
   setPlaygroundRenderTarget,
-} from "@/lib/playground-render-target-bus";
+} from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 // A test supplies its own clock port; the system clock lives in the platform package.
 const testClock: Clock = { nowMs: () => Date.now() };
