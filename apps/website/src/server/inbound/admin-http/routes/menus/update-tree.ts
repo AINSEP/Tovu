@@ -11,7 +11,7 @@ import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
 import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
+import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 import type { Response } from "express";
 
 /** The PUT body's fields, read off an untyped body, or `null` if `items` is not an array. `items` may

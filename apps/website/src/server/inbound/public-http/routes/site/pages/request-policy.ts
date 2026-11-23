@@ -1,5 +1,5 @@
 import type { NextFunction, Request } from "express";
-import { listingState } from "./listing/listing-state.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 
 /**
  * Set by `features/site-export/site-exporter.ts`'s `exportFetch` on every request its crawl makes

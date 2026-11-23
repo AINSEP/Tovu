@@ -5,7 +5,7 @@ import express from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { SitesWorkspace } from '#src/platform/site-dir/sites-home';
-import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from '../../local-sites.js';
+import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from '../../../system/sites.js';
 import { registerSitesHomeRoutes } from '../../sites-home.js';
 
 const ROOT = '/api/admin/v1/workspaces/:workspaceId/system/sites';

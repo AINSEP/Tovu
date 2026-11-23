@@ -10,8 +10,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminRedirectHitsRoute } from "../hits.js";
-import type { RedirectRouteDeps } from "#src/server/inbound/admin-http/http/redirects";
+import { registerAdminRedirectHitsRoute } from "#src/server/runtime/composition/modules/redirects";
+import type { RedirectRouteDeps } from "#src/server/runtime/composition/modules/redirects";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Express {
