@@ -208,6 +208,40 @@ test("publish-credentials: a successful verify (status 'valid' with an accountLa
   assert.equal(list.credentials[0].accountLabel, "octocat");
 });
 
+/** B231: the account-label heal is a SECOND write after the key is already saved. If that heal
+ *  write fails, the key is still stored — so the route must still answer 201 with the saved
+ *  credential. Before the fix the heal error escaped into `sendStoreError` and the owner saw a 500
+ *  for a key that WAS saved; retrying then hit DUPLICATE_LABEL, a conflict with their own key. */
+test("publish-credentials: a failing account-label heal after a successful save still answers 201 (key saved, no false error)", async (t) => {
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
+  const repo = deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort;
+  repo.updateAccountLabel = async () => { throw new Error("database is locked"); };
+  const warn = t.mock.method(console, "warn", () => {});
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    return new Response(JSON.stringify({ login: "octocat" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  t.after(() => { globalThis.fetch = original; });
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const body = await created.json();
+  assert.equal(body.credential.label, "gh");
+  assert.equal(body.verification.status, "valid");
+  const list = await (await fetch(base, { headers: { cookie } })).json();
+  assert.equal(list.credentials.length, 1);
+  assert.equal(list.credentials[0].accountLabel, null);
+  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]).includes("ERR-PUBLISH-CREDENTIAL-LABEL-HEAL")));
+});
+
 test("publish-credentials: a mismatched workspaceId in the URL 404s on every verb", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);

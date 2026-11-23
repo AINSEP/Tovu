@@ -217,7 +217,17 @@ function buildVerifyAfterSave({ deps }: { deps: AdminPublishCredentialsDeps }): 
       { workspaceId: deps.workspaceId, id }
     );
     if (result?.accountLabel !== undefined) {
-      await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+      // B231: the heal is a second, best-effort write AFTER the key is already saved. It cannot join
+      // the save's own write — the label only exists once the provider probe (a network call) has
+      // answered, and no transaction may stay open across that. So a failed heal is logged, never
+      // thrown: throwing turned a saved key into a 500, and the owner's retry then hit
+      // DUPLICATE_LABEL against their own key. The row stays consistent (label just stays `null`)
+      // and the next list re-schedules the heal.
+      try {
+        await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+      } catch (err) {
+        console.warn(`[publish-credentials] ERR-PUBLISH-CREDENTIAL-LABEL-HEAL: the key ${id} was saved, but its account name could not be stored. It will be retried the next time the keys are listed.`, err);
+      }
     }
     return result ?? undefined;
   };
