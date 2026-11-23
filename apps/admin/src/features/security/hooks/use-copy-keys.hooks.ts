@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type Mou
 
 import type { AdminCredentialCopySource, AdminCredentialCopyResult } from '@/features/security/api/security-api.types';
 import { securityApi } from '@/features/security/api/security-api';
-import { publishContentRefresh } from '@/lib/content-refresh-bus';
+import { publishContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { ACCESS_TOKENS_RESOURCE } from '../rules';
 
 import { type Translate } from '@jini-ai/core/text';
@@ -62,7 +62,7 @@ export function useCopyKeys({ t }: { t: Translate }, { port = securityApi }: { p
     try {
       const response = await client.copyCredentials({ sourceSiteId: SHARED_KEYS, ids: [credentialId], overwrite: false });
       setResults(response.results);
-      publishContentRefresh([ACCESS_TOKENS_RESOURCE]);
+      publishContentRefresh({ resources: [ACCESS_TOKENS_RESOURCE] });
     } catch { setError(GRANT_FAILED); }
     finally { busy.current = false; setPending(false); }
   };

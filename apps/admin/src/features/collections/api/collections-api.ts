@@ -1,5 +1,5 @@
 import { request } from "../../../lib/admin-http/request";
-import { querySuffix } from "../../../lib/query-suffix";
+import { querySuffix } from "@jini-ai/core/admin-runtime";
 import type { AdminContentType, AdminEntry, ContentTypeFieldDef, ContentTypeLifecycleOp } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 
 /** The admin API calls of the collections feature. */

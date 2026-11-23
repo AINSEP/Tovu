@@ -1,4 +1,4 @@
-import type { TemplateSourcePort } from "./template-source-port.hooks";
+import type { TemplateSourcePort } from "@jini-ai/admin/shell/components/TemplateSource/template-source-port.hooks";
 
 /**
  * @file The only place `use-template-source.hooks.ts` reaches the real network — see

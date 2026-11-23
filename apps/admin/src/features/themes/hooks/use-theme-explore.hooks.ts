@@ -5,7 +5,7 @@ import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard, type DirtyGuard, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { homeFallbackPublishReason } from "../../pages/lib/theme-page-publish-state";
 import { THEME_FILES_RESOURCE } from "../rules";

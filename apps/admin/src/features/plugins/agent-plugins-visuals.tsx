@@ -1,4 +1,4 @@
-import { LINE_ICON } from "../../components/line-icon";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 import { Icon, ICON_PATH_DATA } from "@jini-ai/ui";
 /**
  * @file The Agent Plugins screen's icon adapters. Exact repeated shapes use Jini UI's icon

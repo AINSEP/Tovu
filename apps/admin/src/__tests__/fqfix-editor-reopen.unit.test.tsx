@@ -1,6 +1,8 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from './fetch-query-provider.test-helper';
+import { AdminKitProvider } from '@jini-ai/admin/react/kit';
+import { adminKit } from '../integrations/jini-kits';
 import type { ReactNode } from 'react';
 import type { AdminPost } from '@/features/posts/api/posts-api.types';
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
@@ -27,7 +29,8 @@ const t = (key: string) => key;
 
 describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', adapter => {
   function Scope({ children }: { children?: ReactNode }) {
-    return <FetchQueryProvider adapter={adapter}>{children}</FetchQueryProvider>;
+    // The page editor reads its settlement counter from the admin kit, as under main.tsx.
+    return <AdminKitProvider kit={adminKit}><FetchQueryProvider adapter={adapter}>{children}</FetchQueryProvider></AdminKitProvider>;
   }
   it('reopens a page at the fresh version and preserves subsequent local edits', async () => {
     const page: AdminPost = { id: 'p1', workspaceId: 'ws1', kind: 'page', slug: 'landing', title: 'Cached page',

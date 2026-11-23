@@ -1,5 +1,5 @@
 import { decodePublishCriteriaFromQuery, PUBLISH_CRITERIA_QUERY_PARAM, type PublishCriteria } from "@tovu/publish-content-ui";
-import { querySuffix } from "./query-suffix";
+import { querySuffix } from "@jini-ai/core/admin-runtime";
 
 /**
  * @file `publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2, the owner's own "PLUS" instruction

@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
-import { ADMIN_BASE } from "./router";
+import { ADMIN_BASE } from "@jini-ai/admin/shell/lib/router";
 
 /**
  * @file The admin's own errors and page views, sent to `POST /api/admin/v1/telemetry` through the

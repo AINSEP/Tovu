@@ -1,5 +1,5 @@
 import { type Translate, interpolate } from "@jini-ai/core/text";
-import { isUnexpectedServerFailure } from "@/lib/server-failure";
+import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
 import { ApiError } from "@/lib/admin-http/request";
 import { publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";

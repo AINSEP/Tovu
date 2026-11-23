@@ -5,7 +5,7 @@ import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import type { AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash, useWiredTrash } from "../hooks/use-trash.hooks";
 import type { TrashPort } from "../hooks/trash-port.hooks";
@@ -270,7 +270,7 @@ describe("useTrash", () => {
 
     // An agent deletes a post: `content_post_delete` writes an index row and publishes on the bus.
     page = [item()];
-    act(() => publishContentRefresh([TRASH_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [TRASH_RESOURCE] }));
 
     await waitFor(() => expect(result.current.items).toEqual([item()]));
   });
@@ -296,7 +296,7 @@ describe("useTrash", () => {
 
     // The 60-day sweeper, or another operator, removed one of them.
     page = [item({ id: "a" })];
-    act(() => publishContentRefresh([TRASH_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [TRASH_RESOURCE] }));
 
     await waitFor(() => expect([...result.current.selected]).toEqual(["a"]));
   });

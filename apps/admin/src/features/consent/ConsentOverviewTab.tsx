@@ -1,5 +1,5 @@
 
-import { adminHref } from "@/lib/router";
+import { adminHref } from "@jini-ai/admin/shell/lib/router";
 import { consentProblemTab } from "./rules";
 import type { ConsentReadiness } from "./settings.hooks";
 

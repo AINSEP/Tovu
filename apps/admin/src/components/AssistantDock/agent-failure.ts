@@ -1,7 +1,7 @@
 /** Compatibility copy of the proposed @jini-ai/chat/core failure API; see the Jini patch. */
 import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
 
-import { redactCredentialShapes, redactSecretAssignments, stripControlCharacters, stripCsiSequences, stripOscSequences } from "./agent-failure-scanners";
+import { redactCredentialShapes, redactSecretAssignments, stripControlCharacters, stripCsiSequences, stripOscSequences } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure-scanners";
 
 import { isAbortError } from '@jini-ai/core/text';
 export interface AgentFailureHint {

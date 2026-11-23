@@ -280,11 +280,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/lib/browser-stream.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/lib/browser-telemetry.ts",
     "rule": "catch-reads-error",
     "value": 1

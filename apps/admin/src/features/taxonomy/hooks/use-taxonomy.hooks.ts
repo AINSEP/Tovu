@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
+import { contentRefreshApplies, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import {
   describeDeleteBlocked,
   describeTrashError,

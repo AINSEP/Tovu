@@ -17,7 +17,7 @@ import { WidgetAddControl } from '../../../components/WidgetPickerDialog/WidgetP
 import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../../components/WidgetConfigFields/WidgetConfigFields';
 import type { AdminWidgetType as HostWidgetType } from '@jini-ai/admin/screens/widgets/api/widgets-api.types';
 import { tovuKit } from '../kit';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
@@ -171,12 +171,12 @@ describe('Jini widgets host switch', () => {
     const read = vi.spyOn(api, 'listWidgets');
     const view = render(node(<WidgetsLibrary />));
     await screen.findByRole('heading', { name: 'Widgets' });
-    act(() => publishContentRefresh(['widgets-regions']));
+    act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(read).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['widgets-library']));
+    act(() => publishContentRefresh({ resources: ['widgets-library'] }));
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
     view.unmount();
-    act(() => publishContentRefresh(['widgets-library']));
+    act(() => publishContentRefresh({ resources: ['widgets-library'] }));
     expect(read).toHaveBeenCalledTimes(2);
   });
 
@@ -205,7 +205,7 @@ describe('Jini widgets host switch', () => {
     fireEvent.click(enabled);
     expect(enabled).not.toBeChecked();
     locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" />));
-    act(() => publishContentRefresh(['widgets-regions']));
+    act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(view.container.querySelector('input[type="checkbox"]')).toBe(enabled);
     expect(enabled).not.toBeChecked();
     expect(read).toHaveBeenCalledTimes(1);

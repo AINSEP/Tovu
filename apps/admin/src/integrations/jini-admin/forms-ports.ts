@@ -4,8 +4,8 @@ import { FORMS_LIST_RESOURCE, type AdminFormsPort, type FormsCatalogPort, type F
 import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateForms } from '../../features/forms/forms-i18n';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';
-import { navigate } from '../../lib/router';
-import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
+import { navigate } from '@jini-ai/admin/shell/lib/router';
+import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';
 import { formsCatalog } from './forms-catalog-ports';
 

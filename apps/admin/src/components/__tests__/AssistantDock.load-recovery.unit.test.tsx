@@ -28,7 +28,7 @@ vi.mock("../../lib/execution-settings", async (importOriginal) => {
     loadAdminExecutionCredential: vi.fn(),
   };
 });
-vi.mock("../../lib/settings-refresh-bus", () => ({
+vi.mock("@jini-ai/admin/shell/lib/settings-refresh-bus", () => ({
   publishSettingsRefresh: vi.fn(),
   subscribeToSettingsRefresh: vi.fn(() => () => {}),
 }));

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AdminPermanentDeletes } from "../AdminPermanentDeletes";
 import { useAdminPermanentDeletes } from "../hooks/use-admin-permanent-deletes.hooks";
 import { PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS, ASSISTANT_PERMANENT_DELETES_NAMESPACE, type AssistantPermanentDeletesPort, type AssistantPermanentDeletesSettings } from "@/lib/assistant-permanent-deletes";
-import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 function fakePort(initial: AssistantPermanentDeletesSettings = { enabled: false, allowedToolIds: [], canEdit: true }) {
   let settings = structuredClone(initial), failure: Error | null = null;
   const writes: Parameters<AssistantPermanentDeletesPort["write"]>[0][] = [];

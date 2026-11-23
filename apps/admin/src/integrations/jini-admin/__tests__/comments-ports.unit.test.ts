@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommentsTransportPort } from '@jini-ai/admin/comments/adapters/http';
 import { commentsEvents, commentsSessionGrants, createCommentsHostPorts, createCommentsQueueScope, createCommentsTranslator } from '../comments-ports';
 import { WORKSPACE_ID } from '../../../lib/admin-http/config';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 afterEach(resetContentRefreshBus);
 
@@ -68,14 +68,14 @@ describe('comments host ports', () => {
   it('refreshes the queue for its resource/unknown scope, excludes settings and unsubscribes', () => {
     const onRefresh = vi.fn();
     const unsubscribe = commentsEvents.subscribe({ onRefresh });
-    publishContentRefresh(['comments-settings']);
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['comments-settings'] });
+    publishContentRefresh({ resources: ['media'] });
     expect(onRefresh).not.toHaveBeenCalled();
-    publishContentRefresh(['comments-queue']);
+    publishContentRefresh({ resources: ['comments-queue'] });
     publishContentRefresh();
     expect(onRefresh).toHaveBeenCalledTimes(2);
     unsubscribe();
-    publishContentRefresh(['comments-queue']);
+    publishContentRefresh({ resources: ['comments-queue'] });
     expect(onRefresh).toHaveBeenCalledTimes(2);
   });
 });

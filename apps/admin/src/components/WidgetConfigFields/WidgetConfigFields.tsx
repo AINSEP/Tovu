@@ -14,9 +14,10 @@ import {
   useSocialLinksConfig,
 } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
-import { asciiSlug } from "../../lib/ascii-slug";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
+import { trimChars } from "@jini-ai/core/primitives";
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
  * field sets read directly off `src/widgets/registry.ts`'s five `configSchema` records (no field
@@ -180,7 +181,7 @@ function findContentType({ collections, key }: { collections: AdminContentType[]
  *  `tovu_feature` example collection carries — which `agentHandle` throws on verbatim. Used only
  *  for the handle text; the visible label still goes through {@link humanizeFieldName}. */
 function fieldHandleSegment({ name }: { name: string }, _options: Record<string, never> = {}): string {
-  return asciiSlug({ text: name });
+  return asciiSlug({ text: name, trimChars });
 }
 
 /** The Collection `<select>` — its own component because the loading/error states from

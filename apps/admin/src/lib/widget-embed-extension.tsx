@@ -11,7 +11,7 @@ import { PlacementContentFields } from "../components/WidgetConfigFields/Placeme
 import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttributeRows";
 import { t as sharedComponentsT } from "../components/shared-components-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
-import { uniqueId } from "./unique-id";
+import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 
 /**
  * @file The shared TipTap `widgetEmbed` node extension (SPEC-043 REQ-18, `ui.spec.md` §3.10/§4.9) —

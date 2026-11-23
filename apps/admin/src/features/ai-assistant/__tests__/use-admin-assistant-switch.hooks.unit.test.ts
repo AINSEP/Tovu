@@ -22,7 +22,7 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-const { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } = await import("../../../lib/assistant-dock-bus");
+const { publishAssistantDockState, resetAssistantDockBus, subscribeToAssistantDockRequests } = await import("@jini-ai/admin/shell/lib/assistant-dock-bus");
 const { useAdminAssistantSwitch } = await import("../hooks/use-admin-assistant-switch.hooks");
 
 afterEach(() => {

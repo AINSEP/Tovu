@@ -9,7 +9,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
 import {

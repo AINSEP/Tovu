@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useSelectDropdown } from "../Select/Select.hooks";
+import { useSelectDropdown } from "@jini-ai/admin/shell/components/Select/Select.hooks";
 
 import { resolveSelectTriggerLabel, Select, type SelectOption } from "../Select/Select";
 

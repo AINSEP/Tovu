@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ApiError } from "@/lib/admin-http/request";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 import { KEYS, TAXONOMY_RESOURCE } from "../rules";
@@ -453,11 +453,11 @@ describe("useTaxonomy — content refresh bus", () => {
     port.groups.push(NEW_GROUP);
 
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
-    act(() => publishContentRefresh(["posts"]));
+    act(() => publishContentRefresh({ resources: ["posts"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.taxonomies).toEqual([GROUP]);
 
-    act(() => publishContentRefresh([TAXONOMY_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [TAXONOMY_RESOURCE] }));
     await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP, NEW_GROUP]));
   });
 

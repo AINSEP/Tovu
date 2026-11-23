@@ -1,6 +1,6 @@
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useCallback } from "react";
-import { useAdminBootScope } from "../lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { APPEARANCE_NAMESPACE, type AppearanceConfig } from "../lib/settings-tabs";
 
 // A controlled draft can change while the shell's initial read is still pending. Invalidate

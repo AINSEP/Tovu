@@ -6,7 +6,7 @@ import { MenuEditor, MenuItemTargetFields } from "../MenuEditor";
 import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { installInternalLinkInterceptor, useRouteLocation } from "../../../lib/router";
+import { installInternalLinkInterceptor, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 
 /**
  * @file `MenuEditor`'s nested-item tree — pins the fix for the audit's Major finding: "Remove"

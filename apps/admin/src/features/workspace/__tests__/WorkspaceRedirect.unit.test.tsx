@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { WorkspaceRedirect } from "../WorkspaceRedirect";
-import { currentRoutePath } from "@/lib/router";
+import { currentRoutePath } from "@jini-ai/admin/shell/lib/router";
 
 const originalUrl = window.location.href;
 afterEach(() => { window.history.replaceState(null, "", originalUrl); });

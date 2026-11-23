@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
+import { unchangedSaveHandlers } from "@jini-ai/admin/shell/lib/unchanged-save-warning";
 
 /**
  * @file The post/page editor's UI-interaction layer — every onClick/onChange handler `PostEditor.tsx`
