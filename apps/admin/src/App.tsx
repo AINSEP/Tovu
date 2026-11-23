@@ -32,7 +32,7 @@ import { translateAdminNavGroups } from "@jini-ai/admin/shell/lib/admin-nav-i18n
 import { translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
-import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useDrawerActiveItemCentring } from "@jini-ai/admin/shell/hooks/use-drawer-active-item-centring.hooks";
 import { useAgentScreenRoute } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
@@ -223,11 +223,11 @@ function gatedRouteElement({ route, siteSection, access }: { route: Route; siteS
  * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
  * without a shared dispatch to edit.
  */
-function renderRoute({ route, siteSection, access }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess }, _options: Record<string, never> = {}): ReactNode {
+function renderRoute({ route, siteSection, access, useAdminLocaleHook }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess; useAdminLocaleHook: UseAdminLocaleHook }, _options: Record<string, never> = {}): ReactNode {
   // Replace the old URL before mounting its screen; the canonical route retains the same gate.
   if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
   if (route.unknownSectionId !== undefined) {
-    return <Placeholder sectionId={route.unknownSectionId} />;
+    return <Placeholder sectionId={route.unknownSectionId} useAdminLocaleHook={useAdminLocaleHook} />;
   }
   const gated = gatedRouteElement({ route, siteSection, access });
   if (gated !== undefined) return gated;
@@ -237,7 +237,7 @@ function renderRoute({ route, siteSection, access }: { route: Route; siteSection
   // `dashboard`. The legacy `/section/:id` branch returns early above for an unregistered id.
   const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
   if (!panel) throw new Error(`admin panel is missing for ${route.panelId ?? "dashboard"}`);
-  return panel.render({ view: route.view, params: route.params, query: route.query, Placeholder });
+  return panel.render({ view: route.view, params: route.params, query: route.query, Placeholder, useAdminLocaleHook });
 }
 
 /**
@@ -423,6 +423,12 @@ function AssistantChrome({
 
 export interface AppProps {
   /**
+   * The host's one admin locale hook (`useHostAdminLocale`), required: `main.tsx` passes the same
+   * function it puts in `adminKit.hooks.useAdminLocale`. It reaches the shell locale, the early Login
+   * mount, the route registry (loading copy, Placeholder, module mounts) and the module scope.
+   */
+  useAdminLocaleHook: UseAdminLocaleHook;
+  /**
    * Injectable seam for the boot-time auth check — defaults to the real {@link useAdminSession}.
    * Every existing test of `App` pays for mocking `fetch`/`EventSource` and awaiting the boot
    * screen's exit before it can assert anything about routing or the shell, because there was no
@@ -566,15 +572,15 @@ function useShellContent(
   return { setContentEl, contentEl, agentBridge, screenshot, openPublishRequest };
 }
 
-function useShellLocale() {
+function useShellLocale({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}) {
   /**
    * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
-   * renders on every admin page, not just inside the settings dialog. `useWiredAdminLocale()`
-   * (shared with every translated content screen — see `use-admin-locale.hooks.ts`'s own doc
-   * comment) re-fetches on every `core.language` refresh notification, not just at mount, so
+   * renders on every admin page, not just inside the settings dialog. The injected host locale hook
+   * (shared with every translated content screen — see `useAdminLocale` in `@jini-ai/admin`)
+   * re-fetches on every `core.language` refresh notification, not just at mount, so
    * switching the Language setting updates the sidebar immediately instead of requiring a reload.
    */
-  const navLocale = useWiredAdminLocale();
+  const navLocale = useAdminLocaleHook({}, {});
   useAdminDocumentLocale({ locale: navLocale }, {});
   useAdminAppearance({}, {});
   // The operator's admin theme + scheme on <html> (Studio → Admin Themes).
@@ -705,7 +711,7 @@ function AdminShell({
   const { routePath, route } = useShellRouteHook({ user, checking });
   const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock, useDrawerCentring, useDockRail });
   const shellContent = useShellContentHook({ useAgentBridge, useTableLabels });
-  const { navLocale, interfacePreferences } = useShellLocaleHook();
+  const { navLocale, interfacePreferences } = useShellLocaleHook({ useAdminLocaleHook: props.useAdminLocaleHook });
   const { navGroups, navSoonLabel } = buildShellNav({ sidebarSiteSection, effectivePermissions, navLocale });
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });
 
@@ -713,9 +719,9 @@ function AdminShell({
   const collapsibleGroups = useCollapsibleNavGroupLabelsHook(navGroups);
 
   if (checking) return <div className="boot-screen">{tApp({ locale: navLocale, key: "Loading Tovu…" })}</div>;
-  if (!user) return <Login onLogin={handleLogin} />;
+  if (!user) return <Login onLogin={handleLogin} useAdminLocaleHook={props.useAdminLocaleHook} />;
 
-  const content: ReactNode = renderRoute({ route, siteSection, access: { permissions: effectivePermissions, locale: navLocale } });
+  const content: ReactNode = renderRoute({ route, siteSection, access: { permissions: effectivePermissions, locale: navLocale }, useAdminLocaleHook: props.useAdminLocaleHook });
 
   return (
     // Sets the translated "Cancel" once for every `ConfirmDialog` mounted anywhere beneath this
@@ -727,7 +733,7 @@ function AdminShell({
     // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `Jini packages/ui/src/features/i18n/dictionary-translator.ts`.
-    <AdminShellProviders permissions={effectivePermissions} principalId={user.id} locale={navLocale}>
+    <AdminShellProviders permissions={effectivePermissions} principalId={user.id} locale={navLocale} useAdminLocaleHook={props.useAdminLocaleHook}>
       <div className={resolveAdminLayoutClassName(interfacePreferences)}>
         <ShellSkipLink locale={navLocale} />
         <AdminSidebar activeId={currentPanelId(route)} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} dockRail={dockRail}
@@ -750,8 +756,8 @@ function AdminShell({
   );
 }
 
-function AdminShellProviders({ permissions, principalId, locale, children }: { permissions: readonly string[] | undefined; principalId: string; locale: string; children: ReactNode }) {
-  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS}>
+function AdminShellProviders({ permissions, principalId, locale, useAdminLocaleHook, children }: { permissions: readonly string[] | undefined; principalId: string; locale: string; useAdminLocaleHook: UseAdminLocaleHook; children: ReactNode }) {
+  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS} useAdminLocaleHook={useAdminLocaleHook}>
     <ChartRegistryProvider key={principalId} principalId={principalId}>
       <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale, key: "Cancel" })}>{children}</ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>

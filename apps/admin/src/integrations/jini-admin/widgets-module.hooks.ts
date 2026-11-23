@@ -3,7 +3,7 @@ import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentProps } from 'react';
 import { widgets, useWidgetsOptions, type WidgetsReactOptions, type WidgetsSlots } from '@jini-ai/admin/widgets/react';
 import type { AdminWidgetType as HostWidgetType } from '../../features/widgets/api/widgets-api.types';
-import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/WidgetConfigFields';
 import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPickerDialog';
 import { t as sharedComponentsT } from '../../components/shared-components-i18n';
@@ -31,12 +31,12 @@ const widgetsHostDefaults: Pick<WidgetsReactOptions, 'slots' | 'widgetTypes' | '
 /** Compose live locale and retained host slots with stable lazy pages and controller identity.
  * @returns Widgets bindings; disposing the enclosing admin scope retires its API scope. O(1).
  */
-export function createHostWidgetsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof widgets<HostModulePage, LazyTabView>> {
+export function createHostWidgetsModule({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}): ReturnType<typeof widgets<HostModulePage, LazyTabView>> {
   const feature = widgets({ ...widgetsHostDefaults, ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Locale refresh must not replace the factory/pages and discard an unsaved config or placement.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
-    const locale = useAdminLocaleHook();
+    const locale = useAdminLocaleHook({}, {});
     const options = useMemo<WidgetsReactOptions>(() => ({ ...widgetsHostDefaults, locale,
       t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel({ value, locale }),
       slugRedirectPath: (base, requestedId, item) => slugRedirectPath({ base, requestedId, item }),
@@ -48,8 +48,8 @@ export function createHostWidgetsModule(_required: Record<string, never>, { useA
 }
 
 /** Retain each screen's own translated notice while the scope or lazy page is loading. */
-export function WidgetsModuleLoading({ pageId, useAdminLocaleHook = useWiredAdminLocale }: { pageId: 'library' | 'editor' | 'regions' | 'region'; useAdminLocaleHook?: () => string }, _optional: Record<string, never> = {}): ReactElement {
-  const locale = useAdminLocaleHook();
+export function WidgetsModuleLoading({ pageId, useAdminLocaleHook }: { pageId: 'library' | 'editor' | 'regions' | 'region'; useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}): ReactElement {
+  const locale = useAdminLocaleHook({}, {});
   const keys = { library: 'Loading widgets…', editor: 'Loading widget…', regions: 'Loading regions…', region: 'Loading region…' };
   return createElement('div', { className: 'notice' }, createWidgetsTranslator({ locale })(keys[pageId]));
 }

@@ -2,7 +2,7 @@ import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
 import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentType } from 'react';
 import { comments } from '@jini-ai/admin/comments/react';
-import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { createCommentsTranslator } from './comments-ports';
 
 // The host Provider wraps the package Provider, so its element type is host-owned.
@@ -18,12 +18,12 @@ type HostCommentsModule = Omit<ReturnType<typeof comments<HostModulePage, LazyTa
  * @returns The comments module with a stable host Provider and unchanged page bindings.
  * @example createHostCommentsModule({})
  */
-export function createHostCommentsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): HostCommentsModule {
+export function createHostCommentsModule({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}): HostCommentsModule {
   const feature = comments({ ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Keep this component's identity for the scope lifetime; a locale refresh must not remount it.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
-    const locale = useAdminLocaleHook();
+    const locale = useAdminLocaleHook({}, {});
     const t = useMemo(() => createCommentsTranslator({ locale }), [locale]);
     return createElement(ScopeProvider, { admin, t, children });
   }
@@ -31,7 +31,7 @@ export function createHostCommentsModule(_required: Record<string, never>, { use
 }
 
 /** Preserve the original translated notice while the host scope or lazy page is loading. */
-export function CommentsModuleLoading({ useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string }): ReactElement {
-  const locale = useAdminLocaleHook();
+export function CommentsModuleLoading({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }): ReactElement {
+  const locale = useAdminLocaleHook({}, {});
   return createElement('div', { className: 'notice' }, createCommentsTranslator({ locale })('Loading Comments…'));
 }

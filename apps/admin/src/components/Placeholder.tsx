@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { getNav } from "../nav";
 import type { AdminNavItem } from "@jini-ai/core/contracts/site/nav";
-import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
 
@@ -159,22 +159,18 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
 };
 
 export function Placeholder({
-  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: {
+  useAdminLocaleHook, ...props }: {
   sectionId: string;
   note?: string;
   /** Passed straight through to {@link ComingSoonNotice}, or applied to this component's own
    *  "Unknown section" notice when `sectionId` matches nothing in `getNav()`. Omit to leave either
    *  branch untagged. */
   agentHandle?: string;
-  useWiredAdminLocaleHook?: typeof useWiredAdminLocale;
+  /** The host's locale hook, required: every renderer (the route registry, App's unknown-section
+   *  branch) passes the one host binding, so there is no default to drift from it. */
+  useAdminLocaleHook: UseAdminLocaleHook;
 }) {
-  // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
-  // other host dependency in this file to combine it with, not rendered in a loop, and its only
-  // renderers (App.tsx, panels.tsx) are both out of scope — so there is no duplicate fetch to
-  // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency. Points at
-  // `useWiredAdminLocale` (2026-08-14) only because `useAdminLocale` itself now requires an injected
-  // port — same non-decision otherwise.
-  const locale = useWiredAdminLocaleHook();
+  const locale = useAdminLocaleHook({}, {});
   const item = findNavItem({ sectionId: props.sectionId });
   if (!item) {
     const unknownSectionPrefix = localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale });

@@ -6,7 +6,7 @@ import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { AdminUser } from "./api/auth-api.types";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
@@ -17,6 +17,8 @@ import { useWiredLogin } from "./hooks/use-login.hooks";
  */
 export interface LoginProps {
   onLogin: (user: AdminUser) => void;
+  /** The host's one locale hook; App passes it to the early Login mount. */
+  useAdminLocaleHook: UseAdminLocaleHook;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` and
    * `@jini-ai/ui`'s `useCustomSelect` use. Defaulted to the real hook, so production callers pass
@@ -25,9 +27,9 @@ export interface LoginProps {
   useLoginHook?: typeof useWiredLogin;
 }
 
-export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
+export function Login({ onLogin, useAdminLocaleHook, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, failure, busy, submit, mfa } = useLoginHook({ onLogin });
-  const locale = useWiredAdminLocale();
+  const locale = useAdminLocaleHook({}, {});
   const t = createLoginTranslator({ locale });
 
   return (
