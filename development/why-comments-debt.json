@@ -3012,6 +3012,98 @@
     {
       "id": "e5ed0973dd76",
       "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "de2eac64487c",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Tovu apps/website/src/server/runtime/composition/modules/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "951a8a4e1069",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "de8d57491885",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ba16919da1e2",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e1409a7c52ca",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8413e892fa2f",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c843c3a8ee2f",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d5adcd5acb65",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e5676a2f7bac",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2dbb259277c7",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d78836330513",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e48ab568df01",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "82586eae0fcc",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1a008dd604be",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "421b36153160",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c25f86537ca6",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/http/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "007eda63f042",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/http/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "88051f01afd1",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "45c84ed0a49b",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ed6ee3a0dd09",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ad5a6381ab7d",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "06a98e8be102",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e50f8b6b22cf",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
     }
   ]
 }

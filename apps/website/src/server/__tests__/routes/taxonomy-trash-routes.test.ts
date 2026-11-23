@@ -13,7 +13,7 @@ import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/r
 import { registerAdminTaxonomyDeleteRoute } from "../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
 import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
 import { registerAdminTaxonomyAssignTermsRoute } from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
-import { registerAdminTrashRestoreRoute } from "../../inbound/admin-http/routes/trash/restore.js";
+import { registerAdminTrashRestoreRoute } from "#src/server/runtime/composition/modules/trash";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

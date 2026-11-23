@@ -33,3 +33,8 @@ and inject the disable write service (bound to `toMembersWriteServiceDeps(deps)`
 (bound to `memberRepo`, `removeMember`, `clock`) and `classifyMemberError` (the `features/members` error classes); list and
 get-by-id mount `"direct"`, disable and delete `"guarded"`, as before. `request-magic-link` (and `routes/members/deps.ts`)
 stays hand-written: its 429 carries a `Retry-After` header a Jini route refusal cannot carry yet.
+Trash (`runtime/composition/modules/trash.ts`, which now holds `TrashRouteDeps`/`TrashRouteRegistrar`) mounts
+`@jini-ai/cms/admin-http/routes/trash/{list,restore,purge,items}` (all `"direct"`, operations `routes/trash/<file>`) and binds
+`TRASH_READ_PERMISSION` + `deps.authorize` as the injected entry gate (`authorizeEntry`, so the port call keeps its exact
+`{ principalId, permission, workspaceId }` params), `mayActOnEntityType`/`filterVisibleTrashItems` as the per-kind policy,
+`moveToTrash` as the move and the column-only `posts.kind` query as `loadPostDisplayKinds`; `trash`/`clock` stay per-request getters.
