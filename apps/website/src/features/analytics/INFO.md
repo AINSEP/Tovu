@@ -103,3 +103,8 @@ The next slices (per ADR-035 Round-2 fold) are the Tier-3 bundled-plugin storage
 surface: `analytics_events` / `analytics_aggregate` / `analytics_session` / `analytics_goal_def`
 tables, the rollup job, the query surface, and the admin/AI-tool handlers. This module's
 `AnalyticsSinkPort` is the frozen seam that surface will be built behind.
+
+## Moved to Jini (K5-analytics-1)
+
+`tool-registrations` and `config.settings` now live in `@jini-ai/analytics/site/*`; importers use
+those subpaths directly. Tests stay here (`__tests__/recent-hits-tool.test.ts`, `config.settings.test.ts`).

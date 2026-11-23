@@ -629,7 +629,7 @@ export interface SettingsDeps {
   settingsRepo: SettingsRepoPort;
   /** Site-owned immutable policies; omitted only by hermetic callers without a durable store. */
   consentStore?: import('@jini-ai/cookie-consent/site/revisions').SiteConsentStore;
-  siteConsent?: import('#src/features/consent/service').SiteConsentService;
+  siteConsent?: import('@jini-ai/cookie-consent/site/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
   /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('@jini-ai/core/contracts/headless/site-cookie-consent').SiteCookieConsentDeps;

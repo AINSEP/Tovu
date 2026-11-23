@@ -4,7 +4,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import type { Express, Request, Response } from 'express';
 import { ToolInputError } from '@jini-ai/core';
 import { ForbiddenError } from '@jini-ai/cms/core';
-import type { SiteConsentService } from '#src/features/consent/service';
+import type { SiteConsentService } from '@jini-ai/cookie-consent/site/service';
 import { SiteConsentConflict } from '@jini-ai/cookie-consent/site/revisions';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import { authorizeOrRespond } from '#src/server/inbound/admin-http/authorize-guard';

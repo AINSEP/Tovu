@@ -15,7 +15,8 @@ import type { LoadPluginCredentialCards } from "#src/features/custom-credentials
 import path from "node:path";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { bindContentTargetInputs } from "./content-target-inputs.js";
-import { contributeConsentTools } from '#src/features/consent/tool-registrations';
+import { contributeConsentTools } from '@jini-ai/cookie-consent/site/tool-registrations';
+import { consentToolHost } from '#src/features/consent/host-bindings';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
@@ -33,7 +34,7 @@ import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createToolHumanConfirmer } from '#src/assistant/tool-approval-policy';
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
-import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
+import { contributeAnalyticsTools } from "@jini-ai/analytics/site/tool-registrations";
 import { toolMetadata as commerceToolMetadata } from '#src/contracts/core/tool-metadata/commerce';
 import { toMajorString } from '@jini-ai/commerce/money';
 import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@jini-ai/commerce/tools";
@@ -557,7 +558,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
   contributions.contributors.register({ contribution: contributeVisitorTools() });
-  contributions.contributors.register({ contribution: contributeConsentTools() });
+  contributions.contributors.register({ contribution: contributeConsentTools({ host: consentToolHost }) });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.

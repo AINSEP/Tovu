@@ -1,6 +1,6 @@
 // Before any catalog module: the hosting plugins ship from @jini-ai/agent-plugins (see the fixture).
 import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
-import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
+import { consentAgentToolCatalog } from '@jini-ai/cookie-consent/site/tool-registrations';
 import { observabilityAgentToolCatalog } from '#src/features/observability/tool-registrations';
 import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";

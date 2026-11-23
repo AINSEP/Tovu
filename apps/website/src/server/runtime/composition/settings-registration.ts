@@ -8,7 +8,7 @@ import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } fro
 import { ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
 import { ensureSettingsUiTabDefinitions, ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
 import { ensureCommentsSettingDefinitions } from "#src/features/comments/index";
-import { ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { ensureAnalyticsSettingDefinitions } from "@jini-ai/analytics/site/config.settings";
 
 /** Tovu's shared boot order; feature modules retain ownership of their definitions.
  * Both roots expose the intermediate promises while keeping their later registrations separate.

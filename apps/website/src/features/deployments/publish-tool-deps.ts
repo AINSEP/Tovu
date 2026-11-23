@@ -1,6 +1,6 @@
 import type { LoadInstalledDeployTargets } from "./deploy-targets/types.js";
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import type { SiteConsentService } from '#src/features/consent/service';
+import type { SiteConsentService } from '@jini-ai/cookie-consent/site/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from "@jini-ai/core/primitives";
