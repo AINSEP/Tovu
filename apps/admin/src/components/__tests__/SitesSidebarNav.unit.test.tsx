@@ -1,7 +1,7 @@
 import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "../../lib/shell-collaborators";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Sidebar } from "@jini-ai/admin/react";
+import { Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
@@ -9,7 +9,13 @@ import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.h
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
-import { SitesSidebarNav } from "../SitesSidebarNav";
+import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
+import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
+import { useSitesSnapshot } from "@/features/sites/hooks/use-sites-snapshot.hooks";
+import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
+
+/** The host collaborators the Jini nav takes as required props (App.tsx binds the same three). */
+const bindings = { useSitesSidebarNavHook: useSitesSidebarNav, useSitesSnapshot, translateNavLabel: translateAdminNavLabel, SidebarNav: Sidebar.Nav, useSidebar };
 
 const groups: AdminNavGroup[] = [{ items: [{ id: "sites", label: "Sites", href: "/sites", icon: "", order: 1 }] }];
 function snapshot(name = "plannie"): AdminSitesSnapshot {
@@ -21,7 +27,7 @@ describe("Sites sidebar label", () => {
   function mount({ name = "plannie", locale = "en", widths = { scrollWidth: 80, clientWidth: 80 }, collapsed = false } = {}) {
     return render(<FetchQueryProvider><Sidebar activeId="sites" railDefaultCollapsed={collapsed} railStorageKey={`sites-nav-test-${collapsed}`}>
       <ExistingTooltips />
-      <SitesSidebarNav groups={groups} locale={locale} options={{ port: createFakeSitesPort({ snapshot: snapshot(name) }), measure: () => widths }} />
+      <SitesSidebarNav groups={groups} locale={locale} {...bindings} port={createFakeSitesPort({ snapshot: snapshot(name) })} options={{ measure: () => widths }} />
     </Sidebar></FetchQueryProvider>);
   }
 
@@ -29,18 +35,18 @@ describe("Sites sidebar label", () => {
     mount();
     const link = await screen.findByRole("link", { name: "Sites (plannie)" });
     expect(link.getAttribute("title")).toBeNull();
-    expect(link.querySelector(".cms-sites-name")?.getAttribute("title")).toBeNull();
-    await waitFor(() => expect(link.querySelector(".cms-sites-prefix")?.textContent).toBe("Sites ("));
+    expect(link.querySelector(".jini-sites-name")?.getAttribute("title")).toBeNull();
+    await waitFor(() => expect(link.querySelector(".jini-sites-prefix")?.textContent).toBe("Sites ("));
   });
 
   it("shows the native full-name tooltip only when measured overflow exists, and removes it after resize", async () => {
     const widths = { scrollWidth: 300, clientWidth: 80 };
     mount({ name: "a-long-site-name", widths });
     const link = await screen.findByRole("link", { name: "Sites (a-long-site-name)" });
-    await waitFor(() => expect(link.querySelector(".cms-sites-name")?.getAttribute("title")).toBe("a-long-site-name"));
+    await waitFor(() => expect(link.querySelector(".jini-sites-name")?.getAttribute("title")).toBe("a-long-site-name"));
     widths.clientWidth = 300;
     act(() => window.dispatchEvent(new Event("resize")));
-    expect(link.querySelector(".cms-sites-name")?.getAttribute("title")).toBeNull();
+    expect(link.querySelector(".jini-sites-name")?.getAttribute("title")).toBeNull();
     expect(link.getAttribute("title")).toBeNull();
   });
 
@@ -57,8 +63,8 @@ describe("Sites sidebar label", () => {
       const widths = { scrollWidth: 80, clientWidth: 80 };
       const view = mount({ name: "resized-site", widths });
       const link = await screen.findByRole("link", { name: "Sites (resized-site)" });
-      await waitFor(() => expect(link.querySelector(".cms-sites-name")).not.toBeNull());
-      const name = link.querySelector(".cms-sites-name")!;
+      await waitFor(() => expect(link.querySelector(".jini-sites-name")).not.toBeNull());
+      const name = link.querySelector(".jini-sites-name")!;
       await waitFor(() => expect([...observers].some(observer => observer.targets.has(name))).toBe(true));
       expect(name.getAttribute("title")).toBeNull();
 
@@ -88,11 +94,11 @@ describe("Sites sidebar label", () => {
     const port = createFakeSitesPort({ snapshot: () => response });
     render(<FetchQueryProvider><Sidebar activeId="sites" railStorageKey="sites-empty-name-test">
       <ExistingTooltips />
-      <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
+      <SitesSidebarNav groups={groups} locale="en" {...bindings} port={port} />
     </Sidebar></FetchQueryProvider>);
     await act(async () => { settle(snapshot("")); await response; });
     const link = screen.getByRole("link", { name: "Sites" });
-    expect(link.querySelector(".cms-sites-label")).toBeNull();
+    expect(link.querySelector(".jini-sites-label")).toBeNull();
     expect(link.getAttribute("data-cms-sites-split")).toBeNull();
     expect(link.getAttribute("title")).toBeNull();
   });
@@ -108,7 +114,7 @@ describe("Sites sidebar label", () => {
     const port = createFakeSitesPort({ snapshot: async () => { reads += 1; return current; } });
     function SitesScreen() { useSites(port, (key) => key); return null; }
     render(<FetchQueryProvider><Sidebar activeId="sites" railStorageKey="sites-cache-test">
-      <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
+      <SitesSidebarNav groups={groups} locale="en" {...bindings} port={port} />
     </Sidebar><SitesScreen /></FetchQueryProvider>);
     await screen.findByRole("link", { name: "Sites (plannie)" });
     expect(reads).toBe(1);
@@ -120,23 +126,23 @@ describe("Sites sidebar label", () => {
     act(() => publishContentRefresh({ resources: ["sites"] }));
     await screen.findByRole("link", { name: "Sites" });
     await waitFor(() => expect(link.getAttribute("data-cms-sites-split")).toBeNull());
-    expect(link.querySelector(".cms-sites-label")).toBeNull();
+    expect(link.querySelector(".jini-sites-label")).toBeNull();
   });
 
   it("keeps exactly one split label, without decorating the row's className, across active-state changes", async () => {
     const port = createFakeSitesPort({ snapshot: snapshot() });
     const tree = (activeId: string) => <FetchQueryProvider><Sidebar activeId={activeId} railStorageKey="sites-active-flip-test">
-      <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
+      <SitesSidebarNav groups={groups} locale="en" {...bindings} port={port} />
     </Sidebar></FetchQueryProvider>;
     const { rerender, unmount } = render(tree("sites"));
     const link = await screen.findByRole("link", { name: "Sites (plannie)" });
-    await waitFor(() => expect(link.querySelectorAll(".cms-sites-label")).toHaveLength(1));
+    await waitFor(() => expect(link.querySelectorAll(".jini-sites-label")).toHaveLength(1));
     expect(link.getAttribute("data-cms-sites-split")).toBe("");
     rerender(tree("overview"));
     expect(link.getAttribute("data-cms-sites-split")).toBe("");
     rerender(tree("sites"));
     expect(link.className).toBe("cms-item active");
-    expect(link.querySelectorAll(".cms-sites-label")).toHaveLength(1);
+    expect(link.querySelectorAll(".jini-sites-label")).toHaveLength(1);
     expect(link.querySelector(":scope > span:first-of-type")?.textContent).toBe("Sites (plannie)");
     expect(link.getAttribute("data-cms-sites-split")).toBe("");
     unmount();

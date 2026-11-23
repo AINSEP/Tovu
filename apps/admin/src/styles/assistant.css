@@ -1776,12 +1776,12 @@ button.jini-composer-leading,
 .a2ui-column > .jini-chart-host:last-child { margin-bottom: 0; }
 /* The published Jini footer still prints its generic terminal notice. The actual failure card
    owns that notice when rendered; no diagnostics leaves the existing fallback visible. */
-.admin-chat-dock .jini-message-assistant:has(.admin-agent-failure) > .jini-message-error {
+.admin-chat-dock .jini-message-assistant:has(.jini-agent-failure) > .jini-message-error {
   display: none;
 }
-.admin-chat-dock .admin-agent-failure p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
-.admin-chat-dock .admin-agent-failure summary { cursor: pointer; }
-.admin-chat-dock .admin-agent-failure pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+.admin-chat-dock .jini-agent-failure p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.admin-chat-dock .jini-agent-failure summary { cursor: pointer; }
+.admin-chat-dock .jini-agent-failure pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
 /* Shared settings presentation is owned by @jini-ai/chat; only host theme bindings live here. */
 :root {
   --jini-chat-settings-bg: var(--tovu-admin-elevated-bg);

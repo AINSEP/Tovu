@@ -12,7 +12,7 @@ import {
   useFetchedOptions,
   useRecentEntriesConfig,
   useSocialLinksConfig,
-} from "./WidgetConfigFields.hooks";
+} from "@jini-ai/admin/shell/components/WidgetConfigFields/WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 

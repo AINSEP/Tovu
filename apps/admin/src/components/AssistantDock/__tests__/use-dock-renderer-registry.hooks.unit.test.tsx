@@ -9,7 +9,10 @@ import {
   MID_RUN_USER_MESSAGE_EXT_EVENT_NAME,
   MidRunUserMessage,
 } from "@jini-ai/chat/react";
-import { AgentFailureCard } from "../AgentFailureCard";
+import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
+import { useAgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { useT } from "@jini-ai/chat/react";
 import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { useDockRendererRegistry } from "../hooks/use-dock-renderer-registry.hooks";
 
@@ -112,6 +115,7 @@ describe("admin dock owned renderer lifecycle", () => {
     expect(isValidElement(failure)).toBe(true);
     if (!isValidElement<typeof props>(failure)) throw new Error("failure renderer did not return an element");
     expect(failure.type).toBe(AgentFailureCard);
-    expect(failure.props).toEqual(props);
+    // The host binds the Jini card's required translator hook, failure hook and redaction copy.
+    expect(failure.props).toEqual({ ...props, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
   });
 });
