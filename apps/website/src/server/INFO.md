@@ -23,11 +23,16 @@ Admin JSON routes are Jini `defineJsonRoute` specs mounted with `mountJsonRoute`
 `inbound/admin-http/admin-json-route-ports.ts` supplies the host ports. Its `authorize` port turns a
 by-id route's `{ entityId }` scope into the `entityId` field of `deps.authorize`; list/import send none.
 Covered by `inbound/admin-http/routes/redirects/__tests__/authorize-entity-id.test.ts`.
-The `authenticate` port answers `undefined` without a session, so a spec's `parse` refusal (400)
-still precedes the missing-session 500, as in the hand-written routes; `authorize` then fails closed.
+On a mount that opts in (`deferMissingPrincipal`), the `authenticate` port answers `undefined`
+without a session, so a spec's `parse` refusal (400) still precedes the missing-session 500, as in
+the hand-written parse-first routes; `authorize` then fails closed. Every other mount fails in
+`authenticate`, before parse, as before. `authorizationByPermission` answers one permission from a
+different source than the mount default.
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
-update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
+raw-HTML check is overridden to `"guarded"` (its hand-written `authorizeOrRespond`), and create,
+update-tree and assign-location opt into the deferral.
 SEO (`runtime/composition/modules/seo.ts`) mounts `@jini-ai/cms/admin-http/routes/seo/*` and injects
 `seoReady` (every SEO spec waits on it before authorizing), the host `seo.*` settings ledger
 (`readSeoSettings`/`writeSeoSettings` over `features/seo/settings.ts`), the sitemap cache and, for

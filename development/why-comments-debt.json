@@ -3176,6 +3176,14 @@
     {
       "id": "6d2ea6b39cde",
       "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/visitor-tools.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts:49-53."
+    },
+    {
+      "id": "153f32528336",
+      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
+    },
+    {
+      "id": "cecd3ebf4521",
+      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
     }
   ]
 }
