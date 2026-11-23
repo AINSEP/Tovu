@@ -3,27 +3,23 @@
  * @file Post-build regression check (ADR-054): actually EXECUTES the built `dist/site-assistant.js`
  * in a real DOM (jsdom) and asserts it mounts, rather than only checking that the build succeeded.
  *
- * Why an execution smoke test, not a text/grep check: this repo shipped two builds in a row that
- * compiled cleanly, passed typecheck, and 200'd from the server, and both threw immediately on load
- * in a real browser (`process is not defined`, then a null-dispatcher crash from two different React
- * instances getting bundled together). Neither would be caught by "does the build succeed" or a
- * narrow "no process.env.NODE_ENV string" grep — the second bug in particular has no fixed string
- * signature to search for, since it is about which MODULE INSTANCE resolved, not what text survived.
- * Running the artifact and checking it actually mounted is the one check general enough to catch
- * "the bundle throws on load" as a category, not just this specific incident's two causes.
+ * The generic execute-and-assert harness (fresh DOM per scenario, error capture, settle wait,
+ * mount assertion, CLI) lives in `@jini-ai/devops/checks/node`, together with its why-comments
+ * (why execute instead of grep, why a fresh DOM per scenario, navigation as a signal, the
+ * `requestAnimationFrame`/`scrollIntoView`/`matchMedia` stubs, the 150 ms settle). This file owns
+ * what is specific to this widget: its mount id, page content, storage keys, bundle path, the jsdom
+ * binding, and the scenarios below.
  *
- * Not a substitute for the manual Playwright-against-a-real-page check this bug was found with —
- * jsdom is not a real browser and this never opens the chat pane or exercises the network transport.
- * It exists to fail CI/local builds loudly and immediately for the cheapest, most common failure mode
- * (the bundle can't even execute), so that class of regression does not have to wait for someone to
- * manually drive a browser again to be caught.
+ * Not a substitute for the manual Playwright-against-a-real-page check the original load-crash bugs
+ * were found with — jsdom is not a real browser and this never opens the chat pane or exercises the
+ * network transport.
  *
  * ## SPEC-046 REQ-1/REQ-2 — the poisoned-`sessionStorage` scenarios
  *
  * `session-store.ts` (formerly two files, `transcript-storage.ts` + `action-queue.ts`, collapsed per
  * SPEC-046 Task 1) reads real browser `sessionStorage` during the widget's very first render/mount,
  * and promises a specific thing under corruption: a bad entry clears itself and the widget still
- * mounts. That promise is exactly the kind this file's header warns can compile clean, typecheck
+ * mounts. That promise is exactly the kind the devops harness's header warns can compile clean, typecheck
  * clean, and still break in a real environment — so it gets the same execute-and-assert treatment as
  * the base "does it mount at all" case, not a unit test alone (`../src/__tests__/session-store.test.ts`
  * already proves the pure storage functions in isolation; this proves the WIRED widget survives the
@@ -39,7 +35,7 @@
  * `main.tsx`'s drained-action path (`executeDrainedAction`) calls `requestAnimationFrame`, which
  * jsdom does not implement (measured: `'requestAnimationFrame' in window` is `false` on a fresh
  * `JSDOM` instance) — every real browser has supported it for over a decade, so this is a test-harness
- * gap, not evidence of a real bug, and `runScenario` stubs it below for exactly that reason (the same
+ * gap, not evidence of a real bug, and the devops harness stubs it for exactly that reason (the same
  * treatment `scrollIntoView`/`matchMedia` already need — jsdom does no layout at all). Without the
  * stub, ANY scenario whose queued action actually resolves to a real `PageAction` would throw
  * `ReferenceError: requestAnimationFrame is not defined` inside the bundle — which is precisely the
@@ -49,7 +45,8 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { checkBundleMounts as runBundleChecks, fail, isEntryPoint, runBundleCheckCli } from "@jini-ai/devops/checks/node";
 import { JSDOM } from "jsdom";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -57,132 +54,28 @@ export const BUNDLE_PATH = path.resolve(__dirname, "../dist/site-assistant.js");
 export const MOUNT_ID = "tovu-site-assistant-root";
 export const TRANSCRIPT_STORAGE_KEY = "tovu.site-assistant.transcript.v1";
 export const ACTION_QUEUE_STORAGE_KEY = "tovu.site-assistant.action-queue.v1";
+/** The page URL every scenario runs at. */
+const PAGE_URL = "http://localhost/welcome";
 
-/** A failed check. Thrown rather than exiting here, so every check is callable from a test;
- *  {@link main} is the one place that turns it into the CLI's message and exit status. */
-export class BundleCheckError extends Error {}
-
-/** Abort the check with `message`. @throws {BundleCheckError} always. */
-export function fail({ message }, _options = {}) {
-  throw new BundleCheckError(message);
-}
-
-/**
- * Runs the built bundle once, in a fresh DOM, with `sessionStorage` pre-seeded per `scenario.seed`.
- * A fresh `JSDOM` instance per scenario is required, not incidental: the bundle self-mounts via an
- * IIFE the moment it is evaluated (`main.tsx`'s `mount()`), so replaying it against an already-mounted
- * window would either double-mount or hit the "someone else already owns this DOM" branch instead of
- * exercising the seeded-`sessionStorage` mount path this function actually wants to test.
- *
- * @complexity O(1) DOM/eval work per call; the caller decides how many scenarios to run.
- * @overallScore 100
- */
 /** Present on every scenario's page, alongside the mount div — mirrors a real entry-detail page
  *  (`render.ts`'s `entryContent`: `<article class="entry"><h1 class="entry-title">…`) closely enough
  *  for `findTargetElement`'s exact-text heading search to find it, so the highlight/scroll_to
  *  scenarios below have a real target to resolve against without needing a second HTML fixture. */
-const PAGE_CONTENT_HTML = `<article class="entry"><h1 class="entry-title">Example Published Post</h1><p>Some body text.</p></article>`;
-
-/** Whether a jsdom `jsdomError` is its "Not implemented: navigation" report. */
-export function isNavigationError({ error }, _options = {}) {
-  return typeof error?.message === "string" && error.message.includes("navigation");
-}
-
-/** Fail with every caught error listed under `heading`, when there are any. */
-function failOnErrors({ caughtErrors, heading }) {
-  if (caughtErrors.length === 0) return;
-  fail({ message: `${heading}\n` + caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n") });
-}
-
-/** Install the three page APIs jsdom lacks and every real browser has — see this file's header. */
-function stubBrowserGaps({ window }) {
-  window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(Date.now()), 0);
-  window.Element.prototype.scrollIntoView = function scrollIntoViewStub(options) {
-    this.__tovuScrollIntoViewCalls = (this.__tovuScrollIntoViewCalls ?? 0) + 1;
-    this.__tovuLastScrollIntoViewOptions = options;
-  };
-  window.matchMedia = (query) => ({
-    matches: false, // no scenario here exercises prefers-reduced-motion — highlight.test.ts covers that directly.
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  });
-}
+export const PAGE_CONTENT_HTML = `<article class="entry"><h1 class="entry-title">Example Published Post</h1><p>Some body text.</p></article>`;
 
 /**
- * @param {{ scenario: { name: string; seed?: Function; verify?: Function }; bundleSource: string }} input
- * @param {{ settleMs?: number; log?: (line: string) => void }} [options] `settleMs` is the post-eval
- *   wait (see the comment at that wait); `log` receives the one OK line.
+ * The jsdom binding for the devops harness: a NEW `JSDOM` per call (the bundle self-mounts on
+ * evaluation, so every scenario needs its own), scripts run only through the harness's `eval`,
+ * jsdom's own error reports (`jsdomError`, incl. its "Not implemented: navigation") forwarded, and
+ * `window.close()` as disposal so a scenario's pending timers die with it.
  */
-export async function runScenario({ scenario, bundleSource }, { settleMs = 150, log = console.log } = {}) {
-  const dom = new JSDOM(`<!doctype html><html><body><div id="${MOUNT_ID}"></div>${PAGE_CONTENT_HTML}</body></html>`, {
-    // Mirrors what `render.ts` actually injects: the mount div present ahead of the script, same as a
-    // real themed page — `main.tsx`'s `mount()` looks for this id before falling back to creating one,
-    // so this exercises the same path a real page takes, not the defensive fallback.
-    url: "http://localhost/welcome",
-    runScripts: "outside-only",
-  });
-
-  // jsdom does not implement real navigation — `location.assign`/`.href =` etc. all resolve to a
-  // `virtualConsole` "jsdomError" event ("Not implemented: navigation...") rather than silently
-  // no-op-ing or actually reloading. That is exactly the observable signal the
-  // "rehydrated auto-navigate must not re-fire" regression scenario below needs: one `eval` of the
-  // bundle is exactly one mount, so counting these is equivalent to asking "did THIS mount attempt to
-  // navigate," independent of whether jsdom could have carried the navigation out.
-  const navigationAttempts = [];
-  dom.virtualConsole.on("jsdomError", (error) => {
-    if (isNavigationError({ error })) navigationAttempts.push(error.message);
-  });
-
-  // See this file's header (SPEC-046 REQ-2/§4) for why these three are stubbed rather than left
-  // absent: jsdom implements none of them, but every real browser does, so an absent stub would fail
-  // scenarios that exercise real page-content DOM behavior for a jsdom limitation, not a real bug.
-  stubBrowserGaps({ window: dom.window });
-
-  scenario.seed?.({ storage: dom.window.sessionStorage });
-
-  const caughtErrors = [];
-  dom.window.addEventListener("error", (event) => {
-    caughtErrors.push(event.error ?? event.message);
-  });
-  dom.window.addEventListener("unhandledrejection", (event) => {
-    caughtErrors.push(event.reason);
-  });
-
-  try {
-    dom.window.eval(bundleSource);
-  } catch (error) {
-    // A synchronous throw during evaluation (e.g. `ReferenceError: process is not defined` at the top
-    // of the IIFE) never reaches the `error` event listener above — jsdom's `eval` re-throws it
-    // directly. Caught here so the failure message below covers both this and the async path.
-    caughtErrors.push(error);
-  }
-
-  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw during execution — it would have crashed on load in a real browser:` });
-
-  // React 19's `createRoot(...).render(...)` schedules the initial commit through its own scheduler
-  // (message-channel/timeout-based), not synchronously within the `eval` call above — measured: without
-  // this wait, `#tovu-site-assistant-root` reads as childless even on a bundle that mounts correctly a
-  // moment later. A real macrotask tick, not a microtask (`Promise.resolve()`), is what the scheduler
-  // actually waits on. 150ms (not 100ms): `executeDrainedAction`'s `requestAnimationFrame` stub above
-  // adds one more macrotask hop after the mount commit, for scenarios that queue a real page action.
-  await new Promise((resolve) => setTimeout(resolve, settleMs));
-
-  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw after mounting (a post-mount effect or async error):` });
-
-  const mountEl = dom.window.document.getElementById(MOUNT_ID);
-  if (!mountEl) {
-    fail({ message: `[${scenario.name}] #${MOUNT_ID} is missing from the DOM after evaluating the bundle` });
-  }
-  if (mountEl.children.length === 0) {
-    fail({ message: `[${scenario.name}] #${MOUNT_ID} has no children after evaluating the bundle — React never mounted into it` });
-  }
-
-  scenario.verify?.({ storage: dom.window.sessionStorage, document: dom.window.document, navigationAttempts });
-
-  log(
-    `[check-bundle-mounts] OK [${scenario.name}] — bundle executed cleanly and mounted ${mountEl.children.length} child element(s) into #${MOUNT_ID}.`,
-  );
+export function createJsdom({ html, url }, _options = {}) {
+  const dom = new JSDOM(html, { url, runScripts: "outside-only" });
+  return {
+    window: dom.window,
+    onConsoleError: (listener) => dom.virtualConsole.on("jsdomError", listener),
+    dispose: () => dom.window.close(),
+  };
 }
 
 export const scenarios = [
@@ -248,7 +141,7 @@ export const scenarios = [
     seed: ({ storage }, _options = {}) => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ type: 'highlight', target: { slug: 'example', title: 'Example Published Post', path: '/example' } })),
     verify: ({ document, navigationAttempts }, _options = {}) => {
       const heading = document.querySelector('.entry-title');
-      if (heading?.__tovuScrollIntoViewCalls) fail({ message: 'retired queue scrolled a target' });
+      if (heading?.__jiniScrollIntoViewCalls) fail({ message: 'retired queue scrolled a target' });
       if (heading?.style.outline || heading?.classList.contains('tovu-site-assistant__highlight')) fail({ message: 'retired queue highlighted a target' });
       if (navigationAttempts.length) fail({ message: 'retired queue navigated' });
     },
@@ -271,7 +164,7 @@ export const scenarios = [
     // One `eval` of the bundle is exactly one mount, which is sufficient to reproduce/guard this:
     // the bug is "does THIS mount re-fire an already-executed directive," not "does a second real
     // navigation occur" — jsdom cannot carry out a real navigation anyway (see the
-    // `navigationAttempts`/`jsdomError` wiring above this function), so the guard is "zero navigation
+    // `jsdomError` forwarding in `createJsdom` above and the devops harness's `navigationAttempts`), so the guard is "zero navigation
     // ATTEMPTS," which is exactly as strong a signal as "zero real navigations" would be here.
     name: "a rehydrated message whose directive already executed must not re-fire navigation on mount (SPEC-046 regression)",
     seed: ({ storage }, _options = {}) =>
@@ -308,20 +201,12 @@ export const scenarios = [
   },
 ];
 
-/** Run every scenario against one bundle, in order; the first failure throws. */
+/** Run every scenario against one bundle, in order, in this widget's page; the first failure throws. */
 export async function checkBundleMounts({ bundleSource }, options = {}) {
-  for (const scenario of scenarios) {
-    await runScenario({ scenario, bundleSource }, options);
-  }
-}
-
-/** The built bundle's text; an unreadable file is a check failure naming the likely cause. */
-function readBundle({ bundlePath, readText }) {
-  try {
-    return readText(bundlePath);
-  } catch (cause) {
-    return fail({ message: `could not read ${bundlePath} — did the build run first? (${cause.message})` });
-  }
+  await runBundleChecks(
+    { bundleSource, scenarios, createDom: createJsdom, mountId: MOUNT_ID, pageHtml: PAGE_CONTENT_HTML, url: PAGE_URL },
+    { log: console.log, label: "check-bundle-mounts", ...options },
+  );
 }
 
 /**
@@ -333,20 +218,7 @@ export async function main(
   { bundlePath = BUNDLE_PATH } = {},
   { readText = (file) => readFileSync(file, "utf8"), check = checkBundleMounts, error = console.error, exit = process.exit } = {},
 ) {
-  try {
-    await check({ bundleSource: readBundle({ bundlePath, readText }) });
-    return 0;
-  } catch (cause) {
-    if (!(cause instanceof BundleCheckError)) throw cause;
-    error(`[check-bundle-mounts] FAIL: ${cause.message}`);
-    exit(1);
-    return 1;
-  }
-}
-
-/** Whether this module is the process entry point (`node scripts/check-bundle-mounts.mjs`). */
-export function isEntryPoint({ moduleUrl, argv1 }) {
-  return argv1 !== undefined && moduleUrl === pathToFileURL(path.resolve(argv1)).href;
+  return runBundleCheckCli({ bundlePath, readText, check, error, exit }, { label: "check-bundle-mounts" });
 }
 
 // An optional first argument names another bundle file (the tests point it at a missing one).

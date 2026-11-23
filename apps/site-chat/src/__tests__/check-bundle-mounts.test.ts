@@ -1,26 +1,27 @@
 /**
  * Tests for `scripts/check-bundle-mounts.mjs`, the post-build execute-and-assert smoke check.
- * The runner is driven with small hand-written bundle sources (each is the JS text a real build
- * would emit, evaluated in the same fresh jsdom), and each scenario's `verify` is driven with the
- * passing and failing page states it exists to tell apart. The CLI's ports (file read, check,
- * stderr, exit) are injected fakes; one test reads a real temp file through the default reader.
+ * The generic harness (error capture, settle wait, mount assertion, CLI, `isEntryPoint`) is
+ * `@jini-ai/devops/checks/node` and its harness-only tests live there; these run this widget's
+ * scenarios, its jsdom binding and its CLI wrapper THROUGH that published entry. Each scenario's
+ * `verify` is driven with the passing and failing page states it exists to tell apart. The CLI's
+ * ports (file read, check, stderr, exit) are injected fakes; one test reads a real temp file
+ * through the default reader.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { pathToFileURL } from 'node:url';
+import { BundleCheckError, fail, runBundleScenario } from '@jini-ai/devops/checks/node';
 import { JSDOM } from 'jsdom';
 
 import {
-  ACTION_QUEUE_STORAGE_KEY, BUNDLE_PATH, BundleCheckError, MOUNT_ID, TRANSCRIPT_STORAGE_KEY,
-  checkBundleMounts, fail, isEntryPoint, isNavigationError, main, runScenario, scenarios,
+  ACTION_QUEUE_STORAGE_KEY, BUNDLE_PATH, MOUNT_ID, PAGE_CONTENT_HTML, TRANSCRIPT_STORAGE_KEY,
+  checkBundleMounts, createJsdom, main, scenarios,
   type BundleScenario,
 } from '../../scripts/check-bundle-mounts.mjs';
 
 const MOUNT = `document.getElementById(${JSON.stringify(MOUNT_ID)}).appendChild(document.createElement('div'));`;
-const quiet = { settleMs: 5, log: () => {} };
 
 /** A Map-backed `Storage`. */
 function memoryStorage(seed: Record<string, string> = {}): Storage {
@@ -38,7 +39,7 @@ function page({ heading = true, highlighted = false, scrolls }: { heading?: bool
   if (heading) {
     const h1 = document.body.appendChild(document.createElement('h1'));
     h1.className = highlighted ? 'entry-title tovu-site-assistant__highlight' : 'entry-title';
-    if (scrolls !== undefined) Object.assign(h1, { __tovuScrollIntoViewCalls: scrolls });
+    if (scrolls !== undefined) Object.assign(h1, { __jiniScrollIntoViewCalls: scrolls });
   }
   return document;
 }
@@ -51,18 +52,7 @@ const scenario = (prefix: string): BundleScenario => {
 const verify = (prefix: string, storage: Storage, document = page(), navigations: string[] = []) => scenario(prefix).verify!({ storage, document, navigationAttempts: navigations });
 const rejects = (fn: () => void, pattern: RegExp) => assert.throws(fn, (error: unknown) => error instanceof BundleCheckError && pattern.test(error.message));
 
-test('fail throws a BundleCheckError carrying the message', () => {
-  rejects(() => fail({ message: 'nope' }), /^nope$/);
-});
-
-test('isNavigationError recognises only jsdom\'s navigation report', () => {
-  assert.equal(isNavigationError({ error: new Error('Not implemented: navigation (except hash changes)') }), true);
-  assert.equal(isNavigationError({ error: new Error('Not implemented: window.alert') }), false);
-  assert.equal(isNavigationError({ error: { message: 42 } }), false);
-  assert.equal(isNavigationError({ error: null }), false);
-});
-
-test('a bundle that mounts passes, with the page stubs real browsers provide in place', async () => {
+test('through the jsdom binding, a mounting bundle passes with the browser-gap stubs and navigation reports in place', async () => {
   const lines: string[] = [];
   const seen: string[] = [];
   const bundle = `${MOUNT}
@@ -74,14 +64,15 @@ test('a bundle that mounts passes, with the page stubs real browsers provide in 
     requestAnimationFrame((time) => { window.__frame = typeof time; });
     location.assign('/about');
     alert('not a navigation');`;
-  await runScenario({
+  await runBundleScenario({
+    createDom: createJsdom, mountId: MOUNT_ID, pageHtml: PAGE_CONTENT_HTML, url: 'http://localhost/welcome',
     scenario: {
       name: 'exerciser',
       seed: ({ storage }) => storage.setItem('seeded', 'yes'),
       verify: ({ storage, document, navigationAttempts: navigations }) => {
         seen.push(storage.getItem('seeded')!);
-        const heading = document.querySelector('.entry-title') as unknown as { __tovuScrollIntoViewCalls: number; __tovuLastScrollIntoViewOptions: unknown };
-        seen.push(String(heading.__tovuScrollIntoViewCalls), JSON.stringify(heading.__tovuLastScrollIntoViewOptions));
+        const heading = document.querySelector('.entry-title') as unknown as { __jiniScrollIntoViewCalls: number; __jiniLastScrollIntoViewOptions: unknown };
+        seen.push(String(heading.__jiniScrollIntoViewCalls), JSON.stringify(heading.__jiniLastScrollIntoViewOptions));
         const window = document.defaultView as unknown as { __media: string; __frame: string };
         seen.push(window.__media, window.__frame, String(navigations.length));
       },
@@ -92,25 +83,23 @@ test('a bundle that mounts passes, with the page stubs real browsers provide in 
   assert.match(lines[0]!, /OK \[exerciser\] — bundle executed cleanly and mounted 1 child element\(s\)/);
 });
 
-test('a bundle that throws while evaluating fails before mounting is even checked', async () => {
-  await assert.rejects(runScenario({ scenario: { name: 'sync' }, bundleSource: 'throw new Error("process is not defined");' }, quiet),
-    (error: Error) => error instanceof BundleCheckError && /\[sync\] the bundle threw during execution/.test(error.message) && /process is not defined/.test(error.message));
-  const reported = `${MOUNT} window.dispatchEvent(new ErrorEvent('error', { error: new Error('render crashed') }));
-    window.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: null }));`;
-  await assert.rejects(runScenario({ scenario: { name: 'events' }, bundleSource: reported }, quiet),
-    (error: Error) => /render crashed/.test(error.message) && /- null$/m.test(error.message));
-});
-
-test('an error raised after evaluation is reported as a post-mount failure', async () => {
-  const late = `${MOUNT} setTimeout(() => window.dispatchEvent(new ErrorEvent('error', { message: 'effect failed' })), 0);`;
-  await assert.rejects(runScenario({ scenario: { name: 'late' }, bundleSource: late }, quiet),
-    (error: Error) => /\[late\] the bundle threw after mounting/.test(error.message) && /effect failed/.test(error.message));
-});
-
-test('a bundle that removes the mount point, or never renders into it, fails', async () => {
-  await assert.rejects(runScenario({ scenario: { name: 'gone' }, bundleSource: `document.getElementById(${JSON.stringify(MOUNT_ID)}).remove();` }, quiet),
-    /\[gone\] #tovu-site-assistant-root is missing/);
-  await assert.rejects(runScenario({ scenario: { name: 'empty' }, bundleSource: '' }, quiet), /\[empty\] #tovu-site-assistant-root has no children/);
+test('the jsdom binding builds a fresh window per call, forwards jsdom errors, and disposal kills its pending timers', async () => {
+  const first = createJsdom({ html: '<!doctype html><body><p id="x"></p></body>', url: 'http://localhost/welcome' });
+  const second = createJsdom({ html: '<!doctype html><body></body>', url: 'http://localhost/welcome' });
+  assert.notEqual(first.window, second.window);
+  const window = first.window as unknown as Window;
+  assert.equal(window.location.href, 'http://localhost/welcome');
+  assert.ok(window.document.getElementById('x'));
+  const reports: unknown[] = [];
+  first.onConsoleError((error) => reports.push(error));
+  window.location.assign('/about');
+  assert.match(String((reports[0] as Error).message), /navigation/);
+  let fired = false;
+  window.setTimeout(() => { fired = true; }, 0);
+  first.dispose();
+  second.dispose();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(fired, false, 'a disposed window must not run a scenario\'s pending timers');
 });
 
 test('the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry', () => {
@@ -150,7 +139,7 @@ test('the rehydrated-directive scenario seeds an already-executed navigate and f
 test('checkBundleMounts runs every scenario in order and stops at the first failure', async () => {
   // A bundle that mounts but never reads sessionStorage passes the clean scenario and is caught by
   // the very next one: the corrupt transcript it should have cleared survives verbatim.
-  await assert.rejects(checkBundleMounts({ bundleSource: MOUNT }, quiet), /poisoned transcript entry: the corrupt value must not survive verbatim/);
+  await assert.rejects(checkBundleMounts({ bundleSource: MOUNT }, { settleMs: 5, log: () => {} }), /poisoned transcript entry: the corrupt value must not survive verbatim/);
   // Default options: the real settle wait and console logging.
   await assert.rejects(checkBundleMounts({ bundleSource: '' }), /\[clean sessionStorage\] .* has no children/);
 });
@@ -191,13 +180,6 @@ test('main\'s default reader reads the bundle file from disk', async (t) => {
   const seen: string[] = [];
   assert.equal(await main({ bundlePath: file }, { check: async ({ bundleSource }) => { seen.push(bundleSource); } }), 0);
   assert.deepEqual(seen, ['const built = 1;']);
-});
-
-test('isEntryPoint is true only when the module is the script node was started with', () => {
-  const file = path.resolve('scripts/check-bundle-mounts.mjs');
-  assert.equal(isEntryPoint({ moduleUrl: pathToFileURL(file).href, argv1: file }), true);
-  assert.equal(isEntryPoint({ moduleUrl: pathToFileURL(file).href, argv1: '/somewhere/else.mjs' }), false);
-  assert.equal(isEntryPoint({ moduleUrl: pathToFileURL(file).href, argv1: undefined }), false);
 });
 
 test('a bundle honouring every contract passes every scenario', async () => {
