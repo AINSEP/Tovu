@@ -2,6 +2,8 @@ import { adminDatabaseTimelineRoute } from "@jini-ai/cms/admin-http/routes/datab
 import { adminDatabaseRestorePointsCreateRoute, adminDatabaseRestorePointsListRoute } from "@jini-ai/cms/admin-http/routes/database/restore-points";
 import { adminDatabaseSchemaStateRoute } from "@jini-ai/cms/admin-http/routes/database/schema-state";
 import { createRestorePoint, getTimeline, listRestorePoints, RestorePointUnavailableError, ValidationError } from "@jini-ai/db/tools";
+import { computeDisclosure } from "@jini-ai/db/recovery/disclosure";
+import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "@jini-ai/db/recovery/deep-link";
 import type { FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { recoveryRestorePointsListRoute } from "@jini-ai/cms/admin-http/routes/recovery/restore-points";
 import { recoveryDisclosureRoute } from "@jini-ai/cms/admin-http/routes/recovery/disclosure";
@@ -58,35 +60,45 @@ import type { ServerModuleHandle } from "./types.js";
  * only cares about registration order when two layers could match the same request, which never
  * happens here. See SPEC-042 for the full disclosure.
  */
-/** A live view of the named fields plus the two port fields, read per request rather than copied at
+/** The route's own collaborators plus the two port fields, read per request rather than copied at
  * registration: the hand-written routes read `deps.*` inside the handler, so a later swap of a field
  * (as the route tests do with `authorize` and the watermark source) must still reach the mounted route.
- * @complexity O(keys) setup; O(1) per read.
+ * @complexity O(1).
  */
-function requestTimeDeps<K extends keyof DatabaseRecoveryRouteDeps>(
-  required: { deps: DatabaseRecoveryRouteDeps; keys: readonly K[] },
+function withRequestTimePorts<T extends object>(
+  required: { deps: DatabaseRecoveryRouteDeps; own: T },
   _optional: Record<string, never> = {},
-): Pick<DatabaseRecoveryRouteDeps, K> & AdminJsonRoutePortDeps {
-  const view = {} as Pick<DatabaseRecoveryRouteDeps, K> & AdminJsonRoutePortDeps;
-  for (const key of [...required.keys, "workspaceId", "authorize"] as const) {
-    Object.defineProperty(view, key, { enumerable: true, get: () => required.deps[key] });
-  }
-  return view;
+): T & AdminJsonRoutePortDeps {
+  return Object.defineProperties(required.own, {
+    workspaceId: { enumerable: true, get: () => required.deps.workspaceId },
+    authorize: { enumerable: true, get: () => required.deps.authorize },
+  }) as T & AdminJsonRoutePortDeps;
 }
+
+const recoveryMountOptions = (operation: string) => ({ failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const });
 
 /** `GET /api/admin/v1/recovery/restore-points` (Jini spec), gated by `backup.read`. */
 export function registerAdminRecoveryRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: recoveryRestorePointsListRoute, deps: requestTimeDeps({ deps, keys: ["restorePointsRepo"] }) }, { failure: { operation: "routes/recovery/restore-points", code: "INTERNAL_ERROR" }, authorization: "direct" });
+  mountAdminJsonRoute({ app, spec: recoveryRestorePointsListRoute, deps: withRequestTimePorts({ deps, own: {
+    listRestorePoints: () => listRestorePoints({ repo: deps.restorePointsRepo }),
+  } }) }, recoveryMountOptions("routes/recovery/restore-points"));
 }
 
 /** `POST /api/admin/v1/recovery/disclosure` (Jini spec), gated by `backup.read`. */
 export function registerAdminRecoveryDisclosureRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: recoveryDisclosureRoute, deps: requestTimeDeps({ deps, keys: ["disclosureWatermarkSource"] }) }, { failure: { operation: "routes/recovery/disclosure", code: "INTERNAL_ERROR" }, authorization: "direct" });
+  mountAdminJsonRoute({ app, spec: recoveryDisclosureRoute, deps: withRequestTimePorts({ deps, own: {
+    computeDisclosure: ({ restorePointId, coveredCategories }: { restorePointId: string; coveredCategories: readonly string[] }) =>
+      computeDisclosure({ deps: { watermarkSource: deps.disclosureWatermarkSource, coveredCategories }, input: { restorePointId } }),
+  } }) }, recoveryMountOptions("routes/recovery/disclosure"));
 }
 
-/** `POST /api/admin/v1/recovery/deep-link` (Jini spec), gated by `backup.read`. */
+/** `POST /api/admin/v1/recovery/deep-link` (Jini spec), gated by `backup.read`. The spec has
+ * already refused a non-object envelope, which is the only check the hand-written route made. */
 export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountAdminJsonRoute({ app, spec: recoveryDeepLinkRoute, deps: requestTimeDeps({ deps, keys: ["deepLinkRestorePointLookup"] }) }, { failure: { operation: "routes/recovery/deep-link", code: "INTERNAL_ERROR" }, authorization: "direct" });
+  mountAdminJsonRoute({ app, spec: recoveryDeepLinkRoute, deps: withRequestTimePorts({ deps, own: {
+    resolveDeepLinkContext: (input: { principalId: string; principalKind: "user"; envelope: object }) =>
+      resolveDeepLinkContext({ deps: { lookup: deps.deepLinkRestorePointLookup }, input: { ...input, envelope: input.envelope as DatabaseContextEnvelope } }),
+  } }) }, recoveryMountOptions("routes/recovery/deep-link"));
 }
 
 const RESTORE_POINTS_FAILURE: FailureOptions = { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" };
