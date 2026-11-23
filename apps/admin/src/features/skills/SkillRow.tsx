@@ -1,8 +1,8 @@
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import { Icon } from "@jini-ai/ui";
 import type { SkillRowView } from "./use-skills.hooks";
-import { SkillChevronIcon } from "./skills-visuals";
-import { EyeIcon, TrashIcon } from "../plugins/agent-plugins-visuals";
+import { SkillChevronIcon } from "@jini-ai/admin/screens/skills/skills-visuals";
+import { EyeIcon, TrashIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Same summary, metadata, switch and action zones as AgentPluginRow. */

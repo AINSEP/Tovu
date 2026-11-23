@@ -1,7 +1,9 @@
-import { skillFailure } from "./skill-failure";
+import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 import { useCallback, useRef, useState } from "react";
-import { installSkill, type SkillInstallPayload } from "./api";
-import { prepareSkillUpload } from "./skill-upload";
+import { installSkill } from "./api";
+import type { SkillInstallPayload } from "@jini-ai/core/contracts/site/skill-install";
+import { prepareSkillUpload } from "@jini-ai/admin/screens/skills/skill-upload";
+import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 
 /** Holds an upload until the user confirms. A superseded read cannot install an older drop. */
 export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?: () => void | Promise<void> } = {}) {
@@ -17,7 +19,7 @@ export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?:
     const current = generation.current;
     setError(null);
     try { const payload = await prepareSkillUpload({ files }, { paths }); if (current === generation.current) setPending(payload); }
-    catch (e) { if (current === generation.current) { setCause(e); setError(skillFailure({ error: e, message: "Could not read skill.", t: key => key }).message); } }
+    catch (e) { if (current === generation.current) { setCause(e); setError(skillFailure({ ...SKILL_FAILURE_HOST, error: e, message: "Could not read skill.", t: key => key }).message); } }
   }, []);
   const cancel = useCallback(() => { if (!confirmLock.current) { ++generation.current; setPending(null); setError(null); } }, []);
   const confirm = useCallback(async () => {
@@ -30,7 +32,7 @@ export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?:
       if (current === generation.current) setPending(null);
       await onInstalled?.();
     }
-    catch (e) { setCause(e); setError(skillFailure({ error: e, message: "Could not install skill.", t: key => key }).message); }
+    catch (e) { setCause(e); setError(skillFailure({ ...SKILL_FAILURE_HOST, error: e, message: "Could not install skill.", t: key => key }).message); }
     finally { confirmLock.current = false; setBusy(false); }
   }, [pending, onInstalled]);
   const fail = useCallback((message: string) => { setCause(message); setError(message); }, []);

@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
 import { Skills } from "../Skills";
 import { useSkills } from "../use-skills.hooks";
-import { t } from "../skills-i18n";
+import { t } from "@jini-ai/admin/screens/skills/skills-i18n";
 import type { InstalledSkill } from "../api";
 
 afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });

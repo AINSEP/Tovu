@@ -1,8 +1,17 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render as renderPlain, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { adminKit } from "@/integrations/jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { AgentPluginRow } from "../AgentPluginRow";
 import { LINKED_PLUGIN_TIP } from "../AgentPluginLinkedLock";
+
+/** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
+ *  mounts once at its root; each render here mounts the app's own kit the same way. */
+function render(ui: ReactElement) {
+  return renderPlain(ui, { wrapper: ({ children }) => <AdminKitProvider kit={adminKit}>{children}</AdminKitProvider> });
+}
 
 it.each([
   ["site-compliance", "Site Compliance", "M12 3.2 19 5.9v5.6c0 4.2-2.8 7.4-7 9.3-4.2-1.9-7-5.1-7-9.3V5.9z"],

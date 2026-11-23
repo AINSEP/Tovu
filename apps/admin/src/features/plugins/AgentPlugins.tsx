@@ -12,12 +12,12 @@ import { useId } from "react";
 
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
-import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
+import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { AgentPluginManageButton } from "./AgentPluginManageButton";
-import { InstalledIcon, MarketplaceIcon, UploadIcon } from "./agent-plugins-visuals";
+import { InstalledIcon, MarketplaceIcon, UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
@@ -29,6 +29,7 @@ import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
 import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
 /**
@@ -449,7 +450,7 @@ export function AgentPlugins({
       label: t("Add a plugin"),
       // `TabbedDialogTab` has no tag slot, so the "Soon" tag rides `navHint`; styles.css turns this
       // screen's nav hint into the sidebar's `.soon` pill beside the label.
-      navHint: addPluginTabSoonTag({ locale }),
+      navHint: addPluginTabSoonTag({ locale, translateAdminNavLabel }),
       icon: <UploadIcon />,
       title: t("Agent Plugins"),
       subtitle: t("Install a package you already have."),
@@ -458,7 +459,7 @@ export function AgentPlugins({
     {
       id: "marketplace",
       label: t("Marketplace"),
-      navHint: marketplaceTabSoonTag({ locale }),
+      navHint: marketplaceTabSoonTag({ locale, translateAdminNavLabel }),
       icon: <MarketplaceIcon />,
       title: t("Agent Plugin Marketplace"),
       subtitle: t("A future place to discover portable Agent Plugins."),

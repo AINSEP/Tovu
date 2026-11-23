@@ -5,9 +5,10 @@ import { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillConfirmation } from "./use-skill-confirmation.hooks";
 import { useSkillsTabs } from "./use-skills-tabs.hooks";
 
-import { skillFailure } from "./skill-failure";
+import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 
 import { type Translate } from '@jini-ai/core/text';
+import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 export const SKILL_FILE_ACCEPT = ".zip,.md,.txt,.json,.yaml,.yml,.csv,.svg,.sh,.py,.js,.ts,.mjs,.png,.jpg,.jpeg,.webp";
 
 export interface SkillRowView {
@@ -47,7 +48,7 @@ function getSkillsAvailability(
 /** Writes take presentation precedence over a read error without losing their original cause. */
 function skillsFailureState({ actionError, actionCause, queryError, t }: { actionError: string | null; actionCause: unknown; queryError: Error | null; t: Translate }) {
   const message = actionError ?? (queryError ? "Could not load skills." : null);
-  const failure = message ? skillFailure({ error: actionError ? actionCause : queryError, message, t }) : null;
+  const failure = message ? skillFailure({ ...SKILL_FAILURE_HOST, error: actionError ? actionCause : queryError, message, t }) : null;
   return { error: failure?.message ?? null, failure };
 }
 
@@ -57,7 +58,7 @@ type SkillsPort = typeof defaultSkillsPort;
 function useSkillsList({ port, t }: { port: SkillsPort; t: Translate }) {
   const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
-    catch (error) { if (error instanceof Error) throw error; throw new Error(skillFailure({ error, message: "Could not load skills.", t }).message, { cause: error }); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error(skillFailure({ ...SKILL_FAILURE_HOST, error, message: "Could not load skills.", t }).message, { cause: error }); }
   }, [port, t]);
   const key = useMemo(() => ["skills", "list"] as const, []);
   const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
@@ -110,7 +111,7 @@ function useSkillChanges({ port, list, mounted, errors, t }: { t: Translate; por
     } catch (e) {
       if (mounted.current) {
         setActionCause(e);
-        setError(skillFailure({ error: e, message: "Could not change skill.", t }).message);
+        setError(skillFailure({ ...SKILL_FAILURE_HOST, error: e, message: "Could not change skill.", t }).message);
       }
     } finally {
       if (mounted.current) setBusy(false);

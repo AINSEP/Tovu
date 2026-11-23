@@ -1,4 +1,4 @@
-import type { AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 

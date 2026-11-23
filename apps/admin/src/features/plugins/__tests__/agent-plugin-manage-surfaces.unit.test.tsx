@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import { AgentPluginManageButton } from "../AgentPluginManageButton";
-import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "../hooks/agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
 
 /**

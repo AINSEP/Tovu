@@ -3,7 +3,7 @@ import { useId, type ReactNode } from "react";
 
 import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
-import { EyeIcon } from "./agent-plugins-visuals";
+import { EyeIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 
 import { pluginRowDetailView, pluginRowFacts } from "./rules";

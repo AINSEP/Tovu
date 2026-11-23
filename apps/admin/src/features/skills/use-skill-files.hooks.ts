@@ -5,9 +5,10 @@ import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
 import { packageFilesRead, packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
 import { listSkillFiles, type InstalledSkill, type SkillFiles } from "./api";
-import { skillFailure } from "./skill-failure";
+import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 
 import { type Translate } from '@jini-ai/core/text';
+import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 interface SkillFilesDependencies {
   readonly toolId: string | null;
   readonly read: (required: { toolId: string }, optional?: Record<string, never>) => Promise<SkillFiles>;
@@ -37,7 +38,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   };
   const readResult = packageFilesRead(query);
   const loaded: PackageFilesRead | null = readResult?.error ? { ...readResult, error: t(readResult.error) } : readResult;
-  const failure = query.error ? skillFailure({ error: query.error, message: "Could not load skill files.", t }) : null;
+  const failure = query.error ? skillFailure({ ...SKILL_FAILURE_HOST, error: query.error, message: "Could not load skill files.", t }) : null;
   const selectedPath = selection?.toolId === toolId ? selection.path : "SKILL.md";
   const validPath = skillSelectedPath({ loaded, selectedPath });
   return {

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Skills } from "../Skills";
-import { prepareSkillUpload } from "../skill-upload";
+import { prepareSkillUpload } from "@jini-ai/admin/screens/skills/skill-upload";
 
 beforeEach(() => window.history.replaceState(null, "", "/admin/addons/skills"));
 afterEach(() => {

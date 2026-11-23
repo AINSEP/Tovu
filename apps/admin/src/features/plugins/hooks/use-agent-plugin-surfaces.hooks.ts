@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 
 /**
  * @file Which admin surfaces one Agent Plugin contributes, for the details modal's extra tabs.

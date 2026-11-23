@@ -4043,8 +4043,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .agent-plugin-row-chevron {
   flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--jini-text-disabled);
 }
-.agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
-.agent-plugin-row-summary[aria-expanded="true"] .agent-plugin-chevron-glyph { transform: rotate(90deg); }
+.jini-agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
+.agent-plugin-row-summary[aria-expanded="true"] .jini-agent-plugin-chevron-glyph { transform: rotate(90deg); }
 
 /* The hairline between the summary zone and the action zone. Without it the summary's own chevron
    read as a control floating between the description and the switch, belonging to neither — seen
@@ -4255,7 +4255,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 @media (prefers-reduced-motion: reduce) {
   .agent-plugin-row::before,
   .agent-plugin-row-glyph,
-  .agent-plugin-chevron-glyph,
+  .jini-agent-plugin-chevron-glyph,
   .agent-plugin-switch,
   .agent-plugin-switch-knob,
   .agent-plugin-icon-btn {

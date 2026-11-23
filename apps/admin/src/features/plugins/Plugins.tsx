@@ -11,13 +11,14 @@ import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { AddPluginPanel } from "./AddPluginPanel";
-import { UploadIcon } from "./agent-plugins-visuals";
-import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
+import { UploadIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
+import { addPluginTabSoonTag, marketplaceTabSoonTag } from "@jini-ai/admin/screens/plugins/add-plugin-tab-soon";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
+import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 /**
  * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
  * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling
@@ -366,8 +367,8 @@ function buildPluginTabs({ t, locale, canInstall }: { t: PluginsController["t"];
   return [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
-    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag({ locale }, { enabled: canInstall ? undefined : true }), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
-    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag({ locale }), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
+    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag({ locale, translateAdminNavLabel }, { enabled: canInstall ? undefined : true }), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
+    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag({ locale, translateAdminNavLabel }), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
   ];
 }
 
