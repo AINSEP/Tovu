@@ -3,7 +3,7 @@
  * @file The desktop quality-gate runner. Reads `quality-gates.json`, runs every ENABLED gate, and
  * prints every gate — enabled, failing, or disabled — on every run.
  *
- * The policy it enforces lives in `../src/quality-gates.ts` (and is tested there, under the normal
+ * The policy it enforces lives in `@jini-ai/devops/checks/quality-gates` (and is tested there, under the normal
  * `npm test` glob); this file is the part that touches the process table and the filesystem. The
  * split exists so the rules can be tested without spawning anything.
  *
@@ -36,8 +36,8 @@ import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "../src/quality-gates.ts";
-import type { GateEntry, GateExitCode, GateManifest } from "../src/quality-gates.ts";
+import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "@jini-ai/devops/checks/quality-gates";
+import type { GateEntry, GateExitCode, GateManifest } from "@jini-ai/devops/checks/quality-gates";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

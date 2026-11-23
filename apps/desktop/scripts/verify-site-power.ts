@@ -50,7 +50,7 @@ import { withTovuVerificationApp, type Page } from './adapters/live-electron.ts'
 import path from 'node:path';
 import fs from 'node:fs';
 
-import { createCheckLog } from '../src/live-verify-checks.ts';
+import { createCheckLog } from '@jini-ai/devops/checks/live-verify-checks';
 import { allLayoutClaimsHold, flat, layoutClaims, seedSitePowerProfile } from '../src/site-power-verify.ts';
 import type { Box, CardState, LayoutClaims } from '../src/site-power-verify.ts';
 

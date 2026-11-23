@@ -31,7 +31,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { VERIFIED_PREFIXES, bundledNpmFailures, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
-import { packagedPtyHelperFailures } from "../src/pty-helpers.ts";
+import { packagedPtyHelperFailures } from "@jini-ai/desktop-host/shell/pty-helpers";
 import { runVerifyPackage, resolveAsarPath } from "../src/verify-package-cli.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

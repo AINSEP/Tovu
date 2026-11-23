@@ -11,9 +11,9 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { spawnSync } from "node:child_process";
 
-import { createAutoUpdateController } from "./auto-update-controller.ts";
-import type { AutoUpdateControllerDeps } from "./auto-update-controller.ts";
-import { createInstancePresence } from "./instance-presence.ts";
+import { createAutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";
+import type { AutoUpdateControllerDeps } from "@jini-ai/desktop-host/shell/auto-update-controller";
+import { createInstancePresence } from "@jini-ai/desktop-host/shell/instance-presence";
 import { PRESENCE_STALE_MS, UPDATE_CHECK_INTERVAL_MS } from "@jini-ai/desktop-host/electron/updates";
 
 const SELF = 100;

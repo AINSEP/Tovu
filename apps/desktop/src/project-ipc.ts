@@ -9,7 +9,7 @@ import { createDirectoryRelocationGate } from "@jini-ai/platform/fs";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 import { type ProjectIpcDeps, type ProjectSiteLifecycle, type SiteRow } from "./project-ipc.types.ts";
 import { handleStart, handleStop, handleOpenExternal, handleGetPreview } from "./project-ipc.server.ts";
-import { createSitePresence, type PresenceSender } from "./project-ipc.presence.ts";
+import { createSitePresence, type PresenceSender } from "@jini-ai/desktop-host/shell/site-presence";
 import { handleList, rescanSites, handleAddSiteFolder, handleLocate } from "./project-ipc.catalog.ts";
 import { planNewSiteDir, handleCreate, handleTokenSignInPlugins } from "./project-ipc.create.ts";
 import { handleDelete } from "./project-ipc.delete.ts";

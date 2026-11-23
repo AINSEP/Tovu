@@ -8,10 +8,10 @@ import { pathToFileURL } from "node:url";
 
 import { openSitesHomeWindow, sitesHomeWindowOptions } from "./sites-home-window.ts";
 import type { SitesHomePorts, SitesHomeWebContents, SitesHomeWindow, SitesHomeWindowOptions } from "./sites-home-window.ts";
-import type { GuestWebPreferences } from "../../webview-guest-policy.ts";
-import type { SpellCheckWebContents } from "../../spellcheck-menu.ts";
-import type { WindowOpenResponse } from "../../window-navigation-policy.ts";
-import type { WindowBounds } from "../../window-bounds-store.ts";
+import type { GuestWebPreferences } from "@jini-ai/desktop-host/shell/webview-guest-policy";
+import type { SpellCheckWebContents } from "@jini-ai/desktop-host/shell/spellcheck-menu";
+import type { WindowOpenResponse } from "@jini-ai/desktop-host/shell/window-navigation-policy";
+import type { WindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
 
 const RENDERER_PATH = "/app/dist/renderer/index.html";
 const RENDERER_URL = pathToFileURL(RENDERER_PATH).href;

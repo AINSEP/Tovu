@@ -7,7 +7,7 @@
  *   - admin → main: the admin's sandboxed preload (`speech/preload-speech.cts`) exposes
  *     `window.tovuImport` on admin pages only, beside `tovuFiles`, and invokes `request` the way
  *     `tovuVoice` invokes its speech channels, behind the same shell-page sender check
- *     (`import-handoff-ipc.ts`). That preload inlines the literal; its test pins it to this file.
+ *     (`@jini-ai/desktop-host/electron/handoff`, bound in `main/index.ts`). That preload inlines the literal; its test pins it to this file.
  *   - main → sites home: main pushes `open` to the sites home window the way `desktop.navigate`
  *     pushes `workspace:chat:navigate`; `preload.mts` hands it to the renderer as `onOpenImport`.
  */
@@ -47,3 +47,7 @@ export function importHandoffRequest({ raw }: { raw: unknown }, _optional: Recor
   const trimmed = address.trim();
   return trimmed === '' || trimmed.length > IMPORT_HANDOFF_ADDRESS_MAX ? {} : { address: trimmed };
 }
+
+/** The host's refusal copy when a non-shell page asks for the hand-off (bound into
+ *  `@jini-ai/desktop-host/electron/handoff`'s `registerHandoffForwarding` by `main/index.ts`). */
+export const IMPORT_HANDOFF_SENDER_REFUSED = "This page isn't part of Tovu, so it can't open the Import tab.";

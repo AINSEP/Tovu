@@ -8,10 +8,10 @@
  */
 import { pathToFileURL } from "node:url";
 
-import { admitGuestSource, applyGuestWebPreferences, type GuestWebPreferences } from "../../webview-guest-policy.ts";
-import { installSitesHomeNavigationPolicy, type NavigableContents } from "../../window-navigation-policy.ts";
-import { resolveWindowBounds, windowBoundsFilePath, type DisplayLike, type WindowBounds } from "../../window-bounds-store.ts";
-import type { SpellCheckWebContents } from "../../spellcheck-menu.ts";
+import { admitGuestSource, applyGuestWebPreferences, type GuestWebPreferences } from "@jini-ai/desktop-host/shell/webview-guest-policy";
+import { installSitesHomeNavigationPolicy, type NavigableContents } from "@jini-ai/desktop-host/shell/window-navigation-policy";
+import { resolveWindowBounds, windowBoundsFilePath, type DisplayLike, type WindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
+import type { SpellCheckWebContents } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 
 /** The sites home window's own `webContents`, as the setup below uses it. */
 type SitesHomeWebContents = NavigableContents & SpellCheckWebContents & {

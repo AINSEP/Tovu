@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 
 import { appWindowOptions, createAppWindow } from "./app-window.ts";
 import type { AppWindow, AppWindowOptions } from "./app-window.ts";
-import type { WindowOpenResponse } from "../../window-navigation-policy.ts";
+import type { WindowOpenResponse } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 
 const APP = "http://127.0.0.1:4567";
 

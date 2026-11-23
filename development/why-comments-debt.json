@@ -2764,6 +2764,66 @@
     {
       "id": "4e242caacc1b",
       "reason": "Moved to Jini @jini-ai/devops/source-control/site/credential-form header (Jini d2e038d1f), registry path citation reworded to name the host registry in words; the Tovu file was deleted."
+    },
+    {
+      "id": "03d43bdce417",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/instance-presence.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "11f919d114b9",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/js-backslide-guard.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "20da2c943a4e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/electron/selftest/selftest-tracker.ts (Jini ded1abb56, AX-97.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "22e4ee29a294",
+      "reason": "Moved to Jini @jini-ai/devops/src/checks/quality-gates.ts (Jini d70fcd0b4, AX-99.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "2d70bb3afd3e",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/spellcheck-menu.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "3823b802dc07",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/window-bounds-store.ts (Jini eeb1d17aa, AX-91.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "43df17ef3e3b",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/auto-update-controller.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "49fad241650f",
+      "reason": "Moved to Jini @jini-ai/devops/src/checks/complexity-debt.ts (Jini d70fcd0b4, AX-99.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "4cb49ea5562f",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/guest-navigation.ts (Jini bd97a47e6, AX-89.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "576771137de7",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/instance-presence.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "5b0546ee2424",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/window-bounds-store.ts (Jini eeb1d17aa, AX-91.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "8953203ef7c5",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/webview-guest-policy.ts (Jini eeb1d17aa, AX-91.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "d1042efd00c6",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/window-navigation-policy.ts (Jini eeb1d17aa, AX-91.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "e12efbe31bdb",
+      "reason": "Moved to Jini @jini-ai/devops/src/checks/complexity-debt.ts (Jini d70fcd0b4, AX-99.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
+    },
+    {
+      "id": "face14de863a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/src/shell/auto-update-controller.ts (Jini e39c65e97, DT-desktop-1.J, ex4-desktop); host product name / caller paths reworded neutral per N1/N2 where present, rest verbatim. The Tovu file no longer exists."
     }
   ]
 }
