@@ -1,5 +1,6 @@
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 /** What a 400 for a missing or empty `namespace` tells the caller, in plain words (a person reads it in the admin). */
 const NAMESPACE_REQUIRED_MESSAGE = "Say which group of settings to read: add ?namespace=<group> to the address, for example ?namespace=core.language.";
@@ -45,7 +46,7 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({
 
       const namespace = String(req.query.namespace ?? "");
       if (!namespace) {
-        rejectSettingsRequest({ status: 400, error: NAMESPACE_REQUIRED_MESSAGE, code: "VALIDATION_ERROR" });
+        rejectRoute({ status: 400, error: NAMESPACE_REQUIRED_MESSAGE, code: "VALIDATION_ERROR" });
       }
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
       // the actual read target a different workspace or principal than what was authorized.
@@ -79,7 +80,7 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({
         callerPrincipalId: principal.id,
       });
       if (!readTarget.allowed) {
-        rejectSettingsRequest({ status: 403,
+        rejectRoute({ status: 403,
           error: `principal '${principal.id}' is not authorized to read another principal's user-layer value (${readTarget.reason})`,
           code: "FORBIDDEN",
           details: { permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, reason: readTarget.reason },

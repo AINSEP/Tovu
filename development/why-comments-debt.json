@@ -2764,6 +2764,14 @@
     {
       "id": "35104b28f367",
       "reason": "Moved to Jini @jini-ai/cms/settings/site/admin-interface (X-settings-1, Jini 37902e97); product name reworded to \"the host\"."
+    },
+    {
+      "id": "4a80b78d2f91",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts RouteRefusalError doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's error mappings'); the Tovu class it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "73584ff700c8",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
     }
   ]
 }
