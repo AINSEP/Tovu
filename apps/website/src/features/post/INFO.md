@@ -32,3 +32,9 @@ Owns the first content-authoring slice for a single post model.
 Use flexible JSON storage for document-shaped fields such as block content, metadata, SEO fields, plugin-owned extension data, import/source snapshots, and AI-generated analysis. For SQLite, store these as validated JSON text; for Postgres, map them to `jsonb`.
 
 Keep stable identity, ownership, routing, workflow, and high-frequency query fields as relational columns. Examples include `id`, `workspaceId`, `contentType`, `slug`, `status`, `authorId`, `createdAt`, `updatedAt`, `publishedAt`, `version`, and soft-delete or archival markers.
+
+## Wiring
+
+- `slug.ts` derives post slugs from `toSlug`, imported directly from `@jini-ai/cms/html/site/slug`
+  (P12 cut #7). The host copy under `platform/html/` is gone. Collision suffixes and the
+  `untitled` fallback stay here in `slug.ts`.

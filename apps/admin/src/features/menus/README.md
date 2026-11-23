@@ -17,3 +17,10 @@ The Menus list and the Menu editor — the two screens behind the sidebar's **Co
 
 Both `Menus.tsx` and `MenuEditor.tsx` have unit tests (`__tests__/Menus.unit.test.tsx`,
 `__tests__/MenuEditor.unit.test.tsx`).
+
+## Wiring
+
+- The editor auto-derives a new menu's slug from its name with `toSlug`. `hooks/use-menu-editor.hooks.ts`
+  imports it from `@jini-ai/cms/html/site/slug`, a universal entry that is safe in the browser
+  bundle. Admin already declares `@jini-ai/cms`. This replaced the cross-app relative import into
+  `apps/website/src/platform/html/slug` in P12 cut #7. The website renderers use the same rule.

@@ -96,3 +96,8 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 - `webhookSigner`/`KeyringPort` production wiring, and a SQLite adapter for
   `webhook_subscriptions`/`webhook_deliveries` — pre-existing `integrations` gaps, unaffected by Forms.
 - A drag-and-drop form builder, file-upload fields, CAPTCHA, multi-step forms.
+
+## Wiring
+
+- Form slugs come from `toSlug`, imported directly from `@jini-ai/cms/html/site/slug` in
+  `index.ts` (P12 cut #7). No host slug copy remains.
