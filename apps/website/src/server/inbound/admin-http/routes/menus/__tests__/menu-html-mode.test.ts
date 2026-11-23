@@ -5,8 +5,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryMenuRepo } from "#src/features/navigation/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMenuCreateRoute } from "../create.js";
-import { registerAdminMenuUpdateTreeRoute } from "../update-tree.js";
+import { registerAdminMenuCreateRoute } from '#src/server/runtime/composition/modules/menus';
+import { registerAdminMenuUpdateTreeRoute } from '#src/server/runtime/composition/modules/menus';
 
 /**
  * @file Menu HTML mode over the admin API (owner 2026-10-08): the editor's HTML tab saves

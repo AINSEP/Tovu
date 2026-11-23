@@ -11,10 +11,10 @@ import {
   type NavMenuEntry,
 } from '#src/features/navigation/index';
 import { MenuVersionConflictError } from '@jini-ai/cms/navigation';
-import type { MenuRouteDeps } from '#src/server/inbound/admin-http/http/menus';
+import type { MenuRouteDeps } from '#src/server/runtime/composition/modules/menus';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMenuAssignLocationRoute } from '../assign-location.js';
+import { registerAdminMenuAssignLocationRoute } from '#src/server/runtime/composition/modules/menus';
 
 const path = `${BASE}/menus/menu/locations`;
 const now = '2026-10-20T00:00:00.000Z';
