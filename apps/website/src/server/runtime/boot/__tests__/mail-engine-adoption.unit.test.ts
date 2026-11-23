@@ -29,7 +29,10 @@ function fakeGuardedHttp(required: { calls: HttpRequest[] }, _optional = {}): Ht
     assert.equal(typeof request.url, "string");
     assert.equal(typeof request.method, "string");
     if (request.method === "POST") {
-      assert.equal("request" in request, false);
+      // Since Jini B016 (784296411) the plugin sends `{ request, ...request }` so a Jini-shaped client
+      // works too; any nested copy must mirror the positional fields Tovu's client actually reads.
+      const { request: nested, ...positional } = request as HttpRequest & { request?: unknown };
+      assert.deepEqual(nested ?? positional, positional);
       return { status: 200, headers: {}, bodyText: JSON.stringify({ id: request.headers["Idempotency-Key"] }) };
     }
     if (request.headers.Authorization === "Bearer sending-key") {
