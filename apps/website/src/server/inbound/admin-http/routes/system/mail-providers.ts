@@ -48,16 +48,16 @@ const STORE_ERRORS: readonly [new (...args: never[]) => Error, MailProviderFailu
 /** The host's own error classes, as the mail-provider specs' failures; anything else is unexpected (`undefined`).
  * @complexity O(1).
  */
-export function classifyMailProviderError(err: unknown, _optional: Record<string, never> = {}): MailProviderFailure | undefined {
-  if (err instanceof MailProviderOperationError) return { kind: "operation", code: err.code, message: err.message };
-  return STORE_ERRORS.find(([type]) => err instanceof type)?.[1];
+export function classifyMailProviderError({ error }: { error: unknown }, _optional: Record<string, never> = {}): MailProviderFailure | undefined {
+  if (error instanceof MailProviderOperationError) return { kind: "operation", code: error.code, message: error.message };
+  return STORE_ERRORS.find(([type]) => error instanceof type)?.[1];
 }
 
 /** Maps a refusal to its status; anything else is a logged 500 without the error's text. */
 function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  const failure = classifyMailProviderError(err);
+  const failure = classifyMailProviderError({ error: err });
   if (failure) {
-    const { status, body } = mailProviderRefusal(failure);
+    const { status, body } = mailProviderRefusal({ failure });
     res.status(status).json(body);
     return;
   }

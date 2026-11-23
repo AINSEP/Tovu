@@ -154,7 +154,8 @@ export type AdminMailTestSendDeps = Pick<RouteDeps, "workspaceId" | "authorize">
  * 200 `{ sent, result }` for every send outcome (accepted | captured | redirected | failed),
  * 429 for the local duplicate/rate guard, 400 for bad input, 403 without `admin.forms.manage`.
  *
- * `POST .../system/mail-test-send` (Jini spec): `direct` authorization. The host binds the recipient rules, a fresh idempotency
+ * `POST .../system/mail-test-send` (Jini spec): `direct` authorization, with the missing-principal refusal
+ * deferred to `authorize` (the only mail mount that validated its body first). The host binds the recipient rules, a fresh idempotency
  * key and the plan-then-run send (the operation `mail_send_test` runs).
  * @complexity One authorization, one user lookup, one settings read and at most one delivery.
  */
@@ -168,14 +169,20 @@ export function registerAdminMailTestSendRoute({ app, deps }: { app: Express; de
       const plan = await planMailTestSend({ principalId, ...(to === undefined ? {} : { to }), deps });
       return runMailTestSend({ principalId, plan, ref, deps });
     },
-  } }, { authorization: "direct", failure: { operation: "routes/system/mail-test-send", code: "INTERNAL_ERROR" } });
+  } }, {
+    authorization: "direct",
+    // The hand-written route refused a malformed body (or recipient/requestId) BEFORE reading the
+    // session principal, so that 400 still wins without a session; the spec authorizes before the send.
+    deferMissingPrincipal: true,
+    failure: { operation: "routes/system/mail-test-send", code: "INTERNAL_ERROR" },
+  });
 }
 
 /** The deps `registerAdminMailActivityRoutes` reads. */
 export type AdminMailActivityDeps = MailDeliveryToolDeps;
 
 /** The platform's own error classes, as the Jini spec's answers: a missing grant inside an operation, or no activity/suppression repo. */
-function classifyMailActivityError(error: unknown, _optional: Record<string, never> = {}): MailActivityFailure | undefined {
+function classifyMailActivityError({ error }: { error: unknown }, _optional: Record<string, never> = {}): MailActivityFailure | undefined {
   if (error instanceof MailActivityForbiddenError) return { kind: "forbidden", permission: error.permission };
   if (error instanceof MailActivityUnavailableError || error instanceof MailSuppressionsUnavailableError) return { kind: "unavailable", message: error.message };
   return undefined;
