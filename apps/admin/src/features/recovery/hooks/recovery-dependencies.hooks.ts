@@ -1,8 +1,8 @@
-import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/features/recovery/api/recovery-api.types";
+import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@jini-ai/admin/core";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import type { AdminRestorePointSummary } from "@/features/database/api/database-api.types";
 import { databaseApi } from "@/features/database/api/database-api";
-import type { RecoveryPort } from "./recovery-port.hooks";
+import type { RecoveryPort } from "@jini-ai/admin/recovery/hooks/recovery-port.hooks";
 
 /**
  * @file The only place `use-recovery.hooks.ts` reaches `lib/api` — see `recovery-port.hooks.ts` for

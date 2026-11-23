@@ -1,7 +1,7 @@
 import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
-import type { AdminDisclosureResult, RestoreExecuteResult } from "@/features/recovery/api/recovery-api.types";
+import type { AdminDisclosureResult, RestoreExecuteResult } from "@jini-ai/admin/core";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
-import type { RestoreFlowPort } from "./restore-flow-port.hooks";
+import type { RestoreFlowPort } from "@jini-ai/admin/recovery/hooks/restore-flow-port.hooks";
 
 /**
  * @file The only place `use-restore-flow.hooks.ts` reaches `lib/api` — see `restore-flow-

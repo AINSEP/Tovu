@@ -4000,6 +4000,62 @@
     {
       "id": "acef6d807516",
       "reason": "Moved to Jini @jini-ai/cms/publish/trust/keys (K5-publish-trust-1, ex7), reworded neutral (design-note path and table names dropped, reasoning kept); the Tovu file was deleted."
+    },
+    {
+      "id": "ad878fbe09c5",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-availability.store.ts (A-adm-publish-content-1), verbatim (untracked in Jini at check time)."
+    },
+    {
+      "id": "a6e0b3a0a4b2",
+      "reason": "Moved to Jini @jini-ai/admin/publish-content/screen/hooks/publish-availability.store.ts (A-adm-publish-content-1), reworded neutral: now on PublishToLiveAvailabilityStore.isPublishToLiveAvailable as 'Non-React read, for the host's publish-request entry point'."
+    },
+    {
+      "id": "143f2264ff74",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/__tests__/use-recovery-navigation.unit.test.ts (A-adm-recovery-1), reworded neutral: 'development/todos.md' -> 'recorded in the host todo log'."
+    },
+    {
+      "id": "91455daf17b8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/__tests__/use-recovery-navigation.unit.test.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "ae4463d8eda3",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/database.ts AdminRestorePoint) (A-adm-recovery-1), reworded neutral there: 'A persisted restore point — the entity AdminDatabasePort and AdminRecoveryPort share'."
+    },
+    {
+      "id": "224c89afb8a0",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts CategoryCount/AdminDisclosureResult) (A-adm-recovery-1), reworded neutral: the disclosure rationale is documented on AdminDisclosureResult there."
+    },
+    {
+      "id": "85450751ab80",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts header '## The deep-link envelope carries display continuity only, never authority') (A-adm-recovery-1), reworded neutral."
+    },
+    {
+      "id": "6e54b6937799",
+      "reason": "Type owned by Jini @jini-ai/admin/core (src/core/ports/recovery.ts RestoreExecuteResult.restartRequired doc) (A-adm-recovery-1), reworded neutral, same meaning (operator-triggered restart, pre-restore data served from an open file handle)."
+    },
+    {
+      "id": "534325fbabb0",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/recovery-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'apps/admin/INFO.md's Hooks section' -> 'the host admin app's Hooks guide'."
+    },
+    {
+      "id": "7ca5a03adac8",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/recovery-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'development/todos.md' -> 'the host's todo log'."
+    },
+    {
+      "id": "ec1b6556e300",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/restore-flow-port.hooks.ts (A-adm-recovery-1), reworded neutral: 'apps/admin/INFO.md's Hooks section' -> 'the host admin app's Hooks guide'."
+    },
+    {
+      "id": "1d8400d6196a",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "9dc640a9619f",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
+    },
+    {
+      "id": "63a2aed61350",
+      "reason": "Moved to Jini @jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks.ts (A-adm-recovery-1), verbatim."
     }
   ]
 }

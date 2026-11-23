@@ -3,7 +3,7 @@ import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import type { AdminRecoveryStatus, AdminRestorePoint } from "@jini-ai/admin/core";
 import { describeApiError } from "@/lib/admin-http/request";
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -12,7 +12,7 @@ import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-co
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t } from "../recovery-i18n";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
-import type { RecoveryPort } from "./recovery-port.hooks";
+import type { RecoveryPort } from "@jini-ai/admin/recovery/hooks/recovery-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

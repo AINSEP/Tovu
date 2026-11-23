@@ -4,7 +4,7 @@ import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type S
 import "@jini-ai/ui/settings-dialog.css";
 
 
-import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "./api/recovery-api.types";
+import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "@jini-ai/admin/core";
 import {
   categoryLabel,
   costClassLabel,
@@ -13,7 +13,8 @@ import {
   restoreButtonAccessibleName,
 } from "./rules";
 import { useWiredRecovery } from "./hooks/use-recovery.hooks";
-import { useRecoveryNavigation } from "./hooks/use-recovery-navigation.hooks";
+import { useRecoveryNavigation } from "@jini-ai/admin/recovery/hooks/use-recovery-navigation.hooks";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
@@ -519,10 +520,13 @@ export interface RecoveryProps {
   useRecoveryNavigationHook?: typeof useRecoveryNavigation;
 }
 
+/** Module-level so `useRecoveryNavigation`'s memoized handlers stay stable across renders. */
+const recoveryNavigationPort = { navigate };
+
 export function Recovery({ useRecoveryHook = useWiredRecovery, tabId,
   useRecoveryNavigationHook = useRecoveryNavigation }: RecoveryProps = {}) {
   const { status, points, error, creating, createRestorePoint, selected, setSelected, t, locale } = useRecoveryHook();
-  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigationHook({ tabId, setSelected });
+  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigationHook({ tabId, setSelected, port: recoveryNavigationPort });
 
   if (error && !points) return <div className="notice error">{error}</div>;
   if (!points || !status) return <div className="notice">{t("Loading restore points…")}</div>;

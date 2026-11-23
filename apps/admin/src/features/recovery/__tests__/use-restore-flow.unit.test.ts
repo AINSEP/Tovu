@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import type { AdminRestorePoint } from "@jini-ai/admin/core";
 import { useRestoreFlow, useWiredRestoreFlow } from "../hooks/use-restore-flow.hooks";
 import { createFakeRestoreFlowPort } from "../hooks/restore-flow-dependencies.hooks";
 

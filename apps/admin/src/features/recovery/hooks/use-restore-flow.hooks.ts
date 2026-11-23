@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
-import type { AdminDisclosureResult, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import type { AdminDisclosureResult, AdminRestorePoint } from "@jini-ai/admin/core";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
 
 import { defaultRestoreFlowPort } from "./restore-flow-dependencies.hooks";
-import type { RestoreFlowPort } from "./restore-flow-port.hooks";
+import type { RestoreFlowPort } from "@jini-ai/admin/recovery/hooks/restore-flow-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

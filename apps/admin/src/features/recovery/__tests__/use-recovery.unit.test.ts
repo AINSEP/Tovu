@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/features/recovery/api/recovery-api.types";
+import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@jini-ai/admin/core";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";

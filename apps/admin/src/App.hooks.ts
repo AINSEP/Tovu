@@ -31,8 +31,8 @@ import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
+import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
-  readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
 import {

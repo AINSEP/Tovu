@@ -2,11 +2,8 @@ import { act, render, renderHook, screen } from "@/__tests__/fetch-query-render"
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PublishSectionButton } from "../PublishSectionButton";
-import {
-  isPublishToLiveAvailable,
-  readPublishToLiveAvailability,
-  setPublishToLiveAvailable,
-} from "../hooks/publish-availability.store";
+import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../hooks/publish-availability.store";
 import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks/publish-request.store";
 
 /**

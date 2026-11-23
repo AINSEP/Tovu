@@ -1,4 +1,4 @@
-import { navigateDeploymentTab } from "./Deployment.hooks";
+import { navigateDeploymentTab } from "@jini-ai/admin/deployment/Deployment.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
@@ -128,7 +128,7 @@ export function Deployment(props: DeploymentProps) {
         ariaLabel={t({ locale: locale, key: "Deployment" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={(nextTabId) => navigateDeploymentTab({ nextTabId })}
+        onChange={(nextTabId) => navigateDeploymentTab({ nextTabId, navigate })}
         containerHandle="deployment-tab-bar"
       />
       {deploymentTabPanel(activeTabId)}

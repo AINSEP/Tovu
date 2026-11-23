@@ -1,3 +1,5 @@
+import { createPublishToLiveAvailabilityStore } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
+
 import { useSyncExternalStore } from "react";
 
 /**
@@ -14,32 +16,7 @@ import { useSyncExternalStore } from "react";
  * only opens after `/auth/me` answered, and an older server without the field could publish.
  */
 
-let available = true;
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-/** `/auth/me`'s `canPublishToLive`, with an absent field (older server) read as available. */
-export function readPublishToLiveAvailability(me: { readonly canPublishToLive?: boolean }): boolean {
-  return me.canPublishToLive !== false;
-}
-
-export function setPublishToLiveAvailable({ next }: { next: boolean }, _options: Record<string, never> = {}): void {
-  if (next === available) return;
-  available = next;
-  for (const listener of listeners) listener();
-}
-
-/** Non-React read, for `requestPublish`. */
-export function isPublishToLiveAvailable(): boolean {
-  return available;
-}
-
-export function usePublishToLiveAvailable(): boolean {
-  return useSyncExternalStore(subscribe, isPublishToLiveAvailable, isPublishToLiveAvailable);
-}
+/** This admin app's single instance — every Publish entry point reads it; `App.hooks.ts` and
+ *  `App.session.ts` feed it from `/auth/me`. The store's logic lives in `@jini-ai/admin`. */
+export const { setPublishToLiveAvailable, isPublishToLiveAvailable, usePublishToLiveAvailable } =
+  createPublishToLiveAvailabilityStore();

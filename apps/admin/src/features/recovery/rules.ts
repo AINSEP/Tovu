@@ -1,4 +1,4 @@
-import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "./api/recovery-api.types";
+import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "@jini-ai/admin/core";
 import { t } from "./recovery-i18n";
 
 import { interpolate, localeEntry, formatTimestamp } from '@jini-ai/core/text';

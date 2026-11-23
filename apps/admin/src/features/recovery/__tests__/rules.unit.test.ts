@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { categoryLabel, costClassLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
-import type { AdminDegradedBanner } from "@/features/recovery/api/recovery-api.types";
+import type { AdminDegradedBanner } from "@jini-ai/admin/core";
 
 /**
  * @file Pure logic for `features/recovery` — `categoryLabel`, `isAssertiveRecoveryBanner`,
