@@ -1,0 +1,334 @@
+diff --git a/apps/website/src/features/fs-files/custom-root-permission.ts b/apps/website/src/features/fs-files/custom-root-permission.ts
+index c4f771821c..a302eefcb5 100644
+--- a/apps/website/src/features/fs-files/custom-root-permission.ts
++++ b/apps/website/src/features/fs-files/custom-root-permission.ts
+@@ -3,7 +3,7 @@ import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+ /**
+  * @file The `fs_files.custom_root.manage` permission, and the grant that makes it real — gates
+  * CHANGING the `fs-files` domain's `custom` root (`PUT`/`DELETE` on
+- * `routes/fs-files/custom-root.ts`). Reading which folder is currently set stays on
++ * `server/runtime/composition/modules/fs-files.ts`). Reading which folder is currently set stays on
+  * `FS_FILES_READ_PERMISSION`, unchanged.
+  *
+  * ## Why changing it is a different capability from reading through it
+@@ -46,7 +46,7 @@ import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+  * The registration below must run before `applyBuiltinRoleGrants` does. It used to be a
+  * module-evaluation side effect that ran first only because
+  * {@link FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION} is imported by
+- * `server/inbound/admin-http/routes/fs-files/custom-root.ts`, which `composition/app.ts` imports
++ * `server/runtime/composition/modules/fs-files.ts`, which `composition/app.ts` imports
+  * statically — the same "reached via its own consumer" mechanism
+  * `features/identity/site-key-permission.ts` relied on. It is now an explicit call:
+  * `server/runtime/composition/app-permission-grants.ts` invokes
+diff --git a/apps/website/src/features/fs-files/custom-root-store.ts b/apps/website/src/features/fs-files/custom-root-store.ts
+index 2839ab3558..21d07cb5f1 100644
+--- a/apps/website/src/features/fs-files/custom-root-store.ts
++++ b/apps/website/src/features/fs-files/custom-root-store.ts
+@@ -58,7 +58,7 @@ import { dirname, isAbsolute, join } from "node:path";
+  * Every `fs_list_files`/`fs_read_file` call against the `custom` root passes through the exact same
+  * `content.read`-gated `authorize()` check and the same denylist as `repo`/`site` (see
+  * `tool-registrations.ts`), and the admin-http route that calls {@link setCustomFsRoot}
+- * (`routes/fs-files/custom-root.ts`) is gated by that identical permission. Whoever may set this path
++ * (`server/runtime/composition/modules/fs-files.ts`) is gated by that identical permission. Whoever may set this path
+  * is already trusted with `content.read`; no separate grant/approval/confirmation ceremony exists for
+  * the path itself, and none should be added here — seeding one back in would re-introduce exactly the
+  * restrictiveness `layout.ts`'s header records the owner rejecting.
+@@ -163,7 +163,7 @@ function resolveState({ persistedPath }: { persistedPath: string | undefined },
+ 
+ /**
+  * The full current state of `workspaceId`'s custom root, including whether a previously-set path has
+- * since vanished — the admin-http route (`routes/fs-files/custom-root.ts`) uses this, rather than
++ * since vanished — the admin-http route (`server/runtime/composition/modules/fs-files.ts`) uses this, rather than
+  * {@link getCustomFsRoot}, so the composer can eventually tell an operator "the folder you set is
+  * gone" instead of showing the same "no folder set" it would show before anything was ever chosen.
+  *
+diff --git a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts
+index 815157c86c..b2b0bd1da2 100644
+--- a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts
++++ b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts
+@@ -13,7 +13,7 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
+ 
+ import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
+ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+-import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "../custom-root.js";
++import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "#src/server/runtime/composition/modules/fs-files";
+ import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+ 
+ /** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
+diff --git a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root.test.ts b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root.test.ts
+index 270338143b..b44a342b09 100644
+--- a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root.test.ts
++++ b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/custom-root.test.ts
+@@ -8,7 +8,7 @@ import express from "express";
+ import type { NextFunction, Request, Response } from "express";
+ 
+ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+-import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "../custom-root.js";
++import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "#src/server/runtime/composition/modules/fs-files";
+ 
+ /**
+  * @file Real-HTTP coverage for the chat composer's folder control:
+diff --git a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/fs-files-route-failures.unit.test.ts b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/fs-files-route-failures.unit.test.ts
+index 5a026cdd3d..58bdab5e2b 100644
+--- a/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/fs-files-route-failures.unit.test.ts
++++ b/apps/website/src/server/inbound/admin-http/routes/fs-files/__tests__/fs-files-route-failures.unit.test.ts
+@@ -3,7 +3,7 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
+ import assert from 'node:assert/strict';
+ import test from 'node:test';
+ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
+-import { registerAdminFsFilesCustomRootRoutes } from '../custom-root.js';
++import { registerAdminFsFilesCustomRootRoutes } from '#src/server/runtime/composition/modules/fs-files';
+ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+diff --git a/apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts b/apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts
+deleted file mode 100644
+index 45fcbda512..0000000000
+--- a/apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts
++++ /dev/null
+@@ -1,112 +0,0 @@
+-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+-import type { Express, Request, Response } from "express";
+-
+-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+-import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
+-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
+-import {
+-  CustomFsRootError,
+-  getCustomFsRootStatus,
+-  setCustomFsRoot,
+-  type CustomFsRootStoreOptional,
+-} from "#src/features/fs-files/custom-root-store";
+-import type { RouteDeps } from "#src/server/routes/types";
+-import { asyncRoute } from "../../../../../platform/express/async-route.js";
+-
+-/**
+- * @file Admin chat composer's folder control: `GET`/`PUT`/`DELETE` on
+- * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` — the operator-facing surface for the
+- * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
+- *
+- * Shape copied from `routes/system/site-key.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding">`
+- * deps slice (no settings ledger, no repo — the value is persisted by `custom-root-store.ts`, keyed
+- * by `workspaceId`), the same `rejectUnlessAuthorized` two-step, one file for every verb.
+- *
+- * `storeOptional` (2026-09-10, restart-persistence follow-up) is the one addition beyond that copied
+- * shape: a test-only seam so this route's own tests can point `custom-root-store.ts` at a temp site
+- * directory instead of the real one — see that field's own doc. Every real caller leaves it unset and
+- * gets the real site directory, exactly as before this field existed.
+- *
+- * Two permissions, split by verb (owner ruling, 2026-09-15):
+- *
+- * - `GET` — `FS_FILES_READ_PERMISSION` (`content.read`), the SAME permission that gates
+- *   `fs_list_files`/`fs_read_file` themselves. Reading which folder is currently configured tells a
+- *   caller nothing it could not already read through those tools.
+- * - `PUT`/`DELETE` — {@link FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION}, which only `owner` (via its `*`
+- *   wildcard) and the built-in `admin` role hold. Choosing the folder is not the same capability as
+- *   reading through it: `layout.ts` accepts `/` and a home directory as values, so one `PUT`
+- *   re-points the assistant's whole filesystem surface. See that permission's own file for why it is
+- *   a new string with a built-in-role grant rather than `workspace.manage`, which NO policy in the
+- *   workspace this repo ships actually holds.
+- *
+- * `PUT`/`DELETE` never read anything under the folder they accept — {@link setCustomFsRoot}'s own doc
+- * is explicit that only the path and a single `stat` are involved. The route inherits that property
+- * rather than re-deriving it.
+- */
+-export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+-  /** Test seam — defaults to the booted `siteBinding.dir`. Set
+-   *  only by this route's own tests, to a temp directory, so they never read or write the real site's
+-   *  `.fs-custom-root.json`. */
+-  readonly storeOptional?: CustomFsRootStoreOptional;
+-};
+-
+-const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root";
+-
+-/** Shared workspace-path-param + permission check every verb below performs first — same shape
+- *  `site-key.ts`'s own `rejectUnlessAuthorized`. Takes the permission as a parameter because the
+- *  verbs no longer share one (see this file's header). Returns `true` (response already written) iff
+- *  the caller should stop. */
+-async function rejectUnlessAuthorized(
+-  req: Request,
+-  res: Response,
+-  deps: AdminFsFilesCustomRootDeps,
+-  permission: string,
+-): Promise<boolean> {
+-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
+-  const principal = getAuthedPrincipal(res);
+-  return !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
+-    principalId: principal.id,
+-    permission,
+-    workspaceId: deps.workspaceId,
+-  } }));
+-}
+-
+-export function registerAdminFsFilesCustomRootRoutes({ app, deps }: { app: Express; deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): void {
+-  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+-    if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_READ_PERMISSION)) return;
+-    const status = getCustomFsRootStatus({ workspaceId: deps.workspaceId, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
+-    // `vanished`/`vanishedPath` are only present (never `false`/absent-by-omission) when a
+-    // previously-set folder no longer stats as a directory — additive beyond the original
+-    // `{ path }` shape, so an existing caller reading only `path` sees no change.
+-    res.status(200).json(status.vanished ? { path: null, vanished: true, vanishedPath: status.vanishedPath } : { path: status.path ?? null });
+-  } }));
+-
+-  app.put(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+-    if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
+-
+-    const path = req.body?.path;
+-    if (typeof path !== "string" || path.length === 0) {
+-      res.status(400).json({ error: "'path' is required and must be a non-empty string", code: "VALIDATION_ERROR" });
+-      return;
+-    }
+-
+-    try {
+-      setCustomFsRoot({ workspaceId: deps.workspaceId, path, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
+-      res.status(200).json({ path: getCustomFsRootStatus({ workspaceId: deps.workspaceId, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) }).path });
+-    } catch (err) {
+-      if (err instanceof CustomFsRootError) {
+-        res.status(400).json({ error: err.message, code: "INVALID_PATH" });
+-        return;
+-      }
+-      sendAdminFailure({ res, error: err }, { operation: "routes/fs-files/custom-root", code: "INTERNAL_ERROR" });
+-    }
+-  } }));
+-
+-  app.delete(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+-    if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
+-    setCustomFsRoot({ workspaceId: deps.workspaceId, path: null, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
+-    res.status(200).json({ path: null });
+-  } }));
+-}
+diff --git a/apps/website/src/server/runtime/composition/http-app/mount-admin-system.ts b/apps/website/src/server/runtime/composition/http-app/mount-admin-system.ts
+index 2ea2b06467..921ecc643c 100644
+--- a/apps/website/src/server/runtime/composition/http-app/mount-admin-system.ts
++++ b/apps/website/src/server/runtime/composition/http-app/mount-admin-system.ts
+@@ -34,7 +34,7 @@ import { registerAdminAssistantPermanentDeletesRoutes } from "../../../inbound/a
+ import { registerAdminAssistantSubagentsRoutes } from "../../../inbound/admin-http/routes/system/assistant-subagents.js";
+ import { registerAdminDeploymentOverviewRoute } from "../../../inbound/admin-http/routes/system/deployment-overview.js";
+ import { registerAdminSitesRoutes } from "../../../inbound/admin-http/routes/system/sites.js";
+-import { registerAdminSiteProfileRoute } from "../../../inbound/admin-http/routes/site/profile.js";
++import { registerAdminSiteProfileRoute } from "../modules/site.js";
+ import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
+ import { registerAdminExportSiteRoutes } from "../../../inbound/admin-http/routes/system/export-site.js";
+ import { registerAdminCustomCredentialsRoutes } from "../../../inbound/admin-http/routes/system/custom-credentials.js";
+@@ -43,7 +43,7 @@ import { registerAdminPublishCredentialsRoutes } from "../../../inbound/admin-ht
+ import { registerAdminSourceControlCredentialsRoutes } from "../../../inbound/admin-http/routes/system/source-control-credentials.js";
+ import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/system/site-key.js";
+ import { siteKeyRecovery } from "../site-key-recovery.js";
+-import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
++import { registerAdminFsFilesCustomRootRoutes } from "../modules/fs-files.js";
+ import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
+ import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
+ import { isLocalTovuHost } from "../registered-sites.js";
+@@ -185,7 +185,7 @@ function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}
+   registerAdminSiteKeyRoutes({ app, deps: routeDeps, siteKey: { ensureSiteKeyForSite, ...siteKeyRecovery } });
+   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
+   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
+-  // same permission that gates those two tools themselves — see that route file's own header.
++  // same permission that gates those two tools themselves — see `modules/fs-files.ts`'s own header.
+   registerAdminFsFilesCustomRootRoutes({ app, deps: routeDeps });
+   // Chat composer's folder button: opens the OS folder dialog on this machine and returns the path.
+   // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
+diff --git a/apps/website/src/server/runtime/composition/modules/fs-files.ts b/apps/website/src/server/runtime/composition/modules/fs-files.ts
+new file mode 100644
+index 0000000000..aac16153ac
+--- /dev/null
++++ b/apps/website/src/server/runtime/composition/modules/fs-files.ts
+@@ -0,0 +1,96 @@
++import type { Express } from "express";
++
++import {
++  fsCustomRootDeleteRoute, fsCustomRootGetRoute, fsCustomRootPutRoute,
++  type FsCustomRootReadFn, type FsCustomRootWriteFn,
++} from "@jini-ai/cms/admin-http/routes/fs-files/custom-root";
++import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
++import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
++import {
++  CustomFsRootError,
++  getCustomFsRootStatus,
++  setCustomFsRoot,
++  type CustomFsRootStoreOptional,
++} from "#src/features/fs-files/custom-root-store";
++import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
++import type { RouteDeps } from "#src/server/routes/types";
++
++/**
++ * @file Admin chat composer's folder control: `GET`/`PUT`/`DELETE` on
++ * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` — the operator-facing surface for the
++ * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
++ *
++ * K1 (RT-K1-adm-fs-files): the three routes are Jini route specs
++ * (`@jini-ai/cms/admin-http/routes/fs-files/custom-root`) mounted behind the admin ports. `RouteDeps`
++ * is read only here, at registration. The root is persisted by `custom-root-store.ts` (a file under
++ * the booted site directory), so the specs never touch the filesystem: this module binds that store,
++ * its site directory, its invalid-path error and the two Tovu permissions as narrow functions and
++ * strings. The sibling `folder-picker` routes stay hand-written (`Cache-Control: no-store` and the
++ * session-credential check read response/request state a JSON spec cannot reach).
++ *
++ * Two permissions, split by verb (owner ruling, 2026-09-15):
++ *
++ * - `GET` — `FS_FILES_READ_PERMISSION` (`content.read`), the SAME permission that gates
++ *   `fs_list_files`/`fs_read_file` themselves. Reading which folder is currently configured tells a
++ *   caller nothing it could not already read through those tools.
++ * - `PUT`/`DELETE` — {@link FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION}, which only `owner` (via its `*`
++ *   wildcard) and the built-in `admin` role hold. Choosing the folder is not the same capability as
++ *   reading through it: `layout.ts` accepts `/` and a home directory as values, so one `PUT`
++ *   re-points the assistant's whole filesystem surface. See that permission's own file for why it is
++ *   a new string with a built-in-role grant rather than `workspace.manage`, which NO policy in the
++ *   workspace this repo ships actually holds.
++ *
++ * `storeOptional` (2026-09-10, restart-persistence follow-up) is a test-only seam so this route's own
++ * tests can point `custom-root-store.ts` at a temp site directory instead of the real one — see that
++ * field's own doc. Every real caller leaves it unset and gets the real site directory.
++ */
++
++/** The deps the fs-files custom-root registrar reads, a slice of `RouteDeps` plus one test seam. */
++export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
++  /** Test seam — defaults to the booted `siteBinding.dir`. Set
++   *  only by this route's own tests, to a temp directory, so they never read or write the real site's
++   *  `.fs-custom-root.json`. */
++  readonly storeOptional?: CustomFsRootStoreOptional;
++};
++
++/** Registrar signature for the fs-files custom-root routes (mirrors `RouteRegistrar`). */
++export type AdminFsFilesCustomRootRegistrar = (required: { app: Express; deps: AdminFsFilesCustomRootDeps }, optional?: Record<string, never>) => void;
++
++/** The two port fields every mount passes. `authorize` is read per request, as the hand-written
++ *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
++function customRootPortDeps({ deps }: { deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps {
++  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
++}
++
++/** The store's persistence root, resolved per call so a late-bound `siteBinding`/`storeOptional` is still honoured. */
++function storeOptionalOf({ deps }: { deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): CustomFsRootStoreOptional {
++  return deps.storeOptional ?? { siteDir: deps.siteBinding.dir };
++}
++
++/** The store's status read, bound to this registration's site directory. */
++function readCustomRootFn({ deps }: { deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): FsCustomRootReadFn {
++  return ({ workspaceId }) => getCustomFsRootStatus({ workspaceId, optional: storeOptionalOf({ deps }) });
++}
++
++/** The store's set-or-clear write, bound to this registration's site directory. */
++function writeCustomRootFn({ deps }: { deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): FsCustomRootWriteFn {
++  return ({ workspaceId, path }) => setCustomFsRoot({ workspaceId, path, optional: storeOptionalOf({ deps }) });
++}
++
++/** The failure copy each verb answered with. `PUT` named its own operation; `GET`/`DELETE` had no
++ *  `try`, so a failure reached the app's error middleware, which answers as `admin-route.uncaught`. */
++function mountOptions(operation: string) {
++  return { authorization: "guarded", failure: { operation, code: "INTERNAL_ERROR" } } as const;
++}
++
++export const registerAdminFsFilesCustomRootRoutes: AdminFsFilesCustomRootRegistrar = ({ app, deps }, _options = {}) => {
++  const ports = customRootPortDeps({ deps });
++  mountAdminJsonRoute({ app, spec: fsCustomRootGetRoute, deps: { ...ports, readPermission: FS_FILES_READ_PERMISSION, readCustomRoot: readCustomRootFn({ deps }) } },
++    mountOptions("admin-route.uncaught"));
++  mountAdminJsonRoute({ app, spec: fsCustomRootPutRoute, deps: {
++    ...ports, managePermission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, readCustomRoot: readCustomRootFn({ deps }), writeCustomRoot: writeCustomRootFn({ deps }),
++    isInvalidRootError: ({ err }) => err instanceof CustomFsRootError,
++  } }, mountOptions("routes/fs-files/custom-root"));
++  mountAdminJsonRoute({ app, spec: fsCustomRootDeleteRoute, deps: { ...ports, managePermission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION, writeCustomRoot: writeCustomRootFn({ deps }) } },
++    mountOptions("admin-route.uncaught"));
++};
