@@ -39,7 +39,7 @@ export const defaultTaxonomyPort = createTaxonomyPort({ api: taxonomyApi, trash:
 /** This host's translator, request-error class and failure channel, as the taxonomy hooks read them. */
 export const taxonomyHostKit: TaxonomyHostKit = {
   translate: t,
-  isApiError: (e): e is ApiError => false && e instanceof ApiError,
+  isApiError: (e): e is ApiError => e instanceof ApiError,
   describeApiError,
   failures: {
     getGeneration: () => adminFailureChannel.getGeneration(),
