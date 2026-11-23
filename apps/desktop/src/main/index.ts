@@ -132,11 +132,12 @@ import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWindowQuitPrompt, type QuitPhase } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
-import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
+import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
-import { registerImportHandoffIpc } from "../import-handoff-ipc.ts";
+import { registerHandoffForwarding } from "@jini-ai/desktop-host/electron/handoff";
+import { IMPORT_HANDOFF_CHANNELS, IMPORT_HANDOFF_SENDER_REFUSED, importHandoffRequest } from "../contracts/import-handoff.ts";
 import { registerRunnerIpcStubs } from "../runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "../app-version-ipc.ts";
 import { createDesktopResources } from "../desktop-resources.ts";
@@ -163,17 +164,18 @@ import { addSitePointer } from "../add-site-pointer.ts";
 import { importSiteArchive, stopRunningImports, tidyInterruptedImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
-import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
-import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
+import { readWindowBounds, writeWindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
+import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
+import { SPELLCHECK_MENU_LABELS } from "./spellcheck-labels.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
 import { createLivePreviewGuests, isLivePreviewGuestAllowed } from "./boot/site-preview-guests.ts";
-import { presenceDirPath } from "../instance-presence.ts";
+import { presenceDirPath } from "@jini-ai/desktop-host/shell/instance-presence";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { MenuItemConstructorOptions, WebContents } from "electron";
-import type { SelftestTracker } from "../selftest-tracker.ts";
+import type { SelftestTracker } from "@jini-ai/desktop-host/electron/selftest";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
@@ -181,7 +183,7 @@ import { createAppWindow } from "./windows/app-window.ts";
 import { desktopCopy } from "../desktop-i18n.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
-import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
+import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-navigation";
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
@@ -539,7 +541,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: ({ url }) => void shell.openExternal(url),
-    relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
+    relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ labels: SPELLCHECK_MENU_LABELS, webContents, menuBuilder: Menu }),
     showErrorBox: ({ title, message }) => dialog.showErrorBox(title, message), logError: ({ message }) => console.error(message),
     setExitCode: ({ code }) => { process.exitCode = code; }, quit: () => app.quit(),
   } }, { selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) });
@@ -844,7 +846,8 @@ function registerAppWideIpc(): void {
   // The web admin's "Open Import in Tovu" (owner, 2026-11-10): admin pages only reach it through
   // their preload's `tovuImport`, behind the speech channels' sender check. App-wide for the same
   // reason as speech; with no sites home window open it answers `opened: false`.
-  registerImportHandoffIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), sitesHomeWindows: openSitesHomeWindows });
+  registerHandoffForwarding({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), windows: openSitesHomeWindows,
+    channels: IMPORT_HANDOFF_CHANNELS, parse: importHandoffRequest, senderRefused: IMPORT_HANDOFF_SENDER_REFUSED });
   registerSiteViewPreferenceIpc({ ipcMain,
     allowed: ({ sender }: { sender: WebContents }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),

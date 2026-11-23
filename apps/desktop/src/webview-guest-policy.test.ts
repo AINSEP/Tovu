@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { admitGuestSource, applyGuestWebPreferences } from "./webview-guest-policy.ts";
-import type { GuestWebPreferences } from "./webview-guest-policy.ts";
+import { admitGuestSource, applyGuestWebPreferences } from "@jini-ai/desktop-host/shell/webview-guest-policy";
+import type { GuestWebPreferences } from "@jini-ai/desktop-host/shell/webview-guest-policy";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

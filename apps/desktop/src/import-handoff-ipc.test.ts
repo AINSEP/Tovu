@@ -10,8 +10,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { IMPORT_HANDOFF_ADDRESS_MAX, IMPORT_HANDOFF_CHANNELS, importHandoffRequest } from "./contracts/import-handoff.ts";
-import { registerImportHandoffIpc, type ImportHandoffWindow } from "./import-handoff-ipc.ts";
+import { registerHandoffForwarding, type HandoffIpcMain, type HandoffWindow } from "@jini-ai/desktop-host/electron/handoff";
+import { IMPORT_HANDOFF_ADDRESS_MAX, IMPORT_HANDOFF_CHANNELS, IMPORT_HANDOFF_SENDER_REFUSED, importHandoffRequest, type ImportHandoffRequest } from "./contracts/import-handoff.ts";
+
+type ImportHandoffWindow = HandoffWindow<ImportHandoffRequest>;
+/** The same binding main/index.ts makes (pinned below), with the test's own sender check and windows. */
+function registerImportHandoffIpc({ ipcMain, isTrustedSender, sitesHomeWindows }: { ipcMain: HandoffIpcMain; isTrustedSender: (required: { senderUrl: string }) => boolean; sitesHomeWindows: () => readonly ImportHandoffWindow[] }): void {
+  registerHandoffForwarding({ ipcMain, isTrustedSender, windows: sitesHomeWindows, channels: IMPORT_HANDOFF_CHANNELS, parse: importHandoffRequest, senderRefused: IMPORT_HANDOFF_SENDER_REFUSED });
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADMIN = "http://127.0.0.1:4100/admin/import-export?tab=import";
@@ -95,11 +101,15 @@ test("the request keeps only a bounded, nonblank string address", () => {
 
 test("main/index.ts registers the hand-off with the speech channels' shell-page sender check and the sites home windows", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const call = source.match(/registerImportHandoffIpc\(\{([\s\S]*?)\}\);/);
-  assert.ok(call, "registerImportHandoffIpc is called");
+  const call = source.match(/registerHandoffForwarding\(\{([\s\S]*?)\}\);/);
+  assert.ok(call, "registerHandoffForwarding is called");
   assert.match(call[1]!, /ipcMain/);
   assert.match(call[1]!, /isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\)/);
-  assert.match(call[1]!, /sitesHomeWindows/);
+  assert.match(call[1]!, /windows: openSitesHomeWindows\b/, "the actual window provider is the open sites home windows");
+  assert.match(call[1]!, /channels: IMPORT_HANDOFF_CHANNELS\b/);
+  assert.match(call[1]!, /parse: importHandoffRequest\b/);
+  assert.match(call[1]!, /senderRefused: IMPORT_HANDOFF_SENDER_REFUSED\b/);
+  assert.doesNotMatch(source, /registerImportHandoffIpc/, "the host's own forwarding implementation is no longer registered");
   const appWide = source.slice(source.indexOf("function registerAppWideIpc"), source.indexOf("function installAppWideMenu"));
-  assert.match(appWide, /registerImportHandoffIpc\(/, "registered with the other app-wide IPC, before any window can call it");
+  assert.match(appWide, /registerHandoffForwarding\(/, "registered with the other app-wide IPC, before any window can call it");
 });

@@ -36,7 +36,7 @@ import type { ObservedServer } from "@jini-ai/sidecar/supervisor";
 import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-child-registry.ts";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
-import { createSitePresence } from "./project-ipc.presence.ts";
+import { createSitePresence } from "@jini-ai/desktop-host/shell/site-presence";
 import { SITE_PRESENCE_CHANNEL } from "./contracts/project.ts";
 import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
 

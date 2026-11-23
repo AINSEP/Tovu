@@ -4,7 +4,7 @@
  * the navigation boundary all before the first load — are verified without Electron. `main.ts`
  * passes a `BrowserWindow` factory and `shell.openExternal` in.
  */
-import { installAppWindowNavigationPolicy, type NavigableContents } from "../../window-navigation-policy.ts";
+import { installAppWindowNavigationPolicy, type NavigableContents } from "@jini-ai/desktop-host/shell/window-navigation-policy";
 
 /** The `BrowserWindow` options {@link createAppWindow} builds. */
 interface AppWindowOptions {

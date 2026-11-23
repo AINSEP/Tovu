@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { packagedPtyHelperFailures } from "./pty-helpers.ts";
+import { packagedPtyHelperFailures } from "@jini-ai/desktop-host/shell/pty-helpers";
 
 /** A packaged resources dir whose unpacked node-pty carries `helpers` (relative path -> mode). */
 function resourcesWith(root: string, helpers: Record<string, number>): string {

@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { createDesktopUpdater, createDesktopUpdaterState, desktopUpdaterSkipReason } from "./desktop-updater.ts";
 import type { DesktopUpdaterPorts, NativeUpdater } from "./desktop-updater.ts";
-import type { AutoUpdateController } from "../../auto-update-controller.ts";
+import type { AutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";
 
 function fakeNative(): NativeUpdater {
   return {

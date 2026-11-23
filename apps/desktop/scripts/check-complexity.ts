@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file The desktop complexity gate: re-lints `apps/desktop` at a hard 9/9 ceiling and fails on any
- * violation not in `complexity-debt.json`. The rules live in `../src/complexity-debt.ts` and are
+ * violation not in `complexity-debt.json`. The rules live in `@jini-ai/devops/checks/complexity-debt` and are
  * tested there.
  *
  * ## Why a --rule re-lint rather than the shared config's severity
@@ -39,8 +39,8 @@ import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { evaluateRun, rejectUnusableEslintRun } from "../src/complexity-debt.ts";
-import type { ComplexityViolation, EslintFileResult } from "../src/complexity-debt.ts";
+import { evaluateRun, rejectUnusableEslintRun } from "@jini-ai/devops/checks/complexity-debt";
+import type { ComplexityViolation, EslintFileResult } from "@jini-ai/devops/checks/complexity-debt";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
