@@ -3,13 +3,11 @@ import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
 import {
-  createAccountLabelHealScheduler,
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
   deletePublishCredential,
   describeCredential,
   healAccountLabel,
-  idsNeedingAccountLabelHeal,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
@@ -19,6 +17,7 @@ import {
   type UpdatePublishCredentialInput,
 } from "#src/features/deployments/publish-credentials/index";
 import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
+import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler";
 import {
   canYieldAccountLabel,
   verifyPublishCredentialById,
@@ -87,7 +86,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * Deployment → Static Site tab loading its own list) and reuses `verifyAfterSave` verbatim as the
  * scheduler's `heal` callback, so a self-heal shares the exact same probe/cache/DB-write behavior a
  * human clicking "Verify" already gets — nothing new is added to WHAT a heal does, only WHEN it can
- * additionally fire. See `account-label-heal-scheduler.ts`'s own header for the fire-and-forget/
+ * additionally fire. See `@jini-ai/devops/deploy/site/publish-credentials/account-label-heal-scheduler`'s own header for the fire-and-forget/
  * in-flight-dedupe contract that keeps this off the hot path and safe under `62ca21c7`'s guard.
  *
  * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
@@ -231,8 +230,14 @@ function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPu
    *  works if it survives between requests. `heal` is `verifyAfterSave` verbatim: a background self-
    *  heal does exactly what a human clicking "Verify" already does, through the same function, never a
    *  parallel code path that could drift from it. See this file's own header ("second pass") and
-   *  `account-label-heal-scheduler.ts`'s header for the full reasoning. */
-  const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
+   *  the `@jini-ai/devops` heal scheduler's header for the full reasoning. `onHealError` is this
+   *  route's own fallback logging (same `[publish-credentials]` prefix and `console.error(message,
+   *  err)` shape as the deploy-target load failure below), so a background heal failure shows up in
+   *  the same place an unexpected route error already does; the scheduler itself never logs. */
+  const accountLabelHealScheduler = createAccountLabelHealScheduler({
+    heal: verifyAfterSave,
+    onHealError: ({ id, err }) => console.error(`[publish-credentials] background account-label heal failed for '${id}'`, err),
+  });
   return async function triggerAccountLabelHeal(credentials) {
     try {
       const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
@@ -267,7 +272,7 @@ function listCredentialsRoute(context: CredentialsContext) {
       // Fires AFTER the response is already sent, and only for rows THIS call itself found still
       // `null` — never awaited, never able to change or delay what the caller above just received.
       // `accountLabelHealScheduler.triggerFor` is documented to never throw or reject, even if `heal`
-      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
+      // misbehaves (the `@jini-ai/devops` heal scheduler's own tests cover that directly) — see this
       // file's header for why this is the one new trigger point and why it must stay exactly this
       // narrow.
       void triggerAccountLabelHeal(credentials);
