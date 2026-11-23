@@ -16,6 +16,13 @@ import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotRea
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";
+import { apiConnectionSignInRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/connection-sign-in";
+import type { Express, Response as ExpressResponse } from "express";
+import type { ApiConnectionHost } from "#src/features/api-connections/host";
+import { API_CONNECTION_SIGN_IN_PATH, browserBindingCookie } from "#src/features/api-connections/browser-binding";
+import { getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
+import { mountJiniRouteInPlace } from "../jini-routes.js";
 
 /**
  * @file K1 (RT-K1-adm-agent-plugins): registrars for the `agent-plugins` admin routes that are Jini
@@ -131,3 +138,29 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app,
     packageFileLimits: PLUGIN_PACKAGE_FILE_LIMITS,
   } }, mountOptions("routes/agent-plugins/files"));
 };
+
+/** The host's admin-session helpers read only `res.locals`; the Jini route hands the same locals. */
+function localsAsResponse(locals: Readonly<Record<string, unknown>>): ExpressResponse {
+  return { locals } as unknown as ExpressResponse;
+}
+
+/**
+ * Hosted sign-in start (Jini `apiConnectionSignInRoute`), mounted beneath the /api/admin session
+ * middleware where the hand-written inline handler stood (`<anonymous>` row kept). Binds the path,
+ * the session helpers (which throw without a gate-attached credential, as before), the handoff store,
+ * the binding cookie and Tovu's failure page.
+ * @complexity O(1) setup.
+ */
+export function registerApiConnectionSignInRoute({ app, deps }: { app: Express; deps: { readonly workspaceId: string; readonly host: ApiConnectionHost } }, _optional: Record<string, never> = {}): void {
+  mountJiniRouteInPlace({ app, route: apiConnectionSignInRoute({
+    path: API_CONNECTION_SIGN_IN_PATH,
+    workspaceId: deps.workspaceId,
+    credentialKind: ({ locals }) => getAuthedCredentialKind(localsAsResponse(locals)),
+    actorId: ({ locals }) => getAuthedPrincipal(localsAsResponse(locals)).id,
+    forbidden: { message: "Sign-in links need a signed-in admin session.", permission: "admin.assistant.use" },
+    takeHandoff: (input) => deps.host.signInHandoffs.take(input),
+    bindingCookie: ({ browserBinding }) => browserBindingCookie({ browserBinding }),
+    messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE,
+    renderPage: renderOAuthCallbackPage,
+  }) }, { anonymous: true });
+}

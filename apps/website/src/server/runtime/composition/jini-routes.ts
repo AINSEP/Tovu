@@ -48,13 +48,17 @@ export function mountJiniRoutes(
  * the bridge's response writer; a throw goes to `next(error)` (the host error handler), as before.
  * The web `Request` carries the method, path, query and headers; its origin is a fixed placeholder,
  * because Express trusts no Host for routing — a route that needs the public origin takes it as a dep.
+ * @param optional.anonymous - Register through an unnamed wrapper, for a route whose hand-written handler was an inline arrow.
  * @throws Error at mount time for a method that carries a body: this mount hands no body on.
  * @complexity O(1) setup; O(headers) per request plus the route.
  */
-export function mountJiniRouteInPlace({ app, route }: { app: Pick<Express, "get" | "delete">; route: ServerRoute }, _optional: Record<string, never> = {}): void {
+export function mountJiniRouteInPlace(
+  { app, route }: { app: Pick<Express, "get" | "delete">; route: ServerRoute },
+  { anonymous = false }: { anonymous?: boolean } = {},
+): void {
   if (route.method !== "GET" && route.method !== "DELETE") throw new Error(`mountJiniRouteInPlace: ${route.method} ${route.path} carries a body; mount it with mountJiniRoutes`);
   const verb = route.method === "GET" ? "get" : "delete";
-  app[verb](route.path, asyncRoute({ handler: async (req, res) => {
+  const handler = asyncRoute({ handler: async (req, res) => {
     const url = new URL("http://localhost");
     const target = req.originalUrl.split("#")[0] ?? "";
     const queryAt = target.indexOf("?");
@@ -64,7 +68,9 @@ export function mountJiniRouteInPlace({ app, route }: { app: Pick<Express, "get"
     const client = req.socket.remoteAddress ? { address: req.socket.remoteAddress } : undefined;
     const response = await route.handler({ request, params: { ...req.params }, ...(client ? { client } : {}), locals: requestFactsLocals({ req }, { base: res.locals }) });
     await sendWebResponse({ response, res }, { headOnly: req.method === "HEAD" });
-  } }));
+  } });
+  // The route table names each handler: a route that replaced a plain inline handler keeps its `<anonymous>` row.
+  app[verb](route.path, anonymous ? (req, res, next) => handler(req, res, next) : handler);
 }
 
 /** Keepalive timers on Node's clock. Unref'd, as the stream helpers they replace were: an idle stream must not keep the process alive. */
