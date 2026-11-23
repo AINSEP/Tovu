@@ -16,7 +16,7 @@ const baseMenu = {
 };
 
 test("toAdminMenuDto omits mode/html when the doc carries neither", () => {
-  const dto = toAdminMenuDto({ ...baseMenu, doc: { items: [] } } as never) as unknown as Record<string, unknown>;
+  const dto = toAdminMenuDto({ menu: { ...baseMenu, doc: { items: [] } } as never }) as unknown as Record<string, unknown>;
   assert.equal("mode" in dto, false);
   assert.equal("html" in dto, false);
   assert.deepEqual(dto.items, []);
@@ -24,14 +24,14 @@ test("toAdminMenuDto omits mode/html when the doc carries neither", () => {
 });
 
 test("toAdminMenuDto carries mode and html through when the doc is HTML-authored", () => {
-  const dto = toAdminMenuDto({ ...baseMenu, doc: { items: [], mode: "html", html: "<a>x</a>" } } as never) as unknown as Record<string, unknown>;
+  const dto = toAdminMenuDto({ menu: { ...baseMenu, doc: { items: [], mode: "html", html: "<a>x</a>" } } as never }) as unknown as Record<string, unknown>;
   assert.equal(dto.mode, "html");
   assert.equal(dto.html, "<a>x</a>");
 });
 
 test("parseMenuHtmlAuthoring keeps only the fields that were sent", () => {
-  assert.deepEqual(parseMenuHtmlAuthoring({}), {});
-  assert.deepEqual(parseMenuHtmlAuthoring({ mode: "html", html: "<b>y</b>", other: 1 }), { mode: "html", html: "<b>y</b>" });
+  assert.deepEqual(parseMenuHtmlAuthoring({ body: {} }), {});
+  assert.deepEqual(parseMenuHtmlAuthoring({ body: { mode: "html", html: "<b>y</b>", other: 1 } }), { mode: "html", html: "<b>y</b>" });
 });
 
 // K1: the raw-HTML check moved into the Jini specs (`authorizeMenuHtml`); this pins the same rule at
