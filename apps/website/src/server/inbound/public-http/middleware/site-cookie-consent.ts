@@ -24,7 +24,7 @@ import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-lim
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';
-import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
+import { siteBannerMode, toSiteCookieConsent } from '@jini-ai/cookie-consent/site/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';

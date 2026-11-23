@@ -2,8 +2,8 @@
 import type { Request } from 'express';
 import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { RateLimitProfile } from '@jini-ai/core/contracts/site/http-kit-rate-limit';
-import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
-import { withSiteConsentDefaultCss } from '#src/features/consent/config';
+import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
+import { withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
 import { createSiteConsentConfig } from '#src/features/consent/settings';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
 import type { RouteDeps } from '#src/server/routes/types';

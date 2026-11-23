@@ -4,8 +4,8 @@ import test from 'node:test';
 import { sql } from 'kysely';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '../revisions.repo.js';
-import { SiteConsentConflict } from '../revisions.js';
-import { parseConsentConfig, consentConfigProblems } from '../validation.js';
+import { SiteConsentConflict } from '@jini-ai/cookie-consent/site/revisions';
+import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
 import { consentFixture } from './fixture.js';
 
 test('readiness, publication refresh and deployment retain redacted failure diagnostics', async t => {
@@ -31,7 +31,7 @@ test('readiness, publication refresh and deployment retain redacted failure diag
   }
   assert.doesNotMatch(JSON.stringify({ readiness, refused }), /SECRETSECRETSECRETSECRET/);
 });
-import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '../config.js';
+import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '@jini-ai/cookie-consent/site/config';
 
 test('draft saves preserve published enforcement; stale editors and stale publication are refused', async t => {
   const f = consentFixture({ t });

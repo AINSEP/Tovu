@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { getEffective, set } from '@jini-ai/core/settings';
 import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-defaults';
-import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
+import { SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';

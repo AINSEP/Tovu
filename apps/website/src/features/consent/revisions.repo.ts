@@ -1,7 +1,7 @@
 /** @file Thin SQL adapter for site consent snapshots, using the host's instrumented kernel. */
 import { sql } from 'kysely';
 import type { KyselyKernel } from '@jini-ai/db/kernel';
-import { SiteConsentConflict, type SiteConsentRevision, type SiteConsentStore } from './revisions.js';
+import { SiteConsentConflict, type SiteConsentRevision, type SiteConsentStore } from '@jini-ai/cookie-consent/site/revisions';
 
 type Stored = { id: string; config_json: string; actor_id: string; created_at: string };
 

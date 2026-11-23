@@ -2,8 +2,9 @@ import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
-import { renderSiteConsentPreview, siteBannerMode } from '../cookie-consent.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_OFF } from '../settings.js';
+import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
+import { renderSiteConsentPreview, siteBannerMode } from '@jini-ai/cookie-consent/site/cookie-consent';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
 const clock = { nowMs: () => Date.parse('2026-10-09T12:00:00.000Z'), nowIso: () => '2026-10-09T12:00:00.000Z' };

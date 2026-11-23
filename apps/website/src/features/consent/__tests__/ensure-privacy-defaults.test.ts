@@ -5,8 +5,8 @@ import { createPost } from '../../post/index.js';
 import { InMemoryPagesHtmlDocumentStore } from '../../pages/html-document-store.memory.js';
 import { createPrivacyPageCheck } from '#src/server/inbound/public-http/middleware/site-consent';
 import { createSiteConsentService } from '../service.js';
-import { SITE_CONSENT_DEFAULTS } from '../config.js';
-import type { SiteConsentRevision } from '../revisions.js';
+import { SITE_CONSENT_DEFAULTS } from '@jini-ai/cookie-consent/site/config';
+import type { SiteConsentRevision } from '@jini-ai/cookie-consent/site/revisions';
 import { ensureSitePrivacyDefaults, type PrivacyDefaultsDeps } from '../ensure-privacy-defaults.js';
 
 const clock = { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' };

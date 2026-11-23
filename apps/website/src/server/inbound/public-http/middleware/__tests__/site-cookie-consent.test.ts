@@ -12,7 +12,7 @@ import { JSDOM } from 'jsdom';
 import { CONSENT_COOKIE } from '@jini-ai/cookie-consent';
 import type { RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { renderSiteConsentPreview, type SiteConsentSource } from '#src/features/consent/cookie-consent';
+import { renderSiteConsentPreview, type SiteConsentSource } from '@jini-ai/cookie-consent/site/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';

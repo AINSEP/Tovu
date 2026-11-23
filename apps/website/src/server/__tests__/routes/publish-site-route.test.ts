@@ -17,7 +17,7 @@ import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTar
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
-import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
+import { SITE_CONSENT_NAMESPACE } from "@jini-ai/cookie-consent/site/config";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

@@ -5,7 +5,7 @@ import type { Express, Request, Response } from 'express';
 import { ToolInputError } from '@jini-ai/core';
 import { ForbiddenError } from '@jini-ai/cms/core';
 import type { SiteConsentService } from '#src/features/consent/service';
-import { SiteConsentConflict } from '#src/features/consent/revisions';
+import { SiteConsentConflict } from '@jini-ai/cookie-consent/site/revisions';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import { authorizeOrRespond } from '#src/server/inbound/admin-http/authorize-guard';
 import type { RouteDeps } from '#src/server/routes/types';

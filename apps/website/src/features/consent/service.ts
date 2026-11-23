@@ -5,18 +5,18 @@ import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { formatErrorForLog, ToolInputError } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
-import type { SiteConsentState, SiteConsentStore } from './revisions.js';
-import { SiteConsentConflict } from './revisions.js';
-import { consentConfigProblems, parseConsentConfig } from './validation.js';
+import type { SiteConsentState, SiteConsentStore } from '@jini-ai/cookie-consent/site/revisions';
+import { SiteConsentConflict } from '@jini-ai/cookie-consent/site/revisions';
+import { consentConfigProblems, parseConsentConfig } from '@jini-ai/cookie-consent/site/validation';
 import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';
 import { CATEGORIES as CONSENT_CATEGORIES } from '@jini-ai/cookie-consent';
 import { DEFAULT_MAX_AGE_MS as CONSENT_MAX_AGE_MS } from '@jini-ai/cookie-consent/policy';
 import { CONSENT_MAX_CSS_LENGTH } from '@jini-ai/cookie-consent/render';
-import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
+import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
 import { consentPagePath } from './request.js';
 import { consentDeclarationReadiness, type ConsentDeclarationEvidence } from './readiness.js';
-import { renderSiteConsentPreview } from './cookie-consent.js';
+import { renderSiteConsentPreview } from '@jini-ai/cookie-consent/site/cookie-consent';
 
 const CONSENT_CSS_SELECTORS = ['#jini-consent', '.jini-consent', '.jini-consent-reopen'];
 
