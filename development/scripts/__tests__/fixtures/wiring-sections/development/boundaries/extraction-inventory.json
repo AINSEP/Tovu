@@ -1,0 +1,15 @@
+{
+  "planSha": "fixture-plan",
+  "boundRoots": ["apps/admin/src/features/rooted/"],
+  "themeRoots": ["apps/admin/src/features/skin/"],
+  "rows": [
+    { "path": "apps/admin/src/features/good-feature/index.ts", "scope": "bound" },
+    { "path": "apps/admin/src/features/no-wiring/index.ts", "scope": "bound" },
+    { "path": "apps/admin/src/features/bad-port/index.ts", "scope": "bound" },
+    { "path": "apps/admin/src/features/mixed-feature/index.ts", "scope": "mixed" },
+    { "path": "apps/admin/src/features/host-feature/index.ts", "scope": "host" },
+    { "path": "apps/admin/src/features/admin-themes/index.ts", "scope": "bound" },
+    { "path": "apps/admin/src/features/skin/index.ts", "scope": "bound" },
+    { "path": "apps/admin/src/lib/not-a-feature.ts", "scope": "bound" }
+  ]
+}
