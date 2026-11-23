@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
-import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@jini-ai/core/contracts/site/user-management-react";
 
 /** The admin API calls of the roles feature. */
 export const rolesApi = {

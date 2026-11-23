@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import type { AdminPolicyPermission, AdminRole, AdminPolicy } from "@jini-ai/admin/roles/api/roles-api.types";
+import type { AdminPolicyPermission, AdminRole, AdminPolicy } from "@jini-ai/core/contracts/site/user-management-react";
 import { useFetchQuery as useFetchQueryHook } from "@jini-ai/ui/fetch-query";
-import { describeApiError, KEYS } from "../rules";
+import { KEYS } from "@jini-ai/admin/roles/rules";
+import { describeApiError } from "../roles-host-binding";
 import { useAdminLocale as useAdminLocaleHook } from "@/hooks/use-admin-locale.hooks";
-import { t } from "../roles-i18n";
+import { t } from "@jini-ai/admin/roles/roles-i18n";
 import type { useRoles, PendingPermissionRemove } from "./use-roles.hooks";
 
 export function useRolesState(

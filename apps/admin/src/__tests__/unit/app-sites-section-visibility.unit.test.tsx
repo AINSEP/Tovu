@@ -15,7 +15,7 @@ import {
 } from "../../site-section-availability.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { sitesApi } from "../../features/sites/api/sites-api";
-import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { ApiError } from "../../lib/admin-http/request";
 import { getNav } from "../../nav";
 

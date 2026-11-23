@@ -23,7 +23,7 @@ import {
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
-import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";

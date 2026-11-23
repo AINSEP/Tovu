@@ -1,5 +1,5 @@
 import { request, requestOnce } from "../../../lib/admin-http/request";
-import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 
 /** The admin API calls of the auth feature. */
 export const authApi = {

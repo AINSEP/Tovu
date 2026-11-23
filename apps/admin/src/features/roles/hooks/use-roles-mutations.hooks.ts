@@ -1,5 +1,5 @@
 import { useFetchMutation as useFetchMutationHook } from "@jini-ai/ui/fetch-query";
-import { KEYS } from "../rules";
+import { KEYS } from "@jini-ai/admin/roles/rules";
 import type { useRolesState } from "./use-roles-state.hooks";
 
 export function useRolesMutations(

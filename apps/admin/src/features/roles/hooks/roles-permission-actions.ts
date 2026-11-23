@@ -1,5 +1,5 @@
-import { describeApiError } from "../rules";
-import { t } from "../roles-i18n";
+import { describeApiError } from "../roles-host-binding";
+import { t } from "@jini-ai/admin/roles/roles-i18n";
 import type { useRolesState } from "./use-roles-state.hooks";
 import type { useRolesMutations } from "./use-roles-mutations.hooks";
 

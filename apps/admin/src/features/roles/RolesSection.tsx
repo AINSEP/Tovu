@@ -1,8 +1,8 @@
 import { type FormEvent } from "react";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
-import { roleMenuItems } from "./rules";
+import type { AdminRole } from "@jini-ai/core/contracts/site/user-management-react";
+import { roleMenuItems } from "@jini-ai/admin/roles/rules";
 
 
 /**

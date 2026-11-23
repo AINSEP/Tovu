@@ -1,6 +1,6 @@
 import { Fragment, type FormEvent } from "react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminPolicy } from "@jini-ai/admin/roles/api/roles-api.types";
+import type { AdminPolicy } from "@jini-ai/core/contracts/site/user-management-react";
 import { type PolicyRowController, type PolicyPermissionController, PolicyRow } from "./PolicyRow";
 
 

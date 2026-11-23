@@ -2,14 +2,14 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/core/contracts/site/user-management-react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { PolicyRow, type PolicyPermissionController, type PolicyRowController } from "../PolicyRow";
 import { Roles } from "../Roles";
 import { RolesSection, type RoleCreateFormController, type RoleRowController } from "../RolesSection";
 import { useRoles, type RolesController } from "../hooks/use-roles.hooks";
 import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
-import { t as realT } from "../roles-i18n";
+import { t as realT } from "@jini-ai/admin/roles/roles-i18n";
 
 /**
  * @file `Roles` — markup-only assertions driven entirely through the injectable `useRolesHook` seam
@@ -169,6 +169,22 @@ describe("tabs", () => {
     renderRoles({}, POLICIES_TAB);
     expect(screen.getByRole("tab", { name: /Policies/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: /Roles/ })).toHaveAttribute("aria-selected", "false");
+  });
+
+  // The host binds the tab strip's navigation (`roles-host-binding.ts`): `replace: true`, so
+  // moving between the two tabs does not grow the back stack one entry per click.
+  it("clicking a tab navigates to its ?tab= URL without growing browser history", () => {
+    const originalUrl = window.location.href;
+    try {
+      window.history.replaceState(null, "", "/admin/roles?tab=roles");
+      const entries = window.history.length;
+      renderRoles();
+      fireEvent.click(screen.getByRole("tab", { name: /Policies/ }));
+      expect(window.location.pathname + window.location.search).toBe("/admin/roles?tab=policies");
+      expect(window.history.length).toBe(entries);
+    } finally {
+      window.history.replaceState(null, "", originalUrl);
+    }
   });
 
   it("falls back to Roles for an unrecognized ?tab= rather than rendering a blank panel", () => {

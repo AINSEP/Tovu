@@ -1,7 +1,7 @@
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import type { AdminPolicy, AdminPolicyPermission } from "@jini-ai/admin/roles/api/roles-api.types";
-import { policyMenuItems } from "./rules";
+import type { AdminPolicy, AdminPolicyPermission } from "@jini-ai/core/contracts/site/user-management-react";
+import { policyMenuItems } from "@jini-ai/admin/roles/rules";
 import { type PendingPermissionRemove } from "./hooks/use-roles.hooks";
 import { PolicyPermissionForm } from "./PolicyPermissionForm";
 

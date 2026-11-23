@@ -1,8 +1,9 @@
-import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/core/contracts/site/user-management-react";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { useWiredRoles } from "./hooks/use-roles.hooks";
-import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "@jini-ai/admin/roles/Roles.hooks";
-import { rolesDescriptionParts } from "./roles-i18n";
+import { resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "@jini-ai/admin/roles/Roles.hooks";
+import { goToRolesTab } from "./roles-host-binding";
+import { rolesDescriptionParts } from "@jini-ai/admin/roles/i18n/roles-sentence-parts";
 import { RolesSection } from "./RolesSection";
 import { PoliciesSection } from "./PoliciesSection";
 import { RoleDeleteDialog, PolicyDeleteDialog, PermissionRemoveDialog } from "./RoleConfirmDialogs";
@@ -227,7 +228,7 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
 
       <TabBar
         ariaLabel={t({ key: "Roles & Permissions" })}
-        tabs={resolveRolesTabs((key) => t({ key }))}
+        tabs={resolveRolesTabs({ t: (key) => t({ key }) })}
         activeId={activeTabId}
         onChange={(tabId) => goToRolesTab({ tabId })}
         containerHandle="roles-tab-bar"

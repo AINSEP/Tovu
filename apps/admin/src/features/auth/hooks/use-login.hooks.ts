@@ -3,7 +3,7 @@ import { useLogin as useJiniLogin, type LoginController as JiniLoginController }
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 import { ApiError } from "@/lib/admin-http/request";
 
-import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { defaultLoginPort } from "./login-dependencies.hooks";
 import type { LoginPort } from "@jini-ai/admin/screens/auth/hooks/login-port.hooks";
 

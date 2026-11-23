@@ -7,7 +7,7 @@ import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
 import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
-import type { AdminUser } from "@jini-ai/admin/screens/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { useMemo, type ReactNode } from "react";
 import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } from "./App.chrome";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
