@@ -26,8 +26,13 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   pin's input in both composition roots (`site-deps/identity-settings.ts`,
   `memory-deps/slices/site-title-settings.ts`, which also bind `set` and `resolveDefinitionRaw` on
   `preserveLegacySiteTitles`' deps), and through `siteTitleHostBindings` (the legacy title plus
-  `getEffective`) on every `resolveSiteTitle` call site (render context, `llms.ts`, `feed.ts`, the
-  templated preview, site consent).
+  `getEffective`, plus the `reportSiteTitleFailure` sink) on every `resolveSiteTitle` call site (render
+  context, `llms.ts`, `feed.ts`, the templated preview, site consent). Both composition roots also spread
+  `siteTitlePreservationHostBindings` (`reportSiteTitleFailure`, `reportPreservationSummary`) into
+  `preserveLegacySiteTitles`' deps.
+- `site-title-reporter.ts` builds those two sinks: a failed pin or render read logs the engine's fixed
+  text plus `workspaceId` and `errorClass`, never the error's message (the same rule as
+  `site-timezone-fallback.ts`); a preservation run logs its pinned/skipped/failed counts.
 - `settings-write-policies.ts` owns the visitor-tools dedicated writer (`VISITOR_TOOLS_*` and
   `parseVisitorToolPolicy` from `contracts/site-assistant/visitor-tools.ts`) and binds it once as
   `SETTINGS_WRITE_POLICIES` into the package chokepoint. The barrel's `set`/`clear`/`resetNamespace`/
