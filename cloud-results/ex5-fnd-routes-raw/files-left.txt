@@ -1,0 +1,7 @@
+P9 scanner: plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 (a2e4f88cf), clean worktrees. FILES-LEFT = plan.mjs "moving" + shells.json; theme areas = theme + adm-themes (src - keep).
+== base f7185f153
+moving 2486 ready 544 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2486,"shells":0,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375}
+== tip 16de005f4 (later commits: why-comments debt JSON + this report only)
+moving 2464 ready 537 blocked 1927 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2464,"shells":0,"total":2464,"themeAreaFiles":111,"totalExclThemeAreas":2353}
