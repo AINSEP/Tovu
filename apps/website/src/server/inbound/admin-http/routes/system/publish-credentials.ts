@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { reportServerFailure, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
@@ -226,7 +226,10 @@ function buildVerifyAfterSave({ deps }: { deps: AdminPublishCredentialsDeps }): 
       try {
         await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
       } catch (err) {
-        console.warn(`[publish-credentials] ERR-PUBLISH-CREDENTIAL-LABEL-HEAL: the key ${id} was saved, but its account name could not be stored. It will be retried the next time the keys are listed.`, err);
+        // The heal error can carry provider text (tokens): it goes through the shared redacting incident
+        // sink, never to a raw console call. The key itself is saved, so the request still succeeds.
+        const { errorId } = reportServerFailure({ error: err, operation: "routes/system/publish-credentials" });
+        console.warn(`[publish-credentials] ${errorId} (ERR-PUBLISH-CREDENTIAL-LABEL-HEAL): the key ${id} was saved, but its account name could not be stored. It will be retried the next time the keys are listed.`);
       }
     }
     return result ?? undefined;

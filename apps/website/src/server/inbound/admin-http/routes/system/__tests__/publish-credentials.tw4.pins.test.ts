@@ -89,20 +89,24 @@ test("publish update invalidates cached compatibility only when worksFor changes
 });
 
 
-test("account-label healing failure returns 500 after saving and logs a redacted diagnostic", async t => {
+// B231: this pin used to require a 500 although the key was saved (the owner then retried into a
+// duplicate-label conflict on their own key). The heal is non-fatal now; the redaction half is unchanged.
+test("account-label healing failure still answers 200 after saving and logs a redacted diagnostic (B231)", async t => {
   const f = await fixture({ accountLabel: "fixture-account" });
   const failure = new Error("provider token=private-token; email=private@example.test");
   t.mock.method(f.repo, "updateAccountLabel", async () => { throw failure; });
   const logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const token = ["fixture", "saved-before-heal"].join("-");
-  assertAdminResponse({ actual: await f.put({ body: { connection: { providerId: "fixture", token } } }), expected: {
-    statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assert.equal((await f.put({ body: { connection: { providerId: "fixture", token } } })).statusCode, 200);
   assert.equal((await f.resolve())?.connection.token, token);
   assertAdminDiagnostics({ calls: logs, operation: "[routes/system/publish-credentials]", diagnostics: [/provider token=/] });
   assert.equal(JSON.stringify(logs).includes("private-token"), false);
+  assert.equal(JSON.stringify(warnings).includes("private-token"), false);
 });
+
 
 const collection = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
