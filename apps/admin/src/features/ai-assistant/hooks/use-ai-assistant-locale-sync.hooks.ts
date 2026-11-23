@@ -12,6 +12,11 @@ import {
  * the initial render. The sync rule and its rationale live with the Jini hook; this file only
  * picks the provider. Same shape as `features/settings/hooks/use-settings-locale-sync.hooks.ts`.
  */
+/**
+ * Binds the real `useI18n()` — the zero-dependency half of the `useX(dependencies)` / `useWiredX()`
+ * pair, so `AiAssistant.tsx` composes this and a test composes Jini's `useAiAssistantLocaleSync`
+ * directly with a fake `setLocale`.
+ */
 export function useWiredAiAssistantLocaleSync(props: AiAssistantLocaleSyncHookProps): void {
   const { locale: activeLocale, setLocale } = useI18n();
   useAiAssistantLocaleSync({ locale: props.locale, activeLocale, setLocale });
