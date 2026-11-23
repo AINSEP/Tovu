@@ -7,7 +7,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMediaGetProvidersRoute } from "../get-providers.js";
+import { registerAdminMediaGetProvidersRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaPutProvidersRoute } from "../put-providers.js";
 import type { MediaProviderRouteDeps } from "../deps.js";
 import { createMediaProviderRegistry, mediaProviderDefinition } from "@jini-ai/integrations/media-providers";

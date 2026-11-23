@@ -8,7 +8,7 @@ import { ToolbarColorGroup } from "./ToolbarColorGroup";
 import { ToolbarCharacterCount } from "./ToolbarCharacterCount";
 import { ToolbarAlignGroup, ToolbarBlockGroup, ToolbarHeadingGroup, ToolbarHistoryGroup, ToolbarMarksGroup } from "./ToolbarFormattingGroup";
 import { ToolbarInsertControls } from "./insert-controls";
-import { ToolbarOverflowMenu } from "./ToolbarOverflowMenu";
+import { ToolbarOverflowMenu } from "@jini-ai/admin/posts/editor/toolbar/ToolbarOverflowMenu";
 import { ToolbarTypographyGroup } from "./ToolbarTypographyGroup";
 import { probeToolbar } from "./toolbar-state";
 

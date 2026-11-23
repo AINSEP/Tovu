@@ -115,7 +115,7 @@ function assertImportTarget(required: { input: ImportPostEntityInput; existing: 
  *
  * Widening the authoring inputs to serve this one caller would have handed every existing editor
  * call site a way through those guards. This function keeps them intact and takes a whole
- * `PostRecord` instead — the identical shape and reasoning `features/media/import-media-entity.ts`
+ * `PostRecord` instead — the identical shape and reasoning `@jini-ai/cms/media/site/import-media-entity`
  * already uses for media (`mediaRepo.save({...record, ...})`), which is why media has never had the
  * fidelity defect this function exists to fix on the post side.
  *

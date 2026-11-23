@@ -6,7 +6,7 @@ import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
-import { registerAdminMediaImportUrlRoute } from "../import-url.js";
+import { registerAdminMediaImportUrlRoute } from "#src/server/runtime/composition/modules/media";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 

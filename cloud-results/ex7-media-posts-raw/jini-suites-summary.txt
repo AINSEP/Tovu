@@ -1,0 +1,5 @@
+/tmp/claude-0/s/suite-jini-admin.txt: Test Files  298 passed (298)
+/tmp/claude-0/s/suite-jini-admin.txt:      Tests  3517 passed (3517)
+/tmp/claude-0/s/suite-jini-cms.txt:⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+/tmp/claude-0/s/suite-jini-cms.txt: Test Files  3 failed | 462 passed (465)
+/tmp/claude-0/s/suite-jini-cms.txt:      Tests  3 failed | 5190 passed (5193)

@@ -1,0 +1,14 @@
+apps/admin/src/features/media/hooks/use-edit-media-modal.hooks.ts:4-21  [12a0712c0a97]  @file `editmediamodal`'s native `<dialog>` lifecycle — the metadata edit form used to render as a
+apps/admin/src/features/media/hooks/use-media-card-metadata.hooks.ts:15-18  [9d8d2841aa30]  the card's size text (owner, 2026-09-21) uses jini's 1024-based kb/mb/gb, matching tovu_max_upload_b
+apps/admin/src/features/posts/editor/notices/PostAutosaveRecoveryBanner.tsx:6-14  [8b7b396b53b9]  standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. never rendered un
+apps/admin/src/features/posts/editor/notices/PostAutosaveStaleBanner.tsx:5-33  [f1c7604fc6ac]  standing-draft autosave — the stale-basis notice (2026-09-06). mirrors `features/pages/pageeditor.
+apps/admin/src/features/posts/editor/notices/PostVersionConflictBanner.tsx:5-18  [02e90c063e62]  optimistic concurrency (2026-09-06) — the "someone else saved while you were editing" banner. rend
+apps/website/src/features/media/import-media-entity.ts:8-68  [2278e5d282d4]  @file task 12 of the publish-content (publish content) feature — `ads-memory/reports/2026-09-18-pu
+apps/website/src/features/media/import-media-entity.ts:70-73  [0271c1bcc463]  dependencies `importmediaentity` needs, bound by a composition root. named to match this codebase's
+apps/website/src/features/media/import-media-entity.ts:358-361  [9c480b3daa11]  media's `slug` is nullable/optional in practice (pre-backfill rows), unlike `post`'s — an empty sl
+apps/website/src/server/inbound/admin-http/routes/media/delete.ts:56-58  [5db9360caeee]  409 with the referencing list while content still uses the asset, 404 for an unknown asset, otherwis
+apps/website/src/server/inbound/admin-http/routes/media/import-url.ts:3-3  [96f6da0c95be]  quick wins a: an admin adapter over the same guarded fetch and upload pipeline as the tool.
+apps/website/src/server/inbound/admin-http/routes/media/import-url.ts:36-37  [279a2459ffb7]  permission checks precede all outbound i/o; rejected bytes never reach uploadmedia. @complexity o(n)
+apps/website/src/server/inbound/admin-http/routes/media/trash.ts:73-74  [b4d9d57d1e22]  maps a refused marker flip to its response. @complexity o(1).
+apps/website/src/server/inbound/admin-http/routes/media/where-used.ts:9-9  [5406dc190280]  read-only usage disclosure, sharing the media.read gate and existing workspace isolation.
+apps/website/src/server/inbound/admin-http/routes/posts/get-by-id.ts:25-27  [690bcf5bd64d]  admin urls use the slug when one resolves (cleaner than the raw stored id, 2026-08-10) — this rout

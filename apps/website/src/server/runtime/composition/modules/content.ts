@@ -1,6 +1,9 @@
-import { registerAdminPostListRoute } from "#src/server/inbound/admin-http/routes/posts/list";
+import { postListRoute } from "@jini-ai/cms/admin-http/routes/posts/list";
+import { postGetRoute } from "@jini-ai/cms/admin-http/routes/posts/get-by-id";
+import { getAdminPostByIdOrSlug, hasPostBeenPublished, listAdminPosts, PostNotFoundError } from "#src/features/post/index";
+import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { registerAdminPostCreateRoute } from "#src/server/inbound/admin-http/routes/posts/create";
-import { registerAdminPostGetRoute } from "#src/server/inbound/admin-http/routes/posts/get-by-id";
 import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
 import { registerAdminPostUpdateRoute } from "#src/server/inbound/admin-http/routes/posts/update";
 import { registerAdminPostDeleteRoute } from "#src/server/inbound/admin-http/routes/posts/delete";
@@ -31,7 +34,7 @@ import {
   registerAdminThemePagePublishRoute,
   registerAdminThemeSaveOriginalRoute,
 } from "#src/server/inbound/admin-http/routes/themes/explore";
-import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -75,6 +78,42 @@ import type { ServerModuleHandle } from "./types.js";
  * registration under `/pages/`. No new dependency shape: reuses `deps.postRepo`/`deps.authorize`/
  * `deps.clock`, all already read by the posts registrations above. Now 18 registrations total.
  */
+/** The two port fields every posts read mount passes. `authorize` is read per request, as the
+ *  hand-written routes read `deps.authorize`, so a test's later reassignment of it is still honoured.
+ *  It drops the spec's `entityType`: these two routes never named one, and forwarding it would let a
+ *  resource-scoped `content.read` grant match — an authorization change for the owner, not part of a move. */
+function postReadPortDeps({ deps }: { deps: ContentRouteDeps }, _options: Record<string, never> = {}): AdminJsonRoutePortDeps {
+  return { workspaceId: deps.workspaceId, authorize: ({ entityType: _entityType, ...params }) => deps.authorize(params) };
+}
+
+/** GET the workspace's posts (Jini spec `postListRoute`), behind `authorizeOrRespond` as before.
+ *  `deps.postRepo` is read per request, so a test's later reassignment of it is still honoured. */
+export const registerAdminPostListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: postListRoute, deps: {
+    ...postReadPortDeps({ deps }),
+    listPostResponses: async (input) => (await listAdminPosts({ deps: { repo: deps.postRepo }, input })).posts.map(toAdminPostResponse),
+  } }, { failure: { operation: "routes/posts/list", code: "INTERNAL_ERROR" } });
+};
+
+/** GET one post by id or slug (Jini spec `postGetRoute`), behind `authorizeOrRespond` as before. */
+export const registerAdminPostGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: postGetRoute, deps: {
+    ...postReadPortDeps({ deps }),
+    readPost: (input) => readAdminPost({ deps, input }),
+    isPostNotFound: ({ err }) => err instanceof PostNotFoundError,
+  } }, { failure: { operation: "routes/posts/get-by-id", code: "INTERNAL_ERROR" } });
+};
+
+/** The admin post envelope's `post` plus whether it was ever published, for the by-id read.
+ *  @complexity O(1) — one id-or-slug lookup and one published-history check. */
+async function readAdminPost(
+  { deps, input }: { deps: ContentRouteDeps; input: { workspaceId: string; idOrSlug: string } },
+  _options: Record<string, never> = {},
+): Promise<{ post: object; everPublished: boolean }> {
+  const { post } = await getAdminPostByIdOrSlug({ deps: { repo: deps.postRepo }, input });
+  return { post: toAdminPostResponse(post).post, everPublished: await hasPostBeenPublished({ post }, { repo: deps.postRepo }) };
+}
+
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
     name: "content",
