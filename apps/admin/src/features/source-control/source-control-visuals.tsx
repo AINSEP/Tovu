@@ -1,4 +1,4 @@
-import { LINE_ICON } from "../../components/line-icon";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 import { Icon } from "@jini-ai/ui";
 /**
  * @file This page's own small icon set — three inline SVGs, no icon dependency. Same rationale

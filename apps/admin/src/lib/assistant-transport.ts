@@ -2,13 +2,15 @@ import { createAssistantTransportClient } from "@jini-ai/chat/transports/http";
 import type { ChatMessage, StartRunInput } from "@jini-ai/chat/core";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
-import { browserQueuedStartPorts, startQueuedDaemonRun } from "./queued-daemon-start";
-import { withAcceptanceCancellation } from "./acceptance-cancellation";
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
+import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
 import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";
 import { agUiRunClient } from "./assistant-transport-ag-ui";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
-import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
-import { uniqueId } from "./unique-id";
+import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
+import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { adminLogger } from "./shell-collaborators";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
 export { parseFrame } from "./sse-frames";
 
@@ -24,8 +26,9 @@ const client = createAssistantTransportClient({ ports: {
  runBinding: ({ runId }) => durableRunBindings.get(runId),
  followRun: ({ runId, handlers, signal }) => { followDurableRun({ runId, handlers, signal, binding: durableRunBindings.get(runId), ports: browserDurableSubscriptionPorts({}, {}) }, {}); },
  acceptRun: ({ body, signal, requestSignal, messageId, conversationId }) => withAcceptanceCancellation({ signal,
-  start: () => startQueuedDaemonRun({ body, signal: requestSignal, ports: browserQueuedStartPorts({}, {}) }, {}),
+  start: () => startQueuedDaemonRun({ body, signal: requestSignal, ports: browserQueuedStartPorts({ orFallback }, {}) }, {}),
   cancel: async () => { await fetch(RUNS_URL + "/pending/cancel", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId, conversationId }) }); },
+  logger: adminLogger,
  }, {}),
  agUi: agUiRunClient,
 } }, {});

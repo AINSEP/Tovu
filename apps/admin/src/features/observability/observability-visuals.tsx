@@ -1,4 +1,4 @@
-import { LINE_ICON } from "../../components/line-icon";
+import { LINE_ICON } from "@jini-ai/admin/shell/components/line-icon";
 /**
  * @file The Observability screen's own icon set — inline SVGs, no icon dependency. Same rationale
  * `features/plugins/agent-plugins-visuals.tsx` and

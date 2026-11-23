@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useFetchQuery as useFetchQueryHook, useInvalidate as useInvalidateHook } from "@jini-ai/ui/fetch-query";
-import { useAdminBootScope as useAdminBootScopeHook } from "@/lib/admin-boot-scope";
+import { useAdminBootScope as useAdminBootScopeHook } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { SITE_TRANSFER_KEYS, prefilledLiveAddress, unavailableReason } from "./site-transfer-rules";
 import type { SiteImport } from "./site-transfer-dependencies.hooks";
 import type { useSiteImport } from "./use-site-transfer.hooks";

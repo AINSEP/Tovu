@@ -2,12 +2,12 @@ import { act, cleanup, render, renderHook, screen, waitFor } from "@/__tests__/r
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
-import { AdminBootScopeContext } from "../lib/admin-boot-scope";
+import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
 import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
-import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
-import { subscribeToContentRefresh } from "../lib/content-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import { subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 afterEach(cleanup);
 

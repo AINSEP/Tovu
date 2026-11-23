@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { t } from "./email-i18n";
 import { EmailActivityTab } from "./EmailActivityTab";
 import { EmailOverviewTab } from "./EmailOverviewTab";

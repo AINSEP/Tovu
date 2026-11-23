@@ -1,6 +1,6 @@
 import type { ProviderDomainVerification } from "@/features/email/api/mail-status-api.types";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 
 /**
  * @file The Email page's client for the round-2 mail routes (2026-10-22). Each shape mirrors its

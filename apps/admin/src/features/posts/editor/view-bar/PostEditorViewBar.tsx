@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { Translate } from "@jini-ai/core/text";
 import { resolveTabBarTabIndex, type useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import { type DevicePreviewDevice } from "../../../../components/DevicePreview/DevicePreview.hooks";
+import { type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewToggle } from "../../../../components/DevicePreview/DevicePreviewToggle";
 import type { PostEditorView } from "../../hooks/use-post-editor.hooks";
 import { PostEditorToolbarEnd } from "../header/PostEditorToolbarEnd";

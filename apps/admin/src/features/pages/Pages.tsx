@@ -9,7 +9,7 @@ import type { AdminPost } from "../posts/api/posts-api.types";
 
 import { siteUrl } from "../../lib/site-url";
 
-import { adminHref, navigate } from "../../lib/router";
+import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
@@ -24,7 +24,7 @@ import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.h
 import { ThemePagesTab } from "./ThemePagesTab";
 
 import { type Translate, formatTimestamp } from '@jini-ai/core/text';
-import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
+import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
 /**
  * @file The Pages list screen — markup only.
  *

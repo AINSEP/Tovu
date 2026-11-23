@@ -5,7 +5,7 @@ import type { PresentationSettings, ThemeTier } from "@/features/themes/api/them
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { THEMES_RESOURCE, themeCopyName, themeNamesById } from "../rules";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";

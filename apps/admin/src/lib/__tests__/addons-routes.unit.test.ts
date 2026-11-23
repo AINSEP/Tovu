@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
-import { resolveAddonsRoute } from "../addons-routes";
+import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
+import { ADDONS_ROUTE_POLICY as policy } from "../addons-routes";
 
-/** Owner decision 2026-10-13: exact destinations, raw queries, and bounded legacy URL shapes. */
+/** Tovu parity (the table stays in Tovu, rv-g FIX 2). Owner decision 2026-10-13: exact destinations, raw queries, and bounded legacy URL shapes. */
 it.each([
   ["/plugins", "/addons/plugins"],
   ["/agent-plugins", "/addons/agent-plugins"],
@@ -13,7 +14,7 @@ it.each([
   ["/integrations?tab=mcp-server", "/addons/integrations?tab=mcp-server"],
   ["/integrations/sub%2F1?cursor=a%2Bb", "/addons/integrations/sub%2F1?cursor=a%2Bb"],
 ])("resolves legacy %s to %s", (routePath, redirectPath) => {
-  expect(resolveAddonsRoute({ routePath })).toStrictEqual({ matchPath: routePath, redirectPath });
+  expect(resolveAddonsRoute({ routePath, policy })).toStrictEqual({ matchPath: routePath, redirectPath });
 });
 
 it.each([
@@ -23,7 +24,7 @@ it.each([
   ["/addons/integrations?tab=webhooks&cursor=a%2Bb", "/providers?tab=webhooks&cursor=a%2Bb"],
   ["/addons/integrations/sub%2F1?cursor=a%2Bb", "/integrations/sub%2F1?cursor=a%2Bb"],
 ])("adapts current %s to stable panel path %s without redirecting", (routePath, matchPath) => {
-  expect(resolveAddonsRoute({ routePath })).toStrictEqual({ matchPath });
+  expect(resolveAddonsRoute({ routePath, policy })).toStrictEqual({ matchPath });
 });
 
 it.each([
@@ -31,16 +32,16 @@ it.each([
   "/addons", "/addons/unknown", "/addons/plugins/extra", "/addons/integrations/sub1/extra",
   "/constructor", "/toString", "/__proto__", "/addons/constructor",
 ])("leaves unrelated or invalid %s to the existing matcher", (routePath) => {
-  expect(resolveAddonsRoute({ routePath })).toStrictEqual({ matchPath: routePath });
+  expect(resolveAddonsRoute({ routePath, policy })).toStrictEqual({ matchPath: routePath });
 });
 
 it("appends the default Webhooks tab after a bare trailing '?' on a legacy Integrations link", () => {
-  expect(resolveAddonsRoute({ routePath: "/integrations?" })).toStrictEqual({
+  expect(resolveAddonsRoute({ routePath: "/integrations?", policy })).toStrictEqual({
     matchPath: "/integrations?",
     redirectPath: "/addons/integrations?&tab=webhooks",
   });
 });
 
 it("keeps every '?' after the first inside the query bytes", () => {
-  expect(resolveAddonsRoute({ routePath: "/addons/skills?q=a?b" })).toStrictEqual({ matchPath: "/skills?q=a?b" });
+  expect(resolveAddonsRoute({ routePath: "/addons/skills?q=a?b", policy })).toStrictEqual({ matchPath: "/skills?q=a?b" });
 });

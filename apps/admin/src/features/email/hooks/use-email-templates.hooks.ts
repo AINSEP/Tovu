@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { emailApi, type EmailApi, type EmailTemplateSummary } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 

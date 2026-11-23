@@ -1,5 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
+import { mergeLocaleOverlays } from "@jini-ai/admin/shell/lib/merge-locale-overlays";
 import { createDictionaryTranslator, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Roles & Permissions screen (`Roles.tsx`) — this feature's own

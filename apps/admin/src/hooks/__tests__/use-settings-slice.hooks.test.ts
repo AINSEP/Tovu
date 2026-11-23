@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { commitQueuedSave } from "@jini-ai/ui/panel-kit";
 import { act, renderHook } from "@testing-library/react";
-import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

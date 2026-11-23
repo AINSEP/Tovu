@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminApiError, describeApiError } from '@jini-ai/core/admin-runtime';
 import type { RedirectsTransportPort } from '@jini-ai/admin/redirects/adapters/http';
 import { ApiError } from '../../../lib/admin-http/request';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { createRedirectsHostPorts, createRedirectsTranslator, redirectsEvents, redirectsSessionGrants } from '../redirects-ports';
 
 afterEach(resetContentRefreshBus);
@@ -91,13 +91,13 @@ describe('redirects host ports', () => {
   it('filters named refreshes, retains unknown scope and removes the listener', () => {
     const listener = vi.fn();
     const unsubscribe = redirectsEvents.subscribe(listener);
-    publishContentRefresh(['media']);
+    publishContentRefresh({ resources: ['media'] });
     expect(listener).not.toHaveBeenCalled();
-    publishContentRefresh(['redirects']);
+    publishContentRefresh({ resources: ['redirects'] });
     publishContentRefresh();
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
-    publishContentRefresh(['redirects']);
+    publishContentRefresh({ resources: ['redirects'] });
     expect(listener).toHaveBeenCalledTimes(2);
   });
 });

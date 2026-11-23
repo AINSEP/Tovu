@@ -6,7 +6,7 @@ import { CommentQueueScopeProvider } from '@jini-ai/admin/comments/react';
 import { Comments } from '../../../features/comments';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { commentsEvents, createCommentsQueueScope } from '../comments-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
@@ -86,13 +86,13 @@ describe('Jini comments host switch', () => {
     const view = render(node({}));
     await screen.findByRole('button', { name: 'Save settings' });
     await waitFor(() => expect(api.listCommentsQueue).toHaveBeenCalledTimes(1));
-    act(() => publishContentRefresh(['comments-settings']));
+    act(() => publishContentRefresh({ resources: ['comments-settings'] }));
     expect(api.listCommentsQueue).toHaveBeenCalledTimes(1);
-    act(() => publishContentRefresh(['comments-queue']));
+    act(() => publishContentRefresh({ resources: ['comments-queue'] }));
     await waitFor(() => expect(api.listCommentsQueue).toHaveBeenCalledTimes(2));
     expect(api.getCommentsSettings).toHaveBeenCalledTimes(1);
     view.unmount();
-    act(() => publishContentRefresh(['comments-queue']));
+    act(() => publishContentRefresh({ resources: ['comments-queue'] }));
     expect(api.listCommentsQueue).toHaveBeenCalledTimes(2);
   });
 

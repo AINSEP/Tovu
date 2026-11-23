@@ -1,4 +1,4 @@
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 export type MediaTabId = "all" | "images" | "videos" | "external-providers" | "trash";
 

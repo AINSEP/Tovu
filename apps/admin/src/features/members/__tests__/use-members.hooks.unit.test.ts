@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMember } from "@/features/members/api/members-api.types";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeMembersPort } from "@jini-ai/user-management/react/testing";
 import { useMembers, useWiredMembers } from "../hooks/members-controller.hooks";
 import { MEMBERS_RESOURCE } from "../hooks/members-dependencies.hooks";
@@ -97,11 +97,11 @@ describe("useMembers — content refresh bus", () => {
 
     port.members[0] = { ...MEMBER, status: "disabled" };
 
-    act(() => publishContentRefresh(["taxonomy"]));
+    act(() => publishContentRefresh({ resources: ["taxonomy"] }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(result.current.members?.[0]?.status).toBe("active");
 
-    act(() => publishContentRefresh([MEMBERS_RESOURCE]));
+    act(() => publishContentRefresh({ resources: [MEMBERS_RESOURCE] }));
     await waitFor(() => expect(result.current.members?.[0]?.status).toBe("disabled"));
   });
 

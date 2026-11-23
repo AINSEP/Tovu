@@ -6,7 +6,7 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 import { Providers, defaultProvidersHooks } from "../Providers";
-import { useRouteLocation } from "@/lib/router";
+import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
 import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import { defaultAdminLocalePort } from "../../../hooks/admin-locale-dependencies.hooks";

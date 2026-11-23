@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-import type { DevicePreviewDevice } from "./DevicePreview/DevicePreview.hooks";
+import type { DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 
 /**
  * @file Icons for the device-width preview toggle (`DevicePreview/DevicePreviewToggle.tsx`, shared by

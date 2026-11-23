@@ -1,6 +1,6 @@
 import { loadLanguage, DEFAULT_LOCALE, LANGUAGE_NAMESPACE } from "../lib/settings-tabs";
-import { subscribeToSettingsRefresh, type SettingsRefreshScope } from "../lib/settings-refresh-bus";
-import type { AdminLocalePort } from "./admin-locale-port.hooks";
+import { subscribeToSettingsRefresh, type SettingsRefreshScope } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import type { AdminLocalePort } from "@jini-ai/admin/shell/hooks/admin-locale-port.hooks";
 
 /**
  * @file The only place `use-admin-locale.hooks.ts`'s port reaches `lib/settings-tabs`/

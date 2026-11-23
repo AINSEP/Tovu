@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageOverflowModal } from "../MessageOverflowModal";
-import type { MessageOverflowModalController } from "../MessageOverflowModal.hooks";
+import type { MessageOverflowModalController } from "@jini-ai/admin/shell/components/AssistantDock/MessageOverflowModal.hooks";
 
 /**
  * @file `MessageOverflowModal` — the chat pane's "Show in modal" surface. Mirrors

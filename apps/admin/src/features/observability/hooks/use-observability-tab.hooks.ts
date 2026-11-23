@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog, type SettingsDialogTab } from "@jini-ai/ui";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 /** Adapt Jini's tab owner to this page's URL and translated header copy.
  * Invalid or unavailable deep links use the shell's first tab; tab panels stay lazy.

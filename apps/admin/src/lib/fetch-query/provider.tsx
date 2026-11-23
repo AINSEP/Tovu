@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { FetchQueryProvider as BuiltinFetchQueryProvider, type FetchQueryEnvironmentPort } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider as TanStackFetchQueryProvider } from "@jini-ai/ui/fetch-query/tanstack";
-import { AdminFetchQueryAdapterContext } from "./adapter-context";
+import { AdminFetchQueryAdapterContext } from "@jini-ai/admin/shell/lib/fetch-query/adapter-context";
 
 // Owner 2026-10-09: tooling belongs only in Observability's selected Queries tab.
 // This root selects the cache adapter and never loads or renders floating tools.

@@ -3,7 +3,7 @@ import type { AdminLedgerRow } from "@/features/database/api/database-api.types"
 import { describeApiError } from "@/lib/admin-http/request";
 import { useCursorPages } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultTimelineSectionPort } from "./timeline-section-dependencies.hooks";
