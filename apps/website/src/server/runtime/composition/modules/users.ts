@@ -106,13 +106,20 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }
   mountAdminJsonRoute({ app, spec: userDisableRoute, deps: disableDeps }, mountOptions("routes/users/disable"));
 };
 
+/** B151: the enable mount carries the seeded owner and the account guard, so only an owner may re-enable an admin or owner. */
 export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userEnableRoute, deps: { ...userServiceDeps({ deps }), enablePrincipal, assertCallerHasAnyPermission, isUserInTrashError } }, mountOptions("routes/users/enable"));
+  const enableDeps = {
+    ...userServiceDeps({ deps }), enablePrincipal, assertCallerHasAnyPermission, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isUserInTrashError,
+  };
+  mountAdminJsonRoute({ app, spec: userEnableRoute, deps: enableDeps }, mountOptions("routes/users/enable"));
 };
 
 /** The reset-password mount's deps; exported so a wire test can swap only the account guard. */
 export function userResetPasswordRouteDeps({ deps }: { deps: UsersRouteDeps }, _optional: Record<string, never> = {}) {
-  return { ...userServiceDeps({ deps }), resetUserPassword, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isUserInTrashError, isSelfDeleteError };
+  return {
+    ...userServiceDeps({ deps }), resetUserPassword, assertCallerHasAnyPermission, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction,
+    isUserInTrashError, isSelfDeleteError,
+  };
 }
 
 export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {

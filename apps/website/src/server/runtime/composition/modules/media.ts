@@ -8,8 +8,9 @@ import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
 import {
   getMediaProviderCredentials, MediaProviderCredentialSecretStoreUnconfiguredError, MediaProviderCredentialValidationError,
-  purgeMedia, readRecordedContentType, saveMediaProviderCredentials,
+  purgeMedia, saveMediaProviderCredentials,
 } from "#src/features/media/index";
+import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";

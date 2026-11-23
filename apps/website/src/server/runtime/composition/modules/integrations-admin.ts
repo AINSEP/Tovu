@@ -12,7 +12,7 @@ import {
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
   type WebhookSubscriptionDeps,
-} from "#src/features/webhooks/index";
+} from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";

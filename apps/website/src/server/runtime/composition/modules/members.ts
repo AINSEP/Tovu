@@ -64,10 +64,22 @@ export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDe
   mountAdminJsonRoute({ app, spec: memberGetRoute, deps: { ...memberPortDeps({ deps }), memberRepo: deps.memberRepo, classifyMemberError } }, mountOptions("routes/members/get-by-id", "direct"));
 };
 
-/** The write service takes the member bundle built from this request's deps, so it is bound lazily here. */
+/**
+ * C058: the reload copy for a disable that lost the member compare-and-set. It is the admin's shared
+ * `VERSION_CONFLICT_MESSAGE` text: the members screen shows the server `error` as-is, and the
+ * `VERSION_CONFLICT` code lets any caller classify it like the other editors' stale saves.
+ */
+export const MEMBER_VERSION_CONFLICT_MESSAGE =
+  "Someone else changed this while you were editing. Your changes were not saved. Copy anything you want to keep, then reload to see their version.";
+
+/** The write service takes the member bundle built from this request's deps, so it is bound lazily here. The
+ *  classifier's `conflict` kind (`MemberConflictError`) is what the spec answers with the reload copy above. */
 export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
-  const disable = { disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }), classifyMemberError };
+  const disable = {
+    disableMember: (input: { workspaceId: string; memberId: string }) => disableMember({ deps: toMembersWriteServiceDeps(deps), input }),
+    classifyMemberError, versionConflictMessage: MEMBER_VERSION_CONFLICT_MESSAGE,
+  };
   mountAdminJsonRoute({ app, spec: memberDisableRoute, deps: { ...memberPortDeps({ deps }), ...disable } }, mountOptions("routes/members/disable", "guarded"));
 };
 
