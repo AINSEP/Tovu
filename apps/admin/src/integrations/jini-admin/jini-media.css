@@ -26,8 +26,7 @@
 :is(.jini-page, .jini-dialog) .jini-btn-ghost,
 :is(.jini-page, .jini-dialog) .jini-btn-danger,
 :is(.jini-page, .jini-dialog) .jini-btn-warning,
-:is(.jini-page, .jini-dialog) .jini-btn-primary,
-:is(.jini-page, .jini-dialog) .jini-btn-explore {
+:is(.jini-page, .jini-dialog) .jini-btn-primary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -203,14 +202,6 @@
   gap: var(--space-4); flex-wrap: wrap;
 }
 :is(.jini-page, .jini-dialog) .jini-page-header-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* One row of page-level actions under the header: leading links sit left, everything after them is
-   pushed to the far right by the auto margin on the first button. Wraps rather than overflowing on
-   narrow viewports, at which point the auto margin collapses and the button simply follows the link. */
-:is(.jini-page, .jini-dialog) .jini-page-toolbar {
-  display: flex; align-items: center; gap: var(--space-3);
-  flex-wrap: wrap; margin: var(--space-3) 0;
-}
-:is(.jini-page, .jini-dialog) .jini-page-toolbar > .jini-btn:first-of-type { margin-left: auto; }
 /* Explore was solid blue (commit 8a7169b, same day) so it read as a second filled CTA distinct from
    Activate's burnt orange. Reversed on owner feedback: two solid-filled buttons of different hues
    still compete for primary attention instead of establishing one. Explore is the secondary action
@@ -226,30 +217,6 @@
    as a button against the equally-white card, not as plain text — `button:focus-visible`'s app-wide
    `--accent-text` ring (styles.css, global rules) already resolves dark-on-white in light mode and
    light-on-dark in dark mode, so no button-specific focus override is needed either. */
-/* INVERTED 2026-08-11, third and final iteration on this button: blue fill (8a7169b) -> white
-   surface with a black outline -> solid black fill with white text, on owner instruction ("make the
-   explore button white text black background"). The outline step was a way-point, not the
-   destination: it fixed Explore competing with Activate for primary attention, but the owner's wider
-   goal is fewer hues overall ("I just wanna have some basic colors. I think I have too many
-   colors"). A neutral black fill reads as a strong action without introducing a fourth hue next to
-   Activate's burnt orange and the green Active pill.
-
-   `--fg`/`--surface` rather than literal black/white, and deliberately inverted from the pair above:
-   both tokens already know which theme is active, so under a dark skin this becomes a light button
-   with dark text — still a high-contrast filled control against a dark card, with no `@media`
-   branch. A hardcoded `#000` background would swallow itself on a dark surface.
-
-   Border is `var(--fg)` explicitly, NOT `currentColor`: `currentColor` now resolves to the white
-   `--surface` text, which would ring a black button in white and read as a gap against the card.
-   Matching the background keeps the box metrics identical to the outlined version it replaces.
-
-   Still no `color-mix` against `--surface` — that chroma-0 token already broke one blend on this
-   exact button (see the `.theme-card button.btn-explore` override below). Flat token assignments
-   sidestep the hue-interpolation trap. Hover moves to `--fg-2`, which is dimmer than `--fg` in BOTH
-   modes, so the state change is visible either way rather than only in light. */
-:is(.jini-page, .jini-dialog) .jini-btn-explore { background: var(--fg); color: var(--surface); border: 1px solid var(--fg); }
-:is(.jini-page, .jini-dialog) .jini-btn-explore:hover:not(:disabled) { background: var(--fg-2); border-color: var(--fg-2); opacity: 1; }
-:is(.jini-page, .jini-dialog) .jini-btn-explore:disabled { border-color: transparent; }
 /* Scoped under `.page-header` (not bare `.page-kicker`/`.page-title`/`.page-description`) so
    these reliably beat the legacy `.admin-content h1` / `h1 + p` rules above on specificity
    (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
@@ -272,27 +239,6 @@
   background: var(--jini-panel-bg); border: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: var(--r-lg);
   padding: var(--space-5) var(--space-6); box-shadow: var(--jini-panel-shadow);
   background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
-}
-
-/* Card/section heading — the primitive missing from the set above (`.page-kicker`/`.page-title`/
-   `.page-description`/`.card` all existed; the heading INSIDE a card did not). Without it a bare
-   `<h2>` in a `.card` inherits the UA default, which measures 24px with 19.92px margins — 91% of
-   `.page-title`'s own 26.4px, in a different family, with a 40.7px gap to the first paragraph
-   (all four numbers measured live via `getComputedStyle`/`getBoundingClientRect`, not read off the
-   rules). That is not a hierarchy step, it is a near-tie, and the stray UA margin is what reads as
-   "nobody chose this".
-
-   The values are not invented either: they are `.theme-card h3`'s (L1814) — `--font-display` at
-   1.15rem — which is this admin's existing, working card-title idiom on its best-looking screen.
-   Reusing it makes a section title 18.4px against a 26.4px page title (a 1.43 step) and puts the
-   display face on both, so the two rhyme instead of competing.
-
-   Additive and opt-in: only elements that take the class change, so no existing screen moves. */
-:is(.jini-page, .jini-dialog) .jini-card-title {
-  margin: 0 0 var(--space-3);
-  font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
-  letter-spacing: -0.005em; line-height: 1.3; color: var(--fg);
-  text-wrap: balance;
 }
 /* A muted lead line directly under a `.card-title`, for the one sentence that says what the card
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
@@ -428,7 +374,6 @@
    by scale, so a two-line empty state still reads at the same size every single-line one already
    ships at. */
 :is(.jini-page, .jini-dialog) .jini-empty-state-title { margin: 0; color: var(--fg); font-weight: 600; }
-:is(.jini-page, .jini-dialog) .jini-empty-state-hint { margin: 0; color: var(--muted); }
 
 /* Content bits */
 /* Left-accent-border idiom retired 2026-08-31 (owner: "I also wanna get rid of that left accent
@@ -457,24 +402,14 @@
 /* Media (ADR-027 walking skeleton) */
 :is(.jini-page, .jini-dialog) .jini-status-active { background: var(--ok-bg); color: var(--ok); }
 :is(.jini-page, .jini-dialog) .jini-status-trashed { background: var(--danger-bg); color: var(--danger); }
-:is(.jini-page, .jini-dialog) .jini-media-edit-row td { background: var(--surface-2); padding-top: 0.8rem; padding-bottom: 0.8rem; }
 
 /* Deployment (Overview tab) — `.status-ok`/`.status-warning` reuse the same tone tokens
    `.status-published`/`.notice.warning` already use elsewhere; new names because this tab's rows
    (gate passed/not-applicable, daemon known-failure, env var set/unsafe) don't map onto any
    existing published/active/trashed vocabulary above. */
-:is(.jini-page, .jini-dialog) .jini-status-ok { background: var(--ok-bg); color: var(--ok); }
 :is(.jini-page, .jini-dialog) .jini-status-warning { background: var(--warning-bg); color: var(--warning); }
-:is(.jini-page, .jini-dialog) .jini-status-neutral { background: var(--surface-3); color: var(--muted); }
 
 /* Editor */
-/* `.editor-page` (the old `display:flex;flex-direction:column;gap:0.9rem` outer wrapper) is
-   removed as of this pass — its last four callers (MenuEditor/CollectionEntryEditor/
-   WidgetInstanceEditor/WidgetRegionEditor) all moved onto `.page`, `PostEditor.tsx`'s own
-   established precedent, leaving zero remaining callers app-wide (verified: grepped for it before
-   deleting). `.editor-header` stays — `Database.tsx` and `Media.tsx` still use it and are outside
-   this pass's scope. */
-:is(.jini-page, .jini-dialog) .jini-editor-header { display: flex; justify-content: space-between; align-items: center; }
 /* Before reaching for a top margin here: this class is doing three structurally unrelated jobs
    under one name (audited across all 37 call sites app-wide, not sampled), and "just add a
    margin" is wrong for most of them.
@@ -505,29 +440,12 @@
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
 :is(.jini-page, .jini-dialog) .jini-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 :is(.jini-page, .jini-dialog) .jini-save-error { color: var(--danger); font-size: 0.85rem; }
-/* Owner-reported (2026-08-12, same session as the fix immediately above): the media image node
-   view's "Replace"/"Remove" buttons (`lib/media-image-extension.tsx`'s `.media-image-node__actions`
-   wrapper) sat flush against each other — measured live, a 0px gap between their bounding boxes.
-   `gap` on the flex container, not a margin on one button, so this stays correct regardless of
-   which button (if either) is hidden/reordered later; `inline-flex` because the actions strip sits
-   inline below the image, not stretched full-width. First landed at 3px (the middle of the owner's
-   initial "2-3px" ask); he looked at it live and asked to double it, so 6px is the value he actually
-   signed off on — do not "restore" it to the originally-stated range. */
-:is(.jini-page, .jini-dialog) .jini-media-image-node__actions { display: inline-flex; gap: 6px; }
 /* Owner-reported (2026-09-11): the generic `media` node's own "Replace"/"Remove" actions
    (`lib/media-embed-extension.tsx`'s `.media-embed-node__actions` wrapper) never got the fix
    immediately above when `media` was added — same 0px-gap bug, new node type. Mirrors that rule's
    `inline-flex`-with-`gap` approach; owner asked for 5px first, then 10px after seeing it live —
    10px is the value he actually signed off on, not the 6px `image` settled on, so don't unify the
    two values without asking again. */
-/* Owner-reported (2026-09-22): a `media` block holding a video rendered at native size, overflowing
-   the editor column (cut off on the right, taller than the screen); `img` previews were unaffected
-   since `.editor-body .tiptap img` above already constrains them. Same `max-width`/`height: auto`
-   approach extended to `.media-embed-node__preview` (`lib/media-embed-extension.tsx`, covers both the
-   `<video>` and `<img>` preview elements), plus a `max-height` so a tall/portrait video can't fill the
-   viewport, and `margin-bottom` so the actions row below sits off the preview instead of touching it. */
-:is(.jini-page, .jini-dialog) .jini-media-embed-node__preview { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin-bottom: 10px; }
-:is(.jini-page, .jini-dialog) .jini-media-embed-node__actions { display: inline-flex; gap: 10px; }
 
 /* Generic horizontal tab row (`components/TabBar.tsx`) — shared by the Themes screen (tier tabs)
    and the Pages screen (My Pages / Theme Pages), so both list screens carry one visual language
@@ -595,22 +513,6 @@
 :is(.jini-page, .jini-dialog) .jini-tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
 :is(.jini-page, .jini-dialog) .jini-tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 :is(.jini-page, .jini-dialog) .jini-tab-bar-item[aria-selected="true"] .jini-tab-bar-count { color: var(--accent-text); opacity: 0.75; }
-/* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
-   bordered, muted), just scoped to a tab-bar button instead of a nav row so the app has one "Soon"
-   look rather than two. */
-:is(.jini-page, .jini-dialog) .jini-tab-bar-tag {
-  margin-left: 0.4rem; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
-}
-:is(.jini-page, .jini-dialog) .jini-tab-bar-item[aria-selected="true"] .jini-tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
-/* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
-   circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
-   `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a
-   recommendation or a call to action, and reusing the connected/success tone from everywhere else
-   on this tab (`.status-ok`, the credential row's own "Connected" pill) is what lets a reader learn
-   the color once and reuse it, rather than this tab inventing a second meaning for a color already
-   spoken for. `flex-shrink: 0` keeps it a circle even inside a tab whose label wraps the row tight. */
-:is(.jini-page, .jini-dialog) .jini-tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
 /* `TabBarTab.icon`'s own frame — `1em`-relative so it tracks this tab row's own type scale rather
    than a pinned px size (`deployment-visuals.tsx`'s own icon sizing note gives the identical
    reasoning), and `currentColor` inherits `.tab-bar-item`'s own text color so the icon dims/accents
@@ -674,37 +576,6 @@
    re-deriving it here). */
 .jini-media-picker-dialog { width: 32rem; max-width: calc(100vw - 2rem); max-height: 85vh;
   background-image: var(--jini-panel-texture, none);
-}
-/* The one scrolling region between the fixed `<h2>` title above and the fixed `.widget-picker-footer`
-   Cancel row below — same `flex: 1 1 auto; min-height: 0` shape `.widget-picker-body` documents
-   above applies here too (a flex child's default `min-height: auto` refuses to shrink below its own
-   content's height, so without `min-height: 0` this would keep growing past `max-height` instead of
-   ever engaging its own `overflow-y: auto`). Cancel stays visible and clickable no matter how many
-   media items load — only the thumbnail grid scrolls, matching this component's own footer already
-   borrowing the widget-picker idiom rather than inventing a second one. */
-:is(.jini-page, .jini-dialog) .jini-media-picker-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-:is(.jini-page, .jini-dialog) .jini-media-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-  gap: var(--space-3);
-}
-/* Overrides the global `button` rule's solid `--primary` background/padding (this file's own button
-   block, near the top) — a thumbnail tile reads as a card to click, not a call-to-action button. */
-:is(.jini-page, .jini-dialog) .jini-media-picker-item {
-  display: flex; flex-direction: column; gap: 0.3rem;
-  padding: 0.4rem; background: var(--surface-2); color: inherit;
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  text-align: left; font-family: inherit; font-size: inherit; font-weight: inherit;
-  cursor: pointer;
-}
-:is(.jini-page, .jini-dialog) .jini-media-picker-item:hover { border-color: var(--accent-text); }
-:is(.jini-page, .jini-dialog) .jini-media-picker-item img {
-  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
-  border-radius: var(--r-sm); display: block;
-}
-:is(.jini-page, .jini-dialog) .jini-media-picker-item-title {
-  font-size: var(--text-xs); color: var(--fg-2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* `MediaRefField` (SEO OG/Twitter image picker, 2026-09-05) — its input/"Choose image"/Remove row,
@@ -776,9 +647,6 @@
   display: flex; flex-direction: column; gap: 1px;
   background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
-/* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
-   underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.jini-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
 .jini-row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
@@ -853,32 +721,6 @@
    dropped instead of committed, these tabs' headings fall back to the UA `<h2>` they had before —
    a return to the previous appearance, not a broken layout.
    ============================================================ */
-
-/* Card head — title on the left, actions/status on the right, hairline below. Generic (no
-   `deployment-` prefix) because it is the missing half of the `.card`/`.card-title` pair: today a
-   card with a title AND a right-hand action has no primitive, which is why `DockerfileTab.tsx` was
-   reaching for `.deployment-provider-row` (a Full Site row class) to lay out its Copy/Download
-   buttons. Additive and opt-in, like `.card-title` itself — nothing existing takes this class.
-   The negative margins pull the hairline out to the card's own edges so it reads as a divider
-   between head and body rather than a short line floating inside the padding box; they are exactly
-   `.card`'s own `padding` values, so they cancel rather than approximate. */
-:is(.jini-page, .jini-dialog) .jini-card-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
-  flex-wrap: wrap;
-  margin: calc(var(--space-5) * -1) calc(var(--space-6) * -1) var(--space-4);
-  padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--border);
-}
-:is(.jini-page, .jini-dialog) .jini-card-head .jini-card-title { margin: 0; }
-/* The right-hand group. `margin-left: auto` rather than relying on `justify-content` alone so it
-   still sits hard right after the row wraps at a narrow width. */
-:is(.jini-page, .jini-dialog) .jini-card-head-actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
-/* `.status` is a bare `padding`/`border-radius` rule with no display of its own, so it inherits
-   whatever its parent's layout gives it. Forcing `inline-flex` here is what actually makes a pill
-   hug its label inside these flex/grid parents. */
-:is(.jini-page, .jini-dialog) .jini-card-head .jini-status {
-  display: inline-flex; align-items: center; align-self: flex-start; width: fit-content;
-}
 
 /* --- Media providers tab: neutralize Jini's warm "paper" tokens --------------
  *
@@ -1416,7 +1258,6 @@
   --jini-bg-panel: var(--surface); --jini-bg-elevated: var(--surface);
 }
 :is(.jini-page, .jini-dialog) .jini-media-provider-save-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-:is(.jini-page, .jini-dialog) .jini-section-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); }
 /* The standalone provider editor uses the UI field metrics, rather than the
    CMS metadata field metrics above. Match that source while preserving focus rings. */
 :is(.jini-page, .jini-dialog) .jini-media-provider-field .jini-input {
