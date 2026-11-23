@@ -6,7 +6,7 @@ import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { describe, expect, it } from "vitest";
 import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { formatGrantLabel, userRowMenuItems, userAccountCapabilities, isOwnerAccount } from "@jini-ai/user-management/react";
-import { t } from "../users-i18n";
+import { t } from "@jini-ai/admin/users/users-i18n";
 const user: AdminIdentityUser = { principalId: "owner", workspaceId: "w", username: "admin", status: "active", createdAt: "now", roleIds: ["owner-role"], policyIds: [] };
 const handlers = { onRequestDisable() {}, onEnable() {}, onManage() {}, onResetPassword() {}, onRequestDelete() {} };
 describe("account row capabilities", () => {
