@@ -30,8 +30,11 @@ inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `tr
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
 System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/admin-http/routes/system/mail-*`
 (all `"direct"`); the live mailer, status source and platform operations are read per request because boot
-swaps them in after mount. `routes/system/mail-providers.ts` stays hand-written: its credential PUT reads
-`res.locals.authCredentialKind`, which the admin ports do not carry.
+swaps them in after mount. Mail providers mount list, credential plan and activate from Jini in the original
+order around the credential PUT, which stays hand-written in `routes/system/mail-providers.ts` (it reads
+`res.locals.authCredentialKind`, which the admin ports do not carry) and shares Jini's `mailProviderRefusal` table.
+`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) and
+`browser-telemetry.ts` (204 beacon, `Retry-After`, content-length) stay hand-written.
 Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
 `registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
 `createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
