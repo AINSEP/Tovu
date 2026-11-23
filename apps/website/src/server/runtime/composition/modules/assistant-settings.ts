@@ -151,15 +151,27 @@ const VISITOR_TOOLS_ERRORS: readonly AssistantErrorMapping[] = [
   },
 ];
 
-/** The settings readiness gate and permission both public-switch routes read. */
+/** The PUT's readiness gate and permission. The gate is a getter, read per request as the hand-written
+ *  route read `deps.assistantSettingsReady` (extend it with `Object.assign`, never a spread, to keep it live). */
 function settingsGate({ deps }: { deps: AssistantSettingsRouteDeps }, _optional: Record<string, never> = {}) {
-  return { ...assistantPortDeps({ deps }), assistantSettingsReady: deps.assistantSettingsReady, managePermission: ADMIN_ASSISTANT_PERMISSION };
+  const port = assistantPortDeps({ deps });
+  return {
+    workspaceId: port.workspaceId, authorize: port.authorize, managePermission: ADMIN_ASSISTANT_PERMISSION,
+    get assistantSettingsReady() { return deps.assistantSettingsReady; },
+  };
 }
 
 export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   const readAssistantSettings = (input: { workspaceId: string }) => getPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, input);
+  // Getters, not copies: the flag is read per request, as before — tests (and `commit-site`'s override
+  // technique) mutate the bag after registration, and a spread would freeze the boot-time value.
+  const getDeps = {
+    ...assistantPortDeps({ deps }), managePermission: ADMIN_ASSISTANT_PERMISSION, readAssistantSettings,
+    get assistantSettingsReady() { return deps.assistantSettingsReady; },
+    get adminAssistantEnabled() { return deps.adminAssistantEnabled; },
+  };
   mountAdminJsonRoute(
-    { app, spec: assistantGetSettingsRoute, deps: { ...settingsGate({ deps }), readAssistantSettings, adminAssistantEnabled: deps.adminAssistantEnabled } },
+    { app, spec: assistantGetSettingsRoute, deps: getDeps },
     mountOptions("routes/assistant/get-settings", { message: "Assistant settings could not be loaded." }),
   );
 };
@@ -187,7 +199,7 @@ export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegis
     { workspaceId: input.workspaceId, patch: input.patch as Parameters<typeof setPublicAssistantSettings>[1]["patch"], callerPrincipalId: input.callerPrincipalId },
   );
   mountAdminJsonRoute(
-    { app, spec: assistantPutSettingsRoute, deps: { ...settingsGate({ deps }), writeAssistantSettings, errorMappings: SETTINGS_ERRORS } },
+    { app, spec: assistantPutSettingsRoute, deps: Object.assign(settingsGate({ deps }), { writeAssistantSettings, errorMappings: SETTINGS_ERRORS }) },
     mountOptions("routes/assistant/put-settings"),
   );
 };
