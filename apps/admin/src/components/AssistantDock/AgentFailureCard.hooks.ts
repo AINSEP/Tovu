@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import { useT, type ChatPaneAgentSelection, type ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 import { GENERIC_AGENT_FAILURE, extractAgentFailure, matchAgentFailureHint, projectAgentFailureMessage, redactAgentFailure,
-  suggestedFailureAgent, withAgentFailureSurface, type AgentFailure, type FailureAgent } from "./agent-failure";
+  suggestedFailureAgent, withAgentFailureSurface, type AgentFailure, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { localFailureHints } from "./agent-failure-hints";
 
 export interface FailureSurfaceActions {

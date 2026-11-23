@@ -10,7 +10,7 @@ import {
   MidRunUserMessage,
 } from "@jini-ai/chat/react";
 import { AgentFailureCard } from "../AgentFailureCard";
-import { AGENT_FAILURE_EVENT } from "../agent-failure";
+import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { useDockRendererRegistry } from "../hooks/use-dock-renderer-registry.hooks";
 
 const eventNames = [MCP_UI_EXT_EVENT_NAME, "a2ui", "slow_running", AGENT_FAILURE_EVENT, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME];

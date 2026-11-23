@@ -1,18 +1,19 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
+import { render as renderWithJiniKits } from "@/__tests__/render-with-jini-kits";
+import { JiniChatProvider, MessageRow, useT, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "../AgentFailureCard";
 import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
-import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "../agent-failure";
+import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
-import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
+import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 import { FolderDropConfirmation } from "../FolderDropConfirmation";
 import { FolderDropError } from "../FolderDropError";
 import { FolderDropPathHint } from "../FolderDropPathHint";
-import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
+import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
@@ -203,8 +204,8 @@ it.each([
     const onRemove = vi.fn();
     const onSend = vi.fn();
     const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
-      <SelectedAgentPluginTray chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
+    renderWithJiniKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+      <SelectedAgentPluginTray useTHook={useT} chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
     </JiniChatProvider>);
     const remove = screen.getByRole("button", { name: copy.remove });
     expect(remove).toHaveAttribute("title", copy.remove);
@@ -226,7 +227,7 @@ it.each([
     <FolderDropConfirmation path="/work" onDismiss={onDismiss} />
     <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} />
     <FolderDropPathHint onDismiss={onDismiss} />
-    <SlowRunNoticeCard name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
+    <SlowRunNoticeCard useTHook={useT} name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
   </JiniChatProvider>);
   expect(screen.getByText(copy.confirmation)).toBeInTheDocument();
   expect(screen.getByText(copy.retry)).toBeInTheDocument();

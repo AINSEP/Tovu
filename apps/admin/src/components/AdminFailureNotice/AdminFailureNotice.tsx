@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { ErrorNotice, type ErrorNoticeProps } from "@jini-ai/ui/panel-kit";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { t } from "../shared-components-i18n";
+import { t } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import "./admin-failure-notice.css";
 
 /** The existing shared ErrorNotice beside the restart banner, retained until the operator dismisses it.

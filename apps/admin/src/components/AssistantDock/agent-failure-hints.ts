@@ -1,4 +1,4 @@
-import type { AgentFailureHint } from "./agent-failure";
+import type { AgentFailureHint } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 
 /** Only compatibility vendor data; other declarations arrive with the Jini runtime release. */
 export const GEMINI_INELIGIBLE_HINT: AgentFailureHint = {

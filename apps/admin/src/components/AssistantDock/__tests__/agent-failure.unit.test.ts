@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AGENT_FAILURE_EVENT, extractAgentFailure, GENERIC_AGENT_FAILURE, matchAgentFailureHint,
-  projectAgentFailureMessage, redactAgentFailure, suggestedFailureAgent } from "../agent-failure";
+  projectAgentFailureMessage, redactAgentFailure, suggestedFailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { GEMINI_INELIGIBLE_HINT, localFailureHints } from "../agent-failure-hints";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 

@@ -75,7 +75,7 @@ import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDoc
 import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
-import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
+import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();

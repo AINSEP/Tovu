@@ -1,4 +1,4 @@
-import { t as translateForEmbedInsertControl } from "../shared-components-i18n";
+import { t as translateForEmbedInsertControl } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import type { WidgetPickerPort } from "../WidgetPickerDialog/widget-picker-port.hooks";
 import { useState } from "react";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";

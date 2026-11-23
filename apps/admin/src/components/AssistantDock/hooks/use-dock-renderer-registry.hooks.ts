@@ -8,15 +8,16 @@ import {
   MID_RUN_USER_MESSAGE_EXT_EVENT_NAME,
   midRunUserMessageSlotKey,
   type ExtEventRendererRegistry,
+  useT,
 } from "@jini-ai/chat/react";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
 import { AgentFailureCard } from "../AgentFailureCard";
 import { hasAgentFailureNotice } from "../AgentFailureCard.hooks";
-import { AGENT_FAILURE_EVENT } from "../agent-failure";
+import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
-import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
+import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./assistant-mcp-ui";
 
 /**
@@ -151,7 +152,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
     // The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.
-    registry.register({ name: "slow_running", renderer: (props) => createElement(SlowRunNoticeCard, props) }),
+    registry.register({ name: "slow_running", renderer: (props) => createElement(SlowRunNoticeCard, { ...props, useTHook: useT }) }),
     registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, props) }, { terminalNotice: hasAgentFailureNotice }),
     // What the operator sent mid-run, drawn as their own transcript row where the agent
     // got it. Jini's `registerMidRunUserMessageRenderer` only targets the global registry, so this
