@@ -7,8 +7,9 @@ import { resolveSiteTitle } from '#src/features/settings/site-title';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
-import { fetchPublishedPage } from '#src/features/site-inspection/published-page';
-import { resolveSitePath } from '#src/features/site-inspection/site-path-policy';
+import { fetchPublishedPage } from '@jini-ai/diagnostics/web-evidence/published-page';
+import { resolveSitePath } from '@jini-ai/diagnostics/web-evidence/site-path-policy';
+import { RESERVED_SEGMENTS } from '#src/platform/routing/index';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
@@ -54,8 +55,8 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       catch (error) { console.error('[consent] receipt storage check failed'); throw error; }
     },
     renderPage: async ({ path }) => {
-      const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1' });
-      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
+      const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
+      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability, reservedSegments: RESERVED_SEGMENTS }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };
@@ -66,7 +67,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
 async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string }): Promise<{ slot: boolean | null; problems: ConsentProblem[] }> {
   const unavailable = () => ({ slot: false, problems: [{ code: 'PUBLISHED_ENTRY_UNAVAILABLE', message: 'The published entry for this page could not be verified. Runtime loading eligibility is unavailable.' }] });
   if (!deps.postRepo) return unavailable();
-  const local = resolveSitePath({ raw: path, base: 'http://127.0.0.1' });
+  const local = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
   const pathname = new URL(local, 'http://127.0.0.1').pathname;
   const slug = pathname === '/' ? '/' : decodeURIComponent(pathname.slice(1).replace(/\/$/, ''));
   let post;

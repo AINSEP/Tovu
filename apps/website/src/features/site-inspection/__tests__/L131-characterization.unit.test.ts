@@ -8,31 +8,32 @@ import {
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "../live-url.js";
-import { readPageBodyOptions, shapePageBody } from "../page-body.js";
-import { fetchPublishedPage, type FetchPublishedPageDeps, type FetchPublishedPageOptions } from "../published-page.js";
+import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { fetchPublishedPage, type FetchPublishedPageDeps, type FetchPublishedPageOptions } from "@jini-ai/diagnostics/web-evidence/published-page";
 
 const origin = "https://site.example";
 
 test("L131: option validation preserves boundaries, omitted keys and first failure", () => {
-  assert.deepEqual(readPageBodyOptions({}), { find: undefined, textOnly: undefined, maxBytes: undefined });
+  assert.deepEqual(readPageBodyOptions({ input: {} }), { find: undefined, textOnly: undefined, maxBytes: undefined });
   for (const maxBytes of [1, 1_000_000]) {
-    assert.deepEqual(readPageBodyOptions({ find: "a".repeat(200), textOnly: false, maxBytes }), { find: "a".repeat(200), textOnly: false, maxBytes });
+    assert.deepEqual(readPageBodyOptions({ input: { find: "a".repeat(200), textOnly: false, maxBytes } }), { find: "a".repeat(200), textOnly: false, maxBytes });
   }
   for (const maxBytes of [null, "1", NaN, Infinity, 0, -1, 1.5, 1_000_001]) {
-    assert.throws(() => readPageBodyOptions({ maxBytes }), { message: "maxBytes must be an integer of 1..1000000." });
+    assert.throws(() => readPageBodyOptions({ input: { maxBytes } }), { message: "maxBytes must be an integer of 1..1000000." });
   }
   for (const find of [null, 1, "", "x".repeat(201)]) {
-    assert.throws(() => readPageBodyOptions({ find, textOnly: "bad", maxBytes: 0 }), { message: "find must be a string of 1..200 characters." });
+    assert.throws(() => readPageBodyOptions({ input: { find, textOnly: "bad", maxBytes: 0 } }), { message: "find must be a string of 1..200 characters." });
   }
-  assert.throws(() => readPageBodyOptions({ textOnly: null, maxBytes: 0 }), { message: "textOnly must be a boolean." });
-  assert.deepEqual(readPageBodyOptions({ find: "x", textOnly: true }), { find: "x", textOnly: true, maxBytes: undefined });
+  assert.throws(() => readPageBodyOptions({ input: { textOnly: null, maxBytes: 0 } }), { message: "textOnly must be a boolean." });
+  assert.deepEqual(readPageBodyOptions({ input: { find: "x", textOnly: true } }), { find: "x", textOnly: true, maxBytes: undefined });
 });
 
 test("L131: visible traversal keeps inline order, block gaps and decoded text while omitting inert nodes", () => {
   const html = '<!--hidden--><title>Title</title><main>A<span>B</span><br>C<div>D &amp; é</div><script>bad</script><style>bad</style><noscript>bad</noscript><template><p>bad</p></template><img alt="bad"><!--hidden-->E</main>';
-  assert.deepEqual(shapePageBody({ body: html, options: { textOnly: true } }), { body: "Title AB C D & é E", bodyBytes: 19, truncated: false });
-  assert.deepEqual(shapePageBody({ body: "<div>".repeat(5000) + "ok" + "</div>".repeat(5000), options: { textOnly: true } }), { body: "ok", bodyBytes: 2, truncated: false });
-  assert.deepEqual(shapePageBody({ body: "<!--only--><script>bad</script>", options: { textOnly: true } }), { body: "", bodyBytes: 0, truncated: false });
+  assert.deepEqual(shapePageBody({ body: html }, { textOnly: true }), { body: "Title AB C D & é E", bodyBytes: 19, truncated: false });
+  assert.deepEqual(shapePageBody({ body: "<div>".repeat(5000) + "ok" + "</div>".repeat(5000) }, { textOnly: true }), { body: "ok", bodyBytes: 2, truncated: false });
+  assert.deepEqual(shapePageBody({ body: "<!--only--><script>bad</script>" }, { textOnly: true }), { body: "", bodyBytes: 0, truncated: false });
 });
 
 function peer(required: { baseUrl: string; updatedAt: string; keyed: boolean }): PublishContentPeerRecord {
@@ -113,7 +114,7 @@ test("L131: live redirect loop stops at three hops or off-origin and returns fin
 
 function publishedFixture(fetch: typeof globalThis.fetch) {
   let closed = 0;
-  const deps: FetchPublishedPageDeps = { createSiteApp: () => () => {}, fetch, createServer: listener => {
+  const deps: FetchPublishedPageDeps = { reservedSegments: RESERVED_SEGMENTS, createSiteApp: () => () => {}, fetch, createServer: listener => {
     const server = new Server(listener);
     Object.assign(server, {
       listen: () => { queueMicrotask(() => server.emit("listening")); return server; },

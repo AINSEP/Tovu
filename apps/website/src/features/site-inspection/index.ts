@@ -16,18 +16,6 @@
  */
 
 export {
-  DEFAULT_FETCH_TIMEOUT_MS,
-  DEFAULT_MAX_BODY_BYTES,
-  fetchPublishedPage,
-  MAX_MAX_BODY_BYTES,
-  openLoopbackSiteServer,
-  type FetchPublishedPageDeps,
-  type FetchPublishedPageOptions,
-  type LoopbackSiteServer,
-  type PublishedPageResult,
-} from "./published-page.js";
-
-export {
   toSiteCapabilitiesDeps,
   toSiteProfileDeps,
   type SiteInspectionToolDeps,

@@ -7,7 +7,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
-import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
+import { readPageBodyOptions, shapePageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";
 import { MAX_MAX_CHARS, readWebFetchInput } from "@jini-ai/platform/web";
 import { fetchWebPage, type WebFetchPorts } from "./web-page.js";
@@ -40,12 +40,12 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
     web_fetch_page: async ctx => {
       const raw = requireInputRecord({ input: ctx.input });
       const input = readWebFetchInput(raw);
-      const { find } = readPageBodyOptions({ find: raw.find });
+      const { find } = readPageBodyOptions({ input: { find: raw.find } });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WEB_READ_PERMISSION }, { entityType: "web-page" });
       // Search beyond the output window, within the existing reader ceiling; maxChars bounds snippets.
       const page = await fetchWebPage({ input: find === undefined ? input : { ...input, maxChars: MAX_MAX_CHARS }, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
       const { content, ...pageFacts } = page;
-      const shaped = find === undefined ? undefined : shapePageBody({ body: content, options: { find, maxBytes: input.maxChars } });
+      const shaped = find === undefined ? undefined : shapePageBody({ body: content }, { find, maxBytes: input.maxChars });
       const result = shaped ? { ...pageFacts, ...shaped, truncated: page.truncated || shaped.truncated } : page;
       if (!result.screenshot) return result;
       const { screenshot, ...facts } = result;

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkSitePathname, checkSiteRelativeTarget } from "../reserved-paths.js";
-import { resolveSitePath as resolveSameOriginPath } from "#src/features/site-inspection/site-path-policy";
+import { checkSitePathname, checkSiteRelativeTarget, RESERVED_SEGMENTS } from "../reserved-paths.js";
+import { resolveSitePath as resolveSameOriginPath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
 
 /**
  * @file The shared reserved-path rule (`reserved-paths.ts`) and the pin that keeps its two
@@ -161,12 +161,12 @@ test("published_page_fetch's path validator refuses exactly what the shared rule
 
   for (const pathname of pinned) {
     assert.throws(
-      () => resolveSameOriginPath({ raw: pathname, base }),
+      () => resolveSameOriginPath({ raw: pathname, base, reservedSegments: RESERVED_SEGMENTS }),
       /must not target '\/(admin|api)'/,
       `expected resolveSameOriginPath to refuse '${pathname}' by naming the reserved surface`
     );
   }
   for (const pathname of ORDINARY) {
-    assert.equal(resolveSameOriginPath({ raw: pathname, base }), new URL(pathname, base).pathname);
+    assert.equal(resolveSameOriginPath({ raw: pathname, base, reservedSegments: RESERVED_SEGMENTS }), new URL(pathname, base).pathname);
   }
 });

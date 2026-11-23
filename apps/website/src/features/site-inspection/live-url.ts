@@ -6,10 +6,11 @@ import {
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { selectConnectedDestination, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
-import { readPageBodyOptions, shapePageBody, DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, type PageBodyOptions } from "./page-body.js";
+import { readPageBodyOptions, shapePageBody, DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, type PageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { SameOriginPathError as PublishedPagePathError, toCookieShapes } from "@jini-ai/diagnostics/web-evidence";
-import type { PublishedPageResult } from "./published-page.js";
-import { resolveSitePath } from "./site-path-policy.js";
+import type { PublishedPageResult } from "@jini-ai/diagnostics/web-evidence/published-page";
+import { resolveSitePath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 
 /** Read ports only; missing ports on a test/older composition do not invent an address. */
 export interface LiveOriginSourceDeps {
@@ -86,7 +87,7 @@ function selectOrigin({ known, requested }: { known: readonly string[]; requeste
 
 /** Reuses the local path boundary while retaining actionable errors at the assistant boundary. */
 function resolveLivePath({ path, origin }: { path: string; origin: string }, _optional = {}): string {
-  try { return resolveSitePath({ raw: path, base: origin }); }
+  try { return resolveSitePath({ raw: path, base: origin, reservedSegments: RESERVED_SEGMENTS }); }
   catch (error) {
     if (error instanceof PublishedPagePathError) throw new ToolInputError({ message: `fetch_live_url: ${error.message}` });
     throw error;
@@ -114,7 +115,7 @@ function redirectTarget({ location, current, origin }: { location: string; curre
  * @throws ToolInputError for address selection, unsafe input/egress, or timeout.
  */
 export async function fetchLiveUrl(deps: FetchLiveUrlDeps, input: FetchLiveUrlInput): Promise<LivePageResult> {
-  const options = readPageBodyOptions(input as unknown as Record<string, unknown>);
+  const options = readPageBodyOptions({ input: input as unknown as Record<string, unknown> });
   const deadline = AbortSignal.timeout(15_000);
   return awaitWithDeadline({ work: fetchWithinDeadline({ deps, input, options, deadline }), signal: deadline });
 }
@@ -157,7 +158,7 @@ function livePageResult({ response, headers, options, url, origin, redirects }: 
   const cookies = new Headers();
   for (const cookie of response.setCookies ?? []) cookies.append("set-cookie", cookie);
   const raw = Buffer.from(response.bodyText).subarray(0, MAX_MAX_BODY_BYTES).toString("utf8");
-  const shaped = shapePageBody({ body: raw, options });
+  const shaped = shapePageBody({ body: raw }, options);
   const location = headers.location;
   return { path: new URL(url).pathname + new URL(url).search, status: response.status, ok: response.status >= 200 && response.status < 300, headers, cookies: toCookieShapes({ headers: cookies }), ...shaped, truncated: shaped.truncated || response.bodyTruncated === true || Buffer.byteLength(response.bodyText) > MAX_MAX_BODY_BYTES, url, origin, redirects, untrusted: true, ...(REDIRECTS.has(response.status) && location ? { location } : {}) };
 }

@@ -309,8 +309,9 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
   await deps.identityReady;
   await assert.rejects(
     async () => {
-      const { fetchPublishedPage } = await import("../published-page.js");
-      await fetchPublishedPage({ deps, input: { path: "//evil.example" } });
+      const { fetchPublishedPage } = await import("@jini-ai/diagnostics/web-evidence/published-page");
+      const { RESERVED_SEGMENTS } = await import("#src/platform/routing/index");
+      await fetchPublishedPage({ deps: Object.assign(Object.create(deps), { reservedSegments: RESERVED_SEGMENTS }), input: { path: "//evil.example" } });
     },
     PublishedPagePathError,
   );

@@ -137,7 +137,7 @@ import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesToo
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
-import { openLoopbackSiteServer } from "@jini-ai/cms/site-inspection/published-page";
+import { openLoopbackSiteServer } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";

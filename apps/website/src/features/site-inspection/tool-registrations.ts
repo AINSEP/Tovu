@@ -2,7 +2,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/site-inspection
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { readPageBodyOptions } from "./page-body.js";
+import { readPageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./live-url.js";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -12,7 +13,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
-import { fetchPublishedPage } from "./published-page.js";
+import { fetchPublishedPage, type FetchPublishedPageDeps } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
 import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 
@@ -61,6 +62,15 @@ export type { SiteInspectionToolDeps } from "./deps.js";
  * — independent of the catalog's `sideEffects` declaration, which `assertToolIsWirable` refuses to
  * let drift from this map.
  */
+/**
+ * Binds the host's reserved-path policy onto the route deps the published-page fetch reads. The
+ * route deps are the prototype rather than spread, so every field (including any lazily computed
+ * one) is still read at the moment the fetch reads it, exactly as before the policy was injected.
+ */
+function withReservedSegments({ routeDeps }: { routeDeps: SiteInspectionToolDeps }, _optional = {}): FetchPublishedPageDeps {
+  return Object.create(routeDeps, { reservedSegments: { value: RESERVED_SEGMENTS } }) as FetchPublishedPageDeps;
+}
+
 export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> buildSiteProfile(): five concurrent reads (posts, in-memory themes, presentation settings,
   //    plugin discovery + activations, settings, content types). No writes anywhere on the path.
@@ -157,7 +167,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
     fetch_live_url: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const path = requireString({ input: input, key: "path" });
-      const options = readPageBodyOptions(input);
+      const options = readPageBodyOptions({ input });
       if (input.origin !== undefined && typeof input.origin !== "string") throw new ToolInputError({ message: "fetch_live_url: origin must be a known HTTPS origin string." });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
       if (!liveDeps) throw new ToolInputError({ message: "fetch_live_url: the guarded live HTTP client is not wired on this host." });
@@ -166,10 +176,10 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
     fetch_published_page: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const path = requireString({ input: input, key: "path" });
-      const options = readPageBodyOptions(input);
+      const options = readPageBodyOptions({ input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
 
-      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => fetchPublishedPage({ deps: routeDeps, input: { path } }, options) });
+      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => fetchPublishedPage({ deps: withReservedSegments({ routeDeps }), input: { path } }, options) });
     },
   };
 
