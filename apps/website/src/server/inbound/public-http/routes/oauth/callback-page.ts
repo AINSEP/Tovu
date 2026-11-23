@@ -15,7 +15,7 @@
  * `jini:connector-connected`; the external-MCP tab listens for {@link EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE}.
  */
 import { renderOAuthCallbackPage as renderPopupPage, type OAuthCallbackPageCopy } from "@jini-ai/oauth/callback-page";
-import type { OAuthCallbackFailureReason, OAuthCallbackPageArgs } from "@jini-ai/cms/public-http/routes/oauth/callback-page";
+import type { OAuthCallbackFailureReason, OAuthCallbackPageArgs } from "@jini-ai/core/contracts/site/oauth-callback-page";
 
 /** Posted by the external-MCP OAuth callback. Distinct from the connectors one on purpose. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";

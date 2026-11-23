@@ -820,3 +820,48 @@ test("AGENT_PLUGIN_SET_ENABLED: a provider plugin's assistant face has no switch
     assert.deepEqual([record?.enabled, record?.updatedBy], [true, "system:provider-plugin"], "the face still follows its provider plugin");
   });
 });
+
+/**
+ * rv1123e migration (K1 template §6.2): the hand-written route refused a non-boolean `enabled` (400)
+ * BEFORE it read the session, so only this mount opts into `deferMissingPrincipal`. Pinned at the
+ * wire on an app with no session stack: a malformed body keeps its old 400, and a valid body still
+ * fails closed (500) in `authorize` before the lookup, the write or any provisioning.
+ */
+test("AGENT_PLUGIN_SET_ENABLED: deferral — without a session a malformed body keeps its 400, a valid one is 500 and writes nothing", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("site-compliance", "seed-set-enabled-deferral");
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "test" });
+    const baseDeps = createRouteDeps();
+    let authorizeCalls = 0;
+    let writes = 0;
+    const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+      tracker: createNoopTracker({}),
+      agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
+      workspaceId: baseDeps.workspaceId,
+      authorize: async (params: Parameters<AgentPluginsRouteDeps["authorize"]>[0]) => { authorizeCalls += 1; return baseDeps.authorize(params); },
+      clock: baseDeps.clock,
+      externalMcpServerRepo: baseDeps.externalMcpServerRepo,
+      siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
+      siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
+      setAgentPluginEnabled: async () => { writes += 1; throw new Error("must not be reached"); },
+    });
+    const app = express();
+    app.use(express.json());
+    registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
+    const server = app.listen(0);
+    await new Promise((resolve) => server.once("listening", resolve));
+    t.after(() => new Promise((resolve) => server.close(resolve)));
+    const baseUrl = `http://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}`;
+    const before = await readAgentPluginActivations({ workspaceRoot });
+
+    const malformed = await patch(baseUrl, "", "site-compliance", { enabled: "true" });
+    assert.deepEqual({ status: malformed.status, body: await malformed.json() }, { status: 400, body: { error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" } });
+
+    const valid = await patch(baseUrl, "", "site-compliance", { enabled: true });
+    assert.equal(valid.status, 500);
+    assert.equal(((await valid.json()) as { code?: string }).code, "INTERNAL_ERROR");
+    assert.deepEqual([authorizeCalls, writes], [0, 0], "no authorization decision and no write without a principal");
+    assertAdminResponse({ actual: await readAgentPluginActivations({ workspaceRoot }), expected: before });
+  });
+});

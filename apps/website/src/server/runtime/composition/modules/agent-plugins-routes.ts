@@ -14,7 +14,7 @@ import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgent
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
 import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "#src/server/inbound/admin-http/routes/agent-plugins/deps";
 import { apiConnectionSignInRoute } from "@jini-ai/cms/admin-http/routes/agent-plugins/connection-sign-in";
 import type { Express, Response as ExpressResponse } from "express";
@@ -33,6 +33,9 @@ import { mountJiniRouteInPlace } from "../jini-routes.js";
  * binding the host's read model, lifecycle owner, MCP provisioning, error classes and copy.
  *
  * All three hand-written routes used `authorizeOrRespond`, so all three mount `"guarded"`.
+ * Only set-enabled refused a bad body (`'enabled' must be a boolean`, 400) before reading the
+ * session, so only its mount opts into `deferMissingPrincipal`; list and files read the session
+ * first and keep failing in `authenticate`.
  */
 
 /** The two port fields every mount passes; `authorize` is read per request (tests reassign it). */
@@ -40,9 +43,12 @@ function agentPluginPortDeps({ deps }: { deps: AgentPluginsRouteDeps }, _optiona
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** The unexpected-failure copy key (`sendAdminFailure`'s operation) each hand-written route used. */
-function mountOptions(operation: string) {
-  return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization each hand-written route used. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  optional: Pick<AdminJsonRouteMountOptions, "deferMissingPrincipal"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
 /** The `instanceof` checks set-enabled's refusal ladder asks, bound from the real classes. */
@@ -73,8 +79,8 @@ const AGENT_PLUGIN_SET_ENABLED_COPY = {
  * rather than throwing on failure. Caller-gated to the enable path only; see this file's own header.
  */
 async function provisionAgentPluginMcpServersBestEffort(
-  deps: AgentPluginsRouteDeps,
-  input: { readonly pluginId: string; readonly principalId: string },
+  { deps, ...input }: { deps: AgentPluginsRouteDeps; readonly pluginId: string; readonly principalId: string },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   try {
     const servers = await resolveAgentPluginMcpServers({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId: input.pluginId });
@@ -106,7 +112,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ app,
     loadCandidates: () => loadAgentPluginSearchCandidates(deps),
     loadConnectionStatuses: () => loadAgentPluginConnectionStatuses({ workspaceId: deps.workspaceId,
       mcp: deps.externalMcpServerRepo, loadCards: deps.loadPluginCredentialCards, apiConnections: deps.apiConnections?.host, ...agentPluginMcpPortsOf(deps.mcp) }),
-  } }, mountOptions("routes/agent-plugins/list"));
+  } }, mountOptions({ operation: "routes/agent-plugins/list", authorization: "guarded" }));
 };
 
 /** `AGENT_PLUGIN_SET_ENABLED`: the shared lifecycle owner (or the test override), enable-only provisioning. */
@@ -115,12 +121,12 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({
     ...agentPluginPortDeps({ deps }),
     loadCandidates: () => loadAgentPluginSearchCandidates(deps),
     setEnabled: ({ pluginId, enabled, actor }) => (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId, enabled, actor }),
-    provisionMcpServers: ({ pluginId, principalId }) => provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId }),
+    provisionMcpServers: ({ pluginId, principalId }) => provisionAgentPluginMcpServersBestEffort({ deps, pluginId, principalId }),
     notifyPluginLowered: ({ pluginId }) => deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {}),
     isError: AGENT_PLUGIN_SET_ENABLED_ERRORS,
     copy: AGENT_PLUGIN_SET_ENABLED_COPY,
     warn: (message) => { console.warn(message); },
-  } }, mountOptions("routes/agent-plugins/set-enabled"));
+  } }, mountOptions({ operation: "routes/agent-plugins/set-enabled", authorization: "guarded" }, { deferMissingPrincipal: true }));
 };
 
 /** `AGENT_PLUGIN_FILES`: the contained Node package-file reader over this workspace's layout. */
@@ -136,11 +142,11 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app,
     ),
     readPluginPackageFiles: (required) => readPluginPackageFiles(required),
     packageFileLimits: PLUGIN_PACKAGE_FILE_LIMITS,
-  } }, mountOptions("routes/agent-plugins/files"));
+  } }, mountOptions({ operation: "routes/agent-plugins/files", authorization: "guarded" }));
 };
 
 /** The host's admin-session helpers read only `res.locals`; the Jini route hands the same locals. */
-function localsAsResponse(locals: Readonly<Record<string, unknown>>): ExpressResponse {
+function localsAsResponse({ locals }: { locals: Readonly<Record<string, unknown>> }, _optional: Record<string, never> = {}): ExpressResponse {
   return { locals } as unknown as ExpressResponse;
 }
 
@@ -155,8 +161,8 @@ export function registerApiConnectionSignInRoute({ app, deps }: { app: Express; 
   mountJiniRouteInPlace({ app, route: apiConnectionSignInRoute({
     path: API_CONNECTION_SIGN_IN_PATH,
     workspaceId: deps.workspaceId,
-    credentialKind: ({ locals }) => getAuthedCredentialKind(localsAsResponse(locals)),
-    actorId: ({ locals }) => getAuthedPrincipal(localsAsResponse(locals)).id,
+    credentialKind: ({ locals }) => getAuthedCredentialKind(localsAsResponse({ locals })),
+    actorId: ({ locals }) => getAuthedPrincipal(localsAsResponse({ locals })).id,
     forbidden: { message: "Sign-in links need a signed-in admin session.", permission: "admin.assistant.use" },
     takeHandoff: (input) => deps.host.signInHandoffs.take(input),
     bindingCookie: ({ browserBinding }) => browserBindingCookie({ browserBinding }),
