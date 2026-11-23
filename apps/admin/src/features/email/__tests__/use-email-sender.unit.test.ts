@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import { useEmailSender } from "../hooks/use-email-sender.hooks";
+import { useEmailSender } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 import { createEmailFake, DNS } from "./email.test-helpers";
 
 /** @file Sender validation happens before settings writes; DNS is checked explicitly. */
@@ -9,7 +9,7 @@ describe("useEmailSender", () => {
   it("loads sender settings, saves only changed trimmed values, then refreshes DNS and status", async () => {
     const api = createEmailFake();
     const onChanged = vi.fn();
-    const { result } = renderHook(() => useEmailSender({ api }, { onChanged }));
+    const { result } = renderHook(() => useEmailSender({ api, ApiError }, { onChanged }));
     await waitFor(() => expect(result.current.draft.email).toBe("hello@example.com"));
     act(() => result.current.setDraft({ name: "  New name  ", email: " hello@example.com " }));
     expect(result.current.dirty).toBe(true);
@@ -24,7 +24,7 @@ describe("useEmailSender", () => {
 
   it.each(["not-an-address", "Ada <ada@example.com>", "a@example.com, b@example.com"])("refuses %s without any setting writes", async (email) => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailSender({ api }));
+    const { result } = renderHook(() => useEmailSender({ api, ApiError }));
     await waitFor(() => expect(result.current.draft.name).toBe("Example"));
     act(() => result.current.setDraft({ name: "New", email }));
     await act(() => result.current.save());
@@ -34,7 +34,7 @@ describe("useEmailSender", () => {
 
   it("saves a changed address and permits clearing it", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailSender({ api }));
+    const { result } = renderHook(() => useEmailSender({ api, ApiError }));
     await waitFor(() => expect(result.current.draft.email).toBe("hello@example.com"));
     act(() => result.current.setDraft({ email: " ada@example.com " }));
     await act(() => result.current.save());
@@ -48,7 +48,7 @@ describe("useEmailSender", () => {
     const api = createEmailFake();
     api.saveSender.mockRejectedValue(new ApiError({ message: "Save refused", status: 403 }));
     api.verifyDns.mockResolvedValueOnce({ ...DNS, dns: { ...DNS.dns!, overall: "Matches" } }).mockRejectedValueOnce(new ApiError({ message: "Try later", status: 503 }));
-    const { result } = renderHook(() => useEmailSender({ api }));
+    const { result } = renderHook(() => useEmailSender({ api, ApiError }));
     await waitFor(() => expect(result.current.draft.name).toBe("Example"));
     act(() => result.current.setDraft({ name: "New" }));
     await act(() => result.current.save());

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "@/lib/admin-http/request";
 
-import {
-  emailApi, type EmailApi, type MailActivityDetail, type MailActivityFilter, type MailActivityPage, type MailFeedbackSetupReport,
-  type MailSuppressionEntry, type MailSuppressionRemovalPlan,
-} from "../email-api";
+import { emailApi } from "../email-api";
+import type { EmailApi, MailActivityDetail, MailActivityFilter, MailActivityPage, MailFeedbackSetupReport, MailSuppressionEntry, MailSuppressionRemovalPlan } from "@jini-ai/admin/screens/email/email-api.types";
 import { errorMessage, isForbidden, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**

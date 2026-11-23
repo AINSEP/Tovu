@@ -4,7 +4,8 @@ import { ApiError } from "@/lib/admin-http/request";
 import type { AdminAgentPlugin } from "../../integrations/api/integrations-api.types";
 import { integrationsApi } from "../../integrations/api/integrations-api";
 
-import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
+import { emailApi } from "../email-api";
+import type { EmailApi, MailProviderConfiguration, MailProviderConfigurationReport, MailProviderCredentialInput } from "@jini-ai/admin/screens/email/email-api.types";
 import { errorMessage, useLoad, type LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**

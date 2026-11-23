@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import type { EmailTemplatePreview } from "../email-api";
-import { useEmailTemplateEditor } from "../hooks/use-email-template-editor.hooks";
+import type { EmailTemplatePreview } from "@jini-ai/admin/screens/email/email-api.types";
+import { useEmailTemplateEditor } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
 import { createEmailFake, PREVIEW, TEMPLATE } from "./email.test-helpers";
 
 /** @file The unsaved working copy owns preview; version conflicts never overwrite that copy. */
@@ -10,7 +10,7 @@ afterEach(() => vi.useRealTimers());
 describe("useEmailTemplateEditor", () => {
   it("seeds field samples and previews unsaved HTML, values and mode", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.preview.pending).toBe(false));
     expect(result.current.html).toBe(TEMPLATE.html);
     expect(result.current.values).toEqual({ name: "Ada" });
@@ -25,7 +25,7 @@ describe("useEmailTemplateEditor", () => {
   it("debounces rapid edits and cancels a queued preview on unmount", async () => {
     vi.useFakeTimers();
     const api = createEmailFake();
-    const { result, unmount } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 400 }));
+    const { result, unmount } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 400 }));
     await act(async () => {});
     expect(result.current.html).toBe(TEMPLATE.html);
     expect(api.previewTemplate).not.toHaveBeenCalled();
@@ -44,7 +44,7 @@ describe("useEmailTemplateEditor", () => {
 
   it("ignores an older preview that resolves after a newer one", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.preview.data).toEqual(PREVIEW));
     let resolveOld!: (data: EmailTemplatePreview) => void;
     api.previewTemplate.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
@@ -59,7 +59,7 @@ describe("useEmailTemplateEditor", () => {
 
   it("keeps unsaved HTML through rename and saves against the returned version", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.html).toBe(TEMPLATE.html));
     act(() => { result.current.setHtml("<p>Working copy</p>"); result.current.setName(" New title "); });
     await act(() => result.current.commitName());
@@ -75,7 +75,7 @@ describe("useEmailTemplateEditor", () => {
   it("adopts the server's normalized HTML after a save, so the editor is clean again", async () => {
     const api = createEmailFake();
     api.saveTemplateHtml.mockImplementation(async (input) => ({ ...TEMPLATE, html: input.html.trimEnd(), version: input.expectedVersion + 1 }));
-    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.html).toBe(TEMPLATE.html));
     act(() => result.current.setHtml("<p>Edited</p>\n"));
     await act(() => result.current.save());
@@ -87,7 +87,7 @@ describe("useEmailTemplateEditor", () => {
     const api = createEmailFake();
     api.saveTemplateHtml.mockRejectedValue(new ApiError({ message: "Concurrent edit", status: 409 }, { code: "CONCURRENT_EDIT" }));
     api.renameTemplate.mockRejectedValue(new ApiError({ message: "Concurrent edit", status: 409 }, { code: "CONCURRENT_EDIT" }));
-    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id, ApiError }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.html).toBe(TEMPLATE.html));
     act(() => { result.current.setHtml("<p>Keep me</p>"); result.current.setName("New title"); });
     await act(() => operation === "save" ? result.current.save() : result.current.commitName());

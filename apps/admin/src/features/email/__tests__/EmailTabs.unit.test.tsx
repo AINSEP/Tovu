@@ -3,14 +3,14 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import type { MailTestSendResult } from "../email-api";
+import type { MailTestSendResult } from "@jini-ai/admin/screens/email/email-api.types";
 import { ADD_PROVIDER_PART, CAPABILITIES_PART, EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
 import { EmailSenderTab } from "../EmailSenderTab";
 import { EmailOverviewTab } from "../EmailOverviewTab";
 import { EmailActivityTab } from "../EmailActivityTab";
 import { EmailTemplatesTab } from "../EmailTemplatesTab";
 import { useEmailProvider } from "../hooks/use-email-provider.hooks";
-import { useEmailSender } from "../hooks/use-email-sender.hooks";
+import { useEmailSender } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 import { useEmailActivity } from "../hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, MAIL_PLUGIN, TEMPLATE } from "./email.test-helpers";
@@ -121,7 +121,7 @@ describe("Email tab components", () => {
 
   it("shows DNS expected/observed values, treats unknown separately from mismatch, and saves sender explicitly", async () => {
     const api = createEmailFake();
-    function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" />; }
+    function Harness() { return <EmailSenderTab controller={useEmailSender({ api, ApiError })} locale="en" />; }
     render(<Harness />);
     const name = await screen.findByDisplayValue("Example");
     expect(screen.getByText("Mismatch")).toHaveClass("status-error");
@@ -153,7 +153,7 @@ describe("Email tab components", () => {
   ] as const)("shows the localized instruction and relevant safe detail for the %s DNS state", async (state, text) => {
     const api = createEmailFake();
     api.readDns.mockResolvedValue({ ...DNS, state, dns: undefined, message: state === "no_sender" ? "Set the site's sender address first." : "502 from the provider" });
-    function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" part="dns" />; }
+    function Harness() { return <EmailSenderTab controller={useEmailSender({ api, ApiError })} locale="en" part="dns" />; }
     render(<Harness />);
     expect(await screen.findByText(text)).toHaveClass("jini-field-hint");
   });
@@ -201,7 +201,7 @@ describe("Email tab components", () => {
     const api = createEmailFake();
     api.readDns.mockResolvedValue({ ...DNS, state: "requirements_failed", dns: undefined,
       message: "restricted_api_key: Use a full-access key", providerVerification: { state: "unknown", providerId: "hosted", reason: "forbidden: Domain access refused" } });
-    function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" part="dns" />; }
+    function Harness() { return <EmailSenderTab controller={useEmailSender({ api, ApiError })} locale="en" part="dns" />; }
     render(<Harness />);
     expect(await screen.findByText("forbidden: Domain access refused")).toBeInTheDocument();
     expect(screen.getByText(/restricted_api_key: Use a full-access key/)).toBeInTheDocument();

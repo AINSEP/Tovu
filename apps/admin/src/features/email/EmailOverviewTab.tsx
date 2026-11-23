@@ -1,9 +1,9 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import type { MailTestSendResult, MailUseRow, MailUseState } from "./email-api";
+import type { MailTestSendResult, MailUseRow, MailUseState } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, Loaded, Section, when, type Tone } from "./EmailParts";
-import type { EmailOverviewController } from "./hooks/use-email-overview.hooks";
+import type { EmailOverviewController } from "@jini-ai/admin/screens/email/hooks/use-email-overview.hooks";
 
 /**
  * @file Overview's **What uses email** and **Send test email** sections (Status stays in

@@ -430,20 +430,6 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
-      "file": "features/skills/SkillRow.tsx",
-      "line": 26,
-      "kind": "text",
-      "text": "GitHub",
-      "reason": "Exact brand, protocol, unit or editor notation."
-    },
-    {
-      "file": "features/skills/Skills.tsx",
-      "line": 50,
-      "kind": "placeholder",
-      "text": "https://github.com/owner/skill",
-      "reason": "Literal example of a URL, identifier or markup."
-    },
-    {
       "file": "features/taxonomy/Taxonomy.tsx",
       "line": 776,
       "kind": "text",

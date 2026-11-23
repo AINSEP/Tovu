@@ -15,7 +15,8 @@ import { t as pageEditorT } from "../pages/page-editor-i18n";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { Chip, Loaded } from "./EmailParts";
-import { useWiredEmailTemplateEditor, type EmailTemplateEditorController } from "./hooks/use-email-template-editor.hooks";
+import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
+import { useWiredEmailTemplateEditor } from "./email-hooks-host";
 import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "./hooks/use-email-template-view.hooks";
 import "./email.css";
 

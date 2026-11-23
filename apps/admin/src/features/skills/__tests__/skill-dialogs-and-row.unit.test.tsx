@@ -7,10 +7,13 @@ import { readFileSync } from "node:fs";
 import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SkillRow } from "../SkillRow";
-import { SkillInstallConfirmation } from "../SkillInstallConfirmation";
-import { SkillRemoveConfirmDialog } from "../SkillRemoveConfirmDialog";
-import type { SkillRowView, SkillsController } from "../use-skills.hooks";
+import { SkillRow } from "@jini-ai/admin/screens/skills/SkillRow";
+import { PlainTextBlocks } from "@/components/PlainTextBlocks";
+import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
+import { SKILL_INSTALL_CONFIRMATION_HOST } from "../skill-install-confirmation-host";
+import { SkillRemoveConfirmDialog } from "@jini-ai/admin/screens/skills/SkillRemoveConfirmDialog";
+import type { SkillsController } from "../use-skills.hooks";
+import type { SkillRowView } from "@jini-ai/admin/screens/skills/skills-screen.types";
 import type { useSkillInstall } from "../use-skill-install.hooks";
 
 /**
@@ -34,7 +37,7 @@ function rowView(overrides: Partial<SkillRowView> = {}): SkillRowView {
 describe("SkillRow", () => {
   it("labels an uploaded, enabled skill and routes each control to its own action", () => {
     const row = rowView();
-    render(<ul><SkillRow row={row} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
     const item = screen.getByRole("listitem", { name: "notes" });
     expect(item).toHaveAttribute("data-enabled", "true");
     expect(within(item).getByText("Uploaded")).toBeInTheDocument();
@@ -59,7 +62,7 @@ describe("SkillRow", () => {
       expanded: true,
       skill: { toolId: "skill_notes", name: "notes", description: "Keeps notes.\n\nAlso tidies them.", enabled: true, source: "uploaded" },
     });
-    render(<ul><SkillRow row={row} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
     const detail = document.getElementById("skill-notes-detail") as HTMLElement;
     expect([...detail.querySelectorAll(".agent-plugin-detail-description p")].map((p) => p.textContent)).toEqual([
       "Keeps notes.",
@@ -72,7 +75,7 @@ describe("SkillRow", () => {
       skill: { toolId: "skill_x", name: "x", description: "d", enabled: false, source: { githubUrl: "https://github.com/acme/x", commit: "abcdef0123" } },
       sourceUrl: "https://github.com/acme/x", shortCommit: "abcdef0", busy: true, expanded: true,
     });
-    render(<ul><SkillRow row={row} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
     const item = screen.getByRole("listitem", { name: "x" });
     expect(within(item).getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/acme/x");
     expect(within(item).getByText("abcdef0").tagName).toBe("CODE");
@@ -93,12 +96,12 @@ function install(overrides: Partial<Install> = {}): Install {
 
 describe("SkillInstallConfirmation", () => {
   it("renders nothing with nothing pending and no error", () => {
-    const { container } = render(<SkillInstallConfirmation install={install()} />);
+    const { container } = render(<SkillInstallConfirmation install={install()} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("shows a failed read as an alert even with nothing pending", () => {
-    render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} />);
+    render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
     expect(screen.getByRole("alert")).toHaveTextContent("SKILL.md is missing.");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -106,7 +109,7 @@ describe("SkillInstallConfirmation", () => {
   it("a failed skill drop is a compact alert that keyboard users can dismiss", async () => {
     function FailedDrop() {
       const state = useRealSkillInstall();
-      return <><div data-testid="skill-drop-target" onDrop={event => captureSkillDrop({ event, proposeFiles: state.proposeFiles, fallback: vi.fn() }, { onError: state.fail })} /><SkillInstallConfirmation install={state} /></>;
+      return <><div data-testid="skill-drop-target" onDrop={event => captureSkillDrop({ event, proposeFiles: state.proposeFiles, fallback: vi.fn() }, { onError: state.fail })} /><SkillInstallConfirmation install={state} {...SKILL_INSTALL_CONFIRMATION_HOST} /></>;
     }
     const user = userEvent.setup();
     const style = document.createElement("style");
@@ -122,7 +125,7 @@ describe("SkillInstallConfirmation", () => {
       } });
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent("Could not read skill folder.");
-      expect(alert).toHaveClass("skills-install-error");
+      expect(alert).toHaveClass("jini-skills-install-error");
       expect(getComputedStyle(alert).flexGrow).toBe("0");
       const dismiss = within(alert).getByRole("button", { name: "Dismiss" });
       expect(getComputedStyle(dismiss).minHeight).toBe("44px");
@@ -136,7 +139,7 @@ describe("SkillInstallConfirmation", () => {
 
   it("asks to confirm a GitHub install, naming its source, and confirms or cancels", () => {
     const pendingInstall = install({ pending: { githubUrl: "https://github.com/acme/incident" } });
-    render(<SkillInstallConfirmation install={pendingInstall} />);
+    render(<SkillInstallConfirmation install={pendingInstall} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
     const dialog = screen.getByRole("dialog", { name: "Install skill" });
     expect(within(dialog).getByText("https://github.com/acme/incident")).toBeInTheDocument();
     expect(within(dialog).queryByRole("alert")).toBeNull();
@@ -148,7 +151,7 @@ describe("SkillInstallConfirmation", () => {
 
   it("names uploaded files, shows the install error inside the dialog and disables actions while busy", () => {
     const busyInstall = install({ pending: { files: [] }, busy: true, error: "Install failed." });
-    render(<SkillInstallConfirmation install={busyInstall} />);
+    render(<SkillInstallConfirmation install={busyInstall} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
     const dialog = screen.getByRole("dialog", { name: "Install skill" });
     expect(dialog).toHaveAttribute("aria-busy", "true");
     expect(within(dialog).getByText("Uploaded skill files")).toBeInTheDocument();
@@ -192,7 +195,7 @@ describe("SkillRemoveConfirmDialog", () => {
 
 it("the confirmation details redact the original cause and preserve its incident", () => {
   const cause = new Error("Could not install skill.", { cause: new Error("password=SKILL_DIALOG_CANARY") });
-  render(<SkillInstallConfirmation install={install({ error: "Could not install skill.", cause })} />);
+  render(<SkillInstallConfirmation install={install({ error: "Could not install skill.", cause })} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   expect(screen.getByRole("alert")).toHaveTextContent("Could not install skill.");
   expect(document.body.textContent).not.toContain("SKILL_DIALOG_CANARY");
   expect(screen.getByRole("button", { name: /Copy details/i })).toBeTruthy();

@@ -2,10 +2,10 @@ import { act, cleanup, render, screen, within } from "@/__tests__/fetch-query-re
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
-import { Skills } from "../Skills";
+import { Skills } from "../SkillsPage";
 import { useSkills } from "../use-skills.hooks";
 import { t } from "@jini-ai/admin/screens/skills/skills-i18n";
-import type { InstalledSkill } from "../api";
+import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 
 afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });
 const locales = ADMIN_LOCALES.filter(({ code }) => code !== "en").map(({ code }) => code);

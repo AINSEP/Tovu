@@ -7,7 +7,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import type { MailProviderConfiguration, MailProviderField } from "./email-api";
+import type { MailProviderConfiguration, MailProviderField } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
 import { isFullyActive, type EmailProviderController } from "./hooks/use-email-provider.hooks";
 

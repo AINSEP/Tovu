@@ -4,7 +4,8 @@ import { createElement, useState } from "react";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
 import { packageFilesRead, packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
-import { listSkillFiles, type InstalledSkill, type SkillFiles } from "./api";
+import { listSkillFiles, type SkillFiles } from "./api";
+import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 
 import { type Translate } from '@jini-ai/core/text';

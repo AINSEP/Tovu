@@ -404,7 +404,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .admin-content::after {
     content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance);
   }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
     padding-bottom: var(--assistant-clearance);
   }
 }
@@ -1789,7 +1789,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   /* Same clearance for the fixed-height tab panels that scroll on their own (Settings; Agent
      Plugins is page flow since AP-3): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
-  .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content { padding-bottom: 88px; }
+  .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content { padding-bottom: 88px; }
 
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)

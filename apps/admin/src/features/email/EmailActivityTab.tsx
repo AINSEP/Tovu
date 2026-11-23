@@ -2,7 +2,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import type { MailActivityItem, MailFeedbackProviderSetup, MailSuppressionEntry } from "./email-api";
+import type { MailActivityItem, MailFeedbackProviderSetup, MailSuppressionEntry } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, CopyButton, Loaded, Section, when, type Tone } from "./EmailParts";
 import type { EmailActivityController, PagedList } from "./hooks/use-email-activity.hooks";
 

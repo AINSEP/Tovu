@@ -1,5 +1,5 @@
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
-import type { MailProviderConfiguration } from "./email-api";
+import type { MailProviderConfiguration } from "@jini-ai/admin/screens/email/email-api.types";
 
 /** Resolve a configured provider name, preserving an unknown id as its fallback. */
 export function createEmailProviderLabel({ locale, providers }: { locale: string; providers: readonly MailProviderConfiguration[] }, _options = {}) {

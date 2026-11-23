@@ -1,28 +1,16 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT, type InstalledSkill } from "./api";
+import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT } from "./api";
+import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
+import type { SkillRowView } from "@jini-ai/admin/screens/skills/skills-screen.types";
 import { useSkillInstall } from "./use-skill-install.hooks";
-import { useSkillConfirmation } from "./use-skill-confirmation.hooks";
+import { useSkillConfirmation } from "@jini-ai/admin/screens/skills/use-skill-confirmation.hooks";
 import { useSkillsTabs } from "./use-skills-tabs.hooks";
 
 import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 
 import { type Translate } from '@jini-ai/core/text';
 import { SKILL_FAILURE_HOST } from "./skill-failure-host";
-export const SKILL_FILE_ACCEPT = ".zip,.md,.txt,.json,.yaml,.yml,.csv,.svg,.sh,.py,.js,.ts,.mjs,.png,.jpg,.jpeg,.webp";
-
-export interface SkillRowView {
-  skill: InstalledSkill;
-  busy: boolean;
-  sourceUrl?: string;
-  shortCommit?: string;
-  expanded: boolean;
-  detailId: string;
-  onToggleExpanded: () => void;
-  onToggleEnabled: () => void;
-  onRemove: () => void;
-  onInspect: () => void;
-}
 
 const defaultSkillsPort = { listSkills, enableSkill, removeSkill };
 
