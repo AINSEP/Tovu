@@ -85,8 +85,7 @@ import { contributeDeploymentsTools } from "#src/features/deployments/tool-regis
 import { contributeEntriesTools } from "@jini-ai/cms/entries/site/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributeExternalMcpOperationsTools } from "@jini-ai/mcp/external/operations-tools";
-import { probeExternalMcpServer } from "#src/features/external-mcp/external-mcp-probe";
-import { externalMcpOperationsHost, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
+import { externalMcpOperationsHost, probeExternalMcpServer, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";

@@ -40,3 +40,14 @@ the operations builders are imported from `@jini-ai/mcp/external/*` directly.
 The `external_mcp_save` form builder is owned by `@jini-ai/mcp/external/save-form`. Tovu injects its
 MCP-UI app name (`appName: "tovu-external-mcp-save"`) at the card registration in
 `tool-registrations.ts`.
+
+## Wiring (saved-server probe)
+
+The probe body lives in `@jini-ai/mcp/federation/external-mcp-probe`. `external-mcp-host-copy.ts` binds it once with
+`createExternalMcpProbe<ExternalMcpProbeServiceDeps>({ host })`: `readEnabledExternalMcpConfigs` over this host's
+deps (`externalMcpServerRepo`, `siteAssistantSecretSealer`, `externalMcpOAuth?.tokenResolver`), the assistant's
+`connectMcpHttpSession` (Tovu's MCP client identity), `createExternalMcpReauthRequiredError`,
+`externalMcpSettingsDeepLink`, the `EXTERNAL_MCP_REAUTH_REQUIRED` code and `credentialText` from
+`@tovu/contracts/credential-copy`. `ExternalMcpProbeServiceDeps` is declared there too; the probe route
+(`server/inbound/admin-http/routes/external-mcp/probe.ts`), `tool-catalog-manifest.ts` and the tests import the
+bound `probeExternalMcpServer` and that type from the host-copy module.

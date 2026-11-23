@@ -14,6 +14,14 @@ import { createExternalMcpOperationsToolCatalog, type ExternalMcpOperations } fr
 import { createServerAdmissionsReader } from "@jini-ai/mcp/federation/external-mcp-admissions";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { credentialText } from "@tovu/contracts/credential-copy";
+import { connectMcpHttpSession } from "../../assistant/index.js";
+import { createExternalMcpProbe } from "@jini-ai/mcp/federation/external-mcp-probe";
+import type { ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";
+import { createExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";
+import { readEnabledExternalMcpConfigs } from "./external-mcp-store.js";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import type { ExternalMcpToolDeps } from "./deps.js";
 
 export const EXTERNAL_MCP_HOST_COPY: ExternalMcpHostCopy = {
   settingsLocation: "Settings → External MCP",
@@ -30,3 +38,29 @@ export const externalMcpOperationsHost: Pick<ExternalMcpOperations, "copy" | "cr
 };
 
 export const readServerAdmissions = createServerAdmissionsReader({ describeErrorForLog });
+
+export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer"> & {
+  /**
+   * Optional: only consulted for a connection whose `authMode` is `"oauth"`.
+   * `readEnabledExternalMcpConfigs`'s own `oauth` parameter is equally optional, for the same
+   * reason — a deployment that has never wired an OAuth service can still probe a `none`/
+   * `static_env` connection, so this route must not demand the service just to run at all.
+   */
+  readonly externalMcpOAuth?: ExternalMcpOAuthService;
+  /** Defaults to the real hosted MCP client. See {@link ExternalMcpProbeSessionFactory}. */
+  readonly connect?: ExternalMcpProbeSessionFactory;
+};
+
+/** The saved-server probe the admin route and assistant tools call: Tovu's store read, HTTP session identity,
+ *  reauthorization error, settings link and credential copy, bound once. */
+export const probeExternalMcpServer = createExternalMcpProbe<ExternalMcpProbeServiceDeps>({
+  host: {
+    readEnabledConfigs: ({ deps, workspaceId }) => readEnabledExternalMcpConfigs(
+      { deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, oauth: deps.externalMcpOAuth?.tokenResolver }, workspaceId }),
+    connectHttpSession: connectMcpHttpSession,
+    reauthRequired: createExternalMcpReauthRequiredError,
+    settingsDeepLink: externalMcpSettingsDeepLink,
+    reauthCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
+    connectFailureText: credentialText,
+  },
+});
