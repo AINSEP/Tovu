@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
+import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
 
 /**
  * @file Error-envelope coverage for `DELETE policies/:policyId/permissions/:policyPermissionId`,

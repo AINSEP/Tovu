@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
+import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
 
 test("permission removal refuses a different workspace without deleting the permission", async (t) => {
   const deps = createRouteDeps();
