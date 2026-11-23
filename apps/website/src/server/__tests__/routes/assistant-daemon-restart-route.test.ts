@@ -5,7 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
-import type { AdminAssistantDaemonDeps } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
+import type { AdminAssistantDaemonDeps } from "@jini-ai/cms/admin-http/routes/system/assistant-daemon";
 
 /**
  * @file Admin "Restart assistant" action — `POST /api/admin/v1/workspaces/:workspaceId/system/

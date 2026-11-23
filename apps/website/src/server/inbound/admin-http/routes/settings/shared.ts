@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Response } from "express";
 import { defineJsonRoute, mountJsonRoute } from "@jini-ai/http-kit";
+import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import {
   ok,
   type HttpMethod,

@@ -105,3 +105,20 @@ test("rejectOversizedJsonBody accepts the exact UTF-8 byte cap and rejects one b
     assert.deepEqual(getJson(), accepted ? undefined : { error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE" });
   }
 });
+
+test("the content-entry cap from @jini-ai/cms is 1 MiB and one byte over it gets the legacy 413 body", () => {
+  // The cap moved to the package; the 413 envelope stays this host's, byte for byte.
+  assert.equal(CONTENT_ENTRY_MAX_BODY_BYTES, 1024 * 1024);
+  const middleware = rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES });
+  const empty = Buffer.byteLength(JSON.stringify({ a: "" }), "utf8");
+  const atCap = fakeReqRes({ a: "x".repeat(CONTENT_ENTRY_MAX_BODY_BYTES - empty) });
+  let atCapNext = false;
+  middleware(atCap.req, atCap.res, () => { atCapNext = true; });
+  assert.equal(atCapNext, true);
+  const over = fakeReqRes({ a: "x".repeat(CONTENT_ENTRY_MAX_BODY_BYTES - empty + 1) });
+  let overNext = false;
+  middleware(over.req, over.res, () => { overNext = true; });
+  assert.equal(overNext, false);
+  assert.equal(over.getStatus(), 413);
+  assert.deepEqual(over.getJson(), { error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE" });
+});

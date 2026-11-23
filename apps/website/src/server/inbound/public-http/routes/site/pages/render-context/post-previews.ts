@@ -13,7 +13,7 @@ import { featuredImageView } from "../../../../http/site/render/template-render-
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "./deps.js";
 import { siteTimeZoneDep } from "./site-title.js";
-import { listingState } from "../listing/listing-state.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";

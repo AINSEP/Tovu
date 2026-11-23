@@ -2,7 +2,7 @@ import { seoForRequest } from "../../../../http/site/seo-render-context.js";
 import type { Request } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "../render-context/deps.js";
-import { listingState } from "./listing-state.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { isStaticExportRequest } from "../request-policy.js";
 
 /** One port/stylesheet collector per request, including nested template renders. */
