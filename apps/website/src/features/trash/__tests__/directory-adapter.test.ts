@@ -8,11 +8,14 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "../directory-rollback-log.js";
+import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { createTrashService } from "@jini-ai/cms/trash";
+
+/** The host binding of the rollback reporter, exactly as the composition sites bind it. */
+const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
 
 const WS = "workspace-1";
 const ENTITY = "plugin";

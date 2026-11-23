@@ -15,13 +15,16 @@ import { bindThemeTrashAdapter, ThemeTrashLocationError, themeTrashLocationError
 import { locateThemeFolder } from "@jini-ai/cms/themes/files/trash";
 import { buildTrashThemeRegistrations, createThemeTrashMover, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import type { TrashRouteDeps } from "#src/server/inbound/admin-http/routes/trash/deps";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createTrashModule } from "#src/server/runtime/composition/modules/trash";
+
+/** The host binding of the rollback reporter, exactly as the composition sites bind it. */
+const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
 
 /**
  * @file `theme_trash` (2026-10-08) — whole-theme delete through the generic Trash: the folder moves

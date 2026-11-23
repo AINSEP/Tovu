@@ -8,8 +8,8 @@ import express, { type NextFunction, type Request, type Response as ExpressRespo
 
 import { createFixedKeyring } from "#src/features/publish-trust/__tests__/support/fixed-keyring";
 import type { PublishChallengeRecord, PublishChallengeStorePort } from "#src/features/publish-trust/challenge";
-import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "#src/features/publish-trust/grant";
-import type { PublishTrustResolution } from "#src/features/publish-trust/provisioning";
+import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
+import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";

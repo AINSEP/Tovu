@@ -9,9 +9,9 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
-import { PUBLISH_TRUST_GRANT_VERSION } from "#src/features/publish-trust/grant";
+import { PUBLISH_TRUST_GRANT_VERSION } from "@jini-ai/cms/publish/trust/grant";
 import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
-import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning";
+import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/host-settings";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";

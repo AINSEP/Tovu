@@ -7,9 +7,9 @@ import {
   isBackstopEntityType,
   isPublishTrustRoute,
   type PublishingCapability,
-} from "#src/features/publish-trust/grant";
-import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
-import { admitPublish, type RevocationRead } from "#src/features/publish-trust/revocations";
+} from "@jini-ai/cms/publish/trust/grant";
+import { findGrantForSource, type PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
+import { admitPublish, type RevocationRead } from "@jini-ai/cms/publish/trust/revocations";
 import { publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";

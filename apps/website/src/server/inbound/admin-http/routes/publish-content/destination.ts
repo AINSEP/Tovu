@@ -15,7 +15,7 @@ import {
   PublishTrustConnectError,
 } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
-import type { PublishTrustProvisioningPort } from "#src/features/publish-trust/provisioning";
+import type { PublishTrustProvisioningPort } from "@jini-ai/cms/publish/trust/provisioning";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 

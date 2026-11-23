@@ -9,7 +9,8 @@ import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/pro
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
-import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
+import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "#src/features/custom-credentials/plugin-credential-card";
 import path from "node:path";

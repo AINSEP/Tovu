@@ -12,7 +12,7 @@ import {
   resetPublishContentContributorsForTests,
   type PublishContentContributor,
 } from "#src/features/publish-content/type-registry";
-import type { PublishTrustProvisioningPort, ProvisioningWrite } from "#src/features/publish-trust/provisioning";
+import type { PublishTrustProvisioningPort, ProvisioningWrite } from "@jini-ai/cms/publish/trust/provisioning";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";

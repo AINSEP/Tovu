@@ -1,6 +1,6 @@
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
-import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import { forgetPluginActivations } from "@jini-ai/plugins/host";
 import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import { composeMemoryTrashAdapters } from "../../memory-deps/slices/trash-adapters.js";
@@ -86,7 +86,7 @@ export function composeMemoryTrash(required: MemoryTrashInput, _optional = {}) {
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: pluginTrashAdapter, remove: bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) }), adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash,
     entityType: PLUGIN_ENTITY_TYPE
   }) });

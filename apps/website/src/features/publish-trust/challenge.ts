@@ -3,7 +3,7 @@ import {
   isGrantActive,
   type PublishTrustGrant,
   type PublishingCapability,
-} from "./grant.js";
+} from "@jini-ai/cms/publish/trust/grant";
 import { verifyPublishSignature } from "@jini-ai/cms/publish/trust/keys";
 
 /**

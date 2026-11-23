@@ -11,7 +11,7 @@ import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
-import { isBackstopEntityType } from "#src/features/publish-trust/grant";
+import { isBackstopEntityType } from "@jini-ai/cms/publish/trust/grant";
 
 import {
   PUBLISH_SECTIONS,

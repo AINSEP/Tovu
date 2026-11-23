@@ -134,7 +134,7 @@ import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { ExportEngine } from "../../features/deployments/index.js";
-import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
+import type { PublishTrustRevocationPort } from "@jini-ai/cms/publish/trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
