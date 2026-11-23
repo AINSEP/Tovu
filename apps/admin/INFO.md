@@ -7,6 +7,20 @@ The Tovu admin SPA: Vite + React, no framework router. Served at `/admin` — by
 > Historical note: an earlier draft of this file described a Next.js app under `../../nextjs`. That
 > is long gone; this is a Vite SPA. The section list below is the real one, read out of the code.
 
+## Wiring
+
+**Admin request transport (P12 #4).** `src/lib/admin-http/request.ts` composes ONE
+`createAdminHttp` instance (`@jini-ai/admin/shell/lib/admin-http/request`) and exports its bound
+operations (`request`, `requestOnce`, `requestRidingOutRestart`, `authenticatedAdminRequest`,
+`fetchOrThrowUnreachable`) under their existing names, so every importer keeps its
+`admin-http/request` specifier. The host keeps `ApiError`, `describeApiError`, the
+`onUnauthenticated` listener registry, `BASE`/`WORKSPACE_ID` (`config.ts`), the allowed local base
+paths, and Tovu's copy. It binds `server-reconnect.ts` (dev-proxy marker, retry policy, live
+reconnect object) and `admin-failure-channel.ts` (generation, page-wide classification, publishing).
+The factory owns the stages; tests for them live in Jini. Feature API factories still import the
+host module; converting each to an injected bound operation is a per-feature follow-up (not credited
+to #4).
+
 ## Routing
 
 Path-based, via `src/lib/router.ts`. URLs are real paths — `/admin/settings`, not
