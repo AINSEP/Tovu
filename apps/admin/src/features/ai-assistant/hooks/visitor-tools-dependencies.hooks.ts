@@ -1,5 +1,8 @@
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import type { VisitorToolsPanelProps } from "@jini-ai/admin/screens/assistant-settings/VisitorToolsPanel";
+import type { VisitorAssistantTabsProps } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantTabs";
+import { useVisitorAssistantTabs } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-tabs.hooks";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useVisitorToolLimitsDraft, useVisitorTools, type VisitorToolsDependencies } from "@jini-ai/admin/screens/assistant-settings/use-visitor-tools.hooks";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
@@ -29,4 +32,9 @@ export const visitorToolsPanelBindings: Omit<VisitorToolsPanelProps, "t"> = {
   useVisitorToolLimitsDraftHook: useVisitorToolLimitsDraft,
   InfoTip,
   Segmented: ChatSettingsSegmented,
+};
+
+/** The visitor inner tabs' hooks: the engine's tab state plus this admin's UI-library tab keyboard and roving-tabindex rules. */
+export const visitorAssistantTabsBindings: Pick<VisitorAssistantTabsProps, "useVisitorAssistantTabsHook" | "useTabBarKeyboardHook" | "resolveTabIndex"> = {
+  useVisitorAssistantTabsHook: useVisitorAssistantTabs, useTabBarKeyboardHook: useTabBarKeyboard, resolveTabIndex: resolveTabBarTabIndex,
 };

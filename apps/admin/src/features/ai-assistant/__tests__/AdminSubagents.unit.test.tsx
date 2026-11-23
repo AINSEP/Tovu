@@ -3,12 +3,16 @@ import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallba
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { AdminSubagents } from "../AdminSubagents";
+import { AdminSubagents } from "@jini-ai/admin/screens/assistant-settings/AdminSubagents";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { ADMIN_SUBAGENTS_COPY } from "../owner-grant-bindings";
 import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
 import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { t as translate } from "../ai-assistant-i18n";
+
+const subagentsScreen = { t: (key: string) => key, InfoTip, copy: ADMIN_SUBAGENTS_COPY };
 
 function fakePort(initial: AssistantSubagentsSettings = { enabled: false, canEdit: true }) {
   let settings = initial;
@@ -27,7 +31,7 @@ function fakePort(initial: AssistantSubagentsSettings = { enabled: false, canEdi
 
 function mount(port: AssistantSubagentsPort) {
   return render(<>
-    <AdminSubagents useController={(input) => useAdminSubagents({ ...input, port })} />
+    <AdminSubagents {...subagentsScreen} useAdminSubagentsHook={(input) => useAdminSubagents({ ...input, port })} />
     <SubagentsIndicator mode="local-cli" agentId="claude" useSettings={(input) => useAssistantSubagentsSettings({ ...input, port })} />
   </>);
 }
@@ -178,7 +182,7 @@ it("uses a translated fallback when a subagent save fails without an error messa
 
 it("describes the locked owner switch with the server's env-lock reason", async () => {
   const f = fakePort({ enabled: false, canEdit: true, unavailableReason: "Turned off on this computer by TOVU_AGENT_FORBID_BASH." });
-  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port: f.port })} />);
+  render(<AdminSubagents {...subagentsScreen} useAdminSubagentsHook={input => useAdminSubagents({ ...input, port: f.port })} />);
   await screen.findByText("Turned off on this computer by TOVU_AGENT_FORBID_BASH.");
   expect(toggle()).toHaveAccessibleDescription(expect.stringMatching(/Lowering access stops affected answers immediately\. Turned off on this computer by TOVU_AGENT_FORBID_BASH\.$/));
   expect(screen.queryByText("Only the owner can change Full CLI access.")).toBeNull();
@@ -187,7 +191,7 @@ it("describes the locked owner switch with the server's env-lock reason", async 
 it("shows the loading status until the grant arrives", () => {
   const f = fakePort();
   const port: AssistantSubagentsPort = { ...f.port, read: () => new Promise<AssistantSubagentsSettings>(() => {}) };
-  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port })} />);
+  render(<AdminSubagents {...subagentsScreen} useAdminSubagentsHook={input => useAdminSubagents({ ...input, port })} />);
   expect(screen.getByRole("status")).toHaveTextContent("Loading Full CLI access…");
   expect(toggle()).toBeDisabled();
   expect(toggle()).not.toBeChecked();
@@ -198,7 +202,7 @@ it("disables the switch and shows Saving… while a write is in flight", async (
   const hold = new Promise<void>(resolve => { release = resolve; });
   const f = fakePort({ enabled: true, canEdit: true });
   const port: AssistantSubagentsPort = { ...f.port, write: async input => { await hold; return f.port.write(input); } };
-  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port })} />);
+  render(<AdminSubagents {...subagentsScreen} useAdminSubagentsHook={input => useAdminSubagents({ ...input, port })} />);
   await ready();
   await userEvent.setup().click(toggle());
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Saving…"));

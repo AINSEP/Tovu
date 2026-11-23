@@ -22,13 +22,18 @@ import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter }
 import { AdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/AdminAssistantSwitch";
 import { useAdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/use-admin-assistant-switch.hooks";
 import { AssistantDaemonRestart } from "@jini-ai/admin/screens/assistant-settings/AssistantDaemonRestart";
-import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
-import { AdminSubagents } from "./AdminSubagents";
+import { AdminPermanentDeletes } from "@jini-ai/admin/screens/assistant-settings/AdminPermanentDeletes";
+import { AdminSubagents } from "@jini-ai/admin/screens/assistant-settings/AdminSubagents";
 import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
 import { VisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantPanel";
 import { useVisitorAssistantPanel } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-panel.hooks";
 import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
-import { VisitorAssistantTabs } from "./VisitorAssistantTabs";
+import { VisitorAssistantTabs } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantTabs";
+import { VisitorToolsPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorToolsPanel";
+import { visitorAssistantTabsBindings, visitorToolsPanelBindings } from "./hooks/visitor-tools-dependencies.hooks";
+import { adminPermanentDeletesBindings, adminSubagentsBindings } from "./owner-grant-bindings";
+// The visitor tabs' segmented pill look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
+import "../../styles/assistant.css";
 import {
   visitorCredentialSaveIdleMessage,
   visitorCredentialSaveStatusMessage,
@@ -798,7 +803,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       // Inner tabs (owner, 2026-10-22): "AI provider" is this panel unchanged; "Visitor tools" is the
       // per-tool Auto | Ask first | Off list. See `VisitorAssistantTabs`.
       panel: (
-        <VisitorAssistantTabs t={t} providerPanel={
+        <VisitorAssistantTabs t={t} {...visitorAssistantTabsBindings} toolsPanel={<VisitorToolsPanel t={t} {...visitorToolsPanelBindings} />} providerPanel={
           <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm} InfoTip={InfoTip}
             useVisitorCredentialFormHook={useWiredVisitorCredentialForm} useVisitorAssistantPanelHook={useVisitorAssistantPanel}
             controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
@@ -822,8 +827,8 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
               deletes used to sit under the whole CLI grid, a long scroll from the top. */}
           <div className="assistant-toggles">
             <AdminAssistantSwitch t={t} InfoTip={InfoTip} useAdminAssistantSwitchHook={useAdminAssistantSwitch} />
-            <AdminSubagents t={t} />
-            <AdminPermanentDeletes t={t} />
+            <AdminSubagents t={t} {...adminSubagentsBindings} />
+            <AdminPermanentDeletes t={t} {...adminPermanentDeletesBindings} />
           </div>
           <AdminExecutionMode t={t} />
           <AssistantDaemonRestart t={t} useAssistantDaemonRestartHook={useWiredAssistantDaemonRestart}

@@ -49,6 +49,13 @@ introduced by this feature move — do not "fix" it as a side effect of an unrel
   (`useHostAssistantRestartAllowed` over the execution policy) and `hooks/use-ai-assistant.hooks.ts`
   binds the settings client and `describeApiError` (`useWiredAiAssistant`) beside the host-owned tab
   state. `AdminExecutionMode` and its slice hook stay here (ledger slice, BYOK footers, Local CLI policy).
+- The Admin tab's two owner-grant screens (`AdminSubagents`, `AdminPermanentDeletes` +
+  `useAdminPermanentDeletes`) and the visitor inner tabs (`VisitorAssistantTabs` +
+  `useVisitorAssistantTabs`) live in `@jini-ai/admin/screens/assistant-settings/*`. This folder keeps
+  the product policy: `hooks/use-admin-subagents.hooks.ts` (Full CLI capability list, native tool
+  policy, consent copy, port — also the dock's), `hooks/permanent-deletes-dependencies.hooks.ts` (the
+  13-tool policy, danger list and port) and `owner-grant-bindings.ts` (both screens' explainer copy and bound props);
+  `AiAssistant.tsx` passes them plus `InfoTip` and the UI library's tab keyboard helpers.
 - The settings DTOs (`PublicAssistantSettings`, `AdminExecutionDetectedAgent`, visitor-tools view
   types) live in `@jini-ai/core/contracts/site/api-ai-assistant-api-types`.
 - Translations stay here (`ai-assistant-i18n.ts`, `visitor-tools-i18n.ts`) and reach the engine
