@@ -2908,6 +2908,86 @@
     {
       "id": "bc828ddd55cc",
       "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/publish-readiness.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/publish-readiness.ts:1-26."
+    },
+    {
+      "id": "b85a25ac38ae",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "859ceba94c68",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "44d5942ef3a6",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "54ef5f6db6f9",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/http/menus.ts (file header + item docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "88fc527d3e63",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/assign-location.ts (spec doc incl. VERSION_CONFLICT note), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "48f253974fad",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/assign-location.ts (spec doc incl. VERSION_CONFLICT note), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0e8b702f2711",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/assign-location.ts (spec doc incl. VERSION_CONFLICT note), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "118f21492a1f",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/assign-location.ts (spec doc incl. VERSION_CONFLICT note), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3dd98847d924",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/create.ts (spec doc + parse), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "adf13e3c2b4c",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/create.ts (spec doc + parse), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b164a572acad",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/delete.ts (spec doc), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b580054de487",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/get-by-id.ts (spec doc incl. slug-first rationale), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3377177292eb",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/get-by-id.ts (spec doc incl. slug-first rationale), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "408d7613d7bb",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/list.ts (spec doc incl. no-list-service note), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6e084c308c3a",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/update-tree.ts (parseMenuTreeBody doc, MENU_UPDATE_ERRORS ladder, spec doc) and routes/menus/shared.ts (MENU_VERSION_CONFLICT ordering), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fcb447d10d9f",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/update-tree.ts (parseMenuTreeBody doc, MENU_UPDATE_ERRORS ladder, spec doc) and routes/menus/shared.ts (MENU_VERSION_CONFLICT ordering), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "39528fce59cf",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/update-tree.ts (parseMenuTreeBody doc, MENU_UPDATE_ERRORS ladder, spec doc) and routes/menus/shared.ts (MENU_VERSION_CONFLICT ordering), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c5e859fb7729",
+      "reason": "K1 pilot (RT-K1-adm-menus): moved with the code to Jini packages/cms/src/admin-http/routes/menus/update-tree.ts (parseMenuTreeBody doc, MENU_UPDATE_ERRORS ladder, spec doc) and routes/menus/shared.ts (MENU_VERSION_CONFLICT ordering), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "83886466eded",
+      "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the comment described the deleted http/menus.ts location; it now points at modules/menus.ts."
+    },
+    {
+      "id": "0a60dc7d8e68",
+      "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
     }
   ]
 }
