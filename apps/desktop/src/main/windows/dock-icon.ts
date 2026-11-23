@@ -1,18 +1,11 @@
 /**
- * @file The macOS dock tile's icon, extracted from `main.ts`'s `applyDockIcon` so its two decisions —
- * skip where there is no dock, never fail the boot over an icon — are verified without Electron.
- * `main.ts` passes `app.dock` in.
+ * @file Host binding for the macOS dock tile's icon: binds the desktop log copy onto Jini
+ * `desktop-host/electron/windows`'s best-effort `applyDockIcon`. `main.ts` passes `app.dock` in.
  */
+import { applyDockIcon as applyDockIconBestEffort } from "@jini-ai/desktop-host/electron/windows";
 
 /**
- * Put the Tovu mark on the macOS dock tile.
- *
- * `BrowserWindow`'s own `icon` option is a no-op on macOS — the tile comes from the `.app` bundle,
- * which an unpackaged `electron .` run does not have, so it shows Electron's own default instead.
- * `app.dock.setIcon` is the only thing that changes it for a dev run. Guarded on the API existing
- * rather than on the platform string alone, since `app.dock` is undefined off darwin.
- *
- * Best-effort: a missing or unreadable icon file must not stop the app booting.
+ * Put the Tovu mark on the macOS dock tile; a failure is logged and the boot carries on.
  *
  * @param required.dock `app.dock`; `undefined` off macOS.
  * @param required.iconPath the Tovu mark's PNG.
@@ -23,12 +16,9 @@ function applyDockIcon(
   { dock, iconPath, log }: { dock: { setIcon(iconPath: string): void } | undefined; iconPath: string; log: (required: { message: string }) => void },
   _optional = {},
 ): void {
-  if (!dock) return;
-  try {
-    dock.setIcon(iconPath);
-  } catch (error) {
-    log({ message: `tovu desktop: could not set the dock icon (${(error as Error).message}) — using the default.` });
-  }
+  applyDockIconBestEffort({ dock, iconPath, reportFailure: ({ reason }) => {
+    log({ message: `tovu desktop: could not set the dock icon (${reason}) — using the default.` });
+  } });
 }
 
 export { applyDockIcon };
