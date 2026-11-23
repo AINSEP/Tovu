@@ -1193,7 +1193,7 @@ sideloaded tier-2; meta description in `ContentEntryDraft`; a plugin admin-UI su
 ### First real capabilities
 
 ### Reliability and safety
-- [ ] Idempotency strategy for event handlers. (`operation-lock.ts` guards concurrent mutations; it
+- [x] Idempotency strategy for event handlers. **Done 11-23 (todos-b, Jini `80bec0e7`):** `ProcessedEventStore` port + `withProcessedEventGuard` in `infra/src/events/outbox`; the package export line waits for combine-15. (`operation-lock.ts` guards concurrent mutations; it
       is not handler-level idempotency.)
 - [ ] Error taxonomy + standardized API error responses. `apps/website/src/server/error-mapping/`
       exists but contains **only `INFO.md`** — it names itself "the intended home for the canonical
@@ -1211,16 +1211,16 @@ Build in this order.
       discovery round trip and puts least privilege in the contract. Neither Payload nor Strapi
       shipped this combination — it's ours to get right. Cache keys must include principal +
       permission version; execution-time authorization stays mandatory regardless.
-- [ ] **Two-sided conformance test**, taken verbatim from Strapi's suite: *a read-only principal
+- [x] **Two-sided conformance test** (done: Jini `read-only-tools.test.ts:20`; Tovu `read-only-tool-constraint.composition.test.ts`, todos-b 11-23), taken verbatim from Strapi's suite: *a read-only principal
       cannot see write tools and cannot invoke them.* One test, both halves of the anti-pattern.
 - [ ] **Kill-switch completeness test.** Verify that disabling the AI feature stops artifacts the
       agent already created, not just new invocations. Directus (agent-authored Flow with an `exec`
       step) and novamira (agent-written sandbox PHP) both fail this — two of ten products.
-- [ ] **Actor kind in the event envelope.** Record agent-vs-human on every mutation. Directus knows
+- [x] **Actor kind in the event envelope.** (done 11-23 todos-b for `executeCommand` change sets + events: Jini `79ed2bc3`, Tovu `c3c6626c7`; routes using a bare `{ principalId }` actor — post-trash/retire, widgets, delete-user — still to migrate) Record agent-vs-human on every mutation. Directus knows
       the OAuth client on every request and never writes it to the activity row, so its audit trail
       can't tell them apart. Relates to W6 (change-set primitive); retrofitting provenance is the
       same class of error as retrofitting tenancy (W7).
-- [ ] **Validate capability *output*, not just input.** Every WordPress ability validates what it
+- [x] **Validate capability *output*, not just input.** (done 11-23 todos-b, Jini `80bec0e7`: `outputSchema` + enforce/log policy in the tool executor; MCP `outputSchema` publishing still open — needs `structuredContent`) Every WordPress ability validates what it
       returns against a declared output schema (`class-wp-ability.php:677`); Jini validates input
       only. Cheap now, awkward once handlers exist. Relates to `ai-control-plane.md §19.4`, which
       already asks for it under output safety but has no implementation.
