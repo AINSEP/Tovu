@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
 import { skillFailure } from "../skill-failure";
-import { t } from "../skills-i18n";
+import { t } from "@jini-ai/admin/screens/skills/skills-i18n";
 
 it("preserves the incident ID and redacts diagnostics before copying", () => {
   const failure = skillFailure({ error: new ApiError({ message: "Could not load skills. password=SKILL_SECRET_CANARY", status: 500 }, { code: "INTERNAL_ERROR", body: { errorId: "skill-incident-123" } }),

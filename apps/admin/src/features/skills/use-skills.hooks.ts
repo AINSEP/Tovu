@@ -1,6 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT, type InstalledSkill } from "./api";
+import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT } from "./api";
+import type { InstalledSkill } from "@jini-ai/admin/screens/skills/api/skills-api.types";
 import { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillConfirmation } from "./use-skill-confirmation.hooks";
 import { useSkillsTabs } from "./use-skills-tabs.hooks";

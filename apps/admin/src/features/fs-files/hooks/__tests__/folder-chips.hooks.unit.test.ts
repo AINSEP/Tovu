@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import type { DragEvent } from "react";
 import { useFolderDrop } from "../use-folder-drop.hooks";
-import { useNativeFolderPicker } from "../use-native-folder-picker.hooks";
+import { useNativeFolderPicker } from "@jini-ai/admin/screens/fs-files/hooks/use-native-folder-picker.hooks";
 
 it("a picker stages the exact folder without inserting text and still sets the custom root", async () => {
   const path = String.raw`C:\A B`;
@@ -11,8 +11,9 @@ it("a picker stages the exact folder without inserting text and still sets the c
   const composerHandle = { current: { insertText, addFolders } as unknown as ChatPaneComposerHandle };
   const { result } = renderHook(() => {
     const drop = useFolderDrop({ composerHandle }, { getPort: () => null, getCustomRoot: async () => ({ path: null }), setCustomRoot });
-    return useNativeFolderPicker({ onPicked: drop.insertFolderPath, onFailed: drop.showPathHint }, {
-      probe: async () => ({}), pick: async () => ({ path }),
+    return useNativeFolderPicker({
+      onPicked: drop.insertFolderPath, onFailed: drop.showPathHint,
+      probe: async () => ({}), pick: async () => ({ path }), isDialogAlreadyOpen: () => false,
     });
   });
   await act(async () => result.current.pickFolder());

@@ -1,8 +1,8 @@
-import { createSkillInstallConfirmationTranslator } from "./SkillInstallConfirmation.hooks";
+import { createSkillInstallConfirmationTranslator } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillInstallConfirmation } from "./use-skill-confirmation.hooks";
-import { t } from "./skills-i18n";
+import { t } from "@jini-ai/admin/screens/skills/skills-i18n";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { skillFailure } from "./skill-failure";
 import "./skills.css";

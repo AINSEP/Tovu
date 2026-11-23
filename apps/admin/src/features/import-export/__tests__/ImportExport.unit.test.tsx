@@ -1,16 +1,22 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ImportExport } from "../ImportExport";
-import { IMPORT_EXPORT_DICT, t } from "../import-export-i18n";
-import { resolveImportExportTabId, resolveImportExportTabs } from "../import-export-tabs";
-import { createFakeGitBackupPort } from "../hooks/git-backup-port.hooks";
-import { useGitBackup } from "../hooks/use-git-backup.hooks";
+import { ImportExport } from "@jini-ai/admin/screens/import-export/ImportExport";
+import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
+import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { SiteExportTab, SiteImportTab } from "@/features/sites";
+import { IMPORT_EXPORT_HANDLE_LABELS, ImportExportPanel } from "../ImportExportPanel";
 import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "@/features/sites/rules";
 
+/**
+ * @file The moved `ImportExport` screen with this app's real Sites tabs and hooks (the screen's own
+ * tab, card and dictionary behaviour is tested in `@jini-ai/admin`), plus the panel mount.
+ */
+
 /** The Git backup card on a fake port with no connection, so no test here reaches the network. */
-const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate });
+const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate, describeApiError });
 const identity = () => (key: string) => key;
 
 /** Export and Import read their lists over `fetch`; answer every read with empty lists. */
@@ -19,7 +25,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAvailable?: boolean } = {}) {
   return render(
-    <ImportExport tabId={tabId} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={() => sitesAvailable} />,
+    <ImportExport
+      tabId={tabId} useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} useSitesAvailable={() => sitesAvailable}
+      SiteExportTab={SiteExportTab} SiteImportTab={SiteImportTab} handleLabels={IMPORT_EXPORT_HANDLE_LABELS}
+    />,
   );
 }
 
@@ -63,34 +72,13 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
     expect((await screen.findByRole("link", { name: "Open Source Control" })).getAttribute("href")).toBe("/admin/source-control");
   });
 
-  it("falls back to Export for an unknown or absent ?tab=", () => {
-    expect(resolveImportExportTabId({ tabId: "other" })).toBe("other");
-    expect(resolveImportExportTabId({ tabId: "import" })).toBe("import");
-    expect(resolveImportExportTabId({ tabId: "Import" })).toBe("export");
-    expect(resolveImportExportTabId({ tabId: "static" })).toBe("export");
-    expect(resolveImportExportTabId({ tabId: null })).toBe("export");
-    expect(resolveImportExportTabId({ tabId: undefined })).toBe("export");
-    renderPanel("nope");
-    expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
-  });
-
-  it("shows Export and Import without a Soon tag (both work), and every tab navigates", () => {
-    renderPanel("other");
-    expect(document.querySelector(".page.import-export-page")).toBeTruthy();
-    for (const [name, search] of [[/Export/, "?tab=export"], [/Import/, "?tab=import"], [/Other/, "?tab=other"]] as const) {
-      const tab = screen.getByRole("tab", { name: name });
-      expect(tab.hasAttribute("disabled")).toBe(false);
-      fireEvent.click(tab);
-      expect(window.location.pathname.endsWith("/import-export")).toBe(true);
-      expect(window.location.search).toBe(search);
-    }
-    const tabs = resolveImportExportTabs({ t: (key) => key });
-    expect(tabs.every((tab) => !tab.handleLabel?.includes("coming soon"))).toBe(true);
-    expect(tabs.map((tab) => [tab.id, tab.label, tab.tag, tab.handle])).toEqual([
-      ["export", "Export", undefined, "import-export-tab-export"],
-      ["import", "Import", undefined, "import-export-tab-import"],
-      ["other", "Other", undefined, "import-export-tab-other"],
-    ]);
+  it("mounts with the app wiring: its own dictionary, the live Sites Export tab and the .tovu.zip agent labels", async () => {
+    render(<ImportExportPanel tabId={null} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Import & Export" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Export Tovu site" })).toBeTruthy();
+    expect(IMPORT_EXPORT_HANDLE_LABELS.export).toContain(".tovu.zip");
+    expect(IMPORT_EXPORT_HANDLE_LABELS.import).toContain(".tovu.zip");
+    await waitFor(() => expect(screen.queryByText("Loading exports…")).toBeNull());
   });
 });
 
@@ -122,20 +110,4 @@ describe("useSitesSectionAvailable", () => {
     act(() => publishContentRefresh({ resources: [SITES_RESOURCE] }));
     await waitFor(() => expect(result.current).toBe(false));
   });
-});
-
-it("renders through the translator it is given", () => {
-  render(<ImportExport tabId="other" useTranslate={() => (key) => `[${key}]`} useGitBackup={useFakeGitBackup} />);
-  expect(screen.getByRole("heading", { level: 1, name: "[Import & Export]" })).toBeTruthy();
-  expect(screen.getByRole("tab", { name: /\[Other\]/ })).toBeTruthy();
-  expect(screen.getByText("[Read-only HTML of the published pages, for any static host.]")).toBeTruthy();
-});
-
-it("carries every key in every locale", () => {
-  const keys = Object.keys(IMPORT_EXPORT_DICT.es);
-  for (const [locale, entries] of Object.entries(IMPORT_EXPORT_DICT)) expect(Object.keys(entries), locale).toEqual(keys);
-  expect(keys).toEqual(expect.arrayContaining(["Export", "Import", "Other"]));
-  expect(keys).not.toContain("Soon");
-  expect(t({ locale: "fr", key: "Open" })).toBe("Ouvrir");
-  expect(t({ locale: "fr", key: "Other" })).toBe("Autres");
 });

@@ -4,7 +4,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { Sites } from "../Sites";
 import { staticListPrefs } from "./site-list-prefs.fixture";
-import { ImportExport } from "../../import-export";
+import { ImportExportPanel as ImportExport } from "../../import-export/ImportExportPanel";
 import { useSites } from "../hooks/use-sites.hooks";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { KEYS } from "../rules";

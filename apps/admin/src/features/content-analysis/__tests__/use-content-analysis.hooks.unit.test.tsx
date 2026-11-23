@@ -1,13 +1,15 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { renderHook } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
-import { useContentAnalysis, useWiredContentAnalysis, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";
-import type { ContentAnalysisPort } from "../hooks/content-analysis-port.hooks";
-import { CONTENT_ANALYZER_PLUGIN_ID } from "../rules";
+import { createFakeContentAnalysisPort } from "@jini-ai/admin/screens/content-analysis/hooks/content-analysis-dependencies.hooks";
+import { useContentAnalysis, type ContentAnalysisTarget } from "@jini-ai/admin/screens/content-analysis/hooks/use-content-analysis.hooks";
+import { useWiredContentAnalysis } from "../hooks/use-content-analysis.hooks";
+import type { ContentAnalysisPort } from "@jini-ai/admin/screens/content-analysis/hooks/content-analysis-port.hooks";
+import { CONTENT_ANALYZER_PLUGIN_ID } from "@jini-ai/admin/screens/content-analysis/rules";
 import { VALID_REPORT_JSON, reportJson } from "./content-analysis-fixtures";
 
 /**

@@ -17,7 +17,7 @@ export const Themes = lazy(() => import("./features/themes").then(module => ({ d
 export const ThemeExplore = lazy(() => import("./features/themes").then(module => ({ default: module.ThemeExplore })));
 export const AdminUi = lazy(() => import("./features/admin-ui").then(module => ({ default: module.AdminUi })));
 export const Dashboard = lazy(() => import("./features/dashboard").then(module => ({ default: module.Dashboard })));
-export const ImportExport = lazy(() => import("./features/import-export").then(module => ({ default: module.ImportExport })));
+export const ImportExport = lazy(() => import("./features/import-export/ImportExportPanel").then(module => ({ default: module.ImportExportPanel })));
 export const CookieConsent = lazy(() => import("./features/consent").then(module => ({ default: module.CookieConsent })));
 export const PostEditor = lazy(() => import("./features/posts").then(module => ({ default: module.PostEditor })));
 export const Posts = lazy(() => import("./features/posts").then(module => ({ default: module.Posts })));

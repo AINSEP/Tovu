@@ -1,5 +1,6 @@
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { ContentAnalysisCard } from "../../content-analysis/ContentAnalysisCard";
+import { ContentAnalysisCard } from "@jini-ai/admin/screens/content-analysis/ContentAnalysisCard";
+import { useWiredContentAnalysis } from "../../content-analysis/hooks/use-content-analysis.hooks";
 import { TermPicker } from "../../taxonomy/TermPicker";
 
 /* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
@@ -10,7 +11,7 @@ import { TermPicker } from "../../taxonomy/TermPicker";
 export function PostSavedPanels({ post, title, bodyJson }: { post: AdminPost; title: string; bodyJson: unknown }) {
   return post.id ? (
     <>
-      <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
+      <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} useContentAnalysisHook={useWiredContentAnalysis} />
       <TermPicker contentType={post.kind} contentId={post.id} />
     </>
   ) : null;

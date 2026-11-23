@@ -1,7 +1,8 @@
 import { skillFailure } from "./skill-failure";
 import { useCallback, useRef, useState } from "react";
-import { installSkill, type SkillInstallPayload } from "./api";
-import { prepareSkillUpload } from "./skill-upload";
+import { installSkill } from "./api";
+import type { SkillInstallPayload } from "@jini-ai/admin/screens/skills/api/skills-api.types";
+import { prepareSkillUpload } from "@jini-ai/admin/screens/skills/skill-upload";
 
 /** Holds an upload until the user confirms. A superseded read cannot install an older drop. */
 export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?: () => void | Promise<void> } = {}) {

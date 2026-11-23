@@ -78,7 +78,13 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
+.btn-secondary,
+.btn-ghost,
+.btn-danger,
+.btn-warning,
+.btn-primary,
+.btn-explore,
+.jini-content-analysis-btn-secondary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -168,11 +174,12 @@ input[type="checkbox"], input[type="radio"] {
 /* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
    Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
 .field-label,
-.jini-post-publishing__field > .jini-field-label {
+.jini-post-publishing__field > .jini-field-label,
+.jini-content-analysis-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
-.field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+.field-hint, .jini-content-analysis-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
 .field-error { font-size: var(--text-xs); color: var(--danger); margin: 0; }
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
@@ -1144,7 +1151,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 
 /* Card — content sits inside a bordered surface with real padding, the quality Settings has and
    a bare `.list-table` floating on the page does not. */
-.card {
+.card, .jini-content-analysis-card {
   background: var(--jini-panel-bg); border: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: var(--r-lg);
   padding: var(--space-5) var(--space-6); box-shadow: var(--jini-panel-shadow);
   background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
@@ -1168,7 +1175,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    The display face stays, so a card title still rhymes with `.page-title`, which keeps its size.
 
    Additive and opt-in: only elements that take the class change. */
-.card-title {
+.card-title, .jini-content-analysis-title {
   margin: 0 0 var(--space-2);
   font-family: var(--font-display); font-size: var(--text-base); font-weight: 600;
   line-height: 1.3; color: var(--fg);
@@ -1177,11 +1184,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* A muted lead line directly under a `.card-title`, for the one sentence that says what the card
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
    measure instead of running the full width of a 1440px card. */
-.card-lead { margin: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+.card-lead, .jini-content-analysis-lead { margin: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
 /* Card copy and notices: bare paragraphs and list items inside a card, and every `.notice`, take
    the same 13px as `.card-lead` instead of inheriting the 16px page text. `:where` keeps this at
    zero specificity, so any class that sets its own size (hints, labels, empty states) still wins. */
-:where(.card p, .card li, .notice) { font-size: var(--text-sm); }
+:where(.card p, .card li, .notice),
+:where(.jini-content-analysis-card p, .jini-content-analysis-card li) { font-size: var(--text-sm); }
 /* Danger-zone card modifier (2026-08-31: the left-accent-border idiom this used to share with
    `.notice.error`/`.notice.warning` is retired everywhere in this app — owner's explicit call,
    "I don't like that idiom at all" — see the `.notice` rules below for the fuller reasoning).
@@ -1213,15 +1221,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary, .jini-content-analysis-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .jini-content-analysis-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .jini-content-analysis-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .jini-content-analysis-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1229,7 +1237,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .jini-content-analysis-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); opacity: 1; }
@@ -1310,11 +1318,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    rule's own `:hover` variant, so both states need an explicit override, not just the resting
    one). Verified against the Dashboard's "View site ↗" `.btn-secondary` anchor, a real caller —
    without this it rendered as underlined text wearing a border, no padding, no centering. */
-a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary {
+a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary, a.jini-content-analysis-btn-secondary {
   display: inline-flex; align-items: center; text-decoration: none;
 }
-a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover,
-a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
+a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover, a.btn-warning:hover, a.btn-primary:hover, a.jini-content-analysis-btn-secondary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
@@ -1986,7 +1993,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
 :root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: var(--accent-ink); }
-.status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.status, .jini-content-analysis-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 /* A disabled form is switched off, not failed or destructive — so it takes the same muted
@@ -2032,9 +2039,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    `.status-published`/`.notice.warning` already use elsewhere; new names because this tab's rows
    (gate passed/not-applicable, daemon known-failure, env var set/unsafe) don't map onto any
    existing published/active/trashed vocabulary above. */
-.status-ok { background: var(--ok-bg); color: var(--ok); }
-.status-warning { background: var(--warning-bg); color: var(--warning); }
-.status-neutral { background: var(--surface-3); color: var(--muted); }
+.status-ok, .jini-content-analysis-status-ok { background: var(--ok-bg); color: var(--ok); }
+.status-warning, .jini-content-analysis-status-warning { background: var(--warning-bg); color: var(--warning); }
+.status-neutral, .jini-content-analysis-status-neutral { background: var(--surface-3); color: var(--muted); }
 /* `.jini-menu-page-link-unavailable`: `@jini-ai/admin` `MenuPageLinkFields`'s "Page not published" hint. */
 .muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
 .integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
@@ -2139,14 +2146,14 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    applies when the nav + dock leave a phone-width pane on desktop. 456px ≈ the old 480px viewport
    minus a phone's page padding. */
 @container admin-content (max-width: 456px) { .dash-stat { padding: var(--space-3) var(--space-4); } }
-.dash-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.dash-stat-label, .jini-content-analysis-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 /* `font-variant-numeric: tabular-nums` keeps a column of counts optically aligned as values change
    width (9 -> 10 -> 100) instead of the digits shifting under each other. */
-.dash-stat-value {
+.dash-stat-value, .jini-content-analysis-stat-value {
   font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1.1;
   letter-spacing: -0.01em; color: var(--fg); font-variant-numeric: tabular-nums;
 }
-.dash-stat-meta { font-size: var(--text-xs); color: var(--muted); }
+.dash-stat-meta, .jini-content-analysis-stat-meta { font-size: var(--text-xs); color: var(--muted); }
 /* A failed stat still renders its card at full size — the value becomes an em-dash and the reason
    takes the meta slot. The audit's finding here (exec summary #5) was that a failure was SILENT,
    not that it was quiet: replacing the card with a full-width error banner would fix the silence by
@@ -2240,9 +2247,9 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
-.editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.editor-actions, .jini-content-analysis-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
-.save-error { color: var(--danger); font-size: 0.85rem; }
+.save-error, .jini-content-analysis-save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
@@ -3239,7 +3246,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .status-cheap { background: var(--ok-bg); color: var(--ok); }
 .status-expensive { background: var(--accent-dim); color: var(--accent-text); }
 .status-success { background: var(--ok-bg); color: var(--ok); }
-.status-failure, .status-error { background: var(--danger-bg); color: var(--danger); }
+.status-failure, .status-error, .jini-content-analysis-status-error { background: var(--danger-bg); color: var(--danger); }
 
 /* Plugins (SPEC-005 ui.spec.md §5) — the discovery-status pill values and the trust-tier badge,
  * reusing the `.status` pill geometry above rather than introducing a new badge token. */
@@ -5539,20 +5546,20 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 /* ---- Import & Export (Operations) ----------------------------------------------------------- */
 /* Same auto-fit grid as the deployment path cards: three across on a wide screen, stacked on a
    phone. The link sits at each card's bottom so all three line up when one lead wraps longer. */
-.import-export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); }
-.import-export-card { display: flex; flex-direction: column; gap: var(--space-2); }
-.import-export-card .card-title { margin: 0; }
-.import-export-card .card-lead { margin: 0; }
-.import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
+.import-export-grid, .jini-import-export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); }
+.import-export-card, .jini-import-export-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.import-export-card .card-title, .jini-import-export-card .jini-card-title { margin: 0; }
+.import-export-card .card-lead, .jini-import-export-card .jini-card-lead { margin: 0; }
+.import-export-card .btn-secondary, .jini-import-export-card .jini-btn-secondary { margin-top: auto; align-self: flex-start; }
 /* Git backup: the one Import & Export card with its own flow, so it sits full-width under the grid
    (inside it, a full-row card would keep an empty fourth track beside the three link cards). */
 /* `.page`'s own 24px gap already separates it from the grid; pulling back the difference leaves the
    grid's 16px row gap, so the card reads as the grid's next row rather than a 40px-away section. */
-.import-export-card-wide { margin-top: calc(var(--space-4) - var(--space-6)); }
-.git-backup-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
-.git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
-.git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.import-export-card .git-backup-actions .btn-secondary { margin-top: 0; }
+.import-export-card-wide, .jini-import-export-card-wide { margin-top: calc(var(--space-4) - var(--space-6)); }
+.git-backup-note, .jini-import-export-git-backup-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.git-backup-facts, .jini-import-export-git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
+.git-backup-actions, .jini-import-export-git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.import-export-card .git-backup-actions .btn-secondary, .jini-import-export-card .jini-import-export-git-backup-actions .jini-btn-secondary { margin-top: 0; }
 
 /* ---- Capability list ------------------------------------------------------------------------ */
 /* The "what works / what doesn't" rows. Shared by the Overview comparison and the Static Site tab
