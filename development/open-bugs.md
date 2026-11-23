@@ -338,3 +338,10 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   runs first (as `enable.ts`), so that caller gets 403.
 - Test: `account-protections.test.ts` "HTTP reset-password: a caller without user.manage gets 403 for a trashed
   user, not USER_IN_TRASH". Mutation: move the permission check after the Trash check — red.
+
+### `B140-chat-rename-title-not-redacted` — FIXED on `codex/bugs-high-tovu`
+- `PATCH /api/assistant/chats/:id` stored the typed title as-is, so a credential pasted into a rename was saved in
+  the chat list (the first-message seed and messages were already redacted). `parseRenameTitle` now runs
+  `redactUserText` before storing. Already-stored titles are not scrubbed (owner question 3 in P8).
+- Test: `assistant-chats-routes.test.ts` "renamed title with a token is stored redacted". Mutation: skip the
+  redactor — red.
