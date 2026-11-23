@@ -9,7 +9,7 @@ import { createElement } from 'react';
 import { act, fakeSiteSettings, installBridge, mount, recordTelemetry, settle, type TestContext } from './component-harness.js';
 import { closeHost } from '../app-render-harness.js';
 import { SettingsControl } from './SettingsControl.js';
-import type { ThemePreference } from '../theme.js';
+import type { ColorSchemePreference as ThemePreference } from '@jini-ai/ui/theme';
 import type { RunnerInventoryBridge } from '../runner-api.js';
 import { useLoadedSites } from '../use-loaded-sites.hooks.js';
 

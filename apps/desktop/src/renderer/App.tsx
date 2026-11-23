@@ -6,7 +6,6 @@ import {
   appPresentation,
   countRunningSites,
   deriveSitesHomeView,
-  useExpandedMode,
   useProjectMutations,
   useProjectTabs,
   useSiteRescan,
@@ -17,10 +16,9 @@ import {
 } from './App.hooks.js';
 import { useTabCloseAsk } from './use-tab-close-ask.hooks.js';
 import { TabCloseAsk } from './app/TabCloseAsk.js';
-import { chromeVisibility } from './expanded-mode.js';
+import { chromeVisibility, SiteToast, useExpandedMode } from '@jini-ai/ui/app-shell';
 import { mergeAddedSite, useAddSite } from './use-add-site.hooks.js';
-import { useSiteToast } from './use-site-toast.hooks.js';
-import { SiteToast } from './SiteToast.js';
+import { SITE_TOAST_CLASSES, SITE_TOAST_LABELS, useSiteToast } from './use-site-toast.hooks.js';
 import { useStartImported } from './use-start-imported.hooks.js';
 import { createOpenImported, createOpenImportPage, useImportWebsite } from './use-import-website.hooks.js';
 import { useImportHandoff } from './use-import-handoff.hooks.js';
@@ -201,7 +199,7 @@ function AppNavigation({ state, imports, useExpanded = useExpandedMode,
   const find = useFindInPageHook({ activeGuestId: guestTarget });
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
   const zoom = useZoomHook({ activeGuestId: guestTarget });
-  // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
+  // Expanded mode's whole visible effect. See `@jini-ai/ui/app-shell`'s `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const chrome = chromeVisibility({ expanded, inSites, appearanceOpen });
   useRunnerNavigationHook({ setActiveId, setActiveTab });
@@ -242,7 +240,7 @@ function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavig
         <AppSiteWorkspaces state={state} navigation={navigation} />
       </main>
 
-      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
+      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} labels={SITE_TOAST_LABELS} classNames={SITE_TOAST_CLASSES} />
 
       {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
 

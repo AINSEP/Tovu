@@ -16,7 +16,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { SiteRecord } from '../contracts/project.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import { humanSiteError, siteOperationError, addedSiteMessage } from './site-shell-policy.js';
-import { copyableDetails } from './import-error-details.js';
+import { copyableDetails } from '@jini-ai/ui/app-shell';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
  *  (a plain `vite preview`, a test harness). Stated rather than silent: a button that does nothing

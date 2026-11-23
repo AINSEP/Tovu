@@ -8,7 +8,7 @@ import test from 'node:test';
 import { act } from 'react';
 import { countingTarget, renderHookWithView as renderHook } from './app-hooks.test-support.js';
 import { installDom } from './dom-hook-harness.js';
-import { useExpandedMode, type KeydownTarget } from './use-expanded-mode.hooks.js';
+import { useExpandedMode, type KeydownTarget } from '@jini-ai/ui/app-shell';
 
 test('useExpandedMode: toggles, collapses on Escape only, and never outlives the workspace it immerses', (t) => {
   const window = installDom();

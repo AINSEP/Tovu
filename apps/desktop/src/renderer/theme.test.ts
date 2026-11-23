@@ -4,7 +4,8 @@ import test, { type TestContext } from 'node:test';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { useTheme, type ThemePreference } from './theme.js';
+import type { ColorSchemePreference as ThemePreference } from '@jini-ai/ui/theme';
+import { useTheme } from './theme.js';
 
 // Author Checklist: reject defaulting to system, ignoring saved preferences, applying the OS
 // to explicit preferences, omitting persistence/DOM updates, or leaving the system listener
