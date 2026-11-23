@@ -3,7 +3,7 @@ import { changeSetListRoute } from "@jini-ai/cms/admin-http/routes/change-sets/l
 import { changeSetRevertRoute } from "@jini-ai/cms/admin-http/routes/change-sets/revert";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { toChangeSetHeaderResponse, toChangeSetItemResponse } from "#src/server/inbound/admin-http/http/change-sets";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 
 /**
  * @file K1 (RT-K1-adm-change-sets): the `change-sets` admin routes (SPEC-001 REQ-06/07/08/10) are Jini

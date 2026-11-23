@@ -34,7 +34,7 @@ import {
 } from "#src/features/theme/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { describeMovedThemeFile, describeThemeDetailFiles, isPutWritable, originalSourceFor, reloadTheme, renameThemeFileOrRefusal } from "#src/server/inbound/admin-http/routes/themes/explore";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 
 /**
  * @file The theme Explore screen's backend registrars (K1, RT-K1-adm-themes-1): one theme's editable

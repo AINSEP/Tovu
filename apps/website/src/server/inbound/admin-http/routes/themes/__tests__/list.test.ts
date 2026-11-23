@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemesListRoute } from "#src/server/runtime/composition/modules/themes";

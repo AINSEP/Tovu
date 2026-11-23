@@ -12,7 +12,7 @@ import type { NextFunction, Request, Response } from "express";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeFileRenameRoute } from "#src/server/runtime/composition/modules/theme-explore";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file Rename-route branches not already covered by `explore-built-theme-gate.test.ts` (ADR-020 §5

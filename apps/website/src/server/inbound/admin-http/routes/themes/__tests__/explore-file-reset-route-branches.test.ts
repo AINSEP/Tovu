@@ -13,7 +13,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeFileResetRoute } from "#src/server/runtime/composition/modules/theme-explore";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file The two `NO_ORIGINAL`/`NOT_IN_ORIGINAL` reset-route branches not covered by

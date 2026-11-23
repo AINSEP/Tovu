@@ -20,7 +20,7 @@ import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-li
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { Request, Response } from "express";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modules/content";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's five writable PUT fields, read off an untyped body in one place.

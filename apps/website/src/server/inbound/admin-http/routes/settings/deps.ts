@@ -9,7 +9,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * The 5 settings registrars (register-definitions, get-effective, set, clear, reset) only ever
  * read a fixed subset of `RouteDeps` — this is a genuine narrowing (mirrors
- * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s/`apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s identical rationale from
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s/`apps/website/src/server/runtime/composition/modules/content.ts`'s identical rationale from
  * SPEC-034/038), not a widening extension.
  *
  * Each field's real reader, confirmed by reading all 5 registrar files directly:

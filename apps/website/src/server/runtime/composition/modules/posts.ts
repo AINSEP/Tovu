@@ -2,7 +2,7 @@ import { postAutosaveDeleteRoute, postAutosaveGetRoute, postAutosavePutRoute } f
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError } from "#src/features/post/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { cappedApp } from "./capped-route-app.js";
 

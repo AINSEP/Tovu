@@ -8,7 +8,7 @@ import {
   reloadTheme,
   renameThemeFileIfChanged,
 } from "../explore.js";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 

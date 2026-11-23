@@ -20,7 +20,7 @@ import {
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
 } from "#src/server/runtime/composition/modules/theme-explore";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file The Explore file listing's per-file `modified` flag: whether the live file's bytes differ

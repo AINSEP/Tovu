@@ -5,7 +5,7 @@ import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemePagePublishRoute, registerAdminThemeSaveOriginalRoute } from "#src/server/runtime/composition/modules/theme-explore";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * Save-as-original's access gate and both routes' generic failure envelope, driven by a

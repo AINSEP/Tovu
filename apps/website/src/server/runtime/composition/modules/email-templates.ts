@@ -22,7 +22,7 @@ import {
 import { emailTemplateStore } from "#src/features/email-templates/index";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { cappedApp } from "./capped-route-app.js";
 

@@ -42,7 +42,7 @@ import { ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/in
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import type { ContentRouteDeps } from "../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file Host helpers behind the theme Explore screen's routes. K1 (RT-K1-adm-themes-1): the nine

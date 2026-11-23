@@ -16,7 +16,7 @@ import {
   registerAdminThemeFileResetRoute,
   registerAdminThemeFilePutRoute,
 } from "#src/server/runtime/composition/modules/theme-explore";
-import type { ContentRouteDeps } from "../../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * @file ADR-020 §5, the "editor-read-only" half of the built-theme lifecycle split, verified through

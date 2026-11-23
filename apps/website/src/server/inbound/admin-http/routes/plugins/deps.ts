@@ -11,7 +11,7 @@ import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —
- * mirrors `apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s `ContentRouteDeps` narrowing pattern exactly (a genuine
+ * mirrors `apps/website/src/server/runtime/composition/modules/content.ts`'s `ContentRouteDeps` narrowing pattern exactly (a genuine
  * narrowing to the fields these 2 registrars actually read, not a widening extension).
  *
  * `discoverPlugins`/`onEnabled`/`onDisabled` are pre-bound closures (installDir/builtIns already

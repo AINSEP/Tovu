@@ -4,7 +4,7 @@ import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh"
 import { DuplicateThemeError, duplicateDiscoveredTheme, findStoredTheme, validThemeIds } from "#src/features/theme/index";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 
 /**
  * @file The `themes` list + duplicate admin registrars (RT-K1-adm-themes-2).

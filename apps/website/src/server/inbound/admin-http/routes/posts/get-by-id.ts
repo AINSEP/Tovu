@@ -3,7 +3,7 @@ import { hasPostBeenPublished, getAdminPostByIdOrSlug, PostNotFoundError } from 
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteRegistrar } from "#src/server/runtime/composition/modules/content";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note). */
