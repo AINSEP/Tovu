@@ -23,7 +23,6 @@ export {
   NewsletterConflictError,
   NewsletterLaunchGateBlockedError,
   NewsletterConfirmTokenInvalidError,
-  NewsletterConsentUnavailableError,
   NewsletterUnsubscribeTokenInvalidError,
   NewsletterForbiddenError,
 } from "./errors.js";

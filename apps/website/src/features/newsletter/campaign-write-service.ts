@@ -18,7 +18,6 @@ import {
   NewsletterListNotFoundError,
   NewsletterValidationError,
 } from "./errors.js";
-import { refuseArchivedList } from "./lists.js";
 import type { NewsletterCampaignRepoPort, NewsletterListRepoPort } from "./ports.js";
 import type { CampaignCounters, CampaignRecord } from "./types.js";
 
@@ -61,7 +60,6 @@ function validateFields(fields: { subject: string; preheader?: string | null }):
 async function requireEditableListId({ deps, workspaceId, listId }: { deps: CampaignWriteServiceDeps; workspaceId: UUID; listId: UUID }, _options = {}): Promise<void> {
   const list = await deps.listRepo.findById({ workspaceId, id: listId });
   if (!list) throw new NewsletterListNotFoundError(`list ${listId} was not found`);
-  refuseArchivedList({ list });
 }
 
 async function writeRevision(

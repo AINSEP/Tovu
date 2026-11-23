@@ -3,7 +3,7 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
-import { NewsletterConfirmTokenInvalidError, NewsletterConsentUnavailableError } from "#src/features/newsletter/index";
+import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
@@ -36,11 +36,6 @@ export function registerPublicNewsletterConfirmRoute({ app, deps }: { app: Expre
           .status(400)
           .type("html")
           .send(renderPage({ title: "Confirmation link invalid", message: "This confirmation link is invalid or has expired. Please request a new one." }));
-        return;
-      }
-      // Expected while consent is unbound: not a server fault, and the token stays unused (B176).
-      if (err instanceof NewsletterConsentUnavailableError) {
-        res.status(503).type("html").send(renderPage({ title: "Subscription not confirmed yet", message: "This subscription link can’t be confirmed right now. Ask the site owner." }));
         return;
       }
       const { errorId } = reportServerFailure({ error: err, operation: "public:newsletter-confirm" }, { tracker: res.locals.adminFailureTracker });

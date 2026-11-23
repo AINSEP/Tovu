@@ -70,14 +70,6 @@ export async function saveList(required: {
   return { list };
 }
 
-/** An archived list is retired: campaign and subscription writes refuse it so nobody is newly
- * mailed through a list the owner took out of use (B177). Missing lists stay the caller's 404. */
-export function refuseArchivedList({ list }: { list: Pick<NewsletterListRow, "status"> }, _optional = {}): void {
-  if (list.status === "archived") {
-    throw new NewsletterValidationError({ message: "This list is archived.", field: "listId", reason: "archived" });
-  }
-}
-
 /** REQ-09: the default list can never be archived (`NEWSLETTER_DEFAULT_LIST_PROTECTED`). */
 export async function archiveList(required: {
   deps: ListsDeps;
