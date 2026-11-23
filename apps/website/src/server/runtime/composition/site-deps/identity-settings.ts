@@ -26,6 +26,7 @@ import { ensureFormDeliverySettings } from "#src/features/settings/index";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { ensureMailSenderSettings } from "#src/features/settings/index";
+import { ensureSettingDefinitions } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
@@ -104,7 +105,7 @@ function startPersistentSiteSettings(required: {
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureMediaObjectStoreSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureMediaObjectStoreSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, ensureSettingDefinitions }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
