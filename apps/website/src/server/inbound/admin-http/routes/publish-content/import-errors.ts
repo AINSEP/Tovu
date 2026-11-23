@@ -2,7 +2,7 @@ import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inboun
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
 import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-error";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
-import { RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
+import { RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 

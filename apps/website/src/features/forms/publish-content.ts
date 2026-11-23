@@ -1,5 +1,5 @@
 import { executeCommand } from "#src/contracts/core/commands/index";
-import { trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
+import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";

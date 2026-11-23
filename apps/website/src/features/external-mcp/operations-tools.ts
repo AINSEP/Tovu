@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";

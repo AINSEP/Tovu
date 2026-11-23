@@ -21,7 +21,7 @@ import type { SurfaceAskThenReport, SurfaceEmission } from '@jini-ai/core';
 import type { SurfaceCardsPort } from '@jini-ai/core/contracts/cards';
 import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
-import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from '@jini-ai/integrations/credentialed-http/tools';
 import { createCustomCredential, resolveCustomCredentialByLabel } from '../store.js';

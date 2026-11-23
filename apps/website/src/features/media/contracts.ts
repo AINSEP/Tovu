@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 

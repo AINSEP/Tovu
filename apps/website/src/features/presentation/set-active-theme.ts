@@ -1,5 +1,5 @@
 import { setActiveTheme as setPackageActiveTheme, type SetActiveThemeRequired as PackageRequired, type PresentationOptional } from "@jini-ai/cms/presentation";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
 /** CMS telemetry adapter around the shared theme write owner; no theme discovery or policy lives here. */
 export interface SetActiveThemeRequired extends Omit<PackageRequired, "deps"> {

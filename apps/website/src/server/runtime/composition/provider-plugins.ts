@@ -4,7 +4,8 @@ import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/p
 import { createAsyncLocalSpanScope, createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
-import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
+import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { combineObservabilityPorts } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision } from "@jini-ai/analytics/product";
 import {

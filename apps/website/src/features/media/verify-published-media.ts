@@ -1,4 +1,4 @@
-import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
+import { collectMediaUrlKeys } from "@jini-ai/cms/publish/content/media-references";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 

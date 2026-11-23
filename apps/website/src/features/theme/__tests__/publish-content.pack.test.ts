@@ -13,7 +13,7 @@ import test from "node:test";
 
 import { createHash } from "node:crypto";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
-import { contentHash } from "#src/features/publish-content/content-hash";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

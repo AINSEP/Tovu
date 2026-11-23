@@ -6,7 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import {
   registerPublishContentContributor,

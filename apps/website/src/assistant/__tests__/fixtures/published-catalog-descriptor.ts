@@ -1,5 +1,5 @@
 import { resolveHostReadRefs, type ToolRegistration } from "@jini-ai/core";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { batchDescriptorFor, resolveBatchableTools } from "../../batch-tool-inputs.js";
 
 /** What the assembly publishes for a catalog entry: the entry itself, plus `items` when the tool is

@@ -1,5 +1,5 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
-import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { batchDescriptorFor } from "../batch-tool-inputs.js";
 import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";

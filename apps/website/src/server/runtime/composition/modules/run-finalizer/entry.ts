@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { DurableRecovery, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
-import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import {
   createNoopObservabilityPort,
   type ObservabilityPort,

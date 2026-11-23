@@ -1,5 +1,5 @@
 import { tidyImportDatabases } from "./import-database.js";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";

@@ -10,7 +10,7 @@ import { issueToolFailureDiagnostic } from '@jini-ai/daemon/tool-recovery';
 import { buildConfirmationSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { CredentialedRequestValidationError } from '@jini-ai/integrations/credentialed-http';
-import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import { bindTovuCredentialToolOperations, customCredentialsDerivedRisk, createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
 import type { DeployTargetRegistry, LoadedDeployTarget } from '../../deployments/contracts.js';

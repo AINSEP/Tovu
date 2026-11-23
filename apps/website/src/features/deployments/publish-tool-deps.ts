@@ -83,5 +83,5 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   historyStore?: PublishHistoryStore;
   /** `RouteDeps.observability`, forwarded so a confirmed publish's deploy egress is traced. */
   readonly observability?: ObservabilityPort;
-  readonly tracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  readonly tracker?: import("@jini-ai/core/contracts/site/diagnostics-observability").Tracker;
 }

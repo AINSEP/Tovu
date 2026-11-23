@@ -1,5 +1,5 @@
 import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
-import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';

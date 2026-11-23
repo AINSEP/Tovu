@@ -1,7 +1,8 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
-import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";

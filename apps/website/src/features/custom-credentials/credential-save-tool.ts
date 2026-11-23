@@ -1,5 +1,5 @@
 import { createCredentialSaveTools } from '@jini-ai/agent-plugins/connect';
-import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/index.js';
 import { CUSTOM_CREDENTIAL_CATEGORIES } from '../../contracts/core/custom-credential-categories.js';
 export type { CredentialSaveAdapters } from '@jini-ai/agent-plugins/connect';
