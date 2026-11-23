@@ -2744,6 +2744,14 @@
     {
       "id": "f61d0bf8cd44",
       "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
+    },
+    {
+      "id": "99d57d50db5a",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/admin-surfaces/capabilities.ts header (Jini 5b01f58a8, X-agent-plugins-1.J); product name reworded to \"the host\" per N1, rest identical."
+    },
+    {
+      "id": "37e1c39b50ae",
+      "reason": "Moved to Jini @jini-ai/core/text descriptor-i18n.ts header (canonical parser; the X-agent-plugins-1.J forwarding module was removed per review rv-d, host consumers import @jini-ai/core/text directly); host path citations reworded neutral per N2."
     }
   ]
 }
