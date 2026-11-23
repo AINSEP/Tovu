@@ -9,7 +9,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { describeSiteBinding, duplicateSite, listSites, type SiteBinding, type ListSitesOptional } from "#src/platform/site-dir/index";
+import { describeSiteBinding, duplicateSite, listSites, type ListSitesOptional } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 import { buildRegistrations as buildSitesListRegistrations } from "../list-tool.js";
 import { buildSitesRegistrations } from "../tool-registrations.js";

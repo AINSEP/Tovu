@@ -8,15 +8,7 @@
  */
 
 import { CSP_REPORT_ONLY_HEADER, isDeclaredOrigin, type SecurityHeaderSet } from "@jini-ai/core/contracts/server/security-headers";
-
-/** Shipped theme resource data, shared by live headers and static exports. */
-export interface PublicThemeResources {
-  readonly scripts: readonly string[];
-  readonly styles: readonly string[];
-  readonly fonts: readonly string[];
-  readonly fontPreconnects: Readonly<Record<string, readonly { readonly url: string; readonly crossorigin?: boolean }[]>>;
-  readonly legacyFontStylesheetTemplate?: string;
-}
+import type { PublicThemeResources } from "@jini-ai/core/contracts/site/core-public-page-security-headers";
 
 /**
  * Format Tovu's report-only policy using declared theme origins; this never creates an enforced CSP.

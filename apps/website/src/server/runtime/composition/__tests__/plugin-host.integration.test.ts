@@ -12,7 +12,6 @@ import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
@@ -35,6 +34,7 @@ import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
 import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '#src/features/agent-plugins/lifecycle';
 import { forceRemove } from '#src/features/agent-plugins/__tests__/fixtures/force-remove';
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 const plugin: InstalledAgentPlugin = { pluginId: 'github', version: '1.2.3', archiveDigest: 'a'.repeat(64), packageRoot: '/never-read', files: [], skills: [{ name: 'github', skillPath: 'skills/github/SKILL.md' }] };
 const manifest = { name: 'github', keywords: ['repository'], extensions: { tovu: { id: 'tovu/github', provides: ['source-control'] } } };

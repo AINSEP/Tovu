@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
 import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
-import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
+import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 import { createPluginCredentialCardsLoader } from '../plugin-credential-cards.js';
 import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 

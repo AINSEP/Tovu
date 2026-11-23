@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import type { DurableRecovery, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
-import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import {
   createNoopObservabilityPort,
   type ObservabilityPort,
@@ -24,6 +25,7 @@ import { createRecoveryBinding, type RecoveryBinding } from "./recovery-binding.
 import { reportSafely } from "./report.js";
 import { createStreamReader } from "./stream.js";
 import { interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./watch-state.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file Saves an admin-chat turn when its agent run ends — whether or not a browser is still watching.

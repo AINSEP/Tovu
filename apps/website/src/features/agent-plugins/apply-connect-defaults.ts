@@ -10,7 +10,7 @@ import type { AgentPluginMcpContext } from './service-ports.js';
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
 import { resolveAgentPluginMcpServers } from "./federate-mcp.js";
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
 export const CONNECT_DECLINED_ACTOR = "system:connect-declined";

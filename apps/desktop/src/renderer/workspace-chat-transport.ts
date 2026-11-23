@@ -15,20 +15,13 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * meet.
  */
 import { buildTranscript } from '@jini-ai/chat/core';
-import type {
-  AgentEvent,
-  ChatRunStatus,
-  ChatTransport,
-  ReattachRunOptions,
-  RunHandlers,
-  StartRunInput,
-  ToolResultMediaBlock,
-} from '@jini-ai/chat/core';
+import type { ChatRunStatus, ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from '@jini-ai/chat/core';
 import type { RunAgentPayload, RunProtocolEvent } from '@jini-ai/protocol';
 import { parseUsageEvent } from '@jini-ai/chat/core/run-events';
 import { desktopVerbForAgentToolName } from '../contracts/workspace-chat.js';
 import type { WorkspaceChatEventMessage, WorkspaceChatRunState } from '../contracts/workspace-chat.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
+import type { AgentEvent, ToolResultMediaBlock } from "@jini-ai/core/contracts/site/chat-core";
 
 interface SubscriptionRecord {
   readonly handlers: RunHandlers;

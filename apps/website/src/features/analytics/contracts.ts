@@ -1,5 +1,5 @@
 /** Analytics-owned host contracts shared by ingestion and HTTP adapters. */
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import type { ConsentAnalyticsProof } from '@jini-ai/cookie-consent';
 import type { BrowserAnalyticsContribution } from '@jini-ai/core/contracts/observability';
 

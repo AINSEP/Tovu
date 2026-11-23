@@ -17,7 +17,7 @@ import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
 import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";

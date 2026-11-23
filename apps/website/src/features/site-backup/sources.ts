@@ -9,7 +9,7 @@ import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type Reviewe
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { listSitePluginPackage, PluginPackagePathError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
-import type { AgentPluginLayout } from "../agent-plugins/layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 
 /**
  * @file What a site backup is made of, read from this machine: which files on disk each scope switch

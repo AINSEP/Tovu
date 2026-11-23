@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { verifySiteImport } from "../import-verifier.js";
 import { buildArchiveManifest } from "../archive-manifest.js";
 import type { ShareDatabaseProjection } from "../share-policy.js";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const schema = { index: 1, tag: "test" };
 const blob = Buffer.from("blob"), other = Buffer.from("other"), db = Buffer.from("archive DB");

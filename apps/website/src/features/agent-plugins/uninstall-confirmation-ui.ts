@@ -1,7 +1,7 @@
 import { memoryText } from "@jini-ai/agent-plugins/site/memory-i18n";
 import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import type { AgentPluginUninstallPreview } from "./lifecycle.js";
+import type { AgentPluginUninstallPreview } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 /**
  * @file The dialog the Agent Plugin family's uninstall raises before it removes anything.

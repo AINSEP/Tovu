@@ -1,9 +1,10 @@
 import { expect, test, vi } from "vitest";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "../queued-daemon-start";
 import { withAcceptanceCancellation } from "../acceptance-cancellation";
 import { subscriptionEnded, type TrackedRunHandlers } from "../stream-activity";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 function harness() {
   let saved: ChatMessage | null = null;

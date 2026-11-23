@@ -2,7 +2,7 @@
 import type { Express, Response } from 'express';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import type { SiteBinding } from '#src/platform/site-dir/index';
+import type { SiteBinding } from '@jini-ai/core/contracts/site/platform-site-dir';
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
 import { resolveDevTls, resolveDevTlsCertPaths } from '#src/platform/dev-host/dev-tls';
 

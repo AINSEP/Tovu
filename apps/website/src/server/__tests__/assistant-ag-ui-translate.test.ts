@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AgentEvent } from "@jini-ai/chat/core";
 import { terminalReasonNotice as jiniTerminalReasonNotice, translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 
 import { createAgUiTranslationState as create, translateAgentEventToAgUi as translate, type AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
 
 import { RUN_NOTICES } from "../../contracts/core/assistant-run-events.js";
 import { AG_UI_TRANSLATION } from "../runtime/composition/modules/assistant-ag-ui.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /** Jini's notice rule with the words this host passes it, as the route's frame translation does. */
 const terminalReasonNotice = ({ reason }: { reason: string }) => jiniTerminalReasonNotice({ reason, notice: RUN_NOTICES.toolStepLimit });

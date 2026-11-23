@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
-import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core";
+import type { ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, withAgentFailureSurface } from "../agent-failure";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 function harness() {
   let handlers: RunHandlers | undefined;

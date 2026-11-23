@@ -4,7 +4,7 @@ import { sitesApi } from "./features/sites/api/sites-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { useSitesSnapshot } from "./features/sites/hooks/use-sites-snapshot.hooks";
 import { useEffect, useState } from "react";
-import type { AdminNavGroup, AdminNavItem } from "./nav";
+import type { AdminNavGroup, AdminNavItem } from "@jini-ai/core/contracts/site/nav";
 
 /**
  * @file Whether this admin client has a Sites section at all, and what each surface does about it:

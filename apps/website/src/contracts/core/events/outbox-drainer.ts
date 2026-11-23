@@ -3,7 +3,7 @@ import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 
 /**

@@ -36,7 +36,7 @@ export interface AgentPluginsRouteDeps {
   readonly loadPluginCredentialCards?: RouteDeps["loadPluginCredentialCards"];
   readonly apiConnections?: RouteDeps["apiConnections"];
   readonly snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
-  readonly pluginHost?: import("#src/contracts/headless/index").PluginHostPort;
+  readonly pluginHost?: import("@jini-ai/core/contracts/headless/plugin-host").PluginHostPort;
   workspaceId: UUID;
   agentPluginLayout: RouteDeps["agentPluginLayout"];
   authorize: AuthorizeFn;

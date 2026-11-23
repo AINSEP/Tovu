@@ -1,7 +1,7 @@
 import { formatErrorForLog } from "@jini-ai/core";
 /** Tovu labels and consent policy over the existing Resources monitor and Jini growth owner. */
 import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryReading } from '@jini-ai/diagnostics';
-import type { Tracker } from '@jini-ai/diagnostics/observability';
+import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 import type { ProductConsent } from '@tovu/contracts/product-telemetry';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import type { ResourcesSnapshot, ResourceProcess } from './contracts/resources.ts';

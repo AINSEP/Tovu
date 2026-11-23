@@ -1,10 +1,11 @@
-import { checkpointProgress, isTerminalRunStatus, type AgentEvent, type ChatMessage } from "@jini-ai/chat/core";
+import { checkpointProgress, isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
 import type { ChatRunLedger } from "#src/assistant/index";
 import { isDaemonRunId, runContentFromEvents, type RunFrameCarry } from "#src/contracts/core/assistant-run-events";
 
 import type { RunDaemonClient } from "../run-daemon-http-client.js";
 import { approximateJsonBytes } from "./checkpoint-policy.js";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 /**
  * @file The record the run finalizer keeps for one watched run, how one is made, and the rules

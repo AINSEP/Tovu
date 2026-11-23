@@ -14,7 +14,7 @@ import { withCustomCredentialSetup } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from "@jini-ai/core/primitives";
 
 import { createApprovalHandler, indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

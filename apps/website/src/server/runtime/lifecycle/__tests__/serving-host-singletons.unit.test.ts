@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { SiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { localSiteSupervisorForHost, shutdownLocalSiteHosts } from "../local-site-host.js";
 import { sitePreviewServiceForHost } from "../site-preview-host.js";
 import { themePreviewServiceForHost } from "../theme-preview-host.js";

@@ -6,7 +6,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { switchOnSavedTokenConnection as switchWithPorts, type SavedTokenSwitchOutcome } from "@jini-ai/agent-plugins/connect";
 import { withAgentPluginMcpPorts } from "./mcp-host-bindings.js";
 import { createApplyConnectDefaults, isPluginOffByOperator as defaultIsPluginOffByOperator, switchPluginOnUnlessOperatorOff } from "./apply-connect-defaults.js";
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
 export type { SavedTokenSwitchOutcome } from "@jini-ai/agent-plugins/connect";
 

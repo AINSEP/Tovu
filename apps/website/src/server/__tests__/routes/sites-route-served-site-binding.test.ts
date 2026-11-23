@@ -7,7 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { registerAdminSitesRoutes, type AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 

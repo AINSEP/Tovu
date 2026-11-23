@@ -1,5 +1,5 @@
 import { validateScripts } from "@jini-ai/cookie-consent/policy";
-import { type ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
+import type { ThemeSlotDescriptor } from "@jini-ai/core/contracts/site/core-theme-slots";
 import { type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
 import { join } from "node:path";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";

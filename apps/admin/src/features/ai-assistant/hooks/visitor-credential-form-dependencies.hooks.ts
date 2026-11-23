@@ -1,4 +1,4 @@
-import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 

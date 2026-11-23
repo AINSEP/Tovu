@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { findSoonAgentPlugin } from "#src/features/agent-plugins/soon-lock";
-import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { writeExclusive } from "./import-restore-placement.js";
 import type { ArchivePlugin } from "./archive-manifest.js";

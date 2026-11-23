@@ -7,7 +7,7 @@ import type { MailProviderCallContext, MailProviderModule } from "@jini-ai/platf
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import type { MailTestModeSetting } from "#src/contracts/core/settings-vocabulary";
+import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";

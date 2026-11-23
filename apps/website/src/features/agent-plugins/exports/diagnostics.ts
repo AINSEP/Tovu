@@ -1,7 +1,8 @@
 /** Host-owned editor diagnostics; CMS deliberately exposes only public fallback. */
 import { ToolInputError } from "@jini-ai/core";
-import { validateAgentPluginExportProps, type AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
+import { validateAgentPluginExportProps } from "@jini-ai/agent-plugins/manifest";
 import type { PluginExportPackage } from "./source.js";
+import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
 export interface PluginEmbedDiagnostic { readonly code: string; readonly message: string }
 export interface SelectedPluginExport { readonly owner: PluginExportPackage; readonly component: string; readonly definition: AgentPluginExport }

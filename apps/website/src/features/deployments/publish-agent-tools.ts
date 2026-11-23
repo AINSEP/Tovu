@@ -19,7 +19,7 @@ import { assertCredentialFreeField } from '../../contracts/core/credential-token
 import { type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
-import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
