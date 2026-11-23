@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeWidgetPickerPort } from "../WidgetPickerDialog/widget-picker-dependencies.hooks";
 import { useExistingInstances, useWidgetAddControl, useWidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog.hooks";
-import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 
 /**
  * @file `useExistingInstances`/`useWidgetPickerDialog`/`useWidgetAddControl` — split out of
@@ -276,7 +276,7 @@ describe("useWidgetAddControl", () => {
 /** Typed `AdminWidget` builder — `EXISTING_WIDGET` above has no type annotation (it only ever
  *  feeds `jsonResponse`'s `unknown` body), so its `status`/`widgetType` fields infer as plain
  *  `string`, too wide for {@link createFakeWidgetPickerPort}'s `AdminWidget[]`. */
-function widget(overrides: Partial<import("../../features/widgets/api/widgets-api.types").AdminWidget> = {}): import("../../features/widgets/api/widgets-api.types").AdminWidget {
+function widget(overrides: Partial<import("@jini-ai/admin/screens/widgets/api/widgets-api.types").AdminWidget> = {}): import("@jini-ai/admin/screens/widgets/api/widgets-api.types").AdminWidget {
   return { ...EXISTING_WIDGET, status: "active", widgetType: "text", ...overrides };
 }
 

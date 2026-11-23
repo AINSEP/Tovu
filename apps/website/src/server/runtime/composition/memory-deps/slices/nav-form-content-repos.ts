@@ -1,6 +1,6 @@
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
+import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";

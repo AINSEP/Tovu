@@ -1,0 +1,138 @@
+apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts exit=0 pass=60 fail=0 secs=7
+apps/website/src/assistant/__tests__/tool-registrations.menus.test.ts exit=0 pass=27 fail=0 secs=5
+apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts exit=0 pass=47 fail=0 secs=14
+apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts exit=0 pass=131 fail=0 secs=1
+apps/website/src/contracts/core/events/__tests__/forms-notification-retry.test.ts exit=1 pass=2 fail=2 secs=2
+    [outbox-worker] delivery of outbox event "form.notification.deliver" failed { outboxId: 'n', attempt: 1, lastError: 'delivery-failed' } Error
+    [outbox-worker] delivery of outbox event "form.notification.deliver" failed { outboxId: 'n', attempt: 1, lastError: 'delivery-failed' } Error
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+      - 'Error'
+        code: 'ERR_ASSERTION',
+        expected: 'Error',
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+      - 'Error'
+apps/website/src/features/comments/__tests__/index.test.ts exit=0 pass=11 fail=0 secs=2
+apps/website/src/assistant/__tests__/tool-registrations.post.test.ts exit=0 pass=38 fail=0 secs=8
+apps/website/src/features/form-destinations/__tests__/port.unit.test.ts exit=0 pass=10 fail=0 secs=2
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts exit=0 pass=3 fail=0 secs=1
+apps/website/src/features/forms/__tests__/all-fields-demo-fixture.test.ts exit=0 pass=4 fail=0 secs=1
+apps/website/src/features/forms/__tests__/common-field-tools.test.ts exit=0 pass=1 fail=0 secs=2
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts exit=0 pass=39 fail=0 secs=29
+apps/website/src/features/forms/__tests__/common-fields.test.ts exit=0 pass=6 fail=0 secs=3
+apps/website/src/features/forms/__tests__/content-duplicate.form.test.ts exit=0 pass=12 fail=0 secs=1
+apps/website/src/features/forms/__tests__/field-length-caps.test.ts exit=0 pass=1 fail=0 secs=2
+apps/website/src/features/forms/__tests__/form-schema-hash.test.ts exit=0 pass=1 fail=0 secs=1
+apps/website/src/features/forms/__tests__/lost-update-boundaries.test.ts exit=0 pass=2 fail=0 secs=4
+apps/website/src/features/form-destinations/__tests__/byho-compat.unit.test.ts exit=0 pass=2 fail=0 secs=17
+apps/website/src/features/forms/__tests__/submission-email-validation.test.ts exit=0 pass=1 fail=0 secs=1
+apps/website/src/features/forms/__tests__/tool-definition-view.unit.test.ts exit=0 pass=1 fail=0 secs=1
+apps/website/src/features/forms/__tests__/tool-contract.characterization.test.ts exit=0 pass=19 fail=0 secs=1
+apps/website/src/features/forms/__tests__/unit/slug-policy.unit.test.ts exit=0 pass=1 fail=0 secs=3
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts exit=0 pass=10 fail=0 secs=4
+apps/website/src/features/identity/__tests__/permission-migrations.test.ts exit=0 pass=7 fail=0 secs=1
+apps/website/src/features/media/__tests__/bootstrap.test.ts exit=0 pass=8 fail=0 secs=1
+apps/website/src/features/media/__tests__/import-media-entity.render.test.ts exit=0 pass=2 fail=0 secs=3
+apps/website/src/features/forms/__tests__/repo.dialects.test.ts exit=0 pass=6 fail=0 secs=14
+apps/website/src/features/navigation/__tests__/import-menu.test.ts exit=0 pass=15 fail=0 secs=1
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts exit=0 pass=5 fail=0 secs=1
+apps/website/src/features/media/__tests__/publish-content.apply.test.ts exit=0 pass=23 fail=0 secs=5
+apps/website/src/features/navigation/__tests__/publish-content.test.ts exit=0 pass=32 fail=0 secs=1
+apps/website/src/features/navigation/__tests__/repoint-menu-refs.test.ts exit=0 pass=18 fail=0 secs=2
+apps/website/src/features/navigation/__tests__/reverters.test.ts exit=0 pass=3 fail=0 secs=1
+apps/website/src/features/navigation/__tests__/trash-aware-memory-menu-repo.test.ts exit=0 pass=13 fail=0 secs=2
+apps/website/src/features/navigation/__tests__/trash-menu.test.ts exit=0 pass=4 fail=0 secs=3
+apps/website/src/features/navigation/__tests__/footer-page-links.test.ts exit=0 pass=10 fail=0 secs=14
+apps/website/src/features/plugin-runtime/built-ins/content-analyzer/__tests__/unit/analyze-content.unit.test.ts exit=0 pass=21 fail=0 secs=3
+apps/website/src/features/pages/__tests__/tool-registrations.read-html.test.ts exit=0 pass=21 fail=0 secs=5
+apps/website/src/features/navigation/__tests__/repo.sqlite.compare-and-set.test.ts exit=0 pass=27 fail=0 secs=14
+apps/website/src/features/post/__tests__/agent-tools.tiptap-node-vocabulary.test.ts exit=0 pass=32 fail=0 secs=1
+apps/website/src/features/publish-content/__tests__/apply-loop.test.ts exit=0 pass=37 fail=0 secs=2
+apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts exit=0 pass=3 fail=0 secs=4
+apps/website/src/features/trash/__tests__/form-trash-flow.test.ts exit=0 pass=7 fail=0 secs=4
+apps/website/src/features/trash/__tests__/menu-trash-flow.test.ts exit=0 pass=3 fail=0 secs=3
+apps/website/src/features/webmcp/__tests__/embed-annotations.test.ts exit=0 pass=6 fail=0 secs=1
+apps/website/src/features/widgets/__tests__/integration/html-form-embeds.integration.test.ts exit=0 pass=5 fail=0 secs=3
+apps/website/src/features/widgets/__tests__/integration/gallery-widget.integration.test.ts exit=0 pass=3 fail=0 secs=3
+apps/website/src/features/theme/__tests__/menu-authored-html.test.ts exit=0 pass=5 fail=0 secs=12
+apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts exit=0 pass=2 fail=0 secs=1
+apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts exit=1 pass=64 fail=1 secs=5
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+        code: 'ERR_ASSERTION',
+apps/website/src/features/widgets/__tests__/integration/mediawidget.integration.test.ts exit=0 pass=11 fail=0 secs=6
+apps/website/src/features/widgets/__tests__/unit/menu-page-links.unit.test.ts exit=0 pass=1 fail=0 secs=3
+apps/website/src/server/__tests__/routes/forms-admin-crud.test.ts exit=0 pass=14 fail=0 secs=16
+apps/website/src/server/__tests__/admin-local-boot-session-route.test.ts exit=0 pass=27 fail=0 secs=23
+apps/website/src/server/__tests__/admin-menus-routes.test.ts exit=0 pass=31 fail=0 secs=22
+apps/website/src/server/__tests__/routes/forms-auth.test.ts exit=0 pass=5 fail=0 secs=12
+apps/website/src/server/__tests__/routes/forms-submit.test.ts exit=1 pass=39 fail=1 secs=2
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+        code: 'ERR_ASSERTION',
+apps/website/src/server/__tests__/routes/forms-webhook-fanout.test.ts exit=0 pass=2 fail=0 secs=1
+apps/website/src/server/__tests__/routes/forms-submissions.test.ts exit=0 pass=9 fail=0 secs=11
+apps/website/src/server/__tests__/routes/forms-list-submissions-and-get-by-id-edge-cases.test.ts exit=0 pass=10 fail=0 secs=11
+apps/website/src/server/__tests__/routes/html-form-authoring.test.ts exit=0 pass=8 fail=0 secs=4
+apps/website/src/server/inbound/admin-http/http/__tests__/forms-response.test.ts exit=0 pass=13 fail=0 secs=2
+apps/website/src/server/inbound/admin-http/http/__tests__/unit/menus-dto.unit.test.ts exit=0 pass=4 fail=0 secs=1
+apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts exit=0 pass=2 fail=0 secs=13
+apps/website/src/server/__tests__/routes/request-cost-traversal.measurement.test.ts exit=0 pass=4 fail=0 secs=14
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/provider-save.unit.test.ts exit=0 pass=1 fail=0 secs=4
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts exit=1 pass=17 fail=4 secs=19
+      diagnostic: 'Error: private\n' +
+      diagnostic: 'Error: private\n' +
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+        code: 'ERR_ASSERTION',
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+        code: 'ERR_ASSERTION',
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+        code: 'ERR_ASSERTION',
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts exit=0 pass=50 fail=0 secs=26
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/providers.unit.test.ts exit=0 pass=6 fail=0 secs=15
+apps/website/src/server/inbound/admin-http/routes/menus/__tests__/menu-html-mode.test.ts exit=0 pass=6 fail=0 secs=4
+apps/website/src/server/inbound/admin-http/routes/menus/__tests__/update-tree.not-live.test.ts exit=0 pass=2 fail=0 secs=5
+apps/website/src/server/inbound/admin-http/routes/menus/__tests__/assign-location.pins.unit.test.ts exit=0 pass=17 fail=0 secs=16
+apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/preview.unit.test.ts exit=0 pass=5 fail=0 secs=5
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-attempt-token.unit.test.ts exit=0 pass=5 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-field-max-length.unit.test.ts exit=0 pass=5 fail=0 secs=2
+apps/website/src/server/inbound/admin-http/routes/menus/__tests__/menus-route-failures.unit.test.ts exit=0 pass=31 fail=0 secs=23
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-field-types-style.unit.test.ts exit=0 pass=8 fail=0 secs=0
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-render.unit.test.ts exit=0 pass=21 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-friendly.test.ts exit=0 pass=3 fail=0 secs=1
+apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts exit=0 pass=12 fail=0 secs=17
+apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-message.unit.test.ts exit=0 pass=11 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/img-by-url.test.ts exit=0 pass=1 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-blocks-site-branches.unit.test.ts exit=0 pass=36 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-components-branches.unit.test.ts exit=0 pass=30 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-doc-media-branches.unit.test.ts exit=0 pass=28 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-doc-widget-port.unit.test.ts exit=0 pass=4 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-media-and-embed-markers.unit.test.ts exit=0 pass=72 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts exit=0 pass=5 fail=0 secs=3
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts exit=1 pass=1 fail=3 secs=1
+        name: 'Error',
+        name: 'Error',
+        name: 'Error',
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-menu-html.unit.test.ts exit=0 pass=4 fail=0 secs=1
+apps/website/src/server/inbound/public-http/http/site/__tests__/tiptap-render-contract.test.ts exit=1 pass=73 fail=1 secs=2
+      SyntaxError [Error]: Unexpected token 'default'
+apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts exit=1 pass=12 fail=1 secs=3
+      AssertionError [ERR_ASSERTION]: render output drifted for: widget:contact-form-default, widget:contact-form-range, widget:contact-form-html, widget:contact-form-collection, shell:assistant-on, site:static-home-assistant, site:fallback-home-assistant, inject-assistant:on, inject-assistant:commented-tags
+        code: 'ERR_ASSERTION',
+apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts exit=0 pass=218 fail=0 secs=6
+apps/website/src/server/inbound/public-http/routes/site/__tests__/forms-timing.route.test.ts exit=0 pass=1 fail=0 secs=9
+apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts exit=0 pass=18 fail=0 secs=15
+apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts exit=0 pass=10 fail=0 secs=13
+apps/website/src/server/inbound/public-http/routes/site/__tests__/unit/h4-pages.unit.test.ts exit=0 pass=3 fail=0 secs=1
+apps/website/src/server/runtime/boot/__tests__/boot-readiness-warnings.unit.test.ts exit=0 pass=12 fail=0 secs=1
+apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts exit=0 pass=10 fail=0 secs=5
+apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts exit=0 pass=17 fail=0 secs=16
+apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts exit=0 pass=18 fail=0 secs=15
+apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts exit=0 pass=2 fail=0 secs=1
+apps/website/src/server/runtime/composition/__tests__/create-app-comments-rate-limit.test.ts exit=0 pass=6 fail=0 secs=12
+apps/website/src/server/runtime/composition/__tests__/form-delivery-purge.integration.test.ts exit=0 pass=2 fail=0 secs=11
+apps/website/src/server/runtime/composition/__tests__/form-delivery.test.ts exit=0 pass=5 fail=0 secs=1
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts exit=0 pass=12 fail=0 secs=9
+apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts exit=0 pass=11 fail=0 secs=14
+apps/website/src/server/runtime/composition/__tests__/form-pull-triggers.test.ts exit=0 pass=5 fail=0 secs=2
+apps/website/src/server/runtime/composition/__tests__/form-file-cleanup.integration.test.ts exit=0 pass=2 fail=0 secs=11
+apps/website/src/server/runtime/composition/__tests__/publish-content-manifest.test.ts exit=0 pass=21 fail=0 secs=4
+apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts exit=0 pass=20 fail=0 secs=5
+DONE

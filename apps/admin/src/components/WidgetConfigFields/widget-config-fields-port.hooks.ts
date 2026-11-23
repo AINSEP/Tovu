@@ -1,6 +1,6 @@
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
-import type { AdminMenu } from "../../features/menus/api/menus-api.types";
-import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
+import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 
 /**
  * @file What `WidgetConfigFields.tsx`'s `MenuConfigFields`/`ContactFormConfigFields`/

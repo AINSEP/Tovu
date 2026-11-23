@@ -2840,6 +2840,70 @@
     {
       "id": "d7132b05298e",
       "reason": "Header of a pure re-export shell (entries render-entry) that moved to Jini in ex5 and was deleted there by review rv-a C1; nothing remains for it to explain."
+    },
+    {
+      "id": "753c5f8ce737",
+      "reason": "Moved verbatim to Jini @jini-ai/admin/screens/forms/api/forms-api.types.ts (Jini codex/ex5-small-jini, A-adm-other-1.J); the host route path citation reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "85baaabaf4e4",
+      "reason": "Moved verbatim to Jini @jini-ai/admin/screens/menus/html-rules.ts (Jini codex/ex5-small-jini, A-adm-other-6.J); one host path citation reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "5a72a7c8910f",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/forms/destinations/pull.ts (Jini codex/ex5-small-jini, X-form-destinations-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "8e94dacd0c91",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/forms/site/form-destination-manifest.ts (Jini codex/ex5-small-jini, X-forms-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "b6fb44e13dad",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/forms/site/form-destination-manifest.ts (Jini codex/ex5-small-jini, X-forms-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "76537b728f08",
+      "reason": "Section comment over the deleted barrel re-exports of form-destination-manifest and import-remote-submissions (X-forms-1.T, no re-export shells); each module keeps its own @file header in Jini @jini-ai/cms/forms/site/."
+    },
+    {
+      "id": "bd45127db646",
+      "reason": "Note over the deleted trashMenu barrel re-export (X-navigation-1.T, no re-export shells); its why (structural remove, no trash-feature import) is kept in Jini @jini-ai/cms/navigation/site/trash-menu.ts @file header."
+    },
+    {
+      "id": "10c871726b70",
+      "reason": "Barrel doc line rewritten when MENU_RAW_HTML_PERMISSION moved to Jini @jini-ai/cms/navigation/site/menu-html-permission.ts (X-navigation-1.T); the line now names only the remaining Jini validation helpers."
+    },
+    {
+      "id": "3dae268094ce",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/menu-html-permission.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "59c2b862a11c",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/menu-trash-follow-ups.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "6f77a6fc4b5b",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/menu-trash-follow-ups.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "59a214f6af6c",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/menu-trash-follow-ups.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "c2f727cd5a5e",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/trash-aware-memory-menu-repo.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "7b255477fac8",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/navigation/site/trash-menu.ts (Jini codex/ex5-small-jini, X-navigation-1.J); host words/paths reworded neutral per N1/N2, rest identical."
+    },
+    {
+      "id": "e473548b8d2c",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/widgets/site/__tests__/media-html-report-drops.unit.test.ts (Jini codex/ex5-small-jini, X-widgets-1.J); the product site name reworded to the host per N1, rest identical."
+    },
+    {
+      "id": "18dcb0327f7d",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/widgets/site/media-html-log.ts (Jini codex/ex5-small-jini, X-widgets-1.J); host words/paths reworded neutral per N1/N2, rest identical."
     }
   ]
 }

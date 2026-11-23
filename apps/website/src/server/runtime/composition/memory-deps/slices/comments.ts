@@ -1,5 +1,5 @@
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
+import { createCommentTargetLookup } from '@jini-ai/cms/comments/site/comment-targets';
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { removeEntityWithoutBlocker, COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

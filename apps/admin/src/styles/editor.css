@@ -27,7 +27,8 @@
  * not affect the label-for-control association itself (that's DOM nesting, not paint), so this
  * is purely a layout no-op wrapped around a real accessibility fix.
  */
-.a11y-label-wrap {
+/* `.jini-menu-page-link-label` aliases this: `@jini-ai/admin`'s `MenuPageLinkFields` uses engine-prefixed classes. */
+.a11y-label-wrap, .jini-menu-page-link-label {
   display: contents;
 }
 

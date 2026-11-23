@@ -29,7 +29,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
 import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "../../features/forms/delivery-status.js";
-import type { FormSubmissionsPullPort, FormSubmissionsPullResult } from "../../features/forms/import-remote-submissions.js";
+import type { FormSubmissionsPullPort, FormSubmissionsPullResult } from "@jini-ai/cms/forms/site/import-remote-submissions";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),

@@ -10,7 +10,7 @@ import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { renderMarks } from "@jini-ai/cms/html/document-marks";
 import { safeLanguageClass } from "@jini-ai/cms/html/style-values";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
-import { WIDGET_PLACEHOLDER_IR } from "../widgets/placeholder.js";
+import { WIDGET_PLACEHOLDER_IR } from "@jini-ai/cms/public-http/http/site/render/widgets/placeholder";
 import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "@jini-ai/cms/widgets/media-attributes";
 import { renderDocImage, renderDocMedia, renderDocYoutube } from "./nodes-media.js";
 

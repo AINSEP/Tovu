@@ -1,11 +1,11 @@
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
-import { menuHtmlEmbed } from "../html-rules";
+import { menuHtmlEmbed } from "@jini-ai/admin/screens/menus/html-rules";
 import { MENUS_DICT } from "../menus-i18n";
 import { FORMS_DICT } from "../../forms/forms-i18n";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";

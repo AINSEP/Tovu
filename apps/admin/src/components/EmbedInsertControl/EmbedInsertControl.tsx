@@ -2,7 +2,7 @@ import { createEmbedInsertControlTranslator } from "./EmbedInsertControl.hooks";
 import { useRef } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AgentElementRole } from "@jini-ai/core/agent-handles";
-import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetPickerDialog, WidgetSelectionDialog } from "../WidgetPickerDialog/WidgetPickerDialog";

@@ -1,6 +1,6 @@
 import { createFormPullTrigger } from "@jini-ai/cms/forms";
 import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
-import type { FormsAutoPullPort } from "#src/features/forms/index";
+import type { FormsAutoPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 
 /**
  * @file The serving app's two automatic form pulls: once at startup and once per owner/admin

@@ -1,0 +1,18 @@
+HEAD f7185f153
+size exit=1 secs=24
+boundaries exit=0 secs=34
+admin-tsc exit=2 secs=44
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-live-verify exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=9
+desktop-tsc-main exit=0 secs=22
+typecheck exit=0 secs=46
+hooks exit=0 secs=1
+errors exit=0 secs=23
+worker-import-graph exit=0 secs=22
+complexity exit=0 secs=26
+typecheck-scripts exit=2 secs=24
+why-comments exit=1 secs=25
+typecheck-tests exit=0 secs=89
+architecture exit=1 secs=127
+DONE

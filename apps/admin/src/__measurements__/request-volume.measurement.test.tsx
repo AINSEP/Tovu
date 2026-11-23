@@ -7,7 +7,7 @@ import { reactModuleUi } from "@jini-ai/admin/core/react";
 import { FormsControllerContext } from "@jini-ai/admin/forms/react";
 import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
 import { Media } from "../features/media/Media";
-import type { AdminFormDefinition } from "../features/forms/api/forms-api.types";
+import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 
 /**
  * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `@jini-ai/ui/fetch-query` actually

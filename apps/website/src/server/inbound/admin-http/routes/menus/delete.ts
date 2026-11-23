@@ -1,7 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { MenuConflictError, MenuNotFoundError } from "#src/features/navigation/index";
-import { trashMenu } from "#src/features/navigation/index";
+import { trashMenu } from "@jini-ai/cms/navigation/site/trash-menu";
 import { toAdminTrashMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

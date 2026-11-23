@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { mediaApi } from "../../features/media/api/media-api";
-import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
