@@ -5,7 +5,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { lifecycleFailureMessage, t as translate } from "@jini-ai/admin/screens/collections/collections-i18n";
+import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
 import type { CollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-port.hooks";
 

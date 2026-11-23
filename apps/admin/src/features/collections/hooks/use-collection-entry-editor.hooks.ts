@@ -10,7 +10,7 @@ import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { entryLifecycleFailureMessage, t as translate } from "@jini-ai/admin/screens/collections/collections-i18n";
+import { entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
 import type { CollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-port.hooks";
 

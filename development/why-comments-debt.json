@@ -2750,10 +2750,6 @@
       "reason": "Moved to Jini packages/admin/src/screens/collections/api/collections-api.types.ts (ex5) with the file; host path citations reworded neutral."
     },
     {
-      "id": "46df8d4b4b87",
-      "reason": "Moved to Jini packages/admin/src/screens/collections/collections-i18n.ts (ex5) with the file; host path citations reworded neutral."
-    },
-    {
       "id": "f4f57f063c18",
       "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/collection-entries-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
     },
@@ -2796,14 +2792,6 @@
     {
       "id": "92d1819dc541",
       "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/term-picker-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
-    },
-    {
-      "id": "c07d13346ca7",
-      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n.ts (ex5) with the file; host path citations reworded neutral."
-    },
-    {
-      "id": "591d16d5dc5b",
-      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n.ts (ex5) with the file; host path citations reworded neutral."
     },
     {
       "id": "683d5edb7f2f",

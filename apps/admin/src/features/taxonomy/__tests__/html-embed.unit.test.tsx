@@ -7,7 +7,7 @@ import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";
-import { TAXONOMY_DICT } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
+import { TAXONOMY_DICT } from "../taxonomy-i18n";
 import { FORMS_DICT } from "../../forms/forms-i18n";
 
 vi.mock("@/hooks/use-admin-locale.hooks", async (importOriginal) => ({
