@@ -1213,7 +1213,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary, .jini-post-notice__btn { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+  box-shadow: var(--jini-control-shadow, none);
+}
+/* The Jini post-notice buttons' twin of the rule above, kept as its own block so `.btn-secondary`
+   stays a standalone global rule (the external-MCP picker pairs its action text with it). */
+.jini-post-notice__btn { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
 .btn-secondary:hover, .jini-post-notice__btn:hover { background: var(--surface-2); opacity: 1; }
