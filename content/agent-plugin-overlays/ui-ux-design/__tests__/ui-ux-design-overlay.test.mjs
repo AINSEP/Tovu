@@ -18,9 +18,7 @@ const readGuidance = () => readFile(path.join(overlayRoot, 'GUIDANCE.md'), 'utf8
 const readQa = () => readFile(path.join(overlayRoot, 'host/theme-screenshot-qa.md'), 'utf8');
 
 // Owner-approved wording (w1, 2026-11-02), whitespace-normalized so line wrapping may change.
-// r62t-howto W9/W10 (tv-howto2) replaced it: the `load_agent_plugin` tool name, saving requested site
-// work, and reporting only the widths actually checked. Owner confirmation is owed (combine-12 decision).
-const APPROVED = '## Tovu chat rules Load Tovu plugin guidance with `load_agent_plugin` and `pluginId`, plus `skill` or `file` as needed. Use `pluginId: "ui-ux-design"` for design guidance and references. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Save requested site work using the site’s tools. Preview a draft by entry ID. Use available browser widths for actual visual checks and report those widths. A public-route screenshot checks only the page served at that address.';
+const APPROVED = '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool.';
 
 test('the overlay retains exactly the approved Tovu chat rules before its load table', async () => {
   const [chatRules] = (await readGuidance()).split('\n## Load before building');
@@ -39,8 +37,7 @@ test('theme QA fails clipped headlines, horizontal overflow and large dead gaps'
   const guidance = (await readQa()).replace(/\s+/g, ' ');
   assert.match(guidance, /FAIL[^.]*clipped text[^.]*horizontal overflow/);
   assert.match(guidance, /FAIL[^.]*large dead gaps[^.]*160px/);
-  assert.match(guidance, /`web_screenshot_page` presets are desktop 1280px, tablet 768px and mobile 375px/);
-  assert.match(guidance, /Report only the widths actually checked/);
+  assert.match(guidance, /360, 390, 768, 1024, 1280 and 1440px/);
   assert.match(guidance, /every hero and section headline/);
   assert.match(guidance, /fix[^.]*repeat[^.]*same widths/i);
 });
@@ -56,7 +53,7 @@ test('theme guidance scales display type to its container and refuses overflow m
 
 test('the overlay keeps the safety rules the in-skill copy carried', async () => {
   const guidance = await readGuidance();
-  assert.match(guidance, /`load_agent_plugin` and `pluginId`[^]*`pluginId: "ui-ux-design"` for design guidance/);
+  assert.match(guidance, /`agent_plugin_ui_ux_design`/);
   assert.match(guidance, /Never use Bash, curl, npx or package\s+installers from chat/);
   assert.match(guidance, /If shadcn MCP or another capability is unavailable, explain the\s+limitation/);
 });

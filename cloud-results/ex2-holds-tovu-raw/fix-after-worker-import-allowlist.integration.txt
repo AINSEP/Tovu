@@ -1,0 +1,22 @@
+✔ a site-layout tier-2 plugin still imports both SDK specifiers and its own relative files (462.651672ms)
+✔ a site-layout tier-2 plugin is refused when it imports "node:fs" (408.237438ms)
+✔ a site-layout tier-2 plugin is refused when it imports "fs" (453.465397ms)
+✔ a site-layout tier-2 plugin is refused when it imports "child_process" (390.167689ms)
+✔ a site-layout tier-2 plugin is refused when it imports "node:child_process" (417.382409ms)
+✔ a site-layout tier-2 plugin is refused when it imports "tier2-fixture-dependency" (411.224373ms)
+✔ a site-layout tier-2 plugin is refused when it imports "@jini-ai/cms/seo/content-analysis" (353.681718ms)
+✔ a site-layout tier-2 plugin is refused when it imports "#src/platform/html/slug" (345.881255ms)
+✔ a site-layout tier-2 plugin is refused when it imports "data:text/javascript,export default 1" (360.651926ms)
+✔ a dynamic import() of a refused specifier inside the plugin is refused as well (359.610431ms)
+✔ a relative path that climbs out of the plugin package is refused (405.572288ms)
+✔ the built-in content-analyzer, which imports host packages, still loads in a real worker (480.604625ms)
+✔ a malformed entry file URL is a structured import-stage reply, not a crashed worker (358.297522ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5393.523217
+exit=0

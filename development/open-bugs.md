@@ -318,3 +318,26 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## ex2-holds-tovu (Tovu `codex/ex2-holds-tovu`, 2026-11-22)
+
+Owner-approved holds on top of combine-13 (`0d7f78fa4`, Jini merge-13 linked). Details: `cloud-results/ex2-holds-tovu.md`.
+
+### `C043` Tier-2 plugin worker import allowlist — FIXED (`5be5b781c`; review fixes on `codex/ex2-holds-tovu`, security MED)
+- The import policy lives in Jini's Node worker adapter (`@jini-ai/plugins/host/worker` `registerTier2ImportPolicy`, Jini
+  `codex/ex2-holds-tovu-jini`). For modules inside a plugin package it refuses every bare specifier except the SDK
+  specifiers (`node:fs`, `child_process`, npm packages, `data:`) and any path that resolves outside the package.
+- SDK-only by default. Coordinator decision (owner may revisit): the registered content-analyzer entry also gets exactly
+  `@jini-ai/cms/seo/content-analysis` and `#src/platform/html/slug`, injected by Tovu's worker entry (`TIER2_IMPORT_POLICY`).
+  No directory is exempt.
+- Set up on the real-import path, so a malformed entry URL is a structured `stage: "import"` reply.
+
+### `C115` disk-space 507 reported as an incident — FIXED (`46fc4f901`)
+- `adminFailureResponse` returns the typed `DatabaseDiskSpaceError` refusal before logging/reporting; no incident,
+  no error ID. An explicit status override still reports.
+
+### `C026` vendor names in generic seam files — PARTIAL (`8f6818798`), still OPEN
+- `shared-owner.ts:81` reworded (plain-English "picker"). The guard still lists 28 hits (combine-11 had 4).
+  Two are new production seam hits: `admin-surfaces/public-config.ts:15` (`JINI_GOOGLE_PICKER_*` in the generic
+  public-name pattern) and `api-connections/contribution.ts:77` (`google-workspace` → `JINI_` client namespace).
+  `bundled-catalog.ts:47,48,57` need an owner call (inventory allow-list) and Jini manifest `soon` flags.
