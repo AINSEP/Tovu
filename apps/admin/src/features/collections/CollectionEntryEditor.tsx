@@ -6,6 +6,7 @@ import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-edit
 import { ServerLabel } from "@/components/status-labels";
 import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
 import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
 import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 
@@ -489,7 +490,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
       />
 
       {entry ? (
-        <TermPicker contentType={props.contentTypeKey} contentId={entry.id} useTermPickerHook={useWiredTermPicker} useTermListRevealHook={useTermListReveal} />
+        <TermPicker contentType={props.contentTypeKey} contentId={entry.id} useTermPickerHook={useWiredTermPicker} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />
       ) : null}
     </div>
   );

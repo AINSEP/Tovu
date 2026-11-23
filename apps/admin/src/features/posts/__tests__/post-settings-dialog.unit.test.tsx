@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PostSettingsDialog, type PostSettingsDialogProps } from "@jini-ai/admin/posts/PostSettingsDialog";
-import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { PostSettingsDialogController, PostSettingsTab } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 
 /**
@@ -18,6 +18,7 @@ function dialog(tab: PostSettingsTab, overrides: Partial<PostSettingsDialogContr
 function renderDialog(overrides: Partial<PostSettingsDialogProps> = {}) {
   const props: PostSettingsDialogProps = {
     hooks: { useTabBarKeyboard },
+    resolveTabBarTabIndex,
     dialog: dialog("author"),
     kindLabel: "post",
     author: "Ada",

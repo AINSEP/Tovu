@@ -6,7 +6,7 @@ import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hook
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
 import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
-import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { PostCoverImage } from "../PostCoverImage";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
 
@@ -232,6 +232,7 @@ describe("Hide the cover image in the body, under the cover slot (owner, 2026-10
     render(
       <PostSettingsDialog
         hooks={{ useTabBarKeyboard }}
+        resolveTabBarTabIndex={resolveTabBarTabIndex}
         dialog={{ open: true, tab: "author", setTab: vi.fn(), openDialog: vi.fn(), closeDialog: vi.fn() }}
         kindLabel="post"
         author=""
