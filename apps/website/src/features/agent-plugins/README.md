@@ -28,7 +28,7 @@ keeps its three error re-exports (`AgentPluginNotReadyError`, `AgentPluginLinked
 ## Wiring (uninstall branch)
 
 The Agent Plugin branch of `plugins_uninstall` lives at `@jini-ai/agent-plugins/site/uninstall-tool`
-(`runAgentPluginUninstall`). `uninstall-host.ts` binds `agentPluginUninstallHost`: this host's
+(`runAgentPluginUninstall`). `server/runtime/composition/agent-plugin-uninstall-host.ts` binds `agentPluginUninstallHost`: this host's
 lifecycle preview/uninstall owner (`lifecycle.ts`), approval owner and not-confirmed result
 (`contracts/core/human-confirm.ts`), dialog (`uninstall-confirmation-ui.ts`) and model-facing copy
 (product name from `plugin-runtime/plugin-host-copy.ts`, `PLUGINS_UNINSTALL_TOOL_ID`, the External MCP

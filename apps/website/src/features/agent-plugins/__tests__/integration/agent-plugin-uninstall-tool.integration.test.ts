@@ -25,7 +25,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/plugin-host-copy";
-import type { AgentPluginUninstallHostDeps as AgentPluginUninstallToolDeps } from "../../uninstall-host.js";
+import type { AgentPluginUninstallHostDeps as AgentPluginUninstallToolDeps } from "#src/server/runtime/composition/agent-plugin-uninstall-host";
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

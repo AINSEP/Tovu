@@ -12,7 +12,7 @@ import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecyc
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall } from '@jini-ai/agent-plugins/site/uninstall-tool';
-import { agentPluginUninstallHost, type AgentPluginUninstallHostDeps } from '#src/features/agent-plugins/uninstall-host';
+import { agentPluginUninstallHost, type AgentPluginUninstallHostDeps } from './agent-plugin-uninstall-host.js';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, tovuInstalledMcpReads } from '#src/features/agent-plugins/federate-mcp';
 import { classifyAgentPluginMcpServerTrust } from '#src/features/agent-plugins/capability-projection';
 import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-access';
