@@ -35,7 +35,7 @@ import { mountJiniRouteInPlace } from "../jini-routes.js";
  * All three hand-written routes used `authorizeOrRespond`, so all three mount `"guarded"`.
  * Only set-enabled refused a bad body (`'enabled' must be a boolean`, 400) before reading the
  * session, so only its mount opts into `deferMissingPrincipal`; list and files read the session
- * first and keep failing in `authenticate`.
+ * first and keep failing in `authenticate`. (memory GET/PUT: `agent-plugin-memory-routes.ts`.)
  */
 
 /** The two port fields every mount passes; `authorize` is read per request (tests reassign it). */

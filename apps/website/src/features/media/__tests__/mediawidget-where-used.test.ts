@@ -24,7 +24,7 @@ test('usage queries canonical id and slug and combines indexed widgets with curr
 });
 
 test('usage HTTP route enforces workspace and media.read before any asset lookup', async () => {
-  const { registerAdminMediaWhereUsedRoute } = await import('#src/server/inbound/admin-http/routes/media/where-used');
+  const { registerAdminMediaWhereUsedRoute } = await import('#src/server/runtime/composition/modules/media');
   const { InMemoryVersionedMediaRepo } = await import("@jini-ai/cms/media");
   let handler: (req: any, res: any) => Promise<void> = async () => {};
   let reads = 0, allowed = false, status = 200, body: any;

@@ -14,7 +14,9 @@ import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-re
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";
-import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
+import { mediaWhereUsedRoute } from "@jini-ai/cms/admin-http/routes/media/where-used";
+import { findMediaWhereUsed } from "#src/features/media/index";
+import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminMediaTextRoute } from "#src/server/inbound/admin-http/routes/media/text";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
@@ -90,9 +92,9 @@ function mediaPortDeps({ deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "a
  *  read the session before its params/body, so none opts into `deferMissingPrincipal`. */
 function mountOptions(
   { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
-  _optional: Record<string, never> = {},
+  optional: Pick<AdminJsonRouteMountOptions, "forbidden"> = {},
 ): AdminJsonRouteMountOptions {
-  return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
 /** The single-asset DTO lookups, bound to the host's content-type store, public-URL resolver and blob sizes. */
@@ -113,6 +115,21 @@ const MEDIA_PROVIDER_SAVE_ERRORS: readonly MediaErrorMapping[] = [
     error: "the media provider credential store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
   },
 ];
+
+/** The deps where-used reads (also carried by delete and the module). */
+export type MediaWhereUsedDeps = Pick<RouteDeps, 'workspaceId' | 'authorize' | 'mediaRepo' | 'entryRefsRepo' | 'postRepo'>;
+
+/** `where-used`: Jini `mediaWhereUsedRoute` with the host's usage finder bound. Its hand-written check called
+ *  `deps.authorize` directly (`"direct"`) and denied with its own body — no `details` — kept by `forbidden`. */
+export function registerAdminMediaWhereUsedRoute({ app, deps }: { app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: mediaWhereUsedRoute, deps: {
+    ...mediaPortDeps({ deps }),
+    mediaRepo: { findById: (required) => deps.mediaRepo.findById(required) },
+    findWhereUsed: (input) => findMediaWhereUsed({ deps, input }),
+  } }, mountOptions({ operation: "routes/media/where-used", authorization: "direct" }, {
+    forbidden: () => ({ status: 403, body: { error: "media.read is required", code: "FORBIDDEN" } }),
+  }));
+}
 
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
