@@ -2988,6 +2988,50 @@
     {
       "id": "0a60dc7d8e68",
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
+    },
+    {
+      "id": "3488151f60ab",
+      "reason": "RT-K1-adm-seo (K1): the SeoRouteDeps narrowing rationale moved to apps/website/src/server/runtime/composition/modules/seo.ts with the type, reworded. Was apps/website/src/server/inbound/admin-http/routes/seo/deps.ts:5-24."
+    },
+    {
+      "id": "c7a1913798a8",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-entry-analyze.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-entry-analyze.ts:9-9."
+    },
+    {
+      "id": "f4810ab672aa",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts:9-12."
+    },
+    {
+      "id": "9987670d3750",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-settings.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts:8-8."
+    },
+    {
+      "id": "69ab135da8ff",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/post-sitemap-regenerate.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/post-sitemap-regenerate.ts:7-7."
+    },
+    {
+      "id": "ca2a1cbc3e4b",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:19-20."
+    },
+    {
+      "id": "29d90b3403f3",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:22-22."
+    },
+    {
+      "id": "e91c906facfe",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:36-38."
+    },
+    {
+      "id": "34830398d8bc",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:45-50."
+    },
+    {
+      "id": "1cf9a63d2c0a",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-settings.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts:9-9."
+    },
+    {
+      "id": "53d1ff1627e3",
+      "reason": "RT-K1-adm-seo (K1): module @file rewritten for the spec mounts (10 registrations incl. feed; the K1 injection described instead); the substance (module ownership, ordering requirement) is kept in the new header. Was apps/website/src/server/runtime/composition/modules/seo.ts:14-36."
     }
   ]
 }
