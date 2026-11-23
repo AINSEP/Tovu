@@ -29,7 +29,7 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src
 import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
-import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";
+import { importMediaEntity, type ImportMediaEntityDeps } from "@jini-ai/cms/media/site/import-media-entity";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const SOURCE_BYTES = new TextEncoder().encode("a real imported photo's bytes");

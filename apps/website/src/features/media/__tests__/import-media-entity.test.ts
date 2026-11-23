@@ -2,7 +2,7 @@
  * @file Task 12 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 12.
  *
- * Direct unit tests for `importMediaEntity()` (`../import-media-entity.ts`) — the host-owned write
+ * Direct unit tests for `importMediaEntity()` (`@jini-ai/cms/media/site/import-media-entity`) — the host-owned write
  * path that PRESERVES a media row's SOURCE `id` (see that file's own header for the bug this exists
  * to prevent: `uploadMedia` always mints a fresh id, which silently breaks every embed referencing
  * the original id).
@@ -31,7 +31,7 @@ import {
   type MediaRecord,
 } from "#src/features/media/index";
 
-import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";
+import { importMediaEntity, type ImportMediaEntityDeps } from "@jini-ai/cms/media/site/import-media-entity";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
