@@ -1,5 +1,5 @@
 import { requireInputRecord } from "@jini-ai/core";
-import type { PostRepoPort } from "../../post/index.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 
 /** Supply a freshly loaded basis for older authoring fixtures; explicit stale/malformed bases stay
  * untouched. Store-failure fixtures have no repo row and model version 1. Missing-basis regressions

@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "@jini-ai/cms/navigation";

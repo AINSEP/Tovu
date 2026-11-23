@@ -11,10 +11,10 @@ import { createPost } from "../post-create.js";
 import { deletePost, type RemovePostFn } from "../post-trash.js";
 import { findPublishedPostBySlug } from "../post-read.js";
 import { importPostEntity } from "../post-import.js";
-import { normalizeFeaturedMediaId } from "../post-write-fields.js";
+import { normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { retirePostForReplacement } from "../post-retire.js";
 import { updatePost } from "../post-update.js";
-import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "../post.js";
+import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 

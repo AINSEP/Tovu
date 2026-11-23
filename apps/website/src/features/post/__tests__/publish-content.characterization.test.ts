@@ -5,7 +5,7 @@ import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import type { PackedEntity, PublishContentHandler } from "#src/features/publish-content/type-registry";
 
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";
 
 /**

@@ -11,10 +11,10 @@ import type {
   PostRevisionAppendResult,
   PostRevisionInput,
   PostRevisionRecord,
-} from "./post.js";
+} from "@jini-ai/cms/posts/post";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
-import { toPostSearchDocument } from "./search.js";
+import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { currentIso } from "../../contracts/core/scheduled-publish.js";
 import { postSearchFor } from "./search-index.js";
 
@@ -83,7 +83,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
-  async listHtmlByKind(required: { workspaceId: string; kind: import("#src/contracts/core/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+  async listHtmlByKind(required: { workspaceId: string; kind: import("@jini-ai/core/contracts/site/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
     const before = required.before;
     const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
       .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)

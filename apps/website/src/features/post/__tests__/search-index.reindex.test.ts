@@ -4,9 +4,9 @@ import test from "node:test";
 import type { UUID } from "@jini-ai/core/primitives";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { POST_SEARCH_PROJECTION_VERSION_SETTING_ID, PostSearchIndex, postSearchFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "../search-index.js";
 
 // The boot step under test (RED before it existed: the boot only filled MISSING projections, so the

@@ -1,4 +1,4 @@
-import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "#src/features/post/post";
+import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { postAuthorForDisplay } from "@jini-ai/core/contracts/site/post-author";
 import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
 

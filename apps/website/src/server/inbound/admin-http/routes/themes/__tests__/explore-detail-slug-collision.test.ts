@@ -13,7 +13,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 /**
  * @file The theme-page/content-slug collision signal `describeThemeFile` reports as

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import type { PostAutosaveSnapshot, PostRecord, PostRepoPort } from "../post.js";
+import type { PostAutosaveSnapshot, PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostSearchIndex } from "../search-index.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";

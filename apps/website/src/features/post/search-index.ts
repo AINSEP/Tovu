@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { PostSearchDialect, SearchProjectionTables } from "./search-index.contract.js";
-import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
+import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "@jini-ai/cms/posts/search";
 import { pgPostSearch } from "./search-index.postgres.js";
 import { sqlitePostSearch } from "./search-index.sqlite.js";
 

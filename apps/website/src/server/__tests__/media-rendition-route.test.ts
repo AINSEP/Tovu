@@ -9,7 +9,7 @@ import sharp from "sharp";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerTransform, uploadMedia, trashMedia, updateMediaMetadata, ImageSourceCorruptError, ImageTransformUnavailableError, SharpImageTransformer } from "../../features/media/index.js";
-import type { PostRecord } from "../../features/post/index.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { MemberSessionRecord } from "../../features/members/index.js";
 import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
 import { extractRouteHandler, createCapturingResponse } from "./helpers/http-test-server.js";

@@ -4,7 +4,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
-import { startPostGoLiveSweep } from "../go-live-sweep.js";
+import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
 
 const outbox: OutboxPort = {
   async enqueue() {},

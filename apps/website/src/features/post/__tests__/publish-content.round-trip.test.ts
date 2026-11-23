@@ -27,8 +27,8 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostKind } from "#src/contracts/core/post-kind";
-import type { PostRecord } from "../post.js";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 

@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { type PublicPostRecord, type PostRepoPort, isPublicPost, PostNotFoundError } from "./post.js";
+import { type PublicPostRecord, type PostRepoPort, isPublicPost, PostNotFoundError } from "@jini-ai/cms/posts/post";
 import type { PublicPostKind } from "@jini-ai/cms/core";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";

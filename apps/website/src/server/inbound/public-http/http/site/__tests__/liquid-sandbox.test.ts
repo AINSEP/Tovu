@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Liquid } from "liquidjs";
 
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { renderLiquidInSandbox } from "../liquid-sandbox.js";
 import type { SiteRenderContext } from "../render-context.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

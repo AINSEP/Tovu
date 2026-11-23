@@ -9,10 +9,10 @@ import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, I
 import { makeRemoveMediaDouble, type RecordedMediaRemoval } from "./remove-media-double.js";
 import {
   buildMediaRegistrationsForTovu,
-  type MediaPublicUrlDeps,
   type MediaToolDeps,
   type MediaTrashToolDeps,
 } from "../tool-registrations.js";
+import type { MediaPublicUrlDeps } from "@jini-ai/cms/media/site/contracts";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SYSTEM_ACTOR_ID } from "../../post/post.js";
+import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
 import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

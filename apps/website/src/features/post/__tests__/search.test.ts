@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PostValidationError } from "../post.js";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 import {
   extractPostPlainText,
   searchAdminPosts,
@@ -12,7 +12,7 @@ import {
   MAX_POST_SEARCH_LIMIT,
   type PostSearchPort,
   type PostSearchQuery,
-} from "../search.js";
+} from "@jini-ai/cms/posts/search";
 
 /**
  * @file Certification of the DOMAIN half of post search: the pure `bodyJson` -> text projection,

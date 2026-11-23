@@ -1,2 +1,2 @@
 export { toRecord } from "./repo.rows.js";
-export { toPostSearchDocument } from "./search.js";
+export { toPostSearchDocument } from "@jini-ai/cms/posts/search";

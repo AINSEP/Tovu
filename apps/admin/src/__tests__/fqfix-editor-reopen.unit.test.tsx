@@ -11,7 +11,7 @@ import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';
 import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
 import { useMenuEditor } from '@/features/menus/hooks/use-menu-editor.hooks';
-import { createFakeMenusPort } from '@/features/menus/hooks/menus-dependencies.hooks';
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { useWorkspace } from '@/features/workspace/hooks/use-workspace.hooks';
 import { createFakeWorkspacePort } from '@/features/workspace/hooks/workspace-dependencies.hooks';
 import { useAgentPluginMemory } from '@/features/plugins/hooks/use-agent-plugin-memory.hooks';

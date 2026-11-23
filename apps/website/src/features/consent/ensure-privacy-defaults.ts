@@ -1,5 +1,6 @@
 import { deriveAvailableName } from '@jini-ai/core/naming';
-import { createPost, type PostRecord } from '../post/index.js';
+import { createPost } from '../post/index.js';
+import { type PostRecord } from '@jini-ai/cms/posts/post';
 import { privacyPageTemplate } from './privacy-page-template.js';
 
 /** Site-specific CMS bootstrap ports; persistence and identity remain with their existing owners. */

@@ -1,9 +1,9 @@
 import { type UUID, type JsonObject, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublicPostKind, PostStatus } from "@jini-ai/cms/core";
-import { type PostRepoPort, type PostRecord, type PostBodyFormat, PostValidationError, DEFAULT_BODY_JSON, type PublicPostRecord } from "./post.js";
+import { type PostRepoPort, type PostRecord, type PostBodyFormat, PostValidationError, DEFAULT_BODY_JSON, type PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { assertTitleWithinLimit, isJsonObject, isValidPostStatus, resolveBodyFields, normalizePostAuthor, normalizeShowPostAuthor, assertOptionalBoolean, assertPostPresentationFields, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId } from "./post-write-fields.js";
+import { assertTitleWithinLimit, isJsonObject, isValidPostStatus, resolveBodyFields, normalizePostAuthor, normalizeShowPostAuthor, assertOptionalBoolean, assertPostPresentationFields, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { assertValidExplicitSlug, resolveCreateSlug, releaseTrashedSlug } from "./post-slugs.js";
 import { appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
 

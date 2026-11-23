@@ -1,8 +1,8 @@
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import { openContentDb } from "../../platform/db/sqlite/content-db.js";
-import type { PostRecord, PostRepoPort } from "./post.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { toRow } from "./repo.rows.js";
-import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
+import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "@jini-ai/cms/posts/search";
 import type { SearchProjectionTables } from "./search-index.js";
 import { sqlitePostSearch } from "./search-index.sqlite.js";
 

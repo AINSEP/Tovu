@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 
 it("shows the Page picker for a migrated unhinted UUID and retains both fields after Save/reload", async () => {
   const entryId = "fe955b36-717f-4824-8b27-f5c8d3acf854";

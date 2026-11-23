@@ -1,4 +1,4 @@
-import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { MemberAccessResolver, MemberContentAccess, MemberContext } from "../../features/members/index.js";
 
 /**

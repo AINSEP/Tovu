@@ -12,7 +12,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { InMemoryPostSearchIndex } from "../search-index.memory.js";
 import { removeVia } from "./remove-post-double.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

@@ -1,6 +1,6 @@
-import type { PostRecord } from "./post.js";
-import type { PostKind } from "#src/contracts/core/post-kind";
-import { ROOT_SLUG } from "./post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
+import { ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { entryPublicPath } from "#src/platform/routing/index";
 import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";

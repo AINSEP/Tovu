@@ -9,11 +9,10 @@ import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
-  type MediaProviderCredentialRecord,
-  type MediaProviderCredentialRepoPort,
   resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT } from "@jini-ai/platform/secrets/credential-token";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";

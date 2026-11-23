@@ -1,6 +1,6 @@
 import { captureVisitorEvent } from "../../../../visitor-analytics.js";
 import type { NextFunction, Request, Response } from "express";
-import { PostNotFoundError } from "#src/features/post/post";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { SiteRequestDeps } from "../render-context/deps.js";

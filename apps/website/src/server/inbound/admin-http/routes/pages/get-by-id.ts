@@ -1,6 +1,7 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

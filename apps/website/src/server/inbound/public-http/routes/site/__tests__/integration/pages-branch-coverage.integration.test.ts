@@ -2,7 +2,7 @@ import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalo
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";

@@ -1,7 +1,7 @@
 import { updatePost } from "./post-update.js";
 import { restorePostForward, deletePost } from "./post-trash.js";
 import { getAdminPostById, listAdminPosts } from "./post-read.js";
-import { normalizeShowPostAuthor, normalizePostAuthor } from "./post-write-fields.js";
+import { normalizeShowPostAuthor, normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
 import { createPost } from "./post-create.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -16,13 +16,13 @@ import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { PostNotFoundError, type PostRecord } from "./post.js";
+import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
-import { parseExpectedVersion } from "./expected-version.js";
-import { searchAdminPosts } from "./search.js";
+import { parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, postCommandDeps, postDerivedRisk } from "./post-tool-policy.js";
-import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "./post-tool-errors.js";
+import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "@jini-ai/cms/posts/post-tool-errors";
 import { requirePostKind, optionalPostStatus, requireBodyJson, optionalPublishAt, resolveFeaturedImageInput } from "./post-tool-input.js";
 import { toPostToolView, toPostToolViewWithPublicUrl, toPostWriteResultView, headerNavigationView } from "./post-tool-views.js";
 import { clampPostListLimit, optionalPostListFields, matchesPostListFilters, projectPostListRow, toPostListRow, excerptCharsFor } from "./post-tool-list.js";

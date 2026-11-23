@@ -10,7 +10,7 @@ import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 import { t as translate } from "../menus-i18n";
-import { defaultMenusPort } from "./menus-dependencies.hooks";
+import { defaultMenusPort } from "../menus-host-ports";
 import type { MenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-port.hooks";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
 import { toSlug } from "../../../../../website/src/platform/html/slug";

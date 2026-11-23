@@ -14,7 +14,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { uninstallPlugin } from "@jini-ai/plugins/host";
 import { requiredPostReader } from "../fixtures/plugin-post-read.js";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 /**
  * @file REVOCATION for `plugin_capability_<id>` tools — t91 F1.2. Mirrors `features/agent-plugins/

@@ -1,4 +1,4 @@
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { ContentPostPayload } from "#src/contracts/headless/index";
 import { toHeadlessContentPost } from "../shared/post.js";
 

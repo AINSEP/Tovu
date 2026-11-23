@@ -7,7 +7,7 @@ import { postRepoFor } from "../repo.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPost } from "../post-create.js";
 import { updatePost, type UpdatePostInput } from "../post-update.js";
-import { PostVersionConflictError, type PostRecord, type PostRepoPort } from "../post.js";
+import { PostVersionConflictError, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 
 const clock = { nowMs: () => Date.parse("2026-10-10T12:00:00Z") };
 const key = { workspaceId: "ws-noopsave", id: "entry-1" };

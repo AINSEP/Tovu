@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PostNotFoundError, type PostRecord } from "#src/features/post/index";
+import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { toHeadlessPost, toHeadlessContentPost } from "../post.js";
 
 const post: PostRecord = {

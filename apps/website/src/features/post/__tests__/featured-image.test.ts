@@ -3,8 +3,8 @@ import test from "node:test";
 
 import sharp from "sharp";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../../media/index.js";
-import { resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "../featured-image.js";
-import { PostValidationError } from "../post.js";
+import { resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 
 const WORKSPACE_ID = "ws-featured";
 

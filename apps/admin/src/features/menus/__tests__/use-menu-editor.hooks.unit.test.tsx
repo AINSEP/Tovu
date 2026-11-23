@@ -5,7 +5,7 @@ import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types
 import { menusApi } from "@/features/menus/menus-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 
 /**

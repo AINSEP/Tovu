@@ -17,7 +17,8 @@ import {
   type TaxonomyEventOutboxPort,
 } from "@jini-ai/cms/taxonomy";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
-import { updatePost, type PostRecord } from "#src/features/post/index";
+import { updatePost } from "#src/features/post/index";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 
 
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";

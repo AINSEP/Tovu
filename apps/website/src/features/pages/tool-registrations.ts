@@ -10,7 +10,8 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { PostNotFoundError, type PostRepoPort } from "@jini-ai/cms/posts/post";
+import { VERSION_CONFLICT_CODE } from "@jini-ai/cms/posts/expected-version";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";

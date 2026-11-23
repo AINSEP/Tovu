@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 

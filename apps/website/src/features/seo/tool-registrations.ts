@@ -14,7 +14,7 @@ import { buildSeoToolRegistrations, seoDerivedRisk, type createSitemapService, t
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
-import type { PostRepoPort } from "../post/index.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { SeoHostBindings } from "./index.js";
 import { getSeoSettings, setSeoSettings } from "./settings.js";

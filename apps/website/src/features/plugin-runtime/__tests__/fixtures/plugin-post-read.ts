@@ -1,4 +1,4 @@
-import { PostNotFoundError, type PostRepoPort, type PostRecord } from "../../../post/index.js";
+import { PostNotFoundError, type PostRepoPort, type PostRecord } from "@jini-ai/cms/posts/post";
 import type { PluginPostReadPort } from "../../service-ports.js";
 
 /** Adapt the existing post fakes without replacing the post owner's not-found error. */

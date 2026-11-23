@@ -2,9 +2,10 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostKind } from "#src/contracts/core/post-kind";
-import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
-import { EMAIL_TEMPLATE_KIND } from "../../post/post.js";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
+import { InMemoryPostRepo, createPost, updatePost } from "../../post/index.js";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
+import { EMAIL_TEMPLATE_KIND } from "@jini-ai/cms/posts/post";
 import { InMemoryPagesHtmlDocumentStore, PageConcurrentEditError, PageNotFoundError, PageKindMismatchError, type PagesHtmlDocumentStoreFactory } from "../../pages/index.js";
 import {
   createEmailTemplate,

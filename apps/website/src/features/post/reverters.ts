@@ -3,8 +3,8 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
 import { emitPublicTransitionEvent } from "./post-write-effects.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "./post.js";
-import { presentScheduleFields } from "./post-write-fields.js";
+import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
+import { presentScheduleFields } from "@jini-ai/cms/posts/post-write-fields";
 import type { ForgetRemovedPostFn } from "./post-trash.js";
 import type { PostStatus } from "@jini-ai/cms/core";
 

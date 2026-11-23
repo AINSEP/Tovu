@@ -1,4 +1,5 @@
-import { InMemoryPostRepo, type PublicPostRecord } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { type PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

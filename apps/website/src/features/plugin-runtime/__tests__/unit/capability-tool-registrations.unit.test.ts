@@ -11,9 +11,9 @@ import { InMemoryPluginActivationRepo, type PluginContributionRegistry } from "@
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { requiredPostReader } from "../fixtures/plugin-post-read.js";
-import { PostNotFoundError, type PostRepoPort } from "#src/features/post/index";
+import { PostNotFoundError, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import {
   buildPluginCapabilityToolRegistrations,
   loadEnabledPluginCapabilityToolSources,

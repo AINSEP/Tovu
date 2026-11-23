@@ -7,7 +7,7 @@ import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { createPost } from "../post-create.js";
 import { hasPostBeenPublished } from "../post-slugs.js";
 import { findPublishedPostById, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, listAdminPages, listAdminPosts } from "../post-read.js";
-import { PostConflictError, PostNotFoundError, PostValidationError } from "../post.js";
+import { PostConflictError, PostNotFoundError, PostValidationError } from "@jini-ai/cms/posts/post";
 import { updatePost } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

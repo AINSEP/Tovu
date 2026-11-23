@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { EXPECTED_VERSION_REJECTION, parseExpectedVersion } from "../expected-version.js";
-import { PostValidationError } from "../post.js";
+import { EXPECTED_VERSION_REJECTION, parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 
 /**
  * @file The post-side `parseExpectedVersion` is a host error adapter over core's one parser

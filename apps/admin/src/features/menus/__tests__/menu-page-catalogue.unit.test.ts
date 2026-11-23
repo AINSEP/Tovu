@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { pagesApi } from "@/features/pages/api/pages-api";
-import { defaultMenusPort } from "../hooks/menus-dependencies.hooks";
+import { defaultMenusPort } from "../menus-host-ports";
 
 afterEach(() => vi.restoreAllMocks());
 

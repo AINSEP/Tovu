@@ -8,7 +8,7 @@ import { createPost } from "../post-create.js";
 import { updatePost } from "../post-update.js";
 import { deletePost } from "../post-trash.js";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { backfillPostSearchIndex, PostSearchIndex } from "../search-index.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { removeVia } from "./remove-post-double.js";

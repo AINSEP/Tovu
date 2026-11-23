@@ -1,7 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
-import { createPost, PostConflictError, PostValidationError } from "#src/features/post/index";
+import { createPost } from "#src/features/post/index";
+import { PostConflictError, PostValidationError } from "@jini-ai/cms/posts/post";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

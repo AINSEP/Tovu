@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen } from "@/__tests__/fetch-qu
 import { describe, expect, it, vi } from 'vitest';
 import { MenuEditor } from '../MenuEditor';
 import { useMenuEditor } from '../hooks/use-menu-editor.hooks';
-import { createFakeMenusPort } from '../hooks/menus-dependencies.hooks';
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
 
 const existing: AdminMenu = {

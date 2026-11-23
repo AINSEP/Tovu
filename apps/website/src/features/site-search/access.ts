@@ -12,7 +12,7 @@ import { encodeSearchKey, type SearchAccessPort, type SearchDocumentKey } from "
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 /** The member-context fields search reads; `members`' `MemberContext` satisfies it structurally. */
 type SearchMemberContext = { readonly isAuthenticated: boolean; readonly activeTierIds: readonly string[]; readonly isPaid: boolean };
-import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { CMS_SEARCH_COLLECTIONS, MEMBER_AUDIENCE, cmsSearchVisibility, isRowLive, toNowIso } from "./cms-document-source.js";
 
 /**

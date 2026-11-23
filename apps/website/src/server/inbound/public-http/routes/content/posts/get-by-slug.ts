@@ -4,7 +4,7 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
 import { getPublishedPostBySlug } from "#src/features/post/post-read";
-import { PostNotFoundError } from "#src/features/post/post";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";

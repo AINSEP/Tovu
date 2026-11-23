@@ -27,7 +27,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

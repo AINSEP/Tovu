@@ -1,7 +1,9 @@
 import type { Response } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
+import { PostNotFoundError, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

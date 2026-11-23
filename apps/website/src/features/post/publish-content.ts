@@ -19,11 +19,11 @@ import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from 
 
 import { importPostEntity } from "./post-import.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { presentScheduleFields } from "./post-write-fields.js";
+import { presentScheduleFields } from "@jini-ai/cms/posts/post-write-fields";
 import { restorePostForward } from "./post-trash.js";
 import { retirePostForReplacement } from "./post-retire.js";
-import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "./post.js";
-import type { PostKind } from "#src/contracts/core/post-kind";
+import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "@jini-ai/cms/posts/post";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 
 /**
  * @file `post`'s and `page`'s publish-content contributions, built on `createRepoPublishHandler`

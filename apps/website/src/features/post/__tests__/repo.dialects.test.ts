@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { PostRecord, PostRepoPort } from "../post.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 
 /**

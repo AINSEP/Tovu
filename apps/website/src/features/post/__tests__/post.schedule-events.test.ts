@@ -8,7 +8,7 @@ import { createPost } from "../post-create.js";
 import { deletePost, restorePostForward } from "../post-trash.js";
 import { importPostEntity } from "../post-import.js";
 import { updatePost } from "../post-update.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { removeVia } from "./remove-post-double.js";

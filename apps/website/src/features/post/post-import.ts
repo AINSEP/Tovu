@@ -1,4 +1,4 @@
-import { type PostRepoPort, PostConflictError, type PostRecord, PostVersionConflictError } from "./post.js";
+import { type PostRepoPort, PostConflictError, type PostRecord, PostVersionConflictError } from "@jini-ai/cms/posts/post";
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type BeforeSaveHookPort, runBeforeSaveHook, mergeExt } from "@jini-ai/cms/posts/post-before-save";

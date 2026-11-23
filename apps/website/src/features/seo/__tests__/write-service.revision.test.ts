@@ -3,7 +3,8 @@ import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, SqlitePostRepo, type PostRecord } from "../../post/index.js";
+import { InMemoryPostRepo, SqlitePostRepo } from "../../post/index.js";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { setEntrySeoOverrides } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

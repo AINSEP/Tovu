@@ -1,13 +1,8 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
-import {
-  PostConflictError,
-  PostNotFoundError,
-  deletePost,
-  restorePostForward,
-  type PostRecord,
-} from "#src/features/post/index";
+import { deletePost, restorePostForward } from "#src/features/post/index";
+import { PostConflictError, PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";

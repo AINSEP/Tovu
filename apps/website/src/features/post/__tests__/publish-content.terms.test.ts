@@ -21,7 +21,7 @@ import {
 } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { registerPublishContentContributor, type PackedEntity } from "#src/features/publish-content/type-registry";
 
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "../publish-content.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 

@@ -2,7 +2,8 @@ import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import express, { type RequestHandler } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug } from "#src/features/post/index";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { renderPostPreview, TemplatePreviewRenderError } from "./template-preview-render.js";
 // Clone/draft/theme-branch rationale lives beside renderPostPreview in template-preview-render.ts.
 import { getAuthedPrincipal } from "../../dev-auth.js";

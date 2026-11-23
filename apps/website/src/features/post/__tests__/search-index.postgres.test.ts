@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 import { foldForIndex, pgPostSearch } from "../search-index.postgres.js";
-import { searchAdminPosts } from "../search.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 
 const post: PostRecord = {
   id: "cafe-guide", workspaceId: "search-ws", title: "Café guide", slug: "coffee-guide",

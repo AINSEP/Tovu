@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 import { createApp, createRouteDeps } from "../../../../../runtime/composition/app.js";
 import { startTestServer } from "../../../../../__tests__/helpers/http-test-server.js";
 import { registerTransform, uploadMedia } from "../../../../../../features/media/index.js";
-import type { PostRecord } from "../../../../../../features/post/index.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { buildWidgetInstanceFieldsJson } from "@jini-ai/cms/widgets";
 import type { EntryListPort } from "@jini-ai/cms/entries";
 

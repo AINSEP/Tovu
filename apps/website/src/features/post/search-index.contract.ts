@@ -1,8 +1,8 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import type { PostStatus } from "@jini-ai/cms/core";
-import type { PostSearchDocument, PostSearchHit, PostSearchQuery } from "./search.js";
+import type { PostSearchDocument, PostSearchHit, PostSearchQuery } from "@jini-ai/cms/posts/search";
 
 /** Where a dialect keeps post search text. Written in the same transaction as the post. */
 export interface PostSearchProjection {

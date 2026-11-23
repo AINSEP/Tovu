@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMenu, AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { menuAuthoringForSave, menuHtmlStarter } from "@jini-ai/admin/screens/menus/html-rules";
 

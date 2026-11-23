@@ -4,7 +4,7 @@ import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { PostNotFoundError } from "#src/features/post/post";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { registerContentPostGetRoute } from "../get-by-slug.js";
 
 for (const absent of [false, true]) test(`post read preserves ${absent ? "404 absence" : "one private correlated incident"}`, async t => {

@@ -7,9 +7,9 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { createPost } from "../post-create.js";
 import { deletePost } from "../post-trash.js";
 import { updatePost } from "../post-update.js";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { SqlitePostRepo } from "../repo.sqlite.js";
-import { searchAdminPosts, type PostSearchHit } from "../search.js";
+import { searchAdminPosts, type PostSearchHit } from "@jini-ai/cms/posts/search";
 import { backfillPostSearchIndex, postSearchIndexFor, SqlitePostSearchIndex } from "../search-index.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { removeVia } from "./remove-post-double.js";

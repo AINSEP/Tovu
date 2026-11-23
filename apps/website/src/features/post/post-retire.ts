@@ -1,5 +1,5 @@
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import { type PostRepoPort, type PostRecord, PostNotFoundError, ROOT_SLUG, PostConflictError, PostVersionConflictError, SYSTEM_ACTOR_ID } from "./post.js";
+import { type PostRepoPort, type PostRecord, PostNotFoundError, ROOT_SLUG, PostConflictError, PostVersionConflictError, SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { RemovePostFn } from "./post-trash.js";
 import { versionConflictMessage, appendPostRevision, emitPublicTransitionEvent } from "./post-write-effects.js";

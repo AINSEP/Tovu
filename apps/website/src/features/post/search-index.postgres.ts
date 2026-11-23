@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { PostSearchDocument, PostSearchQuery } from "./search.js";
+import type { PostSearchDocument, PostSearchQuery } from "@jini-ai/cms/posts/search";
 import { type PostSearchDialect, type PostSearchRow, toPostSearchHit } from "./search-index.contract.js";
 
 /**

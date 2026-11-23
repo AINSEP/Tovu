@@ -6,8 +6,9 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { PostRecord, PostRepoPort } from "#src/features/post/index";
-import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import type { MemberSessionRecord } from "#src/features/members/index";
 import { InMemoryMemberSessionRepo } from "#src/features/members/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";

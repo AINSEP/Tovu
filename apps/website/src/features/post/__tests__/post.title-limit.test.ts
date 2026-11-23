@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost } from "../post-create.js";
-import { MAX_TITLE_LENGTH } from "../post-write-fields.js";
-import { PostValidationError, type PostRecord } from "../post.js";
+import { MAX_TITLE_LENGTH } from "@jini-ai/cms/posts/post-write-fields";
+import { PostValidationError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { updatePost, type UpdatePostDeps } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 

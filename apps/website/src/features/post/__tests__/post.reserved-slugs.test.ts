@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost } from "../post-create.js";
 import { updatePost } from "../post-update.js";
-import { PostValidationError } from "../post.js";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 const workspaceId = "reserved-slugs";

@@ -4,10 +4,10 @@ import type { PostAuthorAccountPort } from "./post-create.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
-import type { PostRepoPort } from "./post.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { PostTemplateDeps } from "./template-options.js";
-import type { PostSearchPort } from "./search.js";
-import type { FeaturedImageDeps } from "./featured-image.js";
+import type { PostSearchPort } from "@jini-ai/cms/posts/search";
+import type { FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 /**
@@ -58,7 +58,7 @@ export interface PostToolDeps extends PostTemplateDeps {
   slugChangeCapture: SlugChangeCaptureLookup;
   /**
    * The pre-bound removal `content_post_delete` hands `deletePost` — see `post.ts`'s
-   * {@link import("./post.js").RemovePostFn}. Structurally typed, so this file also imports nothing
+   * {@link import("@jini-ai/cms/posts/post").RemovePostFn}. Structurally typed, so this file also imports nothing
    * from `features/trash`; a `RouteDeps` satisfies it by having the field.
    */
   removePost: RemovePostFn;
@@ -66,7 +66,7 @@ export interface PostToolDeps extends PostTemplateDeps {
    * The undo half of {@link removePost}: both rollbacks in this file restore a post through
    * `restorePostForward`, and an undone delete must drop the Trash index row the removal wrote.
    * Structurally typed for the same reason — see `post.ts`'s
-   * {@link import("./post.js").ForgetRemovedPostFn}.
+   * {@link import("@jini-ai/cms/posts/post").ForgetRemovedPostFn}.
    */
   forgetRemovedPost: ForgetRemovedPostFn;
   /**

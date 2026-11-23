@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { t as translate } from "../menus-i18n";
-import { defaultMenusPort } from "./menus-dependencies.hooks";
+import { defaultMenusPort } from "../menus-host-ports";
 import type { MenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

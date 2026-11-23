@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseExpectedVersion } from "../expected-version.js";
-import { PostValidationError } from "../post.js";
+import { parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
 
 // F4.4/F6.2: zero is a valid OCC basis, distinct from an omitted basis.
 test("version parsing preserves zero and positive integers while omission remains opt-in", () => {

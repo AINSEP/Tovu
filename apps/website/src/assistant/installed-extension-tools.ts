@@ -38,7 +38,7 @@ import type { FederationDeps } from "./mcp-federation/registrations.js";
  *  type (see that function's own signature). The agent-plugin and skill registrars also receive the layouts captured at boot;
  *  skill bundled-file paths use that same site binding. */
 export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDeps, "postRead"> {
-  readonly postRepo: import("../features/post/index.js").PostRepoPort;
+  readonly postRepo: import("@jini-ai/cms/posts/post").PostRepoPort;
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
   readonly skillLayout: import("../features/skills/layout.js").SkillLayout;

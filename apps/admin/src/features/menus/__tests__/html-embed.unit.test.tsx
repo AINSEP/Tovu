@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
-import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
+import { createFakeMenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks";
 import { menuHtmlEmbed } from "@jini-ai/admin/screens/menus/html-rules";
 import { MENUS_DICT } from "../menus-i18n";
 import { FORMS_DICT } from "../../forms/forms-i18n";

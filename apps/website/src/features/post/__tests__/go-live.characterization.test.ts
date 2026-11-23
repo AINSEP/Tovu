@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import { POST_GO_LIVE_LOOKBACK_MS, startPostGoLiveSweep } from "../go-live-sweep.js";
-import type { PostRecord } from "../post.js";
+import { POST_GO_LIVE_LOOKBACK_MS, startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "./post-record.fixture.js";
 
 /**

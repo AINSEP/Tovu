@@ -46,7 +46,7 @@
  * because categories exist independently of whether any post/page has been published or tagged.
  */
 
-import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "@jini-ai/cms/taxonomy";
 import { htmlToText } from "@jini-ai/platform/web";
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps, type ListPublishedPosts } from "./public-content.js";

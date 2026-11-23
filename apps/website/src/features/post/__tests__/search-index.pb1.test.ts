@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { eachDialect, emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { backfillPostSearchIndex, PostSearchIndex, type SearchProjectionTables } from "../search-index.js";
 
 // pb1/F2.6/F6.4: independently observe the real save and backfill paths through ranked search.

@@ -6,8 +6,9 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
-import { InMemoryPostRepo, PostNotFoundError } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { createSeoPostPort } from "#src/features/seo/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";

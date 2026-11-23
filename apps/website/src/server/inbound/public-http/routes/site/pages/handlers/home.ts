@@ -2,7 +2,7 @@ import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.j
 import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { getPublishedPostBySlug, listPublishedPosts } from "#src/features/post/post-read";
-import { PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
+import { PostNotFoundError, ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";

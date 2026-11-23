@@ -11,7 +11,7 @@ import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-s
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { createPost } from "../post-create.js";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { PostSearchIndex } from "../search-index.js";
 import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures } from "./search.eval.js";
 

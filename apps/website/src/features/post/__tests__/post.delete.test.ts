@@ -9,7 +9,7 @@ import { deletePost } from "../post-trash.js";
 import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "../post-read.js";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { updatePost } from "../post-update.js";
-import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post.js";
+import { PostNotFoundError, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";

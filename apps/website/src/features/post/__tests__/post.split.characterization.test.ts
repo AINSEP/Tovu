@@ -5,7 +5,7 @@ import type { SlugChangeCapture } from "@jini-ai/cms/routing";
 import { createPost } from "../post-create.js";
 import { getAdminPostByIdOrSlug } from "../post-read.js";
 import { importPostEntity } from "../post-import.js";
-import { PostNotFoundError } from "../post.js";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { restorePostForward } from "../post-trash.js";
 import { retirePostForReplacement } from "../post-retire.js";
 import { updatePost } from "../post-update.js";

@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
 import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "@jini-ai/http-kit/range";

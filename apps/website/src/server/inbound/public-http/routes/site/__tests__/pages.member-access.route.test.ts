@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { MemberSessionRecord } from "#src/features/members/index";
 import { InMemoryMemberSessionRepo } from "#src/features/members/index";

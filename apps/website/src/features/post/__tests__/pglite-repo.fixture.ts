@@ -1,5 +1,5 @@
 import { emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { PostRepoPort } from "../post.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
 
 /**
