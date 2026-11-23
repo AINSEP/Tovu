@@ -1,8 +1,9 @@
+import { workspaceCreateRoute } from "@jini-ai/cms/admin-http/routes/workspace/create";
 import { workspaceDeleteRoute } from "@jini-ai/cms/admin-http/routes/workspace/delete";
 import { workspaceGetRoute } from "@jini-ai/cms/admin-http/routes/workspace/get";
 import { workspaceListRoute } from "@jini-ai/cms/admin-http/routes/workspace/list";
 import { workspaceUpdateRoute } from "@jini-ai/cms/admin-http/routes/workspace/update";
-import { registerAdminWorkspaceCreateRoute } from "#src/server/inbound/admin-http/routes/workspace/create";
+import { processOutbox } from "#src/contracts/core/events/index";
 import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "#src/server/inbound/admin-http/routes/workspace/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ServerModuleHandle } from "./types.js";
@@ -15,8 +16,9 @@ import type { ServerModuleHandle } from "./types.js";
  * Owns all 5 registrations: `POST /workspaces` (moved off the original unauthenticated
  * `app.post("/workspaces", ...)` in `app.ts`), `GET /workspaces`, `GET /workspaces/:workspaceId`,
  * `PATCH /workspaces/:workspaceId`, `DELETE /workspaces/:workspaceId`. Four of them are Jini route
- * specs (`@jini-ai/cms/admin-http/routes/workspace/*`) mounted behind the admin ports; `create` is
- * still a hand-written Express route (its outbox flush has no neutral owner yet).
+ * All five are Jini route specs (`@jini-ai/cms/admin-http/routes/workspace/*`) mounted behind the
+ * admin ports. `create`'s outbox flush stays host-owned (the outbox runtime has no neutral owner
+ * yet) and reaches the spec as its injected `flushOutbox`.
  */
 
 /** The route's own deps plus the two port fields. `authorize` is read per request, as the
@@ -27,6 +29,23 @@ function workspaceSpecDeps({ deps }: { deps: Pick<WorkspaceRouteDeps, "workspace
 
 /** The per-route `sendAdminFailure` operation the hand-written routes passed. */
 const failureFor = (operation: string) => ({ failure: { operation, code: "INTERNAL_ERROR" } });
+
+/**
+ * POST workspaces. The hand-written route authorized `workspace.manage` without naming an entity
+ * type, so the port's `entityType` is dropped here to keep the authorizer's arguments byte-identical.
+ * `flushOutbox` is the host outbox worker the hand-written route awaited before its `201`.
+ */
+export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: workspaceCreateRoute, deps: {
+    workspaceId: deps.workspaceId,
+    authorize: ({ entityType: _entityType, ...params }) => deps.authorize(params),
+    workspaceRepo: deps.workspaceRepo,
+    idGen: deps.idGen,
+    clock: deps.clock,
+    outbox: deps.outbox,
+    flushOutbox: () => processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }),
+  } }, failureFor("routes/workspace/create"));
+};
 
 export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: workspaceListRoute, deps: workspaceSpecDeps({ deps }) }, failureFor("routes/workspace/list"));

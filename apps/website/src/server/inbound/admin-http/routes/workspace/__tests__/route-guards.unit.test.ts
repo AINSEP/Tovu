@@ -4,8 +4,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWorkspaceCreateRoute } from "../create.js";
-import { registerAdminWorkspaceDeleteRoute, registerAdminWorkspaceGetRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
+import { registerAdminWorkspaceCreateRoute, registerAdminWorkspaceDeleteRoute, registerAdminWorkspaceGetRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
 
 /**
  * @file Direct-handler coverage for the workspace routes' defensive edges: the `?? ""` route-param

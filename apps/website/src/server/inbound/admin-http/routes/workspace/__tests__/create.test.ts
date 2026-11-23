@@ -8,7 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWorkspaceCreateRoute } from "../create.js";
+import { registerAdminWorkspaceCreateRoute } from "#src/server/runtime/composition/modules/workspace";
 import type { WorkspaceRouteDeps } from "../deps.js";
 
 function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Express {
