@@ -92,7 +92,7 @@ test('canonical captured keys wait for the matching upload hash lock and unknown
 });
 
 test('SQLite compensation commits before a same-hash upload waiting for its database turn', async () => {
-  const { createFormFileStorage } = await import('../form-file-storage.js');
+  const { createFormFileStorage } = await import('@jini-ai/cms/forms/site/form-file-storage');
   const db = openContentDb(':memory:'); const kernel = contentKernel({ store: db }); let id = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {

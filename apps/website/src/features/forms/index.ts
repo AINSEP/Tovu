@@ -38,7 +38,7 @@
  */
 /** Tovu forms wiring. Domain rules, records, rendering and persistence live in @jini-ai/cms/forms. */
 import { createHash } from "node:crypto";
-import type { FormFileStorage } from "./form-file-storage.js";
+import type { FormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
 import type { Logger } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import {

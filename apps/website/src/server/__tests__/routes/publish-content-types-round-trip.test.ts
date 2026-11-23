@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import type { NavMenuEntry } from "@jini-ai/cms/navigation";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import { createPublishContentSeedHash } from "#src/features/publish-content/seed-hash";
 import { createRedirect } from "@jini-ai/cms/redirects";

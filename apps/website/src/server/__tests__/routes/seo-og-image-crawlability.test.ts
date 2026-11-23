@@ -9,7 +9,7 @@ import {
   OriginRegistry,
 } from "@jini-ai/core/contracts/server/verified-origin";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { uploadMedia, SharpImageTransformer } from "#src/features/media/index";
 import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";

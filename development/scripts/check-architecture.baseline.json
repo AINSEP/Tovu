@@ -88,7 +88,6 @@
     "apps/website/src/features/form-destinations/key-store.ts -> apps/website/src/features/custom-credentials/index.ts",
     "apps/website/src/features/form-destinations/port.ts -> apps/website/src/features/custom-credentials/index.ts",
     "apps/website/src/features/form-destinations/registry.ts -> apps/website/src/features/agent-plugins/lifecycle.ts",
-    "apps/website/src/features/forms/form-file-storage.ts -> apps/website/src/features/media/index.ts",
     "apps/website/src/features/forms/index.ts -> apps/website/src/features/content-duplication/derive-available-name.ts",
     "apps/website/src/features/forms/publish-content.ts -> apps/website/src/features/publish-content/precheck-reasons.ts",
     "apps/website/src/features/forms/publish-content.ts -> apps/website/src/features/publish-content/repo-handler.ts",

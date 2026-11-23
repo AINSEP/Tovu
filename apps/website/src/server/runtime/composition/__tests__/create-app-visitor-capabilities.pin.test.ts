@@ -19,7 +19,7 @@ const captured: Captured = { comments: [], analytics: [], forms: [], storage: []
 const commentsRoute = await import("../../../inbound/public-http/routes/site/comments-submit.js");
 const analyticsRoute = await import("../../../inbound/public-http/routes/site/analytics-ingest.js");
 const formsRoute = await import("../../../inbound/public-http/routes/site/forms-submit.js");
-const formStorage = await import("../../../../features/forms/form-file-storage.js");
+const formStorage = await import("@jini-ai/cms/forms/site/form-file-storage");
 
 mock.module("../../../inbound/public-http/routes/site/comments-submit.js", { namedExports: { ...commentsRoute,
   registerCommentsSubmitRoute: (required: Parameters<typeof commentsRoute.registerCommentsSubmitRoute>[0], ...rest: never[]) => { captured.comments.push(required.deps); return (commentsRoute.registerCommentsSubmitRoute as Function)(required, ...rest); } } });
@@ -27,7 +27,7 @@ mock.module("../../../inbound/public-http/routes/site/analytics-ingest.js", { na
   registerAnalyticsIngestRoute: (required: Parameters<typeof analyticsRoute.registerAnalyticsIngestRoute>[0], ...rest: never[]) => { captured.analytics.push(required.deps); return (analyticsRoute.registerAnalyticsIngestRoute as Function)(required, ...rest); } } });
 mock.module("../../../inbound/public-http/routes/site/forms-submit.js", { namedExports: { ...formsRoute,
   registerFormsSubmitRoute: (required: Parameters<typeof formsRoute.registerFormsSubmitRoute>[0], ...rest: never[]) => { captured.forms.push(required.deps); return (formsRoute.registerFormsSubmitRoute as Function)(required, ...rest); } } });
-mock.module("../../../../features/forms/form-file-storage.js", { namedExports: { ...formStorage,
+mock.module("@jini-ai/cms/forms/site/form-file-storage", { namedExports: { ...formStorage,
   createFormFileStorage: (input: Record<string, any>, ...rest: never[]) => { captured.storage.push(input); return (formStorage.createFormFileStorage as Function)(input, ...rest); } } });
 
 const { createApp, createRouteDeps } = await import("../app.js");

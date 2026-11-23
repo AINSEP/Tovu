@@ -13,7 +13,7 @@ import { resolveCommentsIpHashSalt } from "@jini-ai/cms/comments/site/ip-hash-sa
 import { registerCommentsSubmitRoute } from "../../../inbound/public-http/routes/site/comments-submit.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { registerAnalyticsIngestRoute } from "../../../inbound/public-http/routes/site/analytics-ingest.js";
-import { createFormFileStorage } from "../../../../features/forms/form-file-storage.js";
+import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
 import { registerFormsSubmitRoute } from "../../../inbound/public-http/routes/site/forms-submit.js";
 import type { MountInput } from "./module-handles.js";
 

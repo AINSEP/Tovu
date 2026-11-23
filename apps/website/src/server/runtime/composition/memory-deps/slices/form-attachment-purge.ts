@@ -3,7 +3,7 @@ import type { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { withFollowUps, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
-import { createFormFileStorage } from "../../../../../features/forms/form-file-storage.js";
+import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { DEFAULT_GC_GRACE_MS } from "#src/features/media/index";
 import type { InMemoryPostRepo } from "#src/features/post/index";

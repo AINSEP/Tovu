@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFormMultipart } from "../../../server/inbound/public-http/routes/site/forms-multipart.js";
-import { createFormFileStorage } from "../form-file-storage.js";
+import { createFormFileStorage } from "@jini-ai/cms/forms/site/form-file-storage";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, MediaStillReferencedError } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";

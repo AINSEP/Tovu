@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
 import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
-import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";
+import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";

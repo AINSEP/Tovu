@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } from '@jini-ai/cms/media';
-import { createFormFileStorage } from '../form-file-storage.js';
+import { createFormFileStorage } from '@jini-ai/cms/forms/site/form-file-storage';
 
 test('form photos are private before store resolves and failed submission compensation removes their asset', async () => {
   let id = 0;

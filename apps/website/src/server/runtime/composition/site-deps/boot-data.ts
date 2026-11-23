@@ -6,7 +6,8 @@ import { builtInSeedUploadsDir } from "../site-paths.js";
 import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
-import { installCommentsDataModule } from "#src/features/comments/data-module-install";
+import { installCommentsDataModule } from "@jini-ai/cms/comments/site/data-module-install";
+import { COMMENTS_DATA_MODULE_PROVENANCE } from "../data-modules.js";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
 import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";
 import type { SiteStore } from "../open-site-store.js";
@@ -76,7 +77,7 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
    * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
    */
   const commentsReady = newsletterReady
-    .then(() => installCommentsDataModule({ db: kernel, dbPath }))
+    .then(() => installCommentsDataModule({ db: kernel, dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE }))
     .catch((err) => {
       consoleLogger.error({ message: `installCommentsDataModule failed at boot: ${(err as Error).message}` });
     });

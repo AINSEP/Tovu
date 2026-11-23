@@ -5,7 +5,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { type DiscoveredTheme } from "#src/features/theme/index";
