@@ -3032,6 +3032,42 @@
     {
       "id": "53d1ff1627e3",
       "reason": "RT-K1-adm-seo (K1): module @file rewritten for the spec mounts (10 registrations incl. feed; the K1 injection described instead); the substance (module ownership, ordering requirement) is kept in the new header. Was apps/website/src/server/runtime/composition/modules/seo.ts:14-36."
+    },
+    {
+      "id": "423be02a17c2",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/http/media.ts, reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/http/media.ts:4-13."
+    },
+    {
+      "id": "d19115056819",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/http/media.ts, reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/http/media.ts:55-63."
+    },
+    {
+      "id": "5db9360caeee",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/delete.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/delete.ts:56-58."
+    },
+    {
+      "id": "b9b14b342ebf",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/put-providers.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts:12-30."
+    },
+    {
+      "id": "b4d9d57d1e22",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/trash.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/trash.ts:73-74."
+    },
+    {
+      "id": "3aa32d6b493f",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/trash.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/trash.ts:84-85."
+    },
+    {
+      "id": "ef16b7ba7db7",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:31-43."
+    },
+    {
+      "id": "136e45b46c0c",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:62-62."
+    },
+    {
+      "id": "35eac66e32d5",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:68-78."
     }
   ]
 }
