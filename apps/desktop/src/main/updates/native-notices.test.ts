@@ -1,6 +1,7 @@
 /**
- * @file Native boxes through fake `dialog`/`BrowserWindow` ports: which window parents a box, what
- * the "Update ready" prompt answers, and that the OFF preference suppresses a queued prompt.
+ * @file Tovu's native boxes through fake `dialog`/`BrowserWindow` ports: the wording and OK label,
+ * what the "Update ready" prompt answers, and that the OFF preference suppresses a queued prompt.
+ * Which window parents a box is tested in Jini's `electron/updates/__tests__/native-notices.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,7 +11,6 @@ import {
   othersOpenDialog,
   promptUpdateReady,
   showDesktopNotice,
-  showOnFocusedWindow,
   updateReadyDialog,
 } from "./native-notices.ts";
 
@@ -34,20 +34,6 @@ function windowsOf({ focused, all }: { focused: FakeWindow | null; all: FakeWind
 }
 
 const A = { name: "a" };
-const B = { name: "b" };
-
-test("a box parents to the focused window, else the first open window, else none", async () => {
-  const cases: [FakeWindow | null, FakeWindow[], FakeWindow | null][] = [
-    [B, [A, B], B],
-    [null, [A, B], A],
-    [null, [], null],
-  ];
-  for (const [focused, all, expected] of cases) {
-    const { dialog, shown } = fakeDialog();
-    await showOnFocusedWindow({ dialog, windows: windowsOf({ focused, all }), options: { message: "m" } });
-    assert.deepEqual(shown, [{ parent: expected, options: { message: "m" } }]);
-  }
-});
 
 test("a desktop notice is one OK box carrying the notice's type, message and detail", () => {
   const { dialog, shown } = fakeDialog();

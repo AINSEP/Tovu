@@ -146,7 +146,7 @@ import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc } from "@jini-ai/desktop-host/electron/updates";
+import { createUpdateCheckNow, registerUpdateCheckIpc, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
 import { describeUpdateErrorForLog, updateCheckCopy } from "../update-check-now.ts";
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from "../contracts/app-version.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
@@ -188,7 +188,7 @@ import { installWebviewGuestPolicy } from "@jini-ai/desktop-host/shell/guest-nav
 import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
 import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
 import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
-import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice, type DesktopNotice } from "./updates/native-notices.ts";
+import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice } from "./updates/native-notices.ts";
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
