@@ -349,7 +349,7 @@ for (const [name, makeRepo] of sendAdapters) {
     assert.equal((await repo.listPendingByAudienceSnapshot({ workspaceId: WS, audienceSnapshotId: "snap-1", limit: 10 })).length, 1);
     assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 1);
 
-    await repo.saveBatch([{ ...base, id: "send-2", subscriberId: "subscriber-2", idempotencyKey: "newsletter:camp-1:subscriber-2:snap-1" }]);
+    await repo.saveBatch({ rows: [{ ...base, id: "send-2", subscriberId: "subscriber-2", idempotencyKey: "newsletter:camp-1:subscriber-2:snap-1" }] });
     assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 2);
 
     await repo.save({ ...base, status: "delivered" });

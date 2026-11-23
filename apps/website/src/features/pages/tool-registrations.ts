@@ -17,6 +17,22 @@ import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
+/**
+ * @file Finds page markup that is hidden until a script reveals it — and so is hidden for good on a
+ * Tovu page.
+ *
+ * Why: markup copied from another site keeps the source's scroll-reveal start state (Webflow and
+ * Framer write `style="opacity:0"`, AOS/SAL/WOW.js add attributes or classes, hand-rolled sites ship
+ * `.reveal { opacity: 0 }`), but never the script that flips it, because page HTML runs no source
+ * script. The result is invisible or washed-out content that looks like a styling bug (Luvira
+ * import, 2026-10-08). The page tools still write the markup — a hidden element can be deliberate —
+ * and return these findings as a warning so the model fixes them on its next turn.
+ *
+ * PURE: string in, findings out. A tolerant scan over markup the assistant just wrote, not an HTML
+ * parser; comments and raw-text elements are masked first through the shared widget-marker mask.
+ * Now: the scan is `@jini-ai/cms/pages/hidden-until-script`; the page tools below return its
+ * warning.
+ */
 import { describeScriptRevealedContent } from "@jini-ai/cms/pages/hidden-until-script";
 import { requirePageAuthoringHtml } from "@jini-ai/cms/pages/authoring-html";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";

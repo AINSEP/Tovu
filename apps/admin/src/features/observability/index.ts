@@ -25,6 +25,17 @@ import { useRecentErrorItem } from "./hooks/use-recent-error-item.hooks";
 import { QueryDevtoolsPanel, useWiredObservabilityStatus, useWiredQueriesTab, useWiredRecentServerErrors } from "./hooks/observability-wiring.hooks";
 
 const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent"> = {
+  /**
+   * Providers tab: an honest not-yet-built state, explicitly modeled on `AgentPlugins.tsx`'s own
+   * `MarketplacePanel` (same designed-empty-state tone, same reasoning) — see that component's own
+   * header for why a plain "not built yet" beats a functional-looking form that does nothing.
+   *
+   * Deliberately no input, no "Connect" button, and no saved-credential list: nothing in Tovu can
+   * fetch, save, or send to a monitoring endpoint yet (owner's own words, `development/
+   * todos.md` 2026-09-09: "let's set that up with another subagent"). Building the appearance of
+   * that feature here would be worse than stating plainly that it isn't built.
+   * Now: the tab itself is `@jini-ai/admin`'s `ProvidersPanel`; this admin binds the screen here.
+   */
   productName: "Tovu",
   /** Dependency injection seam for tests — the same convention `AgentPluginsProps.useAgentPluginsHook`
    *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as

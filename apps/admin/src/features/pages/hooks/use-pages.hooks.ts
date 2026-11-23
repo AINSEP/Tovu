@@ -24,6 +24,23 @@ import { defaultPagesPort } from "./pages-dependencies.hooks";
  */
 
 /**
+ * The content-refresh subscription invalidates the shared list whenever pages_write_html
+ * (apps/website/src/features/pages/agent-tools.ts) writes a page from an assistant run this
+ * screen otherwise has no way to learn about. Like the Posts twin, retained query data keeps
+ * the table rendered across background refreshes instead of flashing a first-load skeleton.
+ *
+ * The 2026-09-07 settlement fix (formerly useSettlementGeneration) remains necessary:
+ * the content-refresh subscription means two listPages calls can be
+ * in flight at once with no ordering guarantee on their responses — two assistant writes landing
+ * back to back each publish their own refresh notification. Without this guard, whichever request
+ * happened to resolve LAST won regardless of which one was issued last, so a slower, earlier
+ * (now-stale) response could overwrite the newer list an operator is already looking at.
+ * Cache invalidation now revokes the older request's ownership synchronously before the new
+ * read starts, so both superseded successes and failures follow the latest request.
+ * Now: the subscription and the settlement guard are `@jini-ai/admin`'s `usePages`; `pagesEvents`
+ * below is the bus port this app binds into it.
+ */
+/**
  * `pages_write_html` (`apps/website/src/features/pages/agent-tools.ts`) is agent-callable, so the
  * list reloads whenever the content-refresh bus names `PAGES_RESOURCE` — the same filtered-event
  * port shape `integrations/jini-admin/redirects-ports.ts`'s `redirectsEvents` binds.

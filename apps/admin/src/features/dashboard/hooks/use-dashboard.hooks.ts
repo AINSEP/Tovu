@@ -18,6 +18,17 @@ import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
  *  different user signing in on the same browser still sees their own nag. */
 const DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
+// Owner 11-02: the Appearance card kept "Tovu Starter" after the chat activated a new theme.
+// Now: the regression test this sentence headed is `@jini-ai/admin`'s
+// `use-dashboard.hooks.unit.test.ts`, which names no product; the re-read is `useDashboard`'s
+// `useActiveThemeRefresh`, bound below.
+/** Re-reads the active theme when content changes out of band — a chat run's `theme_set_active`
+ *  while the Dashboard stays mounted beside the dock (owner 11-02: the Appearance card kept
+ *  "Tovu Starter"). Mount reads already cover activations made on the Themes screen.
+ *  @complexity O(1) per notification; one presentation re-read.
+ * Now: this re-read is `useActiveThemeRefresh` inside `@jini-ai/admin`'s `useDashboard`, which
+ * `useWiredDashboard` below binds.
+ */
 /**
  * Binds the real `/api` client, the real `useWiredAdminLocale()`, and a `DASHBOARD_DICT`-bound
  * translator — see `dashboard-dependencies.hooks.ts`.

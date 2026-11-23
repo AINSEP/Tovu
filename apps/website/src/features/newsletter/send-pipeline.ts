@@ -187,7 +187,7 @@ export async function freezeAudience(required: {
   const { now, snapshotId, snapshot, sendRows } = await materializeAudience({ deps, input });
   const finalSnapshot: AudienceSnapshotRow = { ...snapshot, recipientCount: sendRows.length };
   await deps.audienceSnapshotRepo.save(finalSnapshot);
-  if (sendRows.length > 0) await deps.sendRepo.saveBatch(sendRows);
+  if (sendRows.length > 0) await deps.sendRepo.saveBatch({ rows: sendRows });
 
   // Contact lookup can overlap a human pause. Attach the snapshot to the current row without
   // restoring an earlier status; paused batches remain pending until an approved resume.

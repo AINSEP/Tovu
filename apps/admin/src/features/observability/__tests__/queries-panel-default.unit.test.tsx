@@ -5,9 +5,10 @@ import { QueriesPanel } from "@jini-ai/admin/screens/observability/queries-panel
 import { QueryDevtoolsPanel } from "../hooks/observability-wiring.hooks";
 
 /**
- * @file The host's production Queries panel: `QueryDevtoolsPanel` lazy-loads TanStack's
+ * @file `QueriesPanel`'s production default: with no injected `Panel` it lazy-loads TanStack's
  * production devtools panel (the explicit `/production` export, which renders in production builds
  * too), showing the Suspense status until that chunk arrives.
+ * Now: `QueriesPanel` is `@jini-ai/admin`'s; this app's production panel is `QueryDevtoolsPanel`.
  */
 describe("QueriesPanel default panel", () => {
   it("lazy-loads TanStack's production devtools panel behind a loading status", async () => {

@@ -151,7 +151,7 @@ export class SqlNewsletterSendRepo implements NewsletterSendRepoPort {
   }
 
   /** All rows land or none do: the batch is one transaction. */
-  async saveBatch(rows: readonly SendRow[]): Promise<void> {
+  async saveBatch({ rows }: { rows: readonly SendRow[] }, _optional: Record<string, never> = {}): Promise<void> {
     if (rows.length === 0) return;
     await this.kernel.transaction(async () => {
       for (const row of rows) await this.save(row);

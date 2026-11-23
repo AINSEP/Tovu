@@ -22,6 +22,34 @@ import { observabilityApi } from "../api/observability-api";
 /** The live implementation, as a module-level singleton — matches `defaultAgentPluginsPort`. This one is the Overview port. */
 export const defaultObservabilityStatusPort = createObservabilityStatusPort({ api: observabilityApi });
 
+/**
+ * The live repro (sites/tovu-dev server.log, 2026-10-09T01:04Z): one daemon outage logged from two
+ * call sites. Same tag, headline and `[cause]`; only the caller's stack frame differs.
+ * Now: the test this sentence headed is `@jini-ai/admin`'s `recent-errors-rules.unit.test.ts`; the
+ * grouping it pins runs on every load of the port below.
+ */
+/**
+ * @file Pure shaping for the Recent errors tab: one-line summaries, grouping of repeated errors,
+ * shortened file paths for display, and the paste-ready text the Copy button puts on the
+ * clipboard. No React, no I/O — `use-recent-server-errors.hooks.ts` calls these once per load.
+ *
+ * Redaction: every `message` reaching this file was already secret-redacted on write by the
+ * server's log buffer (`apps/website/src/platform/server-logs/index.ts`, `redactSecretShapes`).
+ * Nothing here un-redacts or re-reads anything, so the copied text carries exactly the same
+ * `[REDACTED:…]` markers the screen shows. No second client-side pass: `@jini-ai/core`'s
+ * `redactSecrets` also masks IPv4 addresses, which would turn the most useful part of an error
+ * like "daemon unreachable at 127.0.0.1:51384" into a marker.
+ * Now: these shaping rules are `@jini-ai/admin`'s `screens/observability/recent-errors-rules.ts`;
+ * the redacting log buffer is still this app's server-log capture.
+ */
+/**
+ * Shortens an absolute path for display: from the last `node_modules/`, else from the first
+ * `apps/` or `packages/` folder (the repo root is not known to the browser), else `~/` for a
+ * home directory. Anything else is returned unchanged. A `:line:col` suffix is kept.
+ * @example shortenSourcePath({ path: "/Users/me/Tovu/apps/website/src/a.ts:2:4" }) // "apps/website/src/a.ts:2:4"
+ * Now: `shortenSourcePath` is `@jini-ai/admin`'s `recent-errors-rules.ts`; it shortens the paths
+ * this app's server logs carry.
+ */
 /** The live Recent errors port: server logs through the admin client, copy through the browser clipboard. */
 export const defaultRecentServerErrorsPort = createRecentServerErrorsPort({ api: observabilityApi, clipboard: createBrowserViewerClipboard() });
 

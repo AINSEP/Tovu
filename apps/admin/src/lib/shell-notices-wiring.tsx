@@ -21,8 +21,12 @@ export const SERVER_BANNER_TEXT: ServerRestartingBannerProps["text"] = {
   unreachable: "Can't reach the Tovu server. It will retry when you try again.",
 };
 
-/** The restart banner over the app's reconnect store (`lib/server-reconnect.ts`).
- * @param optional.reconnect - Injectable for tests; defaults to the app's one instance. */
+/**
+ * The live server-connection status (`lib/server-reconnect.ts`) and the banner line for it.
+ * @param optional.reconnect - Injectable for tests; defaults to the app's one instance.
+ * Now: the status hook itself is `@jini-ai/admin`'s `useServerConnectionBanner`; this component
+ * binds the reconnect store and the banner copy into it.
+ */
 export function TovuServerRestartingBanner({ reconnect = serverReconnect }: { reconnect?: ServerReconnect } = {}) {
   return <ServerRestartingBanner reconnect={reconnect} text={SERVER_BANNER_TEXT} useServerConnectionBannerHook={useServerConnectionBanner} />;
 }

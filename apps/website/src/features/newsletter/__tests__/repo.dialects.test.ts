@@ -519,11 +519,11 @@ describeEachDialect(
 
       test("saveBatch stores every row, and a failing row rolls the whole batch back", async () => {
         const { sends } = makeRepos();
-        await sends.saveBatch([]);
-        await sends.saveBatch([send("s1"), send("s2")]);
+        await sends.saveBatch({ rows: [] });
+        await sends.saveBatch({ rows: [send("s1"), send("s2")] });
         assert.equal((await sends.listByCampaign({ workspaceId: WS, campaignId: "camp-1" })).length, 2);
         const bad = { ...send("s3"), recipientEmail: null } as unknown as SendRow;
-        await assert.rejects(sends.saveBatch([send("s4"), bad]));
+        await assert.rejects(sends.saveBatch({ rows: [send("s4"), bad] }));
         assert.equal(await sends.findById({ workspaceId: WS, id: "s4" }), null);
       });
 

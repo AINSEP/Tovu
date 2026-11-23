@@ -6,8 +6,10 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 import type { PagesPort } from "@jini-ai/admin/pages/hooks/pages-port.hooks";
 
 /**
- * @file The only place the Pages list hook reaches `lib/api` — see `@jini-ai/admin/pages/hooks/pages-port.hooks`
- * for why the split exists. Bound into `usePages` by `use-pages.hooks.ts`'s `useWiredPages`.
+ * @file The only place `use-pages.hooks.ts` reaches `lib/api` — see `pages-port.hooks.ts` for why
+ * the split exists.
+ * Now: the port interface is `@jini-ai/admin/pages/hooks/pages-port.hooks`; `use-pages.hooks.ts`'s
+ * `useWiredPages` binds this into `usePages`.
  */
 
 /**

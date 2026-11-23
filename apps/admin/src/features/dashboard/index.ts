@@ -12,11 +12,15 @@ import { useWiredDashboard } from "./hooks/use-dashboard.hooks";
 import { useRecentActivityDisclosure } from "./hooks/use-recent-activity-disclosure.hooks";
 
 /**
- * @file Public surface of the `dashboard` feature — and its host wiring.
+ * @file Public surface of the `dashboard` feature.
  *
- * `panels.tsx` imports from HERE, never from a file inside this folder. The screen itself lives in
- * `@jini-ai/admin/screens/dashboard`; this module binds this app's hooks, publish request and routes
- * into it, so the lazy panel import keeps one stable path while the package stays host-free.
+ * `panels.tsx` imports from HERE, never from a file inside this folder. That indirection is the
+ * point of the feature boundary: everything below can be split, renamed, or grown a `hooks/`
+ * directory without the router noticing. Adding a file to this feature is not an API change unless
+ * it is exported from this line.
+ * Now: this module is also the host wiring. The screen itself lives in
+ * `@jini-ai/admin/screens/dashboard`; this module binds this app's hooks, publish request and
+ * routes into it, so the lazy panel import keeps one stable path while the package stays host-free.
  */
 
 /** This app's routes for every link the Dashboard renders. Built per render: `siteUrl` and
