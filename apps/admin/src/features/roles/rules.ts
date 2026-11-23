@@ -1,6 +1,6 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import type { AdminPolicy, AdminRole } from "./api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./roles-i18n";

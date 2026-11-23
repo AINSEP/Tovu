@@ -1,6 +1,6 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
-import type { AdminPolicy, AdminRole } from "./api/roles-api.types";
+import type { AdminPolicy, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
 import { type PendingPermissionRemove } from "./hooks/use-roles.hooks";
 import { roleDeleteBodyParts, policyDeleteBodyParts, permissionRemoveBodyParts } from "./roles-i18n";
 

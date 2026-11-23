@@ -1,4 +1,4 @@
-import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/roles/api/roles-api.types";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@jini-ai/admin/roles/api/roles-api.types";
 import { describeApiError } from "../rules";
 import { t } from "../roles-i18n";
 import { defaultRolesPort } from "./roles-dependencies.hooks";

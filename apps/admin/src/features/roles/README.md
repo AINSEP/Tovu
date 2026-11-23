@@ -7,6 +7,9 @@ The roles/policies screen behind the sidebar's **People → Roles** entry.
 | `Roles.tsx` | List of roles, create/edit a role's policy, delete. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
+The wire types and the tab system (`ROLES_TAB_IDS`, `resolveRolesTabs`, `goToRolesTab`) now live
+in `@jini-ai/admin/roles/api/roles-api.types` and `@jini-ai/admin/roles/Roles.hooks`.
+
 ## What this feature does not own
 
 - **Assigning a role to a user** (`features/users`) — this screen defines what a role can do, not
