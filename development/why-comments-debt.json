@@ -4432,6 +4432,14 @@
     {
       "id": "f97bdf75284b",
       "reason": "Deduped (DT-desktop-1): wrapper removed; Tovu's platform wording is SPEECH_HOST.transcriptionMessages and Jini buildDefaultTranscriptionPort keeps the lazy macOS factory."
+    },
+    {
+      "id": "da8e5aec7eda",
+      "reason": "Moved to Jini @jini-ai/cms/trash/permanent/agent-tools.ts (X-permanent-delete-1), verbatim on createPermanentDeleteSpecs, plus one added sentence: the host names its own credential read tool."
+    },
+    {
+      "id": "95cf1cf825ec",
+      "reason": "Moved to Jini @jini-ai/cms/trash/permanent/agent-tools.ts (X-permanent-delete-1), verbatim on createPermanentDeleteAgentToolCatalog."
     }
   ]
 }
