@@ -5,7 +5,11 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { planAgentInstall, type AgentSlug } from "@jini-ai/mcp";
 import { installOwnedJsonAgent } from "@jini-ai/mcp";
-import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 async function fixture(t: test.TestContext, agentId: AgentSlug = "antigravity") {
   const home = await mkdtemp(join(tmpdir(), "tovu-owned-mcp-"));

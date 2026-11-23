@@ -22,7 +22,10 @@ import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervi
 import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "@tovu/contracts/daemon-connection";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
-import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 /** Platform's process functions behind core's port (node-adapters takes them injected). */
 const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });

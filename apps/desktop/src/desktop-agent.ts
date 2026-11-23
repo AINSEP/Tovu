@@ -39,7 +39,8 @@ import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { delegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
-import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort, createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createProcessControlPort, nodeCommandShell, nodeSpawnPort } from "@jini-ai/node-adapters/process";
 import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
@@ -53,6 +54,9 @@ import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagent
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
 import type { HostSignals } from "@tovu/contracts/host-signals";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 /** Platform's process functions behind core's port (node-adapters takes them injected). */
 const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
