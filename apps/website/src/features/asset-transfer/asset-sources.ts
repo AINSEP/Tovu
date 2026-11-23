@@ -58,7 +58,7 @@ export async function readAssetSource({ deps, ctx, input, maxBytes }: { deps: As
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });
   const media = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: path } });
   if (!media || media.status !== "active") throw new ToolInputError({ message: "Restore this media item from Trash before using its file" });
-  const bytes = Buffer.from(await readStoredBytes({ deps, asset: media }, { maxBytes }));
+  const bytes = Buffer.from(await readStoredBytes({ deps, asset: media, errorPrefix: "media_view_image" }, { maxBytes }));
   const type = sniffThemeImportType({ bytes });
   const extension = ({ "image/jpeg": "jpg", "image/svg+xml": "svg", "image/x-icon": "ico" } as Record<string, string>)[type] ?? type.split("/")[1];
   return { path: `${media.slug}.${extension}`, bytes };

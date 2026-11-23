@@ -177,7 +177,7 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });
 
       const asset = await findAsset({ deps, mediaId });
-      const bytes = await readStoredBytes({ deps, asset });
+      const bytes = await readStoredBytes({ deps, asset, errorPrefix: "media_view_image" });
       const contentType = sniffContentType({ bytes });
       assertStillImage({ asset, contentType });
       const rendered = await renderForModel({ asset, bytes, contentType, imageCodec: deps.imageCodec });
