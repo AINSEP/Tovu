@@ -13,7 +13,7 @@ function AdminExecutionMode(props: ComponentProps<typeof RealAdminExecutionMode>
   return <RealAdminExecutionMode useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
 }
 import type { AdminExecutionModeController } from "../hooks/use-admin-execution-mode.hooks";
-import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";
+import { createFakeAdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 import {
   useAdminExecutionCredential,
   type AdminExecutionCredentialController,

@@ -21,7 +21,7 @@ function SettingsUi(props: ComponentProps<typeof RealSettingsUi>) {
 }
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
-import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";
+import { createFakeAdminExecutionCredentialPort } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 import {
   useAdminExecutionCredential,
   type AdminExecutionCredentialController,
