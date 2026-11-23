@@ -1,4 +1,5 @@
-import type { RemoveEntity, TrashActor } from "@jini-ai/cms/trash";
+import type { RemoveEntity } from "@jini-ai/cms/trash";
+import type { TrashActor } from "@jini-ai/core/contracts/site/cms-trash";
 import type { MemberRepoPort } from "./ports.js";
 import { MemberConflictError, MemberNotFoundError, MemberValidationError } from "./types.js";
 

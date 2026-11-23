@@ -5,7 +5,7 @@ import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
-import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import type { PluginsRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

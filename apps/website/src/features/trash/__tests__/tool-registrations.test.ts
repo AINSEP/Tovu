@@ -11,7 +11,8 @@ import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations, type TrashToolDeps } from "../tool-registrations.js";
 import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/agent-tools.js";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
-import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "@jini-ai/cms/trash";
+import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "@jini-ai/cms/trash";
+import type { TrashActor } from "@jini-ai/core/contracts/site/cms-trash";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —

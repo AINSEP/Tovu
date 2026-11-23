@@ -34,10 +34,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
-import type {
-  MigrationRunsRepoPort,
-  SiteStatusPort,
-} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
 // sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
