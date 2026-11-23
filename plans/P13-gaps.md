@@ -1,4 +1,4 @@
-PLAN COMPLETE
+PLAN COMPLETE (R1123: revised per `reviews/plans1123.md`; every NEEDS / READY WITH FIXES step carries an R1123 block)
 
 # P13 — plans for the areas the P12 ledger says have no plan (2026-11-23)
 
@@ -63,6 +63,12 @@ Counts: 28 production files; 2 deleted from Tovu (`help.ts`, `commands/introspec
 
 ### P13-C1 · Jini then Tovu · CLI outcome mapper and bin run loop (~3 h: J 2 h, T 1 h)
 
+> **R1123 revision (Codex: READY WITH FIXES) — supersedes the order and defaults below.**
+> - **Order is the host's, as an ordered rule list.** Tovu's current order (`cli/errors.ts:178–190`) is plugin-install → **parser** → site-dir → coded rules → `INTERNAL`. Jini therefore exports `parserOutcomeRule` as an ordinary rule instead of hard-wiring "classifiers first, then parser": `createCliOutcomeMapper({ rules, exitCodes, bin }, _optional = {})`, where `rules: readonly CliOutcomeRule[]` is required and evaluated first-match-wins, then `INTERNAL`. Tovu binds `rules: [pluginInstallOutcome, parserOutcomeRule, mapSiteDirError, ...codedRules]`.
+> - **Exact stripping:** `parserOutcomeRule` removes the prefix with `/^error:\s*/` and nothing else (no `.replace('error: ', '')`, no trim of the remainder).
+> - **Effects bound by Tovu.** `runCliProgram({ createProgram, mapError, argv }, { stdout, stderr, exit })` takes all three effects as **required** fields (no `process.*` defaults inside Jini). Tovu `main.ts` binds `stdout: process.stdout, stderr: process.stderr, exit: process.exit`.
+> - **New tests (written first):** **«Parser classification wins over a matching later classifier»** — an error that is both a commander parser error and matched by `mapSiteDirError` maps to the parser's VALIDATION outcome. Mutation: swap `parserOutcomeRule` and `mapSiteDirError` in the Tovu binding → red. **«Only a leading `error:` plus whitespace is stripped»** (`"error:\tbad"` → `"bad"`, `"x error: y"` unchanged). Mutation: `.replace('error: ', '')` → red. `program-run.test.ts` adds `effects are required` (type test: omitting `exit` fails `tsc`).
+
 **Files (source):** `apps/website/src/cli/errors.ts` (221; the generic part is `CliOutcome` `:66–72`, `stderrLine` `:113–115`, `COMMANDER_VALIDATION_CODES` `:118–126`, `COMMANDER_SUCCESS_CODES` `:129`, `mapCodedError` `:202–207`, `mapCommanderError` `:209–221`, the INTERNAL fallback `:188–190`), `apps/website/src/cli/help.ts` (35, whole), `apps/website/src/cli/main.ts` (45; body `:23–43`).
 
 **Destination (Jini, new):**
@@ -93,6 +99,8 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 ### P13-C2 · Jini then Tovu · introspect printer (~1.5 h: J 1 h, T 0.5 h)
 
+> **R1123 revision (Codex: READY WITH FIXES).** `TOVU_TOOL_PREFIX` is **not** added to a new place: the surviving `cli/introspect.ts` already owns the prefix (`:34–35`); it becomes `export const TOVU_TOOL_PREFIX` **in place** and `program.ts` imports it from there. `apps/website/src/cli/commands/introspect.ts` is deleted in the same commit. The Tovu test `cli/__tests__/unit/introspect-command.unit.test.ts` is **kept as a Tovu CLI test** (not repointed to Jini): it runs the Tovu program and asserts the exact MCP names (`tovu_` + tool id) and the exact validation text `--format must be one of: commander, mcp (got "<x>")`. Mutation: bind `toolNamePrefix: ''` → red. **Sequencing:** rebase on the ST-16 report branch (it already edits `program.ts`) and serialize with ST-16 clean/compact (same batch slot, after them).
+
 **Files (source):** `apps/website/src/cli/commands/introspect.ts` (47, whole).
 **Destination:** `packages/cli/src/introspection.ts` (109 → ~150): add `INTROSPECTION_FORMATS = ['commander', 'mcp']` and `printIntrospection({ manifest, format = 'commander', toolNamePrefix }, { output, invalid })`. `introspection.ts` is the `"./introspection"` entry with runtime `universal`, so `output` (`({ message }) => void`) and `invalid` (`({ message }) => Error`) are **required** ports — no `process.stdout` default in Jini. The "never maps errors to exit codes itself" note moves as a why-comment.
 **Tovu after the step:** `introspect.ts` gains `export const TOVU_TOOL_PREFIX = 'tovu_'` (used by its existing `toMcpTools`). `program.ts`'s introspect action (import `program.ts:15`, call `program.ts:296`) calls `printIntrospection({ manifest: introspectProgram(program), format, toolNamePrefix: TOVU_TOOL_PREFIX }, { output: ({ message }) => process.stdout.write(message), invalid: ({ message }) => new ValidationError({ message }) })`. Message text must stay `--format must be one of: commander, mcp (got "<x>")` (Jini builds it; Tovu tests assert it).
@@ -104,6 +112,11 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 **Prerequisites:** none; **not in the same batch as P11 ST-16** (both edit `program.ts`). **Files removed from Tovu:** `apps/website/src/cli/commands/introspect.ts`.
 
 ### P13-C3 · Jini then Tovu · strict stdin-JSON request fields and port parsing (~2 h: J 1.25 h, T 0.75 h)
+
+> **R1123 revision (Codex: NEEDS) — supersedes the `requireAbsolutePath` and byte-cap mechanics below.**
+> - **Native path semantics are injected, never re-implemented.** `requireAbsolutePath({ value }, { isAbsolute, invalid })` — `isAbsolute: (p: string) => boolean` is **required**; Tovu binds `node:path`'s `isAbsolute` (today `owner-store.ts:308`), so POSIX hosts keep refusing `C:\x` and Windows hosts accept it. The `..`-segment refusal (either separator) stays in Jini as a pure string rule. The old test "accepts a Windows drive root" is **deleted** and replaced by the two policy tests below.
+> - **Byte measurement is injected.** `parseRequestObject({ text }, { maxBytes, byteLength, invalid })` — `byteLength: (s: string) => number` is **required**; Tovu binds `(s) => Buffer.byteLength(s, 'utf8')` (today `owner-store.ts:273`). The cap is checked before `JSON.parse`. Jini imports no `Buffer`/`node:path`.
+> - **Tests (written first):** **«Windows drive path is refused under POSIX policy»** (inject `path.posix.isAbsolute`; `C:\\data` → `invalid`) and `Windows drive path is accepted under win32 policy` (inject `path.win32.isAbsolute`). Mutation: accept `/^[A-Za-z]:[\\/]/` unconditionally → POSIX test red. **«Multibyte input exceeding 64 KiB is refused»** (22 000 × `€` = 66 000 UTF-8 bytes, 22 000 UTF-16 units). Mutation: measure `text.length` → accepted → red. Tovu `owner-store.integration.test.ts` keeps its 64 KiB boundary case through the real binding.
 
 **Files (source slices):** `commands/owner-store.ts` (382): `requestObject` `:271–276`, `assertFields` `:289–291`, `objectValue` `:293–296`, `stringValue` `:298–301`, `absolutePath` `:306–310` (with its Windows/`..` why-comment `:303–305`), `revision` `:312–315`. `commands/import-local.ts` (171): `parseRequestObject` `:111–118`. `commands/serve.ts` (373): `parsePort` `:88–100`.
 **Destination (Jini):** new `packages/cli/src/request-fields.ts` (~80 LOC): `parseRequestObject({ text }, { maxBytes?, invalid })` (null or over-cap text, bad JSON, array or non-object → `invalid()`); `assertKnownFields({ record, fields }, { invalid })`; `requireObject`, `requireString` (non-empty after trim, no NUL), `requireAbsolutePath` (absolute and no `..` segment on `/` or `\`), `requirePositiveInt` — each `({ value }, { invalid })`. Add `parsePortValue({ raw }, { invalid })` to `packages/cli/src/flags.ts` (146 → ~165), where `invalid` receives `{ reason: 'not-integer' | 'out-of-range', raw, value? }` so the host keeps its two exact messages. Export through the barrel (entry `"."`). `invalid` is always injected; Jini mints no error class.
@@ -169,6 +182,8 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 #### P13-S1 · Jini then Tovu · Escape-key port for the embed header (~1.5 h)
 
+> **R1123 revision (Codex: READY WITH FIXES).** `preventDefault()` only helps if the host honours it, so the behaviour pin is at the **real host**: Tovu adds **«Escape that cancels a pending discard leaves the host dialog open»** to `SC/__tests__/SiteAssistantHeader.test.ts`, mounting the header inside the actual widget container and its own close handler (the one that closes the panel on Escape), with a pending discard confirmation; dispatch `keydown Escape` on the focused confirm button → confirmation dismissed, host panel still open (`open`/`aria-hidden` unchanged), `onClose` spy 0. Mutation: register the port's listener in the bubble phase → host closes first → red. If the host container is a native `<dialog>`, the port also takes a `cancel` listener path (same disposer) and the test dispatches `cancel` too. Serialize the `vanilla-host.ts` edits with BX-3.T, BX-13.T, BX-15.T, P6-T2 and P13-S3.T (one at a time, rebasing in that order).
+
 - **File:** `SC/SiteAssistantHeader.hooks.ts` (20). Only the inline `keyboard.subscribe` (`:8–17`: capture-phase `keydown` on `page.defaultView`, `preventDefault`, `onEscape`, disposer) moves.
 - **Destination:** new `J/chat/src/embed-widget/react/escape-key-port.ts` exporting `createViewEscapeKeyPort({ view }, _optional = {}): EscapeKeyPort`; exported directly from the existing entry file `J/chat/src/embed-widget/react/embed.tsx` (`./react/embed`), which already exports `EscapeKeyPort`. `EscapeKeyPort` is declared at `J/chat/src/embed-widget/react/header.tsx:10`; Jini has no default implementation today.
 - **Importers to repoint:** `git grep -n -F 'SiteAssistantHeader.hooks'` → all 2, code 1 (`SC/SiteAssistantHeader.tsx`); import unchanged (only the hook body changes).
@@ -181,6 +196,12 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 #### P13-S2 · Jini then Tovu · safe visitor markdown renderer for the vanilla widget (~2 h)
 
+> **R1123 revision (Codex: READY WITH FIXES).**
+> - **Trusted renderer contract (`toHtml`).** The injected `toHtml(content): string` must: escape all raw HTML in the source (no passthrough); emit only `p, br, em, strong, code, pre, ul, ol, li, blockquote, a, img, h1–h6, hr, table/thead/tbody/tr/th/td`; emit `href`/`src` only with `http:`, `https:`, `mailto:` (links) or a relative reference; never emit `base`, `meta`, `link`, `script`, `style`, `iframe`, `form`, `svg`, or any `on*` attribute. Tovu binds micromark with `allowDangerousHtml: false` and records that in the why-comment. The Jini filter **still** removes `base`, `meta`, `link` and `on*` (defence in depth) before inspecting images.
+> - **Origin rule.** For each `img`: `url = new URL(src, document.baseURI)` (resolution follows the browser) and keep it iff `url.protocol ∈ {http:, https:}` **and** `url.origin === pageOrigin`, where `pageOrigin` is a **required** injected string the host binds from `document.defaultView.location.origin` — the document's actual origin, never `new URL(document.baseURI).origin`.
+> - **Test (written first):** **«An external base element cannot authorize an external image»** — page head has `<base href="https://evil.example/">`, markdown `![x](https://evil.example/a.png)` and `![y](/a.png)` → both removed (the second resolves to evil). Mutation: compare against `new URL(document.baseURI).origin` → kept → red. Companion: `a base element inside rendered content is removed before images are checked`.
+> - Serialize the `vanilla-host.ts` edits with BX-3.T, BX-13.T, BX-15.T, P6-T2 and P13-S3.T.
+
 - **File:** `SC/vanilla-host.ts` (75). Only the `renderMarkdown` body inside `createSiteVanillaArgs` (≈ `:39–56`: template parse, remove every `<img>` that is not same-origin http(s) or is unparsable, `replaceChildren`, `rel="noopener noreferrer"` on links) moves.
 - **Destination:** new `J/chat/src/embed-widget/vanilla/safe-markdown.ts` exporting `createSafeMarkdownRenderer({ toHtml, document }, _optional = {})`, returning the existing `renderMarkdown` port shape (`J/chat/src/embed-widget/vanilla/index.ts:31`); exported from the existing `./vanilla` entry.
 - **Vendor neutrality:** micromark is injected as `toHtml(content) => string`; chat does not depend on micromark. Tovu keeps the micromark call, GFM options and footnote-disable list (OWNER-Q-8).
@@ -191,6 +212,13 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 - **Prerequisites:** none for J. T edits `vanilla-host.ts`, also edited by `BX-3.T`, `BX-13.T`, `BX-15.T`, `P6-T2` and P13-S3.T → serial with all of them. **Removed from Tovu:** no file (≈ 15 LOC).
 
 #### P13-S3 · Jini then Tovu · embed remote-send bridge (generic half of the comparison channel) (~2.5 h)
+
+> **R1123 revision (Codex: NEEDS) — supersedes the fixed invocation id and the unspecified dispose/origin rules below.**
+> - **Opt-in.** `installEmbedSendBridge({ root, send, enabled, parentOrigin, newId, names }, _optional = {})`; `enabled` and `parentOrigin` are **required**. `enabled === false` → no listener, no ready signal, no-op disposer. The ready signal is `window.parent.postMessage(msg, parentOrigin)` — never `'*'`; `parentOrigin` is the loader's verified embed-config origin bound by Tovu; an empty/invalid `parentOrigin` → bridge refuses to install (`log` once) rather than broadcasting.
+> - **Per-invocation identity.** Each accepted request gets `invocationId = newId()`; the `done` event carries `{ invocationId, requestId }`; the pending map is `Map<invocationId, Settle>` (capacity 1 = the existing busy rule). A response whose `invocationId` is not the current pending one is **ignored**. The React control (`createEmbedSendAgentControl`) uses the same ids.
+> - **Dispose.** State `active → disposed` (terminal). `dispose()` removes the listener, deletes `dataset.compareReady`, sets `disposed = true`, and settles the pending invocation **once** with `{ ok: false, reason: 'disposed' }`. Every settle path goes through `settleOnce(invocationId)`, which no-ops if already settled or if `disposed` was set after the invocation started.
+> - **Tests (written first):** **«A late result from the disposed bridge cannot settle a new send»** — send A pending; dispose; install a new bridge; send B pending; resolve A's underlying `send` → B still pending and A's settle callback count stays 1; resolve B → B settles. Mutation: response handling ignores invocation identity (settles whatever is pending) → red. `ready signal targets the bound parent origin` (spy on `postMessage` second arg). Mutation: `'*'` → red. `dispose settles a pending send exactly once`.
+> - If BX-8 lands first, the activation-hook edit (`SC/SiteAssistantActivation.hooks.ts:3`) folds into BX-8 instead of a separate P13 commit.
 
 - **File:** `SC/site-chat-comparison.ts` (68). Moves: the `installSiteChatComparisonSend` body (CustomEvent request/`done` validation, one in-flight request, `jini-chat-open` dispatch, `dataset.compareReady`, parent `postMessage` ready signal, disposer) and `createReactSiteComparisonControl` (adapter to `ChatPaneProps['agentControl'].bridgeAccess`, rejecting a pending send on unmount). Stays: `readSiteChatComparisonVariant`/`parseComparisonVariant` (the `/__compare/site-chat` path, mount id, `data-chat-compare`, cross-origin catch) and the host-supplied names `tovu-compare-send`, `tovu-site-chat-ready`, invocation id `site-chat-comparison`.
 - **Destination:** new `J/chat/src/embed-widget/browser/embed-send-bridge.ts` exporting `installEmbedSendBridge({ root, send, requestEventName, readyMessageType, enabled }, _optional = {})` and `createEmbedSendAgentControl({ root, enabled, invocationId, ...names }, _optional = {})`; new subpath `./browser/embed-send-bridge` in `J/chat/package.json` (`jini.entries` → `"browser"`). The control type is a type-only import of `ChatPaneAgentControlOptions` (`J/chat/src/react/features/chat-pane/types.ts:147`).
@@ -203,6 +231,8 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 #### P13-S4 · Tovu (optional Jini) · visitor i18n onto core translators (~1.5 h)
 
+> **R1123 revision (Codex: READY WITH FIXES).** Add a **script-specific** pin: tests `zh-Hant resolves to zh-TW`, `zh-Hant-HK resolves to zh-TW`, `zh-Hans resolves to zh-CN`. Named mutation: **drop the script-subtag rule (match `zh-Hant` by its base language only)** → `zh-Hant` resolves to the base `zh` entry → red. The existing `pt → pt-BR` / base-fallback mutation stays as a second mutation.
+
 - **File:** `SC/site-chat-i18n.ts` (46). `SITE_CHAT_DICTIONARY` (product copy) stays. `createSiteChatI18n`'s lookup and `{name}` fill are replaced by `createDictionaryTranslator({ featureDictionary: SITE_CHAT_DICTIONARY })` and `interpolate` from `@jini-ai/core/text` (`J/core/src/text/index.ts:10,12`).
 - **Importers:** `git grep -n -F 'site-chat-i18n'` → all 11, code 4 (`SiteAssistantActivation.hooks.ts`, `SiteAssistantHeader.hooks.ts`, `vanilla-host.ts`, the test); none changes (`{ locale, t }` kept). No new ports.
 - **Tests first** (add to `SC/__tests__/site-chat-i18n.test.ts`): `an unknown key falls back to the English source key`; `an inherited property name is not treated as a translation` (key `constructor`). Existing tests stay green. Behaviour note: core `interpolate` uses `key in vars`, Tovu uses `vars[name] === undefined`; they differ only for an explicit `undefined`, which the type forbids — no mutation.
@@ -211,6 +241,12 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 - **Prerequisites:** none. **Removed from Tovu:** no file (≈ 12 LOC).
 
 #### P13-S5 · Jini then Tovu · built-bundle mount smoke harness (~3 h)
+
+> **R1123 revision (Codex: READY WITH FIXES).**
+> - **Fresh DOM and disposal on every exit.** `runBundleScenario` creates one DOM per scenario via `createDom` and closes it (`dom.window.close()`) in a `finally` that covers evaluate-throw, post-mount error, timeout and success. Test `every exit path closes its DOM` (counts `createDom` vs `close` across the four exits). Mutation: close only on success → red.
+> - **Inject timers and CLI effects.** Signature becomes `runBundleScenario({ scenario, bundleSource, createDom, mountId, pageHtml, url, timers }, { settleMs = 150, log } = {})` with `timers: { setTimeout, clearTimeout }` required; the CLI entry is `runBundleSmokeCli({ argv, readText, writeErr, exit, … })` with all effects required (no `process.*` inside Jini). Tests use fake timers (no real 150 ms waits).
+> - **Released-subpath proof.** Tovu's scenarios (`check-bundle-mounts.mjs:188–311`) run against the **packed** `@jini-ai/devops/build/bundle-mount-smoke` (the tarball installed by the pack check), not the workspace source: `apps/site-chat` test `scenarios pass against the released bundle-mount-smoke subpath`.
+> - **Serialization:** the Jini DevOps manifest edit (`package.json` exports + `jini` entries) is serialized with `ex4-desktop-jini`, `ex4-deploy-jini` and `BX-17.J` (rebase onto whichever lands first).
 
 - **File:** `apps/site-chat/scripts/check-bundle-mounts.mjs` (353) + `check-bundle-mounts.d.mts`. Moves: `BundleCheckError`/`fail` (`:63–68`), `isNavigationError` (`:87–90`), `failOnErrors` (`:92–96`), `stubBrowserGaps` (`:98–110`), `runScenario` (`:117–186`), `checkBundleMounts` (`:312–316`), `readBundle` (`:319–325`), `main` (`:332–345`), `isEntryPoint` (`:348–350`). Stays: `scenarios` (`:188–311`), `PAGE_CONTENT_HTML`, `MOUNT_ID`, storage keys, `BUNDLE_PATH`.
 - **Destination:** new `J/devops/src/build/bundle-mount-smoke.ts` (directory does not exist on merge-14), subpath `./build/bundle-mount-smoke` (`jini.entries` → `"node"`): `runBundleScenario({ scenario, bundleSource, createDom, mountId, pageHtml, url }, { settleMs = 150, log } = {})`, `checkBundleMounts`, `runBundleCheckCli`, `isEntryPoint`. `BX-18` should reuse this `isEntryPoint` (duplicate at `measure-bundles.mjs:48`).
@@ -253,6 +289,8 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 **Correction to the STAYS ledger.** `stays-in-tovu.md:7–9` gives `admin-ui` the reason "Tovu product screen (assistant dock / dashboard / sites switcher)". That reason is wrong for this folder: it is the Theme + Appearance tabs page.
 
 ### P13-A1 · Tovu · lock the Admin UI / Playground STAYS after R3.T (~0.75 h)
+
+> **R1123 revision (Codex: READY WITH FIXES).** Hard prerequisites: **R3.T merged and the kit merge (`ex5-fnd-kit-tovu`) merged**. Use the admin ratchet file **produced by R3.T** (`development/boundaries/admin-feature-ranks.json` as R3.T writes it) — this step never creates or seeds it. Because the local kit head changes both `AdminUi.tsx` and the Playground consumers, re-run the STAYS inventory (`AdminUi.tsx` imports + Playground importers) on the merged head and correct `plans/P9-data/stays-in-tovu.md` rows `:7–9` and the P12 ledger **from that re-run**, not from the counts in §3.0. STOP if either prerequisite is unmerged.
 
 - **Repo:** Tovu only. **Files:** `plans/P9-data/stays-in-tovu.md` (reasons for rows `:7–9`), the admin rank ratchet `development/boundaries/admin-feature-ranks.json` that `P9U-untangle-v2.md:474` creates (base has only `development/boundaries/feature-ranks.json`; if the admin file does not exist yet, this step is blocked on it).
 - **Do:** (1) set the reason for the three `admin-ui` rows to "Tovu composition: URL tabs binding the Tovu Theme screen and the Settings Appearance slot (after R3.T)"; (2) confirm the `admin-ui` and `playground` rows in `admin-feature-ranks.json` are at the lowest rank R3.T leaves (no sibling-feature import). If R3.T has not landed, STOP and list this step as blocked on it.
@@ -330,6 +368,10 @@ Findings:
 
 ### P13-D1 · Tovu · workspace pane folder drop → `@jini-ai/ui/core` `captureFolderPathDrop` (dedupe, ~1.5 h)
 
+> **R1123 revision (Codex: NEEDS, D1–D2) — D1 is now conditional on OWNER-Q-10.** **Decide first.** Recommendation changed to **delete the unused pane** (Codex Q10) unless the owner schedules a production consumer.
+> - **If deleted:** D1 is **dropped** (no point deduping a helper in a file being removed); see D2 "delete" branch.
+> - **If retained:** D1 proceeds, with these fixes: (1) quoting is exercised **through the mounted pane** — `WorkspaceChatPane.render.test.ts` gains `dropping a folder whose path contains a space inserts it quoted into the composer` (render the pane, dispatch a `drop` with a `DataTransfer` carrying `/tmp/a b`, assert composer text `"/tmp/a b"`); mutation: bypass `formatDroppedFolderPaths` in the hook (join raw) → red; the hook-level test stays as the unit pin; (2) sequence after AX-69/AX-71 and after the chat export edits that touch the same hook file; (3) prerequisites are no longer "none".
+
 - **Jini already has it:** `packages/ui/src/features/folder-path-drop/rules.ts` exports `captureFolderPathDrop`, `formatDroppedFolderPaths`, `folderPathsFromDataTransfer` and types `FolderPathDropEvent`, `CaptureFolderPathDropInput`, all exported from `@jini-ai/ui/core` (`ui/src/core.ts:161–163`).
 - **Code removed:** `R/use-workspace-chat-pane.hooks.ts` (186) `:49–93` — the `FolderDropEvent` interface and `captureFolderDrop` with its doc block (45 lines). **Destination:** none (dedupe).
 - **Replacement:** inside the existing `useCallback`, call `captureFolderPathDrop({ event, port: getPathForFile === undefined ? undefined : { getPathForFile }, composer: composerHandle })`. Keep `useCallback` (not `useFolderPathDropCapture`) so hook order is unchanged.
@@ -341,6 +383,14 @@ Findings:
 - **Prerequisites:** none. **Removed from Tovu:** 0 files (45 lines). OWNER-Q-11 (quoting).
 
 ### P13-D2 · Jini then Tovu · `WorkspaceChatPane` → `@jini-ai/chat/react/conversation-chat-pane` (J 4 h, T 1.5 h)
+
+> **R1123 revision (Codex: NEEDS) — two branches, chosen by OWNER-Q-10 before any D-step starts.**
+> **Branch DELETE (recommended):** one Tovu commit removes `R/WorkspaceChatPane.tsx`, `R/use-workspace-chat-pane.hooks.ts`, their 3 tests, the `App.tsx:253` and `global-chat.desktop.ts:10` references, the `.runner-chat-pane` rules in `app.css` (`:1983–2210`), the `size-debt.json` row `WorkspaceChatPane#1`, the `coverage-floors.json:37` entry, and the stale P12 ledger / `stays-in-tovu.md` entries — together, so no ledger points at a missing file. `one-chat-fab-wiring.test.ts:75–77` is updated to assert the pane path is absent (not deleted). Gate: `tsc`, `pnpm guard`, desktop renderer build, the edited wiring test. No Jini change.
+> **Branch MOVE (only if the owner schedules a consumer):**
+> 1. **Split before publishing** (Codex Q12): the 92-line component becomes `ConversationChatPane` (composition, ≤ 50 lines), `ConversationChatPaneHeader` and `ConversationDeleteConfirmation`; the `size-debt.json` row is **not** carried into Jini.
+> 2. **Styles for every emitted class:** Jini ships `chat/src/react/features/conversation-chat-pane/conversation-chat-pane.css` defining `jini-conversation-chat-pane` and each `__head`, `__head-actions`, `__confirm`, `__confirm-actions`, `__confirm-delete`, `__status` element using **only** `--jini-*` tokens (layout + spacing); colours/themes stay in Tovu, which maps its theme onto those tokens. Test `every emitted jini-* class has a rule` (scan component output vs stylesheet selectors). Mutation: drop one rule → red.
+> 3. **Hook gate verified on `.tsx`:** before removing the BASE-RED "no raw React primitives" source test, run Jini `check:hooks` against a seeded `.tsx` fixture that calls `useState` in a component body; if the gate does not flag it, extend the gate in this step (and keep the Tovu source test until it does).
+> 4. Sequence: J after AX-69.J, AX-71.J and the chat export edits; T after D2.J and D1.T.
 
 - **Files:** `R/WorkspaceChatPane.tsx` (143), `R/use-workspace-chat-pane.hooks.ts` (186; 141 after D1). Not rendered in production: `one-chat-fab-wiring.test.ts:75–77` asserts `App.tsx` does not reference it; `App.tsx:253` and `development/e2e/desktop/global-chat.desktop.ts:10` say it has zero call sites. Jini has no `ConversationList` + `ChatPane` composition (`git grep '<ConversationList'` over `chat/src`, `ui/src`, `admin/src` → only its own files). OWNER-Q-10 (move vs delete).
 - **Destination:** `packages/chat/src/react/features/conversation-chat-pane/`: `components/ConversationChatPane.tsx`, `hooks/useConversationChatPane.hooks.ts`, `rules.ts` (`selectionRunContext` ← `WORKSPACE_RUN_CONTEXT`; `conversationListView` ← `workspaceConversationView`), `types.ts`, `index.ts`; new export `./react/conversation-chat-pane` (dist triple, `jini.entries` key, changeset, `pnpm api:update`).
@@ -362,6 +412,8 @@ Findings:
 ---
 
 ## 5. Owner questions
+
+> **R1123 — Codex `plans1123.md` recommendations adopted:** Q1 keep product command bodies in Tovu · Q2 accept a generic CLI runner **with injected effects** · Q3 keep Playground pending the kit merge · Q4 add the widget close slot in BX-8 and remove the Tovu header there · Q5 extract only the **opt-in** bridge · Q6 adopt locale matching · Q7 create `apps/site-chat/INFO.md` in the first landing · Q8 keep Markdown conversion injected · Q9 renderer hooks in their Jini UI features · **Q10 changed: delete the unused pane unless the owner schedules a consumer** · Q11 accept quoting if the pane remains · **Q12 changed: split the component if moved** · Q13 approve the source-assertion edit only with a verified `.tsx` hook gate and matching `jini-*` styles · Q14 add the test-support file to the ledger · Q15 approve both changes with keyboard and accessible-name assertions. The per-question text below is kept for history; where it differs, this note wins.
 
 - **OWNER-Q-1 (Area 1):** Should the Tovu command bodies (`init`, `adopt`, `export`, `serve`, `import-*`, `storage-move`, `owner-store*`, `deploy-config`) stay in Tovu as product wiring, with only the generic slices in P13-C1..C3 moving? **Recommended: yes.** Every body opens a Tovu site directory, Tovu composition or Tovu feature; their feature imports are already repointed by K5/D steps, so they shrink to wiring without P13 moving them.
 - **OWNER-Q-2 (Area 1):** `@jini-ai/cli` is "a CLI transport shell for driving a Jini daemon over HTTP". P13-C1 adds a host-bin run loop with commander-compatible error codes (as strings, no `commander` dependency). Accept that scope widening? **Recommended: yes** — the package already exports commander-shaped introspection (`introspection.ts`) and Tovu-Runner-style hosts need the same exit-code contract.
