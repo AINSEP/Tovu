@@ -158,10 +158,15 @@ export function runtimeLocale(
 /** Preserve regional matching and Chinese-script fallback for this desktop's copy tables. */
 function desktopLocaleKey({ locale }: { locale: string }): string {
   const normalized = locale.replace(/_/g, '-');
-  let key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase());
+  const keys = Object.keys(COPY);
+  const lower = normalized.toLowerCase();
+  let key = keys.find(key => key.toLowerCase() === lower);
   if (key === undefined) {
-    key = normalized.split('-')[0] ?? 'en';
-    if (normalized.toLowerCase().startsWith('zh')) key = /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
+    const language = lower.split('-')[0] ?? 'en';
+    if (language === 'zh') key = /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
+    // Why: `pt` / `pt-PT` have no table of their own, only `pt-BR`; a bare base-language lookup would miss it and
+    // show English. Fall back to the first table of the same language (exact, then base, then any regional sibling).
+    else key = keys.find(key => key.toLowerCase() === language) ?? keys.find(key => key.toLowerCase().split('-')[0] === language) ?? language;
   }
   return key;
 }

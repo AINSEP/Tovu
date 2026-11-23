@@ -63,3 +63,13 @@ test('runtimeLocale reads the navigator language and falls back to en without a 
   assert.equal(runtimeLocale({}, { navigator: null }), 'en');
   assert.equal(runtimeLocale(), globalThis.navigator.language, 'the default port is the runtime navigator');
 });
+
+test('every Portuguese locale (pt, pt-PT, pt_PT) resolves to the pt-BR copy, not English (B154)', () => {
+  const english = desktopCopy({ locale: 'en' });
+  const brazilian = desktopCopy({ locale: 'pt-BR' });
+  for (const locale of ['pt', 'pt-PT', 'pt_PT', 'PT-pt']) {
+    const copy = desktopCopy({ locale });
+    assert.deepEqual(copy, brazilian, locale);
+    assert.notEqual(copy.restart, english.restart, `${locale} is not English`);
+  }
+});
