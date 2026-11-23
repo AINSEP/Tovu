@@ -1,10 +1,11 @@
 import type { PublicAssistantSettings } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
-import type { AiAssistantPort } from "./ai-assistant-port.hooks";
+import type { AiAssistantPort } from "@jini-ai/admin/screens/assistant-settings/use-ai-assistant.hooks";
 
 /**
  * @file The only place `use-ai-assistant.hooks.ts` reaches `lib/api` — see `ai-assistant-port
- * .hooks.ts` for why the split exists.
+ * .hooks.ts` (now `AiAssistantPort` in `@jini-ai/admin/screens/assistant-settings/use-ai-assistant.hooks`)
+ * for why the split exists.
  */
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */

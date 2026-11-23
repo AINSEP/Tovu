@@ -3726,10 +3726,11 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    `.assistant-roadmap details` gets the same treatment so the checklist rows below line up with the
    blocks above instead of running out past them. */
 .assistant-switch,
+.jini-assistant-switch,
 .assistant-roadmap details { max-width: 68ch; }
-.assistant-switch { display: flex; flex-direction: column; gap: 0.5rem; }
-.assistant-switch > label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; font-weight: 600; color: var(--fg); }
-.assistant-switch p { margin: 0; }
+.assistant-switch, .jini-assistant-switch { display: flex; flex-direction: column; gap: 0.5rem; }
+.assistant-switch > label, .jini-assistant-switch > label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; font-weight: 600; color: var(--fg); }
+.assistant-switch p, .jini-assistant-switch p { margin: 0; }
 
 .assistant-roadmap { margin-top: 1.6rem; }
 .assistant-roadmap > p { margin: 0.3rem 0 0.8rem; max-width: 62ch; }
@@ -4461,7 +4462,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 
 .assistant-key-status { font-size: 12px; color: var(--jini-text-muted); }
 
-.assistant-save-line { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.assistant-save-line, .jini-assistant-save-line { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
 
 /* --- The form footer slot (`formFooter` on `ByokProviderForm`) ------------
  * "Save settings", at the foot of the card under the fields it writes. Same column
@@ -4496,18 +4497,21 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
  * `see-more.css` deliberately sets no typography of its own (only clamp
  * mechanics), which is exactly why `.assistant-intro` can own it here. */
 .settings-ui-section--page-flow .assistant-intro > p,
-.settings-ui-section--page-flow .assistant-switch p {
+.settings-ui-section--page-flow .assistant-switch p,
+.settings-ui-section--page-flow .jini-assistant-switch p {
   margin: 0 0 0.4rem;
   font-size: 12px;
   line-height: 1.55;
   color: var(--jini-text-muted);
 }
 .settings-ui-section--page-flow .assistant-intro > p:last-child,
-.settings-ui-section--page-flow .assistant-switch p:last-child { margin-bottom: 0; }
+.settings-ui-section--page-flow .assistant-switch p:last-child,
+.settings-ui-section--page-flow .jini-assistant-switch p:last-child { margin-bottom: 0; }
 
 /* The one bold thing on the tab. `600` and `--jini-text-strong` make it the
    single emphasis point now that the body copy carries no `<strong>` at all. */
-.settings-ui-section--page-flow .assistant-switch > label {
+.settings-ui-section--page-flow .assistant-switch > label,
+.settings-ui-section--page-flow .jini-assistant-switch > label {
   font-size: 13px;
   font-weight: 600;
   color: var(--jini-text-strong);
@@ -4520,12 +4524,12 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    the switch is already right and does not want changing. */
 .settings-ui-section--page-flow .assistant-execution { margin-top: 1.25rem; }
 
-/* `AssistantDaemonRestart` (`AiAssistant.tsx`) — the Local CLI daemon's manual restart control,
- * directly under the execution-mode block above. `h2`/`.muted-cell` reuse the same page typography
+/* `AssistantDaemonRestart` (`@jini-ai/admin/screens/assistant-settings`) — the Local CLI daemon's manual restart control,
+ * directly under the execution-mode block above. `h2`/`.jini-assistant-muted` reuse the same page typography
  * `RoadmapChecklist` does; only the spacing and the button row need their own rules. */
-.settings-ui-section--page-flow .assistant-daemon-restart { margin-top: 1.5rem; }
-.settings-ui-section--page-flow .assistant-daemon-restart h2 { font-size: 14px; font-weight: 600; color: var(--jini-text-strong); margin: 0 0 0.35rem; }
-.assistant-daemon-restart-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0.5rem 0; }
+.settings-ui-section--page-flow .jini-assistant-daemon-restart { margin-top: 1.5rem; }
+.settings-ui-section--page-flow .jini-assistant-daemon-restart h2 { font-size: 14px; font-weight: 600; color: var(--jini-text-strong); margin: 0 0 0.35rem; }
+.jini-assistant-daemon-restart-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0.5rem 0; }
 
 /* Matches `.jini-field-hint`, so the toggle reads as part of the form's own
    quiet layer rather than as a link competing with the copy above it. */

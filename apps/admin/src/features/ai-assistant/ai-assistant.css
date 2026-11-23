@@ -25,6 +25,12 @@
 /* `OwnerGrantStatus` (now in `@jini-ai/admin`) marks its alerts `jini-save-error`; outside a
    `.jini-page` nothing else styles that class, so carry the shared `.save-error` look here. */
 .assistant-switch .jini-save-error { color: var(--danger); font-size: 0.85rem; }
+.assistant-toggles .jini-assistant-switch { gap: 0.35rem; }
+/* `AssistantDaemonRestart` (now in `@jini-ai/admin`): its error slot is `jini-save-error` and its
+   explainer/status lines are `jini-assistant-muted`, so carry the shared `.save-error` and
+   `.muted-cell` looks here. */
+.jini-assistant-daemon-restart .jini-save-error { color: var(--danger); font-size: 0.85rem; }
+.jini-assistant-muted { color: var(--faint); font-size: 0.85rem; }
 
 /* --- Visitor tab (`VisitorAssistantPanel`) ---------------------------------------------------
    Status pill, then three numbered steps on a quiet rail. Type joins the Jini form's scale (13px

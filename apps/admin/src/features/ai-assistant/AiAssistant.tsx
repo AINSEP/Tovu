@@ -1,4 +1,4 @@
-import { createAiAssistantTranslator } from "./AiAssistant.hooks";
+import { createAiAssistantTranslator, useHostAssistantRestartAllowed } from "./AiAssistant.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
@@ -19,7 +19,9 @@ import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
-import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
+import { AdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/AdminAssistantSwitch";
+import { useAdminAssistantSwitch } from "@jini-ai/admin/screens/assistant-settings/use-admin-assistant-switch.hooks";
+import { AssistantDaemonRestart } from "@jini-ai/admin/screens/assistant-settings/AssistantDaemonRestart";
 import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
 import { AdminSubagents } from "./AdminSubagents";
 import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
@@ -35,7 +37,6 @@ import {
 } from "./rules";
 import "./ai-assistant.css";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
-import type { ProcessRestartController as AssistantDaemonRestartController } from "@jini-ai/admin/react";
 import { useWiredAssistantDaemonRestart } from "./hooks/assistant-daemon-restart-dependencies.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
@@ -164,55 +165,6 @@ function RoadmapChecklist({ t }: { t: (key: string) => string }) {
 }
 
 /**
- * Opens or closes the admin's own assistant dock — the same thing the floating action button does.
- *
- * ## Why this exists when a FAB already does it
- *
- * The FAB is a single 56px circle pinned to the bottom-right corner, and it has a history of not
- * being where the operator expects it. If it is ever off-screen, obscured, or simply not noticed,
- * the admin assistant becomes unreachable with no other affordance anywhere in the product. This is
- * the discoverable, keyboard-reachable fallback: a labelled control on the page that is *about* the
- * assistant, which is where someone looking for it would go.
- *
- * Deliberately NOT a persisted setting, unlike the public-site switch directly above it. The admin
- * assistant is always available to a signed-in administrator (see that switch's own copy) — there is
- * nothing to enable. This reflects and drives panel visibility for the current session only, which
- * is why it reads its value live rather than from `settings`. State lives in
- * `hooks/use-admin-assistant-switch.hooks.ts`.
- */
-interface AdminAssistantSwitchProps {
-  /**
-   * Dependency injection seam for tests — the same convention `features/posts/Posts.tsx`'s
-   * `usePostsHook` uses. Defaulted to the real hook, so production callers pass nothing.
-   */
-  useAdminAssistantSwitchHook?: typeof useAdminAssistantSwitch;
-  /** `AiAssistant`'s own `t`, threaded rather than read here via `useAdminLocale()` directly — see
-   *  that component's own comment for why. Required: its only caller always passes one, so the
-   *  English-passthrough default it used to carry never applied. */
-  t: (key: string) => string;
-}
-
-function AdminAssistantSwitch({
-  useAdminAssistantSwitchHook = useAdminAssistantSwitch,
-  t,
-}: AdminAssistantSwitchProps) {
-  const { open, setOpen } = useAdminAssistantSwitchHook();
-
-  // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
-  // flattens the shell's card chrome so each panel reads as one form on the page's own background.
-  // The two inline explainer paragraphs were removed (owner, 2026-10-09): the label says what it
-  // does, and the ⓘ carries the one sentence that is still useful.
-  return (
-    <div className="assistant-switch">
-      <AssistantToggleRow t={t} InfoTip={InfoTip} label={t("Open the assistant panel")}
-        info={t("Shows or hides the assistant panel in this admin.")}
-        checked={open} onChange={(open) => setOpen({ open })}
-        inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} />
-    </div>
-  );
-}
-
-/**
  * Execution mode for the ADMIN's own assistant — the Local CLI / BYOK segmented control and the
  * detected-CLI grid, mounted here directly under {@link AdminAssistantSwitch}.
  *
@@ -258,7 +210,7 @@ interface AdminExecutionModeProps {
    * above), so both convert together rather than one seaming ahead of the other.
    */
   useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
-  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). */
   t?: (key: string) => string;
 }
 
@@ -369,110 +321,6 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
 }
 
 /**
- * Manual recovery control for the Local CLI daemon process `AdminExecutionMode` just configured —
- * the "human's not gonna know how to restart a Node process" seam
- * (`apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts`, backed by `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`).
- *
- * Renders directly under `AdminExecutionMode` in the same tab, not on its own tab: this control is
- * only meaningful in the context of "Local CLI" mode (a BYOK-mode admin has no daemon process to
- * restart), and putting it beside the mode picker keeps that context visible without a separate
- * screen having to re-explain it.
- *
- * ## Why this never says "restarted successfully" or "healthy"
- *
- * `restart()`'s own contract (`@jini-ai/admin/react`'s `useProcessRestart`, bound by
- * `hooks/assistant-daemon-restart-dependencies.hooks.ts`) is that a restart being
- * ACCEPTED and the daemon becoming HEALTHY are two different facts, and only the first one is ever
- * knowable from this button press — there is no "daemon became healthy" signal anywhere in
- * `daemon-supervisor.ts`. This component's copy is written to match that exactly: the result line
- * says "accepted", never "restarted" on its own, and the status line below it says "no known
- * failure right now" rather than "healthy". Reporting anything stronger would repeat the same
- * lying-comment failure mode a past defect in this repo was caused by.
- */
-interface AssistantDaemonRestartProps {
-  useExecutionPolicy?: typeof useTovuExecutionPolicy;
-  /** Dependency injection seam for tests — same convention as `AdminExecutionModeProps
-   *  .useAdminExecutionModeHook`. */
-  useAssistantDaemonRestartHook?: () => AssistantDaemonRestartController;
-  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
-  t?: (key: string) => string;
-}
-
-function resolveAssistantDaemonRestartHook(
-  { override }: { override: (() => AssistantDaemonRestartController) | undefined },
-  _options: Record<string, never> = {},
-): () => AssistantDaemonRestartController {
-  return override ?? useWiredAssistantDaemonRestart;
-}
-
-/** The status line under the button — one of three mutually exclusive messages keyed on
- *  `knownFailed`/`checkingStatus`/`statusError`. Pulled to a top-level pure function for the same
- *  reason `visitorCredentialKeyStatusMessage` above is: an independently testable decision instead
- *  of a ternary chain inline in the component's JSX. */
-export function assistantDaemonStatusMessage(
-  controller: Pick<AssistantDaemonRestartController, "knownFailed" | "checkingStatus" | "statusError">,
-  { t = (key) => key }: { t?: Translate } = {},
-): string | null {
-  if (controller.statusError) return controller.statusError;
-  if (controller.checkingStatus && controller.knownFailed === null) return t("Checking status…");
-  if (controller.knownFailed === true) return t("Known failed — the last attempt to start it did not succeed.");
-  if (controller.knownFailed === false) return t("No known failure right now.");
-  return null;
-}
-
-export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
-  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook({ override: props.useAssistantDaemonRestartHook });
-  const t = resolveT({ override: props.t });
-  const controller = useAssistantDaemonRestartHook();
-  const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
-  const statusMessage = assistantDaemonStatusMessage(controller, { t });
-  // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
-  // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
-  // whose required config-change sink would have been a no-op nobody could ever invoke here.
-  const usePolicy = props.useExecutionPolicy ?? useTovuExecutionPolicy;
-  const executionPolicy = usePolicy({ config: DEFAULT_EXECUTION_CONFIG, locale: useAdminLocale() });
-  if (!executionPolicy.allowed) return null;
-
-  return (
-    <section className="assistant-daemon-restart">
-      <h2>{t("Local CLI process")}</h2>
-      <p className="muted-cell">
-        {t(
-          "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
-        )}
-      </p>
-      <div className="assistant-daemon-restart-actions">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => void restart()}
-          disabled={restarting}
-          {...agentHandle({ handle: "ai-assistant-daemon-restart" }, { role: "button", label: "Restart the Local CLI assistant process" })}
-        >
-          {restarting ? t("Restarting…") : t("Restart assistant")}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => void checkStatus()}
-          disabled={checkingStatus}
-          {...agentHandle({ handle: "ai-assistant-daemon-check-status" }, { role: "button", label: "Check the Local CLI assistant process status" })}
-        >
-          {t("Check status")}
-        </button>
-      </div>
-      {restartError ? <div className="save-error">{restartError}</div> : null}
-      {!restartError && restartResult ? (
-        <p className="assistant-save-line" role="status">
-          {assistantRestartResultMessage({ result: restartResult, t })}
-        </p>
-      ) : null}
-      {statusMessage ? <p className="muted-cell" role="status">{statusMessage}</p> : null}
-    </section>
-  );
-}
-
-/**
  * The SITE's provider credential — the key that lets anonymous VISITORS chat on the deployed public
  * site. Reuses `@jini-ai/ui`'s `ByokProviderForm` unmodified, the same component
  * `features/settings/SettingsUi.tsx`'s Execution-mode tab renders, because this is deliberately the same
@@ -526,7 +374,7 @@ type VisitorCredentialKeyFooterProps = Pick<
   VisitorCredentialFormController,
   "saveState" | "stored" | "storedKeyIsForOtherEndpoint" | "discovery"
 > & {
-  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
    *  finding "Save key"/"Test Key" by their exact English accessible names. */
   t?: (key: string) => string;
@@ -540,7 +388,7 @@ type VisitorCredentialSettingsFooterProps = Pick<
   VisitorCredentialFormController,
   "dirty" | "settingsSaveState" | "saveSettings"
 > & {
-  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). */
   t?: (key: string) => string;
 };
 
@@ -549,7 +397,7 @@ type VisitorCredentialSettingsFooterProps = Pick<
  *  `visitorCredentialApiKeyPlaceholder` above: it was three sibling ternaries in the footer's JSX,
  *  now one independently testable decision. */
 /**
- * @param t - `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to
+ * @param t - `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). Defaults to
  *   English passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct, locale-unaware calls
  *   keep asserting the exact English strings they always have.
  */
@@ -722,7 +570,7 @@ export { visitorCredentialApiKeyPlaceholder } from "./rules";
 
 interface VisitorCredentialFormProps {
   useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
-  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc (`@jini-ai/admin`). Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
    *  finding "Provider"/the intro copy by their exact English text. */
   t?: (key: string) => string;
@@ -973,12 +821,16 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
           {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
               deletes used to sit under the whole CLI grid, a long scroll from the top. */}
           <div className="assistant-toggles">
-            <AdminAssistantSwitch t={t} />
+            <AdminAssistantSwitch t={t} InfoTip={InfoTip} useAdminAssistantSwitchHook={useAdminAssistantSwitch} />
             <AdminSubagents t={t} />
             <AdminPermanentDeletes t={t} />
           </div>
           <AdminExecutionMode t={t} />
-          <AssistantDaemonRestart t={t} />
+          <AssistantDaemonRestart t={t} useAssistantDaemonRestartHook={useWiredAssistantDaemonRestart}
+            useRestartAllowedHook={useHostAssistantRestartAllowed}
+            description={t(
+              "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
+            )} />
         </>
       ),
     },
@@ -1065,13 +917,6 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       </I18nProvider>
     </div>
   );
-}
-
-/** A restart acknowledgement describes acceptance, never inferred process health. */
-function assistantRestartResultMessage({ result, t }: { result: NonNullable<AssistantDaemonRestartController["restartResult"]>; t: (key: string) => string }, _options: Record<string, never> = {}): string {
-  return result.ok
-    ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
-    : t("Restart refused: {reason}").replace("{reason}", () => result.reason ?? "");
 }
 
 /** An unrecognized saved endpoint keeps the select on its custom-endpoint placeholder. */

@@ -41,6 +41,14 @@ introduced by this feature move — do not "fix" it as a side effect of an unrel
   `describeApiError`) and the stored-key endpoint rules (`lib/stored-credential-endpoint.ts`);
   `AiAssistant.tsx` passes the wired hooks and `InfoTip` into the panel. The form's markup and its
   status-line copy (`rules.ts`'s `visitorCredential*StatusMessage`) stay here.
+- The Admin tab's dock switch (`AdminAssistantSwitch` + `useAdminAssistantSwitch`), the Local CLI
+  restart control (`AssistantDaemonRestart`, its restart gating and status/result lines) and the
+  public-settings hook (`useAiAssistant` + `AiAssistantPort`) live in
+  `@jini-ai/admin/screens/assistant-settings/*`. `AiAssistant.tsx` passes the bound hooks, `InfoTip`
+  and the restart explainer copy; `AiAssistant.hooks.ts` binds the restart gate
+  (`useHostAssistantRestartAllowed` over the execution policy) and `hooks/use-ai-assistant.hooks.ts`
+  binds the settings client and `describeApiError` (`useWiredAiAssistant`) beside the host-owned tab
+  state. `AdminExecutionMode` and its slice hook stay here (ledger slice, BYOK footers, Local CLI policy).
 - The settings DTOs (`PublicAssistantSettings`, `AdminExecutionDetectedAgent`, visitor-tools view
   types) live in `@jini-ai/core/contracts/site/api-ai-assistant-api-types`.
 - Translations stay here (`ai-assistant-i18n.ts`, `visitor-tools-i18n.ts`) and reach the engine
