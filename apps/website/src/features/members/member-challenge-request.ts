@@ -3,7 +3,8 @@ import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-
 import { randomInt } from "node:crypto";
 import { newChallengeSecrets, hashChallengeCode } from "@jini-ai/user-management/server";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
-import { renderMemberAuthMail } from "./auth-mail.js";
+import { renderMemberAuthMail } from "@jini-ai/user-management/members/auth-mail";
+import { renderEmailForSend } from "@jini-ai/platform/mail/email-template";
 import { MemberSignInUnavailableError } from "./types.js";
 import type { MembersWriteServiceDeps } from "./ports.js";
 import { memberPasswordHasher, memberSessionTokens } from "./member-credentials.js";
@@ -110,7 +111,7 @@ export async function prepareMemberChallenge(required: {
     await saveMemberChallenge({ deps, member, email, purpose, challengeId, nowIso,
       tokenHash: secrets.tokenHash, codeHash, workspaceId: input.workspaceId });
     const message: OutboundEmail = { workspaceId: input.workspaceId, to: { email }, from,
-      ...renderMemberAuthMail({ purpose, link, code: secrets.code }) };
+      ...renderMemberAuthMail({ purpose, link, code: secrets.code, renderEmailForSend }) };
     const sendOptions: MailerSendOptions = {
       // Reuse the sign_in activity/capture-redaction prefix for reset mail too.
       idempotencyKey: `members:signin:${purpose === "password_reset" ? "reset:" : ""}${secrets.tokenHash}`,
