@@ -41,8 +41,13 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   chokepoint (`writeFormDeliveryBindings`, `writeMailProviderSetting`, from `@jini-ai/cms/settings/site/*`)
   take `writePolicies: SETTINGS_WRITE_POLICIES` at their call sites (`composition/site-mailer.ts`,
   `composition/agent-plugin-connections.ts`).
-- `tool-registrations.ts` binds `validateRuntimeSelection` (`@jini-ai/agent-runtime`) on
-  `prepareChatExecutionWrite`, and narrows `SettingsToolDeps` to Tovu's `AssistantAgentInventory`.
+- `tool-registrations.ts` is a host binding file: it keeps Tovu's rule tables
+  (`TOVU_CONFIRMATION_SETTINGS`, `MAIL_SETTINGS_WRITE_DENIALS`, form-routing rules, the subagent /
+  permanent-delete / consent denials), the settings card copy (`SETTINGS_CONFIRM_COPY`) and
+  `toolMetadata`, and builds `confirmWrite` with `settingsConfirmWrite`
+  (`@jini-ai/cms/settings/site/settings-confirm-write`), passing `surfaces`, `routeDeps`,
+  `approvalToolHandler` (`contracts/core/human-confirm`), `validateRuntimeSelection`
+  (`@jini-ai/agent-runtime`) and the copy. It narrows `SettingsToolDeps` to Tovu's `AssistantAgentInventory`.
 - Visitor-tools management lives in `@jini-ai/cms/settings/site/visitor-tools-*`.
   `settings-write-policies.ts` binds Tovu's policy contract once as `VISITOR_TOOLS_HOST` (setting,
   permission, limits, `VisitorToolPolicyValidationError`, `parseVisitorToolPolicy`, ...), passed as

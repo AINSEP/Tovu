@@ -34,16 +34,15 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
  * / largest SCC 0 with `settings` wired this way.
  */
 import type { ToolContributor } from "@jini-ai/core";
-import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { ToolRegistration } from "@jini-ai/core";
 import { buildSettingsRegistrations as buildCmsSettingsRegistrations, AGENT_WRITE_CONFIRMATION_SETTINGS, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
 import { DEDICATED_SETTINGS_WRITERS, set } from "./settings-write-policies.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "@jini-ai/cms/settings/site/admin-interface";
-import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "@jini-ai/cms/settings/site/chat-execution-write";
-
-export { settingsDerivedRisk } from "@jini-ai/core/settings";
+import { CHAT_EXECUTION_KEYS } from "@jini-ai/cms/settings/site/chat-execution-write";
+import { settingsConfirmWrite, type SettingsConfirmWriteCopy } from "@jini-ai/cms/settings/site/settings-confirm-write";
 
 import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { SettingsToolDeps as SiteSettingsToolDeps } from "@jini-ai/cms/settings/site/tool-deps";
@@ -79,6 +78,17 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
   ...FORM_ROUTING_SETTINGS,
 ];
 
+/** The settings card's wording (`settingsConfirmWrite` builds the card; the words are the host's). */
+const SETTINGS_CONFIRM_COPY: SettingsConfirmWriteCopy = {
+  errorCode: "SETTINGS",
+  setTitle: "Change this assistant setting?",
+  clearTitle: "Clear this assistant setting override?",
+  descriptionSuffix: ". This change requires your confirmation every time.",
+  clearProposed: "Fall back to the next layer or default",
+  confirmLabel: "Confirm change",
+  labels: { plugin: "Plugin", pluginVersion: "Plugin version", setting: "Setting", scope: "Scope", resultingSelection: "Resulting chat selection" },
+};
+
 /** Personal grants belong to the person: a saved plugin grant must never silently flip Ask first
  * to Auto, clear an Off override, or grant control of the person's logged-in Chrome. Every access
  * change below uses a fresh common card, including execution settings and privacy/instructions. */
@@ -94,47 +104,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
       ...DEDICATED_SETTINGS_WRITERS.map(({ namespace, key, reason }) => ({ namespace, key, reason }))],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
-    // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
-    // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
-    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, expectedRevisionSeq, value, reason }, options?: ToolExecutionOptions) => {
-      const request = { ctx, toolId, namespace, key, scope, value };
-      const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request, validateRuntimeSelection });
-      // Enabling a plugin does not approve later setting changes; preserve its admitted identity
-      // across the fresh card while the settings owner retains authorization and revision checks.
-      const handler = approvalToolHandler({ surfaces,
-        prepare: async ({ ctx: snapshot }) => {
-          const identity = await routeDeps.approvalIdentityForRun?.({ ctx: snapshot });
-          return { identityKey: identity?.key, identity };
-        },
-        describe: ({ prepared }) => {
-          return { toolId, errorCode: "SETTINGS",
-            title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-            description: reason + ". This change requires your confirmation every time.",
-            access: { resources: [{
-              id: `${namespace}.${key}:${scope}`, label: `${namespace}.${key}`,
-              scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId },
-              previous, proposed: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : value ?? null,
-              revision: String(expectedRevisionSeq),
-            }] },
-            details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
-              ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
-              ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.parse(selectionSnapshot) }] : [])],
-            confirmLabel: "Confirm change",
-          };
-        },
-        // The settings owner retains fresh authorization, layer-sequence and definition-version checks.
-        run: async ({ ctx: snapshot, prepared }) => {
-          // The model/effort depends on the selected runtime too. Consent must not drift to a
-          // different selection if another picker changes it while this card is held open.
-          const currentSelection = await prepareChatExecutionWrite({ deps: routeDeps, request: { ...request, ctx: snapshot }, validateRuntimeSelection });
-          const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
-          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.identityKey && currentSelection === selectionSnapshot };
-        },
-      }, { declined: () => ({ confirmed: false }) });
-      // No credentials enter this description; they use the secret-card engine and separate stores.
-      const result = await handler(ctx, options) as { confirmed: boolean; key?: string };
-      return result.confirmed;
-    },
+    confirmWrite: settingsConfirmWrite({ surfaces, routeDeps, approvalToolHandler, validateRuntimeSelection, copy: SETTINGS_CONFIRM_COPY }),
   }) });
 }
 
