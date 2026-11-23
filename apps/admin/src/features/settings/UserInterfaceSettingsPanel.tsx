@@ -1,7 +1,7 @@
 import { createUserInterfaceSettingsPanelTranslator } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import "./user-interface-settings.css";
+import "@jini-ai/admin/screens/settings/user-interface-settings.css";
 import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-user-interface-tab.hooks";
 
 /**
@@ -51,10 +51,10 @@ function InterfaceSwitchRow(props: {
   agentLabel: string;
 }) {
   return (
-    <div className="settings-interface-row">
-      <div className="settings-interface-text">
-        <span id={props.id} className="settings-interface-label">{props.label}</span>
-        <p className="settings-interface-hint">{props.hint}</p>
+    <div className="jini-settings-interface-row">
+      <div className="jini-settings-interface-text">
+        <span id={props.id} className="jini-settings-interface-label">{props.label}</span>
+        <p className="jini-settings-interface-hint">{props.hint}</p>
       </div>
       <button
         type="button"
