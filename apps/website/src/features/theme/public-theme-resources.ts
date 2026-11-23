@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { resolveProductRoot } from "../../platform/site-dir/product-root.js";
-import type { PublicThemeResources } from "../../contracts/core/public-page-security-headers.js";
+import type { PublicThemeResources } from "@jini-ai/core/contracts/site/core-public-page-security-headers";
 
 /**
  * @file The shipped public-theme resource declarations, loaded lazily. Kept apart from

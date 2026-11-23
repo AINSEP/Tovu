@@ -1,6 +1,6 @@
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
 import { createChatRunLedger as createLedger } from "@jini-ai/chat/store/runtime";
 import { chatKernel, type ChatKernel } from "#src/platform/db/chat-kernel";

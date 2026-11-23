@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { getNav, type AdminNavItem } from "../nav";
+import { getNav } from "../nav";
+import type { AdminNavItem } from "@jini-ai/core/contracts/site/nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";

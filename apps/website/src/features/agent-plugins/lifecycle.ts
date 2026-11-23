@@ -1,29 +1,20 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */
 import path from "node:path";
 import * as nodeFs from "node:fs/promises";
 import {
-  createAgentPluginLifecycle,
-  type AgentPluginLifecycleOptional,
-  type AgentPluginArchiveEntry as JiniArchiveEntry,
-  type AgentPluginArchiveReaderPort as JiniArchiveReader,
-  type AgentPluginLayoutPort,
+  createAgentPluginLifecycle, type AgentPluginLifecycleOptional,
   type InstallAgentPluginRequired as JiniInstallRequired,
-  type UninstallAgentPluginRequired as JiniUninstallRequired,
   type SeedBundledAgentPluginsRequired as JiniSeedRequired,
   type RetireBundledAgentPluginsRequired as JiniRetireRequired,
-  type TrustedPluginPackagesQuery as JiniTrustedQuery,
-  type TrustedPluginPackage,
-  type InstalledAgentPlugin as JiniInstalledAgentPlugin,
-  type AgentPluginDeliveryMode,
-  type PluginContributionDefinition,
-  type LoadPluginContributionsOptional,
-  type FilesystemPort,
+  type TrustedPluginPackagesQuery as JiniTrustedQuery, type TrustedPluginPackage,
+  type AgentPluginDeliveryMode, type PluginContributionDefinition,
+  type LoadPluginContributionsOptional, type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugins";
-import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
+import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
 import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
@@ -35,6 +26,11 @@ import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
   type SupersessionManifestsPort,
 } from "./supersession.js";
+import type {
+  AgentPluginArchiveEntry as JiniArchiveEntry, AgentPluginArchiveReaderPort as JiniArchiveReader,
+  AgentPluginLayoutPort, UninstallAgentPluginRequired as JiniUninstallRequired,
+  InstalledAgentPlugin as JiniInstalledAgentPlugin,
+} from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export {
   AgentPluginInstallError, AgentPluginNotFoundError, AgentPluginNotUninstallableError,
@@ -42,14 +38,12 @@ export {
   defineExecutablePluginContribution, defineProviderContribution, contributeProviders,
 } from "@jini-ai/agent-plugins/lifecycle";
 export type {
-  AgentPluginInstallErrorCode, InstalledAgentPluginSkill, InstalledAgentPlugin,
-  InstallAgentPluginOptional, UninstallAgentPluginOptional, UninstallAgentPluginResult,
-  AgentPluginUninstallPreview, StagedTree, SeededAgentPluginOutcome, SeedBundledAgentPluginsResult,
-  RetiredAgentPluginOutcome, RetiredAgentPluginSuccessorOutcome, RetireBundledAgentPluginsOptional,
-  BundledAgentPluginDigests, SeededBundledAgentPluginDigest, InstalledDigestIdentity,
-  PackedAgentPluginArchive, AgentPluginSearchSkill, AgentPluginSearchCandidate, AgentPluginSearchMatch,
-  TrustedPluginPackage, TrustedPluginVerdict, AgentPluginDeliveryMode, ResolveAgentPluginRefsResult,
-  PluginContributionDefinition,
+  AgentPluginInstallErrorCode, InstallAgentPluginOptional, StagedTree, SeededAgentPluginOutcome,
+  SeedBundledAgentPluginsResult, RetiredAgentPluginOutcome, RetiredAgentPluginSuccessorOutcome,
+  RetireBundledAgentPluginsOptional, BundledAgentPluginDigests, SeededBundledAgentPluginDigest,
+  InstalledDigestIdentity, PackedAgentPluginArchive, AgentPluginSearchSkill,
+  AgentPluginSearchCandidate, AgentPluginSearchMatch, TrustedPluginPackage, TrustedPluginVerdict,
+  AgentPluginDeliveryMode, ResolveAgentPluginRefsResult, PluginContributionDefinition,
 } from "@jini-ai/agent-plugins/lifecycle";
 export { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS } from "./bundled-catalog.js";
 

@@ -1,5 +1,5 @@
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 

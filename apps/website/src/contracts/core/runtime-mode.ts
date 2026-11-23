@@ -10,7 +10,7 @@
  * not depend on their host's server transport module to resolve it.
  */
 
-export type RuntimeMode = "production" | "local";
+import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 
 export interface ResolveRuntimeModeOptions {
   /** Defaults to the real `process.env` when this whole options object is omitted. */

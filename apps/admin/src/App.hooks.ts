@@ -47,7 +47,7 @@ import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refres
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
-import type { AdminNavGroup } from "./nav";
+import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
 

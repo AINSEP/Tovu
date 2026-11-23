@@ -1,6 +1,8 @@
-import { buildToolGapsRegistrations, toolGapsDerivedRisk, type ToolGapsToolDeps } from "./tool-gaps-tool.js";
+import { buildToolGapsRegistrations, toolGapsDerivedRisk } from "./tool-gaps-tool.js";
+import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
-import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
+import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
@@ -104,7 +106,7 @@ export type ToolContributor = import("@jini-ai/core").ToolContributor<AssistantT
 export type DerivedToolContributor = import("@jini-ai/core").DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type AssistantToolContributions = GenericToolContributions<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
 export type PeerSiteReads = GenericPeerSiteReads<AssistantToolRegistryDeps>;
-export type DuplicateResourceHandlerContributor = import("./tool-contributions.js").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
+export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contracts/site/assistant-tool-contributions").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
 
 
 /**

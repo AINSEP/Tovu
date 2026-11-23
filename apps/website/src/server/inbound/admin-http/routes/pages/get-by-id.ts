@@ -6,7 +6,8 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
-import type { PluginExportCatalogRow, PluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import type { PluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import type { PluginExportCatalogRow } from "@jini-ai/core/contracts/headless/plugin-export-catalog";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Only describe exports already authored on this page; catalog discovery still belongs to

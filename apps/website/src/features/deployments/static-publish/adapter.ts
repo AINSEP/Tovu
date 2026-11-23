@@ -11,7 +11,7 @@ import { withDeclaredHosts } from "@jini-ai/core/contracts/server/security-heade
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget  } from "#src/features/deployments/deploy-targets/types";
 import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and

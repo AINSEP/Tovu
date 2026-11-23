@@ -1,5 +1,5 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { nodeFileLock } from "@jini-ai/node-adapters/fs";
 import { createPluginModuleImporter, createPluginRuntimeCore, type PluginRuntimeCoreBindings, type PluginRuntimeSource, type PluginRuntimeText } from "@jini-ai/plugins/host/node";
@@ -32,7 +32,7 @@ export interface ComposePluginRuntimeRequired {
   readonly browserProviderApprovals?: readonly BundledBrowserProviderApproval[];
   readonly bundledEnabledIds?: readonly string[];
   readonly pluginSourcePolicy?: PluginSourcePolicyPort;
-  readonly getPluginHost?: () => import("#src/contracts/headless/index").PluginHostPort | undefined;
+  readonly getPluginHost?: () => import("@jini-ai/core/contracts/headless/plugin-host").PluginHostPort | undefined;
   readonly workspaceId: string;
   readonly clock: ClockPort;
   readonly activationRepo: PluginActivationRepoPort;

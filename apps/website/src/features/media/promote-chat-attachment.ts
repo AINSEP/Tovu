@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/site/media';
 /**
  * @file The chat-attachment -> media-library bridge: `media_promote_chat_attachment`, closing the
  * capability gap `2026-09-06-handoff-to-tovu-73.md` diagnosed — `media_upload_asset`

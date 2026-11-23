@@ -11,7 +11,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallSourcePort } from "../../contracts/headless/index.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { agentPluginActivations } from "./activation-effects.js";
 import { listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
 import { CUSTOMIZE_AGENT_PLUGIN_TOOL, customizeAgentPluginCatalog, prepareCustomizedAgentPluginArchive } from './customize-tool.js';
@@ -23,7 +23,7 @@ import { CUSTOMIZE_AGENT_PLUGIN_TOOL, customizeAgentPluginCatalog, prepareCustom
 export type AgentPluginsInstallToolDeps = {
   readonly pluginInstallSource: PluginInstallSourcePort;
   readonly snapshotAgentPluginSettings?: UpdateAgentPluginRequired["snapshotSettings"];
-  readonly pluginHost?: import("../../contracts/headless/index.js").PluginHostPort;
+  readonly pluginHost?: import("@jini-ai/core/contracts/headless/plugin-host").PluginHostPort;
   readonly workspaceId: string;
   readonly authorize: AuthorizeFn;
   readonly readInstallAttachment?: InstallAttachmentReader;

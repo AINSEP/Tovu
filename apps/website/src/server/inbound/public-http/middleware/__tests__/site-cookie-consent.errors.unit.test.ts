@@ -3,7 +3,7 @@ import test, { mock } from 'node:test';
 import type { Express, Request, Response } from 'express';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
-import type { SiteCookieConsentDeps } from '#src/contracts/headless/index';
+import type { SiteCookieConsentDeps } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 
 const fs = await import('node:fs');
 let failAssets = false;

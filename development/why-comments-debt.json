@@ -2820,6 +2820,74 @@
     {
       "id": "28f706b8b49b",
       "reason": "Moved to Jini @jini-ai/admin/src/shell/lib/router.ts (ex5-fnd-kit, A-adm-shell-*/A-K2-shell-*); product name -> 'the host' and host path citations reworded neutral per N1/N2, why kept."
+    },
+    {
+      "id": "1611b5b283ce",
+      "reason": "Moved to Jini core contracts/site/api-ai-assistant-api-types.ts (SiteAssistantCredential doc, Jini ad38a80c4), host file paths and ADR id reworded neutral."
+    },
+    {
+      "id": "4de8bc2ce14c",
+      "reason": "Moved to Jini core contracts/site/api-ai-assistant-api-types.ts (site credential PUT body doc, Jini ad38a80c4), reworded neutral."
+    },
+    {
+      "id": "6ac49c8e572f",
+      "reason": "Moved to Jini core contracts/site/api-ai-assistant-api-types.ts (AdminExecutionCredential doc, Jini ad38a80c4), host file paths reworded neutral."
+    },
+    {
+      "id": "ad7f69182817",
+      "reason": "Comment re-pointed: ServerLogEntry now lives in Jini core contracts/site/platform-server-logs.ts (Jini 9e676a713); the admin comment names the core copy."
+    },
+    {
+      "id": "cceb7a862edc",
+      "reason": "Moved to Jini core tool-metadata/site/forms.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index, which has no Jini counterpart."
+    },
+    {
+      "id": "28a9b2b2cb37",
+      "reason": "Moved to Jini core tool-metadata/site/identity.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "15efc3d83ed9",
+      "reason": "Moved to Jini core tool-metadata/site/mail-status.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "bb06f7589991",
+      "reason": "Moved to Jini core tool-metadata/site/media-import.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "66bda7081a29",
+      "reason": "Moved to Jini core tool-metadata/site/media.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "57b493d7023c",
+      "reason": "Moved to Jini core tool-metadata/site/navigation.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "7e1c895e5347",
+      "reason": "Moved to Jini core tool-metadata/site/pages.ts (Jini 00db92090); './index.ts' reworded to the host's catalog index."
+    },
+    {
+      "id": "a1349344e70b",
+      "reason": "Moved to Jini core contracts/headless/plugin-host.ts (Jini 10b687788); the host env var name reworded to 'the host's configured override directory'."
+    },
+    {
+      "id": "15eb76c128cc",
+      "reason": "Moved to Jini core contracts/headless/site-cookie-consent.ts (Jini 10b687788); the vendor name reworded to 'an analytics adapter's SDK'."
+    },
+    {
+      "id": "6e3cfb5d2fed",
+      "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); {@link} to a host function made plain text."
+    },
+    {
+      "id": "265e9e3a6aa6",
+      "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host env var name reworded neutral."
+    },
+    {
+      "id": "ba901fac63ac",
+      "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host env var name reworded neutral."
+    },
+    {
+      "id": "e3e72647b3a2",
+      "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host CLI command reworded neutral."
     }
 ]
 }

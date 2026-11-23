@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminExecutionCredential } from "../../features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminExecutionCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { ApiError } from "../admin-http/request";
 import {
   STORED_KEY_NO_ENDPOINT_COPY,

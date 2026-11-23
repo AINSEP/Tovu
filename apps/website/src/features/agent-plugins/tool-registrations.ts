@@ -16,7 +16,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
-import type { OperatorLocaleDeps } from "../../contracts/headless/index.js";
+import type { OperatorLocaleDeps, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -30,7 +30,6 @@ import {
   saveAgentPluginToken,
   type AgentPluginAccessTokenToolDeps,
 } from "./access-token-tool.js";
-import type { AgentPluginLayout } from "./layout.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { AGENT_PLUGIN_HOST_TOOL_MESSAGES, AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";

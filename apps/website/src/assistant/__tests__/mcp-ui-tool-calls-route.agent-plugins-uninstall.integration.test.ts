@@ -14,7 +14,8 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type InstalledAgentPlugin } from "../../features/agent-plugins/lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
+import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";

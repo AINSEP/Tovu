@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import type { CredentialWarning } from "./credential-warnings.js";
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
@@ -7,6 +6,7 @@ import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PA
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
 import { isStaticSitePath } from "./static-copy.js";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 /**
  * @file The archive half of `verifySiteImport`: the metadata-only first pass, the manifest contract,

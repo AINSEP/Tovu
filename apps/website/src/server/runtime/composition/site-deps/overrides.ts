@@ -2,7 +2,8 @@ import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/co
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ProjectStore } from "../project-store.js";
 import type { RouteDeps } from "../../../routes/types.js";
-import { describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { SiteStore, SiteStoreRole } from "../open-site-store.js";
 import { bootProviderPlugins } from "../provider-plugins.js";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
-import type { AgentEvent, ChatMessage, ChatTransport } from "@jini-ai/chat/core";
+import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "../AgentFailureCard";
 import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
@@ -14,6 +14,7 @@ import { FolderDropError } from "../FolderDropError";
 import { FolderDropPathHint } from "../FolderDropPathHint";
 import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 afterEach(cleanup);
 const reason = "IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google";

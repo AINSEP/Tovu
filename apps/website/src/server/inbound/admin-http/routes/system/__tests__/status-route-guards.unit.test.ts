@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { ServerLogEntry } from "#src/platform/server-logs/index";
+import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import type { MailerPort } from "#src/platform/mail/index";
 import { registerAdminAssistantDaemonRoutes } from "../assistant-daemon.js";
 import { registerAdminMailStatusRoute } from "../mail-status.js";

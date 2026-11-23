@@ -2,7 +2,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInp
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/custom-credentials.js";
-import type { DevRestartPort } from "../../platform/dev-supervisor/dev-restart.js";
+import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import type { ProjectKeysPort } from "./service.js";
 

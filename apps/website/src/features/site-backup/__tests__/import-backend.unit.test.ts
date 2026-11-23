@@ -11,7 +11,7 @@ import { SHARE_LIMITS } from "../share-policy.js";
 import type { HttpResponse } from "../../../platform/http/index.js";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { ProductEvent } from "@jini-ai/core/contracts/observability";
 
 const UPLOAD_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";

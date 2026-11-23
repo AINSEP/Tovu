@@ -22,7 +22,8 @@
 import nodeFs from "node:fs";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import path from "node:path";
-import { SITE_NAME_PATTERN, type SiteBinding } from "#src/platform/site-dir/index";
+import { SITE_NAME_PATTERN } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 /** JPEG: a 640px screenshot is ~40 KB here against ~300 KB as PNG, and it is only a thumbnail. */
 export const SITE_PREVIEW_CONTENT_TYPE = "image/jpeg";

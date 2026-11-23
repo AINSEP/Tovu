@@ -1,10 +1,7 @@
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import type { ToolGapReadPort } from '../features/tool-audit/tool-gaps.js';
+import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
-export interface ToolGapsToolDeps {
-  ownerPrincipalId: Promise<string>; workspaceId: string; toolGaps?: ToolGapReadPort;
-}
 export const toolGapsDerivedRisk: DerivedRiskByToolId = new Map([['tool_gaps_list', 'none']]);
 
 /** The owner-only audit tool's catalog, shared by registration and contract checks. */

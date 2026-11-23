@@ -1,5 +1,5 @@
 import { formatErrorForLog } from "@jini-ai/core";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
