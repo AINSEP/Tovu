@@ -16,7 +16,8 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
-import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
+import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 import {
@@ -29,7 +30,7 @@ import {
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
 import { EXTERNAL_MCP_PRODUCT_VARS } from "../../integrations/jini-admin/settings-external-mcp-copy";
 import { useHostExternalMcpOAuthConnect } from "../../integrations/jini-admin/settings-external-mcp-oauth-connect.hooks";
-import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
+import { buildExternalMcpRemoveConfirmCopy, isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -466,6 +467,8 @@ function ExternalMcpRemoveConfirmSection(props: {
       onConfirm={() => onConfirm(source.id)}
       onCancel={onCancel}
       t={tDrift}
+      ConfirmDialog={ConfirmActionDialog}
+      buildCopy={buildExternalMcpRemoveConfirmCopy}
     />
   );
 }

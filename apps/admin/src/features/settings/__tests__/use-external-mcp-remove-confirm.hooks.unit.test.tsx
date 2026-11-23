@@ -1,7 +1,12 @@
 import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ExternalMcpRemoveConfirmDialog } from "../ExternalMcpRemoveConfirmDialog";
+import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
+import { ConfirmActionDialog } from "../../../components/ConfirmActionDialog";
+import { buildExternalMcpRemoveConfirmCopy } from "../rules";
+
+// Host integration: the moved dialog with this host's own markup (`ConfirmActionDialog`) and copy bound in.
+const HOST = { ConfirmDialog: ConfirmActionDialog, buildCopy: buildExternalMcpRemoveConfirmCopy };
 
 // F2.3/F3.3/F6.2: use the real dialog, DOM listeners and focus trap; exercise update and unmount.
 // Author Checklist: literal OAuth copy, exact callback delivery, real keyboard input, fresh renders.
@@ -13,7 +18,7 @@ describe("MCP removal confirmation lifecycle", () => {
     const actions: string[] = [];
     const onCancel = vi.fn(() => { actions.push("cancel"); });
     const onConfirm = vi.fn(() => { actions.push("confirm"); });
-    render(<ExternalMcpRemoveConfirmDialog name="Atlas" isOAuth={false} cardHandle="atlas"
+    render(<ExternalMcpRemoveConfirmDialog {...HOST} name="Atlas" isOAuth={false} cardHandle="atlas"
       t={(key) => key} onCancel={onCancel} onConfirm={onConfirm} />);
     const dialog = screen.getByRole("dialog", { name: 'Remove "Atlas"?' });
     await user.click(within(dialog).getByRole("heading"));
@@ -33,7 +38,7 @@ describe("MCP removal confirmation lifecycle", () => {
     const onCancel = vi.fn();
     const onConfirm = vi.fn();
     render(<>
-      <ExternalMcpRemoveConfirmDialog name="Atlas" isOAuth={false} cardHandle="atlas"
+      <ExternalMcpRemoveConfirmDialog {...HOST} name="Atlas" isOAuth={false} cardHandle="atlas"
         t={(key) => key} onCancel={onCancel} onConfirm={onConfirm} />
       <button>Outside</button>
     </>);
@@ -59,12 +64,12 @@ describe("MCP removal confirmation lifecycle", () => {
     const first = vi.fn();
     const second = vi.fn();
     const props = { name: "Atlas", isOAuth: false, cardHandle: "atlas", t: (key: string) => key, onConfirm: vi.fn(), onCancel: first };
-    const { rerender, unmount } = render(<ExternalMcpRemoveConfirmDialog {...props} />);
+    const { rerender, unmount } = render(<ExternalMcpRemoveConfirmDialog {...HOST} {...props} />);
     await user.keyboard("x");
     expect(first).not.toHaveBeenCalled();
     await user.keyboard("{Escape}");
     expect(first.mock.calls).toEqual([[]]);
-    rerender(<ExternalMcpRemoveConfirmDialog {...props} onCancel={second} />);
+    rerender(<ExternalMcpRemoveConfirmDialog {...HOST} {...props} onCancel={second} />);
     await user.keyboard("{Escape}");
     expect(first.mock.calls).toEqual([[]]);
     expect(second.mock.calls).toEqual([[]]);
@@ -77,10 +82,10 @@ describe("MCP removal confirmation lifecycle", () => {
   it("changes the warning and server identity when switching from plain credentials to OAuth", () => {
     // Mutation: force isOAuth: false when building the copy; reconnect warning disappears.
     const props = { name: "Atlas", isOAuth: false, cardHandle: "atlas", t: (key: string) => key, onConfirm: vi.fn(), onCancel: vi.fn() };
-    const { rerender } = render(<ExternalMcpRemoveConfirmDialog {...props} />);
+    const { rerender } = render(<ExternalMcpRemoveConfirmDialog {...HOST} {...props} />);
     expect(screen.getByRole("dialog")).toHaveAccessibleName('Remove "Atlas"?');
     expect(screen.getByRole("dialog")).toHaveTextContent("This connection will stop working immediately. You'll need to re-enter its configuration to use it again.");
-    rerender(<ExternalMcpRemoveConfirmDialog {...props} name="Boreal" isOAuth />);
+    rerender(<ExternalMcpRemoveConfirmDialog {...HOST} {...props} name="Boreal" isOAuth />);
     expect(screen.getByRole("dialog")).toHaveAccessibleName('Remove "Boreal"?');
     expect(screen.getByRole("dialog")).not.toHaveTextContent("Atlas");
     expect(screen.getByRole("dialog")).toHaveTextContent("This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again.");

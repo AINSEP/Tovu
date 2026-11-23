@@ -1,4 +1,6 @@
-import { createSettingsTabChange, createSettingsUiTranslators } from "./SettingsUi.hooks";
+import { createSettingsTabChange, createSettingsUiTranslators } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
+import { t as tApp } from "../../app-i18n";
+import { t as tCapability } from "./settings-capabilities-i18n";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
@@ -138,14 +140,15 @@ import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-executio
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
-import { aiAgentPanelDictionaries } from "./settings-execution-i18n";
+import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
+import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
 import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
 import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
 import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
 import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-memory-i18n";
 import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 
-import { type Translate } from '@jini-ai/core/text';
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -303,7 +306,9 @@ export function SettingsUi({
   const settingsRootRef = useSettingsActiveTabScrollHook({ ready: !s.loading, tabId });
 
   const settingsLocale = s.language.value as string;
-  const { t, tCap, tExecution } = createSettingsUiTranslators({ settingsLocale });
+  const { t, tCap, tExecution } = createSettingsUiTranslators({
+    settingsLocale, dialogDictionaries: SETTINGS_DIALOG_DICTIONARIES, translateApp: tApp, translateCapability: tCapability,
+  });
 
   const executionPolicy = useTovuSettingsExecutionHook({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
 
@@ -652,7 +657,7 @@ export function SettingsUi({
      */
     <I18nProvider
       initialLocale={s.language.value as string}
-      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES })}
+      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES, locales: ADMIN_LOCALES })}
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
@@ -694,7 +699,7 @@ function SettingsExecutionPanel({ adminCredential, agentPresentation, executionP
             localCliUnavailableReason={executionPolicy.unavailableReason}
             port={agentPresentation.port}
             // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
-            localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
+            localCliScopeLabel={interpolate({ template: tExecution(agentPresentation.scopeCopy), vars: SETTINGS_EXECUTION_PRODUCT_VARS })}
             ariaLabel={tExecution("AI agent")}
             // The admin's own BYOK credential is encrypted server-side and write-only
             // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about

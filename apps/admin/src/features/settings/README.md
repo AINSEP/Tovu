@@ -18,6 +18,21 @@ which fills the dictionary's `{productName}` token at every render site) and
 `tovu:external-mcp-connected` callback type, which must match the website's `routes/oauth/callback-page.ts`).
 `settings-capabilities-i18n.ts` stays here: every key in it describes this product's own backend state.
 
+Also in Jini (batch G2): the AI-agent dictionary (`@jini-ai/admin/screens/settings/settings-execution-i18n`;
+its server-scope key carries `{productName}`, filled from `integrations/jini-admin/settings-execution-copy.ts`'s
+`SETTINGS_EXECUTION_PRODUCT_VARS` in `SettingsUi.tsx` and `ai-assistant/AiAssistant.tsx`, and
+`aiAgentPanelDictionaries` takes this app's `ADMIN_LOCALES` as `locales`), `createSettingsUiTranslators` /
+`createSettingsTabChange` (`.../SettingsUi.hooks`; `SettingsUi.tsx` passes `SETTINGS_DIALOG_DICTIONARIES`,
+`app-i18n`'s `t` and `settings-capabilities-i18n`'s `t`), and `ExternalMcpRemoveConfirmDialog`
+(`ExternalMcpSettingsPanel.tsx` passes `components/ConfirmActionDialog` as `ConfirmDialog` and
+`rules.ts`'s `buildExternalMcpRemoveConfirmCopy` as `buildCopy`; `__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx`
+stays here as the host-integration test of that binding).
+Still here (blocked): `ai-agent-presentation.ts` and `hooks/use-ai-agent-presentation.hooks.ts` (`ExecutionPort` /
+`DetectedAgent` / `ExecutionConfig` from `@jini-ai/ui` have no admin-kit or Core owner), `ExternalMcpSettingsPanel.hooks.tsx`
+(`useWiredSourceConfigAddForm` from `@jini-ai/ui`), `UserInterfaceSettingsPanel.tsx` (its switch paints through
+the global `.agent-plugin-switch` rules in `styles.css`), `hooks/use-user-interface-tab.hooks.ts` and
+`hooks/use-admin-appearance-settings.hooks.ts` (this app's `lib/settings-tabs` types and its own hooks).
+
 ## History: `features/settings-raw`'s `Settings.tsx` (deleted)
 
 This screen was not originally a replacement for the SPEC-007 raw ledger browser at
