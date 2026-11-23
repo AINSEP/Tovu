@@ -125,6 +125,7 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   }
   const failed = createSiteConsentReadiness({ ...fresh.deps, settingsRepo: new FailingSettingsRepo(), after: webmcp, systemPrincipalId: 'system-test' }, {
     ensurePrivacyDefaults: async () => assert.fail('definition registration must remain the gate'),
+    reportPrivacyDefaultsFailure,
   });
   await assert.rejects(failed, { message: 'Consent registration failure' });
   await webmcp;
