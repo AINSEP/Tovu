@@ -1,0 +1,13 @@
+M14-a (named): follow symlinks — linked Jini dist packages/platform/dist/retention/measure-tree.js default adapter lstat -> stat
+✔ categories add up to the walked total (33.533474ms)
+✔ WAL is reported apart from the main file (12.46761ms)
+✖ a symlink is not followed (17.8554ms)
+✔ an unreadable folder is reported unknown, not 0 (14.187424ms)
+✔ every category has a fixed class; owner content is never automatic (0.634692ms)
+✔ measuring is read-only: no file changes, appears or disappears (11.764525ms)
+✔ a location outside the website folder is refused in plain words (2.515679ms)
+ℹ pass 6
+ℹ fail 1
+✖ failing tests:
+✖ a symlink is not followed (17.8554ms)
+restored

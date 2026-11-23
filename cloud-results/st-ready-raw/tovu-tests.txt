@@ -1,0 +1,20 @@
+✔ categories add up to the walked total (42.363841ms)
+✔ WAL is reported apart from the main file (21.48145ms)
+✔ a symlink is not followed (11.296208ms)
+✔ an unreadable folder is reported unknown, not 0 (6.381989ms)
+✔ every category has a fixed class; owner content is never automatic (0.855014ms)
+✔ measuring is read-only: no file changes, appears or disappears (8.214825ms)
+✔ a location outside the website folder is refused in plain words (3.106813ms)
+✔ feature rank check passes when every production feature folder has a rank (47.390539ms)
+✔ feature rank check reports a leaf feature with no rank, which an edge rule cannot see (63.606909ms)
+✔ feature rank check reports a rank for a folder that does not exist (41.902495ms)
+✔ feature rank check reports a rank for a folder that holds only tests (44.970231ms)
+✔ feature rank check reports a rank that is not a non-negative integer (40.629705ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 547.185515

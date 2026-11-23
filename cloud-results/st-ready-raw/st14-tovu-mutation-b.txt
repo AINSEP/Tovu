@@ -1,0 +1,17 @@
+M14-b (Tovu): stop splitting WAL/SHM from the main file — measure.ts planTargets returns only the main target for databases
+✖ categories add up to the walked total (38.565019ms)
+✖ WAL is reported apart from the main file (22.525435ms)
+✖ a symlink is not followed (14.122397ms)
+✖ an unreadable folder is reported unknown, not 0 (10.837819ms)
+✔ every category has a fixed class; owner content is never automatic (0.589512ms)
+✖ measuring is read-only: no file changes, appears or disappears (12.982942ms)
+✔ a location outside the website folder is refused in plain words (2.473421ms)
+ℹ pass 2
+ℹ fail 5
+✖ failing tests:
+✖ categories add up to the walked total (38.565019ms)
+✖ WAL is reported apart from the main file (22.525435ms)
+✖ a symlink is not followed (14.122397ms)
+✖ an unreadable folder is reported unknown, not 0 (10.837819ms)
+✖ measuring is read-only: no file changes, appears or disappears (12.982942ms)
+restored

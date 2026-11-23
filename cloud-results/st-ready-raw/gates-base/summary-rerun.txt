@@ -1,0 +1,3 @@
+check:why-comments exit=1
+typecheck exit=0
+typecheck:tests exit=0
