@@ -1,7 +1,7 @@
 /**
  * The desktop's auto-updater lifecycle: start it when this launch may run one, stop it when the
  * Settings checkbox turns it off, say whether the final quit installs an update, and serve
- * Settings › Check for updates…. The updater's own rules live in `../../auto-update-controller.ts`
+ * Settings › Check for updates…. The updater's own rules live in `@jini-ai/desktop-host/shell/auto-update-controller`
  * and Jini; this file owns only the state `main.ts` kept in four module variables.
  */
 import { createAutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";

@@ -165,6 +165,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "@jini-ai/desktop-host/shell/window-bounds-store";
 import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
+import { SPELLCHECK_MENU_LABELS } from "./spellcheck-labels.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
@@ -539,7 +540,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: ({ url }) => void shell.openExternal(url),
-    relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
+    relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ labels: SPELLCHECK_MENU_LABELS, webContents, menuBuilder: Menu }),
     showErrorBox: ({ title, message }) => dialog.showErrorBox(title, message), logError: ({ message }) => console.error(message),
     setExitCode: ({ code }) => { process.exitCode = code; }, quit: () => app.quit(),
   } }, { selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) });

@@ -7,6 +7,7 @@ import { registerFindInPageIpc, relayFindResults } from "./find-in-page-ipc.ts";
 import { FIND_IN_PAGE_CHANNELS, FIND_RESULT_CHANNEL } from "./contracts/find-in-page.ts";
 import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 import type { MenuBuilder } from "@jini-ai/desktop-host/shell/spellcheck-menu";
+import { SPELLCHECK_MENU_LABELS } from "./main/spellcheck-labels.ts";
 
 test("disposing Find IPC removes both native channels and leaves unrelated registrations usable", () => {
   type Handler = Parameters<Parameters<typeof registerFindInPageIpc>[0]["ipcMain"]["handle"]>[1];
@@ -66,7 +67,7 @@ test("disposing a spelling menu stops later popups without removing another gues
   });
   const templates: Parameters<MenuBuilder["buildFromTemplate"]>[0][] = [];
   let popups = 0;
-  const dispose = registerSpellCheckContextMenu({ webContents, menuBuilder: {
+  const dispose = registerSpellCheckContextMenu({ labels: SPELLCHECK_MENU_LABELS, webContents, menuBuilder: {
     buildFromTemplate: (template) => { templates.push(template); return { popup: () => { popups += 1; } }; },
   } });
   const params = { isEditable: true, misspelledWord: "teh", dictionarySuggestions: ["the"],

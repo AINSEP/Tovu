@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file The desktop complexity gate: re-lints `apps/desktop` at a hard 9/9 ceiling and fails on any
- * violation not in `complexity-debt.json`. The rules live in `../src/complexity-debt.ts` and are
+ * violation not in `complexity-debt.json`. The rules live in `@jini-ai/devops/checks` (Jini packages/devops/src/checks/complexity-debt.ts) and are
  * tested there.
  *
  * ## Why a --rule re-lint rather than the shared config's severity

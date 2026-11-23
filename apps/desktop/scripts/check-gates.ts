@@ -3,7 +3,7 @@
  * @file The desktop quality-gate runner. Reads `quality-gates.json`, runs every ENABLED gate, and
  * prints every gate — enabled, failing, or disabled — on every run.
  *
- * The policy it enforces lives in `../src/quality-gates.ts` (and is tested there, under the normal
+ * The policy it enforces lives in `@jini-ai/devops/checks` (Jini packages/devops/src/checks/quality-gates.ts, and is tested there, under the normal
  * `npm test` glob); this file is the part that touches the process table and the filesystem. The
  * split exists so the rules can be tested without spawning anything.
  *
