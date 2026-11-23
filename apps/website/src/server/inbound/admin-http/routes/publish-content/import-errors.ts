@@ -29,6 +29,18 @@ export interface ImportErrorResponse {
  * @complexity O(1).
  */
 export function importErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): ImportErrorResponse {
+  return knownImportErrorResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker }, IMPORT_FAILURE);
+}
+
+/** The redacted-500 options for an unrecognised import error; the import specs' mounts answer with the same. */
+export const IMPORT_FAILURE = {
+  operation: "routes/publish-content/import-errors",
+  message: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.",
+} as const;
+
+/** The typed arms of {@link importErrorResponse}; `undefined` for anything it would answer as the redacted 500.
+ * @complexity O(1). */
+export function knownImportErrorResponse({ err }: { err: unknown }, _optional: Record<string, never> = {}): ImportErrorResponse | undefined {
   if (err instanceof ForbiddenError) return { status: 403, body: { error: err.message, code: err.reasonCode } };
   if (err instanceof PlanStaleError) return { status: 409, body: { error: err.message, code: "PLAN_STALE" } };
   if (err instanceof TokenExpiredError) return { status: 409, body: { error: err.message, code: "TOKEN_EXPIRED" } };
@@ -38,5 +50,5 @@ export function importErrorResponse({ err }: { err: unknown }, options: AdminFai
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
   // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
   if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
-  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/import-errors", message: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem." });
+  return undefined;
 }

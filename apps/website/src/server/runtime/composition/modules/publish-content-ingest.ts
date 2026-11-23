@@ -1,10 +1,11 @@
 import { bundleCreateRoute, type BundleCreateRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/bundle-create";
+import { capabilitiesRoute, type CapabilitiesRouteDeps } from "@jini-ai/cms/admin-http/routes/publish-content/capabilities";
 import { PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import { buildPublishContentCatalog, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";
+import { adminPublishTrustFor, adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { toPublishContentDeps, type PublishContentRouteRegistrar, type PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
@@ -55,5 +56,29 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
   mountAdminJsonRoute(
     { app: capped, spec: { ...bundleCreateRoute, requestFacts: true }, deps: bundleCreateDeps({ deps }) },
     { authorization: "guarded", failure: { operation: "routes/publish-content/bundle-create", code: "INTERNAL_ERROR" } },
+  );
+};
+
+/** The capabilities spec's deps: the registry (read per request), the grant and the manual-send rules. */
+function capabilitiesDeps({ deps }: { deps: PublishContentRouteDeps }, _optional: Record<string, never> = {}): CapabilitiesRouteDeps & AdminJsonRoutePortDeps {
+  return {
+    ...ingestPortDeps({ deps }),
+    handlers: () => buildPublishContentCatalog(toPublishContentDeps(deps)).handlers,
+    // Grant-only read: this route never branches on the credential kind, so a request whose session
+    // layer recorded no kind still answers from its grant (as the hand-written route did).
+    publishTrust: ({ context }) => adminPublishTrustFor({ context: context as OperatorPrincipalRecord | undefined }),
+    isBackstopEntityType,
+    backstopGrantAllows: ({ grant, entityType }) => backstopGrantAllows({ grant: grant as PublishTrustContext | null, entityType }),
+  };
+}
+
+/**
+ * `GET .../publish-content/capabilities` (S-F1): the Jini spec behind the admin ports (`"guarded"`,
+ * the route's own 500 copy). What this instance accepts, for the caller's grant; see the spec's header.
+ */
+export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute(
+    { app, spec: capabilitiesRoute, deps: capabilitiesDeps({ deps }) },
+    { authorization: "guarded", failure: { operation: "routes/publish-content/capabilities", code: "INTERNAL_ERROR" } },
   );
 };

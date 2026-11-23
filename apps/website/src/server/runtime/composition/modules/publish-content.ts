@@ -7,9 +7,8 @@ import { registerPublishContentExportRoute } from "#src/server/inbound/admin-htt
 import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/publish-content/blobs-probe";
 import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
 import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
-import { registerPublishContentBundleCreateRoute } from "./publish-content-ingest.js";
-import { registerPublishContentCapabilitiesRoute } from "#src/server/inbound/admin-http/routes/publish-content/capabilities";
-import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
+import { registerPublishContentBundleCreateRoute, registerPublishContentCapabilitiesRoute } from "./publish-content-ingest.js";
+import { registerPublishContentImportRoutes } from "./publish-content-import.js";
 import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes } from "./publish-content-transport.js";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
 import { registerPublishBackstopRoutes } from "#src/server/inbound/admin-http/routes/publish-content/backstop";
@@ -80,7 +79,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       registerPublishContentBlobGetRoute({ app, deps });
       registerPublishContentBundleCreateRoute({ app, deps });
       // S-F1: what THIS instance can accept, probed by a pushing peer BEFORE it stages a bundle —
-      // see `capabilities.ts`'s header for why this has to run ahead of `bundles`, not beside it.
+      // see the capabilities spec's header for why this has to run ahead of `bundles`, not beside it.
       registerPublishContentCapabilitiesRoute({ app, deps });
       registerPublishContentImportRoutes({ app, deps });
       registerPublishBackstopRoutes({ app, deps });
