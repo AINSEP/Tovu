@@ -2824,6 +2824,22 @@
     {
       "id": "c110c3c5c34d",
       "reason": "Already absent from the base file (integ/merge-13 0d7f78fa4); the file moved verbatim to Jini packages/cms/src/taxonomy/site/content-targets.ts (ex5), so this move deleted nothing."
+    },
+    {
+      "id": "6522749d300e",
+      "reason": "Moved to Jini packages/core/src/contracts/site/gated-results.ts (ex5 rv-a C4) with GatedPlanResult/GatedConfirmResult; reworded neutral (the @file block)."
+    },
+    {
+      "id": "92af6a73cc57",
+      "reason": "Moved with TaxonomyRowMenu to Jini packages/admin/src/screens/taxonomy/TaxonomyRowMenu.tsx (ex5); rv-a C2 added the injected hook to its @example and a class-naming line, so the text no longer matches verbatim."
+    },
+    {
+      "id": "1d8ed9581614",
+      "reason": "Header of a pure re-export shell (entries public-read) that moved to Jini in ex5 and was deleted there by review rv-a C1; nothing remains for it to explain."
+    },
+    {
+      "id": "d7132b05298e",
+      "reason": "Header of a pure re-export shell (entries render-entry) that moved to Jini in ex5 and was deleted there by review rv-a C1; nothing remains for it to explain."
     }
   ]
 }

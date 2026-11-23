@@ -730,16 +730,14 @@ function namespaceList({
   // Computed once, across every group, so two taxonomies whose names slugify identically still get
   // distinct handles — see `NewTermForm`'s own `agentBase` doc for why this cannot be derived
   // independently inside each group's own `NewTermForm` instance.
-  const newTermFormBases = buildAgentListHandles({ prefix: "taxonomy-new-term", ids: taxonomies.map((group) => group.taxonomy.id) }
-  );
+  const newTermFormBases = buildAgentListHandles({ prefix: "taxonomy-new-term", ids: taxonomies.map((group) => group.taxonomy.id) });
   // Same id list as `newTermFormBases` above, so a taxonomy's "Delete taxonomy" menu handle and its
   // "+ Add term" form handle share the same id-derived slug (e.g. `taxonomy-new-term-tax-a-open` /
   // `taxonomy-menu-tax-a`) — an agent reading `page.find_elements` can tell they belong to the same
   // group without cross-referencing anything else. `RowMenu`'s `agentHandle` prop only reached this
   // package this session; before that, this menu (and the per-term one below) published no handle at
   // all and its trigger/items were invisible to `page.find_elements` regardless of what this file did.
-  const taxonomyMenuHandles = buildAgentListHandles({ prefix: "taxonomy-menu", ids: taxonomies.map((group) => group.taxonomy.id) }
-  );
+  const taxonomyMenuHandles = buildAgentListHandles({ prefix: "taxonomy-menu", ids: taxonomies.map((group) => group.taxonomy.id) });
   // Term ids are globally unique across every taxonomy, not scoped per group — same reasoning
   // `CollectionEntryEditor.tsx`'s `TermPicker` documents for its own flat `term-picker-term` list.
   const termHandles = buildAgentListHandles({ prefix: "taxonomy-term", ids: taxonomies.flatMap((group) => group.terms.map((term) => term.id)) }
@@ -756,8 +754,7 @@ function namespaceList({
               <h2>{group.taxonomy.name}</h2>
               <div className="page-actions">
               <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
-              <TaxonomyRowMenu
-                useTaxonomyRowMenuHook={useTaxonomyRowMenu}
+              <TaxonomyRowMenu useTaxonomyRowMenuHook={useTaxonomyRowMenu}
                 portalContainer={menuPortalContainer}
                 triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", () => group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
@@ -867,8 +864,7 @@ function namespaceList({
                           combines a `RowMenu` with a click-to-select row, so there was no existing
                           precedent to follow here. */}
                       <span onClick={(e) => e.stopPropagation()}>
-                        <TaxonomyRowMenu
-                          useTaxonomyRowMenuHook={useTaxonomyRowMenu}
+                        <TaxonomyRowMenu useTaxonomyRowMenuHook={useTaxonomyRowMenu}
                           portalContainer={menuPortalContainer}
                           triggerLabel={t('Actions for term "{name}"').replace("{name}", () => term.name)}
                           agentHandle={`${termHandle}-menu`}
