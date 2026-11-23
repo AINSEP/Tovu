@@ -12,7 +12,7 @@ import {
   PublishTrustHandshakeError,
   type PublishTrustHandshakeFailure,
 } from "../handshake-client.js";
-import { deriveInstallationId, derivePublishSigningKey, verifyPublishSignature } from "../keys.js";
+import { deriveInstallationId, derivePublishSigningKey, verifyPublishSignature } from "@jini-ai/cms/publish/trust/keys";
 
 /**
  * @file Branch-by-branch pins for the SOURCE half of the handshake: every failure class and

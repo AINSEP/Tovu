@@ -1,13 +1,6 @@
 /**
  * @file Public surface for the `publish-credentials` sub-feature (ADR-009 §1).
  */
-export type {
-  PublishConnectionInput,
-  PublishCredentialScope,
-  PublishCredentialSummary,
-  PublishProviderId,
-} from "./types.js";
-
 export {
   createPublishCredential,
   invalidatePublishCredentialCompatibility,

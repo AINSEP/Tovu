@@ -12,7 +12,7 @@ import {
   verifyChallengeResponse,
 } from "../challenge.js";
 import { isPublishTrustRoute, parsePublishTrustGrant, PUBLISH_TRUST_GRANT_VERSION } from "../grant.js";
-import { derivePublishSigningKey } from "../keys.js";
+import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "../session.js";
 
 /**

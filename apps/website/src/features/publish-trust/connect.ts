@@ -9,7 +9,7 @@ import {
   type PublishTrustGrant,
 } from "./grant.js";
 import { fetchDestinationIdentity, PUBLISH_TRUST_GENERATION, PublishTrustHandshakeError, type DestinationIdentity, type HandshakeClientDeps } from "./handshake-client.js";
-import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
+import { deriveInstallationId, derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import {
   grantNotAfterFrom,
   type ProvisioningFileIo,

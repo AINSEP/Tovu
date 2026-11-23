@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response as ExpressResponse } from "express
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishingCapability } from "#src/features/publish-trust/grant";
-import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
+import { derivePublishSigningKey } from "@jini-ai/cms/publish/trust/keys";
 import { PUBLISH_TRUST_ENV_VAR, parseGrantDocument, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";

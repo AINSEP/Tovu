@@ -16,9 +16,9 @@ import {
   PublishCredentialSecretStoreUnconfiguredError,
   PublishCredentialValidationError,
   updatePublishCredential,
-  type PublishCredentialSummary,
   type UpdatePublishCredentialInput,
 } from "#src/features/deployments/publish-credentials/index";
+import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import {
   canYieldAccountLabel,
   verifyPublishCredentialById,

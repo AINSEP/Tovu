@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "../account-label-heal-scheduler.js";
-import type { PublishCredentialSummary } from "../types.js";
+import type { PublishCredentialSummary } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 
 /**
  * @file Regression coverage for the owner-reported bug: an existing `publish_credential_sets` row

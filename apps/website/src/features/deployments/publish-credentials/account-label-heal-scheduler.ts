@@ -1,4 +1,4 @@
-import type { PublishCredentialSummary, PublishProviderId } from "./types.js";
+import type { PublishCredentialSummary, PublishProviderId } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 
 /**
  * @file A tiny fire-and-forget scheduler for "heal this row's account label in the background,

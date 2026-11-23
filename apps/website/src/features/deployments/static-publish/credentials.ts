@@ -3,7 +3,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
-import type { PublishConnectionInput } from "../publish-credentials/types.js";
+import type { PublishConnectionInput } from "@jini-ai/devops/deploy/site/publish-credentials/types";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
 import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget  } from "../deploy-targets/types.js";

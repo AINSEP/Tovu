@@ -10,7 +10,7 @@ import {
 } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { admitPublish, type RevocationRead } from "#src/features/publish-trust/revocations";
-import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
+import { publishPrincipalIdFor } from "@jini-ai/cms/publish/trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
 import { isNoSiteKeyError } from "#src/features/webhooks/index";
