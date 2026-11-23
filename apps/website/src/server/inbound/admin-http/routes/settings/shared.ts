@@ -35,7 +35,7 @@ import type { SettingsRouteDeps } from "./deps.js";
  * since this function already only ever reads fields the new narrow type includes; see
  * `deps.ts`'s file header for the confirmed field set.
  */
-export function toWriteServiceDeps(deps: SettingsRouteDeps): SettingsWriteServiceDeps {
+export function toWriteServiceDeps(deps: SettingsRouteDeps, _optional: Record<string, never> = {}): SettingsWriteServiceDeps {
   return {
     repo: deps.settingsRepo,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
@@ -69,21 +69,24 @@ export const CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION = "settings.user.read";
  * Lives here rather than in either route so the two cannot drift apart again — the copy-paste
  * drift between them is what produced this gap in the first place.
  *
- * @param deps - narrowed route deps; supplies the evaluator and the authorized workspace.
- * @param required.requestedPrincipalId - the request's `principalId` query param, if any.
- * @param required.callerPrincipalId - the session-derived principal `authorize()` was checked for.
+ * @param required.deps - narrowed route deps; supplies the evaluator and the authorized workspace.
+ * @param required.input.requestedPrincipalId - the request's `principalId` query param, if any.
+ * @param required.input.callerPrincipalId - the session-derived principal `authorize()` was checked for.
  * @returns `allowed` with the principal id to read (`undefined` = skip the user layer entirely),
  *   or `allowed: false` with `authorize()`'s machine-readable denial reason.
  * @complexity O(1); performs at most one `authorize()` call (none for a self-read or no-op read).
  * @overallScore 100
  */
 export async function resolveUserLayerReadTarget(
-  deps: Pick<SettingsRouteDeps, "authorize" | "workspaceId">,
-  required: { requestedPrincipalId: string | undefined; callerPrincipalId: string }
+  { deps, input }: {
+    deps: Pick<SettingsRouteDeps, "authorize" | "workspaceId">;
+    input: { requestedPrincipalId: string | undefined; callerPrincipalId: string };
+  },
+  _optional: Record<string, never> = {},
 ): Promise<UserLayerReadTarget> {
   return resolveCmsUserLayerReadTarget({
     deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION },
-    input: required,
+    input,
   });
 }
 

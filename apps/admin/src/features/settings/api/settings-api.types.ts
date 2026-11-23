@@ -1,15 +1,9 @@
-import type { SettingScope } from "@jini-ai/core/settings";
+import type { AdminSettingValueDto, AdminSettingsResetDto } from "@jini-ai/core/contracts/site/cms-settings";
 
-// SPEC-007 Settings (core-only layered ledger) — client-side types mirroring the settings response contracts.
-export interface SettingValueResponse {
-  key: string;
-  scope: SettingScope;
-  value: unknown;
-  revisionSeq: number;
-}
+// SPEC-007 Settings (core-only layered ledger) — the settings response contracts. Both bodies are the
+// server's wire shapes, declared once in Jini Core (`@jini-ai/core/contracts/site/cms-settings`,
+// rv1123e K1): the `@jini-ai/cms` settings route specs answer exactly these, so the client no longer
+// restates them.
+export type SettingValueResponse = AdminSettingValueDto;
 
-export interface SettingResetResponse {
-  namespace: string;
-  clearedCount: number;
-  revisionSeqs: number[];
-}
+export type SettingResetResponse = AdminSettingsResetDto;

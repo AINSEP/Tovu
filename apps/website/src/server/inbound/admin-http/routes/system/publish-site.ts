@@ -344,7 +344,8 @@ async function readPreviewTarget({ deps, query }: { deps: AdminPublishSiteDeps; 
  * answers it `400 PROVIDER_INSPECTION_FAILED`.
  * @complexity One registry load plus the credential/inspection reads.
  */
-export function publishPreviewFor({ deps, credentialSource }: PublishSiteContext, _optional: Record<string, never> = {}) {
+export function publishPreviewFor({ context }: { context: PublishSiteContext }, _optional: Record<string, never> = {}) {
+  const { deps, credentialSource } = context;
   return async ({ query }: { query: Readonly<Record<string, unknown>> }): Promise<{ ok: true; value: Awaited<ReturnType<typeof httpPublishPreview>> } | { ok: false; error: string }> => {
     const target = await readPreviewTarget({ deps, query: { ...query } });
     if (!target.ok) return { ok: false, error: target.error };

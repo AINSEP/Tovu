@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { localSiteLifecycleRoutes } from "@jini-ai/cms/admin-http/routes/sites/local-sites";
 import { sitesConfigReadRoute, sitesHomeSetRoute } from "@jini-ai/cms/admin-http/routes/sites/sites-home";
 import { siteActivateRoute, siteCreateRoute, siteTokenSignInPluginsRoute, type SiteCreateRouteDeps } from "@jini-ai/cms/admin-http/routes/system/sites";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { nodeSitesDirectoryProbe, registerSitesConfigSaveRoute, type SitesSettingsDeps } from "#src/server/inbound/admin-http/routes/sites/sites-home";
 import { registerWarmSiteControl } from "#src/server/inbound/admin-http/routes/sites/warm-site-control";
 import { registerSitePreviewRoutes } from "#src/server/inbound/admin-http/routes/sites/site-previews";
@@ -42,10 +42,16 @@ import type { RouteDeps } from "#src/server/routes/types";
  * token plugins, Create, Activate.
  */
 
-/** The unexpected-failure copy and authorization mode every sites route had: all of them called
- *  `authorizeOrRespond` (`"guarded"`); the settings routes chose their own 500 copy. */
-function sitesMountOptions(operation: string, optional: { message?: string } = {}) {
-  return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR", ...optional } };
+/** The unexpected-failure copy key and authorization of each mount, exactly as each hand-written
+ *  route had them: every sites route called `authorizeOrRespond` once (`"guarded"`, one check each,
+ *  so no `authorizationByPermission`); the settings routes chose their own 500 copy (`message`).
+ *  No mount sets `deferMissingPrincipal`: no hand-written sites route refused a bad body or param
+ *  before reading the session (the name/path/confirmation 400s all came after `authorizeOrRespond`). */
+function sitesMountOptions(
+  { operation }: { operation: string },
+  optional: { message?: string } = {},
+): AdminJsonRouteMountOptions {
+  return { authorization: "guarded", failure: { operation, code: "INTERNAL_ERROR", ...optional } };
 }
 
 /** The two port fields; `authorize` is read per request, as the hand-written routes read it. */
@@ -62,10 +68,10 @@ export function registerSitesHomeRoutes(
 ): void {
   const switcherEnabled = () => (deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal)();
   mountAdminJsonRoute({ app, spec: sitesConfigReadRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace } },
-    sitesMountOptions("routes/sites/sites-home", { message: "Could not read sites settings." }));
+    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not read sites settings." }));
   registerSitesConfigSaveRoute({ app, deps: { ...deps, isSiteSwitcherEnabled: switcherEnabled }, workspace });
   mountAdminJsonRoute({ app, spec: sitesHomeSetRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace, directories: nodeSitesDirectoryProbe } },
-    sitesMountOptions("routes/sites/sites-home", { message: "Could not save sites home." }));
+    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not save sites home." }));
 }
 
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "createSite"> & {
@@ -81,7 +87,7 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   customCredentialsHttpClient?: RouteDeps["customCredentialsHttpClient"];
   checkAgentPluginAccessToken?: typeof checkAgentPluginAccessTokenReal;
   sealPendingAgentPluginTokens?: typeof sealPendingAgentPluginTokensReal;
-  listTokenSignInPlugins?: (workspaceId: string) => ReturnType<typeof listNewSiteAgentPluginTokenSignInPlugins>;
+  listTokenSignInPlugins?: (required: { workspaceId: string }) => ReturnType<typeof listNewSiteAgentPluginTokenSignInPlugins>;
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
@@ -129,6 +135,8 @@ export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: Lo
     siteSwitchBase: () => resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: deps.isSiteSwitcherEnabled() }),
     localSiteErrorCode: (error: unknown) => (error instanceof LocalSiteError ? error.code : undefined),
   };
+  // No mount options: the hand-written lifecycle handler called `authorizeOrRespond` (the `"guarded"`
+  // default) and answered an unexpected failure with `sendAdminFailure`'s route-derived copy (no options).
   for (const spec of localSiteLifecycleRoutes) mountAdminJsonRoute({ app, spec, deps: routeDeps });
 }
 
@@ -169,17 +177,17 @@ function registerSiteAdminSpecs({ app, ports }: { app: Express; ports: SitesPort
   const { deps, isSiteSwitcherEnabled, listSites, devRestart, sitesWorkspace, warmServer } = ports;
   // The served tree's base, never `process.cwd()`: the flag, then the binding (see `resolveSiteSwitchBase`).
   const siteSwitchBase = () => resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
-  const listTokenSignInPlugins = ({ workspaceId }: { workspaceId: string }) =>
-    (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(workspaceId);
-  mountAdminJsonRoute({ app, spec: siteTokenSignInPluginsRoute, deps: { ...sitesPortDeps({ deps }), listTokenSignInPlugins } }, sitesMountOptions("routes/system/sites"));
-  mountAdminJsonRoute({ app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions("routes/system/sites"));
+  const listTokenSignInPlugins = deps.listTokenSignInPlugins
+    ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() }));
+  mountAdminJsonRoute({ app, spec: siteTokenSignInPluginsRoute, deps: { ...sitesPortDeps({ deps }), listTokenSignInPlugins } }, sitesMountOptions({ operation: "routes/system/sites" }));
+  mountAdminJsonRoute({ app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions({ operation: "routes/system/sites" }));
   mountAdminJsonRoute({ app, spec: siteActivateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase,
     // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
     // new site; without it, Activate behaves exactly as before (persist + instructions).
     activateSite: ({ switcherBase, name, restartNow }) => activateSiteWithWarmServer(
       { switcherBase, name, currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
       { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace, warmServer },
-    ) } }, sitesMountOptions("routes/system/sites"));
+    ) } }, sitesMountOptions({ operation: "routes/system/sites" }));
 }
 
 export function registerAdminSitesRoutes({ app, deps }: { app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {

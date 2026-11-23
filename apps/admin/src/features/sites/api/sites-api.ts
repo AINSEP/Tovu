@@ -1,6 +1,7 @@
 import { adminFailureChannel } from "../../../lib/admin-failure-channel";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
+import type { SitesHomeSetResponse } from "@jini-ai/core/contracts/site/cms-sites";
 import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminGeneratedSiteKey, AdminImportedSiteKey, AdminLocalSiteAction, AdminRevealedSiteKey, AdminSiteActivation, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminSitesSnapshot, AdminStartedFreshSiteKey, AdminTokenSignInPlugin, SitesUserConfig, SitesUserConfigPatch } from "./sites-api.types";
 
 /** The admin API calls of the sites feature. */
@@ -13,7 +14,7 @@ export const sitesApi = {
    *  any pending activate choice — see {@link AdminSitesSnapshot}. */
   getSitesConfig: () => request<SitesUserConfig>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/config` }),
   setSitesConfig: (input: SitesUserConfigPatch) => request<SitesUserConfig>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/config` }, { init: { method: "PUT", body: JSON.stringify(input) } }),
-  setSitesHome: (input: { path: string }) => request<{ home: string }>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/home` }, { init: { method: "PUT", body: JSON.stringify(input) } }),
+  setSitesHome: (input: { path: string }) => request<SitesHomeSetResponse<string>>({ path: `/workspaces/${WORKSPACE_ID}/system/sites/home` }, { init: { method: "PUT", body: JSON.stringify(input) } }),
   listSites: () => request<AdminSitesSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/sites` }),
   /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name

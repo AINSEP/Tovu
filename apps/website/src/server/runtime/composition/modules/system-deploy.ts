@@ -1,11 +1,11 @@
 import { homedir } from "node:os";
 import type { Express } from "express";
 
-import {
-  deploymentOverviewRoute,
-  type DeploymentEnvVarStatus as SpecDeploymentEnvVarStatus,
-  type DeploymentOverviewSnapshot as SpecDeploymentOverviewSnapshot,
-} from "@jini-ai/cms/admin-http/routes/system/deployment-overview";
+import { deploymentOverviewRoute } from "@jini-ai/cms/admin-http/routes/system/deployment-overview";
+import type {
+  DeploymentEnvVarStatus as SpecDeploymentEnvVarStatus,
+  DeploymentOverviewSnapshot as SpecDeploymentOverviewSnapshot,
+} from "@jini-ai/core/contracts/site/cms-system-deploy";
 import { exportSiteStatusRoute, exportSiteTriggerRoute } from "@jini-ai/cms/admin-http/routes/system/export-site";
 import { publishPreviewRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/preview";
 import { publishStatusRoute } from "@jini-ai/cms/admin-http/routes/system/publish-site/status";
@@ -16,7 +16,7 @@ import { getPublishRunSnapshot } from "#src/features/deployments/static-publish/
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { inspectSiteKeyMaterial, siteKeySources, type SiteKeyStatus } from "#src/features/webhooks/index";
 import { startupSecretEnvironment } from "#src/platform/secrets/startup-secrets";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import {
   createPublishSiteContext, publishPreviewFor, publishTargetsFor, registerAdminPublishDestinationsRoute, registerAdminPublishTriggerRoute,
 } from "#src/server/inbound/admin-http/routes/system/publish-site";
@@ -57,7 +57,7 @@ const REQUIRED_ENV_VAR_NAMES = [
 
 /** The site key row, from what `EnvOrFileKeyring` would actually resolve — the env var OR a generated
  *  key file, validated — rather than the env var's bare presence. @complexity O(1). */
-function siteKeyEnvVarStatus(siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
+function siteKeyEnvVarStatus({ siteKey }: { siteKey: SiteKeyStatus }, _optional: Record<string, never> = {}): DeploymentEnvVarStatus {
   return {
     name: "TOVU_SITE_KEY",
     set: siteKey.active,
@@ -66,8 +66,8 @@ function siteKeyEnvVarStatus(siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
   };
 }
 
-function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
-  return name === "TOVU_SITE_KEY" ? siteKeyEnvVarStatus(siteKey) : { name, set: Boolean(startupSecretEnvironment({ env: process.env })[name]) };
+function envVarStatus({ name, siteKey }: { name: (typeof REQUIRED_ENV_VAR_NAMES)[number]; siteKey: SiteKeyStatus }, _optional: Record<string, never> = {}): DeploymentEnvVarStatus {
+  return name === "TOVU_SITE_KEY" ? siteKeyEnvVarStatus({ siteKey }) : { name, set: Boolean(startupSecretEnvironment({ env: process.env })[name]) };
 }
 
 /**
@@ -90,7 +90,7 @@ export function buildDeploymentOverviewSnapshot(input: {
   defaultOwnerPasswordUnsafe: boolean;
   storagePaths: Pick<SiteStoragePaths, "contentDbPath" | "mediaUploadsDir">;
   siteKey?: SiteKeyStatus;
-}): DeploymentOverviewSnapshot {
+}, _optional: Record<string, never> = {}): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
   const siteKey = input.siteKey ?? inspectSiteKeyMaterial({ sources: siteKeySources({ mode, env: process.env, home: homedir(), cwd: process.cwd() }) });
   return {
@@ -117,7 +117,7 @@ export function buildDeploymentOverviewSnapshot(input: {
     dbPath: input.storagePaths.contentDbPath,
     // `RouteDeps.siteStoragePaths.mediaUploadsDir` — the same path the blob store writes under.
     uploadsDir: input.storagePaths.mediaUploadsDir,
-    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus(name, siteKey)),
+    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus({ name, siteKey })),
   };
 }
 
@@ -129,8 +129,15 @@ function deployPortDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "autho
 
 /** Both routes answered unexpected failures with `sendAdminFailure`'s `INTERNAL_ERROR` under their own
  *  operation, and authorized `direct` (`authorizeDirectOrRespond`: no publishing-credential override). */
-function directMount(operation: string) {
-  return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/** The unexpected-failure copy key and authorization of each mount, exactly as each hand-written
+ *  route had them: overview and export kept `authorizeDirectOrRespond` (`"direct"`), the publish
+ *  routes `authorizeOrRespond` (`"guarded"`). Every one authorized before reading its body or
+ *  query, so none opts into `deferMissingPrincipal`. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  optional: Pick<AdminJsonRouteMountOptions, "authorizationByPermission" | "deferMissingPrincipal"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
 /** The deps `registerAdminDeploymentOverviewRoute` reads. */
@@ -172,7 +179,7 @@ export function registerAdminDeploymentOverviewRoute({ app, deps }: { app: Expre
       storagePaths: deps.siteStoragePaths,
       siteKey: inspectSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources }),
     }),
-  } }, directMount("routes/system/deployment-overview"));
+  } }, mountOptions({ operation: "routes/system/deployment-overview", authorization: "direct" }));
 }
 
 /** The deps `registerAdminExportSiteRoutes` reads (the run starter takes the whole bag as `routeDeps`). */
@@ -235,8 +242,8 @@ export function registerAdminExportSiteRoutes({ app, deps }: { app: Express; dep
     getRunSnapshot,
     startRun: ({ clean, actorId }, { basePath }) => startExportRun({ routeDeps: deps, runExportSite: deps.runExportSite, clean }, { basePath,
       productEvent: { tracker: deps.tracker, userId: actorId, operationId: deps.idGen.newId(), source: "admin" } }),
-  } }, directMount("routes/system/export-site"));
-  mountAdminJsonRoute({ app, spec: exportSiteStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot } }, directMount("routes/system/export-site"));
+  } }, mountOptions({ operation: "routes/system/export-site", authorization: "direct" }));
+  mountAdminJsonRoute({ app, spec: exportSiteStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot } }, mountOptions({ operation: "routes/system/export-site", authorization: "direct" }));
 }
 
 /** The deps `registerAdminPublishSiteRoutes` reads (the publish context and trigger take the whole bag). */
@@ -244,7 +251,7 @@ export type AdminPublishSiteDeps = RouteDeps;
 
 /** Every publish route authorized `guarded` (`authorizeOrRespond`: a publishing credential answers from
  *  its grant) and answered unexpected failures under the one `routes/system/publish-site` operation. */
-const PUBLISH_MOUNT = { authorization: "guarded" as const, failure: { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" } };
+const PUBLISH_MOUNT = mountOptions({ operation: "routes/system/publish-site", authorization: "guarded" });
 
 /**
  * `.../system/publish` (trigger, status, preview, destinations) and `.../system/publish-targets`, in the
@@ -256,7 +263,7 @@ export function registerAdminPublishSiteRoutes({ app, deps }: { app: Express; de
   const context = createPublishSiteContext({ deps });
   registerAdminPublishTriggerRoute({ app, context });
   mountAdminJsonRoute({ app, spec: publishStatusRoute, deps: { ...deployPortDeps({ deps }), getRunSnapshot: () => getPublishRunSnapshot() } }, PUBLISH_MOUNT);
-  mountAdminJsonRoute({ app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor(context) } }, PUBLISH_MOUNT);
+  mountAdminJsonRoute({ app, spec: publishPreviewRoute, deps: { ...deployPortDeps({ deps }), previewPublish: publishPreviewFor({ context }) } }, PUBLISH_MOUNT);
   registerAdminPublishDestinationsRoute({ app, context });
   // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
   mountAdminJsonRoute({ app, spec: publishTargetsRoute, deps: { ...deployPortDeps({ deps }), listTargets: publishTargetsFor({ deps }) } }, PUBLISH_MOUNT);

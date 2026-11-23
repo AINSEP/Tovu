@@ -68,7 +68,7 @@ function settingsServiceDeps({ deps }: { deps: SettingsRouteDeps }, _optional: R
 function settingsReadDeps({ deps }: { deps: SettingsRouteDeps }, _optional: Record<string, never> = {}) {
   return {
     ...settingsServiceDeps({ deps }),
-    resolveReadTarget: (input: { requestedPrincipalId: string | undefined; callerPrincipalId: string }) => resolveUserLayerReadTarget(deps, input),
+    resolveReadTarget: (input: { requestedPrincipalId: string | undefined; callerPrincipalId: string }) => resolveUserLayerReadTarget({ deps, input }),
     crossPrincipalReadPermission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION,
   };
 }

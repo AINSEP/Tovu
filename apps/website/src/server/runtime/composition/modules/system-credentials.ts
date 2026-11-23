@@ -54,7 +54,7 @@ import {
   verifyPublishCredentialById,
   type PublishCredentialVerificationResult,
 } from "#src/features/deployments/static-publish/index";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { registerAdminCustomCredentialsListRoute, registerAdminCustomCredentialsUpdateRoute } from "#src/server/inbound/admin-http/routes/system/custom-credentials";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminPublishCredentialsListRoute } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
@@ -75,9 +75,14 @@ function portDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "authorize">
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params) };
 }
 
-/** Every credential verb kept `authorizeDirectOrRespond` (no publishing-credential override): `"direct"`. */
-function directFailure(operation: string, _optional: Record<string, never> = {}) {
-  return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/** Every credential verb kept `authorizeDirectOrRespond` (no publishing-credential override): each
+ *  mount passes `"direct"`. No hand-written credential route refused a body before reading the
+ *  session (each verb authorized first), so none opts into `deferMissingPrincipal`. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  optional: Pick<AdminJsonRouteMountOptions, "authorizationByPermission" | "deferMissingPrincipal"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
 // ── source-control ──────────────────────────────────────────────────────────────────────────────
@@ -94,13 +99,13 @@ const SOURCE_CONTROL_ERRORS = {
   secretStoreUnconfigured: SourceControlCredentialSecretStoreUnconfiguredError,
 };
 
-function sourceControlReadDeps(deps: AdminSourceControlCredentialsDeps) {
+function sourceControlReadDeps({ deps }: { deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}) {
   return { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
 }
 
-function sourceControlWriteDeps(deps: AdminSourceControlCredentialsDeps) {
+function sourceControlWriteDeps({ deps }: { deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}) {
   return {
-    ...sourceControlReadDeps(deps),
+    ...sourceControlReadDeps({ deps }),
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
@@ -140,10 +145,10 @@ function sourceControlWriteDeps(deps: AdminSourceControlCredentialsDeps) {
  * Same registration order as before: providers, list, create, update, delete.
  */
 export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app: Express; deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}): void {
-  const readDeps = sourceControlReadDeps(deps);
-  const writeDeps = sourceControlWriteDeps(deps);
+  const readDeps = sourceControlReadDeps({ deps });
+  const writeDeps = sourceControlWriteDeps({ deps });
   const base = { ...portDeps({ deps }), storeErrors: SOURCE_CONTROL_ERRORS };
-  const options = directFailure("routes/system/source-control-credentials");
+  const options = mountOptions({ operation: "routes/system/source-control-credentials", authorization: "direct" });
   mountAdminJsonRoute({ app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders: (args) => deps.loadSourceControlProviders(args) } }, options);
   mountAdminJsonRoute({ app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials(readDeps, { workspaceId }) } }, options);
   mountAdminJsonRoute({ app, spec: sourceControlCreateRoute, deps: {
@@ -174,16 +179,16 @@ const CUSTOM_ERRORS = {
   secretStoreUnconfigured: CustomCredentialSecretStoreUnconfiguredError,
 };
 
-function customReadDeps(deps: AdminCustomCredentialsDeps) {
+function customReadDeps({ deps }: { deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}) {
   return { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
 }
 
-function customWriteDeps(deps: AdminCustomCredentialsDeps) {
-  return { ...customReadDeps(deps), keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
+function customWriteDeps({ deps }: { deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}) {
+  return { ...customReadDeps({ deps }), keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
 }
 
 /** Deploy targets are loaded only when there is a publish-verification cache to invalidate. */
-async function prepareCustomInvalidation(deps: AdminCustomCredentialsDeps) {
+async function prepareCustomInvalidation({ deps }: { deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}) {
   const cache = deps.publishCredentialVerificationCache;
   if (!deps.loadDeployTargets || !cache) return undefined;
   const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
@@ -194,22 +199,22 @@ async function prepareCustomInvalidation(deps: AdminCustomCredentialsDeps) {
 }
 
 /** The fields both custom spec mounts share; each is read per request. */
-function customBase(deps: AdminCustomCredentialsDeps, readDeps: ReturnType<typeof customReadDeps>) {
+function customBase({ deps, readDeps }: { deps: AdminCustomCredentialsDeps; readDeps: ReturnType<typeof customReadDeps> }, _optional: Record<string, never> = {}) {
   return {
     ...portDeps({ deps }), storeErrors: CUSTOM_ERRORS,
     projectKeys: () => deps.projectKeys,
     describeCredential: (target: { workspaceId: string; id: string }) => describeCustomCredentialForDelete(readDeps, target),
-    prepareInvalidation: () => prepareCustomInvalidation(deps),
+    prepareInvalidation: () => prepareCustomInvalidation({ deps }),
   };
 }
 
 /** Same registration order as before: list, create, update, delete. */
 export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
-  const options = directFailure("routes/system/custom-credentials");
+  const options = mountOptions({ operation: "routes/system/custom-credentials", authorization: "direct" });
   // Store deps are bound once, at registration, as the hand-written routes bound them.
-  const readDeps = customReadDeps(deps);
-  const writeDeps = customWriteDeps(deps);
-  const base = customBase(deps, readDeps);
+  const readDeps = customReadDeps({ deps });
+  const writeDeps = customWriteDeps({ deps });
+  const base = customBase({ deps, readDeps });
   // List and update STAY hand-written (K1 STOP): they read `res.locals.authCredentialKind`.
   registerAdminCustomCredentialsListRoute({ app, deps });
   mountAdminJsonRoute({ app, spec: customCredentialCreateRoute, deps: {
@@ -250,12 +255,12 @@ const PUBLISH_ERRORS = {
 
 type VerifyAfterSave = (input: { id: string }) => Promise<PublishCredentialVerificationResult | undefined>;
 
-function publishReadDeps(deps: AdminPublishCredentialsDeps) {
+function publishReadDeps({ deps }: { deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}) {
   return { sealer: deps.siteAssistantSecretSealer, repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets };
 }
 
-function publishWriteDeps(deps: AdminPublishCredentialsDeps): Parameters<typeof createPublishCredential>[0] {
-  return { ...publishReadDeps(deps), keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
+function publishWriteDeps({ deps }: { deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): Parameters<typeof createPublishCredential>[0] {
+  return { ...publishReadDeps({ deps }), keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
 }
 
 /**
@@ -331,7 +336,7 @@ function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPu
 }
 
 /** The deploy-target registry is loaded before every write, then each change re-checks its hosts. */
-async function preparePublishInvalidation(deps: AdminPublishCredentialsDeps) {
+async function preparePublishInvalidation({ deps }: { deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}) {
   const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
   // The spec hands back the summaries the store returned, unchanged; the view type only names what it reads.
   return (change: { before?: PublishCredentialView; after?: PublishCredentialView }) =>
@@ -403,15 +408,15 @@ async function preparePublishInvalidation(deps: AdminPublishCredentialsDeps) {
  * Same registration order as before: list, create, update, verify, delete.
  */
 export function registerAdminPublishCredentialsRoutes({ app, deps }: { app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
-  const options = directFailure("routes/system/publish-credentials");
+  const options = mountOptions({ operation: "routes/system/publish-credentials", authorization: "direct" });
   // Store deps are bound once, at registration, as the hand-written routes bound them: a later
   // reassignment of `deps.loadDeployTargets` reaches only the per-request loads (heal, invalidation).
-  const readDeps = publishReadDeps(deps);
-  const writeDeps = publishWriteDeps(deps);
+  const readDeps = publishReadDeps({ deps });
+  const writeDeps = publishWriteDeps({ deps });
   const verifyAfterSave = buildVerifyAfterSave({ deps });
   const base = {
     ...portDeps({ deps }), storeErrors: PUBLISH_ERRORS, verifyAfterSave,
-    prepareInvalidation: () => preparePublishInvalidation(deps),
+    prepareInvalidation: () => preparePublishInvalidation({ deps }),
     describeCredential: (target: { workspaceId: string; id: string }) => describePublishCredential(readDeps, target),
   };
   // STAYS hand-written (K1 STOP): a wire test pins that a principal-less direct call rejects.

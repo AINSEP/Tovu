@@ -226,7 +226,7 @@ export function registerDevWarmSiteRoute({ app, warmServer }: { app: Express; wa
 export type SitesPorts = Omit<ListingContext, "req"> & { warmServer: ReturnType<typeof warmSiteServerForHost> };
 
 /** Principal + permission check every sites route shares; `authorized` false means the response is already written. */
-async function authorizeSitesRoute({ res, deps, permission }: { res: Response; deps: AdminSitesDeps; permission: string }): Promise<{ principal: ReturnType<typeof getAuthedPrincipal>; authorized: boolean }> {
+async function authorizeSitesRoute({ res, deps, permission }: { res: Response; deps: AdminSitesDeps; permission: string }, _optional: Record<string, never> = {}): Promise<{ principal: ReturnType<typeof getAuthedPrincipal>; authorized: boolean }> {
   const principal = getAuthedPrincipal(res);
   const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
@@ -237,11 +237,11 @@ async function authorizeSitesRoute({ res, deps, permission }: { res: Response; d
   return { principal, authorized };
 }
 
-function sendSitesFailure({ res, err }: { res: Response; err: unknown }): void {
+function sendSitesFailure({ res, err }: { res: Response; err: unknown }, _optional: Record<string, never> = {}): void {
   sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
 }
 
-export async function handleListSites({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }): Promise<void> {
+export async function handleListSites({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }, _optional: Record<string, never> = {}): Promise<void> {
   const { deps } = ports;
   if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
