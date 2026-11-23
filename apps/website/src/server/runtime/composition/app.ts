@@ -52,7 +52,7 @@ import { InMemorySettingsRepo, set } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { builtInThemesDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/index";

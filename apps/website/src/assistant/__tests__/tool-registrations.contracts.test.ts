@@ -5,7 +5,7 @@ import { observabilityAgentToolCatalog } from '#src/features/observability/tool-
 import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
+import { serverLogsAgentToolCatalog } from "@jini-ai/diagnostics/server-logs/agent-tools";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
 import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../../features/agent-plugins/automatic-agent-plugins.js";

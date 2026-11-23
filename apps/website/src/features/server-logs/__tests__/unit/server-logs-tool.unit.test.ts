@@ -8,7 +8,7 @@ import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
 import { attachServerLogFile } from "#src/platform/server-logs/index";
 import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
-import { serverLogsAgentToolCatalog } from "../../agent-tools.js";
+import { serverLogsAgentToolCatalog } from "@jini-ai/diagnostics/server-logs/agent-tools";
 import { buildServerLogsRegistrations, serverLogsDerivedRisk } from "../../tool-registrations.js";
 import type { ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 

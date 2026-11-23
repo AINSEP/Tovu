@@ -84,7 +84,15 @@ session, and the fail-closed content-gating decision (ADR-030).
 
 ## Wiring
 
-Sign-in and reset mail bodies render in Jini: `@jini-ai/user-management/members/auth-mail` `renderMemberAuthMail({ purpose, link, code?, renderEmailForSend })`. `member-challenge-request.ts` injects `renderEmailForSend` from `@jini-ai/platform/mail/email-template`; Jini never imports the renderer or host code. The rest of this feature stays here until its in-flight and prerequisite steps land (`types.ts`/`ports.ts` are still imported through this barrel by other runs' files).
+Sign-in and reset mail bodies render in Jini: `@jini-ai/user-management/members/auth-mail` `renderMemberAuthMail({ purpose, link, code?, renderEmailForSend })`. `member-challenge-request.ts` injects `renderEmailForSend` from `@jini-ai/platform/mail/email-template`; Jini never imports the renderer or host code. The feature's records, ports, in-memory repos, access resolver, consent service, admin writes, credentials, challenge store, sign-in, password auth, Trash bridge, agent tool catalog and capability card now live in `@jini-ai/user-management/members/<module>` (one leaf subpath each: `types`, `ports`, `repo.memory`, `access-resolver`, `consent-service`, `member-admin-writes`, `member-credentials`, `member-challenge`, `member-sign-in`, `member-validation`, `password-auth`, `trash-member`, `agent-tools`, `capability-card`). There is no barrel: import each leaf directly.
+
+What stays here, and what Tovu binds:
+- `repo.ts`, `repo.rows.ts`, `repo.sqlite.ts`: the SQL adapters. They type against the host's Kysely `ContentDatabase`/`ContentKernel` and call `keepStoredRevocation`, and `@jini-ai/user-management` carries no SQL storage seam yet.
+- `member-challenge-request.ts`: binds the host mail transport (`isMailDeliveryAvailable`, `mailSenderIdentityFor` from `platform/mail`) and the Jini renderer into the challenge flow.
+- `write-service.ts`: composes `membersWriteService` from the Jini functions plus `member-challenge-request.ts`.
+- `subscriber-directory.ts`: implements the newsletter feature's `SubscriberDirectoryPort`, which has no Jini owner yet.
+- `tool-registrations.ts`: the assistant tool contributor. It binds `@jini-ai/cms/core` permission/error helpers and the host tool metadata.
+- Every composition passes `MembersWriteServiceDeps` (`buildMembersWriteServiceDeps`): repos, clock, ids, the positional mailer, optional `mailStatus`, `origin`, `senderIdentity`, `principals`, and `credentialLifecycle` (the content kernel, typed as core `StorageKernel`'s `transaction`/`lockKey`).
 
 ```ts
 import { renderMemberAuthMail } from "@jini-ai/user-management/members/auth-mail";

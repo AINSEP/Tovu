@@ -4,7 +4,7 @@ import test from "node:test";
 import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { describeInput, withToolAttemptAudit } from "../tool-audit-preset.js";
 import type { RedactedToolExecutionResult } from "../tool-recovery-preset.js";

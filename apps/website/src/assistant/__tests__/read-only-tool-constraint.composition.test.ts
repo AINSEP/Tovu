@@ -8,7 +8,7 @@ import { isReadOnlyTool } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/repo.memory";
 import { loadFixtureAuthSchemes } from "#src/features/custom-credentials/__tests__/fixture-auth-schemes.fixture";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";

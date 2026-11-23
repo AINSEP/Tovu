@@ -15,7 +15,7 @@ import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlToolAttemptAuditSink } from "#src/features/tool-audit/repo";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { createInMemoryAgentSessionStore, createSqliteAgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { createInMemoryConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-adapters";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";

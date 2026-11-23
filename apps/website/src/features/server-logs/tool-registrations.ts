@@ -5,7 +5,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { serverLogsAgentToolCatalog } from "./agent-tools.js";
+import { serverLogsAgentToolCatalog } from "@jini-ai/diagnostics/server-logs/agent-tools";
 import { processServerLogSource } from "./process-source.js";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 
