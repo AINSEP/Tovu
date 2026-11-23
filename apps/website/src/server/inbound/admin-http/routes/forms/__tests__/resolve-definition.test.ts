@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
-import { resolveFormDefinitionByIdOrSlug } from "../resolve-definition.js";
+import { resolveFormDefinitionByIdOrSlug } from "@jini-ai/cms/admin-http/routes/forms/resolve-definition";
 
 /**
  * @file Direct tests for `resolveFormDefinitionByIdOrSlug`. The forms route suites reach it with a

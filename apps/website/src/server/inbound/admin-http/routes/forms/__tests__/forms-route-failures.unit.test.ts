@@ -6,11 +6,11 @@ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { registerAdminFormsAuthoringRoute } from '../authoring.js';
 import { registerAdminFormsCreateRoute } from '../create.js';
 import { registerAdminFormsDeleteSubmissionRoute } from '../delete-submission.js';
-import { registerAdminFormsGetRoute } from '../get-by-id.js';
-import { registerAdminFormsGetSubmissionRoute } from '../get-submission.js';
-import { registerAdminFormsListSubmissionsRoute } from '../list-submissions.js';
-import { registerAdminFormsListRoute } from '../list.js';
-import { registerAdminFormsUpdateRoute } from '../update.js';
+import { registerAdminFormsGetRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsGetSubmissionRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsListSubmissionsRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsListRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import { DuplicateCommandError } from '@jini-ai/cms/core';
 import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
