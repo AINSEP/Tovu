@@ -169,3 +169,19 @@ test.each(['resolves', 'rejects'] as const)('a save that %s after switching plug
   expect(result.current.status).not.toBe('Could not save note.');
   expect(result.current.text).toBe('second note');
 });
+
+// B218: renaming a note the user is still writing must not throw their text away.
+test('renaming a new note keeps its text; picking another saved note with no edits shows that note', async () => {
+  const port: AgentPluginMemoryPort = { read: async () => ({ ...listing('example', 'Saved project note'),
+    notes: [{ relativePath: 'project.md', text: 'Saved project note' }, { relativePath: 'brand.md', text: 'Saved brand note' }] }),
+  saveNote: async () => { throw new Error('unexpected write'); } };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await waitFor(() => expect(result.current.text).toBe('Saved project note'));
+  act(() => result.current.setPath({ entryPath: 'brand.md' }));
+  expect(result.current.text).toBe('Saved brand note');
+  act(() => result.current.setText({ text: 'Typed but unsaved' }));
+  act(() => result.current.setPath({ entryPath: 'r' }));
+  act(() => result.current.setPath({ entryPath: 'rules.md' }));
+  expect(result.current.entryPath).toBe('rules.md');
+  expect(result.current.text).toBe('Typed but unsaved');
+});

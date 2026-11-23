@@ -367,3 +367,10 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   `<=` pattern (grep of `apps/website/src`).
 - Test: `credentials-revocation.dialects.test.ts` "two saves from the same version: the second is refused" (sqlite +
   pglite). Mutation: restore `<=` — red on both dialects.
+
+### `B218-plugin-note-rename-drops-text` — FIXED on `codex/bugs-high-tovu`
+- In a plugin's Memory editor, typing a new file name replaced the note text with that file's saved text — a blank
+  page for a new name — on every keystroke, so renaming a note being written threw the writing away. `setPath` now
+  keeps edited text; only an unedited draft switches to the named note's saved text.
+- Test: admin `agent-plugin-memory.hooks.unit.test.ts` "renaming a new note keeps its text; …". Mutation: always load
+  the named note's text — red.
