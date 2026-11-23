@@ -3606,6 +3606,254 @@
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
     },
     {
+      "id": "09d8a8c08a7f",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/get-effective.ts (K1 L2), reworded neutral (self-read default above the principal choice; Tovu admin file paths replaced by \"the host admin app\")."
+    },
+    {
+      "id": "0b7d9eb24cf8",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/register-definitions.ts (K1 L2), reworded neutral (DefinitionItemOutcome / applyDefinitionItem / route JSDoc; no res object or module doc left to name)."
+    },
+    {
+      "id": "0e7143e45ca4",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/set.ts (K1 L2), reworded neutral (parseSetRequestFields / settingsSetRoute JSDoc and the two inline target-workspace comments; Tovu file paths replaced by role)."
+    },
+    {
+      "id": "0f514d0661ee",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) next to registerAdminMailActivityRoutes, which carries the reworded JSDoc and the same @complexity; the old @example call shape no longer exists."
+    },
+    {
+      "id": "144b10bb4acd",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/source-control-credentials.ts (K1 L2), reworded neutral (provider list path JSDoc)."
+    },
+    {
+      "id": "180f84ce50f0",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/get-raw.ts (K1 L2), reworded neutral (settingsGetRawRoute JSDoc)."
+    },
+    {
+      "id": "1827c1610635",
+      "reason": "Explained Tovu's mountSettingsJsonRoute, which K1 L2 replaced by Jini runSettingsRoute (admin-http/routes/settings/shared.ts); the still-valid rationale is folded, reworded neutral, into runSettingsRoute's JSDoc."
+    },
+    {
+      "id": "19aa88bf7a8d",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/sites.ts (K1 L2), reworded neutral (refusal-as-wire-answer JSDoc)."
+    },
+    {
+      "id": "1a4604cad5ca",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/clear.ts (K1 L2), reworded neutral (parseClearRequestFields; VALID_SCOPES is now SETTING_SCOPES)."
+    },
+    {
+      "id": "222d0b3266c7",
+      "reason": "Explained the closure `authorized` for the list/plan/activate routes, which K1 L2 replaced by Jini authorizeMail/answer (admin-http/routes/system/mail-providers.ts, JSDoc: authorize first, then run); the PUT save keeps its own copy in Tovu routes/system/mail-providers.ts."
+    },
+    {
+      "id": "230cc81febdb",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/create.ts and system/source-control-credentials.ts (initial default-flag JSDoc, K1 L2), reworded neutral (the store's first-row auto-default)."
+    },
+    {
+      "id": "28edec47df85",
+      "reason": "Moved to Tovu runtime/composition/modules/sites.ts (K1 L2) next to registerSiteAdminSpecs, whose \"served tree's base, never process.cwd()\" comment carries it (reworded)."
+    },
+    {
+      "id": "308c8afdac6b",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/set.ts (K1 L2), reworded neutral (parseSetRequestFields / settingsSetRoute JSDoc and the two inline target-workspace comments; Tovu file paths replaced by role)."
+    },
+    {
+      "id": "379d521cf19f",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/custom-credentials.ts (K1 L2), reworded neutral (scope comment and the idempotent-delete comment)."
+    },
+    {
+      "id": "3e491954791b",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/assistant-permanent-deletes.ts (K1 L2), reworded neutral (@file header and parsePermanentDeletesGrant JSDoc)."
+    },
+    {
+      "id": "41e4fa63d7b7",
+      "reason": "Explained mountSettingsJsonRoute's defineJsonRoute adapter (\"ports always bound below\"), which K1 L2 replaced by runSettingsRoute (admin-http/routes/settings/shared.ts) with its own fail-closed context/authorizer guards; no adapter left to explain."
+    },
+    {
+      "id": "437543614ebb",
+      "reason": "Explained buildRejectUnlessAuthorized (publish) and rejectUnlessAuthorized (source-control), which K1 L2 replaced by Jini authorizeCredentialRoute (admin-http/routes/system/credential-routes-shared.ts and publish-credentials/shared.ts: the one permission check every verb asks first); no helper left."
+    },
+    {
+      "id": "44a0126a09fe",
+      "reason": "Explained sendStoreError, which K1 L2 replaced by the Jini store-error ladder (admin-http/routes/system/credential-routes-shared.ts: unmatched failures are rethrown for the host's redacted 500, the same fix this comment recorded); no helper left."
+    },
+    {
+      "id": "48861f708776",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) next to the isMailDeliveryAvailable binding, where the boot-race comment names platform/mail/delivery-availability.ts (reworded)."
+    },
+    {
+      "id": "4b542a822ead",
+      "reason": "Explained validateCleanField, which K1 L2 replaced by Jini refuseWrongType (admin-http/routes/system/export-site.ts: the \"'clean' must be a boolean\" refusal, absent/undefined passes); no helper left for it."
+    },
+    {
+      "id": "4b65232899f9",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/shared.ts (K1 L2), reworded neutral (fenceProtectedWrite JSDoc carries the same sentence)."
+    },
+    {
+      "id": "4ba2eb0df58a",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/get-effective.ts (K1 L2), reworded neutral (settingsGetEffectiveRoute JSDoc; the Tovu file pointers are described by role)."
+    },
+    {
+      "id": "4f9431d17e6d",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/register-definitions.ts (K1 L2), reworded neutral (DefinitionItemOutcome / applyDefinitionItem / route JSDoc; no res object or module doc left to name)."
+    },
+    {
+      "id": "5013484ccf26",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/delete.ts and system/source-control-credentials.ts (K1 L2), reworded neutral (idempotent 204 delete comments)."
+    },
+    {
+      "id": "5025be487861",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/create.ts (K1 L2), reworded neutral (verify-only-when-connection comment; the update route shares publish-credentials/shared.ts)."
+    },
+    {
+      "id": "603c042a72f1",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) next to registerAdminMailTestSendRoute, which carries the reworded JSDoc and the same @complexity; the old @example call shape no longer exists."
+    },
+    {
+      "id": "609ac2b57dd5",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (readTriggerOptions JSDoc: blank basePath collapses to omitted; every malformed shape is a flat 400)."
+    },
+    {
+      "id": "62e77fe347d9",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/source-control-credentials.ts (K1 L2), reworded neutral (provider rows JSDoc: plugin load refusals go to the server log, never the response)."
+    },
+    {
+      "id": "6cc5375b6858",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/shared.ts (K1 L2), reworded neutral (verify only when the request supplied a connection)."
+    },
+    {
+      "id": "6f90f58bd9f0",
+      "reason": "Explained validateBasePathField, which K1 L2 replaced by Jini refuseWrongType (admin-http/routes/system/export-site.ts: the \"'basePath' must be a string\" refusal, absent/undefined passes); no helper left for it."
+    },
+    {
+      "id": "72df593d6374",
+      "reason": "Explained the `fail` error ladder, which K1 L2 replaced by Jini withActivityFailures (admin-http/routes/system/mail-activity.ts, JSDoc states the same 400/403/503/redacted-500 ladder); no helper left."
+    },
+    {
+      "id": "759e2c3e9c2a",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/clear.ts (K1 L2), reworded neutral (settingsClearRoute JSDoc; write-service.clear() is now the host settings service's clear())."
+    },
+    {
+      "id": "76b2c4d7752f",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (the startRun-not-awaited comment in exportSiteTriggerRoute)."
+    },
+    {
+      "id": "7c7605d7ff30",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/assistant-owner-grant.ts (K1 L2), reworded neutral (@file header; registerAssistantOwnerGrantRoutes became the OwnerGrantPolicy specs)."
+    },
+    {
+      "id": "7ce69215a871",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (single-flight comment in exportSiteTriggerRoute, now with the agent-tool note)."
+    },
+    {
+      "id": "816387354a4b",
+      "reason": "Moved to Tovu runtime/composition/modules (K1 L2): createPublishSiteContext in Tovu routes/system/publish-site.ts carries the reworded once-per-registration comment next to composePublishCredentialSource."
+    },
+    {
+      "id": "82a054581274",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/sites.ts (K1 L2), reworded neutral (status-by-refusal-code JSDoc)."
+    },
+    {
+      "id": "8cc82feea53c",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) verbatim, above registerAdminMailTestSendRoute (and reworded neutral in Jini @jini-ai/cms admin-http/routes/system/mail-test-send.ts); the checker drops the leading `**` of its `**Send test email**` line when normalizing the old text, so the verbatim copy still reads as lost."
+    },
+    {
+      "id": "8db54334bf69",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/set.ts (K1 L2), reworded neutral (parseSetRequestFields / settingsSetRoute JSDoc and the two inline target-workspace comments; Tovu file paths replaced by role)."
+    },
+    {
+      "id": "8e8e34215abc",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/protected-namespaces.ts (K1 L2), reworded neutral (touchesProtectedNamespaces JSDoc: a host-protected namespace instead of the named subagents grant)."
+    },
+    {
+      "id": "95b74240842c",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/custom-credentials.ts (K1 L2), reworded neutral (scope comment and the idempotent-delete comment)."
+    },
+    {
+      "id": "a60450f46f78",
+      "reason": "Explained the Express `req.params.workspaceId` no-fallback read, which K1 L2 replaced by the admin ports' workspace match (mountAdminJsonRoute); no Express handler left for it."
+    },
+    {
+      "id": "a85f655eb853",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/register-definitions.ts (K1 L2), reworded neutral (DefinitionItemOutcome / applyDefinitionItem / route JSDoc; no res object or module doc left to name)."
+    },
+    {
+      "id": "a9b0ee35596a",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/reset.ts (K1 L2), reworded neutral (parseResetRequestFields / settingsResetRoute JSDoc; VALID_SCOPES is now SETTING_SCOPES)."
+    },
+    {
+      "id": "acb65a779e4d",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/set.ts (K1 L2), reworded neutral (parseSetRequestFields / settingsSetRoute JSDoc and the two inline target-workspace comments; Tovu file paths replaced by role)."
+    },
+    {
+      "id": "adfbf8bd922b",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/sites.ts (K1 L2), reworded neutral (create request fields JSDoc; parseCreateSiteName became the spec's own name check after authorization)."
+    },
+    {
+      "id": "b98f714d8ff5",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/sites.ts (K1 L2), reworded neutral (flag-then-binding gate JSDoc)."
+    },
+    {
+      "id": "c632d52e0549",
+      "reason": "Explained the mail-dns `handler` helper, which K1 L2 replaced by the shared admin ports (Jini authorizeMail in admin-http/routes/system/mail-shared.ts plus the host's 404/403/500 mapping); no helper left."
+    },
+    {
+      "id": "c6ddabd94322",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/sites/sites-home.ts (K1 L2), reworded neutral (file header and the validate-directory comments)."
+    },
+    {
+      "id": "c9d84dd39cfa",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/delete.ts and system/source-control-credentials.ts (K1 L2), reworded neutral (idempotent 204 delete comments)."
+    },
+    {
+      "id": "ca33cfa162d5",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/sites/sites-home.ts (K1 L2), reworded neutral (file header and the validate-directory comments)."
+    },
+    {
+      "id": "d0a0f5d819ff",
+      "reason": "Explained rejectUnlessAuthorized, which K1 L2 replaced by Jini authorizeCredentialRoute (admin-http/routes/system/credential-routes-shared.ts, the family's single permission check); no helper left."
+    },
+    {
+      "id": "d2c618bab937",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-credentials/verify.ts (K1 L2), reworded neutral (decrypt-step-may-throw comment above the store ladder)."
+    },
+    {
+      "id": "dd7ee402d3a6",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/reset.ts (K1 L2), reworded neutral (parseResetRequestFields / settingsResetRoute JSDoc; VALID_SCOPES is now SETTING_SCOPES)."
+    },
+    {
+      "id": "e0173df35a75",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-site/preview.ts (K1 L2), reworded neutral (preview body JSDoc: a rejected provider inspection is a 400, the DB-backed read can reach a real store)."
+    },
+    {
+      "id": "e122a6444e7b",
+      "reason": "Split by K1 L2: the route description moved, reworded neutral, to Jini @jini-ai/cms admin-http/routes/system/deployment-overview.ts @file header; the site-key plan A3b paragraph is kept (reworded) at Tovu runtime/composition/modules/system-deploy.ts next to the buildSnapshot binding."
+    },
+    {
+      "id": "ec0c4c452e96",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) verbatim, above registerAdminMailDnsRoutes (and reworded neutral in Jini @jini-ai/cms admin-http/routes/system/mail-dns.ts); the checker drops the leading `**` of its `**Check again**` line when normalizing the old text, so the verbatim copy still reads as lost."
+    },
+    {
+      "id": "f24c1f604f83",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/publish-site/targets.ts (K1 L2), reworded neutral (@file header: descriptors only, module path / vendor id / refusal reason stay server-side)."
+    },
+    {
+      "id": "f79985427d3c",
+      "reason": "Explained the closure `route` (authorize, run, answer 200 or the mapped refusal), which K1 L2 replaced by Jini `answer` (admin-http/routes/system/mail-providers.ts, JSDoc states the same order); no helper left."
+    },
+    {
+      "id": "fa07c627e290",
+      "reason": "Moved to Tovu runtime/composition/modules/system-mail.ts (K1 L2) next to registerAdminMailDnsRoutes, which carries the reworded JSDoc; the old @example call shape no longer exists."
+    },
+    {
+      "id": "fa2d3884371a",
+      "reason": "Explained statusAllowed, which K1 L2 replaced by Jini requireStatusPermission (admin-http/routes/system/mail-activity.ts, same permission check with the principal-free 403); no helper left."
+    },
+    {
+      "id": "fc75a5079b31",
+      "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (readTriggerOptions JSDoc: blank basePath collapses to omitted; every malformed shape is a flat 400)."
+    },
+    {
       "id": "153f32528336",
       "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
     },

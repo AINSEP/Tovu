@@ -5,13 +5,13 @@ import express from "express";
 
 import { DefinitionNotFoundError, ForbiddenError, InMemorySettingsRepo } from "#src/features/settings/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSettingsClearRoute } from "../clear.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../get-raw.js";
-import { registerAdminSettingsListDefinitionsRoute } from "../list-definitions.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../register-definitions.js";
-import { registerAdminSettingsResetRoute } from "../reset.js";
-import { registerAdminSettingsSetRoute } from "../set.js";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetEffectiveRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsGetRawRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsListDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import type { SettingsRouteDeps, SettingsRouteRegistrar } from "../deps.js";
 
 const base = "/api/admin/v1/workspaces/:workspaceId/settings";

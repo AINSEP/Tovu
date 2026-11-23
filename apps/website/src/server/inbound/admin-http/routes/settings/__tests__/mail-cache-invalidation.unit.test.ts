@@ -6,9 +6,9 @@ import { ensureSettingDefinitions, InMemorySettingsRepo, SCOPE_BIT } from "@jini
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createTtlCache } from "@jini-ai/platform/mail";
 import { readMailProviderSetting, ensureMailProviderSettings } from "#src/features/settings/mail-provider";
-import { registerAdminSettingsSetRoute } from "../set.js";
-import { registerAdminSettingsClearRoute } from "../clear.js";
-import { registerAdminSettingsResetRoute } from "../reset.js";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
 import type { SettingsRouteDeps } from "../deps.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 

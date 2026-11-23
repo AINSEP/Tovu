@@ -2,7 +2,7 @@ import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
-import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/source-control-credentials";
+import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";

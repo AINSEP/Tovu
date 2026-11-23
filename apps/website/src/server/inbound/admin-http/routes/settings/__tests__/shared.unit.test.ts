@@ -23,11 +23,11 @@ test("resolveUserLayerReadTarget: reading your own layer (or none) never asks au
     calls += 1;
     return { allowed: false as const, reason: "should not be asked" };
   };
-  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize }, { requestedPrincipalId: undefined, callerPrincipalId: "me" }), {
+  assert.deepEqual(await resolveUserLayerReadTarget({ deps: { ...deps, authorize }, input: { requestedPrincipalId: undefined, callerPrincipalId: "me" } }), {
     allowed: true,
     principalId: undefined,
   });
-  assert.deepEqual(await resolveUserLayerReadTarget({ ...deps, authorize }, { requestedPrincipalId: "me", callerPrincipalId: "me" }), {
+  assert.deepEqual(await resolveUserLayerReadTarget({ deps: { ...deps, authorize }, input: { requestedPrincipalId: "me", callerPrincipalId: "me" } }), {
     allowed: true,
     principalId: "me",
   });
@@ -41,11 +41,11 @@ test("resolveUserLayerReadTarget: another principal's layer requires settings.us
     return allowed ? { allowed: true as const, reason: "matched" } : { allowed: false as const, reason: "no_grant" };
   };
   assert.deepEqual(
-    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(false) }, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
+    await resolveUserLayerReadTarget({ deps: { ...deps, authorize: authorizeWith(false) }, input: { requestedPrincipalId: "them", callerPrincipalId: "me" } }),
     { allowed: false, reason: "no_grant" }
   );
   assert.deepEqual(
-    await resolveUserLayerReadTarget({ ...deps, authorize: authorizeWith(true) }, { requestedPrincipalId: "them", callerPrincipalId: "me" }),
+    await resolveUserLayerReadTarget({ deps: { ...deps, authorize: authorizeWith(true) }, input: { requestedPrincipalId: "them", callerPrincipalId: "me" } }),
     { allowed: true, principalId: "them" }
   );
   assert.equal(CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, "settings.user.read");

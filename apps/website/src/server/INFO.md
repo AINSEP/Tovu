@@ -98,3 +98,40 @@ binds the Jini `PLUGIN_HOOK_FAILED` envelope to `PluginHookFailedError`, `plugin
 `entityType` in their authorize binding (posts/pages reads, autosave, email templates), so a
 resource-scoped grant cannot start matching. The email-template writes keep `rejectOversizedJsonBody`
 in the same registration as the mounted spec.
+
+System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/admin-http/routes/system/mail-*`
+(all `"direct"`); the live mailer, status source and platform operations are read per request because boot
+swaps them in after mount. Mail providers mount list, credential plan and activate from Jini in the original
+order around the credential PUT, which stays hand-written in `routes/system/mail-providers.ts` (it reads
+`res.locals.authCredentialKind`, which the admin ports do not carry) and shares Jini's `mailProviderRefusal` table.
+`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) and
+`browser-telemetry.ts` (204 beacon, `Retry-After`, content-length) stay hand-written.
+Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
+`registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
+`createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
+hand-written: `PUT …/sites/config` (two failure copies by phase), the socket-reading list and the
+header-gated `/internal/dev-warm-site` (`routes/system/sites.ts`), card previews (binary) and the warm relay.
+Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount the source-control (5), custom
+(create, delete) and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure`
+operations; store deps are bound once at registration as before and the heal scheduler is built once per
+registration and injected. Still hand-written in `inbound/admin-http/routes/system/`: custom list and update
+(they read `res.locals.authCredentialKind`), the publish GET list (a pinned direct-call rejection) and
+`credential-copy.ts` (socket/headers, `Cache-Control: no-store`). Their Jini specs for publish list and custom
+list/update exist but are not mounted until the admin ports carry the credential kind.
+Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
+per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
+per-error failure copy from the admin ports (owner decisions).
+System deploy (`runtime/composition/modules/system-deploy.ts`) mounts the overview and export specs `"direct"` and
+publish status/preview/targets `"guarded"`, binding `buildDeploymentOverviewSnapshot`, `DEFAULT_OWNER_PASSWORD`,
+the export run slot shared with the agent export tools and the publish readers. The publish trigger (blocked-publish
+product events), the destinations listing (publish-trust peer read from `res.locals`) and `dockerfile-source.ts`
+(ETag/If-Match headers) stay hand-written, registered in their original order.
+Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings specs `"direct"` with failure
+`{ operation: "routes/settings", message: "The settings request could not finish." }`, binding readiness, the
+ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,
+mail-cache invalidation) and the `settings.user.read` cross-principal policy from
+`inbound/admin-http/routes/settings/shared.ts` (host composition). The SSE feed (`events.ts`) stays hand-written.
+Assistant owner grants (`runtime/composition/modules/system-assistant.ts`, `registerAssistantOwnerGrantRoutes`) mount
+the Jini `createOwnerGrantRoutes` pairs `"direct"` with the settings failure copy, readiness bound to
+`settingsUiTabsReady`, the `SETTINGS_WRITE_FENCE` and `set` over `toWriteServiceDeps`; the subagents read projection
+(`projectAssistantSubagentsRead`) is host policy and lives there too.

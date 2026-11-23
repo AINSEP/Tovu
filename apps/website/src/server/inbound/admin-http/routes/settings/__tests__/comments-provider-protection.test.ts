@@ -9,9 +9,9 @@ import { createCommentsSelectionStore, ensureCommentsProviderDefinition } from "
 import type { SetCommentsSettingsDeps } from "#src/features/comments/settings";
 import { contributeSettingsTools, type SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import { clear, refuseCommentsProviderClear, refuseCommentsProviderReset, set } from "#src/features/settings/index";
-import { registerAdminSettingsClearRoute } from "../clear.js";
-import { registerAdminSettingsResetRoute } from "../reset.js";
-import { registerAdminSettingsSetRoute } from "../set.js";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
 import type { SettingsRouteDeps } from "../deps.js";
 import { createTovuSettingsService } from "../shared.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";

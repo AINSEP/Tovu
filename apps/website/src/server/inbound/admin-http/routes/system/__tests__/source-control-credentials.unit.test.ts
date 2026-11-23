@@ -4,7 +4,7 @@ import test from "node:test";
 import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "../source-control-credentials.js";
+import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
 /**
  * Direct-invoke contracts for the source-control credential routes, with hand-written fakes for the
