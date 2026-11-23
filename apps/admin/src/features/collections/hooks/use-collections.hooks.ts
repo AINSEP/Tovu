@@ -1,13 +1,13 @@
 import { useState } from "react";
 
-import type { AdminContentType, ContentTypeLifecycleOp } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, ContentTypeLifecycleOp } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
-import type { CollectionsPort } from "./collections-port.hooks";
+import type { CollectionsPort } from "@jini-ai/admin/screens/collections/hooks/collections-port.hooks";
 
 /**
  * @file Everything the Collections LIST screen (content-type registry + the three dialogs' open/

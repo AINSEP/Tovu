@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import type { AdminContentType } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import {
   addDraftField,
@@ -16,7 +16,7 @@ import {
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
-import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
+import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

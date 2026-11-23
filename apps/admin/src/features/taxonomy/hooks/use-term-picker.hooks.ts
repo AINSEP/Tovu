@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -8,7 +8,7 @@ import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
 
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
-import type { TermPickerPort } from "./term-picker-port.hooks";
+import type { TermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

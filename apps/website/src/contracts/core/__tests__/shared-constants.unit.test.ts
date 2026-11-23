@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DECLARED_CONTENT_TYPE_OWNERS } from "#src/contracts/core/declared-content-type-owners";
+import { DECLARED_CONTENT_TYPE_OWNERS } from "@jini-ai/cms/widgets/site/declared-content-type-owners";
 import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";

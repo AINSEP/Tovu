@@ -1,0 +1,1611 @@
+
+ RUN  v3.2.7 /home/user/Jini/packages/cms
+
+ ✓ src/taxonomy/__tests__/write-service.test.ts (37 tests) 71ms
+ ✓ src/media/__tests__/media-service.test.ts (62 tests) 684ms
+   ✓ SVG upload stores sanitized bytes under their own hash, deduplicates, and refuses SVG fonts  648ms
+ ✓ src/redirects/__tests__/redirects.test.ts (52 tests) 68ms
+ ✓ src/media/__tests__/video-frames.ffmpeg.test.ts (44 tests) 398ms
+ ✓ src/navigation/__tests__/menu-service.test.ts (46 tests) 46ms
+ ✓ src/widgets/__tests__/unit/resolver-service.unit.test.ts (87 tests) 182ms
+ ✓ src/seo/__tests__/seo.test.ts (52 tests) 290ms
+ ✓ src/widgets/__tests__/unit/embed-service.unit.test.ts (58 tests) 173ms
+stderr | src/widgets/__tests__/unit/html-embeds.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/marker.unit.test.ts (58 tests) 140ms
+ ✓ src/widgets/__tests__/unit/html-embeds.unit.test.ts (53 tests) 56ms
+ ✓ src/media/import/__tests__/fetch-image.test.ts (54 tests) 92ms
+ ✓ src/media/__tests__/tool-registrations.test.ts (23 tests) 182ms
+ ✓ src/forms/express/__tests__/handler.test.ts (24 tests) 235ms
+ ✓ src/redirects/__tests__/redirects.reserved-target.test.ts (67 tests) 67ms
+ ✓ src/widgets/__tests__/plugin-export.unit.test.ts (116 tests) 123ms
+stderr | src/forms/__tests__/submit-service.host-options.test.ts > submitForm: AC-24/INV-05 — the response resolves before a slow/throwing subscriber settles (fire-and-forget outbox drain)
+form outbox dispatch failed Error: simulated slow/throwing MailerPort.send()
+    at handler [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/submit-service.host-options.test.ts:245:11[90m)[39m
+    at InMemoryEventBus.publish [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/eventing.fixture.ts:11:58[90m)[39m
+    at dispatch [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/support/switch-bindings.fixture.ts:70:7[90m)[39m
+
+ ✓ src/forms/__tests__/submit-service.host-options.test.ts (25 tests) 84ms
+ ✓ src/seo/__tests__/write-service.test.ts (30 tests) 17ms
+ ✓ src/media/__tests__/blob-gc.test.ts (20 tests) 70ms
+ ✓ src/forms/__tests__/write-service.host-options.test.ts (24 tests) 171ms
+ ✓ src/navigation/__tests__/tool-registrations.test.ts (33 tests) 97ms
+ ✓ src/listing/__tests__/entry-list.test.ts (35 tests) 26ms
+ ✓ src/forms/__tests__/submit-service.boundaries.test.ts (22 tests) 77ms
+ ✓ src/forms/__tests__/write-service.test.ts (23 tests) 66ms
+ ✓ src/comments/__tests__/ingress.test.ts (26 tests) 28ms
+ ✓ src/routing/__tests__/routing.test.ts (42 tests) 19ms
+stderr | src/widgets/__tests__/integration/write-service.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/integration/write-service.integration.test.ts (13 tests) 16ms
+ ❯ src/taxonomy/__tests__/sql.repo.dialects.test.ts (46 tests | 1 failed) 6544ms
+   ✓ taxonomy repo [sqlite] > insert round-trips every field incl. the hierarchical boolean 30ms
+   ✓ taxonomy repo [sqlite] > finds miss an unknown id and another workspace's row 4ms
+   ✓ taxonomy repo [sqlite] > trashed rows hide from live reads but findAnyById still sees them 2ms
+   ✓ taxonomy repo [sqlite] > update rewrites a live row and no-ops on a trashed or other-workspace row 3ms
+   ✓ taxonomy repo [sqlite] > delete removes only this workspace's row 2ms
+   ✓ taxonomy repo [sqlite] > transaction commits its writes, rolls them all back on a throw, and nested calls join 3ms
+   × taxonomy repo [pglite] > insert round-trips every field incl. the hierarchical boolean 5872ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ taxonomy repo [pglite] > finds miss an unknown id and another workspace's row 30ms
+   ✓ taxonomy repo [pglite] > trashed rows hide from live reads but findAnyById still sees them 32ms
+   ✓ taxonomy repo [pglite] > update rewrites a live row and no-ops on a trashed or other-workspace row 20ms
+   ✓ taxonomy repo [pglite] > delete removes only this workspace's row 16ms
+   ✓ taxonomy repo [pglite] > transaction commits its writes, rolls them all back on a throw, and nested calls join 26ms
+   ✓ term repo [sqlite] > insert round-trips every field incl. a parent 5ms
+   ✓ term repo [sqlite] > reads miss an unknown id and another workspace's row 6ms
+   ✓ term repo [sqlite] > a term is hidden by its own trash marker and by a trashed taxonomy; trash-blind reads still see it 4ms
+   ✓ term repo [sqlite] > findForTrash joins the taxonomy name; findForPurgeAudit returns the audit shape 2ms
+   ✓ term repo [sqlite] > update rewrites a live term and no-ops on a trashed, orphaned-by-trash or other-workspace one 5ms
+   ✓ term repo [sqlite] > countChildren counts direct children only, whatever their status 2ms
+   ✓ term repo [sqlite] > delete removes only this workspace's term 3ms
+   ✓ term repo [sqlite] > a failed insert inside a taxonomy transaction rolls the earlier insert back 2ms
+   ✓ term repo [pglite] > insert round-trips every field incl. a parent 13ms
+   ✓ term repo [pglite] > reads miss an unknown id and another workspace's row 27ms
+   ✓ term repo [pglite] > a term is hidden by its own trash marker and by a trashed taxonomy; trash-blind reads still see it 31ms
+   ✓ term repo [pglite] > findForTrash joins the taxonomy name; findForPurgeAudit returns the audit shape 9ms
+   ✓ term repo [pglite] > update rewrites a live term and no-ops on a trashed, orphaned-by-trash or other-workspace one 66ms
+   ✓ term repo [pglite] > countChildren counts direct children only, whatever their status 18ms
+   ✓ term repo [pglite] > delete removes only this workspace's term 19ms
+   ✓ term repo [pglite] > a failed insert inside a taxonomy transaction rolls the earlier insert back 18ms
+   ✓ entry-term repo [sqlite] > upsert is idempotent per (content, term): a repeat replaces addedAt 4ms
+   ✓ entry-term repo [sqlite] > remove and deleteByContent return the removed count, scoped to the workspace 3ms
+   ✓ entry-term repo [sqlite] > countOverlap counts content assigned to both terms, isolated by workspace 3ms
+   ✓ entry-term repo [sqlite] > repointTerm moves assignments, collapsing duplicates; other workspaces are untouched 4ms
+   ✓ entry-term repo [sqlite] > repointTerm rolls back when the merge fails part-way 2ms
+   ✓ entry-term repo [sqlite] > listForContent joins names in added order and hides trashed terms and terms of a trashed taxonomy 3ms
+   ✓ entry-term repo [pglite] > upsert is idempotent per (content, term): a repeat replaces addedAt 18ms
+   ✓ entry-term repo [pglite] > remove and deleteByContent return the removed count, scoped to the workspace 32ms
+   ✓ entry-term repo [pglite] > countOverlap counts content assigned to both terms, isolated by workspace 34ms
+   ✓ entry-term repo [pglite] > repointTerm moves assignments, collapsing duplicates; other workspaces are untouched 57ms
+   ✓ entry-term repo [pglite] > repointTerm rolls back when the merge fails part-way 35ms
+   ✓ entry-term repo [pglite] > listForContent joins names in added order and hides trashed terms and terms of a trashed taxonomy 37ms
+   ✓ taxonomy revision repo [sqlite] > insert appends rows in seq order and round-trips previousState (compact JSON or null) 2ms
+   ✓ taxonomy revision repo [sqlite] > listForTests misses an unknown taxonomy and another workspace's ledger 1ms
+   ✓ taxonomy revision repo [sqlite] > an insert inside a rolled-back transaction leaves no revision 1ms
+   ✓ taxonomy revision repo [pglite] > insert appends rows in seq order and round-trips previousState (compact JSON or null) 8ms
+   ✓ taxonomy revision repo [pglite] > listForTests misses an unknown taxonomy and another workspace's ledger 7ms
+   ✓ taxonomy revision repo [pglite] > an insert inside a rolled-back transaction leaves no revision 9ms
+ ✓ src/forms/__tests__/html-render.fields.test.ts (29 tests) 7ms
+ ✓ src/taxonomy/__tests__/write-service.import.test.ts (20 tests) 13ms
+ ✓ src/media/__tests__/rendition-service.test.ts (15 tests) 548ms
+   ✓ SVG transform URLs serve the vector original without invoking the raster transformer or saving renditions  526ms
+stderr | src/widgets/__tests__/integration/write-service.lifecycle.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/integration/write-service.lifecycle.integration.test.ts (16 tests) 32ms
+ ✓ src/seo/__tests__/page-head-contributor.test.ts (16 tests) 17ms
+ ✓ src/entries/__tests__/write-service.update-publish.test.ts (13 tests) 8ms
+ ✓ src/forms/__tests__/field-registry.test.ts (43 tests) 51ms
+ ✓ src/media/__tests__/versioned-repo.test.ts (32 tests) 8ms
+ ✓ src/content-types/__tests__/write-service.guards-boundary.test.ts (25 tests) 14ms
+ ✓ src/forms/__tests__/email-sender.unit.test.ts (15 tests) 135ms
+ ✓ src/presentation/__tests__/html.test.ts (30 tests) 36ms
+stderr | src/widgets/__tests__/unit/resolvers-contact-form.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-contact-form.unit.test.ts (22 tests) 69ms
+ ❯ src/redirects/__tests__/repo.contract.test.ts (47 tests | 1 failed) 7438ms
+   ✓ [memory] save() then findById() round-trips the record 1ms
+   ✓ [memory] findById returns null for a different workspace 0ms
+   ✓ [memory] lookupExact finds an active exact rule by path 0ms
+   ✓ [memory] lookupExact matches a multi-segment source with or without trailing slash and encoding (Bug A) 0ms
+   ✓ [memory] lookupExact excludes a disabled rule 0ms
+   ✓ [memory] lookupExact with includeOverrideOnly excludes non-override rules 0ms
+   ✓ [memory] lookupLongestPrefix picks the longest matching prefix 0ms
+   ✓ [memory] lookupLongestPrefix with includeOverrideOnly skips a longer non-override prefix 0ms
+   ✓ [memory] listDynamic returns only active wildcard rules, capped at limit 1ms
+   ✓ [memory] list applies status/source/matchType filters 0ms
+   ✓ [memory] findByFromPattern finds an active rule with the given fromPattern 0ms
+   ✓ [memory] findByFromPattern returns null when no rule matches 0ms
+   ✓ [memory] tombstone flips status to disabled and appends the tombstone revision 0ms
+   ✓ [memory] save() upserts (an update replaces the prior record state) 0ms
+   ✓ [sqlite] save() then findById() round-trips the record 29ms
+   ✓ [sqlite] findById returns null for a different workspace 4ms
+   ✓ [sqlite] lookupExact finds an active exact rule by path 2ms
+   ✓ [sqlite] lookupExact matches a multi-segment source with or without trailing slash and encoding (Bug A) 3ms
+   ✓ [sqlite] lookupExact excludes a disabled rule 1ms
+   ✓ [sqlite] lookupExact with includeOverrideOnly excludes non-override rules 1ms
+   ✓ [sqlite] lookupLongestPrefix picks the longest matching prefix 7ms
+   ✓ [sqlite] lookupLongestPrefix with includeOverrideOnly skips a longer non-override prefix 6ms
+   ✓ [sqlite] listDynamic returns only active wildcard rules, capped at limit 3ms
+   ✓ [sqlite] list applies status/source/matchType filters 2ms
+   ✓ [sqlite] findByFromPattern finds an active rule with the given fromPattern 1ms
+   ✓ [sqlite] findByFromPattern returns null when no rule matches 1ms
+   ✓ [sqlite] tombstone flips status to disabled and appends the tombstone revision 7ms
+   ✓ [sqlite] save() upserts (an update replaces the prior record state) 1ms
+   × [pglite] save() then findById() round-trips the record 6985ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ [pglite] findById returns null for a different workspace 18ms
+   ✓ [pglite] lookupExact finds an active exact rule by path 11ms
+   ✓ [pglite] lookupExact matches a multi-segment source with or without trailing slash and encoding (Bug A) 29ms
+   ✓ [pglite] lookupExact excludes a disabled rule 18ms
+   ✓ [pglite] lookupExact with includeOverrideOnly excludes non-override rules 23ms
+   ✓ [pglite] lookupLongestPrefix picks the longest matching prefix 33ms
+   ✓ [pglite] lookupLongestPrefix with includeOverrideOnly skips a longer non-override prefix 35ms
+   ✓ [pglite] listDynamic returns only active wildcard rules, capped at limit 50ms
+   ✓ [pglite] list applies status/source/matchType filters 31ms
+   ✓ [pglite] findByFromPattern finds an active rule with the given fromPattern 17ms
+   ✓ [pglite] findByFromPattern returns null when no rule matches 12ms
+   ✓ [pglite] tombstone flips status to disabled and appends the tombstone revision 38ms
+   ✓ [pglite] save() upserts (an update replaces the prior record state) 41ms
+   ✓ InMemoryRedirectRepo: constructor seeding and listRevisionsForTests 1ms
+   ✓ InMemoryRedirectRepo: tombstone throws RedirectNotFoundError if not found or workspace mismatch 3ms
+   ✓ InMemoryRedirectRepo: lookupLongestPrefix with trailing slash, exact path, override filter, null when none match 0ms
+   ✓ InMemoryRedirectRepo: listDynamic with includeOverrideOnly and tie-breaking 0ms
+   ✓ InMemoryRedirectRepo: findByFromPattern tie breaks exact before prefix, then by id 0ms
+ ✓ forms/src/__tests__/write-service.test.ts (21 tests) 14ms
+ ✓ src/forms/html/__tests__/import-remote-submissions.test.ts (17 tests) 35ms
+ ✓ src/media/__tests__/cover-image.test.ts (27 tests) 65ms
+ ✓ src/content-types/__tests__/write-service.register.test.ts (14 tests) 21ms
+ ❯ src/forms/__tests__/repo.contract.test.ts (58 tests | 1 failed) 8957ms
+   ✓ [InMemoryFormDefinitionRepo] create + findById round-trips 1ms
+   ✓ [InMemoryFormDefinitionRepo] findBySlug returns null for an unknown slug 0ms
+   ✓ [InMemoryFormDefinitionRepo] create rejects a duplicate slug in the same workspace with FormSlugConflictError (behavior.spec.md §6.1) 1ms
+   ✓ [InMemoryFormDefinitionRepo] create allows the same slug in a different workspace 0ms
+   ✓ [InMemoryFormDefinitionRepo] list returns only the requested workspace's definitions 0ms
+   ✓ [InMemoryFormDefinitionRepo] update persists a status change without changing the id 0ms
+   ✓ [InMemoryFormDefinitionRepo] FormDefinitionRepoPort exposes no delete method — a definition is removed only by a Trash purge 0ms
+   ✓ [InMemoryFormDefinitionRepo] findById/findBySlug/list hide a trashed row 1ms
+   ✓ [InMemoryFormDefinitionRepo] isSlugTaken is true for a trashed slug (trash-blind, unlike find*) 3ms
+   ✓ [InMemoryFormDefinitionRepo] create with a slug in the Trash rejects with FormSlugConflictError naming the Trash 0ms
+   ✓ [InMemoryFormDefinitionRepo] update() of a stale (now-trashed) record never revives it 0ms
+   ✓ [InMemoryFormSubmissionRepo] create + findById round-trips submission data 0ms
+   ✓ [InMemoryFormSubmissionRepo] listByDefinition returns newest-first 33ms
+   ✓ [InMemoryFormSubmissionRepo] listByDefinition paginates via cursor 2ms
+   ✓ [InMemoryFormSubmissionRepo] listByDefinition returns an empty page for a definition with no submissions (EC-08) 0ms
+   ✓ [InMemoryFormSubmissionRepo] a trashed submission is hidden from findById and listByDefinition 0ms
+   ✓ [InMemoryFormSubmissionRepo] a failed transaction drops its own writes but keeps every row committed before it 0ms
+   ✓ [InMemoryFormSubmissionRepo] a zero limit returns an empty page and never a dangling cursor 1ms
+   ✓ [InMemoryFormSubmissionRepo] a submission from another workspace is isolated 0ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] create + findById round-trips 33ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] findBySlug returns null for an unknown slug 6ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] create rejects a duplicate slug in the same workspace with FormSlugConflictError (behavior.spec.md §6.1) 11ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] create allows the same slug in a different workspace 3ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] list returns only the requested workspace's definitions 5ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] update persists a status change without changing the id 5ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] FormDefinitionRepoPort exposes no delete method — a definition is removed only by a Trash purge 0ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] findById/findBySlug/list hide a trashed row 9ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] isSlugTaken is true for a trashed slug (trash-blind, unlike find*) 2ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] create with a slug in the Trash rejects with FormSlugConflictError naming the Trash 8ms
+   ✓ [SqlFormDefinitionRepo [sqlite]] update() of a stale (now-trashed) record never revives it 2ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] create + findById round-trips submission data 4ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] listByDefinition returns newest-first 11ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] listByDefinition paginates via cursor 6ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] listByDefinition returns an empty page for a definition with no submissions (EC-08) 9ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] a trashed submission is hidden from findById and listByDefinition 17ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] a failed transaction drops its own writes but keeps every row committed before it 2ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] a zero limit returns an empty page and never a dangling cursor 6ms
+   ✓ [SqlFormSubmissionRepo [sqlite]] a submission from another workspace is isolated 1ms
+   × [SqlFormDefinitionRepo [pglite]] create + findById round-trips 7248ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ [SqlFormDefinitionRepo [pglite]] findBySlug returns null for an unknown slug 12ms
+   ✓ [SqlFormDefinitionRepo [pglite]] create rejects a duplicate slug in the same workspace with FormSlugConflictError (behavior.spec.md §6.1) 9ms
+   ✓ [SqlFormDefinitionRepo [pglite]] create allows the same slug in a different workspace 8ms
+   ✓ [SqlFormDefinitionRepo [pglite]] list returns only the requested workspace's definitions 120ms
+   ✓ [SqlFormDefinitionRepo [pglite]] update persists a status change without changing the id 10ms
+   ✓ [SqlFormDefinitionRepo [pglite]] FormDefinitionRepoPort exposes no delete method — a definition is removed only by a Trash purge 0ms
+   ✓ [SqlFormDefinitionRepo [pglite]] findById/findBySlug/list hide a trashed row  583ms
+   ✓ [SqlFormDefinitionRepo [pglite]] isSlugTaken is true for a trashed slug (trash-blind, unlike find*) 38ms
+   ✓ [SqlFormDefinitionRepo [pglite]] create with a slug in the Trash rejects with FormSlugConflictError naming the Trash 15ms
+   ✓ [SqlFormDefinitionRepo [pglite]] update() of a stale (now-trashed) record never revives it 116ms
+   ✓ [SqlFormSubmissionRepo [pglite]] create + findById round-trips submission data 130ms
+   ✓ [SqlFormSubmissionRepo [pglite]] listByDefinition returns newest-first 73ms
+   ✓ [SqlFormSubmissionRepo [pglite]] listByDefinition paginates via cursor 116ms
+   ✓ [SqlFormSubmissionRepo [pglite]] listByDefinition returns an empty page for a definition with no submissions (EC-08) 75ms
+   ✓ [SqlFormSubmissionRepo [pglite]] a trashed submission is hidden from findById and listByDefinition 39ms
+   ✓ [SqlFormSubmissionRepo [pglite]] a failed transaction drops its own writes but keeps every row committed before it 38ms
+   ✓ [SqlFormSubmissionRepo [pglite]] a zero limit returns an empty page and never a dangling cursor 33ms
+   ✓ [SqlFormSubmissionRepo [pglite]] a submission from another workspace is isolated 50ms
+   ✓ memory Trash seams remove only the scoped definition and its submissions, including hidden submissions 1ms
+ ✓ src/trash/__tests__/directory-adapter.test.ts (19 tests) 279ms
+ ✓ src/media/__tests__/documents.test.ts (12 tests) 1324ms
+   ✓ Library: 50 MiB is inclusive and host media overrides never relax document ingress  579ms
+   ✓ ordinary blob metadata remains publishable with no owner, after Trash and after purge  632ms
+ ✓ src/log-safety-h.test.ts (19 tests) 85ms
+ ✓ src/comments/__tests__/repo.contract.test.ts (53 tests) 7309ms
+ ✓ src/redirects/__tests__/phase-handler.read-path-target.test.ts (20 tests) 99ms
+ ✓ src/entries/__tests__/write-service.boundaries.test.ts (20 tests) 12ms
+ ✓ src/entries/__tests__/write-service.import.test.ts (12 tests) 5ms
+stderr | src/widgets/__tests__/unit/config-validation.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/config-validation.unit.test.ts (34 tests) 53ms
+ ✓ src/taxonomy/__tests__/repo.memory.test.ts (19 tests) 25ms
+ ✓ src/navigation/__tests__/resolver.test.ts (10 tests) 20ms
+ ✓ src/taxonomy/__tests__/tool-registrations.test.ts (9 tests) 25ms
+ ✓ src/widgets/__tests__/tool-registrations.test.ts (21 tests) 58ms
+ ✓ src/trash/__tests__/service.test.ts (18 tests) 12ms
+ ✓ src/forms/__tests__/file-fields.test.ts (12 tests) 78ms
+ ✓ src/redirects/__tests__/tool-registrations.test.ts (23 tests) 26ms
+stderr | src/widgets/__tests__/integration/resolver-service.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/integration/resolver-service.integration.test.ts (9 tests) 10ms
+ ✓ src/forms/__tests__/submit-service.test.ts (15 tests) 113ms
+ ✓ src/content-types/__tests__/tool-registrations.cov-j2.test.ts (12 tests) 12ms
+ ❯ src/entries/__tests__/sql.repo.dialects.test.ts (30 tests | 1 failed) 7523ms
+   ✓ entry repo [sqlite] > save round-trips every field and the reads are scoped to the workspace 65ms
+   ✓ entry repo [sqlite] > a second plain save replaces the row 11ms
+   ✓ entry repo [sqlite] > Trash: reads hide a trashed row, findAny* see it, a plain save never revives it, its slug blocks a new entry 16ms
+   ✓ entry repo [sqlite] > a compare-and-set save lands on the matching version and refuses a stale, trashed or missing row 29ms
+   ✓ entry repo [sqlite] > a create-only save (expectedVersion: null) lands only when the id is free and tells the two refusals apart 7ms
+   ✓ entry repo [sqlite] > a database failure is propagated unchanged rather than translated into a slug conflict 1ms
+   ✓ entry repo [sqlite] > appendRevision persists the full audit payload 8ms
+   ✓ entry repo [sqlite] > a transaction's save rolls back as a whole; a nested one joins 20ms
+   ✓ entry repo [sqlite] > onWriteSettled gets the repository after every save and transaction, success or failure, and never on a read 2ms
+   ✓ entry repo [sqlite] > workspace lists narrow by type, order by updatedAt, honour status and limit; excluded types go before the limit 21ms
+   ✓ entry repo [sqlite] > listPublishedForDisplay: where equality matches string, number and boolean values and nothing else 12ms
+   ✓ entry repo [sqlite] > listPublishedForDisplay: sorts a numeric field numerically, missing first ascending and last descending, ties by id 8ms
+   ✓ entry repo [sqlite] > listPublishedForDisplay: built-in sort keys, the limit and an explicit offset after stable ordering 5ms
+   ✓ entry repo [sqlite] > listPublishedForDisplay: excludes drafts, trashed rows, other types and other workspaces 2ms
+   ✓ entry repo [sqlite] > listPublishedForDisplay: a field name that cannot be a path key matches nothing and sorts as nothing, without throwing 1ms
+   × entry repo [pglite] > save round-trips every field and the reads are scoped to the workspace 6841ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ entry repo [pglite] > a second plain save replaces the row 40ms
+   ✓ entry repo [pglite] > Trash: reads hide a trashed row, findAny* see it, a plain save never revives it, its slug blocks a new entry 50ms
+   ✓ entry repo [pglite] > a compare-and-set save lands on the matching version and refuses a stale, trashed or missing row 84ms
+   ✓ entry repo [pglite] > a create-only save (expectedVersion: null) lands only when the id is free and tells the two refusals apart 17ms
+   ✓ entry repo [pglite] > a database failure is propagated unchanged rather than translated into a slug conflict 0ms
+   ✓ entry repo [pglite] > appendRevision persists the full audit payload 17ms
+   ✓ entry repo [pglite] > a transaction's save rolls back as a whole; a nested one joins 18ms
+   ✓ entry repo [pglite] > onWriteSettled gets the repository after every save and transaction, success or failure, and never on a read 14ms
+   ✓ entry repo [pglite] > workspace lists narrow by type, order by updatedAt, honour status and limit; excluded types go before the limit 31ms
+   ✓ entry repo [pglite] > listPublishedForDisplay: where equality matches string, number and boolean values and nothing else 44ms
+   ✓ entry repo [pglite] > listPublishedForDisplay: sorts a numeric field numerically, missing first ascending and last descending, ties by id 39ms
+   ✓ entry repo [pglite] > listPublishedForDisplay: built-in sort keys, the limit and an explicit offset after stable ordering 48ms
+   ✓ entry repo [pglite] > listPublishedForDisplay: excludes drafts, trashed rows, other types and other workspaces 26ms
+   ✓ entry repo [pglite] > listPublishedForDisplay: a field name that cannot be a path key matches nothing and sorts as nothing, without throwing 12ms
+ ✓ src/entries/__tests__/write-service.compare-and-set.test.ts (13 tests) 19ms
+ ✓ src/taxonomy/__tests__/write-service.boundaries.test.ts (20 tests) 41ms
+ ✓ src/media/__tests__/image-transformer.sharp.test.ts (12 tests) 122ms
+ ✓ src/navigation/__tests__/menu-service.compare-and-set.test.ts (11 tests) 8ms
+ ✓ src/presentation/__tests__/page-head.test.ts (17 tests) 31ms
+ ✓ src/forms/__tests__/tool-registrations.test.ts (10 tests) 38ms
+ ✓ src/trash/__tests__/trash-item-tool.test.ts (19 tests) 46ms
+stderr | src/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts (10 tests) 50ms
+ ✓ src/media/__tests__/replace-media-file.test.ts (15 tests) 723ms
+   ✓ SVG replacement uses the upload sanitizer before hashing and persistence  682ms
+ ✓ src/entries/__tests__/write-service.create.test.ts (9 tests) 6ms
+ ✓ src/redirects/__tests__/matcher.test.ts (29 tests) 12ms
+ ✓ src/forms/__tests__/injected-ports.test.ts (10 tests) 200ms
+ ✓ src/entries/__tests__/tool-registrations.cov-j2.test.ts (10 tests) 23ms
+ ✓ src/redirects/__tests__/phase-handler.oracle.test.ts (13 tests) 21ms
+ ✓ src/content-types/__tests__/write-service.update-fields.test.ts (9 tests) 13ms
+ ✓ scripts/__tests__/check-packaging.test.ts (22 tests) 12ms
+ ✓ src/forms/__tests__/descriptor-rules.test.ts (27 tests) 10ms
+ ✓ src/media/__tests__/document-ingress.test.ts (9 tests) 2669ms
+   ✓ document admission uses the inclusive 50 MiB upload limit and names it on refusal  350ms
+   ✓ admits well-formed Word, Excel and PowerPoint packages, including strict namespaces and absolute targets  1638ms
+   ✓ refuses Office packages with DTDs, bad XML, wrong roots, macros or missing main parts  560ms
+ ❯ src/redirects/__tests__/repo.dialects.test.ts (28 tests | 1 failed) 7510ms
+   ✓ redirect repo [sqlite] > save round-trips every field incl. optionals and booleans; re-save replaces the row 21ms
+   ✓ redirect repo [sqlite] > findById misses an unknown id and another workspace's row 2ms
+   ✓ redirect repo [sqlite] > lookupExact hits by path, honours override-only, prefers priority, isolates workspaces 5ms
+   ✓ redirect repo [sqlite] > exact: equal priority prefers newest timestamp, then smallest id 4ms
+   ✓ redirect repo [sqlite] > prefix: equal priority prefers newest timestamp, then smallest id 4ms
+   ✓ redirect repo [sqlite] > wildcard: equal priority prefers newest timestamp, then smallest id 3ms
+   ✓ redirect repo [sqlite] > lookupLongestPrefix picks the longest matching prefix; misses non-matches and other workspaces 2ms
+   ✓ redirect repo [sqlite] > listDynamic returns active wildcard rules, longest first, capped by limit, per workspace 2ms
+   ✓ redirect repo [sqlite] > list filters by status, source and matchType and stays inside the workspace 4ms
+   ✓ redirect repo [sqlite] > findByFromPattern prefers an exact active rule; misses tombstoned and other workspaces 3ms
+   ✓ redirect repo [sqlite] > tombstone writes the tombstoned state + revision; unknown or other-workspace id throws and writes nothing 5ms
+   ✓ redirect repo [sqlite] > a save whose revision fails rolls the redirect row back too 1ms
+   ✓ redirect repo [sqlite] > a transaction's writes roll back together; a nested one joins 2ms
+   ✓ redirect repo [sqlite] > slug capture after renames a→b→a→c→a→b resolves /a to the live /b, not into a /a→/c→/a loop 4ms
+   × redirect repo [pglite] > save round-trips every field incl. optionals and booleans; re-save replaces the row 6663ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ redirect repo [pglite] > findById misses an unknown id and another workspace's row 28ms
+   ✓ redirect repo [pglite] > lookupExact hits by path, honours override-only, prefers priority, isolates workspaces 121ms
+   ✓ redirect repo [pglite] > exact: equal priority prefers newest timestamp, then smallest id 107ms
+   ✓ redirect repo [pglite] > prefix: equal priority prefers newest timestamp, then smallest id 33ms
+   ✓ redirect repo [pglite] > wildcard: equal priority prefers newest timestamp, then smallest id 75ms
+   ✓ redirect repo [pglite] > lookupLongestPrefix picks the longest matching prefix; misses non-matches and other workspaces 73ms
+   ✓ redirect repo [pglite] > listDynamic returns active wildcard rules, longest first, capped by limit, per workspace 65ms
+   ✓ redirect repo [pglite] > list filters by status, source and matchType and stays inside the workspace 70ms
+   ✓ redirect repo [pglite] > findByFromPattern prefers an exact active rule; misses tombstoned and other workspaces 67ms
+   ✓ redirect repo [pglite] > tombstone writes the tombstoned state + revision; unknown or other-workspace id throws and writes nothing 53ms
+   ✓ redirect repo [pglite] > a save whose revision fails rolls the redirect row back too 15ms
+   ✓ redirect repo [pglite] > a transaction's writes roll back together; a nested one joins 28ms
+   ✓ redirect repo [pglite] > slug capture after renames a→b→a→c→a→b resolves /a to the live /b, not into a /a→/c→/a loop 34ms
+ ✓ src/content-types/__tests__/agent-tools.schema-agreement.test.ts (6 tests) 21ms
+ ✓ src/trash/__tests__/sweeper.decision.test.ts (9 tests) 19ms
+ ✓ src/navigation/__tests__/menu-html-mode.test.ts (17 tests) 44ms
+stderr | src/widgets/__tests__/integration/read-service.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+stderr | src/widgets/__tests__/integration/read-service.integration.test.ts > dossier C5 follow-up: a malformed widget-instance record is skipped, counted before filters, and identified for the caller
+widgets Skipping malformed widget-instance row.
+
+ ✓ src/widgets/__tests__/integration/read-service.integration.test.ts (8 tests) 31ms
+ ✓ src/seo/__tests__/sitemap.test.ts (10 tests) 35ms
+ ❯ src/forms/__tests__/repo.dialects.test.ts (26 tests | 1 failed) 6969ms
+   ✓ forms repos [sqlite] > definition create then findById / findBySlug / list round-trip 30ms
+   ✓ forms repos [sqlite] > definition reads miss unknown ids/slugs and never cross workspaces 3ms
+   ✓ forms repos [sqlite] > a duplicate slug throws FormSlugConflictError; another workspace may reuse it 3ms
+   ✓ forms repos [sqlite] > a trashed row hides from reads but still holds its slug, with the Trash message 4ms
+   ✓ forms repos [sqlite] > isSlugTaken: hit, miss and other workspace 2ms
+   ✓ forms repos [sqlite] > update rewrites the live row and stores the version the service computed; other workspaces and trashed rows are untouched 4ms
+   ✓ forms repos [sqlite] > submission create then findById round-trips; misses, other workspace and trashed rows return null 3ms
+   ✓ forms repos [sqlite] > listByDefinition pages newest-first with an id tie-break and a cursor 4ms
+   ✓ forms repos [sqlite] > listByDefinition ignores an unknown cursor and excludes other definitions, workspaces and trashed rows 5ms
+   ✓ forms repos [sqlite] > the package's submission repo factory binds the host table names and pages by its options cursor 3ms
+   ✓ forms repos [sqlite] > a submission whose IP the retention sweep cleared reads back with a null source IP 1ms
+   ✓ forms repos [sqlite] > a transaction's definition + submission writes roll back together 1ms
+   ✓ forms repos [sqlite] > a slug conflict inside a caller's transaction aborts the earlier writes too 3ms
+   × forms repos [pglite] > definition create then findById / findBySlug / list round-trip 6439ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ forms repos [pglite] > definition reads miss unknown ids/slugs and never cross workspaces 21ms
+   ✓ forms repos [pglite] > a duplicate slug throws FormSlugConflictError; another workspace may reuse it 19ms
+   ✓ forms repos [pglite] > a trashed row hides from reads but still holds its slug, with the Trash message 29ms
+   ✓ forms repos [pglite] > isSlugTaken: hit, miss and other workspace 12ms
+   ✓ forms repos [pglite] > update rewrites the live row and stores the version the service computed; other workspaces and trashed rows are untouched 67ms
+   ✓ forms repos [pglite] > submission create then findById round-trips; misses, other workspace and trashed rows return null 79ms
+   ✓ forms repos [pglite] > listByDefinition pages newest-first with an id tie-break and a cursor 17ms
+   ✓ forms repos [pglite] > listByDefinition ignores an unknown cursor and excludes other definitions, workspaces and trashed rows 56ms
+   ✓ forms repos [pglite] > the package's submission repo factory binds the host table names and pages by its options cursor 28ms
+   ✓ forms repos [pglite] > a submission whose IP the retention sweep cleared reads back with a null source IP 21ms
+   ✓ forms repos [pglite] > a transaction's definition + submission writes roll back together 29ms
+   ✓ forms repos [pglite] > a slug conflict inside a caller's transaction aborts the earlier writes too 32ms
+ ✓ src/forms/__tests__/notify-subscriber.test.ts (12 tests) 16ms
+ ✓ src/media/__tests__/video-frames.test.ts (18 tests) 98ms
+ ✓ src/redirects/__tests__/open-redirect.matrix.test.ts (16 tests) 16ms
+ ✓ src/content-types/__tests__/field-kind-widening.test.ts (17 tests) 16ms
+ ✓ src/widgets/__tests__/unit/gallery-resolver.unit.test.ts (25 tests) 34ms
+ ✓ src/forms/html/__tests__/html-authoring.characterization.test.ts (19 tests) 65ms
+ ✓ src/forms/__tests__/common-fields.test.ts (23 tests) 48ms
+ ✓ src/navigation/__tests__/menu-service.boundaries.test.ts (22 tests) 34ms
+ ✓ src/media/__tests__/content-type-sniffer.test.ts (25 tests) 13ms
+stderr | src/forms/__tests__/notify-subscriber.host-options.test.ts > registerFormNotifySubscriber: EC-06 — a SUPPRESSED mailer result is logged, not thrown, and does not crash the subscriber
+[forms:notify] mail send failed for submission 'sub-1' (recipient address withheld from logs) Error: recipient suppressed
+    at sendNotification [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:168:172[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:104:5)[39m
+    at handleSubmissionReceived [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:116:5[90m)[39m
+    at handler [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:82:11[90m)[39m
+    at InMemoryEventBus.publish [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/eventing.fixture.ts:11:58[90m)[39m
+[90m    at waitForActual (node:assert:646:5)[39m
+[90m    at strict.doesNotReject (node:assert:789:33)[39m
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:157:3
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/support/node-test.fixture.ts:16:5
+    at file:///home/user/Jini/node_modules/[4m.pnpm[24m/@vitest+runner@3.2.7/node_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:752:20 {
+  code: [32m'SUPPRESSED'[39m
+}
+
+stderr | src/forms/__tests__/notify-subscriber.host-options.test.ts > registerFormNotifySubscriber: definition read fails sends nothing and preserves sibling delivery
+[forms:notify] subscriber failed: Error: definition read failed
+    at InMemoryFormDefinitionRepo.findById [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:195:109[90m)[39m
+    at handleSubmissionReceived [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:100:52[90m)[39m
+    at handler [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:82:17[90m)[39m
+    at InMemoryEventBus.publish [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/eventing.fixture.ts:11:64[90m)[39m
+    at publishSubmissionEvent [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:75:14[90m)[39m
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:200:38
+[90m    at waitForActual (node:assert:632:21)[39m
+[90m    at strict.doesNotReject (node:assert:789:39)[39m
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:200:18
+[90m    at processTicksAndRejections (node:internal/process/task_queues:104:5)[39m
+
+stderr | src/forms/__tests__/notify-subscriber.host-options.test.ts > registerFormNotifySubscriber: submission read fails sends nothing and preserves sibling delivery
+[forms:notify] subscriber failed: Error: submission read failed
+    at InMemoryFormSubmissionRepo.findById [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:196:109[90m)[39m
+    at handleSubmissionReceived [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:112:52[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:104:5)[39m
+    at handler [90m(/home/user/Jini/packages/cms/[39msrc/forms/notify-subscriber.ts:82:11[90m)[39m
+    at InMemoryEventBus.publish [90m(/home/user/Jini/packages/cms/[39msrc/forms/__tests__/eventing.fixture.ts:11:58[90m)[39m
+[90m    at waitForActual (node:assert:646:5)[39m
+[90m    at strict.doesNotReject (node:assert:789:33)[39m
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/notify-subscriber.host-options.test.ts:200:5
+    at [90m/home/user/Jini/packages/cms/[39msrc/forms/__tests__/support/node-test.fixture.ts:16:5
+    at file:///home/user/Jini/node_modules/[4m.pnpm[24m/@vitest+runner@3.2.7/node_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:752:20
+
+ ✓ src/forms/__tests__/notify-subscriber.host-options.test.ts (11 tests) 19ms
+ ✓ forms/src/__tests__/submit-service.test.ts (12 tests) 72ms
+ ✓ src/redirects/__tests__/redirects.write-boundaries.test.ts (19 tests) 36ms
+ ✓ forms/src/__tests__/notify-subscriber.test.ts (11 tests) 9ms
+ ✓ src/workspace/__tests__/tool-registrations.test.ts (12 tests) 27ms
+ ✓ src/taxonomy/__tests__/validation-chain.test.ts (13 tests) 14ms
+ ✓ src/core/commands/__tests__/command.test.ts (16 tests) 11ms
+ ✓ src/redirects/__tests__/host-config.golden.test.ts (10 tests) 9ms
+ ✓ src/media/__tests__/html-attributes.test.ts (27 tests) 5ms
+ ✓ src/routing/__tests__/routing.phase-lifecycle.test.ts (11 tests) 16ms
+ ✓ src/forms/html/__tests__/html-authoring.test.ts (9 tests) 41ms
+ ✓ src/widgets/__tests__/gallery-config.unit.test.ts (27 tests) 23ms
+ ✓ src/forms/html/__tests__/authoring-adapter.unit.test.ts (9 tests) 10ms
+ ✓ src/trash/__tests__/table-adapter.dialects.test.ts (24 tests) 5246ms
+   ✓ table trash adapter [pglite] > hide then unhide a timestamp entry bumps the version each time and clears the marker  4690ms
+ ✓ src/forms/delivery/__tests__/planner.unit.test.ts (19 tests) 12ms
+ ✓ src/widgets/__tests__/gallery.test.ts (28 tests) 36ms
+ ✓ src/taxonomy/__tests__/taxonomy-trash-follow-ups.test.ts (8 tests) 14ms
+ ✓ src/seo/__tests__/share-image.unit.test.ts (15 tests) 38ms
+ ✓ src/seo/__tests__/write-service.concurrent-save.test.ts (4 tests) 8ms
+ ✓ src/forms/__tests__/attachment-cleanup.test.ts (8 tests) 6ms
+ ✓ src/redirects/__tests__/capture.test.ts (10 tests) 9ms
+ ✓ src/trash/__tests__/repo.memory.test.ts (11 tests) 10ms
+ ✓ src/listing/__tests__/listing.test.ts (15 tests) 38ms
+ ✓ src/seo/__tests__/media.details.unit.test.ts (30 tests) 10ms
+ ✓ src/forms/__tests__/submission-attempts.test.ts (13 tests) 16ms
+stderr | src/widgets/__tests__/integration/region-area-service.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/integration/region-area-service.integration.test.ts (4 tests) 35ms
+ ✓ src/media/__tests__/blob-store.test.ts (11 tests) 35ms
+ ✓ src/media/__tests__/transform-registry.test.ts (17 tests) 17ms
+ ✓ src/seo/__tests__/media.test.ts (11 tests) 9ms
+ ✓ src/__tests__/integration-package.contract.test.ts (5 tests) 20ms
+ ✓ src/media/__tests__/unit/document-text.unit.test.ts (8 tests) 39ms
+ ❯ src/comments/__tests__/repo.dialects.test.ts (16 tests | 1 failed) 8148ms
+   ✓ comments repo [sqlite] > create round-trips, with nulls and a real spam score 41ms
+   ✓ comments repo [sqlite] > create with a submit log is atomic: a duplicate log id rolls the comment back 13ms
+   ✓ comments repo [sqlite] > the moderation queue is keyset-paginated and countByStatus scopes by entry 8ms
+   ✓ comments repo [sqlite] > a moderation-queue page resumes after its cursor comment was purged by another moderator 12ms
+   ✓ comments repo [sqlite] > a malformed moderation-queue cursor is refused, not read as page 1 2ms
+   ✓ comments repo [sqlite] > listThreadForEntry nests replies and an empty status list yields nothing 2ms
+   ✓ comments repo [sqlite] > applyModeration bumps the version once, logs it, and reports conflict and not-found 9ms
+   ✓ comments repo [sqlite] > purge deletes the comment and keeps a purge log row 3ms
+   × comments repo [pglite] > create round-trips, with nulls and a real spam score 7334ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ comments repo [pglite] > create with a submit log is atomic: a duplicate log id rolls the comment back 96ms
+   ✓ comments repo [pglite] > the moderation queue is keyset-paginated and countByStatus scopes by entry 187ms
+   ✓ comments repo [pglite] > a moderation-queue page resumes after its cursor comment was purged by another moderator 146ms
+   ✓ comments repo [pglite] > a malformed moderation-queue cursor is refused, not read as page 1 92ms
+   ✓ comments repo [pglite] > listThreadForEntry nests replies and an empty status list yields nothing 9ms
+   ✓ comments repo [pglite] > applyModeration bumps the version once, logs it, and reports conflict and not-found 132ms
+   ✓ comments repo [pglite] > purge deletes the comment and keeps a purge log row 35ms
+ ❯ src/navigation/__tests__/sql.repo.dialects.test.ts (18 tests | 1 failed) 7391ms
+   ✓ menu repo [sqlite] > save and the reads round-trip the doc and locations, scoped to the workspace 51ms
+   ✓ menu repo [sqlite] > a second save with the same id replaces the row; remove deletes only this workspace's row 7ms
+   ✓ menu repo [sqlite] > a trashed menu is hidden from live reads, never revived by a plain save, and still holds its slug 6ms
+   ✓ menu repo [sqlite] > a compare-and-set save lands on the matching version and refuses a stale, trashed or foreign row 7ms
+   ✓ menu repo [sqlite] > a create-only save inserts an absent id and refuses a taken id and a slug a trashed menu holds 5ms
+   ✓ menu repo [sqlite] > the transaction commits its writes and rolls them all back when the callback throws 3ms
+   × menu repo [pglite] > save and the reads round-trip the doc and locations, scoped to the workspace 7120ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ menu repo [pglite] > a second save with the same id replaces the row; remove deletes only this workspace's row 37ms
+   ✓ menu repo [pglite] > a trashed menu is hidden from live reads, never revived by a plain save, and still holds its slug 31ms
+   ✓ menu repo [pglite] > a compare-and-set save lands on the matching version and refuses a stale, trashed or foreign row 18ms
+   ✓ menu repo [pglite] > a create-only save inserts an absent id and refuses a taken id and a slug a trashed menu holds 9ms
+   ✓ menu repo [pglite] > the transaction commits its writes and rolls them all back when the callback throws 14ms
+   ✓ nav location binding repo [sqlite] > upsert round-trips a binding and reassigns a location already bound elsewhere 3ms
+   ✓ nav location binding repo [sqlite] > listByMenu, remove and removeByMenu act on one workspace's rows only 4ms
+   ✓ nav location binding repo [sqlite] > rebuildForWorkspace replaces the whole workspace's index, clears it for an empty list, and rolls back on failure 5ms
+   ✓ nav location binding repo [pglite] > upsert round-trips a binding and reassigns a location already bound elsewhere 9ms
+   ✓ nav location binding repo [pglite] > listByMenu, remove and removeByMenu act on one workspace's rows only 13ms
+   ✓ nav location binding repo [pglite] > rebuildForWorkspace replaces the whole workspace's index, clears it for an empty list, and rolls back on failure 35ms
+ ✓ src/forms/__tests__/forms.submission-validation.characterization.test.ts (16 tests) 11ms
+ ✓ src/forms/delivery/__tests__/subscriptions.unit.test.ts (11 tests) 18ms
+ ✓ src/comments/__tests__/module.cov-j2.test.ts (8 tests) 6ms
+ ✓ src/trash/__tests__/tool-registrations.test.ts (12 tests) 23ms
+ ❯ src/widgets/__tests__/entry-refs-repo.dialects.test.ts (20 tests | 1 failed) 8190ms
+   ✓ entry refs repo [sqlite] > replaceForSource then findBySource / findByTarget return rows in insertion order 18ms
+   ✓ entry refs repo [sqlite] > reads miss unknown sources/targets, the wrong target kind, and other workspaces 2ms
+   ✓ entry refs repo [sqlite] > replaceForSource fully replaces one source's slice; an empty list clears it 2ms
+   ✓ entry refs repo [sqlite] > removeBySource drops only that source in that workspace 3ms
+   ✓ entry refs repo [sqlite] > rebuildForWorkspace replaces the whole workspace and leaves others alone 2ms
+   ✓ entry refs repo [sqlite] > writes inside a failed transaction roll back, including the nested delete-then-insert 2ms
+   ✓ entry refs repo [sqlite] > replaceForSource restores old rows when its insert fails 1ms
+   ✓ entry refs repo [sqlite] > rebuildForWorkspace restores old rows when its insert fails 5ms
+   ✓ entry refs repo [sqlite] > colliding source and target IDs remain scoped on both reads 2ms
+   ✓ entry refs repo [sqlite] > unknown persisted source and target kinds survive conversion unchanged 1ms
+   × entry refs repo [pglite] > replaceForSource then findBySource / findByTarget return rows in insertion order 7999ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ entry refs repo [pglite] > reads miss unknown sources/targets, the wrong target kind, and other workspaces 8ms
+   ✓ entry refs repo [pglite] > replaceForSource fully replaces one source's slice; an empty list clears it 16ms
+   ✓ entry refs repo [pglite] > removeBySource drops only that source in that workspace 16ms
+   ✓ entry refs repo [pglite] > rebuildForWorkspace replaces the whole workspace and leaves others alone 14ms
+   ✓ entry refs repo [pglite] > writes inside a failed transaction roll back, including the nested delete-then-insert 15ms
+   ✓ entry refs repo [pglite] > replaceForSource restores old rows when its insert fails 21ms
+   ✓ entry refs repo [pglite] > rebuildForWorkspace restores old rows when its insert fails 19ms
+   ✓ entry refs repo [pglite] > colliding source and target IDs remain scoped on both reads 15ms
+   ✓ entry refs repo [pglite] > unknown persisted source and target kinds survive conversion unchanged 15ms
+ ✓ src/content-types/__tests__/index-provisioning.ddl-safety.test.ts (11 tests) 27ms
+ ✓ src/entries/__tests__/repo.trash-aware.memory.test.ts (11 tests) 10ms
+ ✓ src/forms/__tests__/forms.field-validation.characterization.test.ts (14 tests) 26ms
+ ✓ forms/src/__tests__/forms.field-validation.characterization.test.ts (14 tests) 8ms
+ ✓ src/forms/__tests__/result-query.test.ts (13 tests) 5ms
+ ✓ src/widgets/__tests__/duplicate-embeds.test.ts (9 tests) 171ms
+ ❯ src/comments/__tests__/write-service.trash.test.ts (7 tests | 1 failed) 5412ms
+   ✓ moderating a comment INTO trash routes the removal through the injected remove, inside the transaction 3ms
+   ✓ re-trashing an already-trashed comment does NOT index it a second time 0ms
+   ✓ moderating a comment OUT of trash forgets its index row, so the Trash cannot show a live comment 0ms
+   ✓ an ordinary moderation that never touches trash touches neither side of the index 0ms
+   ✓ [sqlite] a failed index write rolls the moderation back rather than leaving a hidden comment with no Trash row 20ms
+   × [pglite] a failed index write rolls the moderation back rather than leaving a hidden comment with no Trash row 5380ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ a conflicted moderation never reaches the index at all 1ms
+ ✓ src/comments/express/__tests__/submit-handler.request.test.ts (10 tests) 31ms
+ ✓ src/content-types/__tests__/field-defs.test.ts (19 tests) 20ms
+ ✓ src/entries/__tests__/field-validation.boundaries.test.ts (25 tests) 15ms
+ ✓ src/forms/__tests__/provider.test.ts (7 tests) 16ms
+ ✓ src/forms/__tests__/forms.field-validation.test.ts (40 tests) 18ms
+ ✓ src/themes/files/__tests__/originals.test.ts (10 tests) 155ms
+stderr | src/widgets/__tests__/repo.contract.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ forms/src/__tests__/forms.submission-validation.characterization.test.ts (15 tests) 5ms
+ ✓ src/listing/__tests__/paging.test.ts (19 tests) 31ms
+ ✓ src/themes/files/__tests__/trash.test.ts (11 tests) 23ms
+ ✓ forms/src/__tests__/forms.field-validation.test.ts (40 tests) 6ms
+ ❯ src/content-types/__tests__/universal-entries.boundary.test.ts (6 tests | 1 failed) 7675ms
+   ✓ CMS declares no production dependency on the HTTP toolkit 1ms
+   ✓ CMS declares no production dependency on the database toolkit 0ms
+   × no CMS universal entry reaches a Node builtin 7670ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ guard follows re-exports and dynamic imports through cycles while ignoring type-only imports 1ms
+   ✓ guard separates runtime edges from type-only edges and ordinary node-like strings 0ms
+   ✓ guard rejects computed module edges rather than silently skipping them 1ms
+ ❯ src/widgets/__tests__/repo.contract.test.ts (20 tests | 1 failed) 8119ms
+   ✓ [InMemoryWidgetRegionBindingRepo] upsert + findByRegion round-trips, upsert on the same (workspace, regionKey) replaces the row (real UNIQUE constraint, not just in-memory discipline) 3ms
+   ✓ [InMemoryWidgetRegionBindingRepo] findByRegion is scoped per workspace — the same regionKey in two workspaces are independent bindings 0ms
+   ✓ [InMemoryWidgetRegionBindingRepo] listByWorkspace scopes by workspace 1ms
+   ✓ [InMemoryWidgetRegionBindingRepo] markInactive (REQ-14) removes only the targeted region's binding, leaves the widget_area entry untouched (out of this port's scope) and other regions/workspaces intact 7ms
+   ✓ [InMemoryWidgetRegionBindingRepo] rebuildForWorkspace (INV-02: the index is always derivable, in full, from live widget_area entries alone) fully replaces the workspace's rows and leaves other workspaces untouched 0ms
+   ✓ [InMemoryWidgetRegionBindingRepo] an empty rebuild removes the last binding and preserves other workspaces 0ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] upsert + findByRegion round-trips, upsert on the same (workspace, regionKey) replaces the row (real UNIQUE constraint, not just in-memory discipline) 32ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] findByRegion is scoped per workspace — the same regionKey in two workspaces are independent bindings 2ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] listByWorkspace scopes by workspace 3ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] markInactive (REQ-14) removes only the targeted region's binding, leaves the widget_area entry untouched (out of this port's scope) and other regions/workspaces intact 2ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] rebuildForWorkspace (INV-02: the index is always derivable, in full, from live widget_area entries alone) fully replaces the workspace's rows and leaves other workspaces untouched 2ms
+   ✓ [SqlWidgetRegionBindingRepo sqlite] an empty rebuild removes the last binding and preserves other workspaces 1ms
+   ✓ [sqlite] a failed region-index replacement rolls back the delete and preserves both workspaces 5ms
+   × [SqlWidgetRegionBindingRepo pglite] upsert + findByRegion round-trips, upsert on the same (workspace, regionKey) replaces the row (real UNIQUE constraint, not just in-memory discipline) 7691ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ [SqlWidgetRegionBindingRepo pglite] findByRegion is scoped per workspace — the same regionKey in two workspaces are independent bindings 6ms
+   ✓ [SqlWidgetRegionBindingRepo pglite] listByWorkspace scopes by workspace 9ms
+   ✓ [SqlWidgetRegionBindingRepo pglite] markInactive (REQ-14) removes only the targeted region's binding, leaves the widget_area entry untouched (out of this port's scope) and other regions/workspaces intact 31ms
+   ✓ [SqlWidgetRegionBindingRepo pglite] rebuildForWorkspace (INV-02: the index is always derivable, in full, from live widget_area entries alone) fully replaces the workspace's rows and leaves other workspaces untouched 233ms
+   ✓ [SqlWidgetRegionBindingRepo pglite] an empty rebuild removes the last binding and preserves other workspaces 38ms
+   ✓ [pglite] a failed region-index replacement rolls back the delete and preserves both workspaces 48ms
+ ❯ src/content-types/__tests__/sql.repo.dialects.test.ts (18 tests | 1 failed) 7619ms
+   ✓ content-type repo [sqlite] > save inserts, then a second save fully replaces the row 32ms
+   ✓ content-type repo [sqlite] > saving a legacy record with no tombstone marker clears the previous marker to NULL 5ms
+   ✓ content-type repo [sqlite] > findByKey misses an unknown key and another workspace's row 5ms
+   ✓ content-type repo [sqlite] > listByWorkspace returns only that workspace's rows 4ms
+   ✓ content-type repo [sqlite] > appendRevision persists both complete payloads 5ms
+   ✓ content-type repo [sqlite] > the declared types read back carrying their envelope owner; every other type carries none 3ms
+   ✓ content-type repo [sqlite] > saving an owner the host did not declare is refused, never silently dropped 12ms
+   ✓ content-type repo [sqlite] > a host that declares no owners stores only unowned types; a key named like an Object member has no owner 2ms
+   ✓ content-type repo [sqlite] > a transaction's save + appendRevision roll back together; a nested one joins 9ms
+   × content-type repo [pglite] > save inserts, then a second save fully replaces the row 7397ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ content-type repo [pglite] > saving a legacy record with no tombstone marker clears the previous marker to NULL 8ms
+   ✓ content-type repo [pglite] > findByKey misses an unknown key and another workspace's row 7ms
+   ✓ content-type repo [pglite] > listByWorkspace returns only that workspace's rows 21ms
+   ✓ content-type repo [pglite] > appendRevision persists both complete payloads 21ms
+   ✓ content-type repo [pglite] > the declared types read back carrying their envelope owner; every other type carries none 25ms
+   ✓ content-type repo [pglite] > saving an owner the host did not declare is refused, never silently dropped 9ms
+   ✓ content-type repo [pglite] > a host that declares no owners stores only unowned types; a key named like an Object member has no owner 16ms
+   ✓ content-type repo [pglite] > a transaction's save + appendRevision roll back together; a nested one joins 15ms
+ ✓ src/seo/__tests__/seo.meta.unit.test.ts (14 tests) 8ms
+stderr | src/widgets/__tests__/integration/region-area-service.edge.integration.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/integration/region-area-service.edge.integration.test.ts (7 tests) 11ms
+ ✓ forms/src/__tests__/injected-ports.test.ts (7 tests) 142ms
+ ✓ src/themes/files/__tests__/read-content.test.ts (12 tests) 26ms
+ ✓ src/media/__tests__/list-provenance.unit.test.ts (7 tests) 22ms
+ ✓ src/entries/__tests__/repo.memory.cov-j2.test.ts (8 tests) 6ms
+ ✓ src/widgets/__tests__/integration/owned-lock-state.integration.test.ts (11 tests) 29ms
+ ✓ src/entries/__tests__/write-service.owner.test.ts (5 tests) 6ms
+ ✓ src/forms/__tests__/stale-form.test.ts (8 tests) 23ms
+ ❯ src/forms/__tests__/repo.lost-update.test.ts (15 tests | 1 failed) 9902ms
+   ✓ form definition lost updates [sqlite] > a stale editor is refused and the first editor's change survives 22ms
+   ✓ form definition lost updates [sqlite] > a conditional update cannot create a missing definition 4ms
+   ✓ form definition lost updates [sqlite] > a basis-less update stores the version the service computed 2ms
+   ✓ form definition lost updates [sqlite] > simultaneous saves with the same basis have exactly one winner 2ms
+   × form definition lost updates [pglite] > a stale editor is refused and the first editor's change survives 9741ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ form definition lost updates [pglite] > a conditional update cannot create a missing definition 26ms
+   ✓ form definition lost updates [pglite] > a basis-less update stores the version the service computed 42ms
+   ✓ form definition lost updates [pglite] > simultaneous saves with the same basis have exactly one winner 43ms
+   ✓ form definition lost updates — memory > a stale editor is refused and the first editor's change survives 1ms
+   ✓ form definition lost updates — memory > a conditional update cannot create a missing definition 0ms
+   ✓ form definition lost updates — memory > a basis-less update stores the version the service computed 0ms
+   ✓ form definition lost updates — memory > simultaneous saves with the same basis have exactly one winner 0ms
+   ✓ authored edits carry the editor's version through the service and repository decorator 2ms
+   ✓ a basis-less edit compares against its own read, so it cannot revert a concurrent edit 0ms
+   ✓ a status flip compares against its own read and moves the version 9ms
+ ✓ src/seo/__tests__/sitemap-service.factory.test.ts (9 tests) 14ms
+ ✓ src/forms/__tests__/forms.edge-cases.test.ts (4 tests) 16ms
+ ✓ src/forms/__tests__/result-flash.test.ts (12 tests) 11ms
+ ✓ src/content-types/__tests__/lifecycle.test.ts (8 tests) 10ms
+ ✓ src/content-types/__tests__/watermark-stamping.test.ts (5 tests) 5ms
+ ✓ src/content-types/__tests__/lifecycle.cov-j2.test.ts (14 tests) 10ms
+ ✓ src/taxonomy/__tests__/gated-hooks.test.ts (4 tests) 24ms
+ ✓ src/widgets/__tests__/html-attributes.unit.test.ts (22 tests) 15ms
+ ✓ src/publish/transfer/__tests__/bundle-staging.test.ts (8 tests) 7ms
+ ✓ src/listing/__tests__/see-more-script.test.ts (4 tests) 385ms
+stderr | src/widgets/__tests__/unit/resolvers-core-wiring.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-core-wiring.unit.test.ts (7 tests) 87ms
+ ❯ src/trash/__tests__/sql.kit.test.ts (8 tests | 1 failed) 7716ms
+   ✓ trash sql kit [sqlite] > notTrashed, as a real WHERE: a timestamp marker, a status marker, and hidden-with-parent over a live, trashed and NULL parent 23ms
+   ✓ trash sql kit [sqlite] > readLiveSnapshot returns a live row's title, subtitle and version, and null for a trashed row or another workspace 6ms
+   ✓ trash sql kit [sqlite] > entryWhere keeps the entry's fixed scope: a widget entry cannot address a row of another kind by id 5ms
+   × trash sql kit [pglite] > notTrashed, as a real WHERE: a timestamp marker, a status marker, and hidden-with-parent over a live, trashed and NULL parent 7632ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ trash sql kit [pglite] > readLiveSnapshot returns a live row's title, subtitle and version, and null for a trashed row or another workspace 21ms
+   ✓ trash sql kit [pglite] > entryWhere keeps the entry's fixed scope: a widget entry cannot address a row of another kind by id 20ms
+   ✓ flat records use the registry's camelCase timestamp or exact status marker 0ms
+   ✓ an unregistered entity is a composition error for both SQL conditions and flat records 0ms
+ ✓ src/comments/__tests__/write-service.test.ts (6 tests) 5ms
+ ✓ src/media/__tests__/unit/document-read-paging.unit.test.ts (10 tests) 333ms
+ ✓ src/seo/__tests__/sitemap-cache.test.ts (5 tests) 13ms
+stderr | src/widgets/__tests__/unit/resolvers-menu-target.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-menu-target.unit.test.ts (4 tests) 6ms
+ ❯ src/trash/__tests__/sql.repo.dialects.test.ts (12 tests | 1 failed) 8952ms
+   ✓ trash repo [sqlite] > insert round-trips every field and is idempotent on (workspace, entity type, entity id) 18ms
+   ✓ trash repo [sqlite] > list hides expired rows, is workspace-scoped, newest first, filterable by type, and its cursor walks every row once 5ms
+   ✓ trash repo [sqlite] > findByIds and deleteById / deleteByEntity are workspace-scoped 4ms
+   ✓ trash repo [sqlite] > claimDue takes rows due at or before now, never a later row nor one under a live lease; an expired lease is reclaimable 4ms
+   ✓ trash repo [sqlite] > claimDue takes the sweep lock before it reads; a claim of nothing returns an empty list 1ms
+   ✓ trash repo [sqlite] > releaseLease hands a leased row back to the next pass 2ms
+   × trash repo [pglite] > insert round-trips every field and is idempotent on (workspace, entity type, entity id) 8540ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ trash repo [pglite] > list hides expired rows, is workspace-scoped, newest first, filterable by type, and its cursor walks every row once 28ms
+   ✓ trash repo [pglite] > findByIds and deleteById / deleteByEntity are workspace-scoped 208ms
+   ✓ trash repo [pglite] > claimDue takes rows due at or before now, never a later row nor one under a live lease; an expired lease is reclaimable 85ms
+   ✓ trash repo [pglite] > claimDue takes the sweep lock before it reads; a claim of nothing returns an empty list 8ms
+   ✓ trash repo [pglite] > releaseLease hands a leased row back to the next pass 35ms
+ ✓ src/forms/__tests__/submission-email-validation.test.ts (6 tests) 27ms
+ ✓ src/themes/preview/__tests__/watcher.test.ts (9 tests) 19ms
+ ❯ src/forms/__tests__/create-tables.test.ts (6 tests | 2 failed) 12928ms
+   ✓ sqlite file: creates the tables, a second run is a no-op that keeps rows, repos round-trip across reopen 195ms
+   ✓ sqlite: the submission foreign key restricts deleting a form that has entries 2ms
+   × pglite: creates the tables, is idempotent, and the repos round-trip 6687ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ sqlite: index and constraint names stay within 63 bytes and distinct for long table names 20ms
+   × pglite: every index is created for long table names (none skipped by truncation) 6004ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ accepts any kernel with a dialect and execute, not only a @jini-ai/db one 1ms
+ ✓ src/widgets/__tests__/marker-target-parity.unit.test.ts (6 tests) 131ms
+ ✓ src/forms/delivery/__tests__/deliver-job.unit.test.ts (17 tests) 9ms
+ ✓ src/comments/__tests__/tool-registrations.test.ts (6 tests) 42ms
+ ✓ src/themes/preview/__tests__/preview-refresh.test.ts (8 tests) 52ms
+ ✓ src/navigation/__tests__/dropdown.test.ts (8 tests) 360ms
+ ✓ src/forms/html/__tests__/html-common-fields.test.ts (5 tests) 20ms
+ ✓ src/seo/__tests__/absolute-url.test.ts (14 tests) 6ms
+ ✓ src/widgets/__tests__/unit/resolvers-gallery.unit.test.ts (10 tests) 24ms
+ ✓ src/forms/__tests__/validation-messages.test.ts (8 tests) 13ms
+ ✓ src/routing/__tests__/routing.phase-runners.test.ts (10 tests) 15ms
+ ✓ src/content-types/__tests__/cleanup.test.ts (6 tests) 3ms
+ ✓ src/seo/__tests__/tool-registrations.test.ts (7 tests) 26ms
+ ✓ src/entries/__tests__/field-validation.json-kind.test.ts (36 tests) 16ms
+ ✓ src/redirects/__tests__/ports.internal.test.ts (5 tests) 11ms
+ ✓ src/redirects/__tests__/redirects.chain-loop.test.ts (3 tests) 15ms
+ ✓ src/taxonomy/__tests__/collection-term-policy.test.ts (5 tests) 4ms
+stderr | src/widgets/__tests__/unit/resolvers-menu.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-menu.unit.test.ts (5 tests) 4ms
+ ✓ src/widgets/__tests__/content-markers.test.ts (6 tests) 8ms
+ ✓ src/__tests__/args-convention.test.ts (8 tests) 30ms
+ ✓ src/seo/__tests__/seo.featured-image.test.ts (5 tests) 6ms
+ ✓ src/seo/__tests__/feed.test.ts (6 tests) 20ms
+ ✓ src/themes/files/__tests__/moves.test.ts (5 tests) 22ms
+ ✓ src/taxonomy/__tests__/merge-term.test.ts (8 tests) 4ms
+ ✓ src/media/__tests__/versioned-rendition.unit.test.ts (6 tests) 10ms
+ ✓ src/widgets/__tests__/media-tags.test.ts (7 tests) 12ms
+ ✓ src/widgets/__tests__/unit/resolve-html-page-embeds.unit.test.ts (5 tests) 34ms
+ ✓ src/forms/__tests__/reconcile-attachments.test.ts (9 tests) 15ms
+ ✓ src/themes/preview/__tests__/roster.test.ts (9 tests) 111ms
+ ✓ src/seo/__tests__/seo.analyze.test.ts (4 tests) 6ms
+ ✓ src/forms/__tests__/notify-durable.test.ts (11 tests) 7ms
+ ✓ src/themes/files/__tests__/atomic-write.test.ts (4 tests) 137ms
+ ✓ src/content-types/__tests__/index-provisioning.composition.test.ts (10 tests) 4ms
+ ✓ src/forms/__tests__/result-html.test.ts (6 tests) 7ms
+ ✓ src/forms/delivery/__tests__/delivery-security.unit.test.ts (8 tests) 5ms
+ ✓ src/taxonomy/__tests__/trash-term.test.ts (8 tests) 6ms
+ ✓ src/seo/__tests__/sitemap.schedule-expiry.test.ts (3 tests) 9ms
+ ❯ src/forms/__tests__/submission-ip-retention.dialects.test.ts (6 tests | 1 failed) 9408ms
+   ✓ submission IP retention adapter and migration 0006 [sqlite] > bounded batches cover more than 500 records; concurrent passes count each cleared row once 60ms
+   × submission IP retention adapter and migration 0006 [pglite] > bounded batches cover more than 500 records; concurrent passes count each cleared row once 5473ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ submission IP retention adapter input bounds [sqlite] > a non-positive or non-integer batch limit is refused before any IP is cleared 13ms
+   ✓ submission IP retention adapter input bounds [pglite] > a non-positive or non-integer batch limit is refused before any IP is cleared 24ms
+   ✓ [sqlite] before migration 0006 the adapter refuses without writing, and re-probes once the migration lands 5ms
+   ✓ [pglite] before migration 0006 the adapter refuses without writing, and re-probes once the migration lands  3823ms
+ ✓ src/comments/__tests__/comments-misc.cov-j2.test.ts (5 tests) 14ms
+ ✓ src/widgets/__tests__/document-markers.test.ts (5 tests) 6ms
+ ✓ src/forms/delivery/__tests__/retry-policy.unit.test.ts (16 tests) 14ms
+ ✓ src/forms/__tests__/attachment-purge.test.ts (7 tests) 14ms
+ ✓ src/trash/__tests__/sweeper.test.ts (7 tests) 15ms
+ ✓ src/trash/__tests__/record-store-adapter.purge.test.ts (5 tests) 4ms
+ ✓ src/content-types/__tests__/repo.memory.cov-j2.test.ts (7 tests) 9ms
+ ✓ src/content-types/__tests__/agent-tools.test.ts (6 tests) 8ms
+ ✓ src/widgets/__tests__/unit/resolvers-menu-html.unit.test.ts (5 tests) 30ms
+ ✓ src/taxonomy/__tests__/content-lookup.test.ts (7 tests) 4ms
+ ✓ src/comments/express/__tests__/submit-handler.construction-refusal.test.ts (5 tests) 10ms
+ ✓ src/seo/__tests__/robots.test.ts (5 tests) 7ms
+ ✓ src/media/__tests__/unit/document-text-adapters.unit.test.ts (5 tests) 843ms
+   ✓ DOCX returns capped raw text and reuses archive validation before parsing  773ms
+ ✓ src/redirects/__tests__/hit-sink.test.ts (6 tests) 4ms
+ ✓ src/media/__tests__/unit/unpdf-boundaries.unit.test.ts (7 tests) 25ms
+ ✓ src/trash/__tests__/follow-ups.test.ts (6 tests) 21ms
+ ✓ src/media/__tests__/image-codec.test.ts (5 tests) 6ms
+ ✓ forms/src/__tests__/forms.submission-validation.test.ts (11 tests) 9ms
+ ✓ src/themes/files/__tests__/original-source.test.ts (15 tests) 377ms
+ ✓ src/forms/__tests__/forms.submission-validation.test.ts (11 tests) 13ms
+ ✓ src/taxonomy/__tests__/rename-atomicity.test.ts (6 tests) 11ms
+ ✓ src/content-types/__tests__/cleanup.execute.test.ts (3 tests) 2ms
+ ✓ src/widgets/__tests__/gallery-render.test.ts (11 tests) 6ms
+ ✓ src/routing/__tests__/routing.ports.test.ts (4 tests) 5ms
+ ✓ src/forms/__tests__/duplicate-slug.test.ts (10 tests) 12ms
+ ✓ src/media/__tests__/sanitize-svg.test.ts (8 tests) 105ms
+ ❯ src/comments/__tests__/repo.cas-race.cov-j2.test.ts (6 tests | 1 failed) 5732ms
+   ✓ comments sql repo CAS [sqlite] > an unlocked write landing between the locked read and the update is reported as a conflict at its version 17ms
+   ✓ comments sql repo CAS [sqlite] > a row deleted by an unlocked writer before the update is a conflict with no current version 4ms
+   ✓ comments sql repo CAS [sqlite] > countByStatus over zero matching rows is 0: the COUNT aggregate row is always present 2ms
+   × comments sql repo CAS [pglite] > an unlocked write landing between the locked read and the update is reported as a conflict at its version 5674ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ comments sql repo CAS [pglite] > a row deleted by an unlocked writer before the update is a conflict with no current version 21ms
+   ✓ comments sql repo CAS [pglite] > countByStatus over zero matching rows is 0: the COUNT aggregate row is always present 11ms
+ ✓ src/redirects/__tests__/reserved-destination.test.ts (3 tests) 5ms
+stderr | src/widgets/__tests__/unit/resolvers-taxonomy.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/resolvers-taxonomy.unit.test.ts (5 tests) 10ms
+stderr | src/widgets/__tests__/unit/mediawidget.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/mediawidget.unit.test.ts (6 tests) 7ms
+ ✓ src/navigation/__tests__/read-model.test.ts (4 tests) 16ms
+ ✓ src/core/commands/__tests__/command-post-mutation-rollback.test.ts (9 tests) 5ms
+ ✓ src/media/__tests__/blob-gc-recovery.test.ts (4 tests) 15ms
+ ✓ src/navigation/__tests__/link-rel.test.ts (7 tests) 4ms
+ ✓ src/forms/delivery/__tests__/errors.unit.test.ts (29 tests) 9ms
+ ✓ src/forms/__tests__/field-length-caps.test.ts (5 tests) 29ms
+stderr | src/widgets/__tests__/unit/registry.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/registry.unit.test.ts (8 tests) 10ms
+ ✓ src/entries/__tests__/go-live.test.ts (4 tests) 5ms
+ ✓ src/media/__tests__/guard-rendition-repo.test.ts (3 tests) 8ms
+ ✓ src/listing/__tests__/request-state.test.ts (6 tests) 10ms
+ ✓ src/media/__tests__/created-by.test.ts (3 tests) 17ms
+ ✓ src/navigation/__tests__/reconcile.test.ts (4 tests) 25ms
+ ✓ src/widgets/__tests__/gallery-widget.test.ts (4 tests) 36ms
+ ❯ src/forms/__tests__/create-tables.reference.test.ts (2 tests | 1 failed) 5525ms
+   ✓ sqlite: createFormsTables matches the reference DDL's catalog 29ms
+   × pglite: createFormsTables matches the reference DDL's catalog 5495ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/content-types/__tests__/cleanup.cov-j2.test.ts (4 tests) 5ms
+ ✓ src/entries/__tests__/write-service.entity-schema.test.ts (4 tests) 26ms
+ ✓ src/widgets/__tests__/unit/marker-edge-cases.unit.test.ts (8 tests) 6ms
+ ✓ src/taxonomy/__tests__/cycle-detection.test.ts (7 tests) 6ms
+ ✓ src/html/__tests__/document-marks.test.ts (20 tests) 5ms
+ ❯ src/forms/__tests__/submission-ip-retention.ports.unit.test.ts (8 tests | 1 failed) 6252ms
+   ✓ submission IP retention column catalog port [sqlite] > a nullable source_ip lets the update run, and the probe is asked about the submissions table 61ms
+   ✓ submission IP retention column catalog port [sqlite] > a NOT NULL source_ip is refused with the migration message and issues no write 2ms
+   ✓ submission IP retention column catalog port [sqlite] > after one success the probe is not repeated 6ms
+   ✓ submission IP retention column catalog port [sqlite] > a refused probe is asked again on the next pass, and a failing probe rejects with its own error 2ms
+   × submission IP retention column catalog port [pglite] > a nullable source_ip lets the update run, and the probe is asked about the submissions table 6079ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ submission IP retention column catalog port [pglite] > a NOT NULL source_ip is refused with the migration message and issues no write 39ms
+   ✓ submission IP retention column catalog port [pglite] > after one success the probe is not repeated 23ms
+   ✓ submission IP retention column catalog port [pglite] > a refused probe is asked again on the next pass, and a failing probe rejects with its own error 20ms
+ ✓ src/media/__tests__/hardwiring-ports.test.ts (4 tests) 112ms
+ ✓ src/navigation/__tests__/update-tree-round-trip.test.ts (3 tests) 12ms
+stderr | src/widgets/__tests__/unit/date-label.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/media/__tests__/list-page-w2g.unit.test.ts (8 tests) 42ms
+ ✓ src/widgets/__tests__/unit/date-label.unit.test.ts (8 tests) 45ms
+ ✓ src/forms/__tests__/form-controls.test.ts (5 tests) 7ms
+ ✓ src/forms/__tests__/forms.defensive-inputs.test.ts (9 tests) 6ms
+ ✓ src/redirects/__tests__/order.test.ts (6 tests) 7ms
+ ✓ src/media/__tests__/provenance-boundaries.unit.test.ts (33 tests) 15ms
+ ✓ src/publish/transfer/__tests__/file-blob-index.test.ts (8 tests) 5ms
+stdout | src/forms/__tests__/unit/submission.property.unit.test.ts
+[fast-check cms/forms] seed=20261020, numRuns=150
+
+ ✓ src/themes/__tests__/layout.test.ts (7 tests) 12ms
+ ✓ src/forms/__tests__/unit/submission.property.unit.test.ts (5 tests) 193ms
+ ✓ src/widgets/__tests__/expand-partials.test.ts (8 tests) 11ms
+ ✓ src/themes/__tests__/template-applicability.test.ts (15 tests) 6ms
+ ✓ src/forms/__tests__/html-render.test.ts (3 tests) 5ms
+ ✓ src/workspace/__tests__/create.test.ts (4 tests) 9ms
+ ✓ forms/src/__tests__/forms-misc.cov-j2.test.ts (3 tests) 66ms
+ ✓ src/navigation/__tests__/href.test.ts (7 tests) 3ms
+ ✓ src/listing/__tests__/static-collections.test.ts (7 tests) 4ms
+ ✓ src/widgets/__tests__/server-fragment.test.ts (21 tests) 28ms
+ ✓ src/media/__tests__/sharp-native-memory.test.ts (4 tests) 4ms
+ ✓ src/taxonomy/__tests__/content-deletion-cleanup.test.ts (4 tests) 3ms
+ ✓ src/forms/__tests__/destination-registry.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/submission-evidence.test.ts (4 tests) 23ms
+ ✓ src/seo/__tests__/render-origin.test.ts (6 tests) 10ms
+ ✓ src/presentation/__tests__/presentation.test.ts (6 tests) 10ms
+ ✓ src/media/__tests__/blob-store.selection.test.ts (5 tests) 14ms
+ ✓ src/navigation/__tests__/menu-render.test.ts (5 tests) 3ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
+ ✓ src/presentation/__tests__/document-shell.test.ts (4 tests) 2ms
+ ✓ src/themes/__tests__/manifest-v2.test.ts (4 tests) 5ms
+ ✓ src/widgets/__tests__/entry-isolation.test.ts (1 test) 1857ms
+   ✓ widgets markers, root and resolvers have isolated universal runtime closures  1845ms
+ ✓ src/listing/__tests__/batch.test.ts (9 tests) 5ms
+ ✓ src/forms/delivery/__tests__/pull-lease.unit.test.ts (8 tests) 17ms
+ ❯ src/workspace/__tests__/sql.repo.dialects.test.ts (10 tests | 1 failed) 6923ms
+   ✓ workspace sql repo [sqlite] > insert, find by id and slug, list 16ms
+   ✓ workspace sql repo [sqlite] > transaction returns the callback's value, commits its writes, and rolls them back when it throws 2ms
+   ✓ workspace sql repo [sqlite] > update and delete touch only the targeted row; createdAt is never rewritten 7ms
+   ✓ workspace sql repo [sqlite] > update with a stale expectedVersion throws and leaves the row; without one the last write wins 5ms
+   ✓ workspace sql repo [sqlite] > a duplicate slug is rejected by the database 5ms
+   × workspace sql repo [pglite] > insert, find by id and slug, list 6824ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ workspace sql repo [pglite] > transaction returns the callback's value, commits its writes, and rolls them back when it throws 10ms
+   ✓ workspace sql repo [pglite] > update and delete touch only the targeted row; createdAt is never rewritten 8ms
+   ✓ workspace sql repo [pglite] > update with a stale expectedVersion throws and leaves the row; without one the last write wins 18ms
+   ✓ workspace sql repo [pglite] > a duplicate slug is rejected by the database 24ms
+ ✓ src/core/tools/__tests__/args.contract.test.ts (5 tests) 22ms
+ ✓ src/entries/__tests__/field-validation.test.ts (6 tests) 6ms
+ ✓ src/forms/delivery/__tests__/status.unit.test.ts (10 tests) 10ms
+ ✓ src/taxonomy/__tests__/agent-tools.test.ts (6 tests) 6ms
+ ✓ src/content-types/__tests__/lifecycle-dispatch.cov-j2.test.ts (3 tests) 4ms
+ ✓ src/media/__tests__/blob-store.object-store.test.ts (4 tests) 11ms
+ ✓ src/forms/html/__tests__/html-checkbox-value.test.ts (2 tests) 33ms
+ ✓ src/core/tools/__tests__/host-read-vocabulary.test.ts (4 tests) 16ms
+ ✓ src/widgets/__tests__/unit/errors.unit.test.ts (3 tests) 8ms
+ ✓ src/forms/__tests__/destination-descriptors.test.ts (4 tests) 12ms
+ ✓ src/entries/__tests__/go-live.characterization.test.ts (3 tests) 4ms
+ ✓ src/widgets/__tests__/media-attributes.test.ts (5 tests) 4ms
+ ✓ src/forms/__tests__/submission-ip-retention.test.ts (5 tests) 9ms
+ ✓ src/widgets/__tests__/legacy-widget-markers.test.ts (12 tests) 13ms
+ ✓ src/workspace/__tests__/delete-atomicity.test.ts (4 tests) 11ms
+ ✓ src/media/__tests__/document-read-w2g.unit.test.ts (2 tests) 9ms
+ ✓ src/themes/files/__tests__/reviewed-write.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/delete-submission.test.ts (7 tests) 5ms
+ ✓ src/html/__tests__/text-layout.test.ts (5 tests) 3ms
+ ✓ src/workspace/__tests__/update.test.ts (6 tests) 5ms
+stderr | src/widgets/__tests__/unit/entry-payload.concurrent-seed.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/entry-payload.concurrent-seed.unit.test.ts (2 tests) 6ms
+ ✓ src/media/__tests__/metadata-fields.test.ts (4 tests) 3ms
+ ✓ src/comments/__tests__/spam.heuristic.test.ts (6 tests) 3ms
+ ✓ src/redirects/__tests__/path-key.test.ts (27 tests) 5ms
+ ✓ src/media/__tests__/repo.memory.test.ts (4 tests) 3ms
+ ✓ src/forms/__tests__/email-fields-w2g.unit.test.ts (2 tests) 26ms
+ ✓ src/content-types/__tests__/write-service.register-owner.test.ts (3 tests) 3ms
+ ✓ src/presentation/__tests__/sql.repo.dialects.test.ts (10 tests) 5032ms
+   ✓ presentation settings repo [pglite] > save then findByWorkspaceId round-trips; unknown workspace misses  4912ms
+ ✓ src/forms/delivery/__tests__/pull-trigger.unit.test.ts (7 tests) 8ms
+ ✓ src/presentation/site/__tests__/active-theme-id.unit.test.ts (4 tests) 7ms
+stderr | src/widgets/__tests__/unit/embed-validation.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/embed-validation.unit.test.ts (5 tests) 7ms
+ ✓ src/seo/__tests__/write-service.lost-update.test.ts (2 tests) 11ms
+ ✓ forms/src/__tests__/submission-ip-retention.test.ts (4 tests) 5ms
+ ✓ src/entries/__tests__/lifecycle-dispatch.cov-j2.test.ts (2 tests) 3ms
+ ✓ src/entries/__tests__/sql.repo.rows.test.ts (3 tests) 5ms
+ ✓ src/__tests__/identity-extraction.boundary.test.ts (1 test) 3ms
+ ✓ src/publish/transfer/__tests__/blob-staging.test.ts (7 tests) 8ms
+ ✓ src/content-types/__tests__/write-error-status.test.ts (14 tests) 9ms
+ ✓ src/forms/html/__tests__/retry-draft.test.ts (1 test) 9ms
+ ✓ src/media/import/__tests__/injected-policy.test.ts (8 tests) 5ms
+stderr | src/widgets/__tests__/unit/where-used.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/where-used.unit.test.ts (4 tests) 3ms
+ ✓ src/trash/__tests__/retention-policy.test.ts (25 tests) 16ms
+ ✓ src/widgets/__tests__/media-html.unit.test.ts (5 tests) 24ms
+ ✓ src/media/__tests__/chat-preview.test.ts (2 tests) 3ms
+ ✓ src/html/__tests__/style-values.test.ts (8 tests) 2ms
+ ✓ src/content-types/__tests__/index-provisioning.web-crypto.test.ts (11 tests) 13ms
+ ✓ src/entries/site/__tests__/site-entries.test.ts (6 tests) 24ms
+ ✓ src/seo/__tests__/head-escaping.golden.test.ts (1 test) 4ms
+ ✓ src/content-types/__tests__/permissions.test.ts (1 test) 2ms
+ ✓ src/redirects/__tests__/entries.test.ts (2 tests) 10ms
+ ✓ src/workspace/__tests__/lost-update.test.ts (2 tests) 6ms
+ ✓ src/taxonomy/__tests__/sql.lock-keys.test.ts (2 tests) 3ms
+ ✓ src/widgets/__tests__/unit/entry-payload.unit.test.ts (5 tests) 6ms
+ ✓ src/listing/__tests__/paths.test.ts (11 tests) 11ms
+ ✓ src/taxonomy/__tests__/list.test.ts (3 tests) 3ms
+ ✓ src/redirects/__tests__/repo.rows.test.ts (2 tests) 6ms
+ ✓ src/taxonomy/__tests__/content-deletion-failure.test.ts (4 tests) 9ms
+ ✓ src/html/site/__tests__/slug.test.ts (4 tests) 76ms
+ ✓ src/presentation/__tests__/theme-boundaries.unit.test.ts (2 tests) 5ms
+ ✓ src/widgets/__tests__/plugin-export-m1.unit.test.ts (7 tests) 29ms
+ ✓ src/widgets/__tests__/legacy-widget-markers.unit.test.ts (2 tests) 11ms
+ ✓ src/seo/__tests__/sitemap-documents.test.ts (4 tests) 23ms
+ ✓ src/forms/__tests__/embed-consent.unit.test.ts (3 tests) 12ms
+ ✓ src/__tests__/settings-compatibility.contract.test.ts (2 tests) 18ms
+ ✓ src/taxonomy/__tests__/render-entry.test.ts (3 tests) 3ms
+ ✓ src/comments/__tests__/repo.rows.test.ts (2 tests) 7ms
+ ✓ src/forms/__tests__/checkbox-authored-value.test.ts (4 tests) 5ms
+ ✓ src/trash/__tests__/cursor.test.ts (4 tests) 5ms
+ ❯ forms/src/__tests__/package-boundary.test.ts (2 tests | 1 failed) 10ms
+   × forms keeps its own published root entry and CMS exposes no forms alias 8ms
+     → expected '0.7.2' to be '0.7.3-next.2' // Object.is equality
+   ✓ the root entry exposes validators, services and the rate-limit key 1ms
+ ✓ forms/src/__tests__/checkbox-authored-value.test.ts (4 tests) 15ms
+ ✓ src/redirects/__tests__/host-config.matcher-guard.test.ts (1 test) 10ms
+ ✓ src/workspace/__tests__/delete.test.ts (3 tests) 2ms
+ ✓ src/forms/__tests__/reserved-slug-update.test.ts (1 test) 25ms
+ ✓ forms/src/__tests__/reserved-slug-update.test.ts (1 test) 5ms
+ ✓ src/seo/__tests__/html-plain-text.test.ts (10 tests) 14ms
+stderr | src/widgets/__tests__/unit/concurrency.unit.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument for options. See more at https://vitest.dev/guide/migration
+
+ ✓ src/widgets/__tests__/unit/concurrency.unit.test.ts (2 tests) 3ms
+ ✓ src/forms/__tests__/forms-barrel.characterization.test.ts (1 test) 4ms
+ ✓ src/widgets/__tests__/stored-format.golden.test.ts (1 test) 7ms
+ ✓ src/core/commands/__tests__/public-entry.test.ts (1 test) 9ms
+ ✓ src/redirects/__tests__/target-gate.test.ts (6 tests) 4ms
+ ✓ src/content-types/__tests__/list.test.ts (3 tests) 2ms
+ ✓ src/core/__tests__/entity-liveness.test.ts (3 tests) 4ms
+ ✓ src/entries/__tests__/list.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/browser-safe-pattern.test.ts (4 tests) 5ms
+ ✓ src/workspace/__tests__/sql.lock-keys.test.ts (1 test) 3ms
+ ✓ src/entries/__tests__/write-error-status.test.ts (8 tests) 3ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
+ ✓ src/posts/__tests__/slug.test.ts (3 tests) 4ms
+ ✓ src/forms/__tests__/request-admission.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/repo.memory.purge.test.ts (1 test) 3ms
+ ✓ src/widgets/__tests__/stylesheet-attributes.unit.test.ts (2 tests) 5ms
+ ✓ src/content-types/__tests__/lifecycle-dispatch.test.ts (4 tests) 2ms
+ ✓ src/taxonomy/site/__tests__/site-taxonomy.test.ts (3 tests) 4ms
+ ✓ src/content-types/site/__tests__/site-content-types.test.ts (3 tests) 4ms
+ ✓ forms/src/__tests__/eventing.fixture.test.ts (2 tests) 5ms
+ ✓ src/forms/__tests__/eventing.fixture.test.ts (2 tests) 13ms
+ ✓ src/seo/__tests__/entry.test.ts (1 test) 11ms
+ ✓ src/content-types/__tests__/runtime-errors.test.ts (2 tests) 5ms
+ ✓ src/forms/__tests__/errors-defaults.test.ts (5 tests) 15ms
+stderr | src/media/__tests__/integration/document-text.integration.test.ts > real optional PDF adapter reads the tiny text fixture
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ src/entries/__tests__/repo.memory.purge.test.ts (1 test) 3ms
+ ✓ src/media/__tests__/integration/document-text.integration.test.ts (2 tests) 743ms
+   ✓ real optional Word adapter reads the tiny DOCX fixture  540ms
+ ✓ src/core/__tests__/post-vocabulary.test.ts (2 tests) 4ms
+ ✓ src/seo/content-analysis/__tests__/content-analysis.test.ts (2 tests) 23ms
+ ✓ src/forms/__tests__/submission-validation-metadata.test.ts (2 tests) 3ms
+ ✓ src/navigation/__tests__/agent-tools.menu-rel-schema.test.ts (2 tests) 5ms
+ ✓ src/forms/__tests__/forms.honeypot.test.ts (7 tests) 2ms
+ ✓ src/themes/__tests__/token-aliases.test.ts (3 tests) 3ms
+ ✓ src/media/__tests__/node-entry.test.ts (1 test) 4ms
+ ✓ src/workspace/__tests__/repo.memory.test.ts (2 tests) 3ms
+ ✓ src/entries/__tests__/lifecycle-dispatch.test.ts (3 tests) 2ms
+ ✓ tests/forms/optional-platform.test.ts (2 tests) 39282ms
+   ✓ loads packed Forms and validates a submission without platform installed  7192ms
+   ✓ loads the packed sender subpath and configures an email action through injected ports  32089ms
+ ✓ forms/src/__tests__/errors-defaults.test.ts (4 tests) 8ms
+ ✓ src/forms/delivery/__tests__/index.unit.test.ts (3 tests) 11ms
+ ✓ src/comments/__tests__/sanitize.test.ts (2 tests) 4ms
+ ✓ src/navigation/__tests__/agent-tools.menu-delete-hint.test.ts (4 tests) 3ms
+ ✓ forms/src/__tests__/forms.honeypot.test.ts (6 tests) 3ms
+ ✓ src/media/__tests__/file-extension.test.ts (1 test) 2ms
+ ✓ src/redirects/__tests__/path-key-boundaries.unit.test.ts (2 tests) 5ms
+ ✓ src/trash/__tests__/lock-keys.test.ts (2 tests) 2ms
+ ✓ src/media/__tests__/sharp-failure-w2g.unit.test.ts (1 test) 6ms
+ ✓ src/navigation/__tests__/last-known-href.test.ts (1 test) 3ms
+ ✓ src/seo/__tests__/settings-limits.test.ts (2 tests) 7ms
+ ✓ src/core/__tests__/transform-format.test.ts (4 tests) 11ms
+ ✓ src/trash/__tests__/exports.test.ts (2 tests) 9ms
+ ✓ src/comments/__tests__/settings-limits.test.ts (2 tests) 3ms
+ ✓ src/forms/__tests__/delivery-status-limits.test.ts (1 test) 2ms
+ ✓ src/publish/transfer/__tests__/artifact-format.test.ts (1 test) 6ms
+ ✓ src/seo/dom/__tests__/apply-head-elements.test.ts (2 tests) 25ms
+ ✓ src/__tests__/subpath-isolation.contract.test.ts (1 test) 13693ms
+   ✓ keeps every CMS subpath isolated at runtime and installation  13691ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  forms/src/__tests__/package-boundary.test.ts > forms keeps its own published root entry and CMS exposes no forms alias
+AssertionError: expected '0.7.2' to be '0.7.3-next.2' // Object.is equality
+
+Expected: [32m"0.7.[7m3-next.[27m2"[39m
+Received: [31m"0.7.2"[39m
+
+ ❯ forms/src/__tests__/package-boundary.test.ts:23:58
+     21|   // The version is read, not pinned: every release bump must ship wit…
+     22|   // so the newest released heading is the version the package claims.
+     23|   expect(changelog.match(/^## (\d+\.\d+\.\d+)\b/m)?.[1]).toBe(own.vers…
+       |                                                          ^
+     24|   // Publishable since 809ed6d1; publish-pending/publish-all skip priv…
+     25|   expect(own).not.toHaveProperty("private");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯
+
+ FAIL  src/comments/__tests__/repo.cas-race.cov-j2.test.ts > comments sql repo CAS [pglite] > an unlocked write landing between the locked read and the update is reported as a conflict at its version
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/comments/__tests__/repo.cas-race.cov-j2.test.ts:75:5
+     73|   },
+     74|   body: (make) => {
+     75|     test("an unlocked write landing between the locked read and the up…
+       |     ^
+     76|       const { repo, arm, bumpVersion } = make();
+     77|       await repo.create({ record: comment("c1") }, {});
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯
+
+ FAIL  src/comments/__tests__/repo.dialects.test.ts > comments repo [pglite] > create round-trips, with nulls and a real spam score
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/comments/__tests__/repo.dialects.test.ts:57:5
+     55|   },
+     56|   body: (makeRepo) => {
+     57|     test("create round-trips, with nulls and a real spam score", async…
+       |     ^
+     58|       const repo = makeRepo();
+     59|       await repo.create({ record: comment("c1") }, {});
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯
+
+ FAIL  src/comments/__tests__/write-service.trash.test.ts > [pglite] a failed index write rolls the moderation back rather than leaving a hidden comment with no Trash row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/comments/__tests__/write-service.trash.test.ts:190:3
+    188|   make: (kernel) => ({ kernel, repo: commentRepoFor({ kernel, tables }…
+    189| }, {})) {
+    190|   test(`[${adapter.name}] a failed index write rolls the moderation ba…
+       |   ^
+    191|     const { kernel, repo: sqlRepo } = adapter.make();
+    192|     // The fixture rejects on any DDL failure instead of returning dec…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯
+
+ FAIL  src/content-types/__tests__/sql.repo.dialects.test.ts > content-type repo [pglite] > save inserts, then a second save fully replaces the row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/content-types/__tests__/sql.repo.dialects.test.ts:57:3
+     55| 
+     56| describeEachDialect<Bundle>({ title: "content-type repo", options: { t…
+     57|   test("save inserts, then a second save fully replaces the row", asyn…
+       |   ^
+     58|     const { repo } = make();
+     59|     await repo.save(contentType("recipe"));
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯
+
+ FAIL  src/content-types/__tests__/universal-entries.boundary.test.ts > no CMS universal entry reaches a Node builtin
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/content-types/__tests__/universal-entries.boundary.test.ts:128:1
+    126| 
+    127| // REGRESSION: fails if index-provisioning.ts restores import { create…
+    128| test("no CMS universal entry reaches a Node builtin", () => {
+       | ^
+    129|   expect(manifest.jini.entries["./content-types"]).toBe("universal");
+    130|   expect(universalEntries.length).toBeGreaterThan(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯
+
+ FAIL  src/entries/__tests__/sql.repo.dialects.test.ts > entry repo [pglite] > save round-trips every field and the reads are scoped to the workspace
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/entries/__tests__/sql.repo.dialects.test.ts:42:3
+     40| 
+     41| describeEachDialect<Bundle>({ title: "entry repo", options: { tables: …
+     42|   test("save round-trips every field and the reads are scoped to the w…
+       |   ^
+     43|     const { repo } = make();
+     44|     const saved = entry("e1", { bodyJson: { type: "doc" }, status: "dr…
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯
+
+ FAIL  src/forms/__tests__/create-tables.reference.test.ts > pglite: createFormsTables matches the reference DDL's catalog
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/create-tables.reference.test.ts:72:1
+     70| });
+     71| 
+     72| test("pglite: createFormsTables matches the reference DDL's catalog", …
+       | ^
+     73|   const reference = openPgliteKernel({ PGlite }, {});
+     74|   const created = openPgliteKernel({ PGlite }, {});
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯
+
+ FAIL  src/forms/__tests__/create-tables.test.ts > pglite: creates the tables, is idempotent, and the repos round-trip
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/create-tables.test.ts:88:1
+     86| });
+     87| 
+     88| test("pglite: creates the tables, is idempotent, and the repos round-t…
+       | ^
+     89|   const kernel = openPgliteKernel({ PGlite }, {});
+     90|   try {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯
+
+ FAIL  src/forms/__tests__/create-tables.test.ts > pglite: every index is created for long table names (none skipped by truncation)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/create-tables.test.ts:124:1
+    122| });
+    123| 
+    124| test("pglite: every index is created for long table names (none skippe…
+       | ^
+    125|   const kernel = openPgliteKernel({ PGlite }, {});
+    126|   try {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯
+
+ FAIL  src/forms/__tests__/repo.contract.test.ts > [SqlFormDefinitionRepo [pglite]] create + findById round-trips
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ runDefinitionContractSuite src/forms/__tests__/repo.contract.test.ts:63:3
+     61|   const makeRepo = () => makeHarness().repo;
+     62| 
+     63|   test(`[${adapterName}] create + findById round-trips`, async () => {
+       |   ^
+     64|     const repo = makeRepo();
+     65|     await repo.create(makeDefinition());
+ ❯ src/forms/__tests__/repo.contract.test.ts:304:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/24]⎯
+
+ FAIL  src/forms/__tests__/repo.dialects.test.ts > forms repos [pglite] > definition create then findById / findBySlug / list round-trip
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/repo.dialects.test.ts:61:5
+     59|       kernel.run((db) => db.updateTable(table).set({ deleted_at: T0 })…
+     60| 
+     61|     test("definition create then findById / findBySlug / list round-tr…
+       |     ^
+     62|       const { defs } = makeRepos();
+     63|       await defs.create(definition("def-1", "contact"));
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/24]⎯
+
+ FAIL  src/forms/__tests__/repo.lost-update.test.ts > form definition lost updates [pglite] > a stale editor is refused and the first editor's change survives
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ cases src/forms/__tests__/repo.lost-update.test.ts:28:3
+     26| 
+     27| function cases(make: () => FormDefinitionRepoPort): void {
+     28|   test("a stale editor is refused and the first editor's change surviv…
+       |   ^
+     29|     const repo = make();
+     30|     await repo.create(definition());
+ ❯ src/forms/__tests__/repo.lost-update.test.ts:78:14
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/24]⎯
+
+ FAIL  src/forms/__tests__/submission-ip-retention.dialects.test.ts > submission IP retention adapter and migration 0006 [pglite] > bounded batches cover more than 500 records; concurrent passes count each cleared row once
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/submission-ip-retention.dialects.test.ts:31:3
+     29|   tables: ["form_submissions", "form_definitions"], make: kernel => ({…
+     30| }, make => {
+     31|   test("bounded batches cover more than 500 records; concurrent passes…
+       |   ^
+     32|     const { kernel, repo } = make();
+     33|     await seed(kernel, Array.from({ length: 501 }, (_, i) => ({ id: `s…
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/24]⎯
+
+ FAIL  src/forms/__tests__/submission-ip-retention.ports.unit.test.ts > submission IP retention column catalog port [pglite] > a nullable source_ip lets the update run, and the probe is asked about the submissions table
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/submission-ip-retention.ports.unit.test.ts:45:3
+     43|   tables: ["form_submissions", "form_definitions"], make: kernel => ke…
+     44| }, make => {
+     45|   test("a nullable source_ip lets the update run, and the probe is ask…
+       |   ^
+     46|     const kernel = make();
+     47|     await seedOneExpiredRow(kernel);
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/24]⎯
+
+ FAIL  src/navigation/__tests__/sql.repo.dialects.test.ts > menu repo [pglite] > save and the reads round-trip the doc and locations, scoped to the workspace
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/navigation/__tests__/sql.repo.dialects.test.ts:37:3
+     35| 
+     36| describeEachDialect<Bundle>({ title: "menu repo", options: { tables: T…
+     37|   test("save and the reads round-trip the doc and locations, scoped to…
+       |   ^
+     38|     const { menus } = make();
+     39|     await menus.save(menu("m1"));
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/24]⎯
+
+ FAIL  src/redirects/__tests__/repo.contract.test.ts > [pglite] save() then findById() round-trips the record
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ runContractSuite src/redirects/__tests__/repo.contract.test.ts:52:3
+
+ ❯ src/redirects/__tests__/repo.contract.test.ts:276:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/24]⎯
+
+ FAIL  src/redirects/__tests__/repo.dialects.test.ts > redirect repo [pglite] > save round-trips every field incl. optionals and booleans; re-save replaces the row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/redirects/__tests__/repo.dialects.test.ts:59:5
+     57|     make: (kernel) => redirectRepoFor({ kernel, tables: { redirects: "…
+     58|   }, body: (makeRepo) => {
+     59|     test("save round-trips every field incl. optionals and booleans; r…
+       |     ^
+     60|       const repo = makeRepo();
+     61|       const full = rule("full", {
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/24]⎯
+
+ FAIL  src/taxonomy/__tests__/sql.repo.dialects.test.ts > taxonomy repo [pglite] > insert round-trips every field incl. the hierarchical boolean
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/taxonomy/__tests__/sql.repo.dialects.test.ts:57:5
+     55|     let ctx!: Bundle;
+     56|     const makeRepo = () => ((ctx = make()), ctx.taxonomies);
+     57|     test("insert round-trips every field incl. the hierarchical boolea…
+       |     ^
+     58|       const repo = makeRepo();
+     59|       const row = taxonomy("t1", { hierarchical: true, version: 3 });
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/24]⎯
+
+ FAIL  src/trash/__tests__/sql.kit.test.ts > trash sql kit [pglite] > notTrashed, as a real WHERE: a timestamp marker, a status marker, and hidden-with-parent over a live, trashed and NULL parent
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/trash/__tests__/sql.kit.test.ts:42:3
+
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/24]⎯
+
+ FAIL  src/trash/__tests__/sql.repo.dialects.test.ts > trash repo [pglite] > insert round-trips every field and is idempotent on (workspace, entity type, entity id)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/trash/__tests__/sql.repo.dialects.test.ts:35:3
+     33| 
+     34| describeEachDialect<Bundle>({ title: "trash repo", options: { tables: …
+     35|   test("insert round-trips every field and is idempotent on (workspace…
+       |   ^
+     36|     const { repo } = make();
+     37|     const row = item("a", { actorPluginId: "plug", displaySubtitle: "s…
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/24]⎯
+
+ FAIL  src/widgets/__tests__/entry-refs-repo.dialects.test.ts > entry refs repo [pglite] > replaceForSource then findBySource / findByTarget return rows in insertion order
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/widgets/__tests__/entry-refs-repo.dialects.test.ts:44:3
+     42|   },
+     43| }, body: (makeRepos) => {
+     44|   test("replaceForSource then findBySource / findByTarget return rows …
+       |   ^
+     45|     const { repo } = makeRepos();
+     46|     await repo.replaceForSource({ workspaceId: WS, sourceEntryId: "s1"…
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/24]⎯
+
+ FAIL  src/widgets/__tests__/repo.contract.test.ts > [SqlWidgetRegionBindingRepo pglite] upsert + findByRegion round-trips, upsert on the same (workspace, regionKey) replaces the row (real UNIQUE constraint, not just in-memory discipline)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test src/widgets/__tests__/support/test-runner.ts:21:3
+     19|   const body = typeof bodyOrOptions === "function" ? bodyOrOptions : o…
+     20|   const options = typeof bodyOrOptions === "function" ? {} : bodyOrOpt…
+     21|   vitest(name, async () => {
+       |   ^
+     22|     const cleanups: Array<() => void | Promise<void>> = [];
+     23|     onTestFinished(async () => { for (const cleanup of cleanups.revers…
+ ❯ runSuite src/widgets/__tests__/repo.contract.test.ts:25:3
+ ❯ src/widgets/__tests__/repo.contract.test.ts:100:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/24]⎯
+
+ FAIL  src/workspace/__tests__/sql.repo.dialects.test.ts > workspace sql repo [pglite] > insert, find by id and slug, list
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ body src/workspace/__tests__/sql.repo.dialects.test.ts:23:5
+     21|     make: (kernel) => workspaceRepoFor({ kernel, tables: { workspaces:…
+     22|   }, body: (makeRepo) => {
+     23|     test("insert, find by id and slug, list", async () => {
+       |     ^
+     24|       const repo = makeRepo();
+     25|       await repo.insert(ACME);
+ ❯ src/core/__tests__/support/dialect-matrix.ts:172:47
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/24]⎯
+
+
+ Test Files  23 failed | 411 passed (434)
+      Tests  24 failed | 5009 passed (5033)
+   Start at  23:40:31
+   Duration  181.85s (transform 21.76s, setup 0ms, collect 85.96s, tests 262.59s, environment 634ms, prepare 46.58s)
+

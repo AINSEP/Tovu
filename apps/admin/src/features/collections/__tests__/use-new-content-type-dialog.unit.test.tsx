@@ -1,13 +1,13 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { NewContentTypeDialog } from "../NewContentTypeDialog";
 import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
 import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
-import type { NewContentTypeDialogPort } from "../hooks/new-content-type-dialog-port.hooks";
+import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";
 
 /**
  * @file `useNewContentTypeDialog` — `NewContentTypeDialog`'s own state and submit action

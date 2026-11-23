@@ -1,4 +1,4 @@
-import type { AdminTaxonomyWithTerms, AdminTerm } from "./api/taxonomy-api.types";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { ApiError, describeApiError } from "../../lib/admin-http/request";
 import type { QueryKey } from "@jini-ai/core/fetch";
 

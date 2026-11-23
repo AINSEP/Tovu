@@ -1,0 +1,4 @@
+
+> @jini-ai/admin@0.7.3-next.2 build /home/user/Jini/packages/admin
+> tsc -p tsconfig.json
+

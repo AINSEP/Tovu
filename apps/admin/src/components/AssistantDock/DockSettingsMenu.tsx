@@ -4,7 +4,7 @@ import { RemixIcon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
-import { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { activateDockMenuItem, isChoiceSection, type DockSettingsMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
 
 type DockMenu = ReturnType<typeof useTaxonomyRowMenu>;

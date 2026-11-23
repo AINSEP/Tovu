@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
-import { entryPublicHref, humanizeFieldName, isCollectionListLayout, parseCollectionListConfig } from "../../public-list.js";
+import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/entries/site/system-content-types";
+import { entryPublicHref, humanizeFieldName, isCollectionListLayout, parseCollectionListConfig } from "@jini-ai/cms/entries/site/public-list";
 
 /**
  * @file Collections plan C1 — unit tier for the collection-list embed config parser, the system

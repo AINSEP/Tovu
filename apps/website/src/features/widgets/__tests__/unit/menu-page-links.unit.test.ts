@@ -1,4 +1,4 @@
-import { widgetCollectionListPort } from "../../../entries/public-list.js";
+import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";

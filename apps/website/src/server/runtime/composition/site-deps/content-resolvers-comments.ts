@@ -15,7 +15,7 @@ import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
-import { widgetCollectionListPort } from "../../../../features/entries/public-list.js";
+import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeIdentitySettings } from "./identity-settings.js";

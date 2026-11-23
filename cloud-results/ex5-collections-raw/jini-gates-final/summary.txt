@@ -1,0 +1,12 @@
+HEAD 2ae92eb8
+build-cms exit=0 secs=19
+build-admin exit=0 secs=18
+typecheck exit=0 secs=147
+guard exit=1 secs=81
+api-check exit=0 secs=17
+size exit=1 secs=23
+complexity exit=1 secs=29
+hooks exit=0 secs=1
+why-base exit=0 secs=10
+cross-package exit=1 secs=1
+DONE

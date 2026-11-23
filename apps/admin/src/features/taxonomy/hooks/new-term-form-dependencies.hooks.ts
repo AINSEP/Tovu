@@ -1,5 +1,5 @@
 import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
-import type { NewTermFormPort } from "./new-term-form-port.hooks";
+import type { NewTermFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-term-form-port.hooks";
 
 /**
  * @file The only place under `features/taxonomy/hooks` that reaches `lib/api` for `createTerm` —

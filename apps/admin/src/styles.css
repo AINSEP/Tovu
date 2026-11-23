@@ -4966,15 +4966,17 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    further up this file (a "⋯" glyph inside a full rectangular outline reads as a broken label,
    not a control). The `.list-table td` prefix matches that rule's own scoping technique
    (specificity (0,3,0) here vs. its (0,1,2)) so this cleanly outranks it instead of fighting it. */
-.row-menu-trigger {
+/* `.jini-taxonomy-row-menu-*` aliases: `@jini-ai/admin`'s `TaxonomyRowMenu` uses engine-prefixed
+   classes, and taxonomy menus must keep the same look as every other `RowMenu`. */
+.row-menu-trigger, .jini-taxonomy-row-menu-trigger {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; padding: 0; flex-shrink: 0;
   background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: var(--r-pill);
 }
-.row-menu-trigger svg { width: 16px; height: 16px; }
-.list-table td .row-menu-trigger { background: transparent; color: var(--muted); border-color: transparent; }
-.row-menu-trigger:hover,
-.row-menu-trigger[aria-expanded="true"] { background: var(--surface-2); color: var(--fg-2); opacity: 1; }
+.row-menu-trigger svg, .jini-taxonomy-row-menu-trigger svg { width: 16px; height: 16px; }
+.list-table td .row-menu-trigger, .list-table td .jini-taxonomy-row-menu-trigger { background: transparent; color: var(--muted); border-color: transparent; }
+.row-menu-trigger:hover, .jini-taxonomy-row-menu-trigger:hover,
+.row-menu-trigger[aria-expanded="true"], .jini-taxonomy-row-menu-trigger[aria-expanded="true"] { background: var(--surface-2); color: var(--fg-2); opacity: 1; }
 
 /* Popup — portaled to `document.body`, so this is a DOM sibling of the app root and needs its own
    `position`/`z-index` rather than relying on any ancestor's stacking context; `RowMenu.tsx` sets
@@ -4983,7 +4985,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    the file's other portal-to-body element — both are transient overlays that never need to
    outrank a modal `<dialog>` (the browser's top layer always wins over any `z-index` regardless),
    and never coexist with each other. */
-.row-menu-popup {
+.row-menu-popup, .jini-taxonomy-row-menu-popup {
   min-width: 9rem; padding: var(--space-1);
   background: var(--tovu-admin-elevated-bg); border: var(--jini-border-width, 1px) solid var(--border); border-radius: var(--r-md);
   box-shadow: var(--tovu-admin-elevated-shadow); z-index: 70;
@@ -4992,13 +4994,13 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
-.row-menu-item {
+.row-menu-popup-above, .jini-taxonomy-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
+.row-menu-item, .jini-taxonomy-row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
   padding: 0.45rem 0.65rem; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
 }
-.row-menu-item:hover, .row-menu-item:focus-visible { background: var(--surface-2); color: var(--fg); opacity: 1; outline: none; }
+.row-menu-item:hover, .row-menu-item:focus-visible, .jini-taxonomy-row-menu-item:hover, .jini-taxonomy-row-menu-item:focus-visible { background: var(--surface-2); color: var(--fg); opacity: 1; outline: none; }
 /* Warning/danger menu items reuse the shared `.btn-warning`/`.btn-danger` classes for their color
    tokens (`RowMenu`'s three-tier `tone` API) rather than a bespoke class — was
    `.row-menu-item-destructive` (danger-only, its own color literals) until this pass. Composed
@@ -5011,11 +5013,11 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    both `.row-menu-item` alone and `.btn-danger`/`.btn-warning` alone (0,1,0 each) regardless of
    source order, so shape stays `.row-menu-item`'s (block, full-width, menu-item padding) while
    color and hover state come from the tone. */
-.row-menu-item.btn-danger, .row-menu-item.btn-warning { background: transparent; border: none; }
-.row-menu-item.btn-danger { color: var(--danger); }
-.row-menu-item.btn-danger:hover, .row-menu-item.btn-danger:focus-visible { background: var(--danger-bg); color: var(--danger); outline: none; }
-.row-menu-item.btn-warning { color: var(--warning); }
-.row-menu-item.btn-warning:hover, .row-menu-item.btn-warning:focus-visible { background: var(--warning-bg); color: var(--warning); outline: none; }
+.row-menu-item.btn-danger, .row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.btn-danger, .jini-taxonomy-row-menu-item.btn-warning { background: transparent; border: none; }
+.row-menu-item.btn-danger, .jini-taxonomy-row-menu-item.btn-danger { color: var(--danger); }
+.row-menu-item.btn-danger:hover, .row-menu-item.btn-danger:focus-visible, .jini-taxonomy-row-menu-item.btn-danger:hover, .jini-taxonomy-row-menu-item.btn-danger:focus-visible { background: var(--danger-bg); color: var(--danger); outline: none; }
+.row-menu-item.btn-warning, .jini-taxonomy-row-menu-item.btn-warning { color: var(--warning); }
+.row-menu-item.btn-warning:hover, .row-menu-item.btn-warning:focus-visible, .jini-taxonomy-row-menu-item.btn-warning:hover, .jini-taxonomy-row-menu-item.btn-warning:focus-visible { background: var(--warning-bg); color: var(--warning); outline: none; }
 
 /* Confirm dialog — native `<dialog>`; un-styled, the UA stylesheet centers it with a system
    border/background and a plain black `::backdrop`. This replaces both with the token system but

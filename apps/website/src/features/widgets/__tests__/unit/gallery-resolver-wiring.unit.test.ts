@@ -4,7 +4,7 @@ import { createCoreResolvers } from '@jini-ai/cms/widgets/resolvers';
 import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/trash-aware-entry-repo';
 import { InMemoryFormDefinitionRepo } from '@jini-ai/cms/forms';
 import { resolveMenuDoc } from '@jini-ai/cms/navigation';
-import { widgetCollectionListPort } from "../../../entries/public-list.js";
+import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 
 test('core assembly injects the Gallery media port with the render workspace context', async () => {
   const seen: string[] = [];

@@ -1,6 +1,6 @@
 import { request } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
-import type { GatedConfirmResult, GatedPlanResult } from "../../taxonomy/api/taxonomy-api.types";
+import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
 import type { AdminLedgerRow, AdminRestorePointSummary, AdminSchemaState, MigrateForwardExecuteResult } from "./database-api.types";
 
 /** The admin API calls of the database feature. */

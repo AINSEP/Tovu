@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import {
@@ -15,7 +15,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useTaxonomyHtmlEmbed } from "./use-taxonomy-html-embed.hooks";
 import { t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
-import type { TaxonomyPort } from "./taxonomy-port.hooks";
+import type { TaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-port.hooks";
 
 /**
  * @file Everything the top-level `Taxonomy` screen does, so `Taxonomy.tsx` is only markup.

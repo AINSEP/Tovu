@@ -10,7 +10,7 @@ import { markersOfType, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-a
 import { listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-read";
+import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "@jini-ai/cms/entries/site/public-list";
 import { resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import type { TemplateRenderDeps } from "./deps.js";
 import { siteTimeZoneDep } from "./site-title.js";

@@ -56,7 +56,8 @@ import path from "node:path";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { scanEmbedMarkers, describeRejection } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "../../apps/website/src/contracts/core/entry-refs/extractor.js";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
+import { warnUnindexedEntryRef } from "../../apps/website/src/contracts/core/entry-refs/unindexed-ref-warning.js";
 import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 
@@ -256,7 +257,7 @@ async function reextractAllHtmlPages(db: ContentDb): Promise<number> {
     .all() as { id: string; workspaceId: string; bodyHtml: string }[];
 
   for (const page of pages) {
-    const refs = extractHtmlEntryRefs({ workspaceId: page.workspaceId, sourceEntryId: page.id, html: page.bodyHtml });
+    const refs = extractHtmlEntryRefs({ workspaceId: page.workspaceId, sourceEntryId: page.id, html: page.bodyHtml }, { report: warnUnindexedEntryRef });
     await repo.replaceForSource({ workspaceId: page.workspaceId, sourceEntryId: page.id, refs });
   }
   return pages.length;

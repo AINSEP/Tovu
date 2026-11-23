@@ -1,11 +1,11 @@
-import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
 import { defaultCollectionEntriesPort } from "./collection-entries-dependencies.hooks";
-import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
+import type { CollectionEntriesPort } from "@jini-ai/admin/screens/collections/hooks/collection-entries-port.hooks";
 
 /**
  * @file Everything the collections entries LIST does, so `CollectionEntries.tsx` is only markup.

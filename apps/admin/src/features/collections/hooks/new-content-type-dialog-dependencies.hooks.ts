@@ -1,6 +1,6 @@
-import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { collectionsApi } from "@/features/collections/api/collections-api";
-import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
+import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";
 
 /**
  * @file The only place `use-new-content-type-dialog.hooks.ts` reaches `lib/api` — see

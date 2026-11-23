@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
-import { extractHtmlEntryRefs } from "../../extractor.js";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
 
 /**
  * @file SPEC-047 Slice 3 — keeps `core/entry-refs/extractor.ts`'s `extractHtmlEntryRefs` and

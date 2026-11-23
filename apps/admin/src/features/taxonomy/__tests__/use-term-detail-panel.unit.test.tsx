@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useTermDetailPanel, useWiredTermDetailPanel } from "../hooks/use-term-detail-panel.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
-import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 
 /**
  * @file `useTermDetailPanel` — the rename form inside the term detail panel. Pins the no-op guard

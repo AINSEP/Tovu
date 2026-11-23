@@ -1,5 +1,5 @@
 import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
-import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
+import type { NewTaxonomyFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-taxonomy-form-port.hooks";
 
 /**
  * @file The only place under `features/taxonomy/hooks` that reaches `lib/api` for

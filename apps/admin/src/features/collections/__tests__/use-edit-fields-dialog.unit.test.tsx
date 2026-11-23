@@ -1,12 +1,12 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { EditFieldsDialog } from "../EditFieldsDialog";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
-import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
+import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 /**
  * @file `useEditFieldsDialog` — `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05).

@@ -1,5 +1,5 @@
 import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
-import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
+import type { MergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-port.hooks";
 
 /**
  * @file The only place under `features/taxonomy/hooks` that reaches `lib/api` for the merge

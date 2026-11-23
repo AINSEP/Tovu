@@ -14,7 +14,7 @@ import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
+import { contributeEntriesTools } from "@jini-ai/cms/entries/site/tool-registrations";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {

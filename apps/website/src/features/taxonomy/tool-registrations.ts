@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
+import { toolMetadata } from '@jini-ai/cms/taxonomy/site/tool-metadata';
 import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { type Clock } from "@jini-ai/core/primitives";
 /**
@@ -29,7 +29,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { toSlug } from "../../platform/html/slug.js";
 import type { PostRepoPort } from "../post/index.js";
-import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "./content-targets.js";
+import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy } from "@jini-ai/cms/taxonomy/site/content-targets";
 import type { CollectionOwnerLookupPort, MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import { buildMergeTermHooks } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";

@@ -1,11 +1,11 @@
 import { EditorContent, type Editor } from "@tiptap/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { ContentTypeFieldDef } from "./api/collections-api.types";
+import type { ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { TermPicker } from "../taxonomy/TermPicker";
-import { useJsonFieldControl } from "./hooks/use-json-field-control.hooks";
+import { useJsonFieldControl } from "@jini-ai/admin/screens/collections/hooks/use-json-field-control.hooks";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
 import { defaultNewTermFormPort } from "./new-term-form-dependencies.hooks";
-import type { NewTermFormPort } from "./new-term-form-port.hooks";
+import type { NewTermFormPort } from "@jini-ai/admin/screens/taxonomy/hooks/new-term-form-port.hooks";
 
 /**
  * @file Everything `NewTermForm` does, so it can stay markup only.

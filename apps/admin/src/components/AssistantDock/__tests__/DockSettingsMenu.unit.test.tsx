@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
+import type { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
 import { dockSettingsMenuSections, type DockSettingsMenuSection } from "../dock-header-rules";
 import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";

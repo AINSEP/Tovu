@@ -7,7 +7,7 @@ import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render
 import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
 import { collectBodyReferences } from '#src/features/publish-content/content-references';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
-import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
+import { extractHtmlEntryRefs } from '@jini-ai/cms/widgets';
 
 const media = { photo: { assetId: 'photo-id', slug: 'photo', alt: 'Library alt', width: 1200, height: 800, transformName: 'public', version: 1 } };
 const renderMedia = ({ props }: { props: JsonObject }) => renderWidgetIr({ componentId: 'media-image', props });

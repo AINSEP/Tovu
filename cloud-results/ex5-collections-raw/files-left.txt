@@ -1,0 +1,4 @@
+== base
+{"moving":2483,"shells":3,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375,"lane":{"content-types":5,"entries":8,"taxonomy":8}}
+== final
+{"moving":2453,"shells":3,"total":2456,"themeAreaFiles":111,"totalExclThemeAreas":2345,"lane":{"content-types":5,"entries":3,"taxonomy":7}}

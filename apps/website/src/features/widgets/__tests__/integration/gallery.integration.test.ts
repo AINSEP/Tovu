@@ -6,7 +6,7 @@ import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
-import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
+import { extractHtmlEntryRefs } from '@jini-ai/cms/widgets';
 import { collectReferencedMediaKeys } from '@jini-ai/cms/publish/content/media-references';
 
 const workspaceId = 'gallery-workspace';

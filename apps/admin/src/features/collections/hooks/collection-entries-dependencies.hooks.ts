@@ -1,6 +1,6 @@
-import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { collectionsApi } from "@/features/collections/api/collections-api";
-import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
+import type { CollectionEntriesPort } from "@jini-ai/admin/screens/collections/hooks/collection-entries-port.hooks";
 
 /**
  * @file The only place `use-collection-entries.hooks.ts` reaches `lib/api` — see `collection-

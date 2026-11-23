@@ -1,0 +1,15 @@
+HEAD 81bd392b7
+size exit=1 secs=35
+boundaries exit=0 secs=35
+admin-tsc exit=2 secs=57
+desktop-tsc exit=0 secs=48
+typecheck exit=0 secs=79
+hooks exit=0 secs=1
+errors exit=0 secs=36
+worker-import-graph exit=0 secs=24
+complexity exit=0 secs=43
+typecheck-scripts exit=2 secs=25
+why-comments exit=1 secs=28
+typecheck-tests exit=0 secs=62
+architecture exit=1 secs=82
+DONE
