@@ -15,6 +15,7 @@ import test from "node:test";
 
 
 import { describePublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
+import { PUBLISH_READINESS_COPY } from "#src/features/publish-content/publish-readiness-copy";
 import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
@@ -48,6 +49,7 @@ test("a tool-hosting process booted only through installFirstPartyToolContributo
     otherSiteLabels: [],
     candidateUrl: "https://tovu.com",
     publishableTypeCount: listPublishContentContributors().length,
+    copy: PUBLISH_READINESS_COPY,
   });
   assert.equal(readiness.verdict, "not-connected");
   assert.equal(readiness.missing, "This computer has not been connected to tovu.com.");

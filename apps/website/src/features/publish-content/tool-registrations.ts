@@ -47,6 +47,7 @@ import { connectAndRecordDestination } from "./connect-destination.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
+import { PUBLISH_READINESS_COPY } from "./publish-readiness-copy.js";
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
@@ -165,6 +166,7 @@ async function readReadiness({ deps, findCandidate }: { deps: PublishContentTool
     // Only consulted when nothing is connected, so the file read is skipped in the common case.
     candidateUrl: connected || rows.length > 0 ? null : await findCandidate(),
     publishableTypeCount: listPublishContentContributors().length,
+    copy: PUBLISH_READINESS_COPY,
   });
   return { readiness, rows };
 }

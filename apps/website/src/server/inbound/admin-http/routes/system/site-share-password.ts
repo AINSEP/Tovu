@@ -5,8 +5,15 @@ import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/i
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { isSameOriginBrowserWrite } from "@jini-ai/core/contracts/server";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { SiteShareExportFailure, SITE_EXPORT_FAILURE_MESSAGES } from "@jini-ai/devops/backup/site/share-export-failure";
+import { SiteShareExportFailure, type SiteShareExportStep } from "@jini-ai/devops/backup/site/share-export-failure";
 import { sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
+
+/** Closed stage descriptions: the route never infers storage trouble from an arbitrary exception. */
+const SITE_EXPORT_FAILURE_MESSAGES: Readonly<Record<SiteShareExportStep, string>> = {
+  prepare: "The export stopped while preparing the site files.",
+  archive: "The export stopped while building the ZIP.",
+  delivery: "The export stopped while saving or delivering the ZIP.",
+};
 
 interface SavedKeysOwnerDeps {
   workspaceId: string;
