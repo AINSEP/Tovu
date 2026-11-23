@@ -11,7 +11,7 @@ import {
   purgeMedia, readRecordedContentType, saveMediaProviderCredentials,
 } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";
 import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
 import { registerAdminMediaTextRoute } from "#src/server/inbound/admin-http/routes/media/text";
@@ -84,8 +84,13 @@ function mediaPortDeps({ deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "a
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
  *  had: delete consulted the publishing-credential override (`authorizeOrRespond`, `"guarded"`); the
- *  others did not (`"direct"`). Switching either is an authorization change, not a move. */
-function mountOptions(operation: string, authorization: AdminRouteAuthorization) {
+ *  others did not (`"direct"`). Switching either is an authorization change, not a move. Each route
+ *  made exactly one authorization call, so no mount needs `authorizationByPermission`; and every one
+ *  read the session before its params/body, so none opts into `deferMissingPrincipal`. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  _optional: Record<string, never> = {},
+): AdminJsonRouteMountOptions {
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
@@ -110,12 +115,12 @@ const MEDIA_PROVIDER_SAVE_ERRORS: readonly MediaErrorMapping[] = [
 
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
-  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, mountOptions("routes/media/update", "direct"));
+  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, mountOptions({ operation: "routes/media/update", authorization: "direct" }));
 };
 
 export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const trashDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo, removeMedia: deps.removeMedia };
-  mountAdminJsonRoute({ app, spec: mediaTrashRoute, deps: trashDeps }, mountOptions("routes/media/trash", "direct"));
+  mountAdminJsonRoute({ app, spec: mediaTrashRoute, deps: trashDeps }, mountOptions({ operation: "routes/media/trash", authorization: "direct" }));
 };
 
 export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
@@ -128,13 +133,13 @@ export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; dep
     purgeMedia: (input: { workspaceId: string; id: string }) => purgeMedia({ deps: purgeDeps, input }),
     forgetRemovedMedia: (input: { workspaceId: string; id: string }) => deps.forgetRemovedMedia(input),
   };
-  mountAdminJsonRoute({ app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions("routes/media/delete", "guarded"));
+  mountAdminJsonRoute({ app, spec: mediaDeleteRoute, deps: deleteDeps }, mountOptions({ operation: "routes/media/delete", authorization: "guarded" }));
 };
 
 export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   const getProviders = ({ workspaceId }: { workspaceId: string }) =>
     getMediaProviderCredentials({ repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId });
-  mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions("routes/media/get-providers", "direct"));
+  mountAdminJsonRoute({ app, spec: mediaGetProvidersRoute, deps: { ...mediaPortDeps({ deps }), getProviders } }, mountOptions({ operation: "routes/media/get-providers", authorization: "direct" }));
 };
 
 export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -146,7 +151,7 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
     { workspaceId, providers: providers as Record<string, never> },
   );
   const putDeps = { ...mediaPortDeps({ deps }), saveProviders, saveErrorMappings: MEDIA_PROVIDER_SAVE_ERRORS };
-  mountAdminJsonRoute({ app, spec: mediaPutProvidersRoute, deps: putDeps }, mountOptions("routes/media/put-providers", "direct"));
+  mountAdminJsonRoute({ app, spec: mediaPutProvidersRoute, deps: putDeps }, mountOptions({ operation: "routes/media/put-providers", authorization: "direct" }));
 };
 
 export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {

@@ -1,7 +1,9 @@
+import type { AssistantExecutionTabAgentDto } from "@jini-ai/core/contracts/site/cms-assistant";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 
-/** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
- *  `apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts`'s `toExecutionTabAgent`.
+/** One detect-agents row: the wire DTO Core declares (`@jini-ai/core/contracts/site/cms-assistant`'s
+ *  `AssistantExecutionTabAgentDto`, produced by `@jini-ai/cms/admin-http/routes/assistant/detect-agents`'s
+ *  `toExecutionTabAgent`) plus the snapshot's `discoveryPending`, kept optional here for client fixtures.
  *
  *  Each model's `reasoning` mirrors `@jini-ai/agent-runtime`'s `RuntimeModelOption.reasoning`
  *  (`packages/agent-runtime/src/types.ts` in Jini) — a model's OWN effort levels, narrowed to
@@ -11,17 +13,8 @@ import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-t
  *  see `toExecutionTabAgent`'s `projectModelReasoning` for the same rule on the wire side. No
  *  `@jini-ai/ui` picker reads this yet; it exists so a future one can narrow the "Reasoning effort"
  *  control to the SELECTED model instead of `reasoningOptions`' agent-wide union. */
-export interface AdminExecutionDetectedAgent {
+export interface AdminExecutionDetectedAgent extends AssistantExecutionTabAgentDto {
   discoveryPending?: boolean;
-  id: string;
-  label: string;
-  installed: boolean;
-  version?: string;
-  path?: string;
-  models?: Array<{ id: string; label: string; reasoning?: Array<{ id: string; label: string }> }>;
-  modelsSource?: "live" | "fallback";
-  authStatus?: "ok" | "missing" | "unknown";
-  authMessage?: string;
 }
 
 /**

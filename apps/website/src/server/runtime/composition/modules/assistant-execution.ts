@@ -8,7 +8,9 @@ import type { ResolveProbeCredentialFn } from "@jini-ai/cms/admin-http/routes/as
 
 import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import {
+  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
+} from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveProbeCredential } from "#src/server/inbound/admin-http/routes/assistant/stored-credential-probe";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -105,9 +107,13 @@ function executionPortDeps({ deps }: { deps: AssistantExecutionRouteDeps }, _opt
   return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), manageAssistantPermission: ADMIN_ASSISTANT_PERMISSION };
 }
 
-/** Every execution route used `authorizeDirectOrRespond` (`"direct"`) and `sendAdminFailure` with its own operation. */
-function mountOptions(operation: string) {
-  return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/** Every execution route used `authorizeDirectOrRespond` (`"direct"`) and `sendAdminFailure` with its own operation.
+ *  None opts into `deferMissingPrincipal`: each read the session and authorized before any body 400. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  _optional: Record<string, never> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
 /** The stored-credential chokepoint, bound to this bag (`principalId` arrives from the session via the spec). */
@@ -145,7 +151,7 @@ function detectionSnapshotFor({ deps }: { deps: AssistantExecutionRouteDeps }, _
 export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
     { app, spec: assistantDetectAgentsRoute, deps: { ...executionPortDeps({ deps }), detectAgents: detectionSnapshotFor({ deps }) } },
-    mountOptions("routes/assistant/detect-agents"),
+    mountOptions({ operation: "routes/assistant/detect-agents", authorization: "direct" }),
   );
 };
 
@@ -191,7 +197,7 @@ function connectionProbeFor({ deps }: { deps: AssistantExecutionRouteDeps }, _op
 export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
     { app, spec: assistantTestConnectionRoute, deps: { ...executionPortDeps({ deps }), resolveProbeCredential: probeCredentialFor({ deps }), testConnection: connectionProbeFor({ deps }) } },
-    mountOptions("routes/assistant/test-connection"),
+    mountOptions({ operation: "routes/assistant/test-connection", authorization: "direct" }),
   );
 };
 
@@ -224,7 +230,7 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
       ...executionPortDeps({ deps }), noServerKeyMessage: NO_SERVER_KEY_MESSAGE,
       resolveProbeCredential: probeCredentialFor({ deps }), listModels: modelListProbeFor({ deps }),
     } },
-    mountOptions("routes/assistant/list-models"),
+    mountOptions({ operation: "routes/assistant/list-models", authorization: "direct" }),
   );
 };
 
@@ -241,7 +247,7 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
     (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({ agentIds: [agentId] }, { force: true });
   mountAdminJsonRoute(
     { app, spec: assistantTestAgentRoute, deps: { ...executionPortDeps({ deps }), testAgent } },
-    mountOptions("routes/assistant/test-agent"),
+    mountOptions({ operation: "routes/assistant/test-agent", authorization: "direct" }),
   );
 };
 
