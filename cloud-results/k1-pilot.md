@@ -113,3 +113,38 @@ Tovu `codex/k1-pilot-tovu` (remote = local = `c3b91bb66` before this report comm
   or fix them on the real merge base.
 - `redirects/create` is still hand-written (from the ex5 lane) — first easy target for the template.
 - The update-tree HTML-check authorization mode (WARNING above) needs an owner call.
+
+## Fix round (rv1123e)
+
+FIXED b23e4cde8 c73309b4
+
+Branches: Tovu `codex/k1-pilot-tovu` (582db5967 → b23e4cde8 + this report), Jini `codex/k1-pilot-jini`
+(28ce682b → c73309b4). Fast-forward only, no force-push. Programmer skills file
+(`AI-Dev-Shop/agents/programmer/skills.md` v1.7.5) read before work; tests written first for each behaviour fix.
+
+| item | commit(s) | test (RED → GREEN) | mutation |
+|---|---|---|---|
+| K1-jini #1 update-tree keeps two auth decisions; raw-HTML check omits `entityId` on empty id | Jini `3638b1fd` | `cms/.../menus/__tests__/update-tree.test.ts` "omits entityId on the raw-HTML check only when the parsed menu id is empty" (RED on the pilot code) | `update-html-entityid-always` = the pilot code → RED |
+| K1-jini #2 wire DTO declarations in Core; object args with `_optional = {}` | Jini `04b2ebf9` (core `contracts/site/cms-menus`), `2729295d` (cms serializers + routes + baselines + changeset), `c73309b4` (README); Tovu `8e668087a` (callers) | `cms/src/admin-http/http/__tests__/menus.test.ts` (object-arg output byte-identical; compile-time `Same<>` parity Core↔`NavTarget`/`NavItemAttrs`/`NavMenuMode`/`MenuStatus`) — RED `Cannot read properties of undefined (reading 'items')` | `drift-core-target-union` (make `taxonomy` optional in Core) → `tsc` RED |
+| K1-tovu #1 host-side per-permission override; `admin.menus.update` direct RBAC, raw HTML guarded | Tovu `069155845` (ports: `authorizationByPermission`), `f3d023419` (menus mount) | `admin-json-route-ports.test.ts` "a per-permission override selects grant or RBAC…" (RED); `admin-menus-routes.test.ts` "admin.menus.update stays on RBAC while the raw-HTML check answers from the publishing grant" (RED 403) + "a publishing grant holding admin.menus.update does not stand in for a denied RBAC decision" | `update-html-use-direct-rbac` → RED (1 fail); `update-use-grant` → RED (2 fail) |
+| K1-tovu #2 missing-principal deferral is a per-mount opt-in | Tovu `069155845` (`deferMissingPrincipal`), `f3d023419` (create, update-tree, assign-location opt in; list/get/delete do not) | `admin-json-route-ports.test.ts` "without the deferral opt-in a missing session fails before parse, as before" (RED) + "with the deferral opt-in a malformed body keeps its 400 and a valid one stops before side effects"; `admin-menus-routes.test.ts` "deferral is per mount" (400 kept, valid ⇒ 500 with version unchanged, get-by-id still 500 before parse, 0 authorize calls) | `defer-every-mount` → RED; `defer-no-mount` (update-tree) → RED |
+| K1-tovu #3 template + admin client types | Tovu `b23e4cde8` (template + INFO.md Wiring), `8e668087a` (`menus-api.types.ts` consumes Core; keeps editor-only `AdminMenuTarget`), `c20f88365` (why-comments) | admin `tsc --noEmit` clean; admin `vitest run src/features/menus` 226/226 | n/a (docs/types) |
+
+Template (`plans/K1-route-template.md`): positional `mountOptions` → object args; translation rows for
+one `authorize` call per hand-written check, the per-permission override, conditional `entityId`, and
+status `409` + code `"VERSION_CONFLICT"` vs the `MENU_VERSION_CONFLICT` constant; §2.1 DTO-in-Core rule;
+§3 when to opt into `deferMissingPrincipal`; §6.2/§6.3 rewritten; checklist rows added; new
+`## Migration for families converted before 582db5967` with the fix SHAs to merge and a step checklist.
+
+Gates (fresh, on the final trees):
+- Jini: `pnpm -r build` 0, `pnpm typecheck` 0, `pnpm guard` 0, `pnpm api:check` 0 (Core + CMS baselines
+  updated); cms `vitest run src/admin-http` 138/138.
+- Tovu: `npm run typecheck` 0; menus + menus-route + admin-json-route-ports + menus-dto + footer-page-links
+  116/116; redirects-auth + redirects-create green; `create-app-route-table.pin.test.ts` 3 pass / 7 fail,
+  failure output identical to base (13,669 normalized lines, `cmp` clean, base = 582db5967 ports+menus
+  sources); why-comments vs 582db5967 ok (3 admin comments kept verbatim, 2 in-place rewrites allow-listed).
+- Not mine / environmental: `redirects-site-serving.test.ts` 3 failures (`RegExp.escape is not a
+  function`; container runs Node v22, Tovu requires >=24) — identical at base.
+
+Open: none for rv1123e. Families branched from 582db5967 must add `deferMissingPrincipal: true` to their
+parse-first mounts after merging, or their no-session + malformed-body wire tests answer 500 (migration step 2).

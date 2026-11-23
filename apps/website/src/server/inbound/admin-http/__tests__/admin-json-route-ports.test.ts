@@ -36,20 +36,29 @@ function probeRoute(calls: string[]) {
   }, { successStatus: 201 });
 }
 
-async function serve(options: { allowed?: boolean; publishTrust?: boolean; direct?: boolean } = {}) {
+type ServeOptions = {
+  allowed?: boolean; publishTrust?: boolean; direct?: boolean; noPrincipal?: boolean; deferMissingPrincipal?: boolean;
+  authorizationByPermission?: Record<string, "guarded" | "direct">;
+};
+
+async function serve(options: ServeOptions = {}) {
   const calls: string[] = [];
   const authorizeCalls: unknown[] = [];
   const app = express();
   app.use(express.json({ limit: "15mb" }));
   app.use((_req, res, next) => {
-    res.locals.principal = { id: "caller", kind: "user" };
+    if (!options.noPrincipal) res.locals.principal = { id: "caller", kind: "user" };
     if (options.publishTrust) res.locals.publishTrust = { sourceInstallationId: "src", capabilities: ["probe.write"], entityTypes: ["probe"], generation: 1 };
     next();
   });
   app.post(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }));
   const authorize = async (input: unknown) => { authorizeCalls.push(input); return { allowed: options.allowed ?? true, reason: "no_grant" }; };
-  mountAdminJsonRoute({ app, spec: probeRoute(calls), deps: { probe: true, workspaceId: "local", authorize } as never },
-    options.direct ? { authorization: "direct" } : {});
+  const mountOptions = {
+    ...(options.direct ? { authorization: "direct" as const } : {}),
+    ...(options.deferMissingPrincipal ? { deferMissingPrincipal: true } : {}),
+    ...(options.authorizationByPermission ? { authorizationByPermission: options.authorizationByPermission } : {}),
+  };
+  mountAdminJsonRoute({ app, spec: probeRoute(calls), deps: { probe: true, workspaceId: "local", authorize } as never }, mountOptions);
   mountPublicJsonRoute({ app, spec: defineJsonRoute<void, void, object>({ method: "get", path: "/public/probe",
     parse: () => ok({ value: undefined }), handle: async () => { throw new Error("private"); } }), deps: {},
   failure: { operation: "probe:public", visitorError: "The site couldn’t load the probe." } });
@@ -124,6 +133,46 @@ test("a publishing credential answers from its grant unless the route is mounted
   t.after(direct.close);
   assert.equal((await direct.send({ mode: "ok" })).status, 403);
   assert.equal(direct.authorizeCalls.length, 1);
+});
+
+// rv1123e K1-tovu #1: the mount-wide mode is a default; a per-permission override picks the decision
+// source for one permission only (Menus: the raw-HTML check is guarded on a direct mount).
+test("a per-permission override selects grant or RBAC for that permission, in both directions", async (t) => {
+  const guardedOnDirect = await serve({ allowed: false, publishTrust: true, direct: true, authorizationByPermission: { "probe.write": "guarded" } });
+  t.after(guardedOnDirect.close);
+  assert.equal((await guardedOnDirect.send({ mode: "ok" })).status, 201);
+  assert.deepEqual(guardedOnDirect.authorizeCalls, []);
+  const directOnGuarded = await serve({ allowed: false, publishTrust: true, authorizationByPermission: { "probe.write": "direct" } });
+  t.after(directOnGuarded.close);
+  assert.equal((await directOnGuarded.send({ mode: "ok" })).status, 403);
+  assert.equal(directOnGuarded.authorizeCalls.length, 1);
+  // An override for another permission leaves this one on the mount default.
+  const unrelated = await serve({ allowed: false, publishTrust: true, direct: true, authorizationByPermission: { "probe.other": "guarded" } });
+  t.after(unrelated.close);
+  assert.equal((await unrelated.send({ mode: "ok" })).status, 403);
+});
+
+// rv1123e K1-tovu #2: missing-principal deferral is a per-mount opt-in, for routes whose hand-written
+// version refused a bad body before reading the session. Every other mount keeps the old order.
+test("without the deferral opt-in a missing session fails before parse, as before", async (t) => {
+  const s = await serve({ noPrincipal: true });
+  t.after(s.close);
+  const malformed = await s.send({ mode: "parse" });
+  assert.equal(malformed.status, 500);
+  assert.equal(malformed.body.code, "INTERNAL_ERROR");
+  assert.deepEqual(s.calls, []);
+  assert.deepEqual(s.authorizeCalls, []);
+});
+
+test("with the deferral opt-in a malformed body keeps its 400 and a valid one stops before side effects", async (t) => {
+  const s = await serve({ noPrincipal: true, deferMissingPrincipal: true });
+  t.after(s.close);
+  assert.deepEqual(await s.send({ mode: "parse" }), { status: 400, body: { error: "mode is invalid", code: "BAD_REQUEST" } });
+  const valid = await s.send({ mode: "ok" });
+  assert.equal(valid.status, 500);
+  assert.equal(valid.body.code, "INTERNAL_ERROR");
+  assert.deepEqual(s.calls, []);
+  assert.deepEqual(s.authorizeCalls, []);
 });
 
 test("an unexpected failure is the redacted admin 500 and the visitor-safe public 500", async (t) => {

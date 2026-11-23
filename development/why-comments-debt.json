@@ -3080,6 +3080,14 @@
     {
       "id": "4e1eaef8d87f",
       "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/oauth/callback-page.ts (vocabulary + page args); reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "153f32528336",
+      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
+    },
+    {
+      "id": "cecd3ebf4521",
+      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
     }
   ]
 }
