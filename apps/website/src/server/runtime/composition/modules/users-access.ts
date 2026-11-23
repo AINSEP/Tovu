@@ -1,6 +1,10 @@
 import {
-  createPolicy, createRole, deletePolicy, deleteRole, updatePolicy, updateRole, writePolicyPermission,
+  createPolicy, createRole, deletePolicy, deleteRole, removePolicyPermission, updatePolicy, updateRole, writePolicyPermission,
 } from "@jini-ai/user-management/server";
+import { policyListRoute } from "@jini-ai/user-management/admin-http/routes/users/list-policies";
+import { policyPermissionListRoute } from "@jini-ai/user-management/admin-http/routes/users/list-policy-permissions";
+import { roleListRoute } from "@jini-ai/user-management/admin-http/routes/users/list-roles";
+import { policyPermissionRemoveRoute } from "@jini-ai/user-management/admin-http/routes/users/remove-policy-permission";
 import { policyCreateRoute } from "@jini-ai/user-management/admin-http/routes/users/create-policy";
 import { roleCreateRoute } from "@jini-ai/user-management/admin-http/routes/users/create-role";
 import { policyDeleteRoute } from "@jini-ai/user-management/admin-http/routes/users/delete-policy";
@@ -8,6 +12,7 @@ import { roleDeleteRoute } from "@jini-ai/user-management/admin-http/routes/user
 import { policyUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-policy";
 import { roleUpdateRoute } from "@jini-ai/user-management/admin-http/routes/users/update-role";
 import { policyPermissionWriteRoute } from "@jini-ai/user-management/admin-http/routes/users/write-policy-permission";
+import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "#src/server/inbound/admin-http/routes/users/deps";
 
@@ -23,12 +28,14 @@ import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar 
  * granted (the publishing backstop), and each route's one identity service function, bound from
  * the `@jini-ai/user-management/server` node entry (the specs only see its type).
  *
- * Every route here is authorized inside the identity service (`role.manage`), never by the route,
+ * Every write here is authorized inside the identity service (`role.manage`), never by the route,
  * so the mount mode is `"direct"`: none of them ever consulted the publishing-credential override.
- * Not here yet (still hand-written under `inbound/admin-http/routes/users/`): the three list routes
- * (`list-roles`, `list-policies`, `list-policy-permissions`) — the authorize port always sends an
- * `entityType`, which their RBAC call never carried — and `remove-policy-permission`, whose 204 is
- * pinned as `res.send()` while the JSON mount answers it through `res.json()`.
+ * The three read routes (`list-roles`, `list-policies`, `list-policy-permissions`) are the
+ * exception: they asked `authorizeOrRespond` for `role.manage` themselves (no entity type, no
+ * entity id — the port forwards neither key when the spec names none), so they mount `"guarded"`.
+ * `remove-policy-permission` answers its 204 as a bodiless `routeReply` (a bare `send()`, as before);
+ * the host owner guards it calls (`principalHoldsOwnerWildcard`, `assertActiveOwnerFloor`) are
+ * Tovu's own and are injected here.
  */
 
 /** Manual publishing is reserved for the owner and built-in admins: no custom role may carry it. */
@@ -47,6 +54,40 @@ function accessDeps({ deps }: { deps: UsersRouteDeps }, _optional: Record<string
 function mountOptions(operation: string) {
   return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
 }
+
+/** The read routes' mount: `authorizeOrRespond`'s decision source (`"guarded"`, the default). */
+function readMountOptions(operation: string) {
+  return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+}
+
+export const registerAdminRoleListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listDeps = { ...accessDeps({ deps }), roleRepo: { list: (required: { workspaceId: string }) => deps.roleRepo.list(required) } };
+  mountAdminJsonRoute({ app, spec: roleListRoute, deps: listDeps }, readMountOptions("routes/users/list-roles"));
+};
+
+export const registerAdminPolicyListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listDeps = { ...accessDeps({ deps }), policyRepo: { list: (required: { workspaceId: string }) => deps.policyRepo.list(required) } };
+  mountAdminJsonRoute({ app, spec: policyListRoute, deps: listDeps }, readMountOptions("routes/users/list-policies"));
+};
+
+export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const listDeps = {
+    ...accessDeps({ deps }),
+    policyRepo: { findById: (required: { workspaceId: string; id: string }) => deps.policyRepo.findById(required) },
+    policyPermissionRepo: { listByPolicyId: (required: { workspaceId: string; policyId: string }) => deps.policyPermissionRepo.listByPolicyId(required) },
+  };
+  mountAdminJsonRoute({ app, spec: policyPermissionListRoute, deps: listDeps }, readMountOptions("routes/users/list-policy-permissions"));
+};
+
+/** The transaction and the row read are bound per request, as the hand-written route read `deps`. */
+export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const removeDeps = {
+    ...accessDeps({ deps }), removePolicyPermission, principalHoldsOwnerWildcard, assertActiveOwnerFloor,
+    transactions: { run: <T>(required: { workspaceId: string; execute: () => Promise<T> }) => deps.transactions.run(required) },
+    policyPermissionRepo: { listByPolicyId: (required: { workspaceId: string; policyId: string }) => deps.policyPermissionRepo.listByPolicyId(required) },
+  };
+  mountAdminJsonRoute({ app, spec: policyPermissionRemoveRoute, deps: removeDeps }, mountOptions("routes/users/remove-policy-permission"));
+};
 
 export const registerAdminRoleCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute({ app, spec: roleCreateRoute, deps: { ...accessDeps({ deps }), createRole } }, mountOptions("routes/users/create-role"));

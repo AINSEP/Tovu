@@ -1,4 +1,4 @@
-import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
+import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { registerAdminUserListRoute } from "#src/server/runtime/composition/modules/users";
 import assert from "node:assert/strict";

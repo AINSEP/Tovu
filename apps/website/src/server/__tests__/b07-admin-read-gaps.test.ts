@@ -7,9 +7,9 @@ import { registerAdminThemesListRoute } from "#src/server/runtime/composition/mo
 import { registerAdminWidgetListRoute } from "../inbound/admin-http/routes/widgets/list.js";
 import { registerAdminWidgetGetRoute } from "../inbound/admin-http/routes/widgets/get-by-id.js";
 import { registerAdminWidgetRegionGetRoute } from "../inbound/admin-http/routes/widgets/region-get.js";
-import { registerAdminPolicyListRoute } from "../inbound/admin-http/routes/users/list-policies.js";
-import { registerAdminRoleListRoute } from "../inbound/admin-http/routes/users/list-roles.js";
-import { registerAdminPolicyPermissionListRoute } from "../inbound/admin-http/routes/users/list-policy-permissions.js";
+import { registerAdminPolicyListRoute } from "#src/server/runtime/composition/modules/users-access";
+import { registerAdminRoleListRoute } from "#src/server/runtime/composition/modules/users-access";
+import { registerAdminPolicyPermissionListRoute } from "#src/server/runtime/composition/modules/users-access";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
 
