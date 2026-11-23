@@ -1,4 +1,4 @@
-PARTIAL (this commit) ed5588c5a: left = part-B OPEN-MED rows outside this LOW lane that were only classified (B052 B067 B116 B173 B193 B205 B209 B220 B221 B223 B224 B228-B230 B232 B234 B239 B248 B263 B270 B272 …, see appendix), the AFTER-COMBINE list and the NEEDS-OWNER questions below; duplicate-steps issue not found
+PARTIAL d2547c4250 ed5588c5a: left = part-B OPEN-MED rows outside this LOW lane that were only classified (B052 B067 B116 B173 B193 B205 B209 B220 B221 B223 B224 B228-B230 B232 B234 B239 B248 B263 B270 B272 …, see appendix), the AFTER-COMBINE list and the NEEDS-OWNER questions below; duplicate-steps issue not found
 
 # bugs-low-b — bug lane B (part-B LOW / LOW-MED, NOT-CHECKED re-verification, morning-run skips), 2026-11-23
 
