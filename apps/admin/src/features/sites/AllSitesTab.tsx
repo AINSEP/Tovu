@@ -3,7 +3,7 @@ import { Icon } from "@jini-ai/ui";
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController, type SiteListPrefsController } from "@jini-ai/ui/site-card";
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteCardPreview, useSiteListView, type SiteCardTone, type SiteListController, type SiteListPrefsController } from "@jini-ai/ui/site-card";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 
@@ -21,7 +21,7 @@ import {
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
-import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
+import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
@@ -75,7 +75,7 @@ import { interpolate, type Translate } from '@jini-ai/core/text';
  *
  * Owner: the desktop app's cards show a picture of each site; these did not. {@link SiteCardPreview}
  * sits on top of the card: the server's last capture of the site's public page (re-captured while it
- * runs, see `use-site-card-preview.hooks.ts`), or a neutral placeholder for a site never captured.
+ * runs, see Jini's `useSiteCardPreview`), or a neutral placeholder for a site never captured.
  *
  * ## The shared card and the list above it (2026-11-06)
  *
@@ -161,7 +161,7 @@ function SiteCard({
   useSiteCardPreviewHook?: typeof useSiteCardPreview;
 }) {
   const pill = resolveSiteStatusPill({ site, snapshot, t });
-  const preview = useSiteCardPreviewHook({ site, snapshot });
+  const preview = useSiteCardPreviewHook({ site, snapshot, urlFor: adminSitePreviewUrl });
   const view = resolveSiteCardView({
     site, snapshot, switchingEnabled, activatingName, busyName: localSites?.busyName ?? null, managed: localSites !== undefined,
   });
