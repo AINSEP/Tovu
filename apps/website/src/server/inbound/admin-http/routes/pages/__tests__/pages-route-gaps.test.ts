@@ -17,7 +17,7 @@ import { registerAdminPageCreateRoute } from "../create.js";
 import { registerAdminPageDeleteRoute } from "../delete.js";
 import { registerAdminPageGetRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
-import { registerAdminPageUpdateHtmlRoute } from "../update-html.js";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageUpdateRoute } from "../update.js";
 
 /**

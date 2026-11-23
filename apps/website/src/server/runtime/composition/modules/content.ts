@@ -8,7 +8,7 @@ import { registerAdminPostAutosaveRoute } from "./posts.js";
 import { registerAdminPageListRoute, registerAdminPageGetRoute } from "./pages.js";
 import { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/routes/pages/create";
 import { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/routes/pages/update";
-import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
+import { registerAdminPageUpdateHtmlRoute } from "./pages.js";
 import { registerAdminEmailTemplateRoutes } from "./email-templates.js";
 import { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
 import { registerAdminChangeSetListRoute, registerAdminChangeSetGetRoute, registerAdminChangeSetRevertRoute } from "./change-sets.js";

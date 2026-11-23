@@ -1,18 +1,21 @@
-import { postAutosaveDeleteRoute, postAutosaveGetRoute } from "@jini-ai/cms/admin-http/routes/posts/autosave";
-import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
+import { postAutosaveDeleteRoute, postAutosaveGetRoute, postAutosavePutRoute } from "@jini-ai/cms/admin-http/routes/posts/autosave";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError } from "#src/features/post/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { registerAdminPostAutosaveWriteRoute } from "#src/server/inbound/admin-http/routes/posts/autosave";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
+import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
+import { cappedApp } from "./capped-route-app.js";
 
 /**
- * @file The posts write registrars (K1, rt-l1-content). The autosave read and clear routes are Jini
- * specs (`@jini-ai/cms/admin-http/routes/posts/autosave`) mounted behind the admin ports; `RouteDeps`
- * is read only here, at registration.
+ * @file The posts write registrars (K1, rt-l1-content). The autosave park, read and clear routes are
+ * Jini specs (`@jini-ai/cms/admin-http/routes/posts/autosave`) mounted behind the admin ports; `RouteDeps`
+ * is read only here, at registration. The autosave PUT keeps its 1 MiB cap as this host's Express
+ * binding in front of the mount (`cappedApp`): its 413 copy ("Content too large to save.") is not the
+ * kit's `maxBodyBytes` refusal.
  *
  * Still hand-written, registered by `content.ts` straight from their route files (same names, same order):
  * create, update and delete read the `Idempotency-Key` request header, which the server-neutral route
- * input (`body`/`query`/`params`) does not carry; create, update and the autosave PUT also answer
- * their 1 MiB cap with this host's own 413 copy, which a spec's `maxBodyBytes` does not reproduce.
+ * input (`body`/`query`/`params`) does not carry.
  */
 
 /** The two port fields the autosave mounts pass. `authorize` is read per request, as the hand-written
@@ -33,13 +36,21 @@ function autosaveLookupDeps({ deps }: { deps: ContentRouteDeps }, _options: Reco
 }
 
 /**
- * Standing-draft autosave on `/posts/:postId/autosave`, kind-blind for Posts and Pages: PUT (hand-
- * written, see the file doc), then GET and DELETE as Jini specs — the same three registrations in the
- * same order. GET/DELETE were `authorizeOrRespond` (`"guarded"`); their unexpected-failure copy keys
+ * Standing-draft autosave on `/posts/:postId/autosave`, kind-blind for Posts and Pages: PUT (behind
+ * the host's body cap, see the file doc), then GET and DELETE — the same three registrations in the
+ * same order. All three were `authorizeOrRespond` (`"guarded"`); their unexpected-failure copy keys
  * and messages are copied verbatim from the hand-written `sendAdminFailure` calls.
  */
 export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  registerAdminPostAutosaveWriteRoute({ app, deps });
+  const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
+  mountAdminJsonRoute({ app: capped, spec: postAutosavePutRoute, deps: {
+    ...autosaveLookupDeps({ deps }),
+    normalizeAuthor: ({ author }) => normalizePostAuthor({ author }),
+    isPostValidation: ({ err }) => err instanceof PostValidationError,
+    // Read per request, as the hand-written route read `deps.clock`.
+    nowIso: () => deps.clock.nowIso(),
+    writeAutosave: (input) => deps.postRepo.writeAutosave(input),
+  } }, { authorization: "guarded", failure: { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." } });
   mountAdminJsonRoute({ app, spec: postAutosaveGetRoute, deps: {
     ...autosaveLookupDeps({ deps }),
     readAutosave: (input) => deps.postRepo.readAutosave(input),

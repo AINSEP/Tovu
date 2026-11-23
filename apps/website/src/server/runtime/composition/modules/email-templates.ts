@@ -1,5 +1,3 @@
-import type { Express, RequestHandler } from "express";
-
 import { emailTemplateCreateRoute } from "@jini-ai/cms/admin-http/routes/email-templates/create";
 import { emailTemplateEditHtmlRoute } from "@jini-ai/cms/admin-http/routes/email-templates/edit-html";
 import { emailTemplateGetRoute } from "@jini-ai/cms/admin-http/routes/email-templates/get";
@@ -26,6 +24,7 @@ import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "#src/server/inbound/admin-http/routes/content/deps";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
+import { cappedApp } from "./capped-route-app.js";
 
 /**
  * @file K1 (RT-K1-adm-email-templates): the HTML email-template admin routes are Jini route specs
@@ -56,19 +55,6 @@ const templateErrorDeps = {
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) every route of this family used. */
 const MOUNT_OPTIONS = { authorization: "guarded" as const, failure: { operation: "routes/email-templates/routes", code: "INTERNAL_ERROR" } };
-
-/**
- * `app` as the write specs see it: each verb registration carries the content-entry body cap in front of
- * its handler, in the SAME route registration as before (so the route-table pin keeps its two-handler rows).
- * The cap stays an Express binding rather than the specs' `maxBodyBytes`: the kit answers its own 413
- * envelope, while this admin client has always read `{ error: "Content too large to save.", code:
- * "PAYLOAD_TOO_LARGE" }`, and the cap runs before the workspace check exactly as the hand-written route's did.
- * `mountJsonRoute` only ever calls `app[spec.method](path, handler)`, which is all this implements.
- */
-function cappedApp({ app, limit }: { app: Express; limit: RequestHandler }, _optional: Record<string, never> = {}): Express {
-  const withCap = (verb: "post" | "put" | "patch") => (path: string, handler: RequestHandler) => app[verb](path, limit, handler);
-  return { post: withCap("post"), put: withCap("put"), patch: withCap("patch") } as unknown as Express;
-}
 
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });

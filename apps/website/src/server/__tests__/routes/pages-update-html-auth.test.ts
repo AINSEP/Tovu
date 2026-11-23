@@ -13,7 +13,7 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 
 import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
-import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
