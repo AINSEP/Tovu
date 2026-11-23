@@ -13,12 +13,12 @@ import { harness, config, owner } from "#src/features/agent-plugins/__tests__/fi
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
-import { registerAdminPageCreateRoute } from "../create.js";
-import { registerAdminPageDeleteRoute } from "../delete.js";
+import { registerAdminPageCreateRoute } from "#src/server/runtime/composition/modules/pages";
+import { registerAdminPageDeleteRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageGetRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
-import { registerAdminPageUpdateRoute } from "../update.js";
+import { registerAdminPageUpdateRoute } from "#src/server/runtime/composition/modules/pages";
 
 /**
  * @file The admin Pages routes' error and fallback arms that the real-composition suites

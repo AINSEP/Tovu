@@ -5,9 +5,9 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminAssistantGetSettingsRoute } from "#src/server/runtime/composition/modules/assistant-settings";
 import { registerAdminPageListRoute } from "#src/server/runtime/composition/modules/pages";
-import { registerAdminPageUpdateRoute } from "../../routes/pages/update.js";
+import { registerAdminPageUpdateRoute } from "#src/server/runtime/composition/modules/pages";
 import { registerAdminMediaListRoute } from "../../routes/media/list.js";
-import { registerAdminPostUpdateRoute } from "../../routes/posts/update.js";
+import { registerAdminPostUpdateRoute } from "#src/server/runtime/composition/modules/posts";
 import { respondToSettingsError } from "../../routes/settings/shared.js";
 import { sendValidationOrInternalError } from "../../routes/media/route-guards.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";

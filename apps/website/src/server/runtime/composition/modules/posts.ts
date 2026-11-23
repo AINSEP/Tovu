@@ -1,10 +1,16 @@
+import { postCreateRoute } from "@jini-ai/cms/admin-http/routes/posts/create";
+import { postUpdateRoute } from "@jini-ai/cms/admin-http/routes/posts/update";
+import { postDeleteRoute } from "@jini-ai/cms/admin-http/routes/posts/delete";
 import { postAutosaveDeleteRoute, postAutosaveGetRoute, postAutosavePutRoute } from "@jini-ai/cms/admin-http/routes/posts/autosave";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
-import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError } from "#src/features/post/index";
+import { createPost, getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError } from "#src/features/post/index";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { cappedApp } from "./capped-route-app.js";
+import {
+  applyContentUpdate, contentWriteBaseDeps, contentWriteHostErrors, parsePostUpdateBody, postCreateInput, postIdLookup, postUpdateInverse, postWriteErrors, trashContentEntry,
+} from "./content-write-bindings.js";
 
 /**
  * @file The posts write registrars (K1, rt-l1-content). The autosave park, read and clear routes are
@@ -13,10 +19,54 @@ import { cappedApp } from "./capped-route-app.js";
  * binding in front of the mount (`cappedApp`): its 413 copy ("Content too large to save.") is not the
  * kit's `maxBodyBytes` refusal.
  *
- * Still hand-written, registered by `content.ts` straight from their route files (same names, same order):
- * create, update and delete read the `Idempotency-Key` request header, which the server-neutral route
- * input (`body`/`query`/`params`) does not carry.
+ * create, update and delete (`@jini-ai/cms/admin-http/routes/posts/{create,update,delete}`) are specs too
+ * (w3 C1b): each opts into the `Idempotency-Key` request header (`readHeaders`), and is authorized by
+ * the command gateway itself (`content.write`), so its mount's `authorize` port is never consulted.
+ * Create and update keep the same host body cap (`cappedApp`); a DELETE carries no body.
  */
+
+/** The one request header the content write specs read (an absent or empty one is no key). */
+const IDEMPOTENCY_HEADERS = ["idempotency-key"];
+
+/**
+ * POST a new post through the command gateway (spec doc: `postCreateRoute`). `rejectOversizedJsonBody`
+ * (Security review SEC-snapshot-and-post-create-2026-07-28, Finding 1) enforces api.spec.md §4's
+ * documented 1 MiB route-layer body cap ahead of the handler, so an oversized request 413s before
+ * `createPost`/the command gateway ever runs.
+ */
+export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
+  mountAdminJsonRoute({ app: capped, spec: { ...postCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
+    createEntry: ({ workspaceId, id, actorId, body }) => createPost({
+      deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
+      input: postCreateInput({ body, workspaceId, postId: id, actorId }),
+    }),
+  } }, { failure: { operation: "routes/posts/create", code: "INTERNAL_ERROR" } });
+};
+
+/**
+ * PUT post through the command gateway (spec doc: `postUpdateRoute`), behind the same 1 MiB cap as
+ * the create, since api.spec.md §4 scopes it to the update endpoints too.
+ */
+export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
+  mountAdminJsonRoute({ app: capped, spec: { ...postUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
+    findPostId: postIdLookup({ deps }),
+    updateInverse: postUpdateInverse,
+    updateEntry: ({ id, actorId, body }) => applyContentUpdate({ deps, id, actorId, body: parsePostUpdateBody({ rawBody: body }) }),
+  } }, { failure: { operation: "routes/posts/update", code: "INTERNAL_ERROR", message: "The post could not be saved." } });
+};
+
+/** DELETE (trash) a post through the command gateway (spec doc: `postDeleteRoute`); no body cap. */
+export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: { ...postDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), postErrors: postWriteErrors,
+    findPostId: postIdLookup({ deps }),
+    trashEntry: trashContentEntry({ deps }),
+  } }, { failure: { operation: "routes/posts/delete", code: "INTERNAL_ERROR" } });
+};
 
 /** The two port fields the autosave mounts pass. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a test's later reassignment of it is still honoured. It drops the

@@ -1,8 +1,11 @@
+import { pageCreateRoute } from "@jini-ai/cms/admin-http/routes/pages/create";
+import { pageUpdateRoute } from "@jini-ai/cms/admin-http/routes/pages/update";
+import { pageDeleteRoute } from "@jini-ai/cms/admin-http/routes/pages/delete";
 import { pageGetRoute } from "@jini-ai/cms/admin-http/routes/pages/get-by-id";
 import { pageListRoute } from "@jini-ai/cms/admin-http/routes/pages/list";
 import { pageUpdateHtmlRoute } from "@jini-ai/cms/admin-http/routes/pages/update-html";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
-import { getAdminPostByIdOrSlug, listAdminPages, PostNotFoundError, type PostRecord } from "#src/features/post/index";
+import { createPost, getAdminPostByIdOrSlug, listAdminPages, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import {
   DEFAULT_PAGE_SKELETON,
   PAGES_EDIT_HTML_PERMISSION,
@@ -15,6 +18,9 @@ import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/in
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { cappedApp } from "./capped-route-app.js";
+import {
+  applyContentUpdate, contentWriteBaseDeps, contentWriteHostErrors, pageCreateInput, pageUpdateInverse, parsePageUpdateBody, postWriteErrors, trashContentEntry,
+} from "./content-write-bindings.js";
 
 /**
  * @file The admin Pages registrars (K1, RT-K1-adm-pages): `content.ts` registers them, in its own
@@ -28,9 +34,14 @@ import { cappedApp } from "./capped-route-app.js";
  * (`cappedApp`), since its 413 body (`"Content too large to save."`) differs from http-kit's
  * `maxBodyBytes` refusal.
  *
- * create, update and delete stay hand-written Express routes for now: they read the `Idempotency-Key`
- * header, which a route spec's input (`body`/`query`/`params`) cannot see.
+ * create, update and delete (w3 C1b) are specs too (`pages/{create,update,delete}`): each opts into the
+ * `Idempotency-Key` header (`readHeaders`) and is authorized by the command gateway itself
+ * (`content.write`), so its mount's `authorize` port is never consulted. Create and update keep the
+ * same host body cap (`cappedApp`); a DELETE carries no body.
  */
+
+/** The one request header the content write specs read (an absent or empty one is no key). */
+const IDEMPOTENCY_HEADERS = ["idempotency-key"];
 
 /** The two port fields every pages mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured. It drops the spec's
@@ -91,4 +102,34 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
     { app: capped, spec: pageUpdateHtmlRoute, deps: updateHtmlDeps },
     { authorization: "guarded", failure: { operation: "routes/pages/update-html", code: "INTERNAL_ERROR" } },
   );
+};
+
+/** POST a new Page through the command gateway (spec doc: `pageCreateRoute`), behind the 1 MiB cap. */
+export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
+  mountAdminJsonRoute({ app: capped, spec: { ...pageCreateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
+    createEntry: ({ workspaceId, id, actorId, body }) => createPost({
+      deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
+      input: pageCreateInput({ body, workspaceId, pageId: id, actorId }),
+    }),
+  } }, { failure: { operation: "routes/pages/create", code: "INTERNAL_ERROR" } });
+};
+
+/** PUT a Page through the command gateway (spec doc: `pageUpdateRoute`), behind the 1 MiB cap. */
+export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const capped = cappedApp({ app, limit: rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }) });
+  mountAdminJsonRoute({ app: capped, spec: { ...pageUpdateRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
+    updateInverse: pageUpdateInverse,
+    updateEntry: ({ id, actorId, body }) => applyContentUpdate({ deps, id, actorId, body: parsePageUpdateBody({ rawBody: body }) }),
+  } }, { failure: { operation: "routes/pages/update", code: "INTERNAL_ERROR", message: "The page could not be saved." } });
+};
+
+/** DELETE (trash) a Page through the command gateway (spec doc: `pageDeleteRoute`); no body cap. */
+export const registerAdminPageDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: { ...pageDeleteRoute, readHeaders: IDEMPOTENCY_HEADERS }, deps: {
+    ...contentWriteBaseDeps({ deps }), ...contentWriteHostErrors, postErrors: postWriteErrors,
+    trashEntry: trashContentEntry({ deps }),
+  } }, { failure: { operation: "routes/pages/delete", code: "INTERNAL_ERROR" } });
 };
