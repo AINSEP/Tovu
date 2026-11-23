@@ -78,7 +78,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .sites-page .jini-btn-secondary, .sites-page .jini-btn-danger, .sites-page .jini-btn-primary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -172,7 +172,7 @@ input[type="checkbox"], input[type="radio"] {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
-.field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+.field-hint, .sites-page .jini-field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
 .field-error { font-size: var(--text-xs); color: var(--danger); margin: 0; }
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
@@ -1213,15 +1213,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary, .sites-page .jini-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .sites-page .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .sites-page .jini-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .sites-page .jini-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1229,10 +1229,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .sites-page .jini-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
-.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-.btn-danger:hover { background: var(--danger-bg); opacity: 1; }
+.btn-danger, .sites-page .jini-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover, .sites-page .jini-btn-danger:hover { background: var(--danger-bg); opacity: 1; }
 /* Disabled destructive control, read as calm and deliberately unavailable rather than broken.
    Without this, `button:disabled` (specificity 0,1,1) out-specifies `.btn-danger`'s own background/
    color (0,1,0) and applies the PRIMARY-tinted disabled fill everywhere else on the page — verified
@@ -1265,7 +1265,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    Lightness is identical to 4dp on every channel in both themes — oklab and oklch interpolate L
    the same way — so the "stays legibly in the danger family" goal the comment above states is
    preserved exactly. */
-.btn-danger:disabled {
+.btn-danger:disabled, .sites-page .jini-btn-danger:disabled {
   cursor: not-allowed;
   background: color-mix(in oklab, var(--danger) 12%, var(--surface));
   border-color: color-mix(in oklab, var(--danger) 40%, var(--border-strong));
@@ -1288,8 +1288,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Explicit alias for the bare-button styling above — for a primary action that needs to say so
    in the markup (e.g. sitting next to secondary/ghost siblings where the reader benefits from
    seeing the intent in the className, not just inheriting it silently from the element type). */
-.btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
-.btn-primary:hover:not(:disabled) { opacity: 0.88; }
+.btn-primary, .sites-page .jini-btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
+.btn-primary:hover:not(:disabled), .sites-page .jini-btn-primary:hover:not(:disabled) { opacity: 0.88; }
 /* `.btn-solid` lived here and is GONE (2026-08-11). It existed only for Explore's Save button, which
    cycled green (`--ok-solid`) -> black/white (`--fg`/`--surface`) -> `--primary`, the app's burnt
    orange, on owner instruction ("can you make the saved button the orange color now? .btn-primary").
@@ -1310,11 +1310,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    rule's own `:hover` variant, so both states need an explicit override, not just the resting
    one). Verified against the Dashboard's "View site ↗" `.btn-secondary` anchor, a real caller —
    without this it rendered as underlined text wearing a border, no padding, no centering. */
-a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary {
+a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary, .sites-page a.jini-btn-secondary, .sites-page a.jini-btn-danger, .sites-page a.jini-btn-primary {
   display: inline-flex; align-items: center; text-decoration: none;
 }
 a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover,
-a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
+a.btn-warning:hover, a.btn-primary:hover, .sites-page a.jini-btn-secondary:hover, .sites-page a.jini-btn-danger:hover, .sites-page a.jini-btn-primary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
@@ -1867,8 +1867,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    of its own to fall back on, so its border stays `--border-strong` (was already the left edge's
    color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
    reads as a slightly more emphatic box than a plain card, just without a directional rail. */
-.notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
-.notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.notice, .sites-page .jini-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.notice.error, .sites-page .jini-notice.jini-notice-error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
 /* Banner action pairs (2026-09-16) — the editors' notices put their buttons straight after the
@@ -1877,7 +1877,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    `.card-head-actions` uses for its buttons. Direct children only: a notice that lays its buttons out
    in its own flex row already has a gap. */
 .notice.warning > .btn-secondary + .btn-secondary,
-.notice.error > .btn-secondary + .btn-secondary { margin-left: var(--space-2); }
+.notice.error > .btn-secondary + .btn-secondary, .sites-page .jini-notice.jini-notice-error > .jini-btn-secondary + .jini-btn-secondary { margin-left: var(--space-2); }
 /* Recovery's top-of-screen degraded banner (2026-09-10, owner: read as plain text, not a boxed
    card) — `DegradedBannerView` in `Recovery.tsx`. (Its sibling `RestoreCapabilityNotice` got this
    same treatment the same day, then was cut outright — "seems useless" — later the same day; this
@@ -1986,7 +1986,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
 :root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: var(--accent-ink); }
-.status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.status, .sites-page .jini-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 /* A disabled form is switched off, not failed or destructive — so it takes the same muted
@@ -2033,8 +2033,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    (gate passed/not-applicable, daemon known-failure, env var set/unsafe) don't map onto any
    existing published/active/trashed vocabulary above. */
 .status-ok { background: var(--ok-bg); color: var(--ok); }
-.status-warning { background: var(--warning-bg); color: var(--warning); }
-.status-neutral { background: var(--surface-3); color: var(--muted); }
+.status-warning, .sites-page .jini-status-warning { background: var(--warning-bg); color: var(--warning); }
+.status-neutral, .sites-page .jini-status-neutral { background: var(--surface-3); color: var(--muted); }
 /* `.jini-menu-page-link-unavailable`: `@jini-ai/admin` `MenuPageLinkFields`'s "Page not published" hint. */
 .muted-cell, .jini-menu-page-link-unavailable { color: var(--faint); font-size: 0.85rem; }
 .integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
@@ -2241,7 +2241,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
 .editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
-.save-ok { color: var(--ok); font-size: 0.85rem; }
+.save-ok, .sites-page .jini-save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
@@ -5989,22 +5989,22 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * one card balloon to the grid's full width the way `auto-fit` would (it collapses unused tracks
  * into the occupied ones); `auto-fill` reserves the phantom tracks instead, so a lone card sizes
  * the same as it would in a fully populated row. */
-.sites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-4); }
+.sites-grid, .jini-sites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-4); }
 
-.site-card {
+.site-card, .jini-sites-trash-card {
   display: flex; flex-direction: column;
   border-radius: var(--r-lg); padding: 0; overflow: hidden;
   background: var(--jini-panel-bg); border: 1.5px solid var(--jini-panel-border); box-shadow: var(--jini-panel-shadow);
   transition: transform 0.14s, box-shadow 0.14s;
   background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
-.site-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.site-card:hover, .jini-sites-trash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
 /* The tinted header carries the folder name — the technical identifier every write on this screen
  * takes (Activate, the create form's own field) — as the card's dominant element, the same role
  * Tovu Runner's port number plays on its own project card. */
-.site-card-head { padding: var(--space-4) var(--space-5); background: var(--surface-2); border-bottom: 1px solid var(--border); }
-.site-card-name { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 700; color: var(--fg); word-break: break-all; }
+.site-card-head, .jini-sites-trash-card-head { padding: var(--space-4) var(--space-5); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.site-card-name, .jini-sites-trash-card-name { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 700; color: var(--fg); word-break: break-all; }
 
 /* The one purely visual signal this redesign adds: a tint on whichever card is genuinely the live
  * binding, so it reads at a glance in a grid of several — never a substitute for the `status`
@@ -6012,11 +6012,11 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * ({@link resolveSiteCardClassName} in `Sites.hooks.tsx`). */
 .site-card-serving .site-card-head { background: var(--primary-dim); }
 
-.site-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
-.site-card-display-name { margin: 0; font-size: var(--text-md); color: var(--fg-2); }
+.site-card-body, .jini-sites-trash-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
+.site-card-display-name, .jini-site-card-display-name { margin: 0; font-size: var(--text-md); color: var(--fg-2); }
 .site-card-meta { margin: 0; font-size: var(--text-xs); color: var(--muted); }
-.site-card-actions { margin-top: auto; padding-top: var(--space-2); align-self: stretch; display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
-.site-card-actions [role="status"] { flex-basis: 100%; font-size: var(--text-sm); color: var(--fg-2); }
+.site-card-actions, .jini-sites-trash-card-actions { margin-top: auto; padding-top: var(--space-2); align-self: stretch; display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.site-card-actions [role="status"], .jini-sites-trash-card-actions [role="status"] { flex-basis: 100%; font-size: var(--text-sm); color: var(--fg-2); }
 
 /* The Create tile — dashed outline, no tint, sits first in the grid (`Sites.tsx`'s own render
  * order) so creating a site reads as one more card rather than a form bolted above the list. The
@@ -6059,14 +6059,14 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * `.site-meta.json` commit marker `listSites` requires, so the grid is legitimately empty while a
  * site is plainly being served. Dashed, low-contrast, and narrow — it is an invitation, not an
  * error, and the `.notice` treatments are already spoken for by things that ARE warnings. */
-.sites-empty {
+.sites-empty, .jini-sites-empty {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3);
   max-width: 34rem; padding: var(--space-8) var(--space-6);
   border: 1.5px dashed var(--border-strong); border-radius: var(--r-lg);
 }
-.sites-empty-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
-.sites-empty-lead { margin: 0; font-size: var(--text-md); color: var(--muted); }
-.sites-empty-action { margin-top: var(--space-2); }
+.sites-empty-title, .jini-sites-empty-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.sites-empty-lead, .jini-sites-empty-lead { margin: 0; font-size: var(--text-md); color: var(--muted); }
+.sites-empty-action, .jini-sites-empty-action { margin-top: var(--space-2); }
 
 /* ---- Create a site: the onboarding screen (Tovu Runner port) --------------------------------- */
 /* Ported from Runner's `onboarding`/`onboarding-card`/`onboarding-section` shape at the owner's
@@ -6161,7 +6161,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .onboarding-actions { padding: var(--space-4); }
   .onboarding-actions-buttons { flex-direction: column-reverse; }
   .onboarding-actions-buttons > button { width: 100%; }
-  .sites-empty { padding: var(--space-6) var(--space-5); }
+  .sites-empty, .jini-sites-empty { padding: var(--space-6) var(--space-5); }
 }
 
 /* Sites — compact square cards (2026-09-05). The owner removed the page-level "Now serving" panel
@@ -6183,22 +6183,22 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * The absolute path is a `title` on `.site-card` itself (`resolveSiteCardTitle`), so hovering
  * anywhere on the card reveals the directory. `title` is this screen's established idiom for that
  * exact value — the panel this replaced already used one on its own truncated path. */
-.sites-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+.sites-grid, .jini-sites-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
 
 /* Lifecycle controls and Trash selection must stay visible when a square cannot fit them. */
-.site-card { aspect-ratio: 1; min-height: min-content; }
-.site-card-head { display: flex; align-items: center; padding: var(--space-3) var(--space-4); }
-.site-card-body { gap: var(--space-1); padding: var(--space-4); }
-.site-card-name { font-size: var(--text-md); line-height: 1.3; }
+.site-card, .jini-sites-trash-card { aspect-ratio: 1; min-height: min-content; }
+.site-card-head, .jini-sites-trash-card-head { display: flex; align-items: center; padding: var(--space-3) var(--space-4); }
+.site-card-body, .jini-sites-trash-card-body { gap: var(--space-1); padding: var(--space-4); }
+.site-card-name, .jini-sites-trash-card-name { font-size: var(--text-md); line-height: 1.3; }
 
 /* `word-break: break-all` (inherited from the rule above) is right for a long unbroken folder name
  * but would also break a two-word display name mid-word, so the subtitle opts out. */
-.site-card-display-name { font-size: var(--text-sm); word-break: normal; overflow-wrap: anywhere; }
+.site-card-display-name, .jini-site-card-display-name { font-size: var(--text-sm); word-break: normal; overflow-wrap: anywhere; }
 
 /* The "this folder is not a real site directory" badge. Deliberately a quiet warning pill rather
  * than the full-width amber banner it replaced — the fact has to survive (`tovu serve` would refuse
  * this folder), but it is a footnote on one card, not a page-level alarm. */
-.site-card-flag { margin-top: var(--space-1); cursor: help; }
+.site-card-flag, .jini-site-card-flag { margin-top: var(--space-1); cursor: help; }
 
 /* Page-level facts about the PROCESS — the TOVU_SITE_DIR override and any pending choice. Collapses
  * completely when there is nothing to say, so the grid sits directly under the page header on the
@@ -6212,15 +6212,15 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * enormous square. Two narrow tracks, aspect released. Container (2026-10-11): the pane's width,
  * not the viewport's; 28.5rem ≈ the old 30rem viewport minus a phone's page padding. */
 @container admin-content (max-width: 28.5rem) {
-  .sites-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
-  .site-card { aspect-ratio: auto; }
+  .sites-grid, .jini-sites-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
+  .site-card, .jini-sites-trash-card { aspect-ratio: auto; }
 }
 
 /* The square is a floor, so on a short card (one badge, no display name) the content sat at the top
  * with the action pinned to the bottom and a band of dead space between them. Two `auto` margins
  * split that free space evenly instead — above the name and below the badges — which centers the
  * identity block in the card and leaves the action on the baseline. */
-.site-card-name { margin-top: auto; }
+.site-card-name, .jini-sites-trash-card-name { margin-top: auto; }
 
 /* Sites — the card's status strip (2026-09-06, owner, from a screenshot of `/admin/sites?tab=all`:
  * a pink/blush header band holding a "Serving now" pill, then the name, a "Not initialized" pill,
@@ -6255,23 +6255,23 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * 3. The disabled Activate button goes quiet. Transparent, faint text, hairline border — the
  *    treatment `.deployment-action .btn-secondary[aria-disabled="true"]` already uses for the
  *    identical "this action does not apply to this card" case. (0,3,1) beats the global (0,1,1). */
-.site-card-head .status {
+.site-card-head .status, .sites-page .jini-sites-trash-card-head .jini-status {
   display: inline-flex; align-items: center; gap: var(--space-2);
   padding: 0; border-radius: 0; background: transparent;
   font-size: var(--text-xs); letter-spacing: 0.01em;
 }
-.site-card-head .status::before {
+.site-card-head .status::before, .sites-page .jini-sites-trash-card-head .jini-status::before {
   content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
   background: currentColor; flex-shrink: 0;
 }
 
-.site-card-flag {
+.site-card-flag, .jini-site-card-flag {
   display: inline-flex; align-items: center; gap: var(--space-1);
   padding: 0; border-radius: 0; background: transparent;
   font-size: var(--text-xs); font-weight: 600; color: var(--warning);
   white-space: normal; text-align: left;
 }
-.site-card-flag svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+.site-card-flag svg, .jini-site-card-flag svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 
 /* Sites — card polish (2026-10-08, owner: "make sure it looks good UI-wise", from a screenshot of
  * four equal-weight buttons wrapping into a ragged right-aligned pile, the fourth clipped by the
@@ -6292,25 +6292,25 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  * 4. A crashed process tints the strip red, the same `:has()` pattern the warning strip uses.
  * 5. No hover lift. The card itself is not clickable — its buttons are — so lifting it on hover
  *    promised an action that does not exist, and moved the "⋯" trigger under the pointer. */
-.sites-grid { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-4); }
-.site-card { aspect-ratio: auto; min-height: 10.5rem; }
-.site-card:hover { transform: none; box-shadow: var(--jini-panel-shadow); }
-.site-card-name { margin-top: 0; }
-.site-card-body { gap: var(--space-1); padding: var(--space-4) var(--space-5); }
-.site-card-actions {
+.sites-grid, .jini-sites-grid { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-4); }
+.site-card, .jini-sites-trash-card { aspect-ratio: auto; min-height: 10.5rem; }
+.site-card:hover, .jini-sites-trash-card:hover { transform: none; box-shadow: var(--jini-panel-shadow); }
+.site-card-name, .jini-sites-trash-card-name { margin-top: 0; }
+.site-card-body, .jini-sites-trash-card-body { gap: var(--space-1); padding: var(--space-4) var(--space-5); }
+.site-card-actions, .jini-sites-trash-card-actions {
   margin-top: auto; padding-top: var(--space-4);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
 }
-.site-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
-.site-card-select {
+.site-card-actions > :is(button, a), .jini-sites-trash-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
+.site-card-select, .jini-sites-trash-card-select {
   display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
   font-size: var(--text-sm); color: var(--muted); cursor: pointer;
 }
 .site-card-trashed .site-card-name { color: var(--fg-2); }
 /* Container, same threshold and reason as the two-track rule above (2026-10-11). */
 @container admin-content (max-width: 28.5rem) {
-  .sites-grid { grid-template-columns: 1fr; }
-  .site-card { min-height: 0; }
+  .sites-grid, .jini-sites-grid { grid-template-columns: 1fr; }
+  .site-card, .jini-sites-trash-card { min-height: 0; }
 }
 
 /* Sites — the shared card's controls (2026-11-06). The card's layout is Jini's `site-card.css`; what
@@ -6479,7 +6479,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .plugin-row-summary { flex-basis: auto; }
 }
 
-.site-card-actions .btn-secondary:disabled {
+.site-card-actions .btn-secondary:disabled, .sites-page .jini-sites-trash-card-actions .jini-btn-secondary:disabled {
   background: transparent; color: var(--faint); border-color: var(--border);
 }
 
@@ -6772,7 +6772,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 /* Container (2026-10-11): one column once the PANE is phone-narrow, whatever squeezed it.
    456px ≈ the old 480px viewport minus a phone's page padding. */
 @container admin-content (max-width: 456px) {
-  .sites-grid { grid-template-columns: minmax(0, 1fr); }
+  .sites-grid, .jini-sites-grid { grid-template-columns: minmax(0, 1fr); }
   .jini-form-editor-panel .field-row:has(#form-name) { grid-template-columns: minmax(0, 1fr); }
 }
 

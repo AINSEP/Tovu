@@ -1,9 +1,9 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SITE_LIST_PREFS, type SiteListPrefs } from "@jini-ai/ui/site-card";
-import { AllSitesTab, type AllSitesTabProps } from "../AllSitesTab";
+import { AllSitesTab, type AllSitesTabProps } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 
 function props(overrides: Partial<AllSitesTabProps> = {}): AllSitesTabProps {

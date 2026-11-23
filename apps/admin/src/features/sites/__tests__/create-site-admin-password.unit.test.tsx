@@ -5,7 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
-import { AllSitesTab } from "../AllSitesTab";
+import { AllSitesTab } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";

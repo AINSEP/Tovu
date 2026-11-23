@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { expect, it } from "vitest";
-import { AllSitesTab } from "../AllSitesTab";
+import { AllSitesTab, SiteTrashTab } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
-import { SiteTrashTab } from "../SiteTrashTab";
+
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
 
@@ -109,7 +109,7 @@ it("production hides lifecycle controls and Trash; permanent deletion appears on
   rerender(<SiteTrashTab snapshot={snapshot} controller={controller} t={(key) => key} />);
   const card = within(screen.getByRole("group", { name: "Site Trash" }));
   expect(card.getByText("In Trash").className).toContain("status-neutral");
-  expect(card.getByText("Alpha").className).toBe("site-card-display-name");
+  expect(card.getByText("Alpha").className).toBe("jini-site-card-display-name");
   expect(card.queryByRole("button", { name: "Delete permanently alpha" })).toBeNull();
   fireEvent.click(card.getByRole("checkbox", { name: "Select for permanent deletion alpha" }));
   expect(toggles).toEqual([["id", true]]);
@@ -117,7 +117,7 @@ it("production hides lifecycle controls and Trash; permanent deletion appears on
   controller.checked.id = true;
   rerender(<SiteTrashTab snapshot={snapshot} controller={controller} t={(key) => key} />);
   const remove = screen.getByRole("button", { name: "Delete permanently alpha" });
-  expect(remove.className).toBe("btn-danger");
+  expect(remove.className).toBe("jini-btn-danger");
   fireEvent.click(remove);
   expect(actions).toEqual([["id", "restore"], ["id", "delete"]]);
 });
@@ -148,5 +148,5 @@ it("Trash reads an absent trash list as empty, and a card with no separate displ
   rerender(<SiteTrashTab snapshot={{ ...base, trash: [{ id: "id-b", name: "beta", displayName: "beta" }] }} controller={controller} t={(key) => key} />);
   const card = screen.getByRole("group", { name: "Site Trash" });
   expect(within(card).getByText("beta")).toBeInTheDocument();
-  expect(card.querySelector(".site-card-display-name")).toBeNull();
+  expect(card.querySelector(".jini-site-card-display-name")).toBeNull();
 });
