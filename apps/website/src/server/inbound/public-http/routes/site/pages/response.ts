@@ -17,7 +17,7 @@ import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
-import { listingState } from "./listing/listing-state.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS

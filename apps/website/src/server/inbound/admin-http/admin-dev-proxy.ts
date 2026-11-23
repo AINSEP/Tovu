@@ -4,7 +4,7 @@ import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import type { Socket } from "node:net";
 import type { Request, RequestHandler, Response } from "express";
 
-import { isSeaRuntime } from "./sea-runtime.js";
+import { isSeaRuntime } from "@jini-ai/cms/admin-http/sea-runtime";
 
 /**
  * @file Proxies `/admin/*` to the admin Vite dev server (`TOVU_ADMIN_DEV_PROXY_URL`) so the browser

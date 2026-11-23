@@ -16,3 +16,10 @@ Server module is the transport boundary.
 - `__tests__/routes/`: route/integration transport tests
 
 Server code translates HTTP requests into feature commands and maps domain errors to HTTP responses.
+
+## Wiring
+
+Admin JSON routes are Jini `defineJsonRoute` specs mounted with `mountJsonRoute` and explicit deps;
+`inbound/admin-http/admin-json-route-ports.ts` supplies the host ports. Its `authorize` port turns a
+by-id route's `{ entityId }` scope into the `entityId` field of `deps.authorize`; list/import send none.
+Covered by `inbound/admin-http/routes/redirects/__tests__/authorize-entity-id.test.ts`.

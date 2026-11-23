@@ -8,7 +8,7 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminStatic } from "../../admin-static.js";
 import { registerAdminDevProxyUpgrade } from "../../admin-dev-proxy.js";
-import type { SeaApi } from "../../sea-runtime.js";
+import type { SeaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 
 const sea = createRequire(import.meta.url)("node:sea") as SeaApi;
 

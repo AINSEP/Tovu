@@ -1,26 +1,15 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
-import { EntityNotLiveError } from "@jini-ai/cms/core";
-
-import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
+import { matchRedirectError, type RedirectErrorMapping } from "@jini-ai/cms/admin-http/routes/redirects/shared";
 
 /**
- * @file Shared error-response mapping for the `redirects` admin write routes.
+ * @file Express answer for the `redirects` admin write-error mapping.
  *
- * `create.ts` and `update.ts` each map the same four write-chokepoint error classes onto the same
- * status/code pairs, in their own repeated `if (err instanceof X) {...}` chain. Factored out once
- * both needed it; `update.ts` also has `RedirectNotFoundError`, which it prepends itself since
- * `create.ts` (there is no existing redirect yet) never throws it.
+ * The mapping table itself (`REDIRECT_WRITE_ERROR_MAPPINGS`) lives with the Jini route specs; this
+ * host half writes a matched mapping onto `res` and hands anything unmatched to the shared admin
+ * failure lifecycle. Its caller is the still hand-written `create.ts`.
  */
-
-/** One entry in a redirects route's `catch` block: which thrown error class maps to which HTTP
- *  status/code pair. */
-export interface RedirectErrorMapping {
-  readonly matches: (required: { err: unknown }, optional?: Record<string, never>) => boolean;
-  readonly status: number;
-  readonly code: string;
-}
 
 /**
  * Writes the first matching mapping's status/code, or a generic 500 if none match.
@@ -28,25 +17,10 @@ export interface RedirectErrorMapping {
  * @complexity O(n) in the mapping table length, which is a small fixed list per caller.
  */
 export function respondToRedirectError({ res, err, mappings }: { res: Response; err: unknown; mappings: readonly RedirectErrorMapping[] }, _options: Record<string, never> = {}): void {
-  const message = err instanceof Error ? err.message : String(err);
-
-  for (const mapping of mappings) {
-    if (mapping.matches({ err })) {
-      res.status(mapping.status).json({ error: message, code: mapping.code });
-      return;
-    }
+  const refusal = matchRedirectError({ err, mappings });
+  if (refusal) {
+    res.status(refusal.status).json({ error: refusal.error, code: refusal.code });
+    return;
   }
   sendAdminFailure({ res, error: err }, { operation: "routes/redirects/shared", code: "INTERNAL_ERROR" });
 }
-
-/** The write-chokepoint errors both `create.ts` and `update.ts` map identically. */
-export const REDIRECT_WRITE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
-  // S7 (web-high fix plan 2026-09-24) — first, ahead of the others: a rule in the Trash rejects
-  // with a fixed code regardless of which OTHER field the caller tried to change. Redirects are
-  // never tombstoned-state (only `EntityLiveness`'s "trashed"), so one fixed code is complete here.
-  { matches: ({ err }, _options = {}) => err instanceof EntityNotLiveError, status: 409, code: "ENTITY_IN_TRASH" },
-  { matches: ({ err }, _options = {}) => err instanceof RedirectValidationError, status: 400, code: "REDIRECT_VALIDATION_ERROR" },
-  { matches: ({ err }, _options = {}) => err instanceof RedirectTargetNotAllowedError, status: 400, code: "REDIRECT_TARGET_NOT_ALLOWED" },
-  { matches: ({ err }, _options = {}) => err instanceof RedirectConflictError, status: 409, code: "REDIRECT_CONFLICT" },
-  { matches: ({ err }, _options = {}) => err instanceof RedirectLoopError, status: 409, code: "REDIRECT_LOOP_DETECTED" },
-];
