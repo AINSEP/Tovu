@@ -14,6 +14,7 @@ import {
   resolveDaemonScriptPath,
   startAssistantDaemon,
   shutdownAssistantDaemon,
+  ensureAssistantDaemonStarted,
   resetAssistantDaemonSingletonForTests,
 } from "../daemon-supervisor.js";
 import type { SpawnedDaemonProcess } from "../daemon-supervisor.js";
@@ -302,6 +303,38 @@ test("PORT_IN_USE exits are described with the real reason instead of a generic 
   const entry = getReadinessSnapshot().modules.find((m) => m.name === "assistant-daemon");
   const latchedReason = entry?.lifecycle.status === "failed" ? entry.lifecycle.reasonCode : undefined;
   assert.match(latchedReason ?? "", /could not bind 127\.0\.0\.1:4319 — address already in use/);
+});
+
+test("B127: the could-not-bind reason names the port the spawn actually used after a lazy port refresh", async (t) => {
+  const savedPort = process.env.JINI_AGENT_DAEMON_PORT;
+  const savedUrl = process.env.JINI_AGENT_DAEMON_URL;
+  t.after(() => {
+    if (savedPort === undefined) delete process.env.JINI_AGENT_DAEMON_PORT; else process.env.JINI_AGENT_DAEMON_PORT = savedPort;
+    if (savedUrl === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = savedUrl;
+  });
+  delete process.env.JINI_AGENT_DAEMON_URL;
+  process.env.JINI_AGENT_DAEMON_PORT = "5500"; // what a boot-time capture would see
+  const child = createFakeDaemonProcess();
+  const spawnedPorts: (string | undefined)[] = [];
+  startAssistantDaemon({ workspaceId: "test-workspace", siteDir: "/tmp/daemon-supervisor-b127-site" }, {
+    parentIpc: false,
+    registerProcessSignalHandlers: false,
+    readDiscovery: async () => null,
+    // The deferred-launch refresh hands out a different port than boot time did.
+    refreshPort: async () => { process.env.JINI_AGENT_DAEMON_PORT = "5501"; },
+    spawnDaemonProcess: (env) => { spawnedPorts.push(env.daemonPortOverride); return child.handle; },
+  });
+
+  assert.deepEqual(ensureAssistantDaemonStarted(), { ok: true });
+  for (let i = 0; i < 50 && spawnedPorts.length === 0; i++) await wait(5);
+  assert.deepEqual(spawnedPorts, ["5501"]);
+  child.emitExit(AGENT_DAEMON_EXIT_CODE.PORT_IN_USE, null);
+
+  const entry = getReadinessSnapshot().modules.find((m) => m.name === "assistant-daemon");
+  const latchedReason = entry?.lifecycle.status === "failed" ? entry.lifecycle.reasonCode : undefined;
+  // Shut down before asserting so the scheduled respawn never keeps the test process alive.
+  void shutdownAssistantDaemon();
+  assert.match(latchedReason ?? "", /could not bind 127\.0\.0\.1:5501 — address already in use/);
 });
 
 // -------------------------------------------------------------------------------------------

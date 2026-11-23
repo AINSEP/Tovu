@@ -74,6 +74,9 @@ export interface DaemonSupervisorDeps {
    *  `JINI_AGENT_DAEMON_PORT ?? "4319"`, matching what the daemon itself resolves
    *  (`agent-daemon-server.ts`). */
   daemonPort?: string;
+  /** The port the most recent spawn was given, read at each exit so failure messages name the port
+   *  the child really tried to bind. Wins over `daemonPort` when it returns a value. */
+  currentDaemonPort?: () => string | undefined;
   /** Injectable clock for `ensureStarted()`'s cooldown — real `Date.now` in production, a
    *  controllable fake in tests. */
   now?: () => number;
@@ -210,7 +213,9 @@ type DaemonHostOptions = Omit<DaemonSupervisorDeps, "spawnDaemonProcess">;
  */
 function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOptions = {}): DaemonSupervisor {
   const clock = options.now ?? Date.now;
-  const daemonPort = options.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
+  // Read per exit, not captured once: a lazy launch refreshes the spawn port after this supervisor is
+  // built, and a stale capture made "could not bind" name a port the child never tried (B127).
+  const daemonPort = (): string => options.currentDaemonPort?.() ?? options.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
   const log = options.log ?? ((line: string) => console.log(line));
   const supervisor = createSidecarSupervisor({
     ...ports,
@@ -220,7 +225,7 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
     scheduler: options.scheduler ?? createNodeSupervisorScheduler({}),
     classifyExit: ({ code, signal }) => ({
       isPortConflict: code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE,
-      reason: computeExitReasonCode({ code, signal, daemonPort }),
+      reason: computeExitReasonCode({ code, signal, daemonPort: daemonPort() }),
     }),
     failureReporter: {
       clear: clearAssistantDaemonFailure,
@@ -231,7 +236,7 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
     parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK],
     onDemandCooldownMs: options.onDemandCooldownMs ?? 30_000,
     quietRoutineLifecycle: options.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet(),
-    formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode({ decision, lastReasonCode: lastReason, daemonPort }),
+    formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode({ decision, lastReasonCode: lastReason, daemonPort: daemonPort() }),
   });
   return {
     ...supervisor,
@@ -640,7 +645,7 @@ export function startAssistantDaemon(
     const record = await (options.readDiscovery ?? (() => readPreviousAssistantDaemon({ siteDir: input.siteDir }, {})))();
     return record !== null && record.pid === pid;
   } };
-  const supervisor = spawningSupervisor({ spawnEnv, daemonPort: daemonPortOverride, readiness }, options);
+  const supervisor = spawningSupervisor({ spawnEnv, readiness }, options);
   singleton = supervisor;
   // Registration is cold. Demand callers await seeders and discovery through ensureReady.
 
@@ -664,19 +669,21 @@ function delegationParent({ parentIpc }: { parentIpc?: NodeIpcPeer | false }, _o
 
 /** The local supervisor over the test spawn seam when given, else over the real process ports. */
 function spawningSupervisor(
-  { spawnEnv, daemonPort, readiness }: { spawnEnv: DaemonSpawnEnvInput; daemonPort: string | undefined; readiness: DaemonSupervisorRequired["readiness"] },
+  { spawnEnv, readiness }: { spawnEnv: DaemonSpawnEnvInput; readiness: DaemonSupervisorRequired["readiness"] },
   options: Pick<StartAssistantDaemonOptions, "spawnDaemonProcess" | "nativeSpawn" | "scheduler"> = {},
 ): DaemonSupervisor {
+  // The same live value the spawn env carries, so exit messages and the child agree on the port.
+  const currentDaemonPort = (): string | undefined => spawnEnv.daemonPortOverride;
   if (options.spawnDaemonProcess !== undefined) {
     const spawnDaemonProcess = options.spawnDaemonProcess;
     return createDaemonSupervisor({
       spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
-      daemonPort,
+      currentDaemonPort,
       readiness,
       scheduler: options.scheduler,
     });
   }
-  return bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort, readiness, scheduler: options.scheduler });
+  return bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { currentDaemonPort, readiness, scheduler: options.scheduler });
 }
 
 /**
