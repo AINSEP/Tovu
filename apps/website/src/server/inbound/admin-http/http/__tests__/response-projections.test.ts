@@ -6,7 +6,7 @@ import { toAdminDeliveryResponse, toAdminDeliverySummary, toAdminSubscriptionRes
 import { toAdminMediaListResponse, toAdminMediaResponse } from "../media.js";
 import { toAdminMemberResponse } from "../members.js";
 import { toAdminPolicyResponse, toAdminRoleResponse, toAdminUserResponse } from "../users.js";
-import { toAdminWorkspaceResponse } from "../workspace.js";
+import { toAdminWorkspaceResponse } from "@jini-ai/cms/admin-http/http/workspace";
 
 // F1.2/F4.1: independent literal wire contracts; adding a record spread or dropping a field
 // must fail. Extra internal fields deliberately make a passthrough distinguishable.

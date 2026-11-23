@@ -4,7 +4,7 @@ import { workspaceRepoFor } from "@jini-ai/cms/workspace/sql";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
+import { toAdminWorkspaceResponse } from "@jini-ai/cms/admin-http/http/workspace";
 import { WORKSPACE_TABLES } from "../repo.sqlite.js";
 
 const initial = { id: "ws", name: "Original", slug: "original", createdAt: "t0", version: 1 };

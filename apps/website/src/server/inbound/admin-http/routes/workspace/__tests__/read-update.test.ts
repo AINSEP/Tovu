@@ -4,9 +4,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWorkspaceGetRoute } from "../get.js";
-import { registerAdminWorkspaceListRoute } from "../list.js";
-import { registerAdminWorkspaceUpdateRoute } from "../update.js";
+import { registerAdminWorkspaceGetRoute, registerAdminWorkspaceListRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
 
 const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z", version: 1 };
 function harness(repo: any) {
