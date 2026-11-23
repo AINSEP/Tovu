@@ -374,3 +374,16 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   keeps edited text; only an unedited draft switches to the named note's saved text.
 - Test: admin `agent-plugin-memory.hooks.unit.test.ts` "renaming a new note keeps its text; …". Mutation: always load
   the named note's text — red.
+
+### `B216-byok-key-to-half-typed-base-url` — FIXED on Jini `codex/bugs-high-jini` (`e5f263d5`)
+- Jini `ui` BYOK model discovery re-ran on every Base URL keystroke and sent the provider key to each half-typed
+  host. It now waits until a typed Base URL is unchanged for 600 ms and is a complete allowed URL; preset/protocol
+  picks still probe at once. Test: Jini `ExecutionTab.hooks.base-url.test.tsx`. Mutation: key the effect on the typed
+  URL and drop the guard — red. Tovu picks it up with the next `@jini-ai/ui` release.
+
+### Skipped in this run (fix belongs to an open lane branch)
+- `B236` webhook owner `user-local` — `routes/integrations/create.ts` is changed by `codex/ex4-integrations-tovu`.
+- `B217` menu leave guard — `MenuEditor.tsx` is changed by `codex/ex5-small-tovu`.
+- `B233` stale collection sort — `WidgetConfigFields.hooks.tsx` is changed by `codex/ex5-collections-tovu`.
+- `C043` tier-2 import allowlist — `plugin-tier2/worker.ts` is changed by `codex/ex2-holds-tovu`, which already
+  carries a C043 import policy and `worker-import-allowlist.integration.test.ts`.
