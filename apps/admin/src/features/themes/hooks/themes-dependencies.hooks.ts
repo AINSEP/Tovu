@@ -3,6 +3,7 @@ import { themesApi } from "@/features/themes/api/themes-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { ThemesPort } from "./themes-port.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { trimChars } from "@jini-ai/core/primitives";
 
 /**
  * @file The only place under `features/themes` that reaches `lib/api` for the three `ThemesPort`
@@ -60,7 +61,7 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
     async duplicateTheme({ themeId, newName }, _optional = {}) {
       const source = availableThemes.find((theme) => theme.id === themeId);
       if (!source) throw new Error(`theme '${themeId}' was not found`);
-      const id = asciiSlug({ text: newName });
+      const id = asciiSlug({ text: newName, trimChars });
       availableThemeIds.push(id);
       availableThemes.push({ id, name: newName, tier: source.tier });
       return { theme: { id, name: newName } };

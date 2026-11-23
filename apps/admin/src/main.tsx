@@ -16,6 +16,8 @@ import { AdminFailureNotice } from "./components/AdminFailureNotice/AdminFailure
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "@jini-ai/admin/shell/lib/router";
+import { bindShellFailureLogger } from "@jini-ai/admin/shell/lib/shell-failure-log";
+import { adminLogger } from "./lib/shell-collaborators";
 import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
 import "./styles.css";
@@ -56,6 +58,8 @@ document.head.appendChild(remixiconStyle);
 // The admin's own errors go to the server's telemetry route (no vendor code here): window-level
 // errors and rejections, plus every error a React boundary caught or none did (root options below).
 installBrowserErrorListeners({ target: window, telemetry: adminTelemetry });
+// The shell buses report a throwing subscriber here (Jini writes no console output of its own).
+bindShellFailureLogger({ logger: adminLogger });
 
 // Before the first render, so `App` never parses a URL that is about to change under it: an
 // existing `/admin/#/section/settings` bookmark becomes `/admin/settings` in place.

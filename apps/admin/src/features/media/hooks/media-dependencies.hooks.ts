@@ -4,6 +4,7 @@ import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
+import { trimChars } from "@jini-ai/core/primitives";
 
 /**
  * @file The only place under `features/media` that reaches `lib/api` for the five `MediaPort`
@@ -56,7 +57,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       // enough for a fake store's own uniqueness-free happy path; a test needing a REAL collision or
       // conflict must seed `options.media` directly with an explicit `slug`, same as `contentType`'s
       // own disclosed limit above.
-      slug: asciiSlug({ text: input.filename }) || "untitled",
+      slug: asciiSlug({ text: input.filename, trimChars }) || "untitled",
       alt: opts.alt ?? "",
       caption: opts.caption ?? "",
       credit: opts.credit ?? "",

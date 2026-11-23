@@ -12,7 +12,7 @@ import {
 // tab never depends on the dock having loaded it first.
 import "../../styles/assistant.css";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
-import { trimCharsEnd } from "@jini-ai/core/primitives";
+import { trimChars, trimCharsEnd } from "@jini-ai/core/primitives";
 
 /**
  * "Visitor tools" tab (owner, 2026-10-22): the tool calls the visitor's assistant may make on a
@@ -28,7 +28,7 @@ const MODES: readonly { mode: VisitorToolMode; label: string }[] = [
 ];
 /** Agent handles are lowercase hyphenated words; tool ids are server data (`list_posts`, plugin ids). */
 function toolHandle({ id, part }: { id: string; part: string }, _options: Record<string, never> = {}): string {
-  const slug = trimCharsEnd({ text: asciiSlug({ text: id }).slice(0, 40), chars: "-" }) || "tool";
+  const slug = trimCharsEnd({ text: asciiSlug({ text: id, trimChars }).slice(0, 40), chars: "-" }) || "tool";
   return `ai-assistant-visitor-tool-${slug}-${part}`;
 }
 const GROUP_LABELS: Record<VisitorToolView["source"], string> = {

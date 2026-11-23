@@ -26,6 +26,7 @@ import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { startBrowserStream, type BrowserStreamPorts } from "@jini-ai/admin/shell/lib/browser-stream";
 import { adminStreamActivity, type StreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
+import { adminBrowserStreamPorts } from "./shell-collaborators";
 
 /** Frame payload. Namespace names only — the server never sends values (see `change-feed.ts`). */
 interface SettingsChangedFrame {
@@ -99,7 +100,7 @@ export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: strin
         publishSettings(Array.isArray(changed.namespaces) ? changed.namespaces : undefined);
       } catch { publishSettings(); }
     },
-  }, { ports, activity });
+  }, { ports: ports ?? adminBrowserStreamPorts(), activity });
 }
 
 function createSettingsFeedConnector(state: { cursor: string; themeRevision: string; opened: boolean; }, open: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState">, workspaceId: string): Parameters<typeof startBrowserStream<Frame>>[0]["connect"] {

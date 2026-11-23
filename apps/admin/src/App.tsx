@@ -27,7 +27,8 @@ import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
-import { translateAdminNavGroups, translateAdminNavLabel } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
+import { translateAdminNavGroups } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
@@ -603,7 +604,7 @@ function buildShellNav(
     panels: ADMIN_PANELS,
     permissions: effectivePermissions,
   });
-  const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups });
+  const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups, translate: translateAdminNavLabel });
   const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
   return { navGroups, navSoonLabel };
 }

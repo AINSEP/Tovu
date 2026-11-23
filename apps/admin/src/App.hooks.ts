@@ -48,6 +48,8 @@ import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@ji
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "./nav";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -590,7 +592,7 @@ export function useChatDockLayout(): UseChatDockLayout {
     function onKeyDown(e: KeyboardEvent) {
       // The composer consumes Escape to dismiss its palette; keep the containing dock open.
       // An open modal (a confirm dialog) or menu (Chats, gear) owns its Escape too: one press closes only it.
-      if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document })) setChatOpen(false);
+      if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document, orFallbackSync })) setChatOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -890,7 +892,7 @@ export function useAgentPageBridge(
     const bridge = createBridge({ baseUrl: "", fetch,
       headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }),
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
-      openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
+      openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }, { ports: adminBrowserStreamPorts() }),
     }, {
       page: createDriverPagePort({ driver: pageDriver }),
       preparePageInput: pageNavigation.preparePageInput,
