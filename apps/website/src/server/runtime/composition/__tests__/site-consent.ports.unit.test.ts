@@ -142,7 +142,7 @@ test('theme-off declarations use the managed shell and publication refresh is fo
 });
 
 test('a full-document published bare Page reports a missing runtime slot with theme off; a fragment remains supported', async () => {
-  const { consentDeclarationReadiness } = await import('#src/features/consent/readiness');
+  const { consentDeclarationReadiness } = await import('@jini-ai/cookie-consent/site/readiness');
   let reads = 0;
   let bodyHtml = '<!doctype html><html><body><iframe src="/frame"></iframe></body></html>';
   let themeId = 'none';
