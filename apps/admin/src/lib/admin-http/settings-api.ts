@@ -1,8 +1,8 @@
 import type { SettingScope } from "@jini-ai/core/settings";
+import type { SettingValueResponse } from "@jini-ai/admin/core";
 import { WORKSPACE_ID } from "./config";
 import { authenticatedAdminRequest } from "./request";
 import { type SettingResolvedValue, shareSettingsEffectiveRead } from "../settings-effective-reads";
-import type { SettingValueResponse } from "./settings-api.types";
 
 const BLANK_NAMESPACE_MESSAGE = "Cannot read settings without a namespace. Pass the settings group to read, for example \"core.language\".";
 

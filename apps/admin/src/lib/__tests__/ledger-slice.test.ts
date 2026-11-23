@@ -63,6 +63,13 @@ describe("loadNamespaceValues", () => {
     await expect(loadNamespaceValues({ namespace: "core.privacy" })).rejects.toThrow("server exploded");
   });
 
+  it("rethrows the original 403 ApiError from the settings transport", async () => {
+    // Identity, not message: a wrapper or a fresh error would lose the status a caller branches on.
+    const forbidden = new FakeApiError("forbidden", 403);
+    getSettingsEffective.mockRejectedValue(forbidden);
+    await expect(loadNamespaceValues({ namespace: "core.privacy" })).rejects.toBe(forbidden);
+  });
+
   it("re-throws an error that is not an ApiError at all (e.g. a network failure)", async () => {
     getSettingsEffective.mockRejectedValue(new TypeError("fetch failed"));
     await expect(loadNamespaceValues({ namespace: "core.privacy" })).rejects.toThrow("fetch failed");
