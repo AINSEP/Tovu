@@ -6,7 +6,7 @@ import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 

@@ -1,6 +1,6 @@
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../../pages/rules";
 import { useThemePreviewFrame } from "../../../themes/hooks/use-theme-preview-refresh.hooks";
-import { usePostPreviewIframeEscape } from "../../hooks/use-post-editor-ui.hooks";
+import { usePostPreviewIframeEscape } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import { type Translate } from "@jini-ai/core/text";
 
 /**

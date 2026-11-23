@@ -1,7 +1,7 @@
 import { act, render, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { postEditorRouteKey } from "../post-editor-route-key";

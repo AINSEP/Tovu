@@ -19,7 +19,7 @@ import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
 
 import { MediaImage } from "@/lib/media-image-extension";
@@ -58,7 +58,7 @@ import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMe
 import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.hooks";
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
 import type { PostEditorPort } from "./post-editor-port.hooks";
-import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
+import { usePostEditorUi, type PostEditorUiController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import {
   loadedPostForm,
   loadedPostHandles,

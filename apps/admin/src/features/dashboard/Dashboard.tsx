@@ -1,4 +1,4 @@
-import type { AdminPost } from "../posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "@jini-ai/admin/shell/lib/router";
 

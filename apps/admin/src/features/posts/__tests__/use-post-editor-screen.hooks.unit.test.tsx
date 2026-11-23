@@ -1,7 +1,7 @@
 import { renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import { usePostEditorScreen, type PostEditorReadyScreen } from "../hooks/use-post-editor-screen.hooks";
 

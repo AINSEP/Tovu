@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMedia } from "@/features/media/api/media-api.types";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";

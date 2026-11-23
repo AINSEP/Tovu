@@ -7,7 +7,7 @@ import { usePageEditor, type PageEditorController } from "../hooks/use-page-edit
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its

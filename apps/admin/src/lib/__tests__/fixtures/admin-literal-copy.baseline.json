@@ -190,18 +190,6 @@
       "reason": "Exact brand, protocol, unit or editor notation."
     },
     {
-      "file": "features/posts/editor/PostDeleteConfirmDialog.tsx",
-      "line": 35,
-      "kind": "text",
-      "text": "(&quot;"
-    },
-    {
-      "file": "features/posts/editor/PostDeleteConfirmDialog.tsx",
-      "line": 35,
-      "kind": "text",
-      "text": "&quot;)"
-    },
-    {
       "file": "features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx",
       "line": 33,
       "kind": "text",

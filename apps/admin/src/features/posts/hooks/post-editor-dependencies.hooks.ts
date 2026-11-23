@@ -3,7 +3,7 @@ import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";

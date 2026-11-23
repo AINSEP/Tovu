@@ -1,8 +1,8 @@
 import { useEditorState, type Editor } from "@tiptap/react";
 import type { Translate } from "@jini-ai/core/text";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { useToolbarOverflow } from "../../hooks/use-post-editor-ui.hooks";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { useToolbarOverflow } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
 import { ToolbarColorGroup } from "./ToolbarColorGroup";
 import { ToolbarCharacterCount } from "./ToolbarCharacterCount";

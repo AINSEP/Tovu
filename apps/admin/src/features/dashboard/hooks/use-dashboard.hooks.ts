@@ -3,7 +3,7 @@ import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { useFetchQuery, useInvalidate, type QueryResult } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { ACTIVE_THEME_RESOURCE, activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";

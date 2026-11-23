@@ -16,7 +16,7 @@ import { PageEditor } from "../PageEditor";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 // Same stub `PageEditor.interactive-flush.unit.test.tsx` uses: the taxonomy box fetches on its own.
 vi.mock("../../taxonomy/TermPicker", () => ({

@@ -7,7 +7,7 @@ import { usePageEditor } from "../../pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../../pages/hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../../pages/hooks/theme-canvas-dependencies.hooks";
 import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "../theme-preview-refresh";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 // Only jsdom's unimplemented DOM submit is observed; services are injected fakes, no module mocks.
 afterEach(() => {

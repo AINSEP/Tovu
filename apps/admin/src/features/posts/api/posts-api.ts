@@ -1,7 +1,7 @@
 import { BASE, WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { bodyFitsKeepalive, request } from "../../../lib/admin-http/request";
 import { siteUrl } from "../../../lib/site-url";
-import type { AdminPost, AdminPostCreateInput } from "./posts-api.types";
+import type { AdminPost, AdminPostCreateInput } from "@jini-ai/admin/posts/api/posts-api.types";
 
 /** The admin API calls of the posts feature. */
 export const postsApi = {

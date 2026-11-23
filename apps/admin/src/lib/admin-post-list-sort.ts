@@ -1,6 +1,6 @@
 import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
 
-import type { AdminPost } from "../features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 // Historical column-sort section headers from the two former rules files:

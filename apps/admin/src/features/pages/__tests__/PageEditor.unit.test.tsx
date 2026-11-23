@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../rules";
 

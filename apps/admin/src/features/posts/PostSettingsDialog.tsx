@@ -4,7 +4,7 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 
 import "../../styles/native-domain-dialogs.css";
 
-import type { PostSettingsDialogController, PostSettingsTab } from "./hooks/use-post-editor-ui.hooks";
+import type { PostSettingsDialogController, PostSettingsTab } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import { PostAuthorFields } from "@jini-ai/admin/posts/PostAuthorFields";
 import { PostPublishAtField, type PostPublishAtFieldProps } from "@jini-ai/admin/posts/PostPublishingFields";
 

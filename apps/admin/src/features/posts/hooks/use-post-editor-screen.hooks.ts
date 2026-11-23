@@ -3,8 +3,8 @@ import type { Translate } from "@jini-ai/core/text";
 import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useDevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import type { PostDeleteConfirmDialog } from "../editor/PostDeleteConfirmDialog";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import type { PostDeleteConfirmDialog } from "@jini-ai/admin/posts/editor/PostDeleteConfirmDialog";
 import type { PostEditorBody } from "../editor/PostEditorBody";
 import type { PostSavedPanels } from "../editor/PostSavedPanels";
 import type { PostEditorActions } from "../editor/header/PostEditorActions";
@@ -17,7 +17,7 @@ import { VIEW_TABS } from "../editor/view-bar/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
 import type { PostSettingsDialog } from "../PostSettingsDialog";
-import { usePostSettingsDialog, type PostSettingsDialogController } from "./use-post-editor-ui.hooks";
+import { usePostSettingsDialog, type PostSettingsDialogController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostEditorController, PostEditorView, useWiredPostEditor } from "./use-post-editor.hooks";
 
 /**

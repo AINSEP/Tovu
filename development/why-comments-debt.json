@@ -3488,6 +3488,62 @@
     {
       "id": "319b30ec56cf",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
+    },
+    {
+      "id": "12a0712c0a97",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/screens/media/hooks/use-edit-media-modal.hooks.ts @file doc (useEditMediaModal) (w3-content), reworded neutral where it named host paths; the Tovu file is deleted."
+    },
+    {
+      "id": "9d8d2841aa30",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/screens/media/hooks/use-media-card-metadata.hooks.ts useMediaCardMetadata doc (w3-content), the host upload-limit name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "8b7b396b53b9",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostAutosaveRecoveryBanner.tsx PostAutosaveRecoveryBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "f1c7604fc6ac",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostAutosaveStaleBanner.tsx PostAutosaveStaleBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "02e90c063e62",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostVersionConflictBanner.tsx PostVersionConflictBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "2278e5d282d4",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts @file doc (importMediaEntity) (w3-content), report/host paths reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "0271c1bcc463",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts ImportMediaEntityDeps doc (w3-content), the host publish-content.ts path reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "9c480b3daa11",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts importMediaEntity body comment (w3-content), verbatim; the Tovu file is deleted."
+    },
+    {
+      "id": "5db9360caeee",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/delete.ts rejectPurgeFailure doc (w3-content), \"otherwise a private 500\" reworded to name the host error port; the Tovu file is deleted."
+    },
+    {
+      "id": "96f6da0c95be",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/import-url.ts mediaImportUrlRoute doc (w3-content), \"Quick wins A\" label dropped, \"the tool\" reworded to \"the assistant's import tool\"; the Tovu file is deleted."
+    },
+    {
+      "id": "279a2459ffb7",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/import-url.ts mediaImportUrlRoute doc (w3-content), merged into the route doc and \"uploadMedia\" reworded to \"the upload\"; the Tovu file is deleted."
+    },
+    {
+      "id": "b4d9d57d1e22",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/trash.ts rejectRemoveFailure doc (w3-content), \"response\" reworded to \"refusal\"; the Tovu file is deleted."
+    },
+    {
+      "id": "5406dc190280",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/where-used.ts mediaWhereUsedRoute doc (w3-content), verbatim inside the expanded route doc; the Tovu file is deleted."
+    },
+    {
+      "id": "690bcf5bd64d",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/posts/get-by-id.ts postGetRoute handler comment (w3-content), host lookup name reworded neutral; the Tovu file is deleted."
     }
   ]
 }

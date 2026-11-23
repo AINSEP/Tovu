@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
 import type { DashboardPort } from "../hooks/dashboard-port.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { createElement, type ReactNode } from "react";

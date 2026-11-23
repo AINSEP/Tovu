@@ -1,5 +1,5 @@
 import type { AdminSiteKeyState } from "@jini-ai/core/contracts/site/site-key";
-import type { AdminPost } from "../posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

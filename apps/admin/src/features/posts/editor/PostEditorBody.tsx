@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { PostUrlDialog } from "../PostUrlDialog";
 import { BubbleFormattingMenu } from "./bubble-menu/BubbleFormattingMenu";
 import { Toolbar } from "./toolbar/Toolbar";

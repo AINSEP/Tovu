@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { PageBodyWriteError, writePage } from "../hooks/page-editor-save";
-import type { AdminPost } from "../../posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import type { PageSavePlan } from "../rules";
 
 const page: AdminPost = {

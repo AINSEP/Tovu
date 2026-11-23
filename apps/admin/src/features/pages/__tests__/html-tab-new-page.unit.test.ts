@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";

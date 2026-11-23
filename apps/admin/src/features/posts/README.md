@@ -16,6 +16,12 @@ The Posts list and the Post editor — the two screens behind the sidebar's **Co
 - `hooks/use-post-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
   `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
   separate from the editor's save settlement).
+- `hooks/use-post-editor.hooks.ts` and `hooks/use-post-editor-screen.hooks.ts` bind `@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks`
+  (`usePostEditorUi`, `useToolbarOverflow`, `usePostSettingsDialog`) and passes the controllers down
+  as props. The overflow hook finds Jini's `ToolbarOverflowMenu` by `[data-toolbar-more]`;
+  `styles.css` styles it by `.jini-post-toolbar__more` (phone-width visibility and order).
+- `AdminPost`, `PostsListPort` and `PostDeleteConfirmDialog` come from `@jini-ai/admin/posts`;
+  `hooks/posts-list-dependencies.hooks.ts` binds this app's request client into `PostsListPort`.
 
 ## What this feature does not own
 

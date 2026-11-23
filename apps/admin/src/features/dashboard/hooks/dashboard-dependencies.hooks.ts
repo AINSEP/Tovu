@@ -2,7 +2,7 @@ import type { AdminSiteKeyState } from "@jini-ai/core/contracts/site/site-key";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import { themesApi } from "@/features/themes/api/themes-api";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
