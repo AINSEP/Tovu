@@ -10,7 +10,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo, type MemberRecord, type OutboundEmail } from "#src/features/members/index";
 import { issueMemberSession } from "#src/features/members/member-credentials";
-import { cryptoFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
+import { cryptoFixture, oidcOperationsFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from "../../inbound/public-http/routes/members/oidc-start.js";
@@ -54,7 +54,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
     links: { ...toPublicMembersWriteServiceDeps(members), identities,
       transaction: async body => { inTransaction = true; try { return await body(); } finally { inTransaction = false; } },
       lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); } },
-    protocol: { ...crypto, origin: originFixture(),
+    protocol: { ...crypto, ...oidcOperationsFixture, origin: originFixture(),
       resolveProvider: async () => enabled ? provider : null,
       resolveClient: async () => ({ clientId: "client", clientSecret: "secret-never-returned", authMethod: "client_secret_post" }),
       httpPorts: { guard: { assertSafeUrl: ({ raw }) => new URL(raw) }, fetchFn: async ({ url }, init) => {

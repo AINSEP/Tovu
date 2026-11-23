@@ -12,7 +12,7 @@ Binding inputs: `google-login-design.md` amended by `OPUS-REVIEW.md`, plus the o
 
 `beginOidcLogin({deps,input:{workspaceId,providerId,connectMemberId?}})` returns `{authorizationUrl,expiresAt,browserBinding,returnPath:'/account'}`. Set the 43-character binding in an HttpOnly Secure SameSite=Lax callback-path cookie, max-age 600. Callback clears it even on failure. Reject duplicate cookies. Never accept binding from query/state.
 
-`OidcLoginDeps` supplies clock, randomBytesFn, guarded httpPorts, site sealer/keyring, origin registry, and fresh resolveProvider/resolveClient functions. Provider lookup reloads admission via `loadLoginProviders`; credential lookup calls `resolveLoginCredentials`. `hasLoginCredentials` permits provider-list filtering without opening secrets.
+`OidcLoginDeps` (now `@jini-ai/user-management/member-login/oidc-login`) supplies clock, randomBytesFn, guarded httpPorts, site sealer/keyring, origin registry, fresh resolveProvider/resolveClient functions, and the injected OAuth operations, `formatAad` and `appIdentity` (see Wiring). Provider lookup reloads admission via `loadLoginProviders`; credential lookup calls `resolveLoginCredentials`. `hasLoginCredentials` permits provider-list filtering without opening secrets.
 
 `completeOidcLogin({deps,input:{workspaceId,providerId,browserBinding,params:{state,code?,error?},connectMemberId?}})` returns `{identity,startedAt,authenticatedAt,connectMemberId?,returnPath:'/account'}`. Start and callback pass a connectMemberId ONLY from a currently validated member session; missing/different member on callback fails the state binding. For sign-in both omit it. `startedAt` comes from validated sealed state. Errors expose only `MemberLoginError.code`.
 
@@ -40,3 +40,22 @@ npx eslint --rule 'complexity: ["error", 10]' --rule 'sonarjs/cognitive-complexi
 ```
 
 The member suite command includes existing password/code/reset/set-password regression coverage. New S2 protocol tests use real AES-GCM, real RSA signatures and Jini validation against a hermetic token/JWKS transport; transaction tests use SQLite and PGlite. A real Google smoke check and S3/U1 continuation route/UI integration remain central-runner responsibilities.
+
+## Wiring
+
+The OIDC protocol facade (`beginOidcLogin`, `completeOidcLogin`, `memberLoginCallbackUrl`, `sealLoginEmailContinuation`, `openLoginEmailContinuation`) lives in Jini at `@jini-ai/user-management/member-login/oidc-login`; its folder README has the package-side Wiring. This folder keeps the host halves: plugin-pinned providers, credential lookup, link service and readiness.
+
+- **Host injects into `OidcLoginDeps`:** `beginAuthorizationCode`, `completeAuthorizationCode`, `createSealedAuthorizationState`, `createSealerStateCodec`, `validateOidcIdToken` (from `@jini-ai/oauth`), `formatAad` (from `@jini-ai/platform/secrets`) and `appIdentity` (the product's OAuth client display name and software id), beside the existing ports.
+- **Composition:** `server/runtime/composition/modules/members.ts` `createMemberOidcRouteDeps`; tests reuse `__tests__/fixtures.ts` `oidcOperationsFixture`.
+- **Never:** the Jini facade imports no host code and no `@jini-ai/oauth`/`platform`; this folder must not re-export it (routes import the Jini subpath directly). `MEMBER_OIDC_PATH` comes from `contracts/headless`.
+
+```ts
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
+import type { OidcLoginDeps } from "@jini-ai/user-management/member-login/oidc-login";
+const protocol: OidcLoginDeps = { clock, randomBytesFn, httpPorts, sealer, keyring, origin, resolveProvider, resolveClient,
+  appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+  beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad };
+```
+
+Why the split: Jini `docs/decisions/DR-005-portable-package-boundaries.md`.

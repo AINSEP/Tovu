@@ -3,6 +3,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
 import type { LoginProvider } from "@jini-ai/user-management/server";
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 
 export const provider: LoginProvider = { id: "google", label: "Google", pluginId: "google-login", configurationVersion: "preset-v1",
   issuer: "https://accounts.google.com", authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -16,6 +18,10 @@ export function cryptoFixture() {
   const keyring = new InMemoryKeyring();
   return { clock, keyring, sealer: new AesGcmSecretSealer(keyring), randomBytesFn: ({ byteLength }: { byteLength: number }) => randomBytes(byteLength) };
 }
+
+/** The stock OAuth/AAD implementations and app identity the host composition injects into OidcLoginDeps. */
+export const oidcOperationsFixture = { appIdentity: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login" },
+  beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken, formatAad };
 
 export function originFixture() {
   return {
