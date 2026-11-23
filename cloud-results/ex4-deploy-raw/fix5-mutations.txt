@@ -1,0 +1,29 @@
+# deploy FIX-5 — mutation evidence for the moved slices (linked Jini codex/ex4-deploy-jini dist, Node v22.23.5)
+
+## M1 packages/devops/src/dns/site/mail-requirements.ts:63 existing-DMARC branch
+mutation (dist/dns/site/mail-requirements.js): if (existing === true) -> if (existing === "never")
+test: apps/website/src/features/domain-dns/__tests__/mail-requirements.test.ts (retained; case at :36)
+--- mutated
+not ok 2 - an existing DMARC record is kept: no hint, and the provider's own DMARC is dropped rather than added beside it
+# tests 7
+# pass 6
+# fail 1
+--- restored
+# tests 7
+# pass 7
+# fail 0
+
+## M2 packages/devops/src/backup/site/share-export-failure.ts:14 recorded stage
+mutation (dist/backup/site/share-export-failure.js): this.step = required.step -> this.step = "prepare"
+tests: routes/system/__tests__/site-share-failures.test.ts + features/site-backup/__tests__/share-backend.unit.test.ts (retained)
+--- mutated
+not ok 2 - a archive exception keeps its actual step when collected by a later job poll
+not ok 3 - a delivery exception keeps its actual step when collected by a later job poll
+not ok 15 - an archive failure returns the actual job step and redacted copyable details
+# tests 27
+# pass 24
+# fail 3
+--- restored
+# tests 27
+# pass 27
+# fail 0
