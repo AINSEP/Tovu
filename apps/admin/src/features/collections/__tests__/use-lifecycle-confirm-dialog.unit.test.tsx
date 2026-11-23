@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LifecycleConfirmDialog } from "../LifecycleConfirmDialog";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
-import { useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
+import { useWiredLifecycleConfirmDialog as useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**
  * @file `useLifecycleConfirmDialog` — no state of its own; just Escape-to-cancel, the op-derived

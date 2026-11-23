@@ -7,7 +7,7 @@ export { hasPostBeenPublished, type SlugChangeCaptureLookup } from "./post-slugs
 // Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
 // Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific
 // should be re-exported from this barrel.
-export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
+export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";
 export { InMemoryPostSearchIndex } from "./search-index.memory.js";

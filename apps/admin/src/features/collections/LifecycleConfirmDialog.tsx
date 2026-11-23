@@ -2,7 +2,7 @@ import { type AdminContentType } from "@jini-ai/admin/screens/collections/api/co
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
+import { useWiredLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 
 
 // ---------------------------------------------------------------------------
@@ -15,7 +15,7 @@ export interface LifecycleConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
+  useLifecycleConfirmDialogHook?: typeof useWiredLifecycleConfirmDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
   t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
@@ -25,7 +25,7 @@ export function LifecycleConfirmDialog({
   contentType,
   onConfirm,
   onCancel,
-  useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
+  useLifecycleConfirmDialogHook = useWiredLifecycleConfirmDialog,
   t,
 }: LifecycleConfirmDialogProps) {
   const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });

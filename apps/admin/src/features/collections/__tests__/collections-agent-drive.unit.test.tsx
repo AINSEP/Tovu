@@ -7,7 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import { CollectionEntries } from "../CollectionEntries";
 import { Collections } from "../Collections";
-import type { CollectionsController } from "../hooks/use-collections.hooks";
+import type { CollectionsController } from "-ai/admin/screens/collections/hooks/use-collections.hooks";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 
 /**

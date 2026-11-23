@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Collections } from "../Collections";
-import type { CollectionsController } from "../hooks/use-collections.hooks";
-import type { NewContentTypeDialogController } from "../hooks/use-new-content-type-dialog.hooks";
-import type { EditFieldsDialogController } from "../hooks/use-edit-fields-dialog.hooks";
-import type { LifecycleConfirmDialogController } from "../hooks/use-lifecycle-confirm-dialog.hooks";
+import type { CollectionsController } from "-ai/admin/screens/collections/hooks/use-collections.hooks";
+import type { NewContentTypeDialogController } from "-ai/admin/screens/collections/hooks/use-new-content-type-dialog.hooks";
+import type { EditFieldsDialogController } from "-ai/admin/screens/collections/hooks/use-edit-fields-dialog.hooks";
+import type { LifecycleConfirmDialogController } from "-ai/admin/screens/collections/hooks/use-lifecycle-confirm-dialog.hooks";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 
 /**

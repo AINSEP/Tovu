@@ -8,7 +8,7 @@ import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
-import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
+import { useWiredLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { NewContentTypeDialog } from "./NewContentTypeDialog";
 import { LifecycleConfirmDialog } from "./LifecycleConfirmDialog";
@@ -53,7 +53,7 @@ export interface CollectionsProps {
   dialogHooks?: {
     useNewContentTypeDialogHook?: typeof useWiredNewContentTypeDialog;
     useEditFieldsDialogHook?: typeof useWiredEditFieldsDialog;
-    useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
+    useLifecycleConfirmDialogHook?: typeof useWiredLifecycleConfirmDialog;
   };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses

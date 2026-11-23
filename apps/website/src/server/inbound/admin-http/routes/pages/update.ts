@@ -4,7 +4,8 @@ import { processOutbox } from "#src/contracts/core/events/index";
 import { restorePostForward, updatePost, type UpdatePostInput } from "#src/features/post/index";
 import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/posts/expected-version";
 import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
-import { resolveFeaturedMediaIdForWrite } from "#src/features/post/featured-image";
+import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
+import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
@@ -226,7 +227,7 @@ async function executePageUpdate(deps: Parameters<ContentRouteRegistrar>[0]["dep
                   // `execute`, after the gateway's `content.write` check, so an unauthorized caller
                   // cannot probe the media library through this field's error messages.
                   featuredMediaId: await resolveFeaturedMediaIdForWrite({
-                    deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore },
+                    deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore, findMediaByIdOrSlug },
                     input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
                   }),
                   actorId: principal.id,

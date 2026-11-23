@@ -8,7 +8,8 @@ import { ToolInputError, requireObject, requireString } from "@jini-ai/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostKind, PostStatus } from "@jini-ai/cms/core";
 
-import { resolveFeaturedImageRef } from "#src/features/post/featured-image";
+import { resolveFeaturedImageRef } from "@jini-ai/cms/posts/featured-image";
+import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 export function requirePostKind(input: Record<string, unknown>): PublicPostKind {
@@ -98,7 +99,7 @@ export async function resolveFeaturedImageInput(routeDeps: PostToolDeps, input: 
     throw new ToolInputError({ message: "featuredImage: the media library is not available to this assistant session, so a featured image cannot be set here. Set it in the post editor instead." });
   }
   const resolution = await resolveFeaturedImageRef({
-    deps: { mediaRepo: routeDeps.mediaRepo, mediaContentTypeStore: routeDeps.mediaContentTypeStore },
+    deps: { mediaRepo: routeDeps.mediaRepo, mediaContentTypeStore: routeDeps.mediaContentTypeStore, findMediaByIdOrSlug },
     input: { workspaceId: routeDeps.workspaceId, ref: value },
   });
   if (!resolution.ok) throw new ToolInputError({ message: FEATURED_IMAGE_REFUSALS[resolution.reason]({ ref: value.trim() }, { contentType: resolution.contentType }) });

@@ -10,7 +10,7 @@ import type {
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { createPublicPostReader } from "../post/index.js";
-import { resolveFeaturedImageRef, type FeaturedImageDeps } from "#src/features/post/featured-image";
+import { resolveFeaturedImageRef, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
 import { ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/index.js";
@@ -57,12 +57,12 @@ export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _opt
  * @example createSeoFeaturedImagePort({ deps: mediaDeps }, {})
  * @complexity O(1) wiring; lookups retain the owners' bounded reads and errors.
  */
-export function createSeoFeaturedImagePort({ deps }: { deps: FeaturedImageDeps }, _optional: Record<string, never> = {}): SeoFeaturedImagePort {
+export function createSeoFeaturedImagePort({ deps }: { deps: Omit<FeaturedImageDeps, "findMediaByIdOrSlug"> }, _optional: Record<string, never> = {}): SeoFeaturedImagePort {
   return {
     findMediaByIdOrSlug: (input) => findMediaByIdOrSlug({ deps, input }),
     mediaUrlKey: ({ asset }) => mediaUrlKey(asset),
     mediaPublicPath: (input) => mediaPublicPath(input),
-    resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps, input }),
+    resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps: { ...deps, findMediaByIdOrSlug }, input }),
   };
 }
 
