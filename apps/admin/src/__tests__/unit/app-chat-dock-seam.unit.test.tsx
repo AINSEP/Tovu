@@ -13,7 +13,7 @@ import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 import { ASSISTANT_DOCK_DICT } from "../../components/AssistantDock/assistant-dock-i18n";
 
 const folderDrop = vi.hoisted(() => ({ handleDropCapture: vi.fn() }));
-vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
+vi.mock("@jini-ai/admin/screens/fs-files/use-folder-drop.hooks", () => ({
   useFolderDrop: () => ({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: folderDrop.handleDropCapture }),
 }));
 
