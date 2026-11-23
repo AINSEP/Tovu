@@ -10,7 +10,7 @@ import type { InstanceAuthorizeFn } from '@jini-ai/core/gated-mutations';
 import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 
 import type { ProjectKeysPort } from '../project-keys/service.js';
-import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
+import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import type { CredentialCopyToolHost } from '@jini-ai/integrations/credentialed-http/tools';
 import { tovuCredentialCardIdentity } from './tovu-credential-card-identity.js';
 

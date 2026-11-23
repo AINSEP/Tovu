@@ -12,7 +12,7 @@ import test from 'node:test';
 import { indexCatalogById, type AgentToolDefinition } from '@jini-ai/core';
 import { askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { buildFormSurface } from '@jini-ai/ui/mcp-ui/surfaces';
-import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
+import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import { catalog as tovuCopyCatalog, createCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID } from '../credential-copy-tool.js';
 import type { CredentialCardIdentity, CredentialCopyToolHost, CustomCredentialToolHost } from '@jini-ai/integrations/credentialed-http/tools';

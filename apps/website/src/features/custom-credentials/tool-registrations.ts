@@ -8,7 +8,7 @@ import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
-import { toolMetadata } from '@jini-ai/core/tool-metadata/custom-credentials';
+import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';

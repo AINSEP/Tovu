@@ -19,7 +19,7 @@ import { toolMetadata as comments } from './comments.js';
 import { toolMetadata as content_duplication } from '@jini-ai/core/tool-metadata/content-duplication';
 import { toolMetadata as content_read } from './content-read.js';
 import { toolMetadata as content_types } from '@jini-ai/core/tool-metadata/content-types';
-import { toolMetadata as custom_credentials } from '@jini-ai/core/tool-metadata/custom-credentials';
+import { toolMetadata as custom_credentials } from './custom-credentials.js';
 import { toolMetadata as database } from '@jini-ai/core/tool-metadata/database';
 import { toolMetadata as database_transfer } from '@jini-ai/core/tool-metadata/database-transfer';
 import { toolMetadata as deploy_ops } from './deploy-ops.js';
