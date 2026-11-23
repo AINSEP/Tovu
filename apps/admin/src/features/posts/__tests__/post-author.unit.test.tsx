@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { PostAuthorFields } from "../PostAuthorFields";
+import { PostAuthorFields } from "@jini-ai/admin/posts/PostAuthorFields";
 import { POSTS_DICT, t } from "../posts-i18n";
 
 const POST: AdminPost = { id: "p1", workspaceId: "ws", kind: "post", title: "Credit", slug: "credit",

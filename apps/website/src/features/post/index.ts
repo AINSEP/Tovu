@@ -6,9 +6,7 @@ export { deletePost, restorePostForward, type ForgetRemovedPostFn, type RemovePo
 export { normalizeFeaturedMediaId, normalizePostAuthor, normalizePublishAt, presentScheduleFields, MAX_TITLE_LENGTH } from "./post-write-fields.js";
 export { updatePost, type UpdatePostInput } from "./post-update.js";
 export { hasPostBeenPublished, type SlugChangeCaptureLookup } from "./post-slugs.js";
-export { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "./slug.js";
 export type { PostKind } from "#src/contracts/core/post-kind";
-export type { BeforeSaveHookPort } from "./post-before-save.js";
 // The optimistic-concurrency boundary, shared by the admin HTTP route and the `content_post_update`
 // agent tool — see `expected-version.ts` for why it is a module of its own rather than a copy in
 // each arm.

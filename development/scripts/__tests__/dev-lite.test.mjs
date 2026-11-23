@@ -6,7 +6,7 @@ import path from 'node:path';
 import { prepareLiteAdmin } from '../dev-lite.mjs';
 import { finishDevStartup } from '../dev.mjs';
 
-for (const source of ['features/post/slug.ts', 'platform/html/slug.ts', 'assistant/assistant-tool-approval-policy.ts']) {
+for (const source of ['platform/html/slug.ts', 'assistant/assistant-tool-approval-policy.ts']) {
   test(`dev:lite rebuilds after an admin dependency changes in website ${source}`, async t => {
     const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'lite-freshness-'));
     t.after(() => rm(repoRoot, { recursive: true, force: true }));

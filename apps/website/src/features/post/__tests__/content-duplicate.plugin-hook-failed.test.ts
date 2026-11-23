@@ -28,7 +28,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { BeforeSaveHookPort } from "../post-before-save.js";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 

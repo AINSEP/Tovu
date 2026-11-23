@@ -1,7 +1,7 @@
 import { type PostRepoPort, PostConflictError, type PostRecord, PostVersionConflictError } from "./post.js";
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { type BeforeSaveHookPort, runBeforeSaveHook, mergeExt } from "./post-before-save.js";
+import { type BeforeSaveHookPort, runBeforeSaveHook, mergeExt } from "@jini-ai/cms/posts/post-before-save";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
 

@@ -1,4 +1,4 @@
-import { derivePostSlugBase, isAutomaticPostSlug } from "../../../../website/src/features/post/slug";
+import { derivePostSlugBase, isAutomaticPostSlug } from "@jini-ai/cms/posts/slug";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 

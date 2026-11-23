@@ -8,7 +8,7 @@ import type { PublishContentPullDeps } from "./pull.js";
 import type { PublishTrustProvisioningPort } from "../publish-trust/provisioning.js";
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
 import type { PublishContentPeerRepoPort } from "./peers.js";
-import type { BeforeSaveHookPort } from "#src/features/post/index";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
 import type { PublishContentDeps } from "./type-registry.js";

@@ -2780,6 +2780,10 @@
     {
       "id": "b9484b5d239f",
       "reason": "Moved to Jini @jini-ai/cms media/site/__tests__/public-path.test.ts header (Jini bc0a9a4c, X-media-1), the source-path citation reworded to the relative module; the Tovu test is deleted."
+    },
+    {
+      "id": "ac059ae80d3e",
+      "reason": "Moved to Jini @jini-ai/cms/posts/post-before-save.ts (landed T-post-1.J; Tovu copy deleted by T-post-1.T); product SDK name reworded to the host SDK, rest identical."
     }
   ]
 }

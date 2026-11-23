@@ -2,7 +2,8 @@ import { updatePost } from "../post/post-update.js";
 import { restorePostForward } from "../post/post-trash.js";
 import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
 import { PostVersionConflictError, PostNotFoundError } from "../post/post.js";
-import type { ForgetRemovedPostFn, BeforeSaveHookPort, PostRecord, PostRepoPort } from "../post/contracts.js";
+import type { ForgetRemovedPostFn, PostRecord, PostRepoPort } from "../post/contracts.js";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 /**
  * @file One shared composer for the deps bag every widgets write-path function needs

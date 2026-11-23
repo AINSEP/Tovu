@@ -13,7 +13,7 @@ import type { DeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import type { ExtensionClaim } from "@jini-ai/plugins/host";
 import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
-import type { BeforeSaveHookPort } from "#src/features/post/index";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 
 /**
  * Extract-s6 L1c: the plugin-owned runtime core (`createPluginRuntimeCore`, its port types, the

@@ -1,4 +1,5 @@
-import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
+import type { ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
 import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import type { AssetBlobRepoPort, BlobStorePort } from "#src/features/media/index";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
