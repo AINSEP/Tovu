@@ -1,7 +1,8 @@
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 /** Serving-host ownership for admin Sites card previews: one service (one capture queue, one lazy
  * browser) per binding, the same lifetime rule `local-site-host.ts` applies to its supervisor. */
-import { isSiteSwitcherEnabled, type SiteBinding } from "#src/platform/site-dir/index";
+import { isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import {
   createSitePreviewCaptureForHost,
   createSitePreviewService,

@@ -44,7 +44,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type {
   DuplicateResourceHandler,
   DuplicateResourceHandlerContributor,
-} from "../../assistant/tool-contributions.js";
+} from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";

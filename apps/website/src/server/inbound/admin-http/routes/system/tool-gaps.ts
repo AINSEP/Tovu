@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from 'express';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
-import type { ToolGapsToolDeps } from '#src/assistant/host-ports';
+import type { ToolGapsToolDeps } from '@jini-ai/core/contracts/site/assistant-host-ports';
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Owner-only Observability filter over the existing tool audit store. No mutation endpoint. */

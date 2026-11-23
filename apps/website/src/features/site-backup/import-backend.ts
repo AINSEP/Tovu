@@ -1,11 +1,11 @@
 import { tidyImportDatabases } from "./import-database.js";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { CreateSitePort, CreateSiteResult } from "#src/platform/site-dir/index";
+import type { CreateSitePort } from "#src/platform/site-dir/index";
+import type { CreateSiteResult } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import { importSourceDigest, withoutQuery, type SiteImportRegistry, type SiteImportRecord } from "./import-registry.js";
@@ -17,6 +17,7 @@ import {
   requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
   type ParsedSiteImportInput, type SiteImportSource, type SiteImportView,
 } from "./import-backend-steps.js";
+import type { AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 export type { SiteImportSource, SiteImportView } from "./import-backend-steps.js";
 export interface SiteImportBackend {

@@ -4,8 +4,9 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { SurfaceEmission } from '@jini-ai/core';
-import { SURFACE_QUESTION_META_KEY, projectAcceptedInputEvents, acceptedInputEvent, isAwaitingAnswer, type AgentEvent } from '@jini-ai/chat/core';
+import { SURFACE_QUESTION_META_KEY, projectAcceptedInputEvents, acceptedInputEvent, isAwaitingAnswer } from '@jini-ai/chat/core';
 import { translateRunAgentPayload, runEventsForSave } from '@jini-ai/chat/core/run-events';
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 it.each(['use', 'auto', 'skip'] as const)('journals the validated %s answer against the exact displayed card', async action => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),

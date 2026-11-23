@@ -1,6 +1,6 @@
 import { TOOL_GAP_AUDIT_ID, decodeToolGapEntry } from '@jini-ai/daemon/tool-audit';
 import type { ContentKernel } from '../../platform/db/content-kernel.js';
-import type { ToolGapReadPort } from './tool-gaps.js';
+import type { ToolGapReadPort } from '@jini-ai/core/contracts/site/assistant-host-ports';
 
 /** Read the existing bounded audit table, keeping the newest explanation revision per fallback.
  * One query, scoped to this workspace and principal before grouping; no new table/migration.

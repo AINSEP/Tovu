@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
-import { attachServerLogFile, type ServerLogEntry } from "#src/platform/server-logs/index";
+import { attachServerLogFile } from "#src/platform/server-logs/index";
+import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { serverLogsAgentToolCatalog } from "../../agent-tools.js";
 import { buildServerLogsRegistrations, serverLogsDerivedRisk } from "../../tool-registrations.js";
 import type { ServerLogSourcePort } from "../../read-server-logs.js";

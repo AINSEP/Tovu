@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AGENT_FAILURE_EVENT, extractAgentFailure, GENERIC_AGENT_FAILURE, matchAgentFailureHint,
   projectAgentFailureMessage, redactAgentFailure, suggestedFailureAgent } from "../agent-failure";
 import { GEMINI_INELIGIBLE_HINT, localFailureHints } from "../agent-failure-hints";
+import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 export const GEMINI_REASON = "IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google";
 const events = fixture as AgentEvent[];

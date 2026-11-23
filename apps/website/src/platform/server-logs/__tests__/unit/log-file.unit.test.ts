@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { attachServerLogFile, getServerLogBuffer, installServerLogCapture, readProcessServerLogs, serverLogFilePaths, setServerLogTraceReader } from "../../index.js";
-import type { ServerLogEntry } from "../../log-buffer.js";
+import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { createLogBuffer } from '../../log-buffer.js';
 import { createRotatingLogFileSink, nodeLogFileFs, readLogFileTail, type LogFileFsPort } from "../../log-file.js";
 

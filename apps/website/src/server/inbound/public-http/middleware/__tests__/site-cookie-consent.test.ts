@@ -15,7 +15,8 @@ import { renderSiteConsentPreview, type SiteConsentSource } from '#src/features/
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';
-import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, type ConsentPluginHttp } from '../site-cookie-consent.js';
+import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent } from '../site-cookie-consent.js';
+import type { ConsentPluginHttp } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE } from '../site-consent.js';
 
 const CLIENT = { src: '/_consent/client-0123456789ab.min.js', body: Buffer.from('/* injected consent client */') };

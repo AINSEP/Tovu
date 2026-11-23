@@ -1,4 +1,4 @@
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
 /** Fixed size labels for the CMS upload event; never filenames, hashes or byte contents.
  * @complexity O(1). */

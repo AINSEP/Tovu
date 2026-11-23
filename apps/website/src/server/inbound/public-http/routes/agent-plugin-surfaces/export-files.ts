@@ -4,7 +4,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { ADMIN_SURFACE_FILES_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { createPluginExportSource, PLUGIN_EXPORT_FILES_PREFIX, type PluginExportSource } from "#src/features/agent-plugins/exports/source";
-import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
+import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
 interface ExportFilesDeps {
   readonly workspaceId: string;

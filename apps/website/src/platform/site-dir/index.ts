@@ -62,17 +62,14 @@ export {
   switcherBaseForBinding,
   siteCreationBaseForBinding,
   SITE_NAME_PATTERN,
-  type SiteBinding,
   type SiteListEntry,
   type ServingSiteListEntry,
   type SiteRegistration,
-  type SiteCreationAllocation,
   type IncludeServingSiteRequired,
   type ListSitesForBindingRequired,
   type ListSitesForBindingOptional,
   type ListSitesOptional,
   type CreateSiteRequired,
-  type CreateSiteResult,
   type CreateSitePort,
 } from "./site-registry.js";
 export {

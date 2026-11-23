@@ -8,12 +8,13 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {
-  includeServingSite, listSitesForBinding, readPersistedActiveSite, isSiteSwitcherEnabled, switcherBaseForBinding, type ListSitesOptional, type SiteBinding, type SiteListEntry,
+  includeServingSite, listSitesForBinding, readPersistedActiveSite, isSiteSwitcherEnabled, switcherBaseForBinding, type ListSitesOptional, type SiteListEntry,
   InitDirNotEmptyError,
   SiteDirInvalidError,
   ValidationError,
   SITE_NAME_PATTERN,
 } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 
 import { SITES_WRITE_PERMISSION, sitesAgentToolCatalog, sitesReadAgentToolCatalog } from "./agent-tools.js";
 import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";

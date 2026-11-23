@@ -1,4 +1,5 @@
 import type { InitSiteDeps } from "./ports.js";
+import type { InitSiteResult } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { randomUUID } from "node:crypto";
@@ -79,11 +80,6 @@ export interface InitSiteRequired {
   storage?: SiteStorage;
   /** A `postgres` site with `secretRef: "site"`: the connection string init seals into the site folder. */
   connectionString?: string;
-}
-
-export interface InitSiteResult {
-  siteId: string;
-  dir: string;
 }
 
 /** Site creation after the embedding host has bound its operations. */

@@ -9,7 +9,7 @@ import { createMailCaptureRepo } from "../capture.repo.js";
 import { createMailSendLedgerRepo } from "../ledger.repo.js";
 import { createMailSuppressionRepo } from "../suppression.repo.js";
 import { purgeExpiredMail, MAIL_ACTIVITY_RETENTION_MS, MAIL_CAPTURE_RETENTION_MS } from "../retention.js";
-import type { MailTestModeSetting } from "#src/contracts/core/settings-vocabulary";
+import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
 const NOW = Date.parse("2026-10-22T12:00:00Z");
 const iso = (n: number) => new Date(n).toISOString();
 const message = { workspaceId: "w", to: { email: "real@example.com" }, from: { email: "sender@example.com" }, subject: "Private auth link", text: "https://site.test/sign-in?token=private" };

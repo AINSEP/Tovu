@@ -3,9 +3,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { bufferArchiveMedia } from "../../archive-media.js";
 import { scanArchiveMetadata } from "../../import-verifier-inventory.js";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";
 
 const json = Buffer.from('{"name":"price list"}');
 const file = (entryPath: string, bytes: Buffer): AgentPluginArchiveEntry => ({ kind: "file", entryPath, declaredSize: bytes.length, async *openReadStream() { yield bytes; } });

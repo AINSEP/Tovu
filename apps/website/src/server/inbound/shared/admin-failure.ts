@@ -9,7 +9,7 @@ import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { randomBytes } from "node:crypto";
 import { mintToolErrorId } from "@jini-ai/core/errors/error-id";
 import type { Response } from "express";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { describeRequestFailure, formatErrorForLog, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 

@@ -28,7 +28,7 @@ import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
-import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "../../features/forms/delivery-status.js";
+import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import type { FormSubmissionsPullPort, FormSubmissionsPullResult } from "../../features/forms/import-remote-submissions.js";
 
 const contributions = {

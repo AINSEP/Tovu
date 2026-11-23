@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Serving-host ownership: one supervisor per binding, not one per HTTP request or route import. */
 import { createLocalSiteIntentStore, createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
-import { switcherBaseForBinding, type SiteBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import { switcherBaseForBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { createLocalSiteProcessPort } from "./local-site-process.js";

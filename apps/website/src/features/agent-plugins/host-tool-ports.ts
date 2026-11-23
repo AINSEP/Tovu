@@ -9,7 +9,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/agent-plugins.j
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 import { agentPluginActivations } from "./activation-effects.js";
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
-import type { AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import {
   containAgentPluginStatePath, isInstalledDigestPresent, listInstalledPlugins, normalizePackageEntryPath, preferBundledAgentPluginDigests,
   rankInstalledAgentPlugins, readBundledAgentPluginDigests, readInstalledSkillFile,

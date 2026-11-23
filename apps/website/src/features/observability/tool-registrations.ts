@@ -4,7 +4,7 @@ import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing
 import type { TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
-import { toolMetadata } from "../../contracts/core/tool-metadata/observability.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/site/observability";
 
 export interface ObservabilityToolDeps {
   workspaceId: string;

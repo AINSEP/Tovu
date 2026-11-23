@@ -14,7 +14,7 @@
  */
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 
-import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
+import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { resolveAgentPluginRefs } from "../../../features/agent-plugins/lifecycle.js";
 import { translateRetiredPluginRefs } from "../../../features/agent-plugins/bundled-catalog.js";
 

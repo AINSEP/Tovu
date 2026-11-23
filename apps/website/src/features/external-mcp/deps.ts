@@ -1,4 +1,4 @@
-import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
