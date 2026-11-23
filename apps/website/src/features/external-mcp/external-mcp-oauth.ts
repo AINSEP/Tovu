@@ -76,7 +76,9 @@ export function createExternalMcpReauthRequiredError(input: { serverId: string; 
  * @complexity O(1).
  */
 export function externalMcpSettingsDeepLink({ serverId }: { serverId: string }, _options = {}): string {
-  return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
+  // The External MCP screen lives under Add-ons > Integrations; the old /settings/external-mcp
+  // route no longer exists in the admin, so a reauth card pointing there was a dead link (B201).
+  return `/addons/integrations?tab=external-mcp&server=${encodeURIComponent(serverId)}`;
 }
 
 /** Tovu's bindings for {@link createHostedMcpConnectionGate}: its reauth factory, revocation error, recovery copy and operator log. */

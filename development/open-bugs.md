@@ -334,3 +334,4 @@ Full table: `cloud-results/bugs-medium.md`.
   (changing that touches every subscribe path and their tests; left for a design call).
 - `B177` — FIXED-ON-BRANCH: campaign saves/schedules and single/bulk subscriptions refuse an archived
   list ("This list is archived.", `NewsletterValidationError` reason `archived`).
+- `B201` — FIXED-ON-BRANCH: the External MCP reauth deep link points at `/addons/integrations?tab=external-mcp&server=<id>`.
