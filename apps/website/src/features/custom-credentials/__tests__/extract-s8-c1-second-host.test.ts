@@ -3,16 +3,14 @@ import test from "node:test";
 import { buildVaultAad, createVaultMetaParsers, InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { CredentialSetProjectScope } from "@jini-ai/core/contracts/credentials";
+import {
+  createCredentialSet, deleteCredentialSet, describeCredentialSet, describeCredentialSetByLabel, listCredentialSets,
+  resolveCredentialSetByLabel, updateCredentialSet, CredentialSetVaultRepo, CustomCredentialDuplicateLabelError, CustomCredentialValidationError,
+  type CredentialSetStoreHost, type CredentialSetVaultPolicy, type CredentialSetWriteDeps,
+} from "@jini-ai/integrations/credentialed-http/sets";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { CredentialSetStoreHost, CredentialSetVaultPolicy } from "../sets/host.js";
-import { CredentialSetVaultRepo } from "../sets/vault-repo.js";
-import {
-  createCredentialSet, deleteCredentialSet, describeCredentialSet, describeCredentialSetByLabel, listCredentialSets,
-  resolveCredentialSetByLabel, updateCredentialSet, CustomCredentialDuplicateLabelError, CustomCredentialValidationError,
-  type CredentialSetWriteDeps,
-} from "../sets/store.js";
 
 /**
  * @file EXTRACT-S8 C1 seam: a SECOND host (owner `acme-host`, its own categories, messages, token

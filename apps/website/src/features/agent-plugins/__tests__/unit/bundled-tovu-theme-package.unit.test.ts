@@ -336,19 +336,23 @@ test("W8 packaged guide and host overlays advertise the shared plugin loader", a
   assert.match(guide, /Call `site_guide` directly if exposed, otherwise use the delegated executor in your tool list/, "the guide follows the available executor");
   assert.doesNotMatch(guide, /execute_readonly_delegated_tool/, "the guide never assumes a fixed proxy");
   for (const text of [guide, await importGuidance(), await importHostMapping(), await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/GUIDANCE.md"), "utf8")]) {
-    assert.match(text, /`load_agent_plugin`/, "each Tovu guidance surface names the shared loader");
+    // The owner-approved ui-ux-design chat rules name the loader only in its call form, `load_agent_plugin({ … })`.
+    assert.match(text, /`load_agent_plugin[`(]/, "each Tovu guidance surface names the shared loader");
     assert.doesNotMatch(text, /agent_plugin_(?:site_import|tovu_theme|how_tovu_works)/, "host guidance uses the shared loader for named plugins");
   }
 });
 
-test("W10–12 host design guidance reports available widths and saves requested site work", async () => {
+// Owner decision (combine-12 decision 2, 2026-11-22): the ui-ux-design chat rules keep the w1
+// owner-approved wording (pinned exactly by the overlay's own test) and theme QA keeps the 6-width
+// release gate. howto2's W11/W12 facts stay in the QA file.
+test("W11–12 host design QA keeps the 6-width release gate and howto2's preview and route facts", async () => {
   const guidance = await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/GUIDANCE.md"), "utf8");
-  const qa = await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/host/theme-screenshot-qa.md"), "utf8");
-  for (const text of [guidance, qa]) {
-    for (const rule of ["Save requested site work using the site’s tools.", "Preview a draft by entry ID.", "Use available browser widths for actual visual checks and report those widths.", "A public-route screenshot checks only the page served at that address."]) {
-      assert.ok(text.includes(rule), `design checks must state: ${rule}`);
-    }
-    assert.doesNotMatch(text, /360, 390, 768, 1024, 1280 and 1440|Return the design in chat unless/, "coverage and saving follow the actual host and request");
+  const qa = (await readFile(path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/ui-ux-design/host/theme-screenshot-qa.md"), "utf8")).replace(/\s+/g, " ");
+  for (const rule of ["Save requested site work using the site’s tools.", "Preview a draft by entry ID.", "A public-route screenshot checks only the page served at that address."]) {
+    assert.ok(qa.includes(rule), `theme QA must state: ${rule}`);
   }
+  assert.match(qa, /the screenshot loop is a release gate\. Capture the actual authored theme at 360, 390, 768, 1024, 1280 and 1440px viewport widths/);
   assert.match(qa, /desktop 1280px, tablet 768px and mobile 375px/, "screenshot preset coverage is stated accurately");
+  assert.doesNotMatch(qa, /Report only the widths actually checked|report those widths/, "the release gate is not reduced to the widths that happened to be checked");
+  assert.match(guidance.replace(/\s+/g, " "), /Return the design in chat unless the user asks to save it through an available tool\./);
 });
