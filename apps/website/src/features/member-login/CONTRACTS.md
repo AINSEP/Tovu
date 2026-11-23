@@ -47,6 +47,7 @@ The OIDC protocol facade (`beginOidcLogin`, `completeOidcLogin`, `memberLoginCal
 
 - **Host injects into `OidcLoginDeps`:** `beginAuthorizationCode`, `completeAuthorizationCode`, `createSealedAuthorizationState`, `createSealerStateCodec`, `validateOidcIdToken` (from `@jini-ai/oauth`), `formatAad` (from `@jini-ai/platform/secrets`) and `appIdentity` (the product's OAuth client display name and software id), beside the existing ports.
 - **Composition:** `server/runtime/composition/modules/members.ts` `createMemberOidcRouteDeps`; tests reuse `__tests__/fixtures.ts` `oidcOperationsFixture`.
+- **Link deps mail transport:** `requestLoginEmailProof` calls Jini's `@jini-ai/user-management/members/member-challenge-request`, so `MemberLoginLinkDeps` must carry `mailTransport` (`features/members/mail-transport.ts` `membersMailTransport`); the composition gets it through `toPublicMembersWriteServiceDeps`.
 - **Never:** the Jini facade imports no host code and no `@jini-ai/oauth`/`platform`; this folder must not re-export it (routes import the Jini subpath directly). `MEMBER_OIDC_PATH` comes from `contracts/headless`.
 
 ```ts

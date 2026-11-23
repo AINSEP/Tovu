@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import express from "express";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
@@ -184,6 +185,7 @@ test("gapb member: sign-in request for a trashed email returns an unstored handl
     // The sender and site origin are resolved before the member lookup, for every address alike.
     senderIdentity: { resolve: async ({ fallback }: { fallback: unknown }) => fallback },
     origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000 }) },
+    mailTransport: membersMailTransport,
   } as unknown as MembersWriteServiceDeps;
   // Public HTTP returns the same accepted response and handle shape for every address.
   assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }),

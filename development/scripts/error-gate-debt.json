@@ -725,11 +725,6 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/members/member-challenge-request.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/members/member-sign-in.ts",
     "rule": "catch-reads-error",
     "value": 1

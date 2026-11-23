@@ -22,6 +22,12 @@ import { type Translate } from '@jini-ai/core/text';
  * The editor-only rules (save plan, autosave draft, picker sentinel, save/conflict messages, preview
  * sandbox, dirty-guard baseline) moved to `@jini-ai/admin/pages/page-editor-rules`; what stays here is
  * the link rules, the theme-backed rules and the version-conflict aliases over `lib/version-conflict`.
+ * The moved rules name the host's files neutrally there; in this app those are: an empty
+ * `DEFAULT_BODY_JSON` row is born in `createPost` (`apps/website/src/features/post/post.ts`), and
+ * `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`) — the same route that
+ * reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
+ * which is why `buildPageSavePlan`'s version guard rides on `updatePost`.
  * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
  * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
  * popover, which is how its `page.status` conditional ended up permanently untested.

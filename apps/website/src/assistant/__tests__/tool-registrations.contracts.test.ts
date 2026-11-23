@@ -483,6 +483,7 @@ test("observability_send_test_error publishes the host's own test-error message,
   // The wired descriptor appends the shared batch guidance; the catalog-owned prefix is what is pinned.
   const expected = "Send the fixed diagnostic 'Tovu test error — safe to ignore', one test span and one telemetry_test analytics event through this site's tracker. Requires admin system.write. No confirmation needed. Returns provider ids and signals accepted locally; this is not proof of remote delivery. Analytics still requires telemetry consent. Takes no arguments.";
   const published = wiredRegistration("observability_send_test_error").descriptor.description;
+  assert.ok(published, "observability_send_test_error must publish a description");
   assert.equal(published.slice(0, expected.length + 1), `${expected} `);
 });
 
