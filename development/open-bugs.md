@@ -318,3 +318,16 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## bugs-high (Tovu `codex/bugs-high-tovu`, 2026-11-23)
+
+HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`), on base
+`integ/merge-13-2026-11-22`. Each fix has a failing test first and a named mutation. Commits are listed in
+`cloud-results/bugs-high.md`.
+
+### `B151-enable-owner-disabled-admin` — FIXED on `codex/bugs-high-tovu`
+- `POST users/:id/enable` (and the assistant's `identity_user_enable`) only checked `user.manage`, so an admin
+  could turn back on an admin the owner had disabled. Both now run `assertUserAccountAction(action: "enable")`
+  in the write's transaction: only an owner may re-enable an admin or owner account.
+- Test: `account-protections.test.ts` "HTTP enable: a non-owner admin cannot re-enable an owner-disabled admin".
+  Mutation: guard action `enable` → `reset-password` (no owner rule) — red.

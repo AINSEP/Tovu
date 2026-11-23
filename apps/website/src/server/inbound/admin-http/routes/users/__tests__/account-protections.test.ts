@@ -200,3 +200,32 @@ test("assistant status/profile schemas cannot disable through enable/update; no 
   }
   assert.equal(tools.some(r => /unassign|reset.*password|password.*reset|remove.*permission/.test(r.descriptor.id)), false);
 });
+
+// B151 (owner rule 2026-11-20): only the owner may re-enable an owner-disabled admin.
+test("HTTP enable: a non-owner admin cannot re-enable an owner-disabled admin", async () => {
+  const f = await setup();
+  const caller = await f.make("manager", "admin");
+  await f.grantManage(caller);
+  const target = await f.make("protected", "admin");
+  assert.equal((await f.invoke("post", "/:principalId/disable", f.ownerId, target)).statusCode, 200);
+  assert.deepEqual(await f.invoke("post", "/:principalId/enable", caller, target), {
+    statusCode: 409, jsonBody: { code: "OWNER_REQUIRED", error: "only an owner can turn an admin account back on" },
+  });
+  assert.equal((await f.deps.principalRepo.findById({ workspaceId, id: target }))?.status, "disabled");
+  await assert.rejects(f.tool("identity_user_enable", caller, target), {
+    message: "identity_user_enable: OWNER_REQUIRED: only an owner can turn an admin account back on. Nothing was changed.",
+  });
+  assert.equal((await f.deps.principalRepo.findById({ workspaceId, id: target }))?.status, "disabled");
+  assert.equal((await f.invoke("post", "/:principalId/enable", f.ownerId, target)).statusCode, 200);
+  assert.equal((await f.deps.principalRepo.findById({ workspaceId, id: target }))?.status, "active");
+});
+
+test("HTTP enable: an admin may still re-enable an ordinary user", async () => {
+  const f = await setup();
+  const caller = await f.make("manager", "admin");
+  await f.grantManage(caller);
+  const ordinary = await f.make("ordinary");
+  assert.equal((await f.invoke("post", "/:principalId/disable", caller, ordinary)).statusCode, 200);
+  assert.equal((await f.invoke("post", "/:principalId/enable", caller, ordinary)).statusCode, 200);
+  assert.equal((await f.deps.principalRepo.findById({ workspaceId, id: ordinary }))?.status, "active");
+});
