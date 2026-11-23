@@ -20,10 +20,10 @@ import { rejectOversizedJsonBody as rejectHttpOversizedJsonBody } from "@jini-ai
  * in front of a handler would never actually enforce anything on this app's routes. This
  * middleware instead re-measures `req.body`'s serialized byte length itself, after Express's own
  * (looser, whole-app) 15 MiB ceiling has already bounded how large that body could possibly be.
+ *
+ * The 1 MiB content-entry cap itself is `CONTENT_ENTRY_MAX_BODY_BYTES` in `@jini-ai/cms/admin-http/limits`;
+ * this file keeps only the Express enforcement and this host's 413 envelope.
  */
-
-/** 1 MiB — api.spec.md §4 / behavior.spec.md §4 documented cap for the content-entry create and update endpoints (`POST_CREATE`, `PAGE_CREATE`, `POST_UPDATE`, `PAGE_UPDATE`). */
-export const CONTENT_ENTRY_MAX_BODY_BYTES = 1024 * 1024;
 
 export interface BodySizeLimitRequired {
   /** Maximum allowed serialized body size, in bytes. */

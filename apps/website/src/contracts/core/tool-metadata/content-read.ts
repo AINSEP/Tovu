@@ -1,5 +1,5 @@
 import type { HostReadVocabulary, ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from './approval-policy.js';
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** content-read registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {

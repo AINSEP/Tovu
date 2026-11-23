@@ -1,5 +1,4 @@
-import { nativeToolMetadata } from '../core/tool-metadata/index.js';
-import type { ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';
+import { nativeToolMetadata, type HostToolApprovalPolicy as ToolApprovalPolicy } from '../core/tool-metadata/index.js';
 import type { ToolRegistration } from '@jini-ai/core';
 
 /** The assistant owns classification; composition supplies it to feature registration builders. */
@@ -9,7 +8,6 @@ export type ApplyExtensionApprovalPolicy = (
 ) => ToolRegistration;
 
 const EXECUTION_NAMESPACE = "core.execution";
-export type { ToolApprovalClass, ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';
 /** Owner-approved escalation settings; ordinary preferences and instructions run directly. */
 export const ASSISTANT_EXECUTION_APPROVAL_SETTINGS = [
   { namespace: EXECUTION_NAMESPACE, key: "localCli.permissionLevel", reason: "Changes the assistant's permission level" },
