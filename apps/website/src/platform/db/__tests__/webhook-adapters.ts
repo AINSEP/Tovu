@@ -1,4 +1,5 @@
 import { SqlWebhookDeliveryRepo, SqlWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/sql";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 import { schemaErasedKernel, type ContentKernel } from "../content-kernel.js";
 import { WEBHOOK_TABLES } from "../sqlite/webhook-repo.sqlite.js";
@@ -11,7 +12,7 @@ import { WEBHOOK_TABLES } from "../sqlite/webhook-repo.sqlite.js";
 
 /** The subscription repo over `kernel`, with this site's table names. */
 export function webhookSubscriptionsOn({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): SqlWebhookSubscriptionRepo {
-  return new SqlWebhookSubscriptionRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: WEBHOOK_TABLES }, {});
+  return new SqlWebhookSubscriptionRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: WEBHOOK_TABLES, assertVersionedWrite }, {});
 }
 
 /** The delivery repo (and envelope store) over `kernel`, with this site's table names. */
