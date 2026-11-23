@@ -335,3 +335,4 @@ Full table: `cloud-results/bugs-medium.md`.
 - `B177` — FIXED-ON-BRANCH: campaign saves/schedules and single/bulk subscriptions refuse an archived
   list ("This list is archived.", `NewsletterValidationError` reason `archived`).
 - `B201` — FIXED-ON-BRANCH: the External MCP reauth deep link points at `/addons/integrations?tab=external-mcp&server=<id>`.
+- `B237` — FIXED-ON-BRANCH: WebMCP script injection finds `</body>` case-insensitively on the original HTML.
