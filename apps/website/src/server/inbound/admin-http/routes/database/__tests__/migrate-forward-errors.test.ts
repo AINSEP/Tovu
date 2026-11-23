@@ -4,7 +4,7 @@ import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminDatabaseMigrateForwardRoutes } from "../migrate-forward.js";
+import { registerAdminDatabaseMigrateForwardRoutes } from "#src/server/runtime/composition/modules/database-migrate-forward";
 import { TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 
 for (const typed of [false, true]) test(`migration failure retains ${typed ? "typed refusal" : "one private incident"}`, async t => {
