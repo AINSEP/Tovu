@@ -28,3 +28,12 @@ still precedes the missing-session 500, as in the hand-written routes; `authoriz
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/admin-http/routes/system/mail-*`
+(all `"direct"`); the live mailer, status source and platform operations are read per request because boot
+swaps them in after mount. `routes/system/mail-providers.ts` stays hand-written: its credential PUT reads
+`res.locals.authCredentialKind`, which the admin ports do not carry.
+Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
+`registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
+`createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
+hand-written: `PUT …/sites/config` (two failure copies by phase), the socket-reading list and the
+header-gated `/internal/dev-warm-site` (`routes/system/sites.ts`), card previews (binary) and the warm relay.
