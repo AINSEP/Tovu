@@ -7,7 +7,7 @@ import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
-import { SKILL_INSTALL_CONFIRMATION_HOST } from "./skill-install-confirmation-host";
+import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "./skill-install-confirmation-host";
 import { SKILL_FAILURE_HOST } from "./skill-failure-host";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
 import { useSkills } from "./use-skills.hooks";
@@ -26,5 +26,5 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
     useSkills: useSkillsHook, useLocale: useLocaleHook, useAdminThemeBoundary: useAdminThemeBoundaryHook,
     useSkillsTranslator: useSkillsTranslatorHook, useSkillFilesModal: useSkillFilesModalHook,
   };
-  return <SkillsScreen hooks={hooks} components={SKILLS_COMPONENTS} failureHost={SKILL_FAILURE_HOST} />;
+  return <SkillsScreen hooks={hooks} components={SKILLS_COMPONENTS} failureHost={SKILL_FAILURE_HOST} classNames={SKILLS_HOST_CLASSNAMES} />;
 }

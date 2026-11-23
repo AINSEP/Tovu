@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SkillRow } from "@jini-ai/admin/screens/skills/SkillRow";
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
-import { SKILL_INSTALL_CONFIRMATION_HOST } from "../skill-install-confirmation-host";
+import { SKILL_INSTALL_CONFIRMATION_HOST, SKILLS_HOST_CLASSNAMES } from "../skill-install-confirmation-host";
 import { SkillRemoveConfirmDialog } from "@jini-ai/admin/screens/skills/SkillRemoveConfirmDialog";
 import type { SkillsController } from "../use-skills.hooks";
 import type { SkillRowView } from "@jini-ai/admin/screens/skills/skills-screen.types";
@@ -37,7 +37,7 @@ function rowView(overrides: Partial<SkillRowView> = {}): SkillRowView {
 describe("SkillRow", () => {
   it("labels an uploaded, enabled skill and routes each control to its own action", () => {
     const row = rowView();
-    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} classNames={SKILLS_HOST_CLASSNAMES} /></ul>);
     const item = screen.getByRole("listitem", { name: "notes" });
     expect(item).toHaveAttribute("data-enabled", "true");
     expect(within(item).getByText("Uploaded")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("SkillRow", () => {
       expanded: true,
       skill: { toolId: "skill_notes", name: "notes", description: "Keeps notes.\n\nAlso tidies them.", enabled: true, source: "uploaded" },
     });
-    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} classNames={SKILLS_HOST_CLASSNAMES} /></ul>);
     const detail = document.getElementById("skill-notes-detail") as HTMLElement;
     expect([...detail.querySelectorAll(".agent-plugin-detail-description p")].map((p) => p.textContent)).toEqual([
       "Keeps notes.",
@@ -75,7 +75,7 @@ describe("SkillRow", () => {
       skill: { toolId: "skill_x", name: "x", description: "d", enabled: false, source: { githubUrl: "https://github.com/acme/x", commit: "abcdef0123" } },
       sourceUrl: "https://github.com/acme/x", shortCommit: "abcdef0", busy: true, expanded: true,
     });
-    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} /></ul>);
+    render(<ul><SkillRow row={row} PlainTextBlocks={PlainTextBlocks} classNames={SKILLS_HOST_CLASSNAMES} /></ul>);
     const item = screen.getByRole("listitem", { name: "x" });
     expect(within(item).getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/acme/x");
     expect(within(item).getByText("abcdef0").tagName).toBe("CODE");
@@ -173,7 +173,7 @@ function controller(overrides: Partial<SkillsController> = {}): SkillsController
 describe("SkillRemoveConfirmDialog", () => {
   it("names the skill and routes confirm and cancel", () => {
     const remove = controller();
-    render(<SkillRemoveConfirmDialog controller={remove} />);
+    render(<SkillRemoveConfirmDialog controller={remove} classNames={SKILLS_HOST_CLASSNAMES} />);
     const dialog = screen.getByRole("dialog", { name: "Remove skill" });
     expect(within(dialog).getByRole("heading")).toHaveTextContent("Remove notes?");
     expect(within(dialog).queryByRole("alert")).toBeNull();
@@ -184,7 +184,7 @@ describe("SkillRemoveConfirmDialog", () => {
   });
 
   it("shows the removal error and disables both actions while busy", () => {
-    render(<SkillRemoveConfirmDialog controller={controller({ busy: true, error: "Could not change skills." })} />);
+    render(<SkillRemoveConfirmDialog controller={controller({ busy: true, error: "Could not change skills." })} classNames={SKILLS_HOST_CLASSNAMES} />);
     const dialog = screen.getByRole("dialog", { name: "Remove skill" });
     expect(dialog).toHaveAttribute("aria-busy", "true");
     expect(within(dialog).getByRole("alert")).toHaveTextContent("Could not change skills.");

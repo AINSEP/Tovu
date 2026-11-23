@@ -17,6 +17,10 @@ rows and dialogs, copy, the row chevron, the upload encoder and the failure form
   `PlainTextBlocks`, `PackageFilesModal` (`features/plugins`), `InstallTabCard`/`InstallTabOption`/
   `InstallTabFieldRow`; `failureHost` = `SKILL_FAILURE_HOST`. Each hook stays overridable through the
   same `use*Hook` props as before, so tests drive the page through this binding.
+- `skill-install-confirmation-host.ts` binds `SKILLS_HOST_CLASSNAMES` once: this app's design-system
+  classes (`page`, `settings-ui-section`, `card`, `notice`, `btn-*`, `settings-dialog*`, `editor-actions`,
+  `agent-plugin-*`, ...) for `@jini-ai/admin`'s required `classNames` prop. `SkillsPage.tsx` passes it to
+  `Skills`; `SKILL_INSTALL_CONFIRMATION_HOST` carries it, so the chat dock's spread binds it too.
 - `skill-install-confirmation-host.ts` — `SKILL_INSTALL_CONFIRMATION_HOST` (`hooks` + `failureHost`) for
   every `SkillInstallConfirmation` (Skills page, `AssistantDock/DockChatPane.tsx`); importing it loads
   `skills.css`.
