@@ -103,7 +103,7 @@
  * either (that remains a separate, unbuilt piece).
  */
 
-import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract.js";
@@ -354,9 +354,108 @@ export interface NormalizeBuildOutputResult {
   readonly discardedFiles: readonly string[];
 }
 
+/** The `node:fs` calls {@link normalizeBuildOutputDirectory} makes — a port so a test can fail one mid-run
+ * and prove the rollback; production uses the real `node:fs` functions. */
+export interface NormalizerFileSystem {
+  readonly readdirSync: (path: string) => string[];
+  readonly lstatSync: (path: string) => { isDirectory(): boolean };
+  readonly readFileSync: (path: string, encoding: "utf8") => string;
+  readonly writeFileSync: (path: string, data: string, encoding: "utf8") => void;
+  readonly renameSync: (from: string, to: string) => void;
+  readonly unlinkSync: (path: string) => void;
+  readonly mkdirSync: (path: string, options: { recursive: true }) => string | undefined;
+  readonly rmdirSync: (path: string) => void;
+}
+
+const NODE_FILE_SYSTEM: NormalizerFileSystem = {
+  readdirSync, lstatSync, readFileSync, writeFileSync, renameSync, unlinkSync, mkdirSync, rmdirSync,
+};
+
+/** One applied disk change's inverse, run newest-first when a later step fails. */
+type UndoStep = () => void;
+
+/** Everything {@link normalizeBuildOutputDirectory} will write, computed before the first disk change so a
+ * precondition throw ({@link planAssetRelocation}, {@link rewriteBundlerHtml}) leaves the folder untouched. */
+interface NormalizationPlan {
+  readonly plan: AssetRelocationPlan;
+  readonly discarded: readonly { name: string; original: string }[];
+  readonly css: ReadonlyMap<string, { original: string; rewritten: string }>;
+  readonly pages: readonly { name: string; original: string; rewritten: string }[];
+}
+
+function prepareNormalization(
+  required: { outputDir: string; pageFileNames: readonly string[]; primaryStylesheetFile: string; fileSystem: NormalizerFileSystem },
+  _optional = {}
+): NormalizationPlan {
+  const { outputDir, pageFileNames, primaryStylesheetFile, fileSystem } = required;
+  const read = (name: string): string => fileSystem.readFileSync(join(outputDir, name), "utf8");
+  const allFileNames = fileSystem.readdirSync(outputDir).filter((name) => !fileSystem.lstatSync(join(outputDir, name)).isDirectory());
+  const plan = planAssetRelocation({ fileNames: allFileNames.filter((name) => !DISCARDED_FRAMEWORK_ARTIFACTS.has(name)) });
+  const css = new Map(plan.relocations.filter(({ from }) => from.endsWith(".css")).map(({ from }) => {
+    const original = read(from);
+    return [from, { original, rewritten: rewriteCssRelativeUrls({ cssContent: original }) }] as const;
+  }));
+  const pages = pageFileNames.map((name) => {
+    const original = read(name);
+    return { name, original, rewritten: rewriteBundlerHtml({ html: original, plan, primaryStylesheetFile }) };
+  });
+  const discarded = allFileNames.filter((name) => DISCARDED_FRAMEWORK_ARTIFACTS.has(name)).map((name) => ({ name, original: read(name) }));
+  return { plan, discarded, css, pages };
+}
+
+/** Applies a prepared normalization, pushing each change's inverse onto `undo` the moment it can be needed
+ * (a write's inverse BEFORE the write, since a failed write may already have truncated the file). Discards
+ * run last so a failure earlier never costs a file this run would only have deleted on success. */
+function applyNormalization(
+  required: { outputDir: string; prepared: NormalizationPlan; fileSystem: NormalizerFileSystem; undo: UndoStep[] },
+  _optional = {}
+): void {
+  const { outputDir, prepared, fileSystem: fsPort, undo } = required;
+  for (const relocation of prepared.plan.relocations) {
+    const source = join(outputDir, relocation.from);
+    const destination = join(outputDir, relocation.to);
+    // `mkdirSync` returns the first folder it created, or undefined if it already existed — only a folder
+    // this run created is removed on rollback, never one the owner already had.
+    const createdDir = fsPort.mkdirSync(dirname(destination), { recursive: true });
+    if (createdDir !== undefined) undo.push(() => fsPort.rmdirSync(createdDir));
+    fsPort.renameSync(source, destination);
+    undo.push(() => fsPort.renameSync(destination, source));
+    const css = prepared.css.get(relocation.from);
+    if (css) {
+      undo.push(() => fsPort.writeFileSync(destination, css.original, "utf8"));
+      fsPort.writeFileSync(destination, css.rewritten, "utf8");
+    }
+  }
+  for (const page of prepared.pages) {
+    const pagePath = join(outputDir, page.name);
+    undo.push(() => fsPort.writeFileSync(pagePath, page.original, "utf8"));
+    fsPort.writeFileSync(pagePath, page.rewritten, "utf8");
+  }
+  for (const file of prepared.discarded) {
+    const filePath = join(outputDir, file.name);
+    fsPort.unlinkSync(filePath);
+    undo.push(() => fsPort.writeFileSync(filePath, file.original, "utf8"));
+  }
+}
+
+/** Runs every undo step newest-first; a step that itself fails does not stop the rest. */
+function rollBack({ undo, cause }: { undo: readonly UndoStep[]; cause: unknown }, _optional = {}): never {
+  const failures = [...undo].reverse().filter((step) => {
+    try { step(); return false; } catch { return true; }
+  });
+  if (failures.length === 0) throw cause;
+  throw new Error(
+    `Theme build normalization failed and ${failures.length} change(s) could not be undone, so the build output ` +
+      "folder may be half-converted. Rebuild the theme to get a clean output folder.",
+    { cause }
+  );
+}
+
 /**
- * The thin filesystem-effectful wrapper around this module's pure planning/rewriting functions: deletes
- * {@link DISCARDED_FRAMEWORK_ARTIFACTS}, reads `outputDir`'s remaining flat top-level listing, decides the
+ * The thin filesystem-effectful wrapper around this module's pure planning/rewriting functions. It first
+ * computes every new file content in memory (so a precondition throw changes nothing on disk), then
+ * applies the changes with an undo journal (so an I/O failure part-way is rolled back), deleting
+ * {@link DISCARDED_FRAMEWORK_ARTIFACTS} last. In order it reads `outputDir`'s remaining flat top-level listing, decides the
  * relocation plan ({@link planAssetRelocation}, pure), physically moves each relocated file (rewriting a
  * moved CSS file's own `url(...)` references via {@link rewriteCssRelativeUrls} immediately after it
  * lands at its new location), then rewrites every named page file's HTML in place on disk
@@ -377,42 +476,28 @@ export interface NormalizeBuildOutputResult {
  * @param required.pageFileNames - Which top-level `.html` files in `outputDir` are pages to rewrite (an
  * Angular SPA build emits exactly one, `index.html`; a prerendered multi-route build emits one per route).
  * @param required.primaryStylesheetFile - Passed through to {@link rewriteBundlerHtml} for every page.
- * @throws Whatever {@link planAssetRelocation} or {@link rewriteBundlerHtml} throw — a precondition
- * violation must stop the normalization, not leave the output directory partially rewritten and silently
- * declared done.
+ * @param _optional.fileSystem - The disk port; defaults to real `node:fs`.
+ * @throws Whatever {@link planAssetRelocation} or {@link rewriteBundlerHtml} throw (before any disk change),
+ * or the I/O error that stopped the run after every applied change was undone (newest-first); if an undo
+ * step itself fails, a plain-words error naming the half-converted folder, with the original as `cause`.
+ * A precondition violation or I/O failure must stop the normalization, not leave the output directory
+ * partially rewritten and silently declared done.
  * @complexity O(f + p·n + c·m) — f = top-level file count (one `readdirSync` + one move per relocated
  * file), p = page count, n = average page HTML length, c = relocated CSS file count, m = average CSS
  * file length (one `rewriteCssRelativeUrls` pass per relocated CSS file).
  */
 export function normalizeBuildOutputDirectory(
   required: { outputDir: string; pageFileNames: readonly string[]; primaryStylesheetFile: string },
-  _optional: Record<string, never> = {}
+  _optional: { fileSystem?: NormalizerFileSystem } = {}
 ): NormalizeBuildOutputResult {
   const { outputDir, pageFileNames, primaryStylesheetFile } = required;
-
-  const allFileNames = readdirSync(outputDir).filter((name) => !lstatSync(join(outputDir, name)).isDirectory());
-  const discardedFiles = allFileNames.filter((name) => DISCARDED_FRAMEWORK_ARTIFACTS.has(name));
-  for (const name of discardedFiles) {
-    unlinkSync(join(outputDir, name));
+  const fileSystem = _optional.fileSystem ?? NODE_FILE_SYSTEM;
+  const prepared = prepareNormalization({ outputDir, pageFileNames, primaryStylesheetFile, fileSystem });
+  const undo: UndoStep[] = [];
+  try {
+    applyNormalization({ outputDir, prepared, fileSystem, undo });
+  } catch (error) {
+    rollBack({ undo, cause: error });
   }
-
-  const fileNames = allFileNames.filter((name) => !DISCARDED_FRAMEWORK_ARTIFACTS.has(name));
-  const plan = planAssetRelocation({ fileNames });
-
-  for (const relocation of plan.relocations) {
-    const destination = join(outputDir, relocation.to);
-    mkdirSync(dirname(destination), { recursive: true });
-    renameSync(join(outputDir, relocation.from), destination);
-    if (relocation.from.endsWith(".css")) {
-      writeFileSync(destination, rewriteCssRelativeUrls({ cssContent: readFileSync(destination, "utf8") }), "utf8");
-    }
-  }
-
-  for (const pageFileName of pageFileNames) {
-    const pagePath = join(outputDir, pageFileName);
-    const rewritten = rewriteBundlerHtml({ html: readFileSync(pagePath, "utf8"), plan, primaryStylesheetFile });
-    writeFileSync(pagePath, rewritten, "utf8");
-  }
-
-  return { plan, rewrittenPageFiles: pageFileNames, discardedFiles };
+  return { plan: prepared.plan, rewrittenPageFiles: pageFileNames, discardedFiles: prepared.discarded.map(({ name }) => name) };
 }

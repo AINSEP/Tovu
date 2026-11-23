@@ -338,3 +338,76 @@ test("normalizeBuildOutputDirectory deletes index.csr.html -- Tovu's serving mod
   // Its presence must not have leaked into the relocation plan either -- it was excluded before planning.
   assert.deepEqual(result.plan.relocations, [{ from: "styles.css", to: "css/styles.css" }]);
 });
+
+/** Every file under `root` (relative path → content), so a test can prove a failed run left the tree byte-identical. */
+function snapshotTree(root: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of fs.readdirSync(root, { recursive: true, withFileTypes: true })) {
+    if (entry.isFile()) {
+      const full = path.join(entry.parentPath, entry.name);
+      out[path.relative(root, full)] = fs.readFileSync(full, "utf8");
+    }
+  }
+  return out;
+}
+
+function writeFailureFixture(prefix: string): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(root, "styles.css"), "body{background:url(bg.png)}", "utf8");
+  fs.writeFileSync(path.join(root, "main.js"), "console.log(1)", "utf8");
+  fs.writeFileSync(path.join(root, "index.csr.html"), "<html>csr shell</html>", "utf8");
+  fs.writeFileSync(path.join(root, "index.html"), '<link rel="stylesheet" href="styles.css"><script src="main.js"></script>', "utf8");
+  fs.writeFileSync(path.join(root, "about.html"), '<link rel="stylesheet" href="styles.css"><script src="main.js"></script>', "utf8");
+  return root;
+}
+
+test("normalizeBuildOutputDirectory leaves the original folder intact when a write fails on the Nth file", () => {
+  const root = writeFailureFixture("tovu-normalizer-fail-write-");
+  const before = snapshotTree(root);
+  let writes = 0;
+  // Fail the second page write -- after the CSS rewrite and the first page write already landed on disk.
+  const fileSystem = {
+    ...fs,
+    writeFileSync: (...args: Parameters<typeof fs.writeFileSync>) => {
+      writes += 1;
+      if (writes === 3) throw new Error("disk full (injected)");
+      return fs.writeFileSync(...args);
+    },
+  };
+
+  assert.throws(
+    () => normalizeBuildOutputDirectory(
+      { outputDir: root, pageFileNames: ["index.html", "about.html"], primaryStylesheetFile: "styles.css" },
+      { fileSystem }
+    ),
+    /disk full \(injected\)/
+  );
+  assert.deepEqual(snapshotTree(root), before);
+  assert.ok(!fs.existsSync(path.join(root, "css")), "the css/ folder this run created is removed again");
+  assert.ok(!fs.existsSync(path.join(root, "js")), "the js/ folder this run created is removed again");
+});
+
+test("normalizeBuildOutputDirectory leaves the original folder intact when a later page fails its precondition", () => {
+  const root = writeFailureFixture("tovu-normalizer-fail-page-");
+  // The second page has no plain stylesheet link, so rewriteBundlerHtml throws on it.
+  fs.writeFileSync(path.join(root, "about.html"), '<script src="main.js"></script>', "utf8");
+  const before = snapshotTree(root);
+
+  assert.throws(() => normalizeBuildOutputDirectory({
+    outputDir: root, pageFileNames: ["index.html", "about.html"], primaryStylesheetFile: "styles.css",
+  }));
+  assert.deepEqual(snapshotTree(root), before);
+});
+
+test("normalizeBuildOutputDirectory keeps a pre-existing css/ folder it did not create when rolling back", () => {
+  const root = writeFailureFixture("tovu-normalizer-fail-owned-dir-");
+  fs.mkdirSync(path.join(root, "css"));
+  fs.writeFileSync(path.join(root, "css", "owner.css"), "p{}", "utf8");
+  fs.writeFileSync(path.join(root, "about.html"), '<script src="main.js"></script>', "utf8");
+  const before = snapshotTree(root);
+
+  assert.throws(() => normalizeBuildOutputDirectory({
+    outputDir: root, pageFileNames: ["index.html", "about.html"], primaryStylesheetFile: "styles.css",
+  }));
+  assert.deepEqual(snapshotTree(root), before);
+});
