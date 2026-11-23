@@ -3488,6 +3488,14 @@
     {
       "id": "319b30ec56cf",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
+    },
+    {
+      "id": "4a80b78d2f91",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts RouteRefusalError doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's error mappings'); the Tovu class it explained is deleted (RT-K1-0.T)."
+    },
+    {
+      "id": "73584ff700c8",
+      "reason": "Moved to Jini @jini-ai/core/errors/route-refusal.ts rejectRoute doc (Jini merge-14 190860f22, RT-K1-0.J), reworded host-neutral ('the host's flat JSON envelope'); the Tovu function it explained is deleted (RT-K1-0.T)."
     }
   ]
 }

@@ -10,7 +10,7 @@ import { attachServerLogFile } from "#src/platform/server-logs/index";
 import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
 import { serverLogsAgentToolCatalog } from "../../agent-tools.js";
 import { buildServerLogsRegistrations, serverLogsDerivedRisk } from "../../tool-registrations.js";
-import type { ServerLogSourcePort } from "../../read-server-logs.js";
+import type { ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 
 const ENTRIES: ServerLogEntry[] = [
   { seq: 1, at: "2026-10-05T12:00:01.000Z", level: "info", source: "server", message: "listening" },

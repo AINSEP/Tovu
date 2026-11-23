@@ -6,7 +6,7 @@ import { build } from 'vite';
 describe('Observability tools bundle isolation', () => {
   it.each([
     { entry: '../provider.tsx', tooling: false },
-    { entry: '../../../features/observability/queries-panel.tsx', tooling: true },
+    { entry: '../../../features/observability/hooks/observability-wiring.hooks.ts', tooling: true },
   ])('keeps vendor tooling out of the static $entry bundle', async ({ entry, tooling }) => {
     // Build the actual module, in memory. Production is deliberate: the default
     // devtools export is a no-op there, whereas the /production panel must remain.
@@ -14,6 +14,8 @@ describe('Observability tools bundle isolation', () => {
       configFile: false,
       root: fileURLToPath(new URL('../../../../', import.meta.url)),
       esbuild: { jsx: 'automatic' },
+      // The observability wiring module imports host code through the app's `@/` alias.
+      resolve: { alias: { '@': fileURLToPath(new URL('../../../', import.meta.url)) } },
       define: { 'process.env.NODE_ENV': JSON.stringify('production') },
       build: {
         write: false, minify: false,

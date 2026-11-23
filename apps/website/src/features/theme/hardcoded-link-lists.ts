@@ -8,7 +8,7 @@ import { markersOfType, maskNonRenderableRegions, MENU_MARKER_TYPE } from "@jini
  * import, 2026-10-08: the copied theme's `footer.html` hard-coded its "Explore" and "Legal" columns).
  * The theme write tools still write the file — a partial may carry plain links on purpose — and
  * return this as a warning so the model creates the menus and swaps in markers on its next turn,
- * the same warn-don't-refuse shape as `features/pages/hidden-until-script.ts`.
+ * the same warn-don't-refuse shape as `@jini-ai/cms/pages/hidden-until-script`.
  *
  * PURE: string in, findings out. A tolerant scan, not an HTML parser; comments and raw-text elements
  * are masked first (the same mask the marker scanner uses), and a menu marker's whole element is

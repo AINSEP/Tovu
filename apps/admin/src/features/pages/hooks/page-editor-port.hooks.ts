@@ -1,8 +1,8 @@
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
+import type { AdminPagePluginEmbed } from "@jini-ai/admin/pages/api/pages-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
-import type { PagesPort } from "./pages-port.hooks";
+import type { AdminPagesPort } from "./pages-dependencies.hooks";
 
 /**
  * @file What `usePageEditor` needs from the outside world, as an interface rather than a direct
@@ -30,7 +30,7 @@ import type { PagesPort } from "./pages-port.hooks";
  * not two hand-copied signatures that could quietly drift). See `use-standing-draft-autosave.hooks.ts`'s
  * own header for why the hook itself stays ignorant of both features either way.
  */
-export interface PageEditorPort extends StandingDraftAutosavePort, Pick<PagesPort, "updatePost" | "deletePage"> {
+export interface PageEditorPort extends StandingDraftAutosavePort, Pick<AdminPagesPort, "updatePost" | "deletePage"> {
   getPage(required: { routeSlug: string }): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];

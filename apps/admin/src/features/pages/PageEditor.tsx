@@ -12,9 +12,9 @@ import {
   type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
-import { pagePreviewYoutubeIds } from "./lib/page-preview-youtube";
+import { pagePreviewYoutubeIds } from "@jini-ai/admin/pages/lib/page-preview-youtube";
 
-import { isProtectedEmbedElement } from "./lib/embed-placeholder";
+import { isProtectedEmbedElement } from "@jini-ai/admin/pages/lib/embed-placeholder";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";

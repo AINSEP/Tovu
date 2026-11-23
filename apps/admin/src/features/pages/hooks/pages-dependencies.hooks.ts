@@ -3,15 +3,26 @@ import { postsApi } from "@/features/posts/api/posts-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
-import type { PagesPort } from "./pages-port.hooks";
+import type { PagesPort } from "@jini-ai/admin/pages/hooks/pages-port.hooks";
 
 /**
- * @file The only place `use-pages.hooks.ts` reaches `lib/api` — see `pages-port.hooks.ts` for why
- * the split exists.
+ * @file The only place the Pages list hook reaches `lib/api` — see `@jini-ai/admin/pages/hooks/pages-port.hooks`
+ * for why the split exists. Bound into `usePages` by `use-pages.hooks.ts`'s `useWiredPages`.
  */
 
+/**
+ * The host's pages port: `@jini-ai/admin`'s structural `PagesPort` instantiated over this app's own
+ * `AdminPost` row, with the page editor's richer patch (`templateChoice`/`overridesThemePage` on
+ * top of the list's title/slug/body/status). `PageEditorPort` picks its `updatePost`/`deletePage`
+ * from here, so the editor keeps the full `AdminPost` it saves and reads back.
+ */
+export type AdminPagesPort = PagesPort<
+  AdminPost,
+  Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & { expectedVersion?: number }
+>;
+
 /** The live implementation, as a module-level singleton. */
-export const defaultPagesPort: PagesPort = {
+export const defaultPagesPort: AdminPagesPort = {
   listPages: () => pagesApi.listPages(),
   createPage: ({ title }, _options = {}) => pagesApi.createPage({ title }),
   updatePost: ({ target, patch }, _options = {}) => postsApi.updatePost(target, { options: patch, entry: "page" }),
@@ -58,7 +69,7 @@ export interface FakePagesPortOptions {
  * An in-memory {@link PagesPort} for tests — "every port gets a fake" (see
  * `assistant-chats-dependencies.hooks.ts`).
  */
-export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPort & {
+export function createFakePagesPort(options: FakePagesPortOptions = {}): AdminPagesPort & {
   /** Every page currently in the fake's store, in list order. */
   readonly pages: AdminPost[];
   /** Advances one stored row's version as though a DIFFERENT operator had just saved it — see

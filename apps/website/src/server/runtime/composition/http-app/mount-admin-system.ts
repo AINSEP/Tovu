@@ -9,7 +9,8 @@ import { registerAdminConsentRoutes } from '../../../inbound/admin-http/routes/c
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
-import { registerAdminToolGapsRoute } from "../../../inbound/admin-http/routes/system/tool-gaps.js";
+import { toolGapsRoute } from "@jini-ai/cms/admin-http/routes/system/tool-gaps";
+import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { createAnalyticsModule } from "../modules/analytics.js";
@@ -18,9 +19,11 @@ import { moduleStatusRoute } from "@jini-ai/cms/admin-http/routes/system/module-
 import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-state";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerAdminObservabilityStatusRoute } from "../../../inbound/admin-http/routes/system/observability-status.js";
+import { observabilityStatusRoute, observabilityTestErrorRoute } from "@jini-ai/cms/admin-http/routes/system/observability-status";
 import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
-import { registerAdminServerLogsRoute } from "../../../inbound/admin-http/routes/system/server-logs.js";
+import { serverLogsRoute } from "@jini-ai/cms/admin-http/routes/system/server-logs";
+import { processServerLogSource } from "#src/features/server-logs/process-source";
+import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogFilters, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
 import { registerAdminMailStatusRoute } from "../../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminMailProviderRoutes } from "../../../inbound/admin-http/routes/system/mail-providers.js";
 import { registerAdminMailDnsRoutes } from "../../../inbound/admin-http/routes/system/mail-dns.js";
@@ -59,6 +62,49 @@ import type { MountInput } from "./module-handles.js";
 export function registerAdminModuleStatusRoute({ app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute({ app, spec: moduleStatusRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, getReadinessSnapshot } },
     { authorization: "direct", failure: { operation: "routes/system/module-status", code: "INTERNAL_ERROR" } });
+}
+
+/** The `RouteDeps` fields the observability routes read (`tracker` only for the failure report). */
+export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability" | "observabilityEnabled" | "telemetryStatus" | "sendTelemetryTest" | "tracker">;
+
+/** `GET .../system/observability-status` + `POST .../system/observability/test-error` (Jini specs),
+ * reported under this product's service name. Both authorize directly (no publish-credential
+ * override), as the hand-written routes did; the POST answers its own 403 copy.
+ * @complexity O(1) setup.
+ */
+export function registerAdminObservabilityStatusRoute({ app, deps }: { app: Express; deps: AdminObservabilityStatusDeps }, _optional: Record<string, never> = {}): void {
+  const options = { authorization: "direct", failure: { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" } } as const;
+  const { workspaceId, authorize, sendTelemetryTest } = deps;
+  mountAdminJsonRoute({ app, spec: observabilityStatusRoute, deps: { workspaceId, authorize, sendTelemetryTest, observability: deps.observability,
+    observabilityEnabled: deps.observabilityEnabled, telemetryStatus: deps.telemetryStatus, serviceName: "tovu" } }, options);
+  mountAdminJsonRoute({ app, spec: observabilityTestErrorRoute, deps: { workspaceId, authorize, sendTelemetryTest } }, options);
+}
+
+// Tool gaps are owner-only, never RBAC-gated: the spec compares the session principal with the
+// owner and never calls the authorize port, so this authorizer exists only to fail closed if it ever did.
+const toolGapsNeverAuthorizes: RouteDeps["authorize"] = async () => ({ allowed: false, reason: "tool gaps are owner-only" });
+
+/** `GET .../system/tool-gaps` (Jini spec) over the tool audit store; the route's own 500 copy.
+ * @complexity O(1) setup.
+ */
+export function registerAdminToolGapsRoute({ app, deps }: { app: Express; deps: ToolGapsToolDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: toolGapsRoute, deps: { workspaceId: deps.workspaceId, ownerPrincipalId: deps.ownerPrincipalId, toolGaps: deps.toolGaps, authorize: toolGapsNeverAuthorizes } },
+    { authorization: "direct", failure: { operation: "routes/system/tool-gaps", code: "INTERNAL_ERROR", message: "Could not read tool gaps." } });
+}
+
+/** `GET .../system/server-logs` (Jini spec) over this process's captured log buffer; a test injects
+ * its own `logs` source. The filter parser and reader are the server-logs feature's.
+ * @complexity O(1) setup.
+ */
+export function registerAdminServerLogsRoute(
+  { app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> },
+  optional: { logs?: ServerLogSourcePort } = {},
+): void {
+  const logs = optional.logs ?? processServerLogSource;
+  mountAdminJsonRoute({ app, spec: serverLogsRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize,
+    parseServerLogFilters, readServerLogs: (filters) => readServerLogs({ logs }, filters as ServerLogFilters),
+    isServerLogFilterError: (error): error is Error => error instanceof ServerLogFilterError } },
+  { authorization: "direct", failure: { operation: "routes/system/server-logs", code: "INTERNAL_ERROR" } });
 }
 
 /** `POST .../system/assistant-daemon/restart` (Jini spec). `restartAssistantDaemon` defaults to the

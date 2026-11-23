@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setPublishToLiveAvailable } from "../../publish-content/hooks/publish-availability.store";
 import { closePublishRequest, usePublishRequest } from "../../publish-content/hooks/publish-request.store";
-import { Dashboard } from "../Dashboard";
+import { Dashboard } from "..";
 
 /**
- * @file `Dashboard` — pins the audit's exec-summary finding #5 (`ADS-memory/reports/audits/
+ * @file The host-bound `Dashboard` (`../index.ts`: this app's API clients, locale, publish stores and
+ * routes wired into `@jini-ai/admin`'s screen), end to end through a mocked `fetch`. Pins the audit's exec-summary finding #5 (`ADS-memory/reports/audits/
  * 20260801-admin-adversarial-ux-audit.md`): the original two `useEffect` fetches had no `.catch()`,
  * so a rejection left a stat card reading "…" forever with no indication anything was wrong. The
  * screen now makes 5 independent fetches (posts, pages, media, comments, presentation), each owning
@@ -52,18 +53,18 @@ function routeFetch(routes: Record<string, () => Promise<Response>>) {
   };
 }
 
-/** Finds a `.dash-stat` card by its visible label, so assertions can be scoped with `within(...)`
+/** Finds a `.jini-dash-stat` card by its visible label, so assertions can be scoped with `within(...)`
  *  instead of matching on ambiguous values (e.g. both the Pages and Media cards can read "2"). */
 function statCard(container: HTMLElement, label: string): HTMLElement {
-  const labelEl = Array.from(container.querySelectorAll(".dash-stat-label")).find((el) => el.textContent === label);
+  const labelEl = Array.from(container.querySelectorAll(".jini-dash-stat-label")).find((el) => el.textContent === label);
   if (!labelEl) throw new Error(`no stat card labeled "${label}"`);
-  const card = labelEl.closest(".dash-stat");
-  if (!card) throw new Error(`stat label "${label}" has no .dash-stat ancestor`);
+  const card = labelEl.closest(".jini-dash-stat");
+  if (!card) throw new Error(`stat label "${label}" has no .jini-dash-stat ancestor`);
   return card as HTMLElement;
 }
 
 function activityTitles(container: HTMLElement): (string | null)[] {
-  return Array.from(container.querySelectorAll(".dash-activity-title")).map((el) => el.textContent);
+  return Array.from(container.querySelectorAll(".jini-dash-activity-title")).map((el) => el.textContent);
 }
 
 const POSTS_RESPONSE = {
@@ -209,7 +210,7 @@ it("links post rows to the post editor and page rows to the Pages list, not to a
   await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
 
   const hrefFor = (title: string) =>
-    Array.from(container.querySelectorAll<HTMLAnchorElement>(".dash-activity-title"))
+    Array.from(container.querySelectorAll<HTMLAnchorElement>(".jini-dash-activity-title"))
       .find((el) => el.textContent === title)
       ?.getAttribute("href");
 
@@ -218,7 +219,7 @@ it("links post rows to the post editor and page rows to the Pages list, not to a
   expect(hrefFor("Page One")).toBe("/admin/pages");
   expect(hrefFor("Page Two")).toBe("/admin/pages");
   // No page id may appear under /admin/posts/ — that is the exact shape of the original defect.
-  const hrefs = Array.from(container.querySelectorAll<HTMLAnchorElement>(".dash-activity-title")).map((el) =>
+  const hrefs = Array.from(container.querySelectorAll<HTMLAnchorElement>(".jini-dash-activity-title")).map((el) =>
     el.getAttribute("href"),
   );
   expect(hrefs.some((href) => href?.startsWith("/admin/posts/page-"))).toBe(false);
@@ -312,7 +313,7 @@ describe("a single failing endpoint shows its own reason and stops reading '…'
     expect(await within(statCard(container, "Pages")).findByText("2")).toBeInTheDocument();
     expect(await within(statCard(container, "Media")).findByText("2")).toBeInTheDocument();
     expect(await within(statCard(container, "Comments")).findByText("4")).toBeInTheDocument();
-    expect(container.querySelectorAll(".dash-stat-value.is-error")).toHaveLength(0);
+    expect(container.querySelectorAll(".jini-dash-stat-value.is-error")).toHaveLength(0);
   });
 });
 
@@ -336,7 +337,7 @@ it("shows an independent error reason on every card when all 5 fetches fail simu
   expect(screen.getByText("presentation failed")).toBeInTheDocument();
 
   expect(screen.queryByText("…")).not.toBeInTheDocument();
-  expect(container.querySelectorAll(".dash-stat-value.is-error")).toHaveLength(4); // posts, pages, media, comments
+  expect(container.querySelectorAll(".jini-dash-stat-value.is-error")).toHaveLength(4); // posts, pages, media, comments
 
   // Posts and pages are both among the 5 failures here, so the activity panel must show its own
   // error state too, not sit stuck on "Loading…" (see the dedicated describe block below).
@@ -351,7 +352,7 @@ describe("both posts and pages failing — the activity panel's own error state"
 
     const { container } = render(<Dashboard />);
 
-    const panel = screen.getByText("Recently updated").closest(".dash-panel") as HTMLElement;
+    const panel = screen.getByText("Recently updated").closest(".jini-dash-panel") as HTMLElement;
     // The card is a collapsed-by-default accordion; its body (and the alert in it) is `hidden`.
     await userEvent.click(within(panel).getByRole("button", { name: "Recently updated" }));
     const alert = await within(panel).findByRole("alert");
@@ -447,7 +448,7 @@ describe("site key banner (site-key plan §A.6)", () => {
       resolveStatus(jsonResponse({ active: state === "active", source: "file", keyFilePath: "/x", runtimeMode: "local", state }));
       await statusResponse;
     });
-    expect(container.querySelector(".dash-site-key-banner")).toBeNull();
+    expect(container.querySelector(".jini-dash-site-key-banner")).toBeNull();
     expect(screen.queryByText(/site key|site's key/i)).not.toBeInTheDocument();
   });
 
@@ -495,7 +496,7 @@ describe("Recently updated accordion (owner 2026-10-13)", () => {
     const body = container.querySelector(`#${CSS.escape(toggle.getAttribute("aria-controls") ?? "")}`) as HTMLElement;
     expect(body).not.toBeNull();
     expect(body.hidden).toBe(true);
-    expect(toggle.closest(".dash-panel")).toHaveClass("is-collapsed");
+    expect(toggle.closest(".jini-dash-panel")).toHaveClass("is-collapsed");
     expect(screen.getByRole("link", { name: "All posts" })).toHaveAttribute("href", "/admin/posts");
 
     await userEvent.click(toggle);
@@ -544,12 +545,4 @@ it("shows the empty activity state when there are no posts or pages yet", async 
   }));
   render(<Dashboard />);
   expect(await screen.findByText("Nothing published or drafted yet.")).toBeInTheDocument();
-});
-
-it("hides Publish All when the injected usePublishToLiveAvailableHook reports the live site unavailable", async () => {
-  fetchMock.mockImplementation(routeFetch(successRoutes()));
-  setPublishToLiveAvailable({ next: true });
-  render(<Dashboard usePublishToLiveAvailableHook={() => false} />);
-  await screen.findByText("editorial");
-  expect(screen.queryByRole("button", { name: "Publish All" })).not.toBeInTheDocument();
 });

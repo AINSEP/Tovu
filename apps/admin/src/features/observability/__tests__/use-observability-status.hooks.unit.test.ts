@@ -2,10 +2,11 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { observabilityApi } from "@/features/observability/api/observability-api";
-import { ApiError } from "@/lib/admin-http/request";
-import { createFakeObservabilityStatusPort } from "../hooks/observability-status-dependencies.hooks";
-import { useObservabilityStatus, useWiredObservabilityStatus } from "../hooks/use-observability-status.hooks";
-import { t as translateObservability } from "../observability-i18n";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import { createFakeObservabilityStatusPort } from "@jini-ai/admin/screens/observability/hooks/observability-status-dependencies.hooks";
+import { useObservabilityStatus } from "@jini-ai/admin/screens/observability/hooks/use-observability-status.hooks";
+import { useWiredObservabilityStatus } from "../hooks/observability-wiring.hooks";
+import { t as translateObservability } from "@jini-ai/admin/screens/observability/observability-i18n";
 
 /**
  * @file `useObservabilityStatus` driven against the injected `ObservabilityStatusPort`, no `fetch`
@@ -26,7 +27,7 @@ it("the injected test action exposes pending, accepted, failure and refreshed de
     getObservabilityStatus: async () => { calls.push("status"); return { enabled: true, serviceName: "tovu", canSendTestError: true }; },
     sendTestError: () => { calls.push("send"); return new Promise<{ providers: { providerId: string; signals: "error"[] }[] }>(resolve => { finish = resolve; }); },
   };
-  const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: key => key }));
+  const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: key => key }));
   await waitFor(() => expect(result.current.status?.enabled).toBe(true));
   let sending!: Promise<void>;
   act(() => { sending = result.current.sendTestError!(); });
@@ -45,7 +46,7 @@ it("the injected test action exposes pending, accepted, failure and refreshed de
 describe("useObservabilityStatus — injected port (no fetch stub, no api spy)", () => {
   it("reports disabled with no service name when the fake has no seeded status", async () => {
     const port = createFakeObservabilityStatusPort();
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.status).toEqual({ enabled: false, serviceName: null }));
     expect(result.current.error).toBeNull();
@@ -54,7 +55,7 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
   it("reports OFF/noop when the injected status says disabled — the OTEL_EXPORTER_OTLP_ENDPOINT-unset case", async () => {
     const getSpy = vi.spyOn(observabilityApi, "getObservabilityStatus");
     const port = createFakeObservabilityStatusPort({ status: { enabled: false, serviceName: null } });
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.status).not.toBeNull());
     expect(result.current.status).toEqual({ enabled: false, serviceName: null });
@@ -64,7 +65,7 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
 
   it("reports ON with the service name when the injected status says enabled — the OTEL_EXPORTER_OTLP_ENDPOINT-set case", async () => {
     const port = createFakeObservabilityStatusPort({ status: { enabled: true, serviceName: "tovu" } });
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.status).not.toBeNull());
     expect(result.current.status).toEqual({ enabled: true, serviceName: "tovu" });
@@ -74,7 +75,7 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
   it("does not resolve `status` while the injected port's read is still pending", () => {
     const port = createFakeObservabilityStatusPort();
     port.getObservabilityStatus = () => new Promise(() => {});
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: (key: string) => key }));
 
     expect(result.current.status).toBeNull();
     expect(result.current.error).toBeNull();
@@ -82,7 +83,7 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
 
   it("surfaces a rejected load as `error`, leaving `status` null", async () => {
     const port = createFakeObservabilityStatusPort({ failWith: new Error("boom") });
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.status).toBeNull();
@@ -119,7 +120,7 @@ describe("observability default binding and error copy", () => {
     ["ApiError message", new ApiError({ message: "permission denied", status: 403 }), "permission denied"],
   ])("maps %s to operator copy", async (_name, failure, expected) => {
     const port = createFakeObservabilityStatusPort({ failWith: failure });
-    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "es", t: (key) => key }));
+    const { result } = renderHook(() => useObservabilityStatus({ describeError: describeApiError, port, locale: "es", t: (key) => key }));
     await waitFor(() => expect(result.current.error).toBe(expected));
     expect(result.current.status).toBeNull();
   });
