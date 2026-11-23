@@ -19,7 +19,7 @@ export function LoadedSitesRow({ setting, useNumberStepperHook = useNumberSteppe
     <div className="settings__row">
       <span className="settings__label" id="settings-loaded-sites-label">Loaded sites</span>
       <NumberStepper setting={setting} bounds={LIVE_SITE_VIEWS} labels={LOADED_SITES_LABELS} labelledBy="settings-loaded-sites-label"
-        useNumberStepperHook={useNumberStepperHook} classNames={STEPPER_CLASSES} />
+        hooks={{ useNumberStepper: useNumberStepperHook }} classNames={STEPPER_CLASSES} />
     </div>
     {setting.error && <p role="alert" className="settings__note settings__note--error">{setting.error}</p>}
   </>;
