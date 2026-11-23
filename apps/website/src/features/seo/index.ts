@@ -1,6 +1,6 @@
 /**
  * @file Tovu SEO policy and port bindings (SPEC-008, ADR-PIPE-008; CMS design Rev 3).
- * INV-09: persisted SEO is read through @jini-ai/cms/seo or these host settings functions,
+ * INV-09: persisted SEO is read through @jini-ai/cms/seo or @jini-ai/cms/seo/site/settings,
  * never directly from posts.seo_ext_json/site.seo.* by routes, renderers, or tools.
  */
 import type {
@@ -17,20 +17,26 @@ import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/index.js";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
 import { resolvePostMemberAccess } from "../members/index.js";
-import { getEffective, type SettingsRepoPort } from "../settings/index.js";
+import { createSettingsPrincipalLookup, ensureSettingDefinitions, getEffective, set, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";
+import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
 
-
-export {
-  ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, isDefaultRobotsNoindexExplicitlySet,
-  type EnsureSeoSettingDefinitionsDeps, type EnsureSeoSettingDefinitionsInput,
-  type GetSeoSettingsDeps, type SeoSettingsWriteDeps, type SeoSettingsPatch, type SetSeoSettingsInput,
-} from "./settings.js";
+/**
+ * This host's settings ledger, bound once for every `@jini-ai/cms/seo/site/settings` call site
+ * (boot registration, the admin routes, the SEO tools): the package registrar and reader, this
+ * host's policy-wrapped chokepoint `set` (the same function behind its site-title bounds), and its
+ * active-principal policy (missing, disabled and foreign-workspace records never become targets).
+ */
+export const seoSettingsHostBindings: SeoSettingsLedgerBindings = {
+  ensureSettingDefinitions,
+  getEffective,
+  set,
+  createPrincipalLookup: createSettingsPrincipalLookup,
+};
 
 /** Bind the host post/page reader without projecting away content fields needed by CAS/revisions.
  * Email templates remain solely with their authoring owner, even if incorrectly marked published.
@@ -92,8 +98,8 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
     shareImageTransform: "og",
     postRepo: createSeoPostPort({ postRepo: deps.postRepo }, {}),
     settings: {
-      getSeoSettings: (input) => getSeoSettings({ settingsRepo: deps.settingsRepo }, input),
-      isDefaultRobotsNoindexExplicitlySet: (input) => isDefaultRobotsNoindexExplicitlySet({ deps: { settingsRepo: deps.settingsRepo }, input }, {}),
+      getSeoSettings: (input) => getSeoSettings({ settingsRepo: deps.settingsRepo, getEffective }, input),
+      isDefaultRobotsNoindexExplicitlySet: (input) => isDefaultRobotsNoindexExplicitlySet({ deps: { settingsRepo: deps.settingsRepo, getEffective }, input }, {}),
     },
     urls: {
       postPublicPath: ({ slug }) => postPublicPath({ slug: slug }),

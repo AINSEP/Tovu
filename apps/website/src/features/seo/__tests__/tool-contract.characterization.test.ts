@@ -1,6 +1,6 @@
 /**
  * @file Characterization of the SEO agent-tool contract, built THROUGH THE HOST CONTRIBUTOR
- * (`contributeSeoTools().build(deps)`), so it pins what the assistant's composition root receives
+ * (`contributeSeoTools(seoToolPolicy).build(deps)`), so it pins what the assistant's composition root receives
  * regardless of which package the catalog and handlers live in. It must stay green, unedited, across
  * the move of the tool catalog and handlers into `@jini-ai/cms/seo`.
  *
@@ -27,9 +27,14 @@ import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-t
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
-import { createSeoDeps } from "../index.js";
-import { ensureSeoSettingDefinitions } from "../settings.js";
-import { contributeSeoTools, type SeoToolDeps } from "../tool-registrations.js";
+import { createSeoDeps, seoSettingsHostBindings } from "../index.js";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";
+import { contributeSeoTools, type SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
+
+/** The host policy the composition root binds around the SEO tools (tool-catalog-manifest.ts). */
+const seoToolPolicy = { toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings };
 
 const WORKSPACE_ID = "ws-seo-contract";
 const PRINCIPAL_ID = "principal-under-test";
@@ -95,7 +100,7 @@ async function makeFixture(): Promise<Fixture> {
   })] });
   const settingsRepo = new InMemorySettingsRepo();
   const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [] });
-  await ensureSeoSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: principalRepo }, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-seo" });
+  await ensureSeoSettingDefinitions({ ...seoSettingsHostBindings, settingsRepo, clock, ids: idGen, principals: principalRepo }, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-seo" });
   const base = {
     workspaceId: WORKSPACE_ID, seoReady: Promise.resolve(), outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),
     postRepo, settingsRepo, principalRepo, mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
@@ -130,12 +135,12 @@ function caller(registrations: ToolRegistration[]) {
 }
 
 test("(a) registration ids, in order, are the six seo tools", async () => {
-  const ids = contributeSeoTools().build((await makeFixture()).deps, undefined).map((registration) => registration.descriptor.id);
+  const ids = contributeSeoTools(seoToolPolicy).build((await makeFixture()).deps, undefined).map((registration) => registration.descriptor.id);
   assert.deepEqual(ids, [...TOOL_IDS]);
 });
 
 test("(b) every descriptor equals the committed golden, metadata included", async () => {
-  for (const registration of contributeSeoTools().build((await makeFixture()).deps, undefined)) {
+  for (const registration of contributeSeoTools(seoToolPolicy).build((await makeFixture()).deps, undefined)) {
     const descriptor = JSON.parse(JSON.stringify(registration.descriptor));
     assert.deepStrictEqual(descriptor, GOLDEN[registration.descriptor.id], registration.descriptor.id);
   }
@@ -143,13 +148,13 @@ test("(b) every descriptor equals the committed golden, metadata included", asyn
 });
 
 test("(c) the contributor's derived-risk map is the six authored entries", () => {
-  assert.deepEqual([...contributeSeoTools().risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
+  assert.deepEqual([...contributeSeoTools(seoToolPolicy).risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
 });
 
 for (const toolId of TOOL_IDS) {
   test(`(d) ${toolId}: a principal without the permission is refused with the permission-denied error`, async () => {
     const fixture = await makeFixture();
-    const call = caller(contributeSeoTools().build(fixture.deps, undefined));
+    const call = caller(contributeSeoTools(seoToolPolicy).build(fixture.deps, undefined));
     fixture.allow.value = false;
     await assert.rejects(call(toolId, REFUSAL_INPUT[toolId]), (error: unknown) => {
       assert.ok(error instanceof ForbiddenError, `got ${(error as Error)?.constructor?.name}`);
@@ -161,7 +166,7 @@ for (const toolId of TOOL_IDS) {
 
 test("(e) one success call per tool returns the model-facing view", async () => {
   const fixture = await makeFixture();
-  const call = caller(contributeSeoTools().build(fixture.deps, undefined));
+  const call = caller(contributeSeoTools(seoToolPolicy).build(fixture.deps, undefined));
   assert.deepStrictEqual(await viewOf(call("seo_get_entry_meta", { entryId: "post-1" })), EXPECTED.entryMeta);
   assert.deepStrictEqual(await viewOf(call("seo_analyze_entry", { entryId: "post-1" })), EXPECTED.analysis);
   assert.deepStrictEqual(await viewOf(call("seo_get_settings", {})), EXPECTED.settings);
@@ -173,7 +178,7 @@ test("(e) one success call per tool returns the model-facing view", async () => 
 
 test("(f) the settings tool refuses an unknown key with the same message, and stores nothing", async () => {
   const fixture = await makeFixture();
-  const call = caller(contributeSeoTools().build(fixture.deps, undefined));
+  const call = caller(contributeSeoTools(seoToolPolicy).build(fixture.deps, undefined));
   await assert.rejects(call("seo_set_settings", { notASetting: true }), (error: unknown) => {
     assert.ok(error instanceof ToolInputError);
     assert.equal(error.message, EXPECTED.unknownKeyMessage);
@@ -184,7 +189,7 @@ test("(f) the settings tool refuses an unknown key with the same message, and st
 
 test("(g) a write with a stale expectedVersion returns the same version-conflict envelope and changes nothing", async () => {
   const fixture = await makeFixture();
-  const call = caller(contributeSeoTools().build(fixture.deps, undefined));
+  const call = caller(contributeSeoTools(seoToolPolicy).build(fixture.deps, undefined));
   await assert.rejects(call("seo_set_entry_overrides", { entryId: "post-1", expectedVersion: 7, title: "Stale" }), (error: unknown) => {
     assert.ok(error instanceof ToolInputError);
     assert.equal(error.message, EXPECTED.conflictMessage);

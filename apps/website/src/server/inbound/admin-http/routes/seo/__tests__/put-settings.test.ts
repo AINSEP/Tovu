@@ -1,14 +1,14 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "#src/features/seo/index";
+import { createSeoDeps, seoSettingsHostBindings } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { setSeoSettings } from "#src/features/seo/settings";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { registerAdminSeoGetSettingsRoute } from "../get-settings.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -116,7 +116,7 @@ test("put-settings: validation error 400s (SEO_SETTINGS_VALIDATION_ERROR)", asyn
 test("put-settings: valid patch returns updated settings (200)", async (t) => {
   const base = createRouteDeps();
   await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
-  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+  await setSeoSettings({ ...seoSettingsHostBindings, settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "test-principal", patch: { twitterSite: "@untouched" } });
   const app = buildApp({ settingsRepo: base.settingsRepo, seoReady: base.seoReady });

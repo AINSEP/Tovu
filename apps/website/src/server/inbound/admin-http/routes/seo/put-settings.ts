@@ -1,5 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { setSeoSettings } from "#src/features/seo/index";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { SeoSettingsValidationError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
@@ -19,6 +20,7 @@ export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = ({ app, deps 
 
       const settings = await setSeoSettings(
         {
+          ...seoSettingsHostBindings,
           settingsRepo: deps.settingsRepo,
           clock: deps.clock,
           ids: deps.idGen,

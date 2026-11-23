@@ -91,7 +91,7 @@ import type { MenusToolDeps } from "../features/navigation/tool-registrations.js
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
 import type { NewsletterDeliveryToolDeps } from "../features/newsletter/delivery/tool-registrations.js";
 import type { RedirectsPackageToolDeps as RedirectsToolDeps } from "@jini-ai/cms/redirects";
-import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
+import type { SeoToolDeps } from "@jini-ai/cms/seo/site/tool-registrations";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";

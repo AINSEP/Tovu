@@ -132,7 +132,9 @@ import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/deli
 import { contributeRedirectsTools } from "@jini-ai/cms/redirects/site/tool-registrations";
 import { toolMetadata as redirectsToolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { contributeSeoTools } from "#src/features/seo/tool-registrations";
+import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
@@ -552,7 +554,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   installFirstPartyPublishContentTypes();
   contributions.contributors.register({ contribution: contributeRecoveryTools() });
   contributions.contributors.register({ contribution: contributeRedirectsTools({ toolMetadata: redirectsToolMetadata, hostReads: contentReadVocabulary }) });
-  contributions.contributors.register({ contribution: contributeSeoTools() });
+  contributions.contributors.register({ contribution: contributeSeoTools({ toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings }) });
   // Site search (S6, 2026-10-21): query/status reads plus the human-confirmed reindex and provider
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
