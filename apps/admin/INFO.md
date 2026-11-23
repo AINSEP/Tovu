@@ -293,3 +293,10 @@ own the stale-version classifiers, stored-key probe rules and the two assistant 
 `visitorToolsPort` and `assistantPermanentDeletesPort` (via `authenticatedAdminRequest` + `WORKSPACE_ID`).
 Import those bound values from there; constants and types come from the Jini modules, and the
 permanent-delete tool list/dangers/namespace from `@tovu/headless`.
+`@jini-ai/admin/shell/lib/{credential-submit-error,local-owner-signin,assistant-subagents,owner-mfa-api,owner-passkey-api,owner-recovery-api}`
+are bound the same way: `classifyCredentialSubmitError` and `readInitialAdminSession` (via the
+`ApiError` guard, the latter also with `@jini-ai/user-management`'s `readInitialSession`),
+`assistantSubagentsPort` (via `authenticatedAdminRequest` + `WORKSPACE_ID`), and `ownerMfaPort`,
+`ownerPasskeySettingsPort`, `ownerPasskeySignInPort`, `ownerRecoveryPort` (via `requestOnce`) plus
+`ownerRecoveryFailure` (via `describeApiError` + `TOVU_ERROR_REDACTION_OPTIONS`). Types and
+`SUBAGENT_DANGERS` come from the Jini modules.
