@@ -26,7 +26,8 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
 - Route hits to the built-in sink plus, optionally, ONE vendor forwarder per site
   (`core.analytics.sink`, default `"local"` = built-in only). Vendors are Agent Plugin
   contributions (`tovu-analytics-forwarders.json`, `features/agent-plugins/analytics-provider-registry.ts`)
-  on the shared `@jini-ai/core/provider-registry`; `forwarding.ts` picks the vendor per request,
+  on the shared `@jini-ai/core/provider-registry`; `@jini-ai/analytics/site/forwarding` picks the vendor per request
+  (its warnings go through the host's `warn.ts#warnAnalytics`, which keeps the `[analytics]` console prefix),
   only when the visitor's cookie consent allows `analytics` (the consent engine's own
   `readRequestConsentChoices`, not a second gate), and binds its credential. Vendors receive a
   minimised hit (no region, no session id) after the built-in sink accepts, detached from the

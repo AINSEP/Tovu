@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { siteConsentPorts } from "../site-consent.js";
+import { reportPrivacyDefaultsFailure } from "#src/features/consent/privacy-defaults-reporter";
 
 /** The consent service's site-bound ports: consent readiness, region trust, receipt-storage health
  * and the local published-page render, each driven with a hand-built deps object. */
@@ -67,7 +68,7 @@ test("renderPage renders the same-origin path through a consent-audit site app",
 
 test('privacy defaults wait for the dependency literal, then bind title, owner, settings and outbox', async () => {
   const { InMemorySettingsRepo } = await import('@jini-ai/core/settings');
-  const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('#src/features/consent/settings');
+  const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('@jini-ai/cookie-consent/site/settings');
   const { InMemoryOutbox } = await import('#src/contracts/core/events/index');
   const { ensureSiteConsentPrivacy } = await import('../site-consent.js');
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
@@ -87,6 +88,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   let attempted = false, settled = false;
   const ready = createSiteConsentReadiness({ ...settingDeps, after: Promise.resolve(), systemPrincipalId: 'system' }, {
     ensurePrivacyDefaults: () => { attempted = true; return ensureSiteConsentPrivacy({ deps: routeDepsBuilt }); },
+    reportPrivacyDefaultsFailure,
   });
   void ready.then(() => { settled = true; });
   // Reproduce boot settings finishing while the composition literal is suspended on plugin I/O.

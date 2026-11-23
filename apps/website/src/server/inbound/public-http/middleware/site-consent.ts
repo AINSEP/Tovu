@@ -4,7 +4,7 @@ import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import type { RateLimitProfile } from '#src/contracts/core/rate-limit/rate-limit';
 import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
 import { withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
-import { createSiteConsentConfig } from '#src/features/consent/settings';
+import { createSiteConsentConfig } from '@jini-ai/cookie-consent/site/settings';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
 import type { RouteDeps } from '#src/server/routes/types';
 import { resolvePublicOrigin, resolveProtocol } from '../../../../platform/express/public-origin.js';

@@ -19,7 +19,8 @@ import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/r
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { createReadyLoginProviderList } from "#src/features/member-login/index";
 import { createSeoDeps } from "#src/features/seo/index";
-import { createSiteConsentReadiness } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
+import { reportPrivacyDefaultsFailure } from "#src/features/consent/privacy-defaults-reporter";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { ensureSiteConsentPrivacy } from "../site-consent.js";
 import { resolve } from "node:path";
@@ -63,6 +64,7 @@ export function composePreAssembly(required: ComposePreAssemblyRequired, _option
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
+    reportPrivacyDefaultsFailure,
   });
   const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps().cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.

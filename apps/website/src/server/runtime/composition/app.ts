@@ -65,7 +65,7 @@ import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phas
 import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
-import { createSiteConsentReadiness } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "@jini-ai/cookie-consent/site/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";

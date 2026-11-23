@@ -12,7 +12,7 @@ import { CONSENT_COOKIE } from '@jini-ai/cookie-consent';
 import { headerResolver } from '@jini-ai/cookie-consent/server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
-import { ensureSiteConsentDefinitions } from '#src/features/consent/settings';
+import { ensureSiteConsentDefinitions } from '@jini-ai/cookie-consent/site/settings';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { RouteDeps } from '#src/server/routes/types';

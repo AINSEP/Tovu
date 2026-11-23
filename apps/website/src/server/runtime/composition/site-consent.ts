@@ -6,7 +6,7 @@ import { SITE_CONSENT_NAMESPACE } from '@jini-ai/cookie-consent/site/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
-import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '@jini-ai/cookie-consent/site/settings';
 import { fetchPublishedPage } from '#src/features/site-inspection/published-page';
 import { resolveSitePath } from '#src/features/site-inspection/site-path-policy';
 import type { RouteDeps } from '#src/server/routes/types';
