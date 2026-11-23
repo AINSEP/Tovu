@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
 import { extractEntryRefs } from "@jini-ai/cms/widgets";
-import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets/site/entry-refs-extractor";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
+import { warnUnindexedEntryRef } from "../unindexed-ref-warning.js";
 
 /**
  * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser.
@@ -25,7 +26,7 @@ const WIDGET = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ASSET = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function extract(html: string) {
-  return extractHtmlEntryRefs({ workspaceId: WORKSPACE, sourceEntryId: SOURCE, html });
+  return extractHtmlEntryRefs({ workspaceId: WORKSPACE, sourceEntryId: SOURCE, html }, { report: warnUnindexedEntryRef });
 }
 
 /** Run `fn` with `console.warn` captured. Restored in `finally` so one failing canary cannot

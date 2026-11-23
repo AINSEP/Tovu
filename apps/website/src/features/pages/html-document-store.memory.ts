@@ -12,7 +12,8 @@ import { announcePendingGoLive } from "@jini-ai/cms/entries";
 import { SYSTEM_ACTOR_ID } from "../post/index.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets/site/entry-refs-extractor";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
+import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed-ref-warning.js";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import {
   PageConcurrentEditError,
@@ -78,7 +79,7 @@ export class InMemoryPagesHtmlDocumentStore {
   /** @see PagesHtmlDocumentStore's own `reindexEntryRefs` private method for the full rationale. */
   private async reindexEntryRefs({ html }: { html: string }, _optional = {}): Promise<void> {
     if (!this.deps.entryRefsRepo) return;
-    const refs = extractHtmlEntryRefs({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, html });
+    const refs = extractHtmlEntryRefs({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, html }, { report: warnUnindexedEntryRef });
     await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
   }
 
