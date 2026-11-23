@@ -1,3 +1,6 @@
+import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
+import type { Translate } from "@jini-ai/core/text";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { describeApiError } from "@/lib/admin-http/request";
 import { siteExportFailure } from "../site-export-error";
 import { SITE_TRANSFER_KEYS } from "./site-transfer-rules";
@@ -35,6 +38,17 @@ function selectExportRequest({ port, format, themeIds }: {
     : { create: port.createShare.bind(port), initial: {} };
 }
 
+/** A refused clipboard write, in plain words with copyable details. Pure: no clipboard or clock access.
+ *  The share's own URL is deliberately not in the details (it may carry a private link token). */
+function copyLinkFailure({ error, t }: { error: unknown; t: Translate }, _options = {}): UserFacingError {
+  return formatUserFacingError({
+    message: t("Couldn't copy the link to your clipboard."),
+    action: t("Allow clipboard access for this page in your browser, then press Copy link again."),
+    step: "copy link",
+    cause: error,
+  }, TOVU_ERROR_REDACTION_OPTIONS);
+}
+
 export function createSiteShareActions(
   { revokingId, passwordDisplay, setRevokingId, setExportError, setExportFailure, port, t, invalidate, scope, clipboard, credentials, setCopiedId }:
     Pick<ReturnType<typeof useSiteExportState>, "revokingId" | "passwordDisplay" | "setRevokingId" | "setExportError" | "setExportFailure" | "invalidate"
@@ -61,7 +75,15 @@ export function createSiteShareActions(
 
   async function copyLink(share: SiteShare) {
     if (!share.url || !clipboard || credentials.credentialGate(share)) return;
-    await clipboard.writeText(share.url);
+    try {
+      await clipboard.writeText(share.url);
+    } catch (failure) {
+      // Browsers refuse the write when the page is unfocused, the permission is denied or the
+      // context is insecure. Say so: a swallowed refusal looks like a button that does nothing.
+      setExportError(null);
+      setExportFailure(copyLinkFailure({ error: failure, t }));
+      return;
+    }
     setCopiedId(share.shareId);
   }
   return { revoke, copyLink };
