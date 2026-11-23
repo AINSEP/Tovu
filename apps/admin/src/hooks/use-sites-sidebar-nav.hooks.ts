@@ -3,7 +3,7 @@ import { useSidebar } from "@jini-ai/admin/react";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 import { defaultSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
-import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";
+import type { SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { useSitesSnapshot } from "@/features/sites/hooks/use-sites-snapshot.hooks";
 
 export interface SitesSidebarNavOptions {

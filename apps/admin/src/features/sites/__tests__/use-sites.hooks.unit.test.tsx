@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminSiteActivation, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteActivation, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";

@@ -6,7 +6,7 @@ import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { buildEvalToolRegistry, fakeEvalRouteDeps, MIN_EXPECTED_TOOL_COUNT } from "../../../../../../../development/evals/tool-search-eval-registry.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, type PluginCapabilityToolSource } from "../../capability-tool-registrations.js";
 import { requiredPostReader } from "../fixtures/plugin-post-read.js";

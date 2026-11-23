@@ -1,4 +1,4 @@
-import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
+import type { SettingsErrorMapping } from "@jini-ai/core/contracts/site/http-kit-settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   NON_REGISTER_DEFINITION_OPS,

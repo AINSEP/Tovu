@@ -1,4 +1,5 @@
-import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
+import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult } from "@jini-ai/plugins/host";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { VersionedMediaRepoPort, DocumentTextExtractorPort } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { CommentsProviderRegistry } from "@jini-ai/core/contracts/site/capability-providers-comments";
@@ -86,11 +87,8 @@ import type {
   RestorePointIdempotencyLookupPort,
 } from "@jini-ai/db/tools";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
-import type {
-  BootLedgerPort,
-  MigrationRunsRepoPort,
-  SiteStatusPort,
-} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "@jini-ai/core/contracts/site/recovery-reconcile-interrupted-migration";
 import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
@@ -120,9 +118,8 @@ import type {
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord, PluginPackageFiles } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";

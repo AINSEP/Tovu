@@ -7,7 +7,8 @@
  * PATH probing performs filesystem I/O. Cache it across session-lifetime health polls because
  * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
-import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, detectAgents, probeAgentModels, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { createCliProbeCache } from "./cli-probe-cache.js";
 import { MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 import type { AgentSummary } from "@jini-ai/daemon/http";

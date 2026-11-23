@@ -1,8 +1,9 @@
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { type PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError } from "./provider-config-source.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import { providerInputOf } from "./provider-plugins.js";
 import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';

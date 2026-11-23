@@ -1,5 +1,5 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
-import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
+import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import type { PluginsRouteDeps } from "./deps.js";
 

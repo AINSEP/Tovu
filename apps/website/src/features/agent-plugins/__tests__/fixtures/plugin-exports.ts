@@ -1,6 +1,6 @@
 import type { PluginExportPackage, PluginExportSource } from "../../exports/source.js";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
-import type { LoginProvider } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 import type { AgentPluginExport } from "@jini-ai/core/contracts/site/agent-plugins-manifest";
 
 export const workspaceId = "ws-embeds";

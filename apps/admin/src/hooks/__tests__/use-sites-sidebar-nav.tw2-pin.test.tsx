@@ -4,8 +4,7 @@ import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import * as navI18n from "@/lib/admin-nav-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
-import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";
+import type { AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { useSitesSidebarNav } from "../use-sites-sidebar-nav.hooks";
 
 const groups: readonly AdminNavGroup[] = [{ items: [

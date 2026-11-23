@@ -5,7 +5,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController, type SiteListPrefsController } from "@jini-ai/ui/site-card";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 
 import {
   buildSiteCardMenuItems,

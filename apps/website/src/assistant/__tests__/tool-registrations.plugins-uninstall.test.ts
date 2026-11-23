@@ -19,7 +19,7 @@ import {
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { mcpTestPort } from "../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";

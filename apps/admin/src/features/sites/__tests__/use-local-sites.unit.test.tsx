@@ -6,7 +6,7 @@ import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import type { IntervalTimers, VisibilitySource } from "@jini-ai/ui/visible-interval";
 import { KEYS } from "../rules";

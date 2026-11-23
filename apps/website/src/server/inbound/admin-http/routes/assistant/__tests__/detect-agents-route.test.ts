@@ -7,7 +7,8 @@ import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-c
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { createAssistantAgentInventory, listAssistantAgents, setAgentModelProberForTesting } from "#src/assistant/agents";
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";

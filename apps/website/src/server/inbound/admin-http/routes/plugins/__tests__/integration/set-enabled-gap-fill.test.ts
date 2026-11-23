@@ -14,7 +14,7 @@ import { InMemoryPluginActivationRepo, PluginConflictError } from "@jini-ai/plug
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
 import type { PluginsRouteDeps } from "../../deps.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 /**
  * @file Coverage-gap-fill for `plugins/set-enabled.ts` — branches

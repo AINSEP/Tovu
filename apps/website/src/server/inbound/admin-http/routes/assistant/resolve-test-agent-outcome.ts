@@ -1,4 +1,4 @@
-import type { DetectedAgent } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 
 export type TestAgentOutcome = { ok: boolean; message: string };
 

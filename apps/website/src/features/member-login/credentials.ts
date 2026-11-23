@@ -1,7 +1,8 @@
 import { describeCredentialByLabel, resolveCustomCredentialByLabel,
   type CustomCredentialResolveDeps } from "../custom-credentials/index.js";
 import type { OAuthClient } from "@jini-ai/core/contracts/oauth";
-import { MemberLoginError, type LoginProvider } from "@jini-ai/user-management/server";
+import { MemberLoginError } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 
 /** Card label and exact token URL come from the pinned preset, never a browser or assistant input.
  * @returns False without opening the vault when the matching card is absent/incomplete.

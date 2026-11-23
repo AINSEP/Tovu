@@ -9,7 +9,7 @@ import { setPluginEnabled } from "@jini-ai/plugins/host";
 import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { registerEnabledPluginCapabilityTools } from "../../capability-tool-registrations.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { uninstallPlugin } from "@jini-ai/plugins/host";
 import { requiredPostReader } from "../fixtures/plugin-post-read.js";

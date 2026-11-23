@@ -13,7 +13,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { registerPluginsListRoute } from "../../list.js";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
 import type { PluginsRouteDeps } from "../../deps.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 /**
  * @file C-016 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` HTTP surface — SPEC-005 REQ-10, AC-11,

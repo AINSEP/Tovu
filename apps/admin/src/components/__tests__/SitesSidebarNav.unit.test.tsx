@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";

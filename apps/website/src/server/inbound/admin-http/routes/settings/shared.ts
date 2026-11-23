@@ -23,7 +23,8 @@ import {
   type SettingsService,
   type UserLayerReadTarget,
 } from "@jini-ai/core/settings";
-import { respondToSettingsError as respondToCmsSettingsError, type SettingsErrorMapping } from "@jini-ai/http-kit/settings";
+import { respondToSettingsError as respondToCmsSettingsError } from "@jini-ai/http-kit/settings";
+import type { SettingsErrorMapping } from "@jini-ai/core/contracts/site/http-kit-settings";
 
 import type { SettingsRouteDeps } from "./deps.js";
 

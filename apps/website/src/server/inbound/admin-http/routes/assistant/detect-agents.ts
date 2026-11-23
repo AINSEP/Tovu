@@ -1,9 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import {
-  type DetectedAgent as RuntimeDetectedAgent,
-} from "@jini-ai/agent-runtime";
+import type { DetectedAgent as RuntimeDetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { type RuntimeModelOption } from "@jini-ai/core/contracts/agents";
 import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";

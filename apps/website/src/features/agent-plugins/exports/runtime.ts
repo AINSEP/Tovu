@@ -3,7 +3,7 @@ import { escapeHtml } from "@jini-ai/core/text";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/core/contracts/site/widgets-html";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from '@jini-ai/core/contracts/headless/plugin-export-catalog';
-import type { LoginProvider } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
 import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource } from "./source.js";

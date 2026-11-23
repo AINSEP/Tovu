@@ -1,4 +1,4 @@
-import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
+import type { SettingsErrorMapping } from "@jini-ai/core/contracts/site/http-kit-settings";
 import {
   DefinitionNotFoundError,
   DefinitionTombstonedError,

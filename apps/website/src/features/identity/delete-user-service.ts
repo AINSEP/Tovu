@@ -1,6 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError, principalKindMayExercisePermission } from "@jini-ai/user-management";
-import { resolveEffectivePermissions, authorizeDepsFrom, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import { UserDeleteUnsupportedError } from "./user-purge-types.js";
 
 /**
