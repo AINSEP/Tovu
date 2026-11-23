@@ -346,3 +346,16 @@ test("pasted credentials are removed before real chat-store rows are written or 
   assert.deepEqual(rows.messages.map(row => row.content), ['Update [token removed] please']);
   assert.equal(JSON.stringify(rows).includes(secret), false, 'credential escaped the stored transcript');
 });
+
+// B140: a rename is user text too — a pasted credential must not reach the stored chat title.
+test("renamed title with a token is stored redacted", async t => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = await (await api(baseUrl, cookie, '', { method: 'POST', body: '{}' })).json() as { conversation: { id: string } };
+  const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+  const response = await api(baseUrl, cookie, `/${conversation.id}`, { method: 'PATCH', body: JSON.stringify({ title: `Key ${secret} chat` }) });
+  assert.equal(response.status, 200);
+  const renamed = await response.json() as { conversation: { title: string } };
+  assert.equal(renamed.conversation.title, 'Key [token removed] chat');
+  const list = await (await api(baseUrl, cookie, '')).json();
+  assert.equal(JSON.stringify(list).includes(secret), false, 'credential escaped into the stored title');
+});

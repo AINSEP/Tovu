@@ -218,17 +218,32 @@ export async function userAccountProtection(required: {
   return { isOwner, isProtectedAccount: isOwner || roles.some(role => role?.isBuiltin && (role.name === "admin" || role.name === "owner")) };
 }
 
+export type UserAccountAction = "trash" | "purge" | "disable" | "reset-password" | "enable";
+
+/** Only the destructive actions guard against self-targeting: resetting your own password is
+ *  allowed, and a disabled account cannot sign in to re-enable itself (an active owner re-enabling
+ *  itself is a harmless no-op the roster relies on). */
+const SELF_TARGET_REFUSED: ReadonlySet<UserAccountAction> = new Set(["trash", "purge", "disable"]);
+
+/** B151 (owner rule 2026-11-20): "only the owner may re-enable an owner-disabled admin" — so
+ *  `enable` gets its own plain wording instead of the destructive-action sentence. An owner target
+ *  keeps the library's existing "modify an owner principal" sentence the roster already shows. */
+function ownerRequiredMessage({ action, targetIsOwner }: { action: UserAccountAction; targetIsOwner: boolean }): string {
+  if (action !== "enable") return "only an owner can delete, trash, disable or reset the password of an admin or owner account";
+  return targetIsOwner ? "only an owner can modify an owner principal" : "only an owner can turn an admin account back on";
+}
+
 /** Tovu adapter for the owner account contract, pending extraction to Jini. Run inside the
  * same identity transaction as the write. Retention has no caller, but still preserves owners. */
 export async function assertUserAccountAction(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   principalId: UUID;
-  action: "trash" | "purge" | "disable" | "reset-password";
+  action: UserAccountAction;
 }, optional: { callerPrincipalId?: UUID; seededOwnerPrincipalId?: UUID } = {}): Promise<void> {
   const { deps, workspaceId, principalId, action } = required;
   const { callerPrincipalId, seededOwnerPrincipalId } = optional;
-  if (action !== "reset-password" && principalId === callerPrincipalId) {
+  if (SELF_TARGET_REFUSED.has(action) && principalId === callerPrincipalId) {
     throw new SelfDeleteError(action === "disable" ? "you cannot disable your own account" : "you cannot delete your own account");
   }
   const target = await deps.repos.principals.findById({ workspaceId, id: principalId });
@@ -236,7 +251,7 @@ export async function assertUserAccountAction(required: {
   const { isOwner: owner, isProtectedAccount } = await userAccountProtection({ deps, workspaceId, principalId });
   if (callerPrincipalId !== undefined && (isProtectedAccount || principalId === seededOwnerPrincipalId)
       && !await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId })) {
-    throw new OwnerRequiredError({ message: "only an owner can delete, trash, disable or reset the password of an admin or owner account" });
+    throw new OwnerRequiredError({ message: ownerRequiredMessage({ action, targetIsOwner: owner || principalId === seededOwnerPrincipalId }) });
   }
   await assertDestructiveAccountInvariants({ deps, workspaceId, principalId, action, targetStatus: target.status, owner },
     { seededOwnerPrincipalId });
@@ -246,12 +261,13 @@ async function assertDestructiveAccountInvariants(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   principalId: UUID;
-  action: "trash" | "purge" | "disable" | "reset-password";
+  action: UserAccountAction;
   targetStatus: string;
   owner: boolean;
 }, optional: { seededOwnerPrincipalId?: UUID } = {}): Promise<void> {
   const { deps, workspaceId, principalId, action, targetStatus, owner } = required;
-  if (action === "reset-password") return;
+  // Neither action removes an active owner, so the seeded-owner and owner-floor checks do not apply.
+  if (action === "reset-password" || action === "enable") return;
   if (principalId === optional.seededOwnerPrincipalId) {
     throw new OwnerRequiredError({ message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted" });
   }

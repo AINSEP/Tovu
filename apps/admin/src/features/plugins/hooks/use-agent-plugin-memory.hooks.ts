@@ -62,7 +62,13 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
   const listing = query.data ?? null;
   const current = draft.pluginId === pluginId ? draft : { pluginId, entryPath: "project.md", text: "" };
   const setText = ({ text }: { text: string }, _optional = {}) => setDraft({ ...current, text });
-  const setPath = ({ entryPath }: { entryPath: string }, _optional = {}) => setDraft({ pluginId, entryPath, text: listing?.notes.find(file => file.relativePath === entryPath)?.text ?? "" });
+  const savedText = (path: string) => listing?.notes.find(file => file.relativePath === path)?.text;
+  // B218: typing a new name while writing a note must not throw the typed text away. Only an
+  // unedited draft switches to the named note's saved text (or a blank page for a new name).
+  const setPath = ({ entryPath }: { entryPath: string }, _optional = {}) => {
+    const edited = current.text !== (savedText(current.entryPath) ?? "");
+    setDraft({ pluginId, entryPath, text: edited ? current.text : savedText(entryPath) ?? "" });
+  };
   const save = async () => {
     if (saving.current || !listing || hydrated.current !== pluginId) return;
     saving.current = true;

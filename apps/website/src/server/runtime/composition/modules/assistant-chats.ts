@@ -171,9 +171,11 @@ function createChatRoute({ deps }: ChatsRouteContext): ChatRoute {
   };
 }
 
-/** The validated, trimmed title, or the 400 message when it is empty or too long. */
+/** The validated, trimmed, redacted title, or the 400 message when it is empty or too long.
+ *  B140: a typed title is user text like a message — a pasted credential must never be stored in
+ *  the chat list, so it goes through the same redactor as the first-message seed above. */
 function parseRenameTitle({ body }: { body: Record<string, unknown> }): { title: string } | { error: string } {
-  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const title = typeof body.title === "string" ? redactUserText({ text: body.title }).text.trim() : "";
   if (!title) return { error: "'title' must be a non-empty string" };
   if (title.length > MAX_CONVERSATION_TITLE_LENGTH) return { error: `'title' must be at most ${MAX_CONVERSATION_TITLE_LENGTH} characters` };
   return { title };

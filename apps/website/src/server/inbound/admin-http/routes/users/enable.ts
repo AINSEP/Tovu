@@ -5,7 +5,7 @@ import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError,
 import { assertCallerHasAnyPermission, enablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { UserInTrashError } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction, UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -66,14 +66,22 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps },
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 
-      const { principal } = await enablePrincipal({
-        deps: serviceDeps,
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          principalId,
-        },
-      });
+      // B151 (owner rule 2026-11-20): only an owner may turn an admin or owner account back on —
+      // `user.manage` alone would let an admin undo the owner's disable. Same guard as disable.ts,
+      // in the same transaction as the write.
+      const seededOwnerPrincipalId = await deps.ownerPrincipalId;
+      const { principal } = await deps.transactions.run({ workspaceId: deps.workspaceId, execute: async () => {
+        await assertUserAccountAction({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId, action: "enable" },
+          { callerPrincipalId: caller.id, seededOwnerPrincipalId });
+        return enablePrincipal({
+          deps: serviceDeps,
+          input: {
+            workspaceId: deps.workspaceId,
+            callerPrincipalId: caller.id,
+            principalId,
+          },
+        });
+      } });
 
       const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id });
       if (!user) throw new IdentityNotFoundError({ message: `user '${principal.id}' was not found` });

@@ -213,27 +213,38 @@ function createHumanPasswordUserHandler({ routeDeps, surfaces, identity }: { rou
   };
 }
 
+/** Runs the owner account guard in the same transaction as the wrapped disable/enable tool, and
+ *  turns its refusals into plain tool errors that say nothing was changed. */
+function gateAccountActionTool({ registration, routeDeps, identity, action }: { registration: ToolRegistration; routeDeps: TovuIdentityToolDeps;
+  identity: Parameters<typeof assertUserAccountAction>[0]['deps']; action: "disable" | "enable" }, _optional = {}): ToolRegistration {
+  const toolId = registration.descriptor.id;
+  return { ...registration, handler: async (ctx, options = {}) => {
+    const input = validated({ toolId, schema: registration.descriptor.inputSchema, input: ctx.input });
+    const principalId = input["principalId"];
+    if (principalId === undefined) throw new ToolInputError({ message: `${toolId}: principal ID is missing. Nothing was changed.` });
+    try {
+      return await routeDeps.transactions.run({ workspaceId: routeDeps.workspaceId, execute: async () => {
+        await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId, action },
+          { callerPrincipalId: ctx.principal.id, seededOwnerPrincipalId: await routeDeps.ownerPrincipalId });
+        return registration.handler(ctx, options);
+      } });
+    } catch (error) {
+      if (error instanceof SelfDeleteError || error instanceof OwnerRequiredError) {
+        const code = error instanceof SelfDeleteError ? "SELF_DELETE" : "OWNER_REQUIRED";
+        throw new ToolInputError({ message: `${toolId}: ${code}: ${error.message}. Nothing was changed.` });
+      }
+      throw error;
+    }
+  } };
+}
+
 function gateIdentityRegistration(registration: ToolRegistration, { routeDeps, identity, confirmedDelete, createUserWithHumanPassword }: { routeDeps: TovuIdentityToolDeps; identity: Parameters<typeof assertUserAccountAction>[0]['deps']; confirmedDelete: ReturnType<typeof createConfirmedIdentityDelete>; createUserWithHumanPassword: ReturnType<typeof createHumanPasswordUserHandler> }): ToolRegistration {
     switch (registration.descriptor.id) {
       case "identity_user_disable":
-        return { ...registration, handler: async (ctx, options = {}) => {
-          const input = validated({ toolId: registration.descriptor.id, schema: registration.descriptor.inputSchema, input: ctx.input });
-          const principalId = input["principalId"];
-          if (principalId === undefined) throw new ToolInputError({ message: `${registration.descriptor.id}: principal ID is missing. Nothing was changed.` });
-          try {
-            return await routeDeps.transactions.run({ workspaceId: routeDeps.workspaceId, execute: async () => {
-              await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId, action: "disable" },
-                { callerPrincipalId: ctx.principal.id, seededOwnerPrincipalId: await routeDeps.ownerPrincipalId });
-              return registration.handler(ctx, options);
-            } });
-          } catch (error) {
-            if (error instanceof SelfDeleteError || error instanceof OwnerRequiredError) {
-              const code = error instanceof SelfDeleteError ? "SELF_DELETE" : "OWNER_REQUIRED";
-              throw new ToolInputError({ message: `identity_user_disable: ${code}: ${error.message}. Nothing was changed.` });
-            }
-            throw error;
-          }
-        } };
+        return gateAccountActionTool({ registration, routeDeps, identity, action: "disable" });
+      // B151: the assistant's enable must obey the same owner-only rule as the HTTP route.
+      case "identity_user_enable":
+        return gateAccountActionTool({ registration, routeDeps, identity, action: "enable" });
 
       case ROLE_DELETE_TOOL_ID:
         return confirmedDelete({ registration, kind: "role" });

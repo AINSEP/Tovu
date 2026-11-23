@@ -206,6 +206,9 @@ export const TIPTAP_BLOCK_NODE_SCHEMA = {
               required: ["placementId"],
               properties: {
                 placementId: { type: "string", description: "An existing embed placement id, as returned by widgets_insert_embed." },
+                // B190: the admin editor stamps this on every embed it inserts; without it listed here,
+                // strict validation made a model strip it and the post lost which widget it shows.
+                widgetEntryId: { type: "string", description: "The widget this embed shows. Keep it when present." },
                 content: { type: "object", description: "Optional per-placement Media content overriding saved config; slug items or raw HTML." },
                 // Listed so strict MCP validation keeps a node that already carries them (a model would
                 // otherwise strip them to pass, losing the post's styling); see the description below.

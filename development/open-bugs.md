@@ -341,3 +341,72 @@ Owner-approved holds on top of combine-13 (`0d7f78fa4`, Jini merge-13 linked). D
   Two are new production seam hits: `admin-surfaces/public-config.ts:15` (`JINI_GOOGLE_PICKER_*` in the generic
   public-name pattern) and `api-connections/contribution.ts:77` (`google-workspace` → `JINI_` client namespace).
   `bundled-catalog.ts:47,48,57` need an owner call (inventory allow-list) and Jini manifest `soon` flags.
+
+## bugs-high (Tovu `codex/bugs-high-tovu`, 2026-11-23)
+
+HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`), on base
+`integ/merge-13-2026-11-22`. Each fix has a failing test first and a named mutation. Commits are listed in
+`cloud-results/bugs-high.md`.
+
+### `B151-enable-owner-disabled-admin` — FIXED on `codex/bugs-high-tovu`
+- `POST users/:id/enable` (and the assistant's `identity_user_enable`) only checked `user.manage`, so an admin
+  could turn back on an admin the owner had disabled. Both now run `assertUserAccountAction(action: "enable")`
+  in the write's transaction: only an owner may re-enable an admin or owner account.
+- Test: `account-protections.test.ts` "HTTP enable: a non-owner admin cannot re-enable an owner-disabled admin".
+  Mutation: guard action `enable` → `reset-password` (no owner rule) — red.
+
+### `B152-reset-password-trash-before-permission` — FIXED on `codex/bugs-high-tovu`
+- `POST users/:id/reset-password` looked the user up in the Trash before checking the caller's permission, so a
+  caller without `user.manage` got `409 USER_IN_TRASH` and learned the user was trashed. The permission check now
+  runs first (as `enable.ts`), so that caller gets 403.
+- Test: `account-protections.test.ts` "HTTP reset-password: a caller without user.manage gets 403 for a trashed
+  user, not USER_IN_TRASH". Mutation: move the permission check after the Trash check — red.
+
+### `B140-chat-rename-title-not-redacted` — FIXED on `codex/bugs-high-tovu`
+- `PATCH /api/assistant/chats/:id` stored the typed title as-is, so a credential pasted into a rename was saved in
+  the chat list (the first-message seed and messages were already redacted). `parseRenameTitle` now runs
+  `redactUserText` before storing. Already-stored titles are not scrubbed (owner question 3 in P8).
+- Test: `assistant-chats-routes.test.ts` "renamed title with a token is stored redacted". Mutation: skip the
+  redactor — red.
+
+### `B211-search-plugin-activation-site-root` — FIXED on `codex/bugs-high-tovu`
+- Site search asked "is this provider plugin on?" at the site-level `agentPluginLayout.root`, where no activations
+  file lives, so a provider plugin the operator disabled kept receiving index writes and visitor queries. The check
+  (now `bindSearchPluginActivity`) reads `agentPluginLayout.forWorkspace({ workspaceId }).root`, as `app.ts` does.
+- Test: `site-deps/__tests__/search-plugin-activity.unit.test.ts`. Mutation: read `layout.root` again — red.
+- Unrelated, pre-existing: 32 `site-deps` characterization tests ("slice call missing") fail on the base too.
+
+### `B190-widget-embed-entry-id-schema` — FIXED on `codex/bugs-high-tovu`
+- The admin editor writes `attrs.widgetEntryId` on every `widgetEmbed` node, but the post tool schema's
+  `widgetEmbed.attrs` had `additionalProperties: false` without it, so strict MCP validation refused the node and a
+  model had to strip it, losing which widget the embed shows. The schema now lists it ("Keep it when present").
+- Test: `agent-tools.tiptap-node-vocabulary.test.ts` "widgetEmbed carrying widgetEntryId passes strict validation and
+  keeps it". Mutation: drop the schema property — red.
+
+### `C058-member-save-stale-overwrite` — FIXED on `codex/bugs-high-tovu`
+- `SqlMemberRepo.save` accepted the write when the stored `version <= record.version`. Every caller saves
+  `read.version + 1`, so two writers that read the same version both landed and the second silently overwrote the
+  first. The guard is now strict (`<`); the Trash and credential-cutoff guards are unchanged. No other table uses the
+  `<=` pattern (grep of `apps/website/src`).
+- Test: `credentials-revocation.dialects.test.ts` "two saves from the same version: the second is refused" (sqlite +
+  pglite). Mutation: restore `<=` — red on both dialects.
+
+### `B218-plugin-note-rename-drops-text` — FIXED on `codex/bugs-high-tovu`
+- In a plugin's Memory editor, typing a new file name replaced the note text with that file's saved text — a blank
+  page for a new name — on every keystroke, so renaming a note being written threw the writing away. `setPath` now
+  keeps edited text; only an unedited draft switches to the named note's saved text.
+- Test: admin `agent-plugin-memory.hooks.unit.test.ts` "renaming a new note keeps its text; …". Mutation: always load
+  the named note's text — red.
+
+### `B216-byok-key-to-half-typed-base-url` — FIXED on Jini `codex/bugs-high-jini` (`e5f263d5`)
+- Jini `ui` BYOK model discovery re-ran on every Base URL keystroke and sent the provider key to each half-typed
+  host. It now waits until a typed Base URL is unchanged for 600 ms and is a complete allowed URL; preset/protocol
+  picks still probe at once. Test: Jini `ExecutionTab.hooks.base-url.test.tsx`. Mutation: key the effect on the typed
+  URL and drop the guard — red. Tovu picks it up with the next `@jini-ai/ui` release.
+
+### Skipped in this run (fix belongs to an open lane branch)
+- `B236` webhook owner `user-local` — `routes/integrations/create.ts` is changed by `codex/ex4-integrations-tovu`.
+- `B217` menu leave guard — `MenuEditor.tsx` is changed by `codex/ex5-small-tovu`.
+- `B233` stale collection sort — `WidgetConfigFields.hooks.tsx` is changed by `codex/ex5-collections-tovu`.
+- `C043` tier-2 import allowlist — `plugin-tier2/worker.ts` is changed by `codex/ex2-holds-tovu`, which already
+  carries a C043 import policy and `worker-import-allowlist.integration.test.ts`.

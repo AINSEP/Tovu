@@ -3,7 +3,7 @@ import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { resetUserPassword } from "@jini-ai/user-management/server";
+import { assertCallerHasAnyPermission, resetUserPassword } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
@@ -59,6 +59,11 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, 
       const caller = getAuthedPrincipal(res);
       const seededOwnerPrincipalId = await deps.ownerPrincipalId;
       const principalId = String(req.params.principalId ?? "");
+
+      // B152: Trash membership is private too — check the caller's permission BEFORE looking it up,
+      // as `enable.ts` does, so a caller without `user.manage` gets 403, not a 409 that reveals it.
+      await assertCallerHasAnyPermission({ deps: identityServiceDepsFrom(deps), workspaceId: deps.workspaceId,
+        callerPrincipalId: caller.id, permissions: ["user.manage"] });
 
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition;
       // see `enable.ts`'s identical guard for why.
