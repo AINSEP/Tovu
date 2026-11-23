@@ -5,6 +5,8 @@ import test from "node:test";
 import { createToolRegistry, type Principal, type RunRef, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { isReadOnlyTool } from "@jini-ai/core";
+import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
+import { filterReadOnlyToolCatalog } from "@jini-ai/daemon/read-only-tools";
 import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -17,6 +19,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
+import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
 import {
   READ_ONLY_UNCHECKABLE_MESSAGE,
@@ -244,6 +247,43 @@ test("READ-ONLY: the same constraint refuses a write tool the caller names DIREC
   assert.equal(result.status, "denied");
   assert.match(errorText(result), new RegExp(`"${SET_USERNAME_TOOL_ID}" is not registered as read-only`));
   assert.equal(await storedUsername(harness), undefined, "a denied dispatch must leave the store untouched");
+});
+
+test("a read-only principal neither sees nor can invoke write tools", async () => {
+  const harness = await buildHarness();
+  // The production listing path: `byok-tool-surface.ts` filters `buildToolCatalogQuery(registry)` through
+  // `filterReadOnlyToolCatalog` for every `search_tools` / `describe_tool` call, over this same registry.
+  const catalog = buildToolCatalogQuery(harness.registry);
+  try {
+    const descriptors = new Map(harness.registry.list({}).map((d) => [d.id, d]));
+    // why: a union of queries, because one query can miss a tool for ranking reasons and a miss would
+    // read as "hidden". The unconstrained control below proves these queries DO surface the write tools.
+    const queries = ["username", "custom credential", "credential save token", "verify credential"];
+    const listedIds = (view: ToolCatalogQuery) => new Set(queries.flatMap((query) => view.search({ query }, { limit: 100 }).map((hit) => hit.id)));
+
+    const ordinary = listedIds(filterReadOnlyToolCatalog({ principal: UNCONSTRAINED, registry: harness.registry, catalog }));
+    assert.ok(ordinary.has(SET_USERNAME_TOOL_ID), "control: an unconstrained listing offers the write tool, so its absence below is the filter's doing");
+    assert.ok(ordinary.has(SET_TOKEN_TOOL_ID), "control: an unconstrained listing offers the credential-save write tool");
+
+    const visible = filterReadOnlyToolCatalog({ principal: READ_ONLY, registry: harness.registry, catalog });
+    const offered = listedIds(visible);
+    assert.ok(offered.has(VERIFY_TOOL_ID), "the read-only listing must still offer read tools, or this test would pass on an empty catalog");
+    assert.equal(offered.has(SET_USERNAME_TOOL_ID), false, "listing: the write tool must not be offered to a read-only principal");
+    assert.equal(offered.has(SET_TOKEN_TOOL_ID), false, "listing: the credential-save write tool must not be offered to a read-only principal");
+    for (const id of offered) {
+      assert.equal(isReadOnlyTool({ descriptor: descriptors.get(id) }), true, `listing: "${id}" is offered to a read-only principal but is not registered read-only`);
+    }
+    assert.equal(visible.describe({ id: SET_USERNAME_TOOL_ID }), null, "describe: the write tool must be withheld from a read-only principal");
+    assert.equal(visible.describe({ id: SET_TOKEN_TOOL_ID }), null, "describe: the credential-save write tool must be withheld from a read-only principal");
+
+    // The other half: naming a hidden write tool directly is still refused, and nothing is written.
+    const result = await harness.executor.execute({ principal: READ_ONLY, run: RUN, toolId: SET_USERNAME_TOOL_ID, input: { label: LABEL, username: "leona@example.com" } });
+    assert.equal(result.status, "denied");
+    assert.match(errorText(result), new RegExp(`"${SET_USERNAME_TOOL_ID}" is not registered as read-only`));
+    assert.equal(await storedUsername(harness), undefined, "invoke: a denied dispatch must leave the store untouched");
+  } finally {
+    catalog.dispose();
+  }
 });
 
 // ---------------------------------------------------------------------------
