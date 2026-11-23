@@ -32,7 +32,7 @@ import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
-import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
+import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-media-modal.hooks";
 import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
