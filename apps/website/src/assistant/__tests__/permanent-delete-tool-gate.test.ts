@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createChatDeleteScope, filterChatDeleteCatalog } from "../permanent-delete-tool-gate.js";
-import { PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
+import { PERMANENT_DELETE_TOOLS } from "../../contracts/headless/index.js";
 import { isChatToolAllowed } from "../assistant-permanent-deletes-policy.js";
 const entries = [...PERMANENT_DELETE_TOOLS.map(tool => ({ id: tool.id, description: tool.label, source: "site", score: 1 })), { id: "trash_list_items", description: "List Trash", source: "site", score: 0 }];
 const catalog = { search: (_required: { query: string }, optional: { limit?: number } = {}) => entries.slice(0, optional.limit), describe: ({ id }: { id: string }) => entries.find(entry => entry.id === id) ?? null };

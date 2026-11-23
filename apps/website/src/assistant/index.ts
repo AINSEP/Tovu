@@ -186,7 +186,6 @@ export { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 
 export { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "./external-mcp-tool-approval-adapters.js";
 export {
-  type ConversationToolApprovalStore,
   type ExternalMcpToolApprovalRecord,
   type ExternalMcpToolApprovalRepoPort,
 } from "./external-mcp-tool-approval-ports.js";

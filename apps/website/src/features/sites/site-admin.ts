@@ -13,7 +13,7 @@ import {
 } from "#src/platform/site-dir/index";
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
+import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
 import {
   firstNewSiteAgentPluginTokenRefusal,
   parseNewSiteAgentPluginTokens,
