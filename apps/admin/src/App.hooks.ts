@@ -8,7 +8,8 @@ import { createFrontendSessionBridge, createFrontendRequestCaller, createFronten
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
 import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
+import { registerAdminPageWebMcpTools } from "@jini-ai/admin/screens/webmcp/admin-page-tools";
+import { adminPageToolCollaborators } from "./features/webmcp/admin-page-tool-collaborators";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
@@ -928,7 +929,7 @@ export function useAgentPageBridge(
       path: "/api/frontend-sessions/request", fetch,
       bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
-    registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
+    registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver: pageDriver, signal: webMcpController.signal }, {
       requestPageAction: async (request, _options = {}) => {
         if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
         else await agentBridge.rebind({ signal: request.signal }, {});

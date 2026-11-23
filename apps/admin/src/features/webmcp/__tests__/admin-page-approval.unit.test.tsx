@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "../admin-page-tools";
+import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "@jini-ai/admin/screens/webmcp/admin-page-tools";
+import { adminPageToolCollaborators } from "../admin-page-tool-collaborators";
 
 function fixture(requestPageAction: RequestAdminPageAction = async () => ({ executed: false })) {
   const tools: WebMcpToolRegistration[] = [];
@@ -10,7 +11,7 @@ function fixture(requestPageAction: RequestAdminPageAction = async () => ({ exec
     highlight: vi.fn(), scrollTo: vi.fn(), click: vi.fn(), fill: vi.fn(), selectOption: vi.fn(), navigate: vi.fn(),
   };
   const request = vi.fn(requestPageAction);
-  registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
+  registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver, signal: controller.signal }, {
     requestPageAction: request, isEnabled: () => true,
     modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
   });

@@ -2,9 +2,9 @@ import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BrowserAgentSettingsPanel } from "../BrowserAgentSettingsPanel";
+import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
 import { WEBMCP_PREFERENCE_KEY, useBrowserAgentSettings, setBrowserAgentEnabled, type BrowserAgentSettingsPort } from "../browser-agent-settings.hooks";
-import { WEBMCP_DICT, WEBMCP_KEYS } from "../webmcp-i18n";
+import { WEBMCP_DICT, WEBMCP_KEYS } from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
 import { ADMIN_LOCALES } from "../../../lib/settings-tabs";
 
 afterEach(() => { act(() => setBrowserAgentEnabled({ enabled: true })); localStorage.clear(); });
@@ -74,7 +74,7 @@ describe("browser-agent opt-out", () => {
   });
 
   it("renders a working human-only opt-out with honest browser scope", async () => {
-    render(<BrowserAgentSettingsPanel locale="en" />);
+    render(<BrowserAgentSettingsPanel locale="en" useBrowserAgentSettingsHook={useBrowserAgentSettings} />);
     const toggle = screen.getByRole("checkbox", { name: "Browser-agent access (WebMCP)" });
     expect(toggle).toBeChecked();
     expect(toggle).not.toHaveAttribute("data-agent-element");

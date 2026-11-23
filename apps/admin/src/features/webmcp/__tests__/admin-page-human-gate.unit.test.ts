@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { PageDriver, WebMcpToolRegistration } from '@jini-ai/agentic';
-import { registerAdminPageWebMcpTools } from '../admin-page-tools';
+import { registerAdminPageWebMcpTools } from '@jini-ai/admin/screens/webmcp/admin-page-tools';
+import { adminPageToolCollaborators } from '../admin-page-tool-collaborators';
 
 it('sends an opaque click through the authenticated request adapter without exposing an answer tool', async () => {
   const tools: WebMcpToolRegistration[] = [];
@@ -10,7 +11,7 @@ it('sends an opaque click through the authenticated request adapter without expo
     click: vi.fn(), fill: vi.fn(), selectOption: vi.fn(), navigate: vi.fn(), highlight: vi.fn(), scrollTo: vi.fn(),
   };
   const requestPageAction = vi.fn().mockResolvedValue({ clicked: 'delete-confirm' });
-  registerAdminPageWebMcpTools({ driver, signal }, {
+  registerAdminPageWebMcpTools({ ...adminPageToolCollaborators, driver, signal }, {
     modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
     isEnabled: () => true, requestPageAction,
   });
