@@ -4,7 +4,7 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { AdminTrashItem } from "./api/trash-api.types";
 
-import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";
 import { t } from "./trash-i18n";
 import { useWiredTrash, type TrashController } from "./hooks/use-trash.hooks";

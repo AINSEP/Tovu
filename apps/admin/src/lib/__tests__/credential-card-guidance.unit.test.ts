@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
-import { guideToPendingCredentialCard, onAdminSecretRedacted } from "../credential-card-guidance";
+import { guideToPendingCredentialCard, onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
 import { createChatI18nAdapter } from "../../components/AssistantDock/assistant-dock-i18n";
 
 describe("credential paste guidance", () => {

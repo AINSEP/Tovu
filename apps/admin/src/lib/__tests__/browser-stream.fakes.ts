@@ -1,4 +1,4 @@
-import type { BrowserStreamPorts, StreamChannel } from "../browser-stream";
+import type { BrowserStreamPorts, StreamChannel } from "@jini-ai/admin/shell/lib/browser-stream";
 
 /** Separate document/clock/channel ports for each simulated tab; one origin lock queue. */
 export function fakeBrowserOrigin() {

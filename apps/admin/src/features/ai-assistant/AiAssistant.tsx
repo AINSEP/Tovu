@@ -46,7 +46,7 @@ import {
 } from "./hooks/use-visitor-credential-form.hooks";
 import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

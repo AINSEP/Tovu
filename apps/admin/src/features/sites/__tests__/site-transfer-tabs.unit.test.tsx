@@ -9,7 +9,7 @@ vi.mock("@jini-ai/admin/shell/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZO
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ApiError } from "@/lib/admin-http/request";
-import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
+import { resetAssistantPromptBus, useAssistantPromptRequests } from "@jini-ai/admin/shell/lib/assistant-prompt-bus";
 import { SiteExportTab } from "../SiteExportTab";
 import { SiteImportTab } from "../SiteImportTab";
 import { createFakeSiteTransferPort, defaultSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";

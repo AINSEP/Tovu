@@ -3,7 +3,7 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
 import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
-import { subscriptionEnded, type TrackedRunHandlers } from "../stream-activity";
+import { subscriptionEnded, type TrackedRunHandlers } from "@jini-ai/admin/shell/lib/stream-activity";
 
 function harness() {
   let saved: ChatMessage | null = null;

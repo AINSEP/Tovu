@@ -24,8 +24,8 @@
  */
 import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { startBrowserStream, type BrowserStreamPorts } from "./browser-stream";
-import { adminStreamActivity, type StreamActivity } from "./stream-activity";
+import { startBrowserStream, type BrowserStreamPorts } from "@jini-ai/admin/shell/lib/browser-stream";
+import { adminStreamActivity, type StreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 
 /** Frame payload. Namespace names only — the server never sends values (see `change-feed.ts`). */
 interface SettingsChangedFrame {

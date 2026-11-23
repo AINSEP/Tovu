@@ -4,7 +4,8 @@ import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-
 import { ApiError } from "@/lib/admin-http/request";
 
 import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
-import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
+import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/use-folder-upload.hooks";
+import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
@@ -147,6 +148,7 @@ function useAgentPluginUploadSources(
 
   // A picked folder becomes `<folder>.zip` and goes through `choose` like any picked zip.
   const folderUpload = useFolderUpload({
+    folderZip,
     maxBytes: AGENT_PLUGIN_ZIP_MAX_BYTES,
     tooLarge: TOO_LARGE,
     isLocked: () => locked.current,

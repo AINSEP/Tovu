@@ -1,5 +1,5 @@
 import "@jini-ai/chat/react/styles/chat-settings.css";
-import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+import { onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
 import { subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";

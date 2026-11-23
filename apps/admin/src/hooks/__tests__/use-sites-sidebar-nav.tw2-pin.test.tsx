@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from "react";
 import { Sidebar } from "@jini-ai/admin/react";
 import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
-import * as navI18n from "@/lib/admin-nav-i18n";
+import * as navI18n from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import type { AdminNavGroup } from "@/nav";
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";

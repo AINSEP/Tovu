@@ -1,6 +1,6 @@
 /** EventSource-compatible page transport, with ownership delegated to browser-stream. */
-import { startBrowserStream, type BrowserStreamPorts } from "./browser-stream";
-import { adminStreamActivity, type StreamActivity } from "./stream-activity";
+import { startBrowserStream, type BrowserStreamPorts } from "@jini-ai/admin/shell/lib/browser-stream";
+import { adminStreamActivity, type StreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 
 type Source = Pick<EventSource, "addEventListener" | "close" | "readyState">;
 

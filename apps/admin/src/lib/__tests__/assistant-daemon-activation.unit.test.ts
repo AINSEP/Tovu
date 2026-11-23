@@ -3,7 +3,7 @@ import { test, vi } from "vitest";
 import { createFrontendSessionBridge } from "@jini-ai/chat/browser/frontend-session-bridge";
 import { activateAssistantDaemon, prepareAssistantPageBinding } from "../assistant-daemon-activation";
 import { openTabEventSource } from "../tab-event-source";
-import { createStreamActivity } from "../stream-activity";
+import { createStreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 import { fakeBrowserOrigin, StreamFake } from "./browser-stream.fakes";
 
 function deferred<T>() {

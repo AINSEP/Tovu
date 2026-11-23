@@ -4,7 +4,7 @@ import { COMMENTS_QUEUE_RESOURCE, type AdminCommentsPort, type CommentsEventsPor
 import type { CommentQueueScope } from '@jini-ai/admin/comments/react';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateComments } from '../../features/comments/comments-i18n';
-import { translateAdminNavLabel } from '../../lib/admin-nav-i18n';
+import { translateAdminNavLabel } from '@jini-ai/admin/shell/lib/admin-nav-i18n';
 import { serverLabel } from '../../components/status-labels';
 import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
 import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';

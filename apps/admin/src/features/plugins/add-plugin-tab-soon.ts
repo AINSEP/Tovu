@@ -1,4 +1,4 @@
-import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 
 /**
  * @file The "Soon" tags on the Agent Plugins and Plugins tab labels: "Add a plugin" (owner,

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import { openTabEventSource } from "../tab-event-source";
-import { createStreamActivity } from "../stream-activity";
+import { createStreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 import { fakeBrowserOrigin, StreamFake } from "./browser-stream.fakes";
 
 /**

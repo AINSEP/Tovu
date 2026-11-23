@@ -3,7 +3,7 @@ import { createFrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core";
 import { subscribeToSettingsChanges } from "../settings-events";
 import { openTabEventSource } from "../tab-event-source";
-import { createStreamActivity, trackTransportActivity } from "../stream-activity";
+import { createStreamActivity, trackTransportActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 import { browserDurableSubscriptionPorts, followDurableRun } from "../durable-run-subscription";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { fakeBrowserOrigin, settleLocks, StreamFake } from "./browser-stream.fakes";

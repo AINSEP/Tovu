@@ -7,7 +7,7 @@ import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-
 import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";
 import { agUiRunClient } from "./assistant-transport-ag-ui";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
-import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
+import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "@jini-ai/admin/shell/lib/stream-activity";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
 export { parseFrame } from "./sse-frames";

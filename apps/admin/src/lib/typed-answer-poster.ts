@@ -1,4 +1,4 @@
-import { onAdminSecretRedacted } from "./credential-card-guidance";
+import { onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
 import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
 /**
  * @module typed-answer-poster

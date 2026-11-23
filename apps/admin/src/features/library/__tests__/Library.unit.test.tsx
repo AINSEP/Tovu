@@ -8,7 +8,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { ADMIN_PANELS } from "@/panels";
 import { Library as LibraryRoute } from "@/panel-pages";
 import { Placeholder } from "@/components/Placeholder";
-import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
+import { translateAdminNavLabel } from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { Library, documentMenuItems, markdownFrameDocument } from "../Library";
 import { resolveLibraryTabId } from "../Library.hooks";

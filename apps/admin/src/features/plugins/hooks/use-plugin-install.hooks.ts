@@ -4,7 +4,8 @@ import { ApiError } from "@/lib/admin-http/request";
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
-import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
+import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/use-folder-upload.hooks";
+import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { formatByteSize } from "@jini-ai/core/text";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -102,7 +103,7 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   const drop = useZipDrop({ isLocked: () => locked.current, onDropFiles: ({ files }, _optional = {}) => chooseZip({ file: files[0] ?? null }) });
   // A picked folder becomes `<folder>.zip` and then IS the chosen zip: same limit, preview, install.
   const folderUpload = useFolderUpload({
-    maxBytes: ZIP_MAX_BYTES, tooLarge: TOO_LARGE, isLocked: () => locked.current, onZipped: (file) => chooseZip({ file }),
+    folderZip, maxBytes: ZIP_MAX_BYTES, tooLarge: TOO_LARGE, isLocked: () => locked.current, onZipped: (file) => chooseZip({ file }),
     onError: ({ key }, _optional = {}) => { invalidate(); setZipFile(null); setError(required.t(key)); },
   });
   return {

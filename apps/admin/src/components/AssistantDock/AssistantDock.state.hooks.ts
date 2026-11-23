@@ -9,7 +9,7 @@ import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
-import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
+import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
 import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
@@ -37,7 +37,7 @@ import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
 import { useExecutionConfigSeam } from "./hooks/execution-config.hooks";
 import { useLocalCliSelectionSeam } from "./hooks/local-cli-selection.hooks";
 import { useCallback } from "react";
-import { useAssistantPromptRequests } from "../../lib/assistant-prompt-bus";
+import { useAssistantPromptRequests } from "@jini-ai/admin/shell/lib/assistant-prompt-bus";
 import type { AssistantDockProps } from "./AssistantDock";
 
 type DockProps = AssistantDockProps;
