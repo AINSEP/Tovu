@@ -109,7 +109,11 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     // two near-simultaneous requests. Asserting register happens before the customInstructionsCache
     // refresh call (the first genuinely async step in onStarted) proves it landed in that
     // synchronous prefix rather than after some other await had already yielded the event loop.
-    const refreshIndex = onStartedSource.indexOf("customInstructionsCache");
+    // Anchor on the `.refresh()` CALL, not the bare identifier: since a310d36d5 (the agent-daemon-scope split)
+    // `onStarted` destructures `customInstructionsCache` from its ports on its first line, so a bare indexOf
+    // finds that destructuring before `registerLiveRun(runPorts)` and the comparison no longer measures anything.
+    // The call spans lines (`customInstructionsCache\n    .refresh()`), hence the `\s*`.
+    const refreshIndex = onStartedSource.search(/customInstructionsCache\s*\.refresh\(\)/);
     assert.ok(refreshIndex > -1, "this test's own anchor (the customInstructionsCache refresh call) must still exist verbatim");
     assert.ok(registerIndex < refreshIndex, "liveRunTracker.register must be called synchronously, before onStarted's first await (the custom-instructions refresh) — a register that runs after an await could lose the single-threaded-ordering guarantee two near-simultaneous requests rely on");
   });

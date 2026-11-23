@@ -52,7 +52,8 @@ describe("the toolRegistrations registration loop", () => {
   test("the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array", () => {
     assert.match(
       registrationLoopSource,
-      /for \(const registration of withPageNavigateErrorRewrap\(withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)\)\)/,
+      // Both wrappers take `{ registrations }` since 3df93bd18 (the required-input-object args rule).
+      /for \(const registration of withPageNavigateErrorRewrap\(\{ registrations: withReadOnlyFrontendCapabilities\(\{ registrations: frontendControl\.toolRegistrations \}\) \}\)\)/,
       "the registration loop must wrap frontendControl.toolRegistrations in withPageNavigateErrorRewrap(...) " +
         "before iterating — registering the bare array again would silently drop the page.navigate error rewrap",
     );
@@ -61,7 +62,7 @@ describe("the toolRegistrations registration loop", () => {
   // The read-only gateway refused page.find_elements and admin.capture_screenshot until this
   // wrapper marked them; a correct wrapper the loop never calls would leave that refusal in place.
   test("the loop marks the read-only frontend capabilities before registering", () => {
-    assert.match(registrationLoopSource, /withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)/);
+    assert.match(registrationLoopSource, /withReadOnlyFrontendCapabilities\(\{ registrations: frontendControl\.toolRegistrations \}\)/);
     assert.match(DAEMON_ENTRY_SOURCE, /import\s*\{[^}]*withReadOnlyFrontendCapabilities[^}]*\}\s*from\s*["']#src\/assistant\/frontend-control-capabilities["']/, "expected the read-only capability wrapper from its implementation leaf");
   });
 

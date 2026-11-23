@@ -28,13 +28,28 @@ import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js"
  */
 
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-launch.ts"), "utf8");
+// Since a310d36d5 (the agent-daemon-scope split) the resolver is IMPORTED by the run-start module, which hands
+// it to the launch module through its injected ports; the launch module no longer imports it by value.
+const RUN_START_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-start.ts"), "utf8");
 
 describe("Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted", () => {
   test("imports the shared tool policy resolver from assistant-system-overlay.ts", () => {
     assert.match(
-      DAEMON_ENTRY_SOURCE,
+      RUN_START_SOURCE,
       /import\s*\{[^}]*resolveAssistantDisallowedTools[^}]*\}\s*from\s*["'][^"']*assistant-system-overlay(\.js)?["']/,
-      "agent-daemon-server.ts must import the shared resolver, not hardcode a second copy of the list",
+      "agent-daemon-run-start.ts must import the shared resolver, not hardcode a second copy of the list",
+    );
+    // The import alone proves nothing: it must be the value placed in the ports the launch step reads...
+    assert.match(
+      RUN_START_SOURCE,
+      /const ports: RunStartPorts = \{ \.\.\.required,[^}]*\bresolveAssistantDisallowedTools\b[^}]*\}/s,
+      "createRunStartHandler must put the shared resolver into the run ports",
+    );
+    // ...and the launch step must feed its result to the executor's `disallowedTools` field.
+    assert.match(
+      DAEMON_ENTRY_SOURCE,
+      /disallowedTools:\s*resolveAssistantDisallowedTools\(/,
+      "the launch step must pass the resolver's result as the executor's disallowedTools",
     );
   });
 
