@@ -3236,6 +3236,14 @@
     {
       "id": "fc75a5079b31",
       "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (readTriggerOptions JSDoc: blank basePath collapses to omitted; every malformed shape is a flat 400)."
+    },
+    {
+      "id": "153f32528336",
+      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
+    },
+    {
+      "id": "cecd3ebf4521",
+      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
     }
   ]
 }

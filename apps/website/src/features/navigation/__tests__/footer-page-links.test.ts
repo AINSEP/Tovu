@@ -132,7 +132,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     const readMenu = await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" });
     assert.ok(readMenu);
     await menuRepo.save(readMenu);
-    assert.deepEqual(toAdminMenuResponse((await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))!).menu.items[0].target, pageTarget);
+    assert.deepEqual(toAdminMenuResponse({ menu: (await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))! }).menu.items[0].target, pageTarget);
     assert.deepEqual(converted.items.slice(1), doc.items.slice(1));
     assert.deepEqual(JSON.parse(rows.find((row) => row.slug === "header-nav")!.doc_json), doc);
     assert.equal(footer.version, 2);
