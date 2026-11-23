@@ -15,7 +15,7 @@ import { registerPublicMemberForgotPasswordRoute } from "#src/server/inbound/pub
 import { registerPublicMemberResetPasswordRoute } from "#src/server/inbound/public-http/routes/members/reset-password";
 import { registerPublicMemberSetPasswordRoute } from "#src/server/inbound/public-http/routes/members/set-password";
 import { registerPublicMemberMeRoute } from "#src/server/inbound/public-http/routes/members/me";
-import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-http/routes/members/sign-out";
+import { registerPublicMemberSignOutRoute } from "./public-members.js";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 import { randomBytes } from "node:crypto";

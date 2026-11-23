@@ -25,7 +25,7 @@ import { registerPublicMemberForgotPasswordRoute } from "../../inbound/public-ht
 import { registerPublicMemberResetPasswordRoute } from "../../inbound/public-http/routes/members/reset-password.js";
 import { registerPublicMemberSetPasswordRoute } from "../../inbound/public-http/routes/members/set-password.js";
 import { registerPublicMemberMeRoute } from "../../inbound/public-http/routes/members/me.js";
-import { registerPublicMemberSignOutRoute } from "../../inbound/public-http/routes/members/sign-out.js";
+import { registerPublicMemberSignOutRoute } from "#src/server/runtime/composition/modules/public-members";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
