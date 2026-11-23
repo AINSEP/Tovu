@@ -9,7 +9,7 @@ import { ApiError } from '../../lib/admin-http/request';
 /** Jini shows only its own typed error's words, so the host's `ApiError` identity is translated at
  *  this seam; status, code and raw body are kept. Anything else is rethrown unchanged (and Jini shows
  *  the action's fallback copy for it). */
-function toAdminApiError(error: unknown): never {
+export function toAdminApiError(error: unknown): never {
   if (error instanceof ApiError) throw new AdminApiError({ message: error.message, status: error.status }, { code: error.code, body: error.body });
   throw error;
 }

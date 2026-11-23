@@ -6,7 +6,7 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import type { SavedConnectionIntent } from "../external-mcp-admissions-rules";
 import { useExternalMcpAdmissions, type ExternalMcpAdmissionsPort } from "../hooks/use-external-mcp-admissions.hooks";
-import { t } from "../external-mcp-i18n";
+import { t } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
 
 /** Scratch-QA incident recovery, through the real rules, banner, confirmation and list hook.
  * Only the persistence and daemon ports are fakes; no module mocks or network calls. */
