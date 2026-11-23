@@ -1,7 +1,8 @@
 import { ForbiddenError, type SettingScope } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
 import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
-import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -51,7 +52,7 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, d
     handle: async ({ request: req, principal, authorize }) => {
       const parsedBody = parseResetRequestFields({ rawBody: req.body });
       if (!parsedBody) {
-        rejectSettingsRequest({ status: 400,
+        rejectRoute({ status: 400,
           error: "namespace and scope (global|workspace|user) are required",
           code: "VALIDATION_ERROR",
         });
@@ -62,7 +63,7 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, d
       // request could wipe an entire namespace in another tenant.
       const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
-        rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
+        rejectRoute({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }
       const workspaceId = targetWorkspace.workspaceId;
 

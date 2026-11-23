@@ -1,5 +1,6 @@
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 /** This route's two required query params, or `null` if either is missing.
  *  @complexity O(1). */
@@ -45,7 +46,7 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, 
 
       const parsedQuery = parseGetRawQuery(req.query as Record<string, unknown>);
       if (!parsedQuery) {
-        rejectSettingsRequest({ status: 400,
+        rejectRoute({ status: 400,
           error: "'namespace' and 'key' query params are required",
           code: "VALIDATION_ERROR",
         });
@@ -61,7 +62,7 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, 
         callerPrincipalId: principal.id,
       });
       if (!readTarget.allowed) {
-        rejectSettingsRequest({ status: 403,
+        rejectRoute({ status: 403,
           error: `principal '${principal.id}' is not authorized to read another principal's user-layer value (${readTarget.reason})`,
           code: "FORBIDDEN",
           details: { permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, reason: readTarget.reason },
@@ -71,7 +72,7 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, 
 
       const value = await createTovuSettingsService({ deps }).raw({ namespace, key, workspaceId, principalId });
       if (!value) {
-        rejectSettingsRequest({ status: 404,
+        rejectRoute({ status: 404,
           error: `definition '${namespace}.${key}' was not found`,
           code: "DEFINITION_NOT_FOUND",
         });
