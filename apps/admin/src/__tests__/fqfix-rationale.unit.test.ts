@@ -5,11 +5,8 @@ import { expect, it } from 'vitest';
 // Documentation-only regressions: pin the rationale to its owning code, not merely somewhere
 // in a file. Behavioral cache tests cover the execution; these preserve the requested why notes.
 const read = (file: string) => readFileSync(path.resolve(__dirname, '..', file), 'utf8');
-it('keeps advisory site-key rationale beside the read and its unknown state', () => {
-  const source = read('features/dashboard/hooks/use-dashboard.hooks.ts');
-  expect(source).toContain('// Site-key plan §A.6 — same advisory shape as the password status read:\n  // a failed fetch means no banner, not an error card.\n  const siteKeyQueryFetch =');
-  expect(source).toContain('// undefined until the site-key status fetch settles (or forever if it fails).\n  // shouldShowSiteKeyBanner treats undefined as "don\'t show".\n  const siteKeyState =');
-});
+// The Dashboard's advisory site-key rationale moved with its hook to `@jini-ai/admin`
+// (`screens/dashboard/__tests__/dashboard-rationale.unit.test.ts` pins it there).
 it('keeps the non-static tier explanation beside the template query enablement', () => {
   const source = read('components/TemplateSource/use-template-source.hooks.ts');
   expect(source).toContain('// Nothing to fetch — the caller renders the tier explanation instead for non-static themes.\n  const query = useFetchQuery(');
