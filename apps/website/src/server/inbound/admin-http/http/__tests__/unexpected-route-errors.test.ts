@@ -1,6 +1,6 @@
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
-import { registerSkillsListRoute } from "../../routes/skills/list.js";
+import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";

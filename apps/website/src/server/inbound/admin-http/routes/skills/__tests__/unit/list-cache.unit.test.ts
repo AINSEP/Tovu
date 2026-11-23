@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerSkillsListRoute } from "../../list.js";
+import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
 import type { SkillsRouteDeps } from "#src/server/runtime/composition/modules/skills";
 
 test("matching validators return an empty 304; changed skills return a private 200 with a new ETag", async t => {

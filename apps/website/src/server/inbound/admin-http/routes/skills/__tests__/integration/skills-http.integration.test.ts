@@ -11,7 +11,7 @@ import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerSkillsListRoute } from "../../list.js";
+import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
 import type { SkillsRouteDeps } from "#src/server/runtime/composition/modules/skills";
 
 /**

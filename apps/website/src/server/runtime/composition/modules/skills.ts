@@ -5,16 +5,16 @@ import type { InstalledSkillToolSource } from "@jini-ai/agentic/skills/tools";
 import { skillFilesRoute } from "@jini-ai/cms/admin-http/routes/skills/files";
 import { skillGuidanceRoute } from "@jini-ai/cms/admin-http/routes/skills/guidance";
 import { skillInstallRoute } from "@jini-ai/cms/admin-http/routes/skills/install";
+import { skillListRoute } from "@jini-ai/cms/admin-http/routes/skills/list";
 import { skillSetEnabledRoute } from "@jini-ai/cms/admin-http/routes/skills/set-enabled";
 import { skillUninstallRoute } from "@jini-ai/cms/admin-http/routes/skills/uninstall";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
-import { installSkill, setSkillEnabled, SkillInputError, uninstallSkill } from "#src/features/skills/install-service";
+import { installSkill, listManagedSkills, setSkillEnabled, SkillInputError, uninstallSkill } from "#src/features/skills/install-service";
 import { SKILL_STATE_FILE } from "#src/features/skills/state";
 import { buildSkillToolRegistrations, loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { registerSkillsListRoute } from "#src/server/inbound/admin-http/routes/skills/list";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -22,9 +22,9 @@ import type { ServerModuleHandle } from "./types.js";
  * @file The `skills` server module: skill listings, file inspection, guidance, installation,
  * enablement and removal behind admin sessions.
  *
- * K1 (RT-K1-adm-skills): files and the four management routes are Jini route specs
- * (`@jini-ai/cms/admin-http/routes/skills/*`) mounted behind the admin ports. The list route stays
- * hand-written (it answers `Cache-Control`/`ETag`/`304`, which a JSON spec cannot). `RouteDeps` is
+ * K1 (RT-K1-adm-skills, w3 C2b): the list, files and the four management routes are Jini route specs
+ * (`@jini-ai/cms/admin-http/routes/skills/*`) mounted behind the admin ports; the list answers its own
+ * `ETag`/`304`/`Cache-Control`/`Vary` through `routeReply` and reads `If-None-Match` via `readHeaders`. `RouteDeps` is
  * read only here: each mount gets small function-typed collaborators bound to the booted skill
  * layout and site binding, the Node package reader, the skill state file name and the approval policy.
  */
@@ -67,6 +67,18 @@ function skillSourcesLoader({ deps }: { deps: SkillsRouteDeps }, _optional: Reco
 function mountOptions(operation: string, message?: string) {
   return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) } };
 }
+
+/**
+ * C-001 `GET …/skills`: the managed listing with its own validators (weak ETag over the body, 304 on a
+ * match, after the workspace and permission guards). The listing reads the booted layout per request,
+ * through the same binding as installation and tool registration.
+ */
+export const registerSkillsListRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  mountAdminJsonRoute({ app, spec: skillListRoute, deps: {
+    ...skillsPortDeps({ deps }),
+    listManagedSkills: () => listManagedSkills({ ...siteContext({ deps }), workspaceId: deps.workspaceId }),
+  } }, mountOptions("routes/skills/list"));
+};
 
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
 export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
