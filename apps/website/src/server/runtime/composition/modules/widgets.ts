@@ -2,6 +2,10 @@ import type { Express } from "express";
 import { mountJsonRoute, type JsonRoutePorts, type JsonRouteSpec } from "@jini-ai/http-kit";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import { widgetCreateRoute } from "@jini-ai/cms/admin-http/routes/widgets/create";
+import { widgetCreateToolRoute, WidgetToolPlacementFailedError, widgetToolPlacementFailedBody } from "@jini-ai/cms/admin-http/routes/widgets/agent-tools-create";
+import { widgetDiagnoseToolRoute } from "@jini-ai/cms/admin-http/routes/widgets/agent-tools-diagnose";
+import { widgetPlaceToolRoute } from "@jini-ai/cms/admin-http/routes/widgets/agent-tools-place";
+import { widgetRemoveToolRoute } from "@jini-ai/cms/admin-http/routes/widgets/agent-tools-remove";
 import { widgetEmbedInsertRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-insert";
 import { widgetEmbedRemoveRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-remove";
 import { widgetEmbedReorderRoute } from "@jini-ai/cms/admin-http/routes/widgets/embed-reorder";
@@ -14,19 +18,18 @@ import { widgetRegionsListRoute } from "@jini-ai/cms/admin-http/routes/widgets/r
 import { widgetTrashRoute } from "@jini-ai/cms/admin-http/routes/widgets/trash";
 import { widgetUpdateRoute } from "@jini-ai/cms/admin-http/routes/widgets/update";
 import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/features/widgets/deps";
-import { registerAdminWidgetAgentToolsRoutes } from "#src/server/inbound/admin-http/routes/widgets/agent-tools";
 import { registerAdminWidgetPreviewRoute } from "#src/server/inbound/admin-http/routes/widgets/preview";
 import { createAdminJsonRoutePorts, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
-import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
+import { mapWidgetErrorToResponse, widgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `widgets` server module (SPEC-043, ADR-047) — ADR-046 Phase 3 server-module
  * convention, mirroring `modules/menus.ts`. Twelve widgets routes are Jini route specs
- * (`@jini-ai/cms/admin-http/routes/widgets/*`) mounted behind the admin ports below; the rest are
- * still hand-written `RouteRegistrar`s. Every route reads only its own fields of `RouteDeps`
+ * (`@jini-ai/cms/admin-http/routes/widgets/*`) mounted behind the admin ports below, plus the four AI
+ * tool route specs (`agent-tools-*`); only the preview route is still a hand-written registrar. Every route reads only its own fields of `RouteDeps`
  * (`RouteDeps` already carries every dependency a widgets route needs — `widgetBindingRepo`/
  * `entryRefsRepo` were added directly to `RouteDeps` by this same dispatch, unlike menus'
  * `MenuRouteDeps` widening), so this module needs no widened deps type of its own.
@@ -45,11 +48,20 @@ export type WidgetRouteRegistrar = (required: { app: Express; deps: RouteDeps },
  * unexpected failure) is answered by `mapWidgetErrorToResponse`, exactly as the hand-written
  * routes' `catch` did — including its `http/widgets` failure copy, which the default admin error
  * port would replace with route-derived copy.
+ *
+ * A `widgets.create` tool placement failure the spec could not map itself (a plugin hook refusal,
+ * an unexpected failure) arrives as `WidgetToolPlacementFailedError`: it is answered with the same
+ * host envelope, merged into the spec's placement-failed body so the created widget's id survives.
  */
 const widgetJsonRoutePorts: JsonRoutePorts<AdminJsonRoutePortDeps, OperatorPrincipalRecord> = {
   ...createAdminJsonRoutePorts({ authorization: "direct" }),
   onError: ({ res, error }) => {
     if (error instanceof RouteRefusalError) { res.status(error.response.status).json(error.response.body); return; }
+    if (error instanceof WidgetToolPlacementFailedError) {
+      const { status, body } = widgetErrorToResponse({ err: error.cause }, { tracker: res.locals?.adminFailureTracker });
+      res.status(status).json(widgetToolPlacementFailedBody({ widget: error.widget, errorBody: body }));
+      return;
+    }
     mapWidgetErrorToResponse({ err: error, res });
   },
 };
@@ -120,6 +132,22 @@ export const registerAdminWidgetEmbedRemoveRoute: WidgetRouteRegistrar = ({ app,
 
 export const registerAdminWidgetEmbedReorderRoute: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountWidgetJsonRoute({ app, spec: widgetEmbedReorderRoute, deps: { ...widgetPortDeps({ deps }), widgetsDeps: () => buildWidgetsDeps(deps) } });
+};
+
+/** The four AI tool routes (`widgets.place` / `.create` / `.remove` / `.diagnose`), registered in
+ *  that order. The placement deps are built per request, as the hand-written routes built them. */
+export const registerAdminWidgetAgentToolsRoutes: WidgetRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const placement = {
+    ...widgetPortDeps({ deps }),
+    widgetBindingRepo: deps.widgetBindingRepo,
+    entryRepo: deps.entryRepo,
+    widgetsDeps: () => buildWidgetsDeps(deps),
+    regionDeps: () => buildWidgetsRegionDeps(deps),
+  };
+  mountWidgetJsonRoute({ app, spec: widgetPlaceToolRoute, deps: { ...placement, idGen: deps.idGen } });
+  mountWidgetJsonRoute({ app, spec: widgetCreateToolRoute, deps: { ...placement, idGen: deps.idGen } });
+  mountWidgetJsonRoute({ app, spec: widgetRemoveToolRoute, deps: placement });
+  mountWidgetJsonRoute({ app, spec: widgetDiagnoseToolRoute, deps: { ...widgetPortDeps({ deps }), entryRepo: deps.entryRepo, entryRefsRepo: deps.entryRefsRepo } });
 };
 
 export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
