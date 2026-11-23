@@ -3,7 +3,7 @@ import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentType } from 'react';
 import { redirects, type RedirectsReactOptions } from '@jini-ai/admin/redirects/react';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
-import { deleteRedirectBody, importRulesLabel } from '../../features/redirects/redirects-i18n';
+import { deleteRedirectBody, importRulesLabel } from '@jini-ai/admin/screens/redirects/redirects-i18n';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
 import { createRedirectsTranslator } from './redirects-ports';
 

@@ -30,7 +30,7 @@ import {
   Roles,
   SettingsUi,
   Seo, SeoModuleLoading, useModulePanel,
-  Redirects,
+  Redirects, RedirectsModuleLoading,
   Plugins,
   AgentPlugins,
   FormsList,
@@ -1242,7 +1242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "redirects",
     description: "Manage URL redirects and retired destinations.",
     anyOfPermissions: ["admin.redirects.manage"],
-    render: () => <Redirects />,
+    render: () => <Redirects useModulePanel={useModulePanel} ModuleLoading={RedirectsModuleLoading} />,
     nav: {
       label: "Redirects",
       group: "Marketing",

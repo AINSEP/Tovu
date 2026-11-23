@@ -39,7 +39,8 @@ export { Seo } from "@jini-ai/admin/screens/seo";
 // The SEO screen mounts through the host module scope; panels.tsx injects these into it.
 export { useModulePanel } from "./integrations/jini-admin/modules.hooks";
 export { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
-export { Redirects } from "./features/redirects";
+export { Redirects } from "@jini-ai/admin/screens/redirects";
+export { RedirectsModuleLoading } from "./integrations/jini-admin/redirects-module.hooks";
 export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
 export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));
 export { FormsList, FormEditor } from "./features/forms";
