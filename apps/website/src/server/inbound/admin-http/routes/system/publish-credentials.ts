@@ -6,6 +6,7 @@ import {
   createAccountLabelHealScheduler,
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
+  invalidateChangedPublishSelections,
   deletePublishCredential,
   describeCredential,
   healAccountLabel,
@@ -327,13 +328,17 @@ function updateCredentialRoute(context: CredentialsContext) {
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
       const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
-      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      const listedBefore = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
+      const before = listedBefore.find(row => row.id === req.params.id) ?? null;
       const credential = await updatePublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         id: req.params.id,
         ...credentialUpdateFields({ body }),
       });
       if (before && body.worksFor !== undefined) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
+      // B226: an `isDefault`/`worksFor` edit can hand a host to a different key without any
+      // compatibility change; the old key's cached result must not be reported for the new one.
+      invalidateChangedPublishSelections({ workspaceId: deps.workspaceId, cache: deps.publishCredentialVerificationCache, before: listedBefore, after: await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId }) });
       // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
       // whatever a previous verification already found) is unchanged, so re-checking here would
       // just repeat the same network call for no new information.

@@ -92,6 +92,23 @@ export function invalidatePublishCredentialCompatibility({ workspaceId, registry
   for (const target of new Set([...previous, ...next])) if (previous.has(target) !== next.has(target)) cache.delete({ workspaceId, target });
 }
 
+/** B226: the verification cache is keyed `(workspace, host)`, so its entry describes whichever key
+ * was selected for that host when it was checked. Drops every host whose selected key id differs
+ * between two listings (e.g. a default switch), so key A's result is never reported for key B.
+ * Id only, not `updatedAt`: a label rename keeps the same secret, and a new secret on the selected
+ * key is re-verified by the caller anyway. @complexity O(rows × hosts); no reads, opens or requests.
+ */
+export function invalidateChangedPublishSelections({ workspaceId, cache, before, after }: {
+  workspaceId: string; cache: { delete(input: { workspaceId: string; target: string }): void };
+  before: readonly Pick<PublishCredentialSummary, "id" | "defaultFor">[];
+  after: readonly Pick<PublishCredentialSummary, "id" | "defaultFor">[];
+}, _options = {}): void {
+  const selected = (rows: typeof before) => new Map(rows.flatMap(row => row.defaultFor.map(host => [host, row.id] as const)));
+  const previous = selected(before);
+  const next = selected(after);
+  for (const target of new Set([...previous.keys(), ...next.keys()])) if (previous.get(target) !== next.get(target)) cache.delete({ workspaceId, target });
+}
+
 function providerContract({ registry, providerId }: { registry: DeployTargetRegistry; providerId: string }, _options = {}) {
   const spec = registry.get(providerId)?.descriptor.credential;
   return spec ? { id: providerId, vendorId: spec.vendorId,

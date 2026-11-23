@@ -425,6 +425,38 @@ test("publish-credentials: PUT with isDefault: true promotes this row and demote
   assert.equal(byId(firstCredential.id).isDefault, false);
 });
 
+// B226: the capabilities tool reads the `(workspace, host)` verification cache. Promoting a different
+// key to default must not keep serving the OLD key's "valid" for the host — the new key is unchecked.
+test("publish-credentials: B226 PUT isDefault switching the host's key drops the old key's cached verification, so the new key is actually checked", async (t) => {
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    const authorization = new Headers(init?.headers).get("authorization");
+    return authorization === "Bearer key-a" ? Response.json({ full_name: "Account A" }) : new Response("", { status: 401 });
+  }) as typeof fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const post = async (body: unknown) => (await fetch(base, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) })).json();
+  const cached = () => deps.publishCredentialVerificationCache.get({ workspaceId: deps.workspaceId, target: "netlify" });
+
+  const { credential: keyA } = await post({ label: "Key A", connection: { providerId: "netlify", token: "key-a" } });
+  const { credential: keyB } = await post({ label: "Key B", connection: { providerId: "netlify", token: "key-b" } });
+  assert.equal(keyB.isDefault, false);
+  await fetch(`${base}/${keyA.id}/verify`, { method: "POST", headers: { cookie } });
+  assert.equal(cached()?.status, "valid"); // key A (the default) checked and cached
+
+  const promoted = await fetch(`${base}/${keyB.id}`, { method: "PUT", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ isDefault: true }) });
+  assert.equal(promoted.status, 200, await promoted.clone().text());
+  assert.equal(cached(), undefined, "key A's verification must not be reported for key B");
+
+  const { verification } = await (await fetch(`${base}/${keyB.id}/verify`, { method: "POST", headers: { cookie } })).json();
+  assert.equal(verification.status, "invalid");
+  assert.equal(cached()?.status, "invalid"); // key B itself was checked
+});
+
 test("publish-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);

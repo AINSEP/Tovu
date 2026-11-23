@@ -11,6 +11,7 @@ export type {
 export {
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
+  invalidateChangedPublishSelections,
   deletePublishCredential,
   describeCredential,
   findPublishCredentialRecord,
