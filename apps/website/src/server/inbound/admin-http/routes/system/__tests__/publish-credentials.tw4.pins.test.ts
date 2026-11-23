@@ -137,7 +137,7 @@ test("publish list logs a failed after-response account-label heal through the r
   const logged = t.mock.method(console, "error", () => {});
   // The fixture target does not declare `yieldsAccountLabel`; re-serve it with the flag so the
   // saved row (label still null) becomes a heal candidate, then make persisting the label fail.
-  const base = await f.ports.loadDeployTargets({ workspaceId: "ws" });
+  const base = await f.ports.loadDeployTargets();
   const fixtureTarget = base.list()[0]!;
   const yielding: LoadedDeployTarget = { ...fixtureTarget, descriptor: { ...fixtureTarget.descriptor, credential: { ...fixtureTarget.descriptor.credential!, yieldsAccountLabel: true } } };
   f.ports.loadDeployTargets = async () => ({ get: name => name === "fixture" ? yielding : undefined, list: () => [yielding], refusals: [] });
