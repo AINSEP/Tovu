@@ -3,9 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import type { AdminComment, AdminCommentsPort, AdminCommentsQueuePage } from '@jini-ai/admin/comments';
 import { CommentQueueScopeProvider } from '@jini-ai/admin/comments/react';
-import { Comments } from '../../../features/comments';
-import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
+import { Comments } from '@jini-ai/admin/screens/comments';
+import { AdminModulesContext, createHostAdminScope, useModulePanel } from '../modules.hooks';
 import { commentsEvents, createCommentsQueueScope } from '../comments-ports';
+import { CommentsModuleLoading } from '../comments-module.hooks';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
@@ -31,7 +32,7 @@ function fixture(_required: Record<string, never>, { permissions = ['*'], useLoc
   const node = ({ principalId = 'u1' }: { principalId?: string | null }, _optional: Record<string, never> = {}) =>
     <FetchQueryProvider><AdminModulesContext.Provider value={runtime}>
       {principalId === null ? <p>Signed out</p> :
-        <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId })}><Comments /></CommentQueueScopeProvider>}
+        <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId })}><Comments useModulePanel={useModulePanel} ModuleLoading={CommentsModuleLoading} /></CommentQueueScopeProvider>}
     </AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, me, runtime, node };
 }

@@ -2,7 +2,7 @@ import { formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import { escapeHtml } from "#src/platform/html/escape";
 import type { SiteRenderContext } from "../render-context.js";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";
 import { projectPostBody } from "@jini-ai/cms/media/cover-image";

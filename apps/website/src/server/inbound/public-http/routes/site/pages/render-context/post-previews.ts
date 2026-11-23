@@ -1,4 +1,4 @@
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { listPublishedPostPreviews } from "#src/features/post/post-read";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.

@@ -24,7 +24,7 @@ export const Posts = lazy(() => import("./features/posts").then(module => ({ def
 export const PageEditor = lazy(() => import("./features/pages").then(module => ({ default: module.PageEditor })));
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
 export const Members = lazy(() => import("./features/members").then(module => ({ default: module.Members })));
-export { Comments } from "./features/comments";
+export { Comments } from "@jini-ai/admin/screens/comments";
 export const Analytics = lazy(() => import("./features/analytics").then(module => ({ default: module.Analytics })));
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
@@ -39,7 +39,11 @@ export { Seo } from "./features/seo";
 export { Redirects } from "./features/redirects";
 export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
 export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));
-export { FormsList, FormEditor } from "./features/forms";
+// The Forms screens rely on these host stylesheets; they load with the eager Forms bridge.
+import "./styles/native-domain-dialogs.css";
+import "./styles/form-field-attrs.css";
+import "./styles/form-field-settings.css";
+export { FormsList, FormEditor } from "@jini-ai/admin/screens/forms";
 export const Collections = lazy(() => import("./features/collections").then(module => ({ default: module.Collections })));
 export const CollectionEntries = lazy(() => import("./features/collections").then(module => ({ default: module.CollectionEntries })));
 export const CollectionEntryEditor = lazy(() => import("./features/collections").then(module => ({ default: module.CollectionEntryEditor })));
@@ -53,7 +57,7 @@ export const Deployment = lazy(() => import("./features/deployment").then(module
 export const SourceControl = lazy(() => import("./features/source-control").then(module => ({ default: module.SourceControl })));
 export const Security = lazy(() => import("./features/security").then(module => ({ default: module.Security })));
 export const Observability = lazy(() => import("./features/observability").then(module => ({ default: module.Observability })));
-export { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
+export { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "@jini-ai/admin/screens/widgets";
 export { WorkspaceRedirect } from "./features/workspace/WorkspaceRedirect";
 export const AiAssistant = lazy(() => import("./features/ai-assistant").then(module => ({ default: module.AiAssistant })));
 export const Playground = lazy(() => import("./features/playground").then(module => ({ default: module.Playground })));

@@ -36,3 +36,7 @@ Keep stable identity, ownership, routing, workflow, and high-frequency query fie
 ## Wiring
 
 - `RuntimeMode` (the type) is imported from `@jini-ai/core/contracts/site/core-runtime-mode`; `resolveRuntimeMode` (the value) still comes from `#src/contracts/core/runtime-mode`, which the composition root calls and passes down.
+- The post record, its errors and storage-kind constants (`post.ts`), `expected-version.ts`, `go-live-sweep.ts`, `post-write-fields.ts`, `search.ts`, `post-tool-errors.ts` and `featured-image.ts` now live in `@jini-ai/cms/posts/<name>`; importers here use those subpaths directly (the barrel no longer re-exports them). `PostKind` comes from `@jini-ai/core/contracts/site/post-kind`.
+- `startPostGoLiveSweep` is still started by the composition root, which passes the repo/outbox/clock `deps`, the `workspaceId`, and optionally a `tracker` and `timers`.
+- `resolveFeaturedImageRef`/`resolveFeaturedMediaIdForWrite` take `FeaturedImageDeps` (the media repo and content-type store) from the caller; the host binds them in `PostToolDeps`.
+- Still here and blocked on `isLiveAt`/`currentIso` (`contracts/core/scheduled-publish.ts`, no Core owner yet): `post-read.ts`, `post-write-effects.ts` and everything that imports them.

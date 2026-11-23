@@ -58,6 +58,10 @@ import {
   Sites,
 } from "./panel-pages";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { useModulePanel } from "./integrations/jini-admin/modules.hooks";
+import { CommentsModuleLoading } from "./integrations/jini-admin/comments-module.hooks";
+import { FormsModuleLoading } from "./integrations/jini-admin/forms-module.hooks";
+import { WidgetsModuleLoading } from "./integrations/jini-admin/widgets-module.hooks";
 import { t as tApp } from "./app-i18n";
 
 /**
@@ -362,19 +366,19 @@ const PANELS: readonly TovuAdminPanel[] = [
     render: (ctx, _options = {}) => {
       switch (ctx.view) {
         case "widget-regions":
-          return <WidgetRegions />;
+          return <WidgetRegions useModulePanel={useModulePanel} ModuleLoading={WidgetsModuleLoading} />;
         case "widget-region-editor":
           // Guaranteed present: this view only fires when `/regions/:regionKey` matched.
-          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} />;
+          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} useModulePanel={useModulePanel} ModuleLoading={WidgetsModuleLoading} />;
         case "widget-editor": {
           // Same split as `menus`: the `/new` pattern captures no `widgetId`, so its presence is
           // what distinguishes "editing" from "creating" — `widgetType` only ever came from the
           // query string on the create path.
           const widgetId = ctx.params.widgetId ?? null;
-          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} />;
+          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} useModulePanel={useModulePanel} ModuleLoading={WidgetsModuleLoading} />;
         }
         default:
-          return <WidgetsLibrary />;
+          return <WidgetsLibrary useModulePanel={useModulePanel} ModuleLoading={WidgetsModuleLoading} />;
       }
     },
     nav: {
@@ -420,16 +424,16 @@ const PANELS: readonly TovuAdminPanel[] = [
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" useModulePanel={useModulePanel} ModuleLoading={FormsModuleLoading} />;
         case "form-submissions":
           // Guaranteed present: this view only fires when `/:formId/submissions` matched. Same
           // `key` as `form-editor` above (both key off `ctx.params.formId`) — switching between
           // Fields and Submissions for the SAME form is a route change, not a remount, so
           // in-progress Fields edits survive the round trip (ADR-063). A different `formId`
           // switching the key IS meant to remount, resetting state for the new form.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" useModulePanel={useModulePanel} ModuleLoading={FormsModuleLoading} />;
         default:
-          return <FormsList />;
+          return <FormsList useModulePanel={useModulePanel} ModuleLoading={FormsModuleLoading} />;
       }
     },
     nav: {
@@ -540,7 +544,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // working screen stays reachable. `soonPreviewable` is what makes that combination coherent:
     // without it the row would render as a disabled link and the badge would hide shipped
     // functionality rather than annotate it.
-    render: () => <Comments />,
+    render: () => <Comments useModulePanel={useModulePanel} ModuleLoading={CommentsModuleLoading} />,
     nav: {
       label: "Comments",
       group: "People",

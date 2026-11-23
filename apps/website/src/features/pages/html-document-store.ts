@@ -19,7 +19,7 @@ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import { announcePendingGoLive } from "@jini-ai/cms/entries";
 import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
-import type { PostRepoPort } from "../post/contracts.js";
+import type { PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { PostStatus } from "@jini-ai/cms/core";
 
 /**

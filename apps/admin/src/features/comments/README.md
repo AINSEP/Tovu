@@ -4,7 +4,6 @@ The comment-moderation screen behind the sidebar's **People → Comments** entry
 
 | file | what it is |
 |---|---|
-| `index.ts` | The only surface `panels.tsx` may import; mounts the `comments.queue` module page. |
 | `comments-i18n.ts` | Host locale dictionary; shared navigation and server labels keep their existing owners. |
 
 Screens live in `@jini-ai/admin/comments` (`@jini-ai/admin/comments/react` for React).
@@ -26,4 +25,5 @@ baseline prevents background reads from silently reverting another operator's sa
 
 ## Wiring
 
+- `panels.tsx` renders `@jini-ai/admin/screens/comments`'s `Comments` (re-exported eagerly by `panel-pages.ts`) and injects `useModulePanel` (`integrations/jini-admin/modules.hooks.ts`) and `CommentsModuleLoading` (`integrations/jini-admin/comments-module.hooks.ts`) as required props; it mounts the `comments.queue` module page.
 - `comments-host-ports.ts` binds `@jini-ai/admin/screens/comments/api/comments-api`'s `createCommentsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `commentsApi` singleton from there.

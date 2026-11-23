@@ -3,7 +3,7 @@ import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import { type SiteChatSelection } from "./site-chat-markup.js";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import type { DiscoveredTheme, StaticMenuItem } from "#src/features/theme/index";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";
 import { renderStaticPage } from "#src/features/theme/static-render";

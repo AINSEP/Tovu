@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { resolveTemplateBranchChoice } from "#src/features/theme/static-template-choice";

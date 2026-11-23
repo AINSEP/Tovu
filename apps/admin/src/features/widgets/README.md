@@ -4,8 +4,8 @@ Widget instances and the regions they're placed into — four screens behind the
 **Content → Widgets** entry.
 
 Screens live in `@jini-ai/admin/widgets`; React pages are mounted through
-`@jini-ai/admin/widgets/react`. `index.ts` keeps the four public exports and route props, so
-`panels.tsx` remains the route and agent-page owner. Jini owns library/editor/regions/region
+`@jini-ai/admin/widgets/react`. `@jini-ai/admin/screens/widgets` keeps the four panel exports and
+route props, so `panels.tsx` remains the route and agent-page owner. Jini owns library/editor/regions/region
 controllers and rules; `widgets-i18n.ts` retains this host's dictionaries and common fallback.
 
 `integrations/jini-admin/widgets-ports.ts` binds authenticated HTTP, refresh and navigation.
@@ -27,4 +27,5 @@ unchanged shared-component suites, then checks all four screens in Chrome before
 
 ## Wiring
 
+- `panels.tsx` injects `useModulePanel` (`integrations/jini-admin/modules.hooks.ts`) and `WidgetsModuleLoading` (`integrations/jini-admin/widgets-module.hooks.ts`) into all four `@jini-ai/admin/screens/widgets` panels as required props; `panel-pages.ts` re-exports them eagerly.
 - `widgets-host-ports.ts` binds `@jini-ai/admin/screens/widgets/api/widgets-api`'s `createWidgetsApi` to this host's `authenticatedAdminRequest` and `WORKSPACE_ID`; every importer reads the `widgetsApi` singleton from there.

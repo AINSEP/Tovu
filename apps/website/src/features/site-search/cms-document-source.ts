@@ -20,7 +20,8 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { isLiveAt } from "#src/contracts/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
-import { toRecord, toPostSearchDocument } from "../post/read-model.js";
+import { toRecord } from "../post/read-model.js";
+import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { resolvePostMemberAccess } from "../members/index.js";
 
 type PostRow = Selectable<ContentDatabase["posts"]>;

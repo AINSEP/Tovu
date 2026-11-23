@@ -2,8 +2,9 @@ import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { FormsList } from "../index";
-import { AdminModulesContext, createHostAdminScope } from "../../../integrations/jini-admin/modules.hooks";
+import { FormsList } from "@jini-ai/admin/screens/forms";
+import { AdminModulesContext, createHostAdminScope, useModulePanel } from "../../../integrations/jini-admin/modules.hooks";
+import { FormsModuleLoading } from "../../../integrations/jini-admin/forms-module.hooks";
 
 /**
  * @file `FormsList` — pins this dispatch's row-actions pass: a `RowMenu` "More" column matching
@@ -107,7 +108,7 @@ describe("Created / Updated column — host locale wiring", () => {
       return fetchMock(input, init);
     });
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    renderScreen(<FormsList />);
+    renderScreen(<FormsList useModulePanel={useModulePanel} ModuleLoading={FormsModuleLoading} />);
 
     expect(await screen.findByRole("columnheader", { name: "Erstellt / Aktualisiert" })).toBeInTheDocument();
     const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];

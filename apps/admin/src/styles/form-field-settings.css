@@ -2,7 +2,7 @@
  * `FieldSettingsSection` (Jini `@jini-ai/admin` forms, inside `FieldAttributesDialog`) — the
  * per-type settings rows: placeholder, help text, options, default, length, pattern, range, files.
  * A separate partial for the same reason `form-field-attrs.css` is one (`styles.css` is owned by
- * other passes); imported by `features/forms/index.ts` next to it.
+ * other passes); imported by `panel-pages.ts` next to it, beside the Forms panel export.
  *
  * Layout rule: one setting per line, short label column beside its control, explanations as ⓘ
  * tips rather than paragraphs. Short values (numbers, a default choice) stay their own size
