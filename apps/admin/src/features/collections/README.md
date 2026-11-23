@@ -26,3 +26,4 @@ have one (`__tests__/`).
   `createCollectionsApi({ request })` once to `lib/admin-http/request`; every collections caller
   (the `*-dependencies.hooks.ts` live ports, widget config fields, request-shape tests) imports that
   `collectionsApi` singleton.
+- `collections-host-ports.ts` also binds the five collections ports (`defaultCollectionsPort`, `defaultCollectionEntriesPort`, `defaultCollectionEntryEditorPort`, `defaultEditFieldsDialogPort`, `defaultNewContentTypeDialogPort`) from `@jini-ai/admin/screens/collections/hooks/*-dependencies.hooks`'s `create*Port({ api: collectionsApi })`; tests use that module's `createFake*Port`s.

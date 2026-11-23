@@ -446,7 +446,7 @@ export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipb
 
 /**
  * Binds the real `/api/.../menus` client, the real `lib/router` `navigate`, and a
- * `MENUS_DICT`-bound translator — see `menus-dependencies.hooks.ts`.
+ * `MENUS_DICT`-bound translator — see `@jini-ai/admin`'s `menus-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `MenuEditor.tsx` composes this and a test composes {@link useMenuEditor} with
