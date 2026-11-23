@@ -25,7 +25,7 @@ const TABS: ReadonlyArray<{ id: PostSettingsTab; label: string }> = [
   { id: "publish", label: "Publish" },
 ];
 
-export interface PostSettingsDialogProps extends Omit<PostPublishAtFieldProps, "t"> {
+export interface PostSettingsDialogProps extends Omit<PostPublishAtFieldProps, "t" | "agentHandle"> {
   hooks?: { useTabBarKeyboard: typeof useTabBarKeyboard };
   dialog: PostSettingsDialogController;
   kindLabel: "post" | "page";
@@ -64,9 +64,9 @@ export function PostSettingsDialog({ dialog, kindLabel, author, setAuthor, showA
       </div>
       <div className="post-settings-panel" role="tabpanel">
         {dialog.tab === "author" ? (
-          <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
+          <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} agentHandle={agentHandle} />
         ) : null}
-        {dialog.tab === "publish" ? <PostPublishAtField {...publishing} t={t} /> : null}
+        {dialog.tab === "publish" ? <PostPublishAtField {...publishing} t={t} agentHandle={agentHandle} /> : null}
       </div>
       <div className="widget-picker-footer">
         <span className="editor-actions">

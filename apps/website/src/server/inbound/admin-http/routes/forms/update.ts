@@ -110,7 +110,7 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
         body,
       } });
 
-      res.json(toAdminFormDefinitionResponse(definition));
+      res.json(toAdminFormDefinitionResponse({ definition }));
     } catch (err) {
       if (mapFormsWriteError({ err, res })) return;
       sendAdminFailure({ res, error: err }, { operation: "routes/forms/update", code: "INTERNAL_ERROR" });

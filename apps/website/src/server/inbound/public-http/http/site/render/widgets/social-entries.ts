@@ -90,14 +90,14 @@ function toEntryListItem(props: JsonObject): EntryListItem {
  */
 export function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const items = (ir.children ?? []).map((child) => toEntryListItem(child.props));
-  const layout = ir.props.layout;
+  const layout = { value: ir.props.layout };
   const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
-  if (layout !== "list" && isCollectionListLayout(layout)) {
+  if (layout.value !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
     const typeKey = str({ value: ir.props.typeKey }, { fallback: "recent-entries" });
     // `renderEntryList` returns `undefined` exactly when `items` is empty — that IS this widget's
     // empty state, so no separate length check runs ahead of it on this branch.
-    return renderEntryList({ items, attribute: ENTRY_LIST_ATTRIBUTE, options: { columns, layout, typeKey, ...structuredData } }) ?? RECENT_ENTRIES_EMPTY_HTML;
+    return renderEntryList({ items, attribute: ENTRY_LIST_ATTRIBUTE, options: { columns, layout: layout.value, typeKey, ...structuredData } }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
   if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 

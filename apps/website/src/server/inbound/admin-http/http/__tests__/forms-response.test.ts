@@ -19,7 +19,7 @@ test("form definition responses clone field objects and notification recipients"
     notify: { enabled: true, recipients: ["ops@example.org", "audit@example.org"] }, status: "active" as const,
     createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 4,
   };
-  const single = toAdminFormDefinitionResponse(definition);
+  const single = toAdminFormDefinitionResponse({ definition });
   assert.deepEqual(single, { data: {
     id: "form-7", workspaceId: "ws-9", name: "Contact", slug: "contact",
     fields: [{ id: "email", label: "Email address", type: "email", required: true, maxLength: 123, className: "wide", attributes: { placeholder: "Your email" } }],
@@ -59,7 +59,7 @@ for (const mode of ["html", "builder"] as const) {
       notify: { enabled: false, recipients: [] }, status: "active",
       createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z", version: 1,
     };
-    assert.deepEqual(toAdminFormDefinitionResponse(definition), { data: expected });
+    assert.deepEqual(toAdminFormDefinitionResponse({ definition }), { data: expected });
     assert.deepEqual(toAdminFormDefinitionListResponse({ definitions: [definition] }), { data: [expected] });
   });
 }
@@ -69,7 +69,7 @@ test("submission envelopes preserve boolean data and pagination while copying th
     id: "submission-3", formDefinitionId: "form-7", workspaceId: "ws-9", data: { email: "ada@example.org", consent: false },
     sourceIp: "203.0.113.10", submittedAt: "2026-09-03T00:00:00Z", internal: "private",
   };
-  const single = toAdminFormSubmissionResponse(submission);
+  const single = toAdminFormSubmissionResponse({ submission });
   const list = toAdminFormSubmissionListResponse({ items: [submission], nextCursor: "cursor-8" });
   assert.deepEqual(single, { data: {
     id: "submission-3", formDefinitionId: "form-7", workspaceId: "ws-9", data: { email: "ada@example.org", consent: false },
@@ -97,7 +97,7 @@ test("expired submission IPs serialize as an empty display string in detail and 
     data: { message: "Retained content", consent: false }, sourceIp: "",
     submittedAt: "2026-06-01T01:02:03Z",
   };
-  assert.deepEqual(toAdminFormSubmissionResponse(submission), { data: expected });
+  assert.deepEqual(toAdminFormSubmissionResponse({ submission }), { data: expected });
   assert.deepEqual(toAdminFormSubmissionListResponse({ items: [submission], nextCursor: "older-6" }), {
     data: [expected], nextCursor: "older-6",
   });
@@ -133,14 +133,14 @@ test("unknown forms errors leave the response untouched for the caller's generic
 
 test('invalid import classification is exposed beside answers on detail and list responses', () => {
   const submission = { id: 's', workspaceId: 'w', formDefinitionId: 'f', data: { email: '' }, sourceIp: null, submittedAt: 'now', validation: { status: 'invalid' as const, fieldErrors: [{ field: 'email', reason: 'required' }] } };
-  assert.deepEqual(toAdminFormSubmissionResponse(submission).data.validation, submission.validation);
+  assert.deepEqual(toAdminFormSubmissionResponse({ submission }).data.validation, submission.validation);
   assert.deepEqual(toAdminFormSubmissionListResponse({ items: [submission], nextCursor: null }).data[0]!.validation, submission.validation);
 });
 
 test('submission detail exports original evidence while paginated lists carry only its hash',()=>{
   const evidence={version:1 as const,fields:[{id:'accept',label:'Original consent',type:'checkbox' as const,required:true}],consent:[{fieldId:'accept',wording:'Original consent'}],schemaHash:'a'.repeat(64),capturedAt:'now',source:'native' as const};
   const submission={id:'s',workspaceId:'w',formDefinitionId:'f',data:{accept:true},sourceIp:null,submittedAt:'now',evidence};
-  assert.deepEqual(toAdminFormSubmissionResponse(submission).data.evidence,evidence);
+  assert.deepEqual(toAdminFormSubmissionResponse({ submission }).data.evidence,evidence);
   const listed=toAdminFormSubmissionListResponse({items:[submission],nextCursor:null}).data[0]!;
   assert.equal(listed.schemaHash,evidence.schemaHash); assert.equal(listed.evidence,undefined);
 });

@@ -61,7 +61,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }
         },
       });
 
-      res.status(201).json(toAdminFormDefinitionResponse(definition));
+      res.status(201).json(toAdminFormDefinitionResponse({ definition }));
     } catch (err) {
       if (err instanceof DuplicateCommandError) {
         res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });

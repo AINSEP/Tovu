@@ -862,6 +862,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     discardStandingDraft: autosave.clearStandingDraft,
     supersedeStandingDraftBasis: autosave.supersedeBasis,
     onLoadLatestFailed: () => setError(t("could not re-read the current version — your changes are still here, try again")),
+    // Its own counter instance, separate from `settlement` above (see the Jini hook's header).
+    useSettlementGeneration,
   });
   useContentRefreshSubscription({ resource: POSTS_RESOURCE, onRefresh: externalRefresh.checkForExternalChange });
   // A newer version waiting on the operator's Load latest / Keep my edits is the stored one now.

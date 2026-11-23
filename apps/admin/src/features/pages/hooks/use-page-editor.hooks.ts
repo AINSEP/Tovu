@@ -972,6 +972,8 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
     discardStandingDraft: autosave.clearStandingDraft,
     supersedeStandingDraftBasis: autosave.supersedeBasis,
     onLoadLatestFailed: () => setError(t({ locale, key: "could not re-read the current version — your changes are still here, try again" })),
+    // Its own counter instance, separate from `settlement` above (see the Jini hook's header).
+    useSettlementGeneration,
   });
   useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: externalRefresh.checkForExternalChange });
 

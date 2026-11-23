@@ -4,8 +4,9 @@ import { test, type TestContext } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
+import type { MemberRepoPort } from "../ports.js";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
+import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
 import { completeSignIn } from "../member-sign-in.js";
 import { updateProfile } from "../member-admin-writes.js";
 import type { MembersWriteServiceDeps } from "../ports.js";
@@ -150,4 +151,34 @@ describeEachDialect("member save compare-and-set", {
     await assert.rejects(h.members.save({ ...read, name: "Second editor", version: read.version + 1 }), /member changed/);
     assert.equal((await h.members.findById({ workspaceId: WS, id: "member" }))?.name, "First editor");
   });
+});
+
+// C058: the compare-and-set expects the EXACT prior version (`stored === incoming - 1`). A write that
+// skips ahead (any higher version) or repeats the stored one is stale or forged, and both adapters
+// must refuse it identically — the in-memory double backs most unit tests of the SQL behaviour.
+async function assertExactPriorVersion(members: MemberRepoPort, seed: () => Promise<void>): Promise<void> {
+  await seed();
+  const read = await members.findById({ workspaceId: WS, id: "member" });
+  assert.ok(read);
+  await assert.rejects(members.save({ ...read, name: "Skipped ahead", version: read.version + 2 }), /member changed/);
+  await assert.rejects(members.save({ ...read, name: "Same version", version: read.version }), /member changed/);
+  await members.save({ ...read, name: "Next version", version: read.version + 1 });
+  await assert.rejects(members.save({ ...read, name: "Second writer", version: read.version + 1 }), /member changed/);
+  assert.deepEqual(await members.findById({ workspaceId: WS, id: "member" }).then(m => [m?.name, m?.version]), ["Next version", read.version + 1]);
+}
+
+describeEachDialect("member save exact-prior-version parity", {
+  tables: ["member_sessions", "member_magic_tokens", "members"], make: harness,
+}, (make, dialect) => {
+  test("the SQL adapter refuses skipped-ahead and same-version saves", async t => {
+    const h = make();
+    if (dialect === "sqlite") t.after(() => h.kernel.close());
+    await assertExactPriorVersion(h.members, () => h.seed());
+  });
+});
+
+test("the in-memory adapter refuses skipped-ahead and same-version saves, matching SQL", async () => {
+  const members = new InMemoryMemberRepo();
+  await assertExactPriorVersion(members, async () => members.save({ id: "member", workspaceId: WS, email: "member@example.test",
+    status: "pending", createdAt: BEFORE, updatedAt: BEFORE, version: 1 }));
 });

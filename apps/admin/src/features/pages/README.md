@@ -8,6 +8,12 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 | `PageEditor.tsx` | The editor itself — bespoke HTML preview/source view, not Tiptap. Markup only; state lives in `hooks/use-page-editor.hooks.ts`. Reached via `/admin/pages/{pageId}` (`panels.tsx`'s `pages` section, `page-editor` view). |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
+## Wiring
+
+- `hooks/use-page-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
+  `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
+  separate from the editor's save settlement).
+
 ## What this feature does not own
 
 - **Posts.** A separate feature, despite the near-identical list shape. They diverge by design —

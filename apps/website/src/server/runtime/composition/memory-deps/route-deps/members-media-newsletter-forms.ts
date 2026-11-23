@@ -70,7 +70,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     // in-memory KeyringPort so this hermetic test/dev composition never touches a real file or
     // env var. The delivery worker is still the first real consumer — activation stays gated
     // (Phase 4) until the real KeyringPort/HttpClientPort/SQLite adapters are wired in deps.ts.
-    webhookSigner: createKeyringBackedSigner(newsletterKeyring),
+    webhookSigner: createKeyringBackedSigner({ keyring: newsletterKeyring }),
     // `media` (ADR-027 walking skeleton): in-memory rows + in-memory blob bytes here so tests
     // stay hermetic (no filesystem writes) — the real running server (`apps/website/src/server/runtime/composition/deps.ts`) uses
     // `LocalFsBlobStore` for actual byte durability while keeping rows in-memory too (see that

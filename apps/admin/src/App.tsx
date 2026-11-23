@@ -485,7 +485,15 @@ export function App({
 
   const session = useSession();
   return <AdminBootScopeContext.Provider value={{ principalId: session.user?.id ?? null, checking: session.checking }}>
-    <AdminShell {...props} session={session} />
+    {/* The drawer centring, dock auto-rail and table-label hooks are required shell inputs bound
+        here, at the host call site, so AdminShell never silently imports a default implementation. */}
+    <AdminShell
+      {...props}
+      session={session}
+      useDrawerCentring={useDrawerActiveItemCentring}
+      useDockRail={useDockAutoRail}
+      useTableLabels={useListTableCellLabels}
+    />
   </AdminBootScopeContext.Provider>;
 }
 
@@ -678,19 +686,20 @@ function AdminShell({
   useShellRouteHook = useShellRoute,
   useShellDockChromeHook = useShellDockChrome,
   useShellContentHook = useShellContent,
-  useDrawerCentring = useDrawerActiveItemCentring,
-  useDockRail = useDockAutoRail,
-  useTableLabels = useListTableCellLabels,
+  useDrawerCentring,
+  useDockRail,
+  useTableLabels,
   useShellLocaleHook = useShellLocale,
   useCollapsibleNavGroupLabelsHook = useCollapsibleNavGroupLabels, ...props }: (AppProps & { session: ReturnType<typeof useAdminSession> }) & {
   useShellAvailabilityHook?: typeof useShellAvailability;
   useShellRouteHook?: typeof useShellRoute;
   useShellDockChromeHook?: typeof useShellDockChrome;
   useShellContentHook?: typeof useShellContent;
-  /** Injectable seams for the drawer centring, dock auto-rail and table-label hooks (Jini shell hooks). */
-  useDrawerCentring?: typeof useDrawerActiveItemCentring;
-  useDockRail?: typeof useDockAutoRail;
-  useTableLabels?: typeof useListTableCellLabels;
+  /** Required seams for the drawer centring, dock auto-rail and table-label hooks (Jini shell
+   *  hooks), supplied by `App` — the host call site — rather than defaulted here. */
+  useDrawerCentring: typeof useDrawerActiveItemCentring;
+  useDockRail: typeof useDockAutoRail;
+  useTableLabels: typeof useListTableCellLabels;
   useShellLocaleHook?: typeof useShellLocale;
   useCollapsibleNavGroupLabelsHook?: typeof useCollapsibleNavGroupLabels; }) {
   const useDrawer = resolveDrawerHook({ override: props.useDrawer });

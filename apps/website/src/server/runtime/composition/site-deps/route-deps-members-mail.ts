@@ -146,7 +146,7 @@ export function routeDepsMailFormsNewsletter(required: RouteDepsMailFormsNewslet
     // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
     // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
     // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
-    webhookSigner: createKeyringBackedSigner(newsletterKeyring),
+    webhookSigner: createKeyringBackedSigner({ keyring: newsletterKeyring }),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters for all four route-consumed media
     // repos — previously in-memory (ADR-027 walking skeleton, rows lost on every restart). Bytes
     // already used the real `LocalFsBlobStore` (unlike `apps/website/src/server/runtime/composition/app.ts`'s hermetic-test

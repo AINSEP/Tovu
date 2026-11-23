@@ -8,6 +8,15 @@ The Posts list and the Post editor — the two screens behind the sidebar's **Co
 | `PostEditor.tsx` | The Tiptap editor. Owns the `WidgetEmbed` node and the unsaved-changes guard (`useDirtyGuard`). |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
+## Wiring
+
+- `PostSettingsDialog.tsx` binds Core's `agentHandle` into `@jini-ai/admin/posts`'s
+  `PostAuthorFields` and `PostPublishAtField` as a required prop; the Jini components import no
+  handle implementation of their own.
+- `hooks/use-post-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
+  `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
+  separate from the editor's save settlement).
+
 ## What this feature does not own
 
 - **Pages.** A separate feature, despite the near-identical list shape. They diverge by design —

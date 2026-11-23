@@ -61,7 +61,7 @@ export function registerAdminStatic({ app, distDir }: { app: Express; distDir: s
 
   // Single-binary mode: the admin build is embedded as SEA assets. Always
   // wins over dev-proxy mode — a packaged binary has no "dev" concept.
-  const sea = seaApi();
+  const sea = seaApi({ orFallbackSync });
   if (sea) {
     app.get(["/admin", "/admin/"], (_req, res) => {
       sendSeaAsset({ sea, key: "admin/index.html", res });

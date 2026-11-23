@@ -4,6 +4,7 @@ import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import type { Socket } from "node:net";
 import type { Request, RequestHandler, Response } from "express";
 
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { isSeaRuntime } from "@jini-ai/cms/admin-http/sea-runtime";
 
 /**
@@ -253,7 +254,7 @@ function isAdminUpgradeRequest(req: IncomingMessage): req is IncomingMessage & {
  */
 export function registerAdminDevProxyUpgrade(server: { on(event: "upgrade", listener: (req: IncomingMessage, socket: Socket, head: Buffer) => void): unknown }): void {
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
-  if (!devProxyUrl || isSeaRuntime()) return;
+  if (!devProxyUrl || isSeaRuntime({ orFallbackSync })) return;
 
   const upstream = resolveAdminDevProxyUpstream({ devProxyUrl });
   server.on("upgrade", (req, socket, head) => {

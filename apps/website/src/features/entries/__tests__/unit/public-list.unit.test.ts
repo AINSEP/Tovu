@@ -325,8 +325,8 @@ test("a null tombstone leaves a content type available", () => {
 });
 
 test("layout membership rejects values outside the closed presentation vocabulary", () => {
-  for (const layout of ["cards", "list", "accordion", "carousel"]) assert.equal(isCollectionListLayout(layout), true);
-  for (const layout of [undefined, null, 1, {}, "grid"]) assert.equal(isCollectionListLayout(layout), false);
+  for (const layout of ["cards", "list", "accordion", "carousel"]) assert.equal(isCollectionListLayout({ value: layout }), true);
+  for (const layout of [undefined, null, 1, {}, "grid"]) assert.equal(isCollectionListLayout({ value: layout }), false);
 });
 
 test("field labels handle empty words, hyphens, camel case and whitespace", () => {

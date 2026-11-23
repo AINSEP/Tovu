@@ -87,7 +87,7 @@ test('Memory and Package files switch the header and selected ARIA tab together 
   expect(screen.queryByText('Edit project notes and review what this plugin has learned.')).not.toBeInTheDocument();
 });
 
-test('typing a note path and choosing a listed note file both retarget the editor', async () => {
+test('choosing a listed note opens it, and typing a note path renames the open note without losing its text', async () => {
   memoryPort.read.mockResolvedValue({ ...empty(), notes: [{ relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand notes' }] });
   render(<MemoryHarness port={memoryPort} />);
   const path = screen.getByRole('textbox', { name: 'Note file' });
@@ -99,5 +99,22 @@ test('typing a note path and choosing a listed note file both retarget the edito
   await userEvent.clear(path);
   await userEvent.type(path, 'new.md');
   expect(path).toHaveValue('new.md');
-  expect(notes).toHaveValue('');
+  expect(notes).toHaveValue('Brand notes');
+});
+
+// B218: clicking a saved note while the editor holds unsaved edits must not re-file those edits
+// under the clicked note's name; the draft stays put and the panel says why.
+test('clicking a saved note with unsaved edits keeps the draft under its own name', async () => {
+  memoryPort.read.mockResolvedValue({ ...empty(), notes: [{ relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand notes' }] });
+  render(<MemoryHarness port={memoryPort} />);
+  const path = screen.getByRole('textbox', { name: 'Note file' });
+  const notes = screen.getByRole('textbox', { name: 'Project notes' });
+  await waitFor(() => expect(notes).toHaveValue('Project text'));
+  await userEvent.type(notes, ' plus an unsaved edit');
+  await userEvent.click(within(screen.getByRole('region', { name: 'Note files' })).getByRole('button', { name: 'brand.md' }));
+  expect(path).toHaveValue('project.md');
+  expect(notes).toHaveValue('Project text plus an unsaved edit');
+  expect(screen.getByRole('status')).toHaveTextContent('Save this note before opening another one.');
+  await userEvent.click(screen.getByRole('button', { name: 'Save note' }));
+  expect(memoryPort.saveNote).toHaveBeenCalledWith({ pluginId: 'higgsfield-media', entryPath: 'project.md', text: 'Project text plus an unsaved edit' });
 });

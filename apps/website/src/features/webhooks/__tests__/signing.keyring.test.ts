@@ -47,7 +47,7 @@ test("createKeyringBackedSigner produces the same signature createFixedSecretSig
   const rawBody = JSON.stringify({ hello: "world" });
   const timestampSeconds = Math.floor(Date.now() / 1000);
 
-  const keyringSigner = createKeyringBackedSigner(makeFixedKeyring(secret));
+  const keyringSigner = createKeyringBackedSigner({ keyring: makeFixedKeyring(secret) });
   const fixedSigner = createFixedSecretSigner({ secrets: new Map([[subscription.id, secret]]) });
 
   const fromKeyring = await keyringSigner.signForSubscription({ subscription, rawBody, timestampSeconds });
@@ -72,7 +72,7 @@ test("createKeyringBackedSigner derives per-subscription using workspaceId/subsc
     },
   };
 
-  const signer = createKeyringBackedSigner(keyring);
+  const signer = createKeyringBackedSigner({ keyring });
   const subscription = makeSubscription({ id: "sub-42", workspaceId: "ws-9", secretVersion: 3 });
   await signer.signForSubscription({ subscription, rawBody: "{}", timestampSeconds: 1 });
 

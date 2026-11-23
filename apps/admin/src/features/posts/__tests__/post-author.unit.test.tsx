@@ -4,6 +4,7 @@ import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { PostAuthorFields } from "@jini-ai/admin/posts/PostAuthorFields";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { POSTS_DICT, t } from "../posts-i18n";
 
 const POST: AdminPost = { id: "p1", workspaceId: "ws", kind: "post", title: "Credit", slug: "credit",
@@ -87,7 +88,7 @@ describe("post author editor", () => {
     const port = createFakePostEditorPort({ post: POST });
     function Fields() {
       const controller = usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } });
-      return <><PostAuthorFields {...controller} t={translate} /><button onClick={() => { void controller.save({}); }}>Save credit</button></>;
+      return <><PostAuthorFields {...controller} t={translate} agentHandle={agentHandle} /><button onClick={() => { void controller.save({}); }}>Save credit</button></>;
     }
     render(<Fields />);
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Author" })).toHaveValue("admin"));

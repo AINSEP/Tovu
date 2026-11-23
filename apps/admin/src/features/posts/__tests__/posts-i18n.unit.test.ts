@@ -5,6 +5,7 @@ import { postsApi } from "@/features/posts/api/posts-api";
 import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { formatUploadFailureMessage } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
@@ -165,7 +166,7 @@ for (const copy of LOCALIZED) {
       expect(await screen.findByRole("textbox", { name: copy.alt })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: copy.insert })).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: translate("Cancel") }));
-      render(h(PostPublishAtField, { publishAtInput: "", setPublishAtInput: vi.fn(), scheduled: true, t: translate }));
+      render(h(PostPublishAtField, { publishAtInput: "", setPublishAtInput: vi.fn(), scheduled: true, t: translate, agentHandle }));
       expect(screen.getByLabelText(new RegExp(copy.publishAt))).toBeInTheDocument();
       expect(screen.getByText(copy.scheduled)).toBeInTheDocument();
     });

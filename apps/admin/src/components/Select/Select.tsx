@@ -1,21 +1,16 @@
 import "../../styles/select.css";
 import { Select as PackageSelect, resolveSelectTriggerLabel as resolvePackageLabel, type SelectOption, type SelectProps as PackageProps } from "@jini-ai/ui/admin-widgets";
-import { useSelectDropdown } from "@jini-ai/admin/shell/components/Select/Select.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export type { SelectOption } from "@jini-ai/ui/admin-widgets";
 
-export type SelectProps = Omit<PackageProps, "useDropdown"> & {
-  useDropdown?: typeof useSelectDropdown;
-};
+export type SelectProps = PackageProps;
 
-/** Preserve the host's injectable hook props while the package owns rendering and live effects. */
-export function Select({
-  useDropdown = useSelectDropdown, ...props }: SelectProps) {
-  const useHostDropdown: PackageProps["useDropdown"] = useDropdown
-    ? (required, optional = {}) => useDropdown({ ...required, ...optional })
-    : undefined;
-  return <PackageSelect {...props} useDropdown={useHostDropdown} />;
+/** Host stylesheet + the package Select. An injected `useDropdown` takes the package's two-object
+ *  `({ value, onChange, options }, { disabled })` signature and reaches it unchanged — no
+ *  single-object adapter in between. */
+export function Select(props: SelectProps) {
+  return <PackageSelect {...props} />;
 }
 
 /** Keep the host's helper contract while Jini resolves translated trigger copy. */

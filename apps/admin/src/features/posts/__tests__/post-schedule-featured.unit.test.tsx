@@ -7,6 +7,7 @@ import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hook
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
 import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
 
 /**
@@ -222,11 +223,11 @@ describe("usePostFeaturedImage", () => {
 describe("PostPublishAtField", () => {
   it("edits the publish-at input and shows the Scheduled badge only when scheduled", () => {
     const setPublishAtInput = vi.fn();
-    const { rerender } = render(<PostPublishAtField publishAtInput="" setPublishAtInput={setPublishAtInput} scheduled={false} t={fakeT} />);
+    const { rerender } = render(<PostPublishAtField publishAtInput="" setPublishAtInput={setPublishAtInput} scheduled={false} t={fakeT} agentHandle={agentHandle} />);
     expect(screen.queryByText("Scheduled")).toBeNull();
     fireEvent.change(screen.getByLabelText("Publish at"), { target: { value: "2099-01-01T09:00" } });
     expect(setPublishAtInput).toHaveBeenCalledWith("2099-01-01T09:00");
-    rerender(<PostPublishAtField publishAtInput="2099-01-01T09:00" setPublishAtInput={setPublishAtInput} scheduled t={fakeT} />);
+    rerender(<PostPublishAtField publishAtInput="2099-01-01T09:00" setPublishAtInput={setPublishAtInput} scheduled t={fakeT} agentHandle={agentHandle} />);
     expect(screen.getByText("Scheduled")).toBeTruthy();
   });
 });

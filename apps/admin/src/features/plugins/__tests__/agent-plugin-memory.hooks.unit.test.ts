@@ -45,7 +45,7 @@ test('every supported plugin locale includes the memory editor and uninstall cho
   const locales = ['es','id','de','zh-CN','zh-TW','pt-BR','ru','fa','ar','ja','ko','pl','hu','fr','uk','tr','th','it','hi','ur','bn'];
   for (const locale of locales) for (const key of ['Memory','Project notes','Learned knowledge','Save note','Uninstall · keep memory','Uninstall and delete memory',
     'Note files', 'No note files yet. Save a project note to get started.',
-    'Nothing learned yet. The assistant saves what it verifies here.']) {
+    'Nothing learned yet. The assistant saves what it verifies here.', 'Save this note before opening another one.']) {
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).toBeTruthy();
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).not.toBe(key);
   }
@@ -129,16 +129,16 @@ test('a save status from a previous plugin is hidden while the next plugin loads
   await waitFor(() => expect(result.current.status).toBeNull());
 });
 
-test('choosing a note file loads that file into the editor, and a new path starts empty', async () => {
+test('opening a saved note loads it into the editor; renaming the open note keeps its text', async () => {
   const state: PluginMemoryListing = { ...listing('example', 'Project text'), notes: [
     { relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand text' }] };
   const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async () => state };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Project text'));
-  act(() => result.current.setPath({ entryPath: 'brand.md' }));
+  act(() => result.current.openNote({ entryPath: 'brand.md' }));
   expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Brand text' });
-  act(() => result.current.setPath({ entryPath: 'new-file.md' }));
-  expect(result.current).toMatchObject({ entryPath: 'new-file.md', text: '' });
+  act(() => result.current.renamePath({ entryPath: 'new-file.md' }));
+  expect(result.current).toMatchObject({ entryPath: 'new-file.md', text: 'Brand text' });
 });
 
 test('save does nothing before the first read has filled the editor', async () => {
@@ -177,11 +177,28 @@ test('renaming a new note keeps its text; picking another saved note with no edi
   saveNote: async () => { throw new Error('unexpected write'); } };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Saved project note'));
-  act(() => result.current.setPath({ entryPath: 'brand.md' }));
+  act(() => result.current.openNote({ entryPath: 'brand.md' }));
   expect(result.current.text).toBe('Saved brand note');
   act(() => result.current.setText({ text: 'Typed but unsaved' }));
-  act(() => result.current.setPath({ entryPath: 'r' }));
-  act(() => result.current.setPath({ entryPath: 'rules.md' }));
+  act(() => result.current.renamePath({ entryPath: 'r' }));
+  act(() => result.current.renamePath({ entryPath: 'rules.md' }));
   expect(result.current.entryPath).toBe('rules.md');
   expect(result.current.text).toBe('Typed but unsaved');
+});
+
+// B218: opening a saved note is a separate action from renaming. With unsaved edits it must keep
+// the draft under its own name (never re-file it under the clicked note) and say why.
+test('opening another saved note while the draft has unsaved edits keeps the draft and does not switch', async () => {
+  const port: AgentPluginMemoryPort = { read: async () => ({ ...listing('example', 'Saved project note'),
+    notes: [{ relativePath: 'project.md', text: 'Saved project note' }, { relativePath: 'brand.md', text: 'Saved brand note' }] }),
+  saveNote: async () => { throw new Error('unexpected write'); } };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await waitFor(() => expect(result.current.text).toBe('Saved project note'));
+  act(() => result.current.setText({ text: 'Unsaved project edit' }));
+  act(() => result.current.openNote({ entryPath: 'brand.md' }));
+  expect(result.current).toMatchObject({ entryPath: 'project.md', text: 'Unsaved project edit',
+    status: 'Save this note before opening another one.' });
+  act(() => result.current.setText({ text: 'Saved project note' }));
+  act(() => result.current.openNote({ entryPath: 'brand.md' }));
+  expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Saved brand note', status: null });
 });

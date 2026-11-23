@@ -52,7 +52,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, dep
           patch: authoringPatch({ body }, {}),
         },
       }, expectedVersion === undefined ? {} : { expectedVersion });
-      res.json(toAdminFormDefinitionResponse(definition));
+      res.json(toAdminFormDefinitionResponse({ definition }));
     } catch (error) {
       if (mapFormsWriteError({ err: error, res })) return;
       sendAdminFailure({ res, error }, { operation: "routes/forms/authoring", code: "INTERNAL_ERROR" });

@@ -55,5 +55,5 @@ test("form authoring maps a stale version to 409 and malformed versions to 400",
   assert.equal(stale.body.code, "VERSION_CONFLICT");
   const malformed = await dispatchJsonRequest(app, "PUT", path, { name: "Edit", expectedVersion: "1" });
   assert.equal(malformed.status, 400);
-  assert.equal(toAdminFormDefinitionDto(record).version, 1);
+  assert.equal(toAdminFormDefinitionDto({ definition: record }).version, 1);
 });

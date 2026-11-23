@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useSelectDropdown } from "@jini-ai/admin/shell/components/Select/Select.hooks";
+import { useSelectDropdown } from "@jini-ai/ui/admin-widgets";
 
 import { resolveSelectTriggerLabel, Select, type SelectOption } from "../Select/Select";
 
@@ -206,8 +206,8 @@ describe("Select", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
 
     const { result } = renderHook(() => useSelectDropdown({
-      value: "", onChange: vi.fn(), options: FEW_OPTIONS, disabled: true,
-    }));
+      value: "", onChange: vi.fn(), options: FEW_OPTIONS,
+    }, { disabled: true }));
     for (const key of ["Enter", " ", "ArrowDown", "ArrowUp"]) {
       const preventDefault = vi.fn();
       act(() => result.current.handleTriggerKeyDown({ key, preventDefault } as unknown as React.KeyboardEvent<HTMLButtonElement>));

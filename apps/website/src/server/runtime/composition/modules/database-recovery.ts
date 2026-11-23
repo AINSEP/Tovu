@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import { adminDatabaseTimelineRoute } from "@jini-ai/cms/admin-http/routes/database/timeline";
 import { adminDatabaseRestorePointsCreateRoute, adminDatabaseRestorePointsListRoute } from "@jini-ai/cms/admin-http/routes/database/restore-points";
 import { adminDatabaseSchemaStateRoute } from "@jini-ai/cms/admin-http/routes/database/schema-state";
@@ -101,13 +102,20 @@ export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express
   } }) }, recoveryMountOptions("routes/recovery/deep-link"));
 }
 
+/** The Timeline's 400 classification: the ledger's undecodable-cursor `ToolInputError`, or
+ * `getTimeline`'s limit check — matched by `name` because `@jini-ai/db` does not export that
+ * `TimelineValidationError` class. Anything else stays a 500 through the mount's failure port. */
+function isTimelineValidationError({ err }: { err: unknown }, _optional: Record<string, never> = {}): boolean {
+  return err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
+}
+
 const RESTORE_POINTS_FAILURE: FailureOptions = { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" };
 
 /** `GET /api/admin/v1/database/timeline` (Jini spec), gated by `database.read`. Every field is a
  * getter so a later swap on `deps` (as the route tests do) still reaches the mounted route. */
 export function registerAdminDatabaseTimelineRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute({ app, spec: adminDatabaseTimelineRoute, deps: {
-    get databaseLedgerRepo() { return deps.databaseLedgerRepo; }, getTimeline,
+    get databaseLedgerRepo() { return deps.databaseLedgerRepo; }, getTimeline, isTimelineValidationError,
     get workspaceId() { return deps.workspaceId; }, get authorize() { return deps.authorize; },
   } }, { authorization: "direct" });
 }

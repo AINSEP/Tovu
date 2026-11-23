@@ -31,7 +31,7 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = ({ app, deps }, _
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;
       }
-      res.json(toAdminFormDefinitionResponse(definition));
+      res.json(toAdminFormDefinitionResponse({ definition }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/forms/get-by-id", code: "INTERNAL_ERROR" });
     }
