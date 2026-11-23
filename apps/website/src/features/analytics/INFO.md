@@ -63,6 +63,12 @@ the Jini specifier directly. The barrel's type-model notes are kept here:
 
 The type model behind these ports lives in `@jini-ai/analytics`; this host persists it as follows.
 
+Purpose: declares the privacy-first, cookie-less traffic/usage model — the shapes that flow
+from the ingest beacon through server-side normalization into aggregate/time-series
+storage, and back out through dashboards and AI tools. Types only — no feature logic.
+
+How it relates to the project:
+
 - Reuses core primitives from `src/contracts/core/ports.ts` (UUID/ISODateTime/JsonObject) — this
   file introduces no new primitive kinds, staying inside ADR-007's workspace-scoping and
   the frozen serializable ABI (ADR-024 §3 / ADR-005).

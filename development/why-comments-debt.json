@@ -3508,6 +3508,226 @@
     {
       "id": "35104b28f367",
       "reason": "Moved to Jini @jini-ai/cms/settings/site/admin-interface (X-settings-1, Jini 37902e97); product name reworded to \"the host\"."
+    },
+    {
+      "id": "89d99307fae5",
+      "reason": "Split between Jini packages/admin/src/screens/analytics/__tests__/use-analytics.hooks.unit.test.ts (injected-port half) and Tovu apps/admin/src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts (wired half) (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host'; why kept in both headers."
+    },
+    {
+      "id": "37e5babebf39",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/Analytics.tsx (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', deps.ts/app.ts/TOVU_DB citations -> 'the host's server dependencies / in-memory database mode'; why kept."
+    },
+    {
+      "id": "fefbf2c23942",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/analytics-module.hooks.ts @file (the host binding is the only place the request client meets the screen) and Jini packages/admin/src/screens/analytics/hooks/analytics-dependencies.hooks.ts @file (fake half) (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "06d19824323e",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/hooks/analytics-port.hooks.ts (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', host binds the real client; why kept."
+    },
+    {
+      "id": "2b3befa8a7f4",
+      "reason": "Moved to Jini packages/admin/src/screens/analytics/hooks/use-analytics.hooks.ts (ex7-settings-sec, A-K2-analytics-1); product name -> 'the host', the wired pair is now the host's; why kept."
+    },
+    {
+      "id": "1f15293c9a19",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/analytics-module.hooks.ts (useWiredAnalytics doc, ex7-settings-sec, A-K2-analytics-1); reworded to name the package screen and analyticsHostPort; why kept."
+    },
+    {
+      "id": "8ea383294621",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', now also names the host-supplied ConsentScreenUi and consent-settings.css; why kept."
+    },
+    {
+      "id": "c9cd275e4087",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (`port` prop doc) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', the prop is now REQUIRED and host-supplied so \"injected in tests; the admin API otherwise\" became \"the host's revisions port over its authenticated admin API\"; why kept."
+    },
+    {
+      "id": "660195d6eb81",
+      "reason": "Obsolete (ex7-settings-sec, A-K2-consent-1): the host feature barrel was deleted; panel-pages.ts now lazy-loads the mount in Tovu apps/admin/src/integrations/jini-admin/consent-screen.tsx, whose @file says so."
+    },
+    {
+      "id": "1c919737d5d4",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts @file (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host route/contract paths cited as \"the host's consent revisions routes\" and kept verbatim in Tovu apps/admin/src/integrations/jini-admin/consent-ports.ts; why kept."
+    },
+    {
+      "id": "00314f64785e",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts (ConsentRequest / createConsentRevisionsPort docs) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host supplies request + workspaceId; why kept."
+    },
+    {
+      "id": "a7f3439da1c3",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/settings.hooks.ts (ConsentRequest / createConsentRevisionsPort docs) (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', host supplies request + workspaceId; why kept."
+    },
+    {
+      "id": "ede6d8af9b4e",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "047d588f98b9",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "1746b1e24309",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "4e1e93b4ac49",
+      "reason": "Moved to Jini packages/admin/src/screens/consent/use-consent-page.hooks.ts (ex7-settings-sec, A-K2-consent-1); product name -> 'the host', dependency lists gained the injected error reader and the comment names it; why kept."
+    },
+    {
+      "id": "d3a9f6eb2a5c",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/__tests__/ (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', header reworded for required port/locale props and the host-owned port test; why kept."
+    },
+    {
+      "id": "97081a9ea1c9",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/__tests__/ (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', header reworded for required port/locale props and the host-owned port test; why kept."
+    },
+    {
+      "id": "662711d6df4d",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N, split note added; why kept."
+    },
+    {
+      "id": "0ea242909b81",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N, split note added; why kept."
+    },
+    {
+      "id": "427a8368a991",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/content-analysis-i18n.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N, split note added; why kept."
+    },
+    {
+      "id": "1221734c7125",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/ContentAnalysisCard.tsx (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', untracked local-artifact path citation and PostEditor.tsx neutralised; why kept."
+    },
+    {
+      "id": "81909c9ca564",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/ContentAnalysisCard.tsx (useContentAnalysisHook prop doc) (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "4988269dad68",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-dependencies.hooks.ts @file (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', now the fake half; the live port is the host's; why kept."
+    },
+    {
+      "id": "2d71a8e8f757",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "9c9ce643f8b2",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "b5261b0b0e00",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/content-analysis-port.hooks.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', ApiError -> AdminApiError and the host translation note added; why kept."
+    },
+    {
+      "id": "5c7e1dc27b55",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/hooks/use-content-analysis.hooks.ts @file (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', port/locale now arrive as required card props; why kept."
+    },
+    {
+      "id": "e9aa71ac24aa",
+      "reason": "Moved to Tovu apps/admin/src/integrations/jini-admin/content-analysis-ports.ts (live-port doc) and Jini packages/admin/src/screens/content-analysis/ContentAnalysisCard.tsx (required port/useAdminLocale props) (ex7-settings-sec, A-K2-content-analysis-1); the zero-argument useWiredContentAnalysis pair no longer exists; why kept."
+    },
+    {
+      "id": "bfd3554bcc97",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/rules.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', untracked BRIEF.md path -> \"the host's plugin brief\", .status-* -> jini-status-*; why kept."
+    },
+    {
+      "id": "d9d9f6fb1213",
+      "reason": "Moved to Jini packages/admin/src/screens/content-analysis/rules.ts (ex7-settings-sec, A-K2-content-analysis-1); product name -> 'the host', untracked BRIEF.md path -> \"the host's plugin brief\", .status-* -> jini-status-*; why kept."
+    },
+    {
+      "id": "b83e01efdb96",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/hooks/use-settings-locale-sync.hooks.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', the wired half stays host-side; why kept."
+    },
+    {
+      "id": "1fed15346beb",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "fce8829e9eef",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-memory-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N; why kept."
+    },
+    {
+      "id": "9a520ee1d11a",
+      "reason": "Moved to Jini packages/admin/src/screens/settings/settings-memory-i18n.ts (ex7-settings-sec, A-K2-settings-1); product name -> 'the host', COMMON_I18N -> ADMIN_COMMON_I18N; why kept."
+    },
+    {
+      "id": "3b8f9129cc90",
+      "reason": "Moved to Jini packages/analytics/src/site/__tests__/jini-adapters.unit.test.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "4877163784c1",
+      "reason": "Moved to Jini packages/analytics/src/site/forwarding.ts @file (ex7-settings-sec, K5-analytics-1); product name -> 'the host', warn-reporter paragraph added; why kept."
+    },
+    {
+      "id": "4fc731b6adc9",
+      "reason": "Obsolete (ex7-settings-sec, K5-analytics-1): the host analytics barrel was deleted (callers import @jini-ai/analytics/site/jini-adapters directly); Tovu apps/website/src/features/analytics/INFO.md \"Type model and the removed barrel\" records the removal."
+    },
+    {
+      "id": "ed786f56a2fa",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "c7da88c75340",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "79b68bd1c9d8",
+      "reason": "Moved to Jini packages/analytics/src/site/jini-adapters.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', forward failures go to the host reportForwardFailure; why kept."
+    },
+    {
+      "id": "469f428e32a2",
+      "reason": "Moved to Jini packages/analytics/src/site/salt.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', saltContext parameter documented; why kept."
+    },
+    {
+      "id": "921f3ef53c58",
+      "reason": "Moved to Jini packages/analytics/src/site/salt.ts (ex7-settings-sec, K5-analytics-1); product name -> 'the host', saltContext parameter documented; why kept."
+    },
+    {
+      "id": "853d650c8fab",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/config.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "edd006eaf23c",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/cookie-consent.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "cca9ee0861fe",
+      "reason": "Moved to Jini packages/cookie-consent/src/site/revisions.ts (ex7-settings-sec, K5-consent-1); product name -> 'the host'; why kept."
+    },
+    {
+      "id": "65bacfdcc9e8",
+      "reason": "Reworded in place in Tovu apps/website/src/features/redirects/__tests__/index.test.ts (ex7-settings-sec, X-redirects-1); the phase-handler registrar left the barrel, the header still states the surface and where the registrar lives."
+    },
+    {
+      "id": "c31f0561f223",
+      "reason": "Reworded in place in Tovu apps/website/src/features/redirects/index.ts (ex7-settings-sec, X-redirects-1); now says the routing-phase registration lives in Jini."
+    },
+    {
+      "id": "6ac181f90e5a",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/phase-handler.ts (ex7-settings-sec, X-redirects-1); product name -> 'the host', host registers via the injected registerResolvePhase; why kept."
+    },
+    {
+      "id": "7cdb13dba829",
+      "reason": "Moved to Jini packages/cms/src/redirects/site/phase-handler.ts (ex7-settings-sec, X-redirects-1); product name -> 'the host', host registers via the injected registerResolvePhase; why kept."
+    },
+    {
+      "id": "ca2a1cbc3e4b",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (ex7-settings-sec, RT-K1-adm-seo-1); product name -> 'the host', generic 500 is \"from the host\"; why kept."
+    },
+    {
+      "id": "eb24ae253a5b",
+      "reason": "Moved to Jini packages/cms/src/settings/site/ui-locales-tool.ts (ex7-settings-sec, K5-settings-1); product name -> 'the host', derivedRisk comment: ADMIN_LOCALES -> 'the host's offered locales'; why kept."
+    },
+    {
+      "id": "982fb6296220",
+      "reason": "Moved to Jini packages/cms/src/settings/site/ui-locales-tool.ts (ex7-settings-sec, K5-settings-1); product name -> 'the host', buildUiLocalesRegistrations doc: host tool metadata and offered locales are injected, noted in the doc; why kept."
+    },
+    {
+      "id": "0e350d5b5f8a",
+      "reason": "Moved to Tovu apps/website/src/features/analytics/INFO.md, section \"Type model and the removed barrel\" (ex7-settings-sec, K5-analytics-1); the host analytics types.ts header survived only as the barrel comment this run deleted, and INFO.md now carries its Purpose, project-relation and no-PII-at-rest notes; product name -> \"the host\"; why kept."
+    },
+    {
+      "id": "73760a47ae02",
+      "reason": "Earlier revision of the Cookie Consent screen @file; the screen moved to Jini packages/admin/src/screens/consent/CookieConsent.tsx (ex7-settings-sec, A-K2-consent-1), same comment as 8ea383294621 with the engine specifier now @jini-ai/cookie-consent/react and the host-supplied ConsentScreenUi noted; why kept."
     }
   ]
 }
