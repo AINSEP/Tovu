@@ -1,25 +1,25 @@
 import { registerAdminPostListRoute } from "#src/server/inbound/admin-http/routes/posts/list";
-import { registerAdminPostCreateRoute } from "#src/server/inbound/admin-http/routes/posts/create";
+import { registerAdminPostCreateRoute } from "./posts.js";
 import { registerAdminPostGetRoute } from "#src/server/inbound/admin-http/routes/posts/get-by-id";
 import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
-import { registerAdminPostUpdateRoute } from "#src/server/inbound/admin-http/routes/posts/update";
-import { registerAdminPostDeleteRoute } from "#src/server/inbound/admin-http/routes/posts/delete";
-import { registerAdminPostAutosaveRoute } from "#src/server/inbound/admin-http/routes/posts/autosave";
-import { registerAdminPageListRoute } from "#src/server/inbound/admin-http/routes/pages/list";
-import { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/routes/pages/create";
-import { registerAdminPageGetRoute } from "#src/server/inbound/admin-http/routes/pages/get-by-id";
-import { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/routes/pages/update";
-import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
-import { registerAdminEmailTemplateRoutes } from "#src/server/inbound/admin-http/routes/email-templates/routes";
-import { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
-import { registerAdminChangeSetListRoute } from "#src/server/inbound/admin-http/routes/change-sets/list";
-import { registerAdminChangeSetGetRoute } from "#src/server/inbound/admin-http/routes/change-sets/get";
-import { registerAdminChangeSetRevertRoute } from "#src/server/inbound/admin-http/routes/change-sets/revert";
-import { registerAdminPresentationGetRoute } from "#src/server/inbound/admin-http/routes/presentation/get";
-import { registerAdminPresentationPatchRoute } from "#src/server/inbound/admin-http/routes/presentation/patch-active-theme";
-import { registerAdminThemeRescanRoute } from "#src/server/inbound/admin-http/routes/presentation/rescan-themes";
-import { registerAdminThemesListRoute } from "#src/server/inbound/admin-http/routes/themes/list";
-import { registerAdminThemeDuplicateRoute } from "#src/server/inbound/admin-http/routes/themes/duplicate";
+import { registerAdminPostUpdateRoute } from "./posts.js";
+import { registerAdminPostDeleteRoute } from "./posts.js";
+import { registerAdminPostAutosaveRoute } from "./posts.js";
+import { registerAdminPageListRoute } from "./pages.js";
+import { registerAdminPageCreateRoute } from "./pages.js";
+import { registerAdminPageGetRoute } from "./pages.js";
+import { registerAdminPageUpdateRoute } from "./pages.js";
+import { registerAdminPageUpdateHtmlRoute } from "./pages.js";
+import { registerAdminEmailTemplateRoutes } from "./email-templates.js";
+import { registerAdminPageDeleteRoute } from "./pages.js";
+import { registerAdminChangeSetListRoute } from "./change-sets.js";
+import { registerAdminChangeSetGetRoute } from "./change-sets.js";
+import { registerAdminChangeSetRevertRoute } from "./change-sets.js";
+import { registerAdminPresentationGetRoute } from "./presentation.js";
+import { registerAdminPresentationPatchRoute } from "./presentation.js";
+import { registerAdminThemeRescanRoute } from "./presentation.js";
+import { registerAdminThemesListRoute } from "./themes.js";
+import { registerAdminThemeDuplicateRoute } from "./themes.js";
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
