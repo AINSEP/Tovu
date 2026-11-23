@@ -1,3 +1,4 @@
+import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "../../lib/shell-collaborators";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
@@ -14,7 +15,7 @@ const groups: AdminNavGroup[] = [{ items: [{ id: "sites", label: "Sites", href: 
 function snapshot(name = "plannie"): AdminSitesSnapshot {
   return { switchingEnabled: true, sites: [], currentSite: { name, dir: `/sites/${name}`, listed: false, dirOverridden: false }, persistedSiteName: "pending-site" };
 }
-function ExistingTooltips() { useCmsSidebarLabelTooltips({}); return null; }
+function ExistingTooltips() { useCmsSidebarLabelTooltips(SIDEBAR_TOOLTIP_ITEMS, { ownsTitle: sidebarOwnsTitle }); return null; }
 
 describe("Sites sidebar label", () => {
   function mount({ name = "plannie", locale = "en", widths = { scrollWidth: 80, clientWidth: 80 }, collapsed = false } = {}) {

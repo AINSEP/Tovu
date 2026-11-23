@@ -51,7 +51,11 @@ it("uses the tab-stream adapter in the bridge's openStream port", () => {
   const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge, openStream: openTabStream }));
   act(() => result.current.setContentEl(document.createElement("main")));
   expect(openStream!({ url: "/api/frontend-sessions/stream?capability=page.click" })).toBe(stream);
-  expect(openTabStream).toHaveBeenCalledExactlyOnceWith({ url: `/api/frontend-sessions/stream?capability=page.click&tabId=${encodeURIComponent(adminFrontendTabId)}` });
+  expect(openTabStream).toHaveBeenCalledExactlyOnceWith(
+    { url: `/api/frontend-sessions/stream?capability=page.click&tabId=${encodeURIComponent(adminFrontendTabId)}` },
+    // The host-built stream ports (rv-g FIX 3: Jini constructs no default ports).
+    { ports: expect.objectContaining({ orFallbackSync: expect.any(Function) }) },
+  );
   expect(headers!()).toEqual({ "x-frontend-tab-id": adminFrontendTabId });
   unmount();
   expect(closed).toBe(true);

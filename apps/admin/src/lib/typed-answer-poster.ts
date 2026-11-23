@@ -1,4 +1,4 @@
-import { onAdminSecretRedacted } from "@jini-ai/admin/shell/lib/credential-card-guidance";
+import { onTovuSecretRedacted } from "./shell-collaborators";
 import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
 /**
  * @module typed-answer-poster
@@ -33,6 +33,6 @@ export const ADMIN_MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
 export function createAdminTypedAnswerPoster({ fetch }: { fetch: typeof globalThis.fetch }, options: UserTextRedactionOptions = {}): DeliverTypedAnswer {
   return createTypedAnswerPoster(
     { baseUrl: "", fetch, toolName: ASK_CHOICE_TOOL_ID },
-    { path: ADMIN_MCP_UI_TOOL_CALLS_PATH, onSecretRedacted: onAdminSecretRedacted, ...options },
+    { path: ADMIN_MCP_UI_TOOL_CALLS_PATH, onSecretRedacted: onTovuSecretRedacted, ...options },
   );
 }

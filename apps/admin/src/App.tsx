@@ -22,6 +22,7 @@ import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
 import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
 import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";
+import { SIDEBAR_TOOLTIP_ITEMS, sidebarOwnsTitle } from "./lib/shell-collaborators";
 import { IntegrationsRedirect } from "./features/integrations";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
@@ -298,7 +299,7 @@ function SidebarLogoutButton({
 function SidebarLabelTooltips({
   useCmsSidebarLabelTooltipsHook = useCmsSidebarLabelTooltips }: {
   useCmsSidebarLabelTooltipsHook?: typeof useCmsSidebarLabelTooltips; } = {}) {
-  useCmsSidebarLabelTooltipsHook({});
+  useCmsSidebarLabelTooltipsHook(SIDEBAR_TOOLTIP_ITEMS, { ownsTitle: sidebarOwnsTitle });
   return null;
 }
 
@@ -524,12 +525,15 @@ function useShellRoute({ user, checking }: { user: AdminUser | null; checking: b
 
 /** Drawer, link interceptor, and the assistant dock layout with the rail it folds the nav into. */
 function useShellDockChrome(
-  { routePath, useDrawer, useLinkInterceptor, useChatDock }: { routePath: string; useDrawer: typeof useSidebarDrawer; useLinkInterceptor: typeof useInternalLinkInterceptor; useChatDock: typeof useChatDockLayout },
+  { routePath, useDrawer, useLinkInterceptor, useChatDock, useDrawerCentring, useDockRail }: {
+    routePath: string; useDrawer: typeof useSidebarDrawer; useLinkInterceptor: typeof useInternalLinkInterceptor; useChatDock: typeof useChatDockLayout;
+    useDrawerCentring: typeof useDrawerActiveItemCentring; useDockRail: typeof useDockAutoRail;
+  },
   _options = {},
 ) {
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
   // The phone drawer opens with the current page's item in its vertical middle (owner, 2026-10-07).
-  useDrawerActiveItemCentring({ open: sidebarOpen });
+  useDrawerCentring({ open: sidebarOpen });
   useLinkInterceptor();
 
   // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
@@ -537,14 +541,17 @@ function useShellDockChrome(
   const dock = useChatDock();
   // Nav expanded + dock open in a 901–1171px window left a phone-width page: fold the nav to its
   // rail while the dock is open there (see the hook's doc for the rule and the mechanism).
-  const dockRail = useDockAutoRail({ dockOpen: dock.chatOpen });
+  const dockRail = useDockRail({ dockOpen: dock.chatOpen });
   return { sidebarOpen, setSidebarOpen, dock, dockRail };
 }
 
-function useShellContent({ useAgentBridge }: { useAgentBridge: typeof useAgentPageBridge }, _options = {}) {
+function useShellContent(
+  { useAgentBridge, useTableLabels }: { useAgentBridge: typeof useAgentPageBridge; useTableLabels: typeof useListTableCellLabels },
+  _options = {},
+) {
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
-  useListTableCellLabels({ root: contentEl ?? null });
+  useTableLabels({ root: contentEl ?? null, tableSelector: "table.list-table" });
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.ts`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const screenshot = useScreenshotAnnouncement();
@@ -671,12 +678,19 @@ function AdminShell({
   useShellRouteHook = useShellRoute,
   useShellDockChromeHook = useShellDockChrome,
   useShellContentHook = useShellContent,
+  useDrawerCentring = useDrawerActiveItemCentring,
+  useDockRail = useDockAutoRail,
+  useTableLabels = useListTableCellLabels,
   useShellLocaleHook = useShellLocale,
   useCollapsibleNavGroupLabelsHook = useCollapsibleNavGroupLabels, ...props }: (AppProps & { session: ReturnType<typeof useAdminSession> }) & {
   useShellAvailabilityHook?: typeof useShellAvailability;
   useShellRouteHook?: typeof useShellRoute;
   useShellDockChromeHook?: typeof useShellDockChrome;
   useShellContentHook?: typeof useShellContent;
+  /** Injectable seams for the drawer centring, dock auto-rail and table-label hooks (Jini shell hooks). */
+  useDrawerCentring?: typeof useDrawerActiveItemCentring;
+  useDockRail?: typeof useDockAutoRail;
+  useTableLabels?: typeof useListTableCellLabels;
   useShellLocaleHook?: typeof useShellLocale;
   useCollapsibleNavGroupLabelsHook?: typeof useCollapsibleNavGroupLabels; }) {
   const useDrawer = resolveDrawerHook({ override: props.useDrawer });
@@ -689,8 +703,8 @@ function AdminShell({
   const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
   const { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection } = useShellAvailabilityHook({ user, logout });
   const { routePath, route } = useShellRouteHook({ user, checking });
-  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock });
-  const shellContent = useShellContentHook({ useAgentBridge });
+  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock, useDrawerCentring, useDockRail });
+  const shellContent = useShellContentHook({ useAgentBridge, useTableLabels });
   const { navLocale, interfacePreferences } = useShellLocaleHook();
   const { navGroups, navSoonLabel } = buildShellNav({ sidebarSiteSection, effectivePermissions, navLocale });
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });

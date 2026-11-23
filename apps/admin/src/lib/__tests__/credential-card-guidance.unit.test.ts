@@ -10,7 +10,7 @@ describe("credential paste guidance", () => {
     const root = document.createElement("div");
     root.innerHTML = '<div class="mcpui-surface-overflow-wrap"><div data-agent-element="mcp-ui-pending-ui-tovu-secret-card-credential_save-one"></div><iframe></iframe></div>';
     document.body.append(root);
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(true);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(true);
     expect(document.activeElement).toBe(root.querySelector("iframe"));
     root.remove();
   });
@@ -18,15 +18,15 @@ describe("credential paste guidance", () => {
     const root = document.createElement("div");
     root.innerHTML = `<div class="mcpui-surface-overflow-wrap"><div data-agent-element="mcp-ui-pending-ui-tovu-secret-card-${toolId}-one"></div><iframe></iframe></div>`;
     document.body.append(root);
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(true);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(true);
     expect(document.activeElement).toBe(root.querySelector("iframe"));
     root.remove();
   });
   it("leaves the choice to the model when there is no unique pending credential card", () => {
     const root = document.createElement("div");
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(false);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(false);
     root.innerHTML = '<div data-agent-element="mcp-ui-pending-ui-tovu-secret-card-credential_save-one"></div><div data-agent-element="mcp-ui-pending-ui-tovu-secret-card-credential_save-two"></div>';
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(false);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(false);
   });
   it("scrolls an unwrapped pending card itself into view and focuses its iframe", () => {
     const root = document.createElement("div");
@@ -35,7 +35,7 @@ describe("credential paste guidance", () => {
     const card = root.firstElementChild as HTMLElement;
     const scrolls: unknown[] = [];
     card.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => { scrolls.push(options); };
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(true);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(true);
     expect(scrolls).toEqual([{ block: "center", behavior: "smooth" }]);
     expect(document.activeElement).toBe(root.querySelector("iframe"));
     root.remove();
@@ -43,16 +43,16 @@ describe("credential paste guidance", () => {
   it("ignores pending MCP-UI cards that are not secret cards", () => {
     const root = document.createElement("div");
     root.innerHTML = '<div data-agent-element="mcp-ui-pending-ui-tovu-chart-one"><iframe></iframe></div>';
-    expect(guideToPendingCredentialCard({ document: root }, {})).toBe(false);
+    expect(guideToPendingCredentialCard({ document: root, cardWrapperSelector: ".mcpui-surface-overflow-wrap" }, {})).toBe(false);
   });
   it("on a redaction signal guides to the page's only pending card, and does nothing in a host with no DOM", () => {
     const root = document.createElement("div");
     root.innerHTML = '<div class="mcpui-surface-overflow-wrap"><div data-agent-element="mcp-ui-pending-ui-tovu-secret-card-credential_save-one"></div><iframe></iframe></div>';
     document.body.append(root);
-    onAdminSecretRedacted({ secretRedacted: true, count: 1 });
+    onAdminSecretRedacted({ secretRedacted: true, count: 1 }, { cardWrapperSelector: ".mcpui-surface-overflow-wrap" });
     expect(document.activeElement).toBe(root.querySelector("iframe"));
     (document.activeElement as HTMLElement).blur();
-    expect(() => onAdminSecretRedacted({ secretRedacted: true, count: 1 }, { document: null })).not.toThrow();
+    expect(() => onAdminSecretRedacted({ secretRedacted: true, count: 1 }, { document: null, cardWrapperSelector: ".mcpui-surface-overflow-wrap" })).not.toThrow();
     expect(document.activeElement).toBe(document.body);
     root.remove();
   });
