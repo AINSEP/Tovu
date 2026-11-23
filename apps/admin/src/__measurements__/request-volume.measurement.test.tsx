@@ -400,7 +400,7 @@ describe("users", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredUsers } = await import("../features/users/hooks/users-controller.hooks");
+    const { useWiredUsers } = await import("../features/users/hooks/use-wired-users.hooks");
     const { result } = renderHook(() => useWiredUsers(), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/users`, `GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`, `GET ${ADMIN}/auth/me`]);

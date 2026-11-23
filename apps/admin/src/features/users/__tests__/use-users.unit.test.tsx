@@ -6,8 +6,8 @@ import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { userManagementKit } from "@/integrations/jini-kits";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
-import { defaultUsersPort } from "../hooks/users-dependencies.hooks";
-import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
+import { defaultUsersPort } from "../users-host-binding";
+import { useUsers, useWiredUsers } from "../hooks/use-wired-users.hooks";
 
 /**
  * @file First dedicated hook-level test file for `useUsers` (0% before this pass — the highest-

@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { userManagementKit } from "@/integrations/jini-kits";
-import { useUsers } from "../hooks/users-controller.hooks";
+import { useUsers } from "../hooks/use-wired-users.hooks";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 
 it("the host hook forwards username through the existing port and refreshes the own profile", async () => {

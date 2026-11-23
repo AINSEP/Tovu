@@ -4,9 +4,10 @@ import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
 
 /**
- * @file The only place the users screen reaches `lib/api`. The port it binds and the in-memory fake
- * tests use both live in `@jini-ai/user-management` (`/react` and `/react/testing`); Tovu keeps only
- * this binding to its HTTP client.
+ * @file The host's bindings for the users screen — what Tovu injects into the Jini users feature:
+ * the live `UsersPort` over this host's HTTP clients. The port and the in-memory fake tests use both live in
+ * `@jini-ai/user-management` (`/react` and `/react/testing`); Tovu keeps only this binding to its
+ * HTTP client.
  *
  * `me()` (password-banner plan 2026-09-24, Slice 3; delete-user plan v2, Slice 4): the signed-in
  * caller's own id, so the screen can open the reset-password dialog on their row, plus whether THIS

@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { Users } from "../UsersPanel";
+import { Users } from "..";
 import { UserManagePanel, type UserManageController } from "@jini-ai/user-management/react";
-import { useUsers, type UsersController } from "../hooks/users-controller.hooks";
+import { useUsers } from "../hooks/use-wired-users.hooks";
+import type { LocalizedUsersController as UsersController } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";

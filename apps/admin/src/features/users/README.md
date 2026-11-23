@@ -2,26 +2,25 @@
 
 The admin-user list and invite/role-assignment screen behind the sidebar's **People → Users** entry.
 
-The screen itself (markup, controller state, account rules, reset-password fields) lives in
-`@jini-ai/user-management/react`. The user wire type `AdminIdentityUser` is owned by
-`@jini-ai/core/contracts/site/user-management-react`. This folder keeps only the host composition.
+The screen itself (markup, controller state, account rules, reset-password fields, the
+locale-bound controller `useLocalizedUsers`, the `UsersPanel` composition and `passwordResetNotice`)
+lives in `@jini-ai/user-management/react`.
+The user wire type `AdminIdentityUser` is owned by `@jini-ai/core/contracts/site/user-management-react`.
+This folder keeps only the host binding.
 
 | file | what it is |
 |---|---|
-| `UsersPanel.tsx` | Mounts Jini `Users`, binding the host port, workspace scope and `ServerLabel`. |
-| `UsersPanel.hooks.ts` | Adapts the host controller hook to Jini's `useUsersHook` seam. |
-| `hooks/users-controller.hooks.ts` | Binds host locale, `users-i18n` and route navigation onto Jini `useUsers`. |
-| `hooks/users-dependencies.hooks.ts` | The live `UsersPort`, over the host users/roles/auth HTTP clients. |
-| `api/users-api.ts` | The users HTTP client; shared with Library, Media, site transfer and Trash. |
-| `users-i18n.ts` | The users screen dictionary, composed over the host `COMMON_I18N`. |
-| `index.ts` | The only surface `panels.tsx` may import. |
+| `index.tsx` | The only surface `panels.tsx` may import: mounts Jini `UsersPanel` with the wired hook, live port, `WORKSPACE_ID` and `ServerLabel`. |
+| `users-host-binding.ts` | The live `UsersPort` over the host users/roles/auth HTTP clients. |
+| `users-i18n.ts` | The users screen dictionary (`t`), composed over the host `COMMON_I18N`. Held host-side: its `translationEntry`/`mergeLocaleOverlays` helpers live in `@jini-ai/admin`, which `@jini-ai/user-management` may not import. |
+| `hooks/use-wired-users.hooks.ts` | `useUsers` (Jini `useLocalizedUsers` with `useAdminLocale`, `WORKSPACE_ID`, `t`) and `useWiredUsers` (live port + router). |
+| `api/users-api.ts` | The users HTTP client; shared with Library, Media, site transfer and Trash, so it stays a module-level host client. |
 
-## Why these stay in the host
+## Wiring
 
-Each file above binds a host collaborator: the admin HTTP client and `WORKSPACE_ID`, the
-`useAdminLocale` hook, the host `COMMON_I18N` dictionary, `ServerLabel`, or the roles/auth clients.
-`users-i18n.ts` is also over Jini's 500-line file limit. See
-`ADS-memory/reports/jini-port/extraction-plan.md` in the engine repo for the extraction rules.
+The host injects into Jini: `useAdminLocale`, `WORKSPACE_ID` (as `queryScope`), the users translator
+`t`, the router `navigate`, the live `defaultUsersPort`, and `ServerLabel` (as `renderServerLabel`).
+`index.tsx` defaults `useUsersHook` to `useWiredUsers`; tests pass a fake-port composition of `useUsers`.
 
 ## What this feature does not own
 

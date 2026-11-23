@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { Users } from "../UsersPanel";
-import { useUsers } from "../hooks/users-controller.hooks";
+import { Users } from "..";
+import { useUsers } from "../hooks/use-wired-users.hooks";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { describe, expect, it } from "vitest";
 import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
