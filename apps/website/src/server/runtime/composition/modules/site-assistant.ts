@@ -54,6 +54,7 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // `[assistant, features/post]` module cycle. See
 // `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`.
 import { listPublishedPosts } from "#src/features/post/index";
+import { outputTokensOf, visitorTurnEnd } from "#src/assistant/site/visitor-turn-end";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -120,8 +121,12 @@ const CHAT_PATH = "/api/site-assistant/chat";
 /** Bounds a single visitor message. Long enough for a real question, short enough that the prompt
  *  cost of one request cannot be driven up arbitrarily by an anonymous caller. */
 const MAX_MESSAGE_CHARS = 2000;
-/** Per provider request, including continuations; aggregate site spend remains a separate budget. */
-export const VISITOR_MAX_OUTPUT_TOKENS = 1024;
+/** Per provider request, including continuations; aggregate site spend remains a separate budget.
+ *  Gemini bills hidden thinking against this ceiling, and 1024 let a thinking model spend almost all
+ *  of it before writing a list of posts, so replies stopped mid-sentence (VISITOR-CHAT cut-off,
+ *  2026-11-23). 4096 leaves room for the answer; a reply that still hits it ends as `truncated`
+ *  (see `visitor-turn-end.ts`), never as a silent success. Owner-reversible cost knob. */
+export const VISITOR_MAX_OUTPUT_TOKENS = 4096;
 const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
@@ -239,6 +244,15 @@ export const SYSTEM_PREAMBLE = [
 /** SSE framing. Kept in one place so the event names cannot drift between the branches below. */
 function sse({ res, event, data }: { res: Response; event: string; data: unknown }, _optional = {}): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+/** Writes the turn's closing frames: the answering model (a `meta` frame, only for a turn that did not
+ *  fail, so an error never names the provider's model) then `end`, reclassified `truncated` when the
+ *  last request used up the whole output budget. */
+function emitTurnEnd({ res, model, reason, lastOutputTokens }: { res: Response; model: string; reason: string; lastOutputTokens: number | undefined }, _options = {}): void {
+  const end = visitorTurnEnd({ reason, lastOutputTokens, maxTokens: VISITOR_MAX_OUTPUT_TOKENS });
+  if (end.reason !== "error" && model) sse({ res, event: "meta", data: { model } });
+  sse({ res, event: "end", data: end });
 }
 
 function beginStream(req: Request, res: Response): void {
@@ -854,6 +868,7 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
         await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
         await capture({ name: "assistant_run_started", properties: { logicalRunId, eventId: `assistant-start:${logicalRunId}` } });
         let runOutcome = "completed";
+        let lastOutputTokens: number | undefined;
         try { await runByokProviderTurn({
           protocol: provider.protocol,
           apiKey: provider.apiKey,
@@ -892,9 +907,8 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
             if (navigation.terminalNavigation) return;
             if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
             else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
-            else {
-              if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
-            }
+            else if (event.type === "usage") lastOutputTokens = outputTokensOf({ usage: event.usage }) ?? lastOutputTokens;
+            else if (event.type === "end") emitTurnEnd({ res, model: provider.model, reason: event.reason, lastOutputTokens });
           },
         });
         } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }

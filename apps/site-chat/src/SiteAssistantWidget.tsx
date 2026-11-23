@@ -2,6 +2,7 @@ import { useSiteAssistantWidget } from "./SiteAssistantWidget.hooks";
 import { ChatFab, ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/chat/react";
 
 import { SiteAssistantHeader } from "./SiteAssistantHeader";
+import { SiteAssistantModelLabel, SiteAssistantRetryBar } from "./SiteAssistantStatus";
 
 /**
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
@@ -50,7 +51,8 @@ const SITE_ASSISTANT_AGENT: ChatPaneAgent = { id: "site-assistant", name: "Site 
 
 export function SiteAssistantWidget({ useSiteAssistantWidgetHook = useSiteAssistantWidget }: { useSiteAssistantWidgetHook?: typeof useSiteAssistantWidget } = {}) {
   const { open, paneKey, panelRef, launcherRef, closePanel, i18n, t, suggestions, toggleOpen,
-    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation } = useSiteAssistantWidgetHook({});
+    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation,
+    model, failedPrompt, retryFailedPrompt, composerHandle } = useSiteAssistantWidgetHook({});
 
   return (
     <div className="tovu-site-assistant jini-chat-embed" data-agent-private>
@@ -73,7 +75,10 @@ export function SiteAssistantWidget({ useSiteAssistantWidgetHook = useSiteAssist
             emptyState={<p className="jini-chat-pane__greeting">{t('Ask about posts, pages or docs on this site.')}</p>}
             suggestions={suggestions}
             onMessagesChange={handleMessagesChange}
+            composerHandle={composerHandle}
           />
+          <SiteAssistantRetryBar prompt={failedPrompt} onRetry={retryFailedPrompt} t={t} />
+          <SiteAssistantModelLabel model={model} t={t} />
           {toolConfirmation.pending ? (
             <div className="tovu-site-assistant__proposal" role="group" aria-label={toolConfirmation.pending.title}>
               <span className="tovu-site-assistant__proposal-label" role="status">

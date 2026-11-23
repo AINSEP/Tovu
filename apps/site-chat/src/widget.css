@@ -334,8 +334,10 @@
   overflow-y: auto;
   /* The bottom keeps Jini's reservation for `.jini-chat-pane__controls`, an absolute overlay over
      this list's bottom edge (its live height is `--jini-chat-controls-height`). A flat 12px here
-     hid a long answer's tail under the composer with no way to scroll to it (owner, 2026-10-13). */
-  padding: 12px 16px calc(var(--jini-chat-controls-height, 240px) + 24px);
+     hid a long answer's tail under the composer with no way to scroll to it (owner, 2026-10-13).
+     The extra 32px (24 -> 56) reserves the band the 40px "Jump to latest" arrow floats in (8px above
+     the composer), so at the bottom it no longer sits on the newest, right-aligned user bubble. */
+  padding: 12px 16px calc(var(--jini-chat-controls-height, 240px) + 56px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -440,11 +442,22 @@
   padding: 0 14px;
 }
 
+/* Enabled and disabled differ by colour pair, not by fading the same colour (a half-opacity primary read
+   as "disabled" even when the button worked). Only existing site tokens. */
+.tovu-site-assistant .jini-chat-pane .jini-composer-send:not(:disabled):hover {
+  background: color-mix(in oklab, var(--primary) 85%, var(--fg));
+}
+
+.tovu-site-assistant .jini-chat-pane .jini-composer-send:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .tovu-site-assistant .jini-chat-pane .jini-composer-send:disabled {
-  background: var(--primary);
-  color: var(--primary-ink);
-  opacity: 0.5;
-  cursor: default;
+  background: var(--surface-2);
+  color: var(--faint);
+  border-color: var(--border);
+  cursor: not-allowed;
 }
 
 .tovu-site-assistant .jini-composer-input {
@@ -648,11 +661,51 @@
   border-color: var(--border);
 }
 
+/* Answered-by note and retry bar: quiet footers below the pane, same skin as the proposal bar. */
+.tovu-site-assistant__model {
+  margin: 0;
+  padding: 4px 16px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg-2);
+  overflow-wrap: anywhere;
+  background: var(--surface);
+}
+
+.tovu-site-assistant__retry {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--danger-bg);
+}
+
+.tovu-site-assistant__retry-go {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 34px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.tovu-site-assistant__retry-go:hover { background: var(--surface-2); }
+
+.tovu-site-assistant__retry-go:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 @media (max-width: 640px), (pointer: coarse) {
   .tovu-site-assistant .jini-composer-send,
   .tovu-site-assistant .jini-chat-pane__new-thread,
   .tovu-site-assistant .jini-chat-embed__reset-cancel,
   .tovu-site-assistant .jini-chat-pane__suggestion,
   .tovu-site-assistant .jini-chat-pane__queued-cancel,
+  .tovu-site-assistant__retry-go,
   .tovu-site-assistant__proposal-go { min-width: 40px; min-height: 40px; height: auto; }
 }

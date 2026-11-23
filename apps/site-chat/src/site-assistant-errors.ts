@@ -9,9 +9,18 @@
  *  otherwise see an empty reply and no hint that anything went wrong. */
 export const NO_REPLY_REASON = "the assistant sent no reply";
 
+/** Shown when the server says the reply stopped at its length limit. The partial text stays on screen,
+ *  so this is deliberately NOT worded as "couldn't get an answer". */
+export const TRUNCATED_REPLY_MESSAGE = "This answer was cut off because it got too long. Ask me to continue, or ask a narrower question.";
+
 /** `fetch` rejects with a bare `TypeError` on a network failure; its message is browser-specific
  *  ("Failed to fetch", "Load failed", "NetworkError when attempting to fetch resource."). */
 const NETWORK_FAILURE = /failed to fetch|load failed|networkerror/i;
+
+/** Whether `error` is the browser's bare network-failure `TypeError` (the request never got a reply). */
+export function isNetworkFailure({ error }: { error: unknown }, _options = {}): boolean {
+  return error instanceof TypeError && NETWORK_FAILURE.test(error.message);
+}
 
 /**
  * Wraps any failure as "Couldn't get an answer: <reason>. Try again.", keeping the server's own
@@ -26,7 +35,7 @@ export function visitorFacingError({ error }: { error: unknown }, _options = {})
   let end = raw.trimEnd().length;
   while (end > 0 && /[.!\s]/.test(raw[end - 1])) end -= 1;
   if (!raw.slice(0, end).trim()) return new Error("Couldn't get an answer from this site. Reload the page and try again.", { cause: error });
-  const reason = error instanceof TypeError && NETWORK_FAILURE.test(raw)
+  const reason = isNetworkFailure({ error })
     ? "couldn't reach the site"
     : raw.slice(0, end).trimStart();
   return new Error(`Couldn't get an answer: ${reason}. Try again.`, { cause: error });
