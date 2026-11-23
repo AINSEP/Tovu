@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryPostRepo } from '#src/features/post/index';
 import { buildPostRecord } from '#src/features/post/__tests__/post-record.fixture';
-import { registerRedirectsPhaseHandlers } from '#src/features/redirects/phase-handler';
-import { entryPublicPath, getNamedRoute, getSlugChangeCapture, registerSlugChangeCapture,
+import { registerRedirectsPhaseHandlers } from '@jini-ai/cms/redirects/site/phase-handler';
+import { entryPublicPath, getNamedRoute, getSlugChangeCapture, registerResolvePhase, registerSlugChangeCapture,
   resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase, urlFor } from '../adapter.js';
 
 const ctx = { workspaceId: 'workspace-rt', originOverride: 'https://rt.example/' };
@@ -31,7 +31,7 @@ test('Tovu binds its existing publication, scheduling and Trash policy to Jini r
 });
 
 test('redirect registration and site phase readers use the same Jini instance; stale teardown preserves its replacement', async () => {
-  const register = (location: string) => registerRedirectsPhaseHandlers({ resolver: {
+  const register = (location: string) => registerRedirectsPhaseHandlers({ registerResolvePhase, resolver: {
     resolve: async ({ phase }) => ({ matched: true, location: `${location}/${phase}`, statusCode: 301, redirectId: 'rule-rt', matchType: 'exact' }),
   } });
   const stale = register('/stale');

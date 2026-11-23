@@ -5,8 +5,8 @@ import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import { registerRedirectHitOutboxHandler } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
-import { registerSlugChangeCapture } from "#src/platform/routing/adapter";
+import { registerRedirectsPhaseHandlers } from "@jini-ai/cms/redirects/site/phase-handler";
+import { registerResolvePhase, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { removeEntityWithoutBlocker } from "#src/features/trash/index";
 import type { SqliteRedirectRepo } from "#src/features/redirects/index";
 import type { createTrashService } from "@jini-ai/cms/trash";
@@ -67,6 +67,7 @@ export function composeRedirects(required: ComposeRedirectsRequired, _optional =
     matcher: redirectMatcher,
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
+    registerResolvePhase,
   }, { hits: { outbox, clock, idGen } }) });
   onStoreClose({ registration: registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) }) });
   onStoreClose({ registration: registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }) });
