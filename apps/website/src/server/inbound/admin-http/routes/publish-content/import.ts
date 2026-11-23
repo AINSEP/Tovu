@@ -16,9 +16,8 @@ import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, typ
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { readBackstopApplyReport } from "./apply-report.js";
+import { readBackstopApplyReport, toPublishContentReportDto } from "@jini-ai/cms/admin-http/http/publish-content";
 import { importErrorResponse } from "./import-errors.js";
-import { toPublishContentReportDto } from "./report-dto.js";
 import {
   acceptOverwriteEntityKeys,
   authorizedPrincipalId,

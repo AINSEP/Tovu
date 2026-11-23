@@ -9,7 +9,7 @@ import ts from "typescript";
 import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteImportRoutes } from "../../routes/system/site-imports.js";
-import { registerAdminRecoveryRestoreRoutes, sendRecoveryError } from "../../routes/recovery/restore.js";
+import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composition/modules/recovery-restore";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
@@ -68,14 +68,29 @@ test("import expected refusals keep their diagnosis without reporting an inciden
   assert.deepEqual(logs, []); assert.deepEqual(tracked, []);
 });
 
-test("restore gateway Result errors have the same private diagnostic envelope as thrown exceptions", t => {
+// Wire replacement for the deleted `sendRecoveryError` unit test (the mapping moved into the Jini
+// restore spec): a gateway *Result* error (INTERNAL_ERROR, not a throw) answers the same private,
+// correlated envelope as a thrown exception.
+test("restore gateway Result errors have the same private diagnostic envelope as thrown exceptions", async t => {
   const secret = "ghp_" + "x".repeat(36), logs: unknown[][] = [], tracked: unknown[] = [];
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
-  let status = 0, body: any;
-  const res = { locals: { adminFailureTracker: { error: (value: unknown) => tracked.push(value) } },
-    status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
-  sendRecoveryError({ res: res as any, error: { code: "INTERNAL_ERROR", message: `database failed ${secret}` } });
-  assert.equal(status, 500);
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => {
+    res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
+    res.locals.adminFailureTracker = { error: (value: unknown) => tracked.push(value) };
+    req.body = { restorePointId: "rp" };
+    next();
+  });
+  // The capability probe answers, so the failure surfaces from the gateway as a `Result` error.
+  const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true }),
+    dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "snapshot" } }) },
+    gatedMutations: { gatewayDeps: { authorizeInstance: async () => { throw new Error(`database failed ${secret}`); } } },
+  } as unknown as RouteDeps;
+  registerAdminRecoveryRestoreRoutes({ app, deps });
+  const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/recovery/restore/plan");
+  const body = response.body as Record<string, string>;
+  assert.equal(response.status, 500);
   assert.equal(typeof body.errorId, "string");
   assert.ok(body.error.includes(body.errorId));
   assert.equal(body.error.includes(secret), false);

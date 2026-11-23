@@ -175,3 +175,22 @@ probe, OAuth connect/sign-in/device-poll and the session-credential routes stay 
 Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
 (`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
 id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
+
+Recovery/database (`modules/database-recovery.ts`, `modules/recovery-restore.ts`,
+`modules/database-migrate-forward.ts`): status binds the operation-lock peek and the db banner
+precedence; the restore and migrate-forward ceremonies bind the gated-mutation gateway, the
+restore/migrate hooks, the operation lock and the db orchestrator per request, mount `"direct"`, and
+pass `getAuthedPrincipal`'s diagnosis as `missingPrincipalMessage`. `DatabaseRecoveryRouteDeps`
+lives in `modules/database-recovery.ts`.
+Publish-content (`modules/publish-content-transport.ts`) mounts the peer and destination specs
+`"guarded"`; plugins (`modules/plugins.ts`) mounts list/files/uninstall/preview `"guarded"` and
+injects `pluginHookFailedBody` (stays in Tovu until lane L1 moves it). Both drop the spec's
+`entityType` before `deps.authorize`, because those hand-written routes never sent one.
+Plugins set-enabled mounts `"direct"` and binds `deps.authorize` raw and lazily as
+`authorizeCommand` (the cms `executeCommand` gateway names the `plugin-activation` entity itself),
+plus the pre-bound `setPluginEnabled`, `lowerPluginToolAccess`, `recordSiteApproval` and the
+`ToolAccessLoweringError` + plugins host error classes.
+Still hand-written: routes that read `res.locals.authCredentialKind` or the publish-trust grant
+(publish-content import/backstop/bundle-create/export/capabilities/peer-transport, plugins
+provider-settings) — they need that context on the admin JSON ports — and the byte/stream/upload
+routes (blob-get/put, blobs-probe's own 413 body, export, plugins install/chart-providers).

@@ -8,7 +8,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminRecoveryRestoreRoutes, sendRecoveryError } from "../../inbound/admin-http/routes/recovery/restore.js";
+import { registerAdminRecoveryRestoreRoutes } from "../../runtime/composition/modules/recovery-restore.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
@@ -529,11 +529,4 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
   assert.equal(JSON.stringify(body).includes("RECOVERY_CANARY_90872"), false);
   assert.equal(JSON.stringify(logged.mock.calls.map(call => call.arguments)).includes("RECOVERY_CANARY_90872"), false);
   assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The restore result could not be confirmed.", action: "Check recovery status before starting another restore. Copy details and report this problem.", step: "Execute restore" } });
-});
-
-test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {
-  const { res, capture } = createCapturingResponse();
-  sendRecoveryError({ res, error: { code: "PLAN_STALE" } });
-  assert.equal(capture.statusCode, 409);
-  assert.deepEqual(capture.jsonBody, { error: "PLAN_STALE", code: "PLAN_STALE" });
 });

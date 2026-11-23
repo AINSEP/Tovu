@@ -10,9 +10,9 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { registerPluginsListRoute } from "../../list.js";
-import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
-import type { PluginsRouteDeps } from "../../deps.js";
+import { registerPluginsListRoute } from "#src/server/runtime/composition/modules/plugins";
+import { registerPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/plugins";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**

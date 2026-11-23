@@ -8,7 +8,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
+import { registerAdminDatabaseMigrateForwardRoutes } from "../../runtime/composition/modules/database-migrate-forward.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

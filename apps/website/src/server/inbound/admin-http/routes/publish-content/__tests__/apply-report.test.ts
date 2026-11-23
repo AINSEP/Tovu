@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
-import { readBackstopApplyReport } from "../apply-report.js";
+import { readBackstopApplyReport } from "@jini-ai/cms/admin-http/http/publish-content";
 
 const report = {
   refused: false,
