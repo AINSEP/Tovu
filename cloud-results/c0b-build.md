@@ -65,7 +65,7 @@ Test count in that file: 2 → 3.
   `features/security/hooks/use-site-key.hooks.ts:4`, `features/security/hooks/use-site-key-recovery.hooks.ts:3`,
   `features/security/hooks/site-key-port.hooks.ts:1`, `features/sites/api/sites-api.ts:4` (split: Core import, then the
   remaining `./sites-api.types` import exactly as the sheet lists).
-- `features/sites/api/sites-api.ts` doc comment (sheet's line 68, now 69 after the split): `{@link AdminSiteKeyGenerateOutcome}` → `\`AdminSiteKeyGenerateOutcome\``.
+- `features/sites/api/sites-api.ts` doc comment (sheet's line 68, now 69 after the split): `{@link AdminSiteKeyGenerateOutcome}` → plain backticked text `AdminSiteKeyGenerateOutcome` (no link).
 - No re-export shells; types only; no runtime change.
 
 ### Verification (after C0b.T)
