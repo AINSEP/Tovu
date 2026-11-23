@@ -9,7 +9,7 @@ import { LocalFsBlobStore, uploadMedia } from "#src/features/media/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminMediaListRoute } from "../../inbound/admin-http/routes/media/list.js";
-import { registerAdminMediaUpdateRoute } from "../../inbound/admin-http/routes/media/update.js";
+import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /** Owner's 2026-10-04 corrected decision: size comes from the original blob; missing is null. */

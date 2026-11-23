@@ -1,7 +1,7 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { buildRobots } from "@jini-ai/cms/seo";
-import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteRegistrar } from "#src/server/runtime/composition/modules/seo";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
  *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route

@@ -1,19 +1,10 @@
-/** Mirrors `src/seo/types.ts`'s `SeoSettings`/`RobotsRule` (SPEC-008). */
-export interface RobotsRule {
-  userAgent: string;
-  allow?: string[];
-  disallow?: string[];
-}
+import type { AdminSeoRobotsRuleDto, AdminSeoSettingsDto } from "@jini-ai/core/contracts/site/cms-seo";
 
-export interface SeoSettings {
-  titleTemplate: string;
-  defaultDescription?: string;
-  defaultOgImage?: string;
-  twitterSite?: string;
-  defaultRobots: { noindex: boolean; nofollow: boolean };
-  sitemapEnabled: boolean;
-  robotsRules: RobotsRule[];
-}
+/** The site-level settings body (SPEC-008) — the server's wire shape, declared once in Jini Core
+ *  (`@jini-ai/core/contracts/site/cms-seo`, rv1123e K1), so the client no longer restates it. */
+export type RobotsRule = AdminSeoRobotsRuleDto;
+
+export type SeoSettings = AdminSeoSettingsDto;
 
 /**
  * The shape `setSeoSettings` accepts — `Partial<SeoSettings>` with the three nullable-on-write

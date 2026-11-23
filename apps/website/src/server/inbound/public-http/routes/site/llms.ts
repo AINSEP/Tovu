@@ -2,7 +2,7 @@ import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { computeIndexableEntries, renderLlmsTxt } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "#src/features/settings/index";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
-import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteRegistrar } from "#src/server/runtime/composition/modules/seo";
 
 /**
  * @file `GET /llms.txt` — public, unauthenticated (owner decision TM-TOVU-2026-08-31, per

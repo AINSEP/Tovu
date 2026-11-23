@@ -12,9 +12,9 @@ import { registerMediaRenditionRoute, registerMediaOriginalVideoRoute } from '#s
 import type { MediaRenditionRouteDeps } from '../deps.js';
 import { registerAdminMediaUploadRoute } from '../upload.js';
 import { registerAdminMediaListRoute } from '../list.js';
-import { registerAdminMediaUpdateRoute } from '../update.js';
+import { registerAdminMediaUpdateRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaOriginalRoute } from '../original.js';
-import { registerAdminMediaTrashRoute } from '../trash.js';
+import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaTextRoute } from '../text.js';
 import { resolveMediaPublicUrls } from '#src/features/media/tool-registrations';
 

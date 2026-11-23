@@ -4428,6 +4428,238 @@
     {
       "id": "a80362d58b42",
       "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:70-70."
+    },
+    {
+      "id": "3488151f60ab",
+      "reason": "RT-K1-adm-seo (K1): the SeoRouteDeps narrowing rationale moved to apps/website/src/server/runtime/composition/modules/seo.ts with the type, reworded. Was apps/website/src/server/inbound/admin-http/routes/seo/deps.ts:5-24."
+    },
+    {
+      "id": "c7a1913798a8",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-entry-analyze.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-entry-analyze.ts:9-9."
+    },
+    {
+      "id": "f4810ab672aa",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts:9-12."
+    },
+    {
+      "id": "9987670d3750",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/get-settings.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts:8-8."
+    },
+    {
+      "id": "69ab135da8ff",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/post-sitemap-regenerate.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/post-sitemap-regenerate.ts:7-7."
+    },
+    {
+      "id": "ca2a1cbc3e4b",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:19-20."
+    },
+    {
+      "id": "29d90b3403f3",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:22-22."
+    },
+    {
+      "id": "e91c906facfe",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:36-38."
+    },
+    {
+      "id": "34830398d8bc",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-entry.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts:45-50."
+    },
+    {
+      "id": "1cf9a63d2c0a",
+      "reason": "RT-K1-adm-seo (K1): moved with the code to Jini packages/cms/src/admin-http/routes/seo/put-settings.ts (spec doc / error-ladder rung comments, reworded host-neutral); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts:9-9."
+    },
+    {
+      "id": "53d1ff1627e3",
+      "reason": "RT-K1-adm-seo (K1): module @file rewritten for the spec mounts (10 registrations incl. feed; the K1 injection described instead); the substance (module ownership, ordering requirement) is kept in the new header. Was apps/website/src/server/runtime/composition/modules/seo.ts:14-36."
+    },
+    {
+      "id": "423be02a17c2",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/http/media.ts, reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/http/media.ts:4-13."
+    },
+    {
+      "id": "d19115056819",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/http/media.ts, reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/http/media.ts:55-63."
+    },
+    {
+      "id": "5db9360caeee",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/delete.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/delete.ts:56-58."
+    },
+    {
+      "id": "b9b14b342ebf",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/put-providers.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts:12-30."
+    },
+    {
+      "id": "b4d9d57d1e22",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/trash.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/trash.ts:73-74."
+    },
+    {
+      "id": "3aa32d6b493f",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/trash.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/trash.ts:84-85."
+    },
+    {
+      "id": "ef16b7ba7db7",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:31-43."
+    },
+    {
+      "id": "136e45b46c0c",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:62-62."
+    },
+    {
+      "id": "35eac66e32d5",
+      "reason": "RT-K1-adm-media (K1): moved with the code to Jini packages/cms/src/admin-http/routes/media/update.ts (error rungs to routes/media/shared.ts), reworded host-neutral (ladder functions became mapping rungs; host paths dropped for guard N2); the Tovu file was deleted. Was apps/website/src/server/inbound/admin-http/routes/media/update.ts:68-78."
+    },
+    {
+      "id": "f60525e6d9b5",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/delete-execution-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/delete-execution-credential.ts:7-13."
+    },
+    {
+      "id": "f90a64e6a71c",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/delete-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/delete-site-credential.ts:8-14."
+    },
+    {
+      "id": "b875376f15a5",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to the host bag type in apps/website/src/server/runtime/composition/modules/assistant-settings.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/deps.ts:5-43."
+    },
+    {
+      "id": "d41d534e2219",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/detect-agents.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts:13-23."
+    },
+    {
+      "id": "2bbc73d119f1",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/detect-agents.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts:65-109."
+    },
+    {
+      "id": "c37bd4cccb2a",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/get-execution-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/get-execution-credential.ts:7-14."
+    },
+    {
+      "id": "a5dfd9be02e3",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/get-settings.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/get-settings.ts:8-22."
+    },
+    {
+      "id": "01b28e4a19a8",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/get-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/get-site-credential.ts:8-14."
+    },
+    {
+      "id": "a6a66196195b",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/list-models.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts:17-23."
+    },
+    {
+      "id": "ad0e236e2db9",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/list-models.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts:50-52."
+    },
+    {
+      "id": "a9b8339142fb",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/list-models.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts:101-122."
+    },
+    {
+      "id": "0dbddb9e3382",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-execution-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts:24-31."
+    },
+    {
+      "id": "5c7381ddca11",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-execution-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts:58-69."
+    },
+    {
+      "id": "f95586875898",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-settings.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts:13-19."
+    },
+    {
+      "id": "e11bdff652c3",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts:15-15."
+    },
+    {
+      "id": "5ee4e83bea91",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts:18-23."
+    },
+    {
+      "id": "1c8e571710ca",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts:49-59."
+    },
+    {
+      "id": "a1835c0f4114",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/put-site-credential.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts:70-73."
+    },
+    {
+      "id": "82eaf2043f5e",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/execution-shared.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/resolve-test-agent-outcome.ts:20-37."
+    },
+    {
+      "id": "fcda241e330e",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-agent.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts:32-35."
+    },
+    {
+      "id": "dffe028cb868",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-agent.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts:39-64."
+    },
+    {
+      "id": "06306abd7835",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-connection.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts:17-17."
+    },
+    {
+      "id": "612cf1e16640",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-connection.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts:19-21."
+    },
+    {
+      "id": "de7caaafa9d8",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-connection.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts:36-42."
+    },
+    {
+      "id": "afb1bba22ad2",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/test-connection.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts:111-115."
+    },
+    {
+      "id": "e3ff4c7cd1f9",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/visitor-tools.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts:14-14."
+    },
+    {
+      "id": "6d2ea6b39cde",
+      "reason": "RT-K1-adm-assistant (K1): moved with the code to Jini packages/cms/src/admin-http/routes/assistant/visitor-tools.ts (spec doc) and the Tovu registrar in modules/assistant-*.ts, reworded host-neutral or split between spec and registrar; the Tovu route file was deleted. Was apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts:49-53."
+    },
+    {
+      "id": "a84e179cb29b",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:21-21."
+    },
+    {
+      "id": "374b1aff5aef",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:23-23."
+    },
+    {
+      "id": "eb689c32b0c8",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:25-25."
+    },
+    {
+      "id": "969a29ddb09e",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:27-27."
+    },
+    {
+      "id": "ff0c51eee669",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:29-29."
+    },
+    {
+      "id": "1770706f7f40",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:33-35."
+    },
+    {
+      "id": "754307449772",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:45-47."
+    },
+    {
+      "id": "0abecbb012e5",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:51-58."
+    },
+    {
+      "id": "580f78b52016",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:60-68."
+    },
+    {
+      "id": "a2b148d66925",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-media.ts (AdminMediaDto field docs), reworded host-neutral. Was apps/admin/src/features/media/api/media-api.types.ts:70-76."
+    },
+    {
+      "id": "869a187fdeaa",
+      "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoSettingsDto header), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:1-1."
     }
   ]
 }

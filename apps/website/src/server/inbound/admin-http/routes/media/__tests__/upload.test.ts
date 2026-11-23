@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import { registerAdminMediaUpdateRoute } from "../update.js";
+import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaUploadRoute } from "../upload.js";
 import type { MediaRouteDeps } from "../deps.js";
 
