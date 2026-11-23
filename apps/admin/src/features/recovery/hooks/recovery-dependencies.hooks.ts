@@ -1,6 +1,5 @@
-import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@jini-ai/admin/core";
+import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, AdminRestorePointSummary, DatabaseContextEnvelope } from "@jini-ai/admin/core";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
-import type { AdminRestorePointSummary } from "@/features/database/api/database-api.types";
 import { databaseApi } from "@/features/database/api/database-api";
 import type { RecoveryPort } from "@jini-ai/admin/recovery/hooks/recovery-port.hooks";
 import { useRecovery, type RecoveryController, type RecoveryHost } from "@jini-ai/admin/recovery/hooks/use-recovery.hooks";

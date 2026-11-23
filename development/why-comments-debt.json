@@ -4804,6 +4804,206 @@
     {
       "id": "b06075d0637c",
       "reason": "Moved to Jini @jini-ai/devops/dns/site/tool-deps (K5-domain-dns-1), verbatim."
+    },
+    {
+      "id": "a512b0ac11c4",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f1699645a1c2",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f07f35fa4f94",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), reworded neutral: locale membership now comes from the production common dictionary (ADMIN_COMMON_I18N) instead of the host language picker."
+    },
+    {
+      "id": "fb7e574231dc",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/database-i18n.unit.test.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "1620c6f8ac35",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/__tests__/schema-state-rules.unit.test.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "14fa67c94373",
+      "reason": "Type deleted as a duplicate (A-K2-database-1): AdminLedgerRow is owned by Jini @jini-ai/admin/core (src/core/ports/database.ts), which carries its own doc for it; importers repointed."
+    },
+    {
+      "id": "99166b691ec4",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "5cb3bcc9f466",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "d18e6df8b560",
+      "reason": "Moved to Jini @jini-ai/admin/core src/core/ports/database.ts (A-K2-database-1) with AdminSchemaState/AdminSchemaDriftStatus/AdminSchemaSnapshot, reworded neutral: host source paths replaced by \"the server's drift check\" / \"the server database adapter\"."
+    },
+    {
+      "id": "36166c4e9d6a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n.tsx (A-K2-database-1), reworded neutral: host file pointers (admin-nav-i18n.ts, SettingsUi.tsx, loadLanguage()) replaced by descriptions of the same lookups."
+    },
+    {
+      "id": "c9ed38b4b965",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n/ (per-locale split files, A-K2-database-1), verbatim."
+    },
+    {
+      "id": "55da410d1826",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n/ (per-locale split files, A-K2-database-1), verbatim."
+    },
+    {
+      "id": "91b86630bb99",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/database-i18n.tsx (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "c10c881a740d",
+      "reason": "Kept in place (A-K2-database-1); pointer reworded: useWiredMigrateForwardSection now lives in hooks/migrate-forward-section-dependencies.hooks.ts."
+    },
+    {
+      "id": "043374d1a1b3",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/migrate-forward-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "074f9e205aa4",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/schema-state-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "7df389a7988b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/schema-state-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "b1cab2cc623c",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/timeline-section-port.hooks.ts (A-K2-database-1), reworded neutral: `lib/api` -> the host's HTTP client, apps/admin/INFO.md and server-route path pointers -> \"the host keeps beside its port implementations\" / \"the host server's schema-state route\", `lib/fetch-query` -> the fetch-query layer."
+    },
+    {
+      "id": "cb417eb20298",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "74e60ac83c65",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "63929fb952a9",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7e903ed25843",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "56f72a3cc5e2",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "88f57a21bbb1",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "48ec342e1e34",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7f048a3a999b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "e5a0f9ce1bd9",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "7662ea1679d1",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "f0c17f7bca44",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "ce3372f13a2b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "368b910b69c5",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "06570f492505",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "0429e0c5d45a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "e4514d90c62c",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "bfe87a42de8a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "87b06b6cec38",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "0e755eca3c8f",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "a1db03a87b3d",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "4e7b437d747b",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "a3a270353afa",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), reworded neutral: useWiredAdminLocale()/describeApiError/lib/api/host server file pointers -> host.useLocale()/host.describeError/the host's HTTP client/the server's drift check, plus a Host seam paragraph."
+    },
+    {
+      "id": "b5f016b47229",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/hooks/use-timeline-section.hooks.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "847a143fb7ab",
+      "reason": "Moved within Tovu to apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts with useWired* (A-K2-database-1), reworded: pointers to the dependencies file now point at the port constant / the package hook."
+    },
+    {
+      "id": "ac0e91ed475e",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "30018be32b9d",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "83edb7922092",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), reworded neutral: host paths (lib/content-refresh-bus.ts, taxonomy/rules.ts, apps/website agent-tools.ts) -> the host's content-refresh bus / the taxonomy screen / the host's database agent tools."
+    },
+    {
+      "id": "c44bea426586",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "60074cdb43ae",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "9852c52bbb21",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "087288aa038a",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
+    },
+    {
+      "id": "9adee76e0325",
+      "reason": "Moved to Jini @jini-ai/admin/screens/database/rules.ts (A-K2-database-1), verbatim."
     }
   ]
 }
