@@ -318,3 +318,20 @@ Three P9 extraction merges (ex-sh, ex-core, ex-export) on top of combine-12, aga
 - Stale `development/scripts/check-architecture.baseline.json` edge rows naming files the merges deleted
   (`form-destinations/types.ts` ×4, `member-login/types.ts`, `entries/index.ts`, `taxonomy/index.ts`,
   `presentation/active-theme-id.ts`). The gate does not fail on them.
+
+## Visitor assistant chat ("Ask this site") — VISITOR-CHAT, 2026-11-23 (branch `codex/visitor-chat-tovu`)
+The `development/todos.md` item "visitor assistant chat — show the model + UI pass" and any VISITOR-CHAT entries were not
+present on `integ/merge-13-2026-11-22` when this ran; the five items from the dispatch are recorded here.
+- `VISITOR-CHAT-cutoff`: **FIXED in `758461edf`** (budget + truncation notice; server integration tests written but **not run
+  here**, see `cloud-results/visitor-chat.md`). Root cause: `site-assistant.ts` `VISITOR_MAX_OUTPUT_TOKENS` was 1024 and Gemini
+  bills hidden thinking against it; `@jini-ai/agent-runtime` `googleLoopExitReason` reports `end: stop` for any reply without
+  tool calls, so a `MAX_TOKENS` stop looked like a clean finish. Budget now 4096 (owner-reversible cost knob); a reply that
+  still hits it ends `truncated` and the panel says so.
+- `VISITOR-CHAT-jump-covers-bubble`: **FIXED in `05a4a6209`** (list bottom reserve 24px -> 56px). Needs the owner's browser check.
+- `VISITOR-CHAT-send-looks-disabled`: **FIXED in `05a4a6209`** by making the states distinct (cause not reproducible
+  without a browser; see report). Needs the owner's browser check.
+- `VISITOR-CHAT-model-label`: **DONE in `758461edf` + `05a4a6209`** ("Answered by <model>" under the pane; hidden when unknown).
+- `VISITOR-CHAT-first-prompt-failure`: **MITIGATED, root cause NOT found** — transport retries once before any reply byte,
+  then shows a plain error plus a "Try again" bar. Reopen if it still fails twice in a row on a real site.
+- `VISITOR-CHAT-vanilla-parity` (new, open): the Pure JS vanilla widget gets the truncation notice and the auto-retry (shared
+  transport) but not the model label or the retry bar.
