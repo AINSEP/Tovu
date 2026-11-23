@@ -17,7 +17,8 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
-import { ExternalMcpValidationError, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpServerRecord } from "../../../external-mcp/contracts.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";

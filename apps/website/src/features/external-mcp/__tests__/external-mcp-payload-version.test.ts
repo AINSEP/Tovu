@@ -10,7 +10,8 @@ import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
+import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
+import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION } from "@jini-ai/mcp/federation/hosted";
 
 /**
  * @file Proof that the sealed OAuth *payload* carries its own schema version.

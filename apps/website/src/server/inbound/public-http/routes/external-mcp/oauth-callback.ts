@@ -2,7 +2,7 @@ import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { Express } from "express";
 import { clearedBrowserBindingCookie, readBrowserBinding, EXTERNAL_MCP_BROWSER_BINDING } from '#src/features/api-connections/browser-binding';
 
-import { ExternalMcpValidationError } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
 import type { ExternalMcpOAuthService } from "../../../../../features/external-mcp/contracts.js";
 import { OAuthError } from "@jini-ai/oauth";

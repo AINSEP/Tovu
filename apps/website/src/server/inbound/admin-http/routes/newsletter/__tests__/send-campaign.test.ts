@@ -12,7 +12,7 @@ import { toSendPipelineDeps, type NewsletterRouteDeps } from "../deps.js";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { CampaignRecord } from "#src/features/newsletter/types";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 
 /**
  * @file Route-level tests for `SEND_CAMPAIGN` (`POST .../newsletter/campaigns/:id/send`).

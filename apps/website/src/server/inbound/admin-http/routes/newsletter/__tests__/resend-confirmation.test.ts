@@ -11,7 +11,7 @@ import { registerAdminNewsletterResendConfirmationRoute } from "../resend-confir
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { SubscriberContact } from "#src/features/newsletter/index";
 import type { SubscriptionRow } from "#src/features/newsletter/types";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 
 /**
  * @file Route-level tests for `RESEND_CONFIRMATION`

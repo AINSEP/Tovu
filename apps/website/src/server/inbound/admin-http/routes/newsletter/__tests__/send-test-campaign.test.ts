@@ -14,7 +14,7 @@ import {
 import { registerAdminNewsletterSendTestCampaignRoute } from "../send-test-campaign.js";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { CampaignRecord } from "#src/features/newsletter/types";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 
 /**
  * @file Route-level tests for `SEND_TEST_CAMPAIGN` (`POST .../campaigns/:id/send-test`,

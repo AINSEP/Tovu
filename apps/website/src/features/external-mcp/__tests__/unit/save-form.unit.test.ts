@@ -6,7 +6,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import type { ExternalMcpServerView } from "../../contracts.js";
-import { parseArgs } from "../../external-mcp-store.js";
+import { parseArgs } from "@jini-ai/mcp/federation/hosted";
 
 import { buildExternalMcpSaveForm, buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
 

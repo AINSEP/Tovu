@@ -9,7 +9,7 @@ import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
-import { EXTERNAL_MCP_VAULT_VERSION } from "../external-mcp-store.js";
+import { EXTERNAL_MCP_VAULT_VERSION } from "@jini-ai/mcp/federation/hosted";
 import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import type { VaultMeta } from "@jini-ai/core/contracts/vault";
 

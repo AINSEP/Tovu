@@ -1,9 +1,9 @@
-/** EXTRACT-S5 H1a: one canonical class per error, recognized through every Tovu compatibility path. */
+/** EXTRACT-S5 H1a: one canonical class per error. The external-mcp store no longer forwards the error classes (w3 FIX 12); importers take them from `@jini-ai/mcp/federation/hosted`. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpValidationError as AccessShimValidationError } from "@jini-ai/mcp/federation/hosted";
-import { ExternalMcpSecretStoreUnconfiguredError as StoreUnconfigured, ExternalMcpValidationError as StoreValidationError } from "../../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError as StoreUnconfigured } from "@jini-ai/mcp/federation/hosted";
 import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../../agent-plugins/mcp-host-bindings.js";
 import type { AgentPluginMcpProjections } from "@jini-ai/agent-plugins/connect";
 
@@ -15,8 +15,6 @@ class LookalikeValidationError extends Error {
 
 test("every compatibility export is the same class object as the public entry", () => {
   assert.equal(AccessShimValidationError, hosted.ExternalMcpValidationError);
-  assert.equal(StoreValidationError, hosted.ExternalMcpValidationError);
-  assert.equal(StoreUnconfigured, hosted.ExternalMcpSecretStoreUnconfiguredError);
   const projections: AgentPluginMcpProjections = hosted.hostedMcpProjections;
   assert.equal(projections.validateToolNames, hosted.validateExternalMcpToolNames);
 });
@@ -24,7 +22,6 @@ test("every compatibility export is the same class object as the public entry", 
 test("a validation error thrown by the canonical projection keeps instanceof, name and field through the shims", () => {
   const error = (() => { try { hosted.hostedMcpProjections.validateToolNames({ names: ["no spaces allowed"], field: "writeAllowedToolNames" }); } catch (e) { return e; } return undefined; })();
   assert.ok(error instanceof AccessShimValidationError);
-  assert.ok(error instanceof StoreValidationError);
   assert.ok(error instanceof Error);
   assert.equal((error as Error).name, "ExternalMcpValidationError");
   assert.equal((error as InstanceType<typeof AccessShimValidationError>).field, "writeAllowedToolNames");

@@ -9,7 +9,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, parseAllowedToolNames, parseArgs, parseEnvBlock, parseWriteAllowedToolNames, readEnabledExternalMcpConfigs, saveExternalMcpServer, toResolvedFederatedConnections } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, openExternalMcpOAuthPayload, parseEnvBlock, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, parseAllowedToolNames, parseArgs, parseWriteAllowedToolNames, toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../contracts.js";
 
@@ -1526,7 +1527,7 @@ test("a save from a caller that predates writeAllowedToolNames degrades to no wr
   await saveExternalMcpServer(deps, legacy as Parameters<typeof saveExternalMcpServer>[1]);
   const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(record);
-  const { readExternalMcpToolGrants } = await import("../external-mcp-store.js");
+  const { readExternalMcpToolGrants } = await import("@jini-ai/mcp/federation/hosted");
   assert.deepEqual(readExternalMcpToolGrants(record), {
     allowedToolNames: ["search_repositories", "get_file_contents"],
     writeAllowedToolNames: [],

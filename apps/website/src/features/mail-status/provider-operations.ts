@@ -1,8 +1,8 @@
 import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
 import { createCustomCredential, describeCredential, updateCustomCredential, type CustomCredentialSummary, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { ProjectKeysPort } from "#src/features/project-keys/service";
-import type { MailProviderConfiguration } from "@jini-ai/platform/mail";
-import type { MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/index";
+import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
+import type { MailProviderControl } from "#src/platform/mail/index";
 
 /**
  * @file The mail provider operations the admin HTTP routes (`server/inbound/admin-http/routes/system/

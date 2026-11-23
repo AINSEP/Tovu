@@ -54,7 +54,7 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "../../features/members/index.js";
-import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";

@@ -8,8 +8,13 @@ import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { createExternalMcpConnectionGate, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
-import { ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload,
-  readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import {
+  listExternalMcpServerViews,
+  openExternalMcpOAuthPayload,
+  readEnabledExternalMcpConfigs,
+  saveExternalMcpServer,
+} from "../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
 import { openExternalMcpVaultPayload, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { FROZEN_PLAINTEXT, FROZEN_SERVERS, FROZEN_WORKSPACE, type FakeTokenReply, closeFrozenDb, loadFrozenSql, openFrozenDb, readFrozenSql,
   snapshotFrozenRows } from "./fixtures/mcp-credentials-frozen.fixture.js";

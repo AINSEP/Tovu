@@ -4,7 +4,7 @@ import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
-import type { MailerPort, MailerSendResult } from "../../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailerSendResult } from "@jini-ai/platform/mail";
 import { buildMailStatusRegistrations, type MailStatusToolDeps } from "../tool-registrations.js";
 import {
   createMailTestSendLimiter, planMailTestSend, readTestRecipient, runMailTestSend,

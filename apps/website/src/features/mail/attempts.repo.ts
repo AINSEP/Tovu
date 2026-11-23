@@ -1,12 +1,11 @@
 /** Body-free observation of every policy result, including preflight refusals and captures. */
-import { safeMailProviderText } from "#src/platform/mail/index";
+import { safeMailProviderText, laneForPurpose } from "@jini-ai/platform/mail";
 import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
-import { laneForPurpose } from "@jini-ai/platform/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
 import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
-import type { MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
+import type { MailerSendOptions, MailerSendResult, OutboundEmail } from "@jini-ai/platform/mail";
 
 /** The delivery policy's per-result observer. Declared here (not in server/) so features never import server code. */
 export type MailAttemptObserver = (required: { message: OutboundEmail; options: MailerSendOptions; providerId: string; mode: MailTestModeSetting; result: MailerSendResult }) => Promise<void>;

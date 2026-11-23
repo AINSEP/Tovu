@@ -27,7 +27,8 @@ import type { ToolContributor } from "@jini-ai/core";
 // tool-catalog-manifest.ts` may), and `npm run check:boundaries` confirms this import adds no new
 // violation. `external-mcp-store.ts`/`external-mcp-oauth.ts` own this domain's actual read/write
 // logic; nothing here re-implements it.
-import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
+import { listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { notifyExternalMcpRosterChanged } from "../../assistant/mcp-services.js";
 import { type ExternalMcpAccessSnapshot, type ExternalMcpServerRecord, type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
 import type { ExternalMcpToolDeps } from "./deps.js";

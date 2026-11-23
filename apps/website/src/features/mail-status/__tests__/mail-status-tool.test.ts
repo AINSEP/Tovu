@@ -4,7 +4,7 @@ import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { SmtpMailerAdapter } from "@jini-ai/platform/mail/smtp";
-import type { MailerPort } from "../../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";

@@ -15,13 +15,13 @@ import {
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import type { MailProviderSetup } from "@jini-ai/platform/mail";
+import { contributeMailProviders } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
+import type { MailProviderSetup, PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
   type CreateNodemailerSmtpTransportConfig,
-  type MailerPort,
   type SmtpTransport,
 } from "#src/platform/mail/index";
 import { toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";

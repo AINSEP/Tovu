@@ -65,7 +65,7 @@ export { buildMembersWriteServiceDeps } from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
 // `members` consumers don't need to know the type moved.
-export type { MailerPort, OutboundEmail } from "../../platform/mail/index.js";
+export type { PositionalMailer as MailerPort, OutboundEmail } from "@jini-ai/platform/mail";
 
 export {
   createInMemoryCredentialLifecycle,

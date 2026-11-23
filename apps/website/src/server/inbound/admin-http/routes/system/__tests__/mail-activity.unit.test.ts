@@ -5,8 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { MailerPort } from "#src/platform/mail/index";
-import type { MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "../mail-activity.js";
 
 /**

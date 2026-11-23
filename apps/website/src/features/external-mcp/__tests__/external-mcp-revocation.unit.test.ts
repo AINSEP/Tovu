@@ -8,7 +8,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "../external-mcp-revocation.js";
 import { type ExternalMcpRevocationReason } from "../contracts.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { externalMcpAdmissionRevision, saveExternalMcpServer } from "../external-mcp-store.js";
+import { saveExternalMcpServer } from "../external-mcp-store.js";
+import { externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpServerRecord } from "../contracts.js";
 
 /**

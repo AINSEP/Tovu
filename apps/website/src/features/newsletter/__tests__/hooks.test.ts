@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createHookRegistry } from "../hooks.js";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 const baseMessage: OutboundEmail = {
   workspaceId: "ws-1",

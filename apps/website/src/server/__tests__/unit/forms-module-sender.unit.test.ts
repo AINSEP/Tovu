@@ -4,7 +4,8 @@ import test from "node:test";
 
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { createMailSenderIdentityResolver, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
+import { createMailSenderIdentityResolver } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 

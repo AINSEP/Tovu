@@ -19,10 +19,10 @@
  */
 import { SenderIdentityNotConfiguredError, type MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
-import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
+import { isMailDeliveryAvailable, mailSenderIdentityFor } from "../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort, MailActivityOutcome, MailActivityRepo, MailActivityUse } from "@jini-ai/platform/mail";
 import type { MailPurposeGateProbe } from "../../platform/mail/index.js";
 import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/index.js";
-import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "@jini-ai/platform/mail";
 
 export type MailUseState = "ready" | "blocked" | "disabled" | "not_configured" | "unknown";
 export type MailUseId = "sign_in" | "newsletter_confirmation" | "form_notifications" | "newsletter";

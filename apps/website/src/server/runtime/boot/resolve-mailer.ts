@@ -10,7 +10,7 @@ import {
 } from "@jini-ai/platform/mail";
 
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
@@ -25,7 +25,7 @@ import {
 } from "./mail-provider-catalog.js";
 
 export { MAIL_SMTP_CREDENTIAL_LABEL } from "./mail-provider-catalog.js";
-export type { MailStatusReport } from "#src/platform/mail/index";
+export type { MailStatusReport } from "@jini-ai/platform/mail";
 
 /**
  * @file Tovu binding to Jini's boot-time `MailerPort` selection. Hosted-API providers live in

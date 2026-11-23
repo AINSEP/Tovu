@@ -4,7 +4,8 @@ import { RecordVersionConflictError, parseExpectedVersion, versionConflictBody }
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "@jini-ai/mcp/external/built-in-connections";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
+import { saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
 import { type SaveExternalMcpOAuthInput } from "../../../../../features/external-mcp/contracts.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

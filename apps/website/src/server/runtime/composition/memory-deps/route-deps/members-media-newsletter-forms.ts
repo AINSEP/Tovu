@@ -1,7 +1,7 @@
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "#src/features/members/index";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";

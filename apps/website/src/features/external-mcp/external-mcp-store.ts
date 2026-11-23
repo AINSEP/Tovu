@@ -1,4 +1,3 @@
-export { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAccessSnapshot, readExternalMcpToolGrants } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, ExternalMcpServerRecord, ExternalMcpServerConfig, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
 import { assertCredentialFreeField } from "../../contracts/core/credential-token.js";
 import { CredentialInputError, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
@@ -9,16 +8,11 @@ import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpStorePorts } from "@jini-ai/mcp/federation/hosted";
 import { externalMcpVaultPorts } from "./external-mcp-vault.js";
 
-/** The one canonical "no site key" error class moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1a, source blob 2bac5b32); same identity here. */
-import { ExternalMcpSecretStoreUnconfiguredError } from "@jini-ai/mcp/federation/hosted";
-export { ExternalMcpSecretStoreUnconfiguredError };
 
 // The operator-editable MCP roster store moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1b, source
 // blob 23042de1). This path binds Tovu's credential policy, vault ports and settings path ONCE and keeps
 // the existing export names.
-export { EXTERNAL_MCP_VAULT_VERSION, EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, applyExternalMcpAccess, parseArgs,
-  parseAllowedToolNames, parseWriteAllowedToolNames, externalMcpRecordHasStoredToken, toResolvedFederatedConnections,
-  parseOAuthScopes, hydrateExternalMcpOAuthPayload, deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
+export { applyExternalMcpAccess, deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 
 const externalMcpStorePorts: HostedMcpStorePorts = {
   ...externalMcpVaultPorts,

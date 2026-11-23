@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { LoadedMailAdapter, MailAdapterDescriptor } from "@jini-ai/agent-plugins/lifecycle/mail";
+import type { LoadedMailAdapter, MailAdapterDescriptor, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createMailProviderRegistry, type MailProviderModule } from "@jini-ai/platform/mail";
 
-import { contributeMailProviders, defaultCredentialLabel, parseMailAdaptersFile, type MailAdapterRegistry } from "../../mail-adapter-registry.js";
+import { contributeMailProviders, defaultCredentialLabel, parseMailAdaptersFile } from "../../mail-adapter-registry.js";
 
 /**
  * @file schemaVersion 2 mail-adapter descriptors and their contribution into Jini's keyed

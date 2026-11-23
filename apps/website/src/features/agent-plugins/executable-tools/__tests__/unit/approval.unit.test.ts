@@ -13,11 +13,9 @@ import type { ToolExecutionContext } from '@jini-ai/core';
 import type { AgentPluginToolDisclosure } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { AgentPluginDisclosureSource } from '@jini-ai/agent-plugins/connect/executable';
 
-import { APPROVAL_FAMILY_BY_EFFECT, NOT_CONNECTED_MESSAGE, TOOL_WITHDRAWN_MESSAGE, createAgentPluginDisclosure } from '../../approval.js';
-import {
-  UNAPPROVED_CONNECTION_MESSAGE, createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
-  type AgentPluginConnectionAccess, type AgentPluginConnectionTarget, type FrozenConnectionAccounts,
-} from '@jini-ai/agent-plugins/connect/executable';
+import { createAgentPluginDisclosure } from '../../approval.js';
+import { APPROVAL_FAMILY_BY_EFFECT, UNAPPROVED_CONNECTION_MESSAGE, createAgentPluginToolCapabilities, createFrozenConnectionAccounts, type AgentPluginConnectionAccess, type AgentPluginConnectionTarget, type FrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
+import { NOT_CONNECTED_MESSAGE, TOOL_WITHDRAWN_MESSAGE } from '../../approval-bindings.js';
 
 const TARGET = { toolId: 'p_acme_office__append_rows', pluginId: 'acme-office', workspaceId: 'ws-1' } as const;
 

@@ -23,8 +23,8 @@ import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../.
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../../external-mcp-store.js";
-import { resolveExternalMcpAuthMode, resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
+import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, resolveExternalMcpAuthMode, resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 import {
   createDeviceAuthorizationStore, createExternalMcpReauthRequiredError, createHostedMcpSignInService, ExternalMcpReauthRequiredError,
   tovuRegistrationIdentity, tovuSealExternalMcpOAuthPayload, tovuSignInPorts,

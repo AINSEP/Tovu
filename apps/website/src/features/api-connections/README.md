@@ -153,3 +153,10 @@ Form delivery (G14b): an OAuth binding names the account it was set up with as `
 that binding is frozen into every job, so after a confirmed account switch the old jobs are refused
 (`authorization-required`, kept in the ledger) instead of delivering to the new account. Re-pointing
 a binding at the new account is an explicit binding edit.
+
+## Wiring (plugin state)
+
+`plugin-state.ts` binds the vault-backed persistence and the host's unavailable-state copy
+(`plugin-state-bindings.ts`) into Jini's `createAgentPluginStateStore`. It forwards nothing:
+callers take `PLUGIN_STATE_UNAVAILABLE_MESSAGE` from `./plugin-state-bindings.js` and the
+`AgentPluginStateStore` type from `@jini-ai/agent-plugins/admin-surfaces`.

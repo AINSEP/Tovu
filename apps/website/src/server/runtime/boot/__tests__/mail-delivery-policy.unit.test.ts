@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailCapturePort, MailProviderModule, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailProviderModule, MailSendLedgerPort, MailSuppressionRepoPort, PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 
 import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
-import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper, resendPolicyFor } from "../mail-delivery-policy.js";
 
 /**

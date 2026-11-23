@@ -10,7 +10,8 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "../../../platform/db/migrations/index.js";
 import { ensureVaultRepoFixture } from "../../../platform/db/repos/__tests__/vault-repo.fixture.js";
 import { createExternalMcpConnectionGate } from "../external-mcp-oauth.js";
-import { externalMcpAdmissionRevision, listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
+import { externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
 import { FROZEN_PLAINTEXT, FROZEN_SERVERS, FROZEN_TABLES, FROZEN_WORKSPACE, closeFrozenDb, loadFrozenSql, openFrozenDb, readFrozenSql,
   snapshotFrozenRows } from "./fixtures/mcp-credentials-frozen.fixture.js";
 import { AFTER_RESTART_AT, EXPIRED_AT, NEW_ENV_KEY, REFRESHED, type Row, VALID_AT, assertOpensAllThree, changedColumns, nonZero, requireRecord,

@@ -4,7 +4,8 @@ import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { applyExternalMcpAccess, externalMcpAccessSnapshot, listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, saveExternalMcpServer } from "../external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
 import type { SaveExternalMcpServerInput } from "../contracts.js";
 
 /**

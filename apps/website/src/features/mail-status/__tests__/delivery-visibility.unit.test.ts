@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
-import type { MailerPort } from "../../../platform/mail/index.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";

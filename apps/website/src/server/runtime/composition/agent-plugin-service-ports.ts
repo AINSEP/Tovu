@@ -5,7 +5,8 @@ import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/setti
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
-import { applyExternalMcpAccess, saveExternalMcpServer } from '#src/features/external-mcp/external-mcp-store';
+import { saveExternalMcpServer } from '#src/features/external-mcp/external-mcp-store';
+import { applyExternalMcpAccess } from '@jini-ai/mcp/federation/hosted';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';

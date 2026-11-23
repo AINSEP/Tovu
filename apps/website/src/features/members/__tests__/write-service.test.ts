@@ -2,13 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import type { MailerCapabilities } from "@jini-ai/platform/mail";
-import type {
-  MailerPort,
-  MailerSendOptions,
-  MailerSendResult,
-  OutboundEmail,
-} from "#src/platform/mail/index";
+import type { MailerCapabilities, PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "@jini-ai/platform/mail";
 import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import {

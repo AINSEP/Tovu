@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import type { MembersWriteServiceDeps } from "../ports.js";
 import {
   createInMemoryCredentialLifecycle,

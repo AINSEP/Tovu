@@ -6,7 +6,7 @@ import express from "express";
 import { createDnsProviderRegistry } from "@jini-ai/devops/dns";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailerSendResult } from "@jini-ai/platform/mail";
 import type { DnsChangeToolDeps } from "#src/features/domain-dns/index";
 import { context, fakeAuthoritative, memoryBindings } from "#src/features/domain-dns/__tests__/dns-fakes";
 import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";

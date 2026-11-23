@@ -3,10 +3,6 @@
 // Hosted-provider implementations belong to Agent Plugins; this boundary exposes their generic
 // contract. Do not re-export the members feature's concrete ConsoleMailerAdapter here: that would
 // pull a higher-tier feature into the platform barrel (ADR-024). The local SMTP adapter is same-tier.
-export type { MailerSendResult, OutboundEmail, MailSenderIdentityPort } from "@jini-ai/platform/mail";
-/** MailerPort is Jini's positional mailer. Host adapters retain the consumer call shape while translating to Jini at dispatch.
- * Approval facts are checked again inside the selected provider's delivery policy. */
-export type { PositionalMailer as MailerPort, MailerSendOptions, MailTestApproval } from "@jini-ai/platform/mail";
 export type { MailAdapterCreateContext, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
 export { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "./delivery-availability.js";
 export {
@@ -19,7 +15,5 @@ export {
   type SmtpTransport,
 } from "./adapters/smtp.nodemailer.js";
 
-export type { MailStatusReport, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 export type { MailProviderControl } from "./mail-status.js";
 export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
-export { safeMailProviderText } from "@jini-ai/platform/mail";

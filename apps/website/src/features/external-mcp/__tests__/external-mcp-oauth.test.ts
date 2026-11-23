@@ -15,7 +15,8 @@ import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpServerRepoPort } from "../contracts.js";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 

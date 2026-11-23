@@ -13,7 +13,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
 import { parsePluginCredentialCards, type CredentialSaveAdapters } from "@jini-ai/agent-plugins/connect";
 import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
 import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";

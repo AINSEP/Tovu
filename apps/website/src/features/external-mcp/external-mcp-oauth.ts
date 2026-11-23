@@ -7,12 +7,10 @@ import { formatAad } from "@jini-ai/platform/secrets";
 // store and shared sign-in in `@jini-ai/integrations/api-connections/hosted-mcp`; this file keeps Tovu's bindings and old names.
 
 import { ExternalMcpConnectionRevokedError } from "./external-mcp-revocation.js";
-import { createHostedMcpConnectionGate, type ExternalMcpConnectionGateDeps, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";
+import { createHostedMcpConnectionGate, type ExternalMcpConnectionGateDeps, type HostedMcpConnectionGatePorts, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, resolveExternalMcpOAuthStatus, resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 import { isOAuthError, OAuthError, oauthFlowOperations } from "@jini-ai/oauth";
 import { createHostedMcpSignInService, type HostedMcpSignInPorts } from "@jini-ai/integrations/api-connections/hosted-mcp";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
-import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
-import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
+import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
 import type { ExternalMcpServerRecord } from "./contracts.js";
 
 export { createHostedMcpConnectionGate, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";

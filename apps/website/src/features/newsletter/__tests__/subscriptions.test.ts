@@ -14,7 +14,7 @@ import {
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
 import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
 import { consumeConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 
 const WS = "ws-1";
 const NOW = "2026-07-13T00:00:00.000Z";

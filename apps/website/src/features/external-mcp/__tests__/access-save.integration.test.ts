@@ -7,7 +7,7 @@ import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from 
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '../save-form.js';
-import { externalMcpAccessSnapshot } from '../external-mcp-store.js';
+import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
 import type { ExternalMcpServerRecord, ExternalMcpServerView } from '../contracts.js';
 import type { ExternalMcpToolDeps } from '../deps.js';
 

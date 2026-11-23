@@ -4,7 +4,7 @@ import test from "node:test";
 import { heldUntil } from "../../kernel/__tests__/dialect-matrix.js";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { externalMcpVaultEnvelope } from "../../../../features/external-mcp/external-mcp-vault.js";
-import { externalMcpAccessSnapshot } from "../../../../features/external-mcp/external-mcp-store.js";
+import { externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpServerRecord } from "../../../../features/external-mcp/contracts.js";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";

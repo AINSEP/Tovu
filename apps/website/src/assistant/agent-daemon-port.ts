@@ -46,7 +46,8 @@ export { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 // deliberately disagree about `not-in-operator-allowlist`.
 export { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "../features/external-mcp/external-mcp-store.js";
+export { readEnabledExternalMcpConfigs } from "../features/external-mcp/external-mcp-store.js";
+export { toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:
 // "oauth"` child process, and gates federated calls on a connection that has since gone
 // `needs_reauth`. It shares nothing in memory with the web server's instance — only the row.

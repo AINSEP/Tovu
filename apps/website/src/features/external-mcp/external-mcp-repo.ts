@@ -7,7 +7,7 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
+import { externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
 import { insertRow, toRow, updateRowIfVersion, updateRuntime, type ServerKey } from "./external-mcp-repo.writes.js";
 import type { ExternalMcpAccessUpdate, ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
 import type { SealedSecret } from "@jini-ai/core/contracts/vault";

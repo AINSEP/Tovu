@@ -2,15 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { providerOk, providerRejected, providerUnknown, type ProviderResult } from "@jini-ai/core/provider-registry";
-import type { MailProviderCallContext, MailProviderModule } from "@jini-ai/platform/mail";
+import type { MailProviderCallContext, MailProviderModule, PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
 import { readMailDomain, credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";

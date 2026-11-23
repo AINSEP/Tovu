@@ -9,7 +9,8 @@ import type { MailCapturePort, MailSendLedgerPort } from '@jini-ai/core/contract
 import { createSettingsPrincipalLookup, set } from '#src/features/settings/index';
 import { ensureMailProviderSettings, readMailProviderSetting } from '#src/features/settings/mail-provider';
 import { createCustomCredential, updateCustomCredential, InMemoryCustomCredentialSetRepo } from '#src/features/custom-credentials/index';
-import { parseMailAdaptersFile, type MailAdapterRegistry } from '#src/features/agent-plugins/mail-adapter-registry';
+import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
+import type { MailAdapterRegistry } from '@jini-ai/agent-plugins/lifecycle/mail';
 import { AesGcmSecretSealer } from '#src/features/webhooks/secret-sealer.aesgcm';
 import { InMemoryKeyring } from '#src/features/webhooks/keyring.memory';
 import { createSiteMailer, type SiteMailerRequired } from '../../composition/site-mailer.js';
@@ -17,7 +18,7 @@ import { loadMailCredentialCards, MAIL_SMTP_CREDENTIAL_LABEL } from '../mail-pro
 import { buildPluginCredentialForm } from '#src/contracts/core/plugin-credential-card';
 import { buildFormSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpRequest } from '#src/platform/http/index';
-import type { MailerSendOptions, OutboundEmail } from '#src/platform/mail/index';
+import type { MailerSendOptions, OutboundEmail } from '@jini-ai/platform/mail';
 
 const GOLDEN = new URL('./fixtures/mail-send.golden.json', import.meta.url);
 const WS = 'mail-golden';

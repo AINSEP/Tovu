@@ -1,5 +1,6 @@
 import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
-import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
+import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from "@jini-ai/mcp/federation/hosted";
 import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";

@@ -7,7 +7,7 @@ import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { ServerLogEntry } from "@jini-ai/core/contracts/site/platform-server-logs";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import { registerAdminAssistantDaemonRoutes } from "#src/server/runtime/composition/http-app/mount-admin-system";
 import { registerAdminMailStatusRoute } from "../mail-status.js";
 import { registerAdminModuleStatusRoute } from "#src/server/runtime/composition/http-app/mount-admin-system";

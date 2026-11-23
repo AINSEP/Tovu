@@ -4,7 +4,8 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
-import { applyExternalMcpAccess, externalMcpAccessSnapshot, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpServerRepoPort } from "../../../external-mcp/contracts.js";
 import { applyAgentPluginToolRenames } from "../../apply-tool-renames.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";

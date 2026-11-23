@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import { sql } from "kysely";
 import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
-import type { MailProviderModule, MailSendLedgerPort } from "@jini-ai/platform/mail";
+import type { MailProviderModule, MailSendLedgerPort, PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { createMailSendLedgerRepo } from "#src/features/mail/ledger.repo";
 import { createMailSuppressionRepo } from "#src/features/mail/suppression.repo";
@@ -16,7 +16,6 @@ import { closeSqliteConnection, openPostgresKernel, openSqliteFileKernel } from 
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
-import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
 import { InMemoryEventBus, processOutbox } from "../index.js";
 

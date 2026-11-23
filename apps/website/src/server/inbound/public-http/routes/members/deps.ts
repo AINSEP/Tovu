@@ -28,7 +28,7 @@ import type {
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { MailSenderIdentityPort } from "#src/platform/mail/index";
+import type { MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
 import type { Request, Response } from "express";
 import { isSameOriginCommentPost } from "../site/comments-submit.js";

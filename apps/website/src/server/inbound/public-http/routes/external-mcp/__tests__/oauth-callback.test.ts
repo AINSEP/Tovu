@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { ExternalMcpValidationError } from "../../../../../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import { type ExternalMcpOAuthService } from "../../../../../../features/external-mcp/contracts.js";
 import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";

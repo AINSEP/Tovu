@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { setImmediate as nextTurn, setTimeout as delay } from "node:timers/promises";
 
-import type { OutboundEmail } from "#src/platform/mail/index";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
 
 /**

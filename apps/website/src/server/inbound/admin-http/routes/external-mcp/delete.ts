@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
-import { deleteExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

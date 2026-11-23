@@ -5,7 +5,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "../../members/repo.memory.js";
 import type { MemberRecord } from "../../members/types.js";
-import type { OutboundEmail } from "../../../platform/mail/index.js";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { issueMemberSession } from "../../members/member-credentials.js";
 import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
 import { MemberLoginError } from "@jini-ai/user-management/server";

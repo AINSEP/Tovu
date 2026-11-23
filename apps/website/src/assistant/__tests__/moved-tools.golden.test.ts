@@ -25,7 +25,7 @@ import { TOOL_APPROVAL_POLICY, EXTENSION_TOOL_APPROVAL_POLICY } from '../../cont
 import { applyPluginCredentialCard, buildPluginCredentialForm, type PluginCredentialCard } from '../../contracts/core/plugin-credential-card.js';
 import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome, buildAgentPluginConnectCard } from '../../features/agent-plugins/connect-card-ui.js';
 import { chooseApiConnectionDestination } from '../../features/agent-plugins/connect-destination.js';
-import { APPROVAL_FAMILY_BY_EFFECT } from '../../features/agent-plugins/executable-tools/approval.js';
+import { APPROVAL_FAMILY_BY_EFFECT } from '@jini-ai/agent-plugins/connect/executable';
 import { bootFixture, startConfirmingCall } from '../../features/agent-plugins/executable-tools/__tests__/fixtures.js';
 import { installSupportingFilesFixture } from '../../features/agent-plugins/__tests__/fixtures/supporting-files.js';
 import { InMemoryExternalMcpServerRepo } from '../../features/external-mcp/external-mcp-store.memory.js';

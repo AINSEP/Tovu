@@ -2,7 +2,6 @@ import { createMailContributions, parseMailAdaptersFile as parseMailAdapterDescr
 import { fromPositionalMailer, toPluginHttpClient, parseMailProviderSetupProperty } from "@jini-ai/platform/mail";
 import { loadPluginContributionsFromSource } from "./lifecycle.js";
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
-export type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 /** The file a plugin ships at its root to contribute mail adapters. */
 export const MAIL_ADAPTERS_FILENAME = "jini-mail-adapters.json";

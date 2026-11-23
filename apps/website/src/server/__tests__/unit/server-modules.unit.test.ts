@@ -17,7 +17,7 @@ import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecy
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
-import type { MailerSendOptions } from "#src/platform/mail/index";
+import type { MailerSendOptions } from "@jini-ai/platform/mail";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`

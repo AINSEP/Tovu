@@ -8,7 +8,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { rejectUnlessSessionCredential } from '#src/server/inbound/admin-http/dev-auth';
 
 import { ExternalMcpReauthRequiredError } from "../../../../../features/external-mcp/external-mcp-oauth.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpOAuthService } from "../../../../../features/external-mcp/contracts.js";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
