@@ -1,4 +1,4 @@
-PLAN PARTIAL: area 4 (in progress)
+PLAN COMPLETE
 
 # P13 — plans for the areas the P12 ledger says have no plan (2026-11-23)
 
@@ -16,7 +16,8 @@ Planner loaded `AI-Dev-Shop/agents/software-architect/skills.md` (v2.3.2) before
 | 1 · Tovu website CLI | 28 | 0 whole files deleted-and-moved except 2 (`help.ts`, `commands/introspect.ts`); generic slices of 5 more | 26 (5 thinned) | P13-C1..C3 | 6.5 |
 | 2 · Site (visitor) chat remainder | 33 (30 site-chat + 3 SDK) | 0 whole files; generic slices of 5 | 33 (12 covered elsewhere, 4 deferred for `codex/visitor-chat-tovu`, 12 stay, 5 thinned) | P13-S1..S5 | 10.5 |
 | 3 · Generic Admin UI + Playground | 7 | 0 | 7 | P13-A1 | 0.75 |
-| 4 · Desktop renderer residual | _pending_ | | | | |
+| 4 · Desktop renderer residual | 107 | 2 whole files (`WorkspaceChatPane` pair, P13-D2); 1 dedupe slice (P13-D1) | 105 (47 covered by AX rows, 58 stay) | P13-D1, D2 | 7.0 |
+| **Total** | **175** | | | **11 steps** | **≈ 24.75** |
 
 ---
 
@@ -261,9 +262,102 @@ and to the header comment of Tovu `apps/website/src/cli/errors.ts`: "Tovu's exit
 
 ---
 
-## 4. Desktop renderer residual
+## 4. Desktop renderer residual (`apps/desktop/src/renderer/`, 107 production files)
 
-_In progress._
+`R/` = `apps/desktop/src/renderer/`. Scope: tracked `.ts`/`.tsx` minus `*.test.*`, `*.spec.*`, `__tests__`, `.d.ts`, stories (ledger says 106; the extra file is `app-hooks.test-support.ts`).
+
+### 4.0 Counts
+
+107 files (12,311 LOC) | 47 covered by existing AX rows (4,169 LOC) — the ex4 desktop lane moved **0** renderer files | 58 STAY (7,813 LOC) | 2 generic and uncovered → Jini (329 LOC) | 2 steps (P13-D1, P13-D2) | ≈ 7 h.
+
+Findings:
+- **The ex4 desktop lane changed no renderer file** (`git diff --name-status <merge-base>..origin/codex/ex4-desktop-tovu` → 0 `renderer/` paths; `deleted.txt` → 0). Its SKIP list is almost entirely main-process (§4.2).
+- **DT-desktop-1, K5-desktop-1 and P11-storage-budget-v2 list no renderer file.** AX coverage exists only as rows in `P9K-combined.md`; `plans/P9-steps/` has no AX sheets.
+- **18 of the 47 covered files (1,629 LOC) are covered only on paper.** Their AX rows (AX-48, 49, 51, 53, 55, 64, 78, 118, 120 hook half, 126) target React hooks inside `desktop-host`, but Jini `desktop-host/package.json` has no React dependency or peer and 0 files under `desktop-host/src` import `react` (checked). This is the ex4 report's owner decision 5 → **OWNER-Q-9**.
+- `stays-in-tovu.md` lists 106 of the 107 files; the missing one is `R/app-hooks.test-support.ts` (**OWNER-Q-14**). AX rows override the blanket STAYS entry for the 47 covered files.
+
+### 4.1 Per-folder / cluster table
+
+| Cluster | Files | LOC | Status | Reason |
+|---|---:|---:|---|---|
+| `R/` find bar (`find-bar-state`, `find-focus-clock`, `use-find-bar-state`, `find-target`, `use-find-in-page`, `use-find-bar-effects`, `find-input-focus`, `use-find-focus-reclaim`, `use-find-input-binding`) | 9 | 822 | AX-48/49/51 | target `desktop-host/electron/usability/react`; blocked on OWNER-Q-9 |
+| `R/use-zoom.hooks` | 1 | 257 | AX-53 | React hook in `desktop-host`; OWNER-Q-9 |
+| `R/use-app-version`, `use-update-check` | 2 | 51 | AX-55 | `desktop-host/react/app-version`; OWNER-Q-9 |
+| `R/use-live-views`, `use-webview-load-failure` | 2 | 263 | AX-64 | `desktop-host/react/guests`; OWNER-Q-9 |
+| `R/use-resources.hooks` | 1 | 101 | AX-78 | `desktop-host/resources`; OWNER-Q-9 |
+| `R/use-site-view-preference`, `use-import-handoff`, `site-theme-preview.hooks` | 3 | 135 | AX-118/120/126 | `desktop-host/electron/*`; OWNER-Q-9 (AX-120's IPC half landed on ex4-jini; AX-126 is also a theme exclusion) |
+| `R/folder-drop.ts` | 1 | 94 | AX-57 (dedupe) | dead duplicate of `@jini-ai/ui/core` `folderPathsFromDataTransfer`; 0 importers |
+| `R/use-dropdown-menu` | 1 | 76 | AX-58 | → `ui` |
+| `R/expanded-mode`, `theme`, `use-delete-confirmation`, `use-expanded-mode` | 4 | 254 | AX-60 | → `ui` |
+| `R/use-loaded-sites` | 1 | 62 | AX-62 | → `ui` |
+| `R/use-site-list-prefs` | 1 | 67 | AX-66 (dedupe) | → `ui/site-card` |
+| `R/chat-attachments`, `workspace-chat-transport`, `use-workspace-chat-transport` | 3 | 606 | AX-69 | → `chat` |
+| `R/runner-conversation-controller`, `use-runner-conversations` | 2 | 519 | AX-71 | → `chat/conversations` |
+| `R/ResourcesPanel.tsx`, `ResourcesPanel.hooks` | 2 | 218 | AX-79 | → `ui/resource-monitor` |
+| `R/use-site-preview` | 1 | 112 | AX-87 | → `ui/site-card` |
+| `R/import-error-details`, `mount-renderer`, `nav-availability` | 3 | 65 | AX-105 | → `ui` |
+| `R/product-telemetry` | 1 | 30 | AX-106 | → `diagnostics` |
+| `R/use-site-toast`, `SiteToast.tsx` | 2 | 72 | AX-107 | → `ui` |
+| `R/icon-frame.tsx`, `use-import-drop` | 2 | 65 | AX-110 | → `ui` |
+| `R/use-create-site-plugin-tokens` | 1 | 118 | AX-41 | repointed to `agent-plugins/connect` |
+| `R/app/FindBar.tsx` | 1 | 71 | AX-50 | → `ui/find` |
+| `R/app/Spinner.tsx` | 1 | 10 | AX-57 (dedupe) | → `ui` `Spinner` (markup/accessible-name change, OWNER-Q-15) |
+| `R/app/LoadedSitesStepper.tsx`, `.hooks` | 2 | 101 | AX-62 | → `ui` |
+| **`R/WorkspaceChatPane.tsx`, `R/use-workspace-chat-pane.hooks.ts`** | 2 | 329 | **P13-D1, P13-D2** | generic `ConversationList` + `ChatPane` composition with folder-drop capture; no AX row; not rendered in production |
+| `R/` composition root (`main.tsx`, `App.tsx`, `App.hooks.ts`, `jini-kits`, `jini-surfaces`, `app-shell-source`, `runner-api`) | 7 | 725 | STAYS | host composition, kit/surface bindings, Tovu bridge lookup over Tovu IPC contracts |
+| `R/` test support (`app-hooks.test-support`, `app-render-harness`, `dom-hook-harness`, `source-test-harness`) | 4 | 349 | STAYS | `node:test`/jsdom harnesses for Tovu's runner (Jini uses vitest); typed on Tovu `SiteRecord`/`SiteFolders` |
+| `R/` site management (`SiteGrid.tsx`/`.hooks`, `SitesFolders`, `site-port.rules`, `site-shell-policy`, `site-status`, `sites-home-view`, `use-add-site`, `use-new-site-dir`, `use-project-mutations`, `use-project-tabs`, `use-site-actions`, `use-site-folders`, `use-site-locate`, `use-site-power`, `use-site-rename`, `use-site-start`, `use-site-storage-settings`, `use-sites-folders-dialog`, `use-sites-inventory`, `use-tab-close-ask`, `use-site-workspace`) | 22 | 3,389 | STAYS | typed on `SiteRecord`/`SiteLifecycleStatus`/`SiteFolders` from `../contracts/project` or `desktopCopy`: Tovu site lifecycle and folder policy (tiny helpers `codeSpans`, `tabAfterClose` not worth a step) |
+| `R/` create/import website (`CreateWebsiteOnboarding`, `ImportWebsite`, `create-website-onboarding-policy`, `import-drop`, `import-site-entry`, `use-create-website-form`, `use-import-website`, `use-start-imported`) | 8 | 1,146 | STAYS | product onboarding and `.tovu.zip` copy |
+| `R/SharedKeys.tsx`, `SharedKeys.hooks` | 2 | 309 | STAYS | credential identities and vault bindings (S13) |
+| `R/` nav, icons, screen telemetry (`icons.tsx`, `tool-icons.tsx`, `use-section-nav`, `use-product-screen`) | 4 | 471 | STAYS | glyphs keyed by `RunnerSectionId` and product tool kinds; Runner `desktop.navigate`; product telemetry vocabulary |
+| `R/app/` shell (`CreateWebsiteHost`, `MainArea`, `MainContent`, `MainHeader`, `SettingsControl`, `SiteStartPanel`, `SiteWorkspace`, `TabCloseAsk`, `TabStrip`, `TopNav`, `component-harness`) | 11 | 1,424 | STAYS | product shell over `RunnerSectionId`, `SiteRecord`, product telemetry; `TabStrip` already uses `@jini-ai/ui/tab-strip`; `component-harness` is test support |
+
+### 4.2 ex4-desktop SKIP list reconciled (`origin/codex/ex4-desktop-tovu:cloud-results/ex4-desktop.md`)
+
+| Skipped item | Path (LOC) | Decision |
+|---|---|---|
+| DT-desktop-1 `find-menu` | `src/find-menu.ts` (49) | STAYS — defines the deployed `runner:find:toggle` channel (K01/D1 rejects moving deployed Find channels); reusable half already `desktop-host/electron/usability` `findMenu`. Not renderer. |
+| DT-desktop-1 `node-toolchain` | `src/node-toolchain.ts` (72) | STAYS pending ex4 owner decision 1 (`TOVU_NODE_TOOLCHAIN_DIR`/`TOVU_BUNDLED_NPM_ROOT` contract). Not renderer. |
+| DT-desktop-1 speech | `src/speech/{speech-ipc,transcription-port,mac-on-device-transcriber}.ts` (66/26/92) | STAYS pending ex4 owner decision 1 (`tovu:speech` ABI); reusable halves already in `desktop-host/speech`. Not renderer. |
+| DT-desktop-1 `shell-staleness` | `src/shell-staleness.ts` (77) | DEDUPE pending ex4 owner decision 2 (which message wins). Not renderer. |
+| AX-121 T | `import-handoff-ipc.test.ts:105` regex | stays on AX-121 (ex4 owner decision 3); renderer `use-import-handoff.hooks.ts` waits on OWNER-Q-9 |
+| K5-desktop-1 (5 main-process files) | `app-version-ipc`, `asar-verify`, `desktop-memory-sampler`, `durable-json-file`, `find-in-page-ipc` | stays on K5-desktop-1 (blocked on K4-seam-17/18) |
+| AX-57 | `R/folder-drop.ts` (94), `R/app/Spinner.tsx` (10) | stays on AX-57 (OWNER-Q-15); P13-D1 uses the same Jini helper but does not touch `folder-drop.ts` |
+| Renderer hooks of AX-53–56, 58–68, 79, 87, 105, 107, 109–111, 118–121 | §4.1 rows | stay on their AX rows; only the 18 `desktop-host`-React targets are blocked (OWNER-Q-9); the rest wait only on their own prerequisites (AX-81 → AX-87; AX-68 → AX-69/71; AX-77 → AX-79) |
+| AX-81/82 → 86–88, BX-19/20 → 114/115/128/129, durable-json → 93–96, 101/102, 118/119 | main process (+ `R/use-site-preview`, `R/use-site-view-preference`) | stay on their AX rows |
+| `boot-failure.ts` (105), `admin-dev-proxy.ts` (157), `app-window.ts` (113), `dock-icon.ts` (34) | main process | STAYS — host failure decision, `TOVU_*` env contract, K3 product copy |
+| `move-to-applications.ts` (240) | main process | stays on AX-101/102 (waits on durable-json) |
+
+### P13-D1 · Tovu · workspace pane folder drop → `@jini-ai/ui/core` `captureFolderPathDrop` (dedupe, ~1.5 h)
+
+- **Jini already has it:** `packages/ui/src/features/folder-path-drop/rules.ts` exports `captureFolderPathDrop`, `formatDroppedFolderPaths`, `folderPathsFromDataTransfer` and types `FolderPathDropEvent`, `CaptureFolderPathDropInput`, all exported from `@jini-ai/ui/core` (`ui/src/core.ts:161–163`).
+- **Code removed:** `R/use-workspace-chat-pane.hooks.ts` (186) `:49–93` — the `FolderDropEvent` interface and `captureFolderDrop` with its doc block (45 lines). **Destination:** none (dedupe).
+- **Replacement:** inside the existing `useCallback`, call `captureFolderPathDrop({ event, port: getPathForFile === undefined ? undefined : { getPathForFile }, composer: composerHandle })`. Keep `useCallback` (not `useFolderPathDropCapture`) so hook order is unchanged.
+- **Importers** (`git grep -n -F captureFolderDrop` → 20 lines / 6 files): the hook file (7), `use-workspace-chat-pane.hooks.test.ts` (9), `use-workspace-chat-pane.hooks.render.test.ts` (1), `WorkspaceChatPane.tsx` (1, comment), `WorkspaceChatPane.render.test.ts` (1), `folder-drop.ts` (1, comment — leave for AX-57). `FolderDropEvent`: 2 lines, both in the hook file.
+- **Ports/types:** `FolderPathDropPort` (`{ getPathForFile }`) is `ui`-owned. Nothing new in `@jini-ai/core` or `@tovu/contracts`.
+- **Tests first** (`use-workspace-chat-pane.hooks.test.ts`, 12 → 13 tests): new `a dropped folder whose path contains a space is inserted quoted` (drop `/Users/x/My Site`, expect `insertText:"/Users/x/My Site"` with quotes) — red on base. Repoint the 6 existing drop tests to the Jini call shape; assertions unchanged (no whitespace paths). The render test's drop case stays as is.
+- **Named mutation (behaviour changes):** make `formatDroppedFolderPaths` return the path unquoted in the linked Jini `dist` copy → the new test red; restore and confirm with `cmp`.
+- **Wiring:** neither the Jini folder nor `apps/desktop` has an INFO/README, so a why-comment at the `onDropCapture` call site: "Folder drop: `@jini-ai/ui/core` `captureFolderPathDrop`, port = preload `getPathForFile`, composer = `ChatPane` `composerHandle`; quoted when a path has whitespace." Keep the existing "folder drop should yield a path, not an upload" why-comment. Record the removed doc block in `development/why-comments-debt.json`.
+- **Prerequisites:** none. **Removed from Tovu:** 0 files (45 lines). OWNER-Q-11 (quoting).
+
+### P13-D2 · Jini then Tovu · `WorkspaceChatPane` → `@jini-ai/chat/react/conversation-chat-pane` (J 4 h, T 1.5 h)
+
+- **Files:** `R/WorkspaceChatPane.tsx` (143), `R/use-workspace-chat-pane.hooks.ts` (186; 141 after D1). Not rendered in production: `one-chat-fab-wiring.test.ts:75–77` asserts `App.tsx` does not reference it; `App.tsx:253` and `development/e2e/desktop/global-chat.desktop.ts:10` say it has zero call sites. Jini has no `ConversationList` + `ChatPane` composition (`git grep '<ConversationList'` over `chat/src`, `ui/src`, `admin/src` → only its own files). OWNER-Q-10 (move vs delete).
+- **Destination:** `packages/chat/src/react/features/conversation-chat-pane/`: `components/ConversationChatPane.tsx`, `hooks/useConversationChatPane.hooks.ts`, `rules.ts` (`selectionRunContext` ← `WORKSPACE_RUN_CONTEXT`; `conversationListView` ← `workspaceConversationView`), `types.ts`, `index.ts`; new export `./react/conversation-chat-pane` (dist triple, `jini.entries` key, changeset, `pnpm api:update`).
+- **Importers** (`git grep -n -F` on base): `useWorkspaceChatPane` 16 lines / 5 files, `WORKSPACE_RUN_CONTEXT` 14 / 4, `workspaceConversationView` 11 / 4 — all inside the moving/deleted set. `WorkspaceChatPane` 54 / 15; outside the moving set: `App.tsx` 2 (comments), `app.css` 1 (comment, `:1983`), `coverage-floors.json` 1, `one-chat-fab-wiring.test.ts` 4, `development/e2e/desktop/global-chat.desktop.ts` 1, `development/scripts/size-debt.json` 2 (row `WorkspaceChatPane#1`, value 92), `folder-drop.ts` 1 (AX-57 deletes), `use-runner-conversations.hooks.ts` 2 (AX-71), `use-workspace-chat-transport.hooks.ts` 1 and `workspace-chat-transport.ts` 1 (AX-69) — leave AX-owned citations to those steps.
+- **Injected ports/types (chat-owned; nothing to `@tovu/contracts`):** required hook props with no Tovu defaults — `useTransport`, `useConversations`, `useDeleteConfirmation` (return types from AX-69.J's transport entry and AX-71.J's `chat/conversations`); `labels: ConversationChatPaneLabels` replacing all product copy ("Runner operator", "Workspace chat", aria "Runner chat"/"Close Runner chat"/"Confirm delete", the delete prompt, "Cancel", "Delete", the agent-CLI scan hint, the composer placeholder); `variant`, optional `className`, `components` (`ConversationList`, `ChatPane`). Keep `_optional = {}` pads. No Electron import — `getPathForFile` comes from `useTransport`'s return.
+- **CSS:** Jini markup uses only `jini-conversation-chat-pane` and its `__head`, `__head-actions`, `__confirm`, `__confirm-actions`, `__confirm-delete`, `__status` elements, replacing the 7 `runner-chat-pane*` class uses. Tovu's `.runner-chat-pane` rules in `app.css` (`:1986–2210`) stay as host skin (OWNER-Q-13).
+- **Tests first** (Jini vitest, green on a verbatim copy before labels are injected): port the 5 `WorkspaceChatPane.render.test.ts` tests, the 2 hook render tests and the 5 non-drop plain-function tests (named in the Tovu files); port the D1 drop tests only for cases `packages/ui/src/__tests__/features/folder-path-drop/rules.test.ts` does not cover (NOT-CHECKED). New: `every visible string comes from labels; the pane renders no built-in product copy`. **Test count:** Tovu −13 tests in 3 files (400 LOC), Jini ≥ +13. The BASE-RED source test "WorkspaceChatPane uses no raw React primitives" is replaced by Jini's `check:hooks` gate (whether it scans `.tsx` bodies is NOT-CHECKED; OWNER-Q-13).
+- **Named mutation:** swap `confirmed: false`/`true` between the Cancel and Delete buttons → "a pending delete renders an inline confirmation whose buttons answer it" red; restore.
+- **Wiring:** `packages/chat/src/react/README.md`, "What's swappable": "`ConversationChatPane` composes `ConversationList` + `ChatPane` + inline delete confirm + capture-phase folder drop; the host passes `useTransport`/`useConversations`/`useDeleteConfirmation` hooks and `labels`; no default copy." Tovu: the comment at `App.tsx:253–263` cites `@jini-ai/chat/react/conversation-chat-pane`.
+- **Tovu T edits:** delete 2 sources + 3 tests; `one-chat-fab-wiring.test.ts:75–77` asserts `App.tsx` does not import `conversation-chat-pane`; update comments in `App.tsx`, `app.css:1983`, `global-chat.desktop.ts:10`, `coverage-floors.json:37`; move the `size-debt.json` row to Jini `scripts/size-debt.json` (OWNER-Q-12 — the 92-line component is not split); one `why-comments-debt.json` row per moved block.
+- **Prerequisites:** J after AX-69.J and AX-71.J (transport and conversation types; serial on `packages/chat/package.json`); T after D2.J and P13-D1.T. **Removed from Tovu:** 2 production files (329 LOC) + 3 test files (400 LOC).
+
+### 4.3 Disjointness
+
+- P13-D1 touches only `R/use-workspace-chat-pane.hooks.ts` and its 2 tests — no AX row lists them; parallel with everything.
+- P13-D2.J edits `packages/chat/package.json` (also AX-69.J, AX-71.J, P13-S1..S3.J) and `packages/chat/src/react/README.md` → serial on chat. P13-D2.T touches shared ledgers (`coverage-floors.json`, `size-debt.json`, `why-comments-debt.json`) — rebase, never overwrite; `app.css` comment line (AX-50 edits the same file, merge in sequence).
+- NOT-CHECKED: `ui` folder-path-drop test coverage; `check:hooks` on `.tsx`; `useStableHandler` hook slots; `chat-user-bubbles.test.ts` DOM independence; exact AX-69/71 Jini entry names.
 
 ---
 
@@ -279,6 +373,23 @@ _In progress._
 - **OWNER-Q-7 (Area 2):** `apps/site-chat` has no README/INFO.md. **Recommended:** the first P13 Tovu step to land creates `apps/site-chat/INFO.md`; each later step appends its binding line.
 - **OWNER-Q-8 (Area 2):** Give P13-S2 a default `toHtml` from `@jini-ai/ui/renderers` (`renderMarkdownToSafeHtml`)? **Recommended: no** — that renderer does not disable GFM footnotes (the duplicate-id case `vanilla-host.test.ts` covers) and chat would gain a micromark coupling.
 
+- **OWNER-Q-9 (Area 4):** 18 renderer files (1,629 LOC) on AX-48/49/51/53/55/64/78/118/120 (hook half)/126 target React hooks inside `desktop-host`, which has no React dependency and is `runtime: desktop`. **Recommended:** retarget those AX rows to `@jini-ai/ui` feature folders (React already a peer; bridge ports feature-owned and injected), keeping `desktop-host` framework-free. Alternative: a `desktop-host/react` entry with a React peer.
+- **OWNER-Q-10 (Area 4, P13-D2):** move the unreferenced `WorkspaceChatPane`, delete it, or leave it parked? **Recommended: move** — generic composition Jini lacks, wanted by the parked global desktop chat (triage item 370). Fallback: delete from Tovu as dead code.
+- **OWNER-Q-11 (Area 4, P13-D1):** dropped folder paths with whitespace become quoted (Jini `formatDroppedFolderPaths`) instead of joined raw. **Recommended: accept.**
+- **OWNER-Q-12 (Area 4, P13-D2):** the 92-line component. **Recommended:** carry the size-debt row into Jini `scripts/size-debt.json` unchanged; no split (UI splits tabled).
+- **OWNER-Q-13 (Area 4, P13-D2):** approve together: the `one-chat-fab-wiring.test.ts:75–77` assertion edit; not porting the BASE-RED raw-primitives source test (Jini `check:hooks` replaces it); keeping `.runner-chat-pane` rules in Tovu `app.css` while Jini emits only `jini-*`. **Recommended: approve all three.**
+- **OWNER-Q-14 (Area 4):** add `R/app-hooks.test-support.ts` (78) to `P9-data/stays-in-tovu.md` as Tovu `node:test` support. **Recommended: yes.**
+- **OWNER-Q-15 (Area 4, AX-57 from ex4):** approve the `folder-drop` call-shape test edit and the `Spinner` markup/accessible-name change. **Recommended: approve** (`folder-drop.ts` has 0 importers).
+
 ## 6. Step order for builders
 
-_Filled in when areas 2 and 4 are complete._
+Each batch's steps touch disjoint files in both repos and can run in parallel (one builder per step; each builder does the Jini half, then the Tovu half). A later batch starts when the steps it names have merged.
+
+| Batch | Steps (parallel) | Jini files | Tovu files | Waits on |
+|---|---|---|---|---|
+| **B1** | P13-C1 · P13-S1 · P13-S4 (T; S4.J only if OWNER-Q-6 = yes) · P13-S5 · P13-D1 | `cli` (new `cli-outcome.ts`, `program-run.ts`, barrel, README) · `chat` embed react · `ui` locale subpath · `devops` (new `build/`) | `cli/{errors,main,help}.ts` · `SC/SiteAssistantHeader.hooks.ts` · `SC/site-chat-i18n.ts` · `apps/site-chat/scripts/check-bundle-mounts.*` · `R/use-workspace-chat-pane.hooks.ts` | S5.J not in the same window as `BX-17.J`; S1.T before `BX-8.T` |
+| **B2** | P13-C2 · P13-S2 | `cli/introspection.ts` · `chat` vanilla | `cli/program.ts`, `cli/commands/introspect.ts` · `SC/vanilla-host.ts` | C1 (same `cli` barrel/README), S1.J (`chat/package.json`); C2 not with P11 ST-16 (`program.ts`); S2.T not with `BX-3.T`/`BX-13.T`/`BX-15.T`/`P6-T2` |
+| **B3** | P13-C3 · P13-S3 | `cli/request-fields.ts`, `cli/flags.ts` · `chat` browser bridge (new export) | `owner-store.ts`, `import-local.ts`, `serve.ts` · `SC/site-chat-comparison.ts`, `SC/vanilla-host.ts`, `SC/SiteAssistantActivation.hooks.ts` | C2; S2; C3 after `K5-api-connections-1`/`K5-project-keys-1`/`K5-contracts-core-1`/`K5-site-backup-1` if in flight; S3.T before `BX-8.T` |
+| **B4** | P13-D2 · P13-A1 | `chat` conversation-chat-pane (new export) · — | `R/WorkspaceChatPane*` (delete), ledgers · `stays-in-tovu.md`, admin INFO.md files | D2: AX-69.J, AX-71.J, P13-D1, S3.J (`chat/package.json`), OWNER-Q-10. A1: `P9U-untangle-v2` R3.T and `ex5-fnd-kit-tovu` merged |
+
+Deferred, not scheduled: the four site-chat files on `codex/visitor-chat-tovu` (plan after it merges), and the 18 renderer files blocked on OWNER-Q-9.
