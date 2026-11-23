@@ -359,3 +359,11 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
   model had to strip it, losing which widget the embed shows. The schema now lists it ("Keep it when present").
 - Test: `agent-tools.tiptap-node-vocabulary.test.ts` "widgetEmbed carrying widgetEntryId passes strict validation and
   keeps it". Mutation: drop the schema property — red.
+
+### `C058-member-save-stale-overwrite` — FIXED on `codex/bugs-high-tovu`
+- `SqlMemberRepo.save` accepted the write when the stored `version <= record.version`. Every caller saves
+  `read.version + 1`, so two writers that read the same version both landed and the second silently overwrote the
+  first. The guard is now strict (`<`); the Trash and credential-cutoff guards are unchanged. No other table uses the
+  `<=` pattern (grep of `apps/website/src`).
+- Test: `credentials-revocation.dialects.test.ts` "two saves from the same version: the second is refused" (sqlite +
+  pglite). Mutation: restore `<=` — red on both dialects.

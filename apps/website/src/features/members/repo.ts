@@ -206,7 +206,9 @@ export class SqlMemberRepo implements MemberRepoPort {
         .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row))
           // A stale profile/sign-in write cannot undo Trash or its credential revocation.
           .where("members.status", "<>", "trash")
-          .where("members.version", "<=", record.version)
+          // C058: every write saves `version + 1` of what it read, so the stored version must be
+          // strictly older — with `<=` a second writer from the same read silently overwrote the first.
+          .where("members.version", "<", record.version)
           // Even a same-version stale save must not erase a newer credential cutoff.
           .where(eb => record.credentialsRevokedAt
             ? eb.or([eb("members.credentials_revoked_at", "is", null),

@@ -134,3 +134,20 @@ describeEachDialect("member credential cutoff", {
     assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: signedIn.session.tokenHash }))!.revokedAt, AFTER);
   });
 });
+
+// C058: every member write bumps `version` by one, so two writers that read the same version both
+// try to save `version + 1`. The second must be refused, never silently overwrite the first.
+describeEachDialect("member save compare-and-set", {
+  tables: ["member_sessions", "member_magic_tokens", "members"], make: harness,
+}, (make, dialect) => {
+  test("two saves from the same version: the second is refused", async t => {
+    const h = make();
+    if (dialect === "sqlite") t.after(() => h.kernel.close());
+    await h.seed();
+    const read = await h.members.findById({ workspaceId: WS, id: "member" });
+    assert.ok(read);
+    await h.members.save({ ...read, name: "First editor", version: read.version + 1 });
+    await assert.rejects(h.members.save({ ...read, name: "Second editor", version: read.version + 1 }), /member changed/);
+    assert.equal((await h.members.findById({ workspaceId: WS, id: "member" }))?.name, "First editor");
+  });
+});
