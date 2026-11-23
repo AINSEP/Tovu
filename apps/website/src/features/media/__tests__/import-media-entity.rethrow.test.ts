@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mock } from "node:test";
 import test from "node:test";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 /**
  * @file The write-once source guard only ever throws `MediaSourceImmutableError`, which
@@ -31,7 +32,8 @@ test("importMediaEntity rethrows an unexpected write-once guard failure unchange
   const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const deps = { mediaRepo, assetBlobRepo, blobStore: new InMemoryBlobStore(),
-    clock: { nowIso: () => "2026-09-18T00:00:00.000Z" }, idGen: { newId: () => "blob-1" } };
+    clock: { nowIso: () => "2026-09-18T00:00:00.000Z" }, idGen: { newId: () => "blob-1" },
+    sha256: { isValidSha256Hex, bytesMatchSha256 } };
   const record = { id: "m1", workspaceId: "w1", title: "t", slug: "s", alt: "", caption: "", credit: "",
     source: { sha256: SENTINEL_SHA256 }, status: "active" as const, createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z", version: 1, width: null, height: null, cssClass: null, htmlAttributes: null };

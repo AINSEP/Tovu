@@ -30,6 +30,7 @@ import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "@jini-ai/cms/media/site/import-media-entity";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const SOURCE_BYTES = new TextEncoder().encode("a real imported photo's bytes");
@@ -47,6 +48,7 @@ function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMedia
       let n = 0;
       return { newId: () => `blob-${++n}` };
     })(),
+    sha256: { isValidSha256Hex, bytesMatchSha256 },
   };
 }
 

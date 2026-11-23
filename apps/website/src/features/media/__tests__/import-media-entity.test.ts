@@ -32,6 +32,7 @@ import {
 } from "#src/features/media/index";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "@jini-ai/cms/media/site/import-media-entity";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -102,6 +103,7 @@ function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEn
     blobStore: new InMemoryBlobStore(),
     clock: makeClock(),
     idGen: makeIdGen(),
+    sha256: { isValidSha256Hex, bytesMatchSha256 },
     ...overrides,
   } as ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo; assetBlobRepo: InMemoryAssetBlobRepo; blobStore: InMemoryBlobStore };
 }
