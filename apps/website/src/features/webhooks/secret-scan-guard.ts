@@ -1,11 +1,10 @@
-import { scanTextForSecrets } from "../../contracts/core/secret-scan.js";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { resolveOnPath } from "@jini-ai/agent-runtime";
 import { pathToFileURL } from "node:url";
 
-import { PEM_PATTERN_NAME, SECRET_PATTERNS, type SecretPattern } from "@jini-ai/diagnostics/redaction/secrets-only";
+import { PEM_PATTERN_NAME, SECRET_PATTERNS, scanTextForSecrets, type SecretPattern } from "@jini-ai/diagnostics/redaction/secrets-only";
 export { SECRET_PATTERNS, type SecretPattern };
 
 /**

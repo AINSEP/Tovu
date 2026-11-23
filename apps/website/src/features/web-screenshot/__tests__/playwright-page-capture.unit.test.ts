@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
+import type { CaptureBudgetLimits } from "@jini-ai/core/contracts/site/web-evidence-capture-budget";
 import { PageWorkTimeout, type RenderBrowserPool } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";

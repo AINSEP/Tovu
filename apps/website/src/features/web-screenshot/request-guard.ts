@@ -4,7 +4,8 @@ import { createRequestRouter as createJiniRequestRouter } from "@jini-ai/diagnos
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { OwnSiteFetch, RequestRouterOptions } from "@jini-ai/diagnostics/web-evidence/playwright";
 export { decideRequest, fetchOwnSiteResource, MAX_REDIRECT_HOPS } from "@jini-ai/diagnostics/web-evidence/playwright";
-export type { OwnSiteFetch, RequestRouter, RequestRouterOptions, RouteLike, RoutedRequest, FetchedResource, AbortReason, RequestDecision, RequestRouterReport } from "@jini-ai/diagnostics/web-evidence/playwright";
+export type { OwnSiteFetch, RequestRouter, RequestRouterOptions, RouteLike, FetchedResource } from "@jini-ai/diagnostics/web-evidence/playwright";
+export type { RoutedRequest, AbortReason, RequestDecision, RequestRouterReport } from "@jini-ai/core/contracts/site/web-evidence-playwright";
 
 /** Adapt the host signature without opening any raw public transport. */
 export function createRequestRouter(

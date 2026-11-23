@@ -10,7 +10,7 @@ import {
   scanGitHistoryForSecrets,
   isAllowlisted,
 } from "../secret-scan-guard.js";
-import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
+import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /**
  * @file Two things, matching `seal-aad-invariant.test.ts`'s own split (see that file for why):

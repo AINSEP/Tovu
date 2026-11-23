@@ -1,5 +1,5 @@
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
-import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
+import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /**
  * @file `publish-files-plan-2026-09-24.md` §2 — the one pure module every file-tree publish type
