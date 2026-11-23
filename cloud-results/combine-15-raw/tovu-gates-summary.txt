@@ -1,0 +1,17 @@
+size exit=1 secs=34
+boundaries exit=0 secs=42
+admin-tsc exit=2 secs=55
+desktop-tsc-preload exit=0 secs=4
+desktop-tsc-renderer exit=0 secs=12
+desktop-tsc-main exit=0 secs=27
+desktop-tsc-live-verify exit=0 secs=2
+typecheck exit=0 secs=69
+hooks exit=0 secs=2
+worker-import-graph exit=0 secs=32
+errors exit=0 secs=42
+complexity exit=1 secs=48
+typecheck-scripts exit=2 secs=34
+why-comments exit=1 secs=37
+typecheck-tests exit=2 secs=74
+architecture exit=1 secs=92
+DONE
