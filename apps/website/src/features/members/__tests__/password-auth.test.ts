@@ -5,17 +5,17 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { OutboundEmail } from "#src/platform/mail/index";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import {
   createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
-} from "../repo.memory.js";
-import { completeSignIn } from "../member-sign-in.js";
-import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "../member-credentials.js";
+} from "@jini-ai/user-management/members/repo.memory";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "@jini-ai/user-management/members/member-credentials";
 import { requestSignInLink, requestPasswordReset } from "../member-challenge-request.js";
-import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
-import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "../types.js";
+import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
 
 const WS = "member-passwords";
 const EMAIL = "ada@example.test";

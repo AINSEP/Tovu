@@ -13,7 +13,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterImportSubscriptionsRoute } from "../import-subscriptions.js";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { NewsletterListRow } from "#src/features/newsletter/types";
+import type { NewsletterListRow } from "@jini-ai/user-management/newsletter/types";
 
 const WORKSPACE_ID = "workspace-local";
 

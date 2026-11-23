@@ -11,7 +11,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "./types.js";
+} from "@jini-ai/user-management/newsletter/types";
 
 /**
  * @file Row types and mapping for the newsletter tables, shared by every dialect. The campaign pair

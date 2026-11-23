@@ -21,7 +21,7 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/newsletter/repo.memory";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -37,7 +37,7 @@ import type {
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "../ports.js";
+} from "@jini-ai/user-management/newsletter/ports";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -45,7 +45,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "../types.js";
+} from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-newsletter-contract";
 const NOW = "2026-07-13T00:00:00.000Z";

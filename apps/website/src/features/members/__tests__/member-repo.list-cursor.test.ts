@@ -4,9 +4,9 @@ import { describe, test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { SqlMemberRepo } from "../repo.js";
-import { InMemoryMemberRepo } from "../repo.memory.js";
-import type { MemberRepoPort } from "../ports.js";
-import type { MemberRecord } from "../types.js";
+import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
+import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file Cut-off-list regression (refactor pattern list-cursor, example T1 + T2): a workspace with

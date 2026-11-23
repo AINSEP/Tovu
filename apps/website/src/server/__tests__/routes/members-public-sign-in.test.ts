@@ -2,7 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import type { OutboundEmail } from "#src/features/members/index";
+import type { OutboundEmail } from "#src/platform/mail/index";
 
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "../helpers/http-test-server.js";
 

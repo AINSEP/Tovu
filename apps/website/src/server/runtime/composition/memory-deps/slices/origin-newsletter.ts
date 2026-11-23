@@ -1,4 +1,4 @@
-import { InMemoryNewsletterListRepo } from "#src/features/newsletter/repo.memory";
+import { InMemoryNewsletterListRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { OriginRegistry, InMemoryOriginSettingRepo, createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import type { MemoryClock } from "../ports.js";

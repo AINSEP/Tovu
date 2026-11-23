@@ -2,10 +2,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort } from "../ports.js";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo } from "../repo.memory.js";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort } from "@jini-ai/user-management/members/ports";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import type { MagicLinkTokenRecord, MemberRecord } from "../types.js";
+import type { MagicLinkTokenRecord, MemberRecord } from "@jini-ai/user-management/members/types";
 
 const NOW = "2026-10-24T12:00:00.000Z";
 const member: MemberRecord = {

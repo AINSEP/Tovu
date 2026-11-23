@@ -23,10 +23,10 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/members/repo.memory";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { MemberConflictError, MemberAuthError } from "../types.js";
+import { MemberConflictError, MemberAuthError } from "@jini-ai/user-management/members/types";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-members-errors";

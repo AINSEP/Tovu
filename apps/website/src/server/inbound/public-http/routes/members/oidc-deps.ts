@@ -5,7 +5,8 @@ import { parse } from "cookie";
 import { type MemberLoginLinkDeps } from "#src/features/member-login/index";
 import type { OidcLoginDeps, LoginContext } from "@jini-ai/user-management/member-login/oidc-login";
 import { MemberLoginError, type LoginProvider, type MemberLoginOutcomeCode } from "@jini-ai/user-management/server";
-import { resolveMemberSession, type MemberSessionRecord, type MemberRecord } from "#src/features/members/index";
+import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
+import { type MemberSessionRecord, type MemberRecord } from "@jini-ai/user-management/members/types";
 import type { MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
 

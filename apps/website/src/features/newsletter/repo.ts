@@ -2,9 +2,9 @@ import type { Kysely } from "kysely";
 import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/core/list-page";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort } from "./ports.js";
+import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort } from "@jini-ai/user-management/newsletter/ports";
 import { toCampaignRecord, toCampaignRevision, toCampaignRow, updatableCampaignColumns } from "./repo.rows.js";
-import type { CampaignCounters, CampaignRecord, CampaignRevision } from "./types.js";
+import type { CampaignCounters, CampaignRecord, CampaignRevision } from "@jini-ai/user-management/newsletter/types";
 import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 
 /**

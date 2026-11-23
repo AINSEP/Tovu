@@ -21,7 +21,7 @@ import { isLiveAt } from "#src/contracts/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { toRecord, toPostSearchDocument } from "../post/read-model.js";
-import { resolvePostMemberAccess } from "../members/index.js";
+import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 
 type PostRow = Selectable<ContentDatabase["posts"]>;
 

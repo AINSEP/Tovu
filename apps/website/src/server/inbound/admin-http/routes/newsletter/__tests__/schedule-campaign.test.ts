@@ -13,7 +13,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterScheduleCampaignRoute } from "../schedule-campaign.js";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { CampaignRecord, NewsletterListRow } from "#src/features/newsletter/types";
+import type { CampaignRecord, NewsletterListRow } from "@jini-ai/user-management/newsletter/types";
 
 /**
  * @file `SCHEDULE_CAMPAIGN` (api.spec.md §1/§4) branch coverage. `newsletter-routes.test.ts` only

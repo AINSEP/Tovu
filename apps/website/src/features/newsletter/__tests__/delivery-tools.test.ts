@@ -5,12 +5,12 @@ import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
-import { createHookRegistry } from "../hooks.js";
-import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeline.js";
-import type { SendBatchJob } from "../ports.js";
+import type { SendBatchJob } from "@jini-ai/user-management/newsletter/ports";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

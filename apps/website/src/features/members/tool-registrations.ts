@@ -1,5 +1,5 @@
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import { trashMember } from "./trash-member.js";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
 import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -23,8 +23,8 @@ import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { membersAgentToolCatalog } from "./agent-tools.js";
-import { buildMembersWriteServiceDeps } from "./ports.js";
+import { membersAgentToolCatalog } from "@jini-ai/user-management/members/agent-tools";
+import { buildMembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -32,10 +32,10 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
   MembersWriteServiceDeps,
-} from "./ports.js";
-import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
-import { createMember } from "./member-sign-in.js";
-import { disableMember, updateProfile } from "./member-admin-writes.js";
+} from "@jini-ai/user-management/members/ports";
+import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { createMember } from "@jini-ai/user-management/members/member-sign-in";
+import { disableMember, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
 import { requestSignInLink } from "./member-challenge-request.js";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;

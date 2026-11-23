@@ -7,9 +7,10 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo, type MemberRecord, type OutboundEmail } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/member-credentials";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
+import { type MemberRecord } from "@jini-ai/user-management/members/types";
+import { type OutboundEmail } from "#src/platform/mail/index";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { cryptoFixture, oidcOperationsFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";

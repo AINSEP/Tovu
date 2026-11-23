@@ -21,7 +21,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 
 import { CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
-import { InMemoryMemberSessionRepo, type MemberSessionRecord } from "#src/features/members/index";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
+import { type MemberSessionRecord } from "@jini-ai/user-management/members/types";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { ROOT_SLUG } from "#src/features/post/post";
 import type { DiscoveredTheme } from "#src/features/theme/index";

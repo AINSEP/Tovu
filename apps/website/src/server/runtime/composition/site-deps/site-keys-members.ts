@@ -1,8 +1,8 @@
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { MembersSubscriberDirectory } from "#src/features/members/index";
-import { SqliteMemberRepo } from "#src/features/members/index";
-import { createHookRegistry } from "#src/features/newsletter/hooks";
+import { MembersSubscriberDirectory } from "#src/features/members/subscriber-directory";
+import { SqliteMemberRepo } from "#src/features/members/repo.sqlite";
+import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import type { SiteStore } from "../open-site-store.js";

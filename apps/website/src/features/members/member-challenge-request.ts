@@ -5,11 +5,11 @@ import { newChallengeSecrets, hashChallengeCode } from "@jini-ai/user-management
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
 import { renderMemberAuthMail } from "@jini-ai/user-management/members/auth-mail";
 import { renderEmailForSend } from "@jini-ai/platform/mail/email-template";
-import { MemberSignInUnavailableError } from "./types.js";
-import type { MembersWriteServiceDeps } from "./ports.js";
-import { memberPasswordHasher, memberSessionTokens } from "./member-credentials.js";
-import { saveMemberChallenge } from "./member-challenge.js";
-import { assertValidEmail } from "./member-validation.js";
+import { MemberSignInUnavailableError } from "@jini-ai/user-management/members/types";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { memberPasswordHasher, memberSessionTokens } from "@jini-ai/user-management/members/member-credentials";
+import { saveMemberChallenge } from "@jini-ai/user-management/members/member-challenge";
+import { assertValidEmail } from "@jini-ai/user-management/members/member-validation";
 
 /** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
 const MEMBERS_FALLBACK_SENDER = { email: "no-reply@members.local", name: "Members" } as const;

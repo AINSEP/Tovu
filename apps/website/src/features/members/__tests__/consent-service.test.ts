@@ -4,10 +4,10 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMemberConsentRepo } from "../repo.sqlite.js";
 
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory.js";
-import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service.js";
-import { MemberNotFoundError } from "../types.js";
-import type { ConsentServiceDeps } from "../consent-service.js";
+import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
+import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "@jini-ai/user-management/members/consent-service";
+import { MemberNotFoundError } from "@jini-ai/user-management/members/types";
+import type { ConsentServiceDeps } from "@jini-ai/user-management/members/consent-service";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

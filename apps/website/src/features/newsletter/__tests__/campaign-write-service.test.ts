@@ -9,12 +9,12 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { newsletterCampaignRevisions, newsletterCampaigns } from "#src/platform/db/schema.sqlite";
-import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service.js";
-import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
-import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory.js";
+import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "@jini-ai/user-management/newsletter/campaign-write-service";
+import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "@jini-ai/user-management/newsletter/errors";
+import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { SqliteNewsletterCampaignRepo } from "../repo.sqlite.js";
-import type { NewsletterCampaignRepoPort } from "../ports.js";
-import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types.js";
+import type { NewsletterCampaignRepoPort } from "@jini-ai/user-management/newsletter/ports";
+import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-1";
 let counter = 0;

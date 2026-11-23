@@ -27,8 +27,8 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../../features/newsletter/repo.memory.js";
-import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../features/newsletter/types.js";
+} from "@jini-ai/user-management/newsletter/repo.memory";
+import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,

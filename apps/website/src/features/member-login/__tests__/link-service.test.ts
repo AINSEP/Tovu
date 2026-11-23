@@ -3,10 +3,10 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "../../members/repo.memory.js";
-import type { MemberRecord } from "../../members/types.js";
+  InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 import type { OutboundEmail } from "../../../platform/mail/index.js";
-import { issueMemberSession } from "../../members/member-credentials.js";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";

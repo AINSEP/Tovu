@@ -10,7 +10,7 @@ import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-mod
 import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "../repo-sends.js";
 import { SqlNewsletterCampaignRepo } from "../repo.js";
 import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
-import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
+import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`

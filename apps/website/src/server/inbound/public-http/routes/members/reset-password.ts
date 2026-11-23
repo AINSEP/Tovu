@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { resetPassword } from "#src/features/members/index";
+import { resetPassword } from "@jini-ai/user-management/members/password-auth";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 import { sendMemberAuthError } from "./complete-sign-in.js";
 

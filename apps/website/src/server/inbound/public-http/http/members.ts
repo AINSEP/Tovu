@@ -1,4 +1,4 @@
-import type { MemberRecord, MemberStatus } from "#src/features/members/index";
+import type { MemberRecord, MemberStatus } from "@jini-ai/user-management/members/types";
 
 /**
  * @file Public-facing member response DTO (ADR-PIPE-013 Decision §2, C-014).

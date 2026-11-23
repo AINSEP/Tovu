@@ -10,9 +10,9 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "../errors.js";
-import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
-import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
+} from "@jini-ai/user-management/newsletter/errors";
+import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "@jini-ai/user-management/newsletter/ports";
 import { consumeConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
 import type { OutboundEmail } from "#src/platform/mail/index";
 

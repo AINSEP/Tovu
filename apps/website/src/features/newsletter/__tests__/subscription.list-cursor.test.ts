@@ -12,10 +12,10 @@ import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/inbou
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 import { SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
-import { InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+import { InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { buildNewsletterRegistrations, type NewsletterToolDeps } from "../tool-registrations.js";
-import type { NewsletterSubscriptionRepoPort } from "../ports.js";
-import type { SubscriptionRow } from "../types.js";
+import type { NewsletterSubscriptionRepoPort } from "@jini-ai/user-management/newsletter/ports";
+import type { SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-cursor";
 const T0 = "2026-11-13T00:00:00.000Z";

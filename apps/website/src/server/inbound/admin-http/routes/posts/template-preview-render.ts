@@ -1,4 +1,4 @@
-import { createMemberAccessResolver } from "#src/features/members/index";
+import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";

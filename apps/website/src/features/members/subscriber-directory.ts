@@ -40,9 +40,9 @@
  * `MemberRepoPort.findByIds` method should be added instead of parallelizing unbounded
  * `Promise.all` fan-out here. Flagged as a future N+1 concern, not fixed in this task.
  */
-import type { SubscriberContact, SubscriberDirectoryPort } from "../newsletter/ports.js";
-import type { MemberRepoPort } from "./ports.js";
-import type { MemberRecord } from "./types.js";
+import type { SubscriberContact, SubscriberDirectoryPort } from "@jini-ai/user-management/newsletter/ports";
+import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 
 export interface MembersSubscriberDirectoryDeps {
   members: MemberRepoPort;

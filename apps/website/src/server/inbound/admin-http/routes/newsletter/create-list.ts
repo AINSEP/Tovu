@@ -1,4 +1,4 @@
-import { saveList } from "#src/features/newsletter/lists";
+import { saveList } from "@jini-ai/user-management/newsletter/lists";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toListsDeps, type NewsletterRouteDeps } from "./deps.js";

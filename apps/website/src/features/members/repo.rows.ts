@@ -20,7 +20,7 @@ import type {
   MemberTierRecord,
   MemberTierStatus,
   MemberTierType,
-} from "./types.js";
+} from "@jini-ai/user-management/members/types";
 
 /**
  * @file Row mapping for the `members` tables, shared by every dialect: the columns are the generated

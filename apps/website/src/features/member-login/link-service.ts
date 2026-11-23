@@ -2,9 +2,11 @@
 import { nowIso } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/index.js";
-import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/index.js";
-import type { MemberExternalIdentityRecord, MemberRecord } from "../members/index.js";
+import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { completeSignIn, createMember, notifyMemberCreated } from "@jini-ai/user-management/members/member-sign-in";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { requestSignInLink } from "../members/member-challenge-request.js";
+import type { MemberExternalIdentityRecord, MemberRecord } from "@jini-ai/user-management/members/types";
 import { decideMemberLogin } from "@jini-ai/user-management/server";
 import { MemberLoginError, type VerifiedLoginIdentity } from "@jini-ai/user-management/server";
 

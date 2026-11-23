@@ -20,7 +20,7 @@ import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
 import { createPluginContributionCapture, createPluginContributionRegistry, createPluginProviderHost,
   type PluginManifest } from "@jini-ai/plugins/host";
 import { type PluginSdk } from "@jini-ai/core/contracts/plugin-sdk";
-import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "#src/features/members/repo.memory";
+import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { openPostgresKernel } from "#src/platform/db/kernel/drivers/postgres";

@@ -2,21 +2,22 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
 import express from 'express';
-import * as members from '#src/features/members/index';
+import * as members from '#src/features/members/member-challenge-request';
+import { MemberSignInUnavailableError, MemberValidationError } from '@jini-ai/user-management/members/types';
 import { SenderIdentityNotConfiguredError } from '#src/platform/mail/index';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { MembersRouteDeps } from '../../deps.js';
 
 let send: typeof members.requestSignInLink = async (_required) => assert.fail('unexpected sign-in mail');
-mock.module('#src/features/members/index', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
+mock.module('#src/features/members/member-challenge-request', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
 const { registerAdminMemberRequestMagicLinkRoute } = await import('../../request-magic-link.js');
 const PATH = '/api/admin/v1/workspaces/:workspaceId/members/request-magic-link';
 
 for (const [error, status, body] of [
-  [new members.MemberSignInUnavailableError('Site mail is disabled'), 503, { error: 'Site mail is disabled', code: 'MEMBER_SIGN_IN_UNAVAILABLE' }],
+  [new MemberSignInUnavailableError('Site mail is disabled'), 503, { error: 'Site mail is disabled', code: 'MEMBER_SIGN_IN_UNAVAILABLE' }],
   [new SenderIdentityNotConfiguredError({ workspaceId: 'ws', driver: 'smtp' }), 503, { error: 'Member sign-in is unavailable: email is not set up for this site.', code: 'MEMBER_SIGN_IN_UNAVAILABLE' }],
-  [new members.MemberValidationError('invalid address'), 400, { error: 'invalid address' }],
+  [new MemberValidationError('invalid address'), 400, { error: 'invalid address' }],
   [new Error('private mailer detail'), 500, { error: 'internal error' }],
 ] as const) {
   test(`admin magic link maps ${error.constructor.name} without leaking delivery details`, async t => {

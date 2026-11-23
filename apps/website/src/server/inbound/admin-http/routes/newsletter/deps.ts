@@ -24,14 +24,14 @@ import type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   SubscriberDirectoryPort,
-} from "#src/features/newsletter/ports";
-import type { CampaignWriteServiceDeps } from "#src/features/newsletter/campaign-write-service";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { CampaignWriteServiceDeps } from "@jini-ai/user-management/newsletter/campaign-write-service";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
-import type { HookRegistry } from "#src/features/newsletter/hooks";
-import type { ListsDeps } from "#src/features/newsletter/lists";
+import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import type { ListsDeps } from "@jini-ai/user-management/newsletter/lists";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
-import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
+import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "#src/server/routes/types";
 

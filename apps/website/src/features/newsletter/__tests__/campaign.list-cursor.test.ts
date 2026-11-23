@@ -12,9 +12,9 @@ import { registerAdminNewsletterListCampaignsRoute } from "#src/server/inbound/a
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { SqlNewsletterCampaignRepo } from "../repo.js";
-import { InMemoryNewsletterCampaignRepo } from "../repo.memory.js";
-import type { NewsletterCampaignRepoPort } from "../ports.js";
-import type { CampaignRecord } from "../types.js";
+import { InMemoryNewsletterCampaignRepo } from "@jini-ai/user-management/newsletter/repo.memory";
+import type { NewsletterCampaignRepoPort } from "@jini-ai/user-management/newsletter/ports";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "workspace-local";
 const T0 = "2026-11-13T00:00:00.000Z";

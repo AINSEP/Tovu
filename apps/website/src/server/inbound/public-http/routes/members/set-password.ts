@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
-import { MemberAuthError, resolveMemberSession, setMemberPassword } from "#src/features/members/index";
+import { MemberAuthError } from "@jini-ai/user-management/members/types";
+import { resolveMemberSession } from "@jini-ai/user-management/members/access-resolver";
+import { setMemberPassword } from "@jini-ai/user-management/members/password-auth";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_SESSION_COOKIE, sendMemberAuthError } from "./complete-sign-in.js";

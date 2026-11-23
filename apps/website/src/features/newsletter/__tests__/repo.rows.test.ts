@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { toCampaignRevision } from "../repo.rows.js";
-import type { CampaignRecord } from "../types.js";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 test("campaign revision decoding keeps its envelope separate from the historical campaign state", () => {
   // F1.2/F4.3: the revision's actor, sequence and timestamp differ from the snapshot's author, version and timestamp.

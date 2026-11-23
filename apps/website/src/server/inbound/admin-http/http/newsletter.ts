@@ -16,7 +16,7 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "#src/features/newsletter/errors";
+} from "@jini-ai/user-management/newsletter/errors";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface

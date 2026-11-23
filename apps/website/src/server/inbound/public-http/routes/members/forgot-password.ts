@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { prepareMemberChallenge } from "#src/features/members/index";
+import { prepareMemberChallenge } from "#src/features/members/member-challenge-request";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 import { reportMemberDeliveryFailure, respondToSignInError } from "./sign-in.js";
 

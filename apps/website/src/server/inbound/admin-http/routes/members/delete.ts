@@ -1,6 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { trashMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
+import { MemberConflictError, MemberNotFoundError, MemberValidationError } from "@jini-ai/user-management/members/types";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

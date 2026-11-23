@@ -6,8 +6,8 @@
  * this is a subtype of `RouteDeps`. The limiter is shared with public sign-in (C-015).
  * `toMembersWriteServiceDeps` assembles the bundle shared by four admin routes.
  */
-import type { MembersWriteServiceDeps } from "#src/features/members/index";
-import { buildMembersWriteServiceDeps } from "#src/features/members/index";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
+import { buildMembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "#src/server/routes/types";
 

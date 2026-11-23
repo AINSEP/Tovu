@@ -5,7 +5,7 @@ import { eachDialect } from "../../../platform/db/kernel/__tests__/dialect-matri
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { SqlPrincipalRepo } from "../../identity/repo.js";
 import { SqlMemberRepo, SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberExternalIdentityRepo } from "../../members/repo.js";
-import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo } from "../../members/repo.memory.js";
+import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo } from "@jini-ai/user-management/members/repo.memory";
 import { resolveFederatedIdentity, type MemberLoginLinkDeps } from "../link-service.js";
 import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, provider } from "./fixtures.js";

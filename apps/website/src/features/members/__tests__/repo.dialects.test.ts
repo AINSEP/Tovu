@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { SqlMagicLinkTokenRepo, SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "../repo.js";
-import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
+import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE

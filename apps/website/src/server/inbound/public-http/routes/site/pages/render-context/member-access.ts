@@ -1,8 +1,9 @@
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { resolvePostMemberAccess } from "#src/features/members/access-resolver";
-import type { MemberAccessDecision, MemberContext, MemberAccessResolver } from "#src/features/members/index";
+import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
+import type { MemberAccessDecision, MemberContext } from "@jini-ai/user-management/members/types";
+import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 import { MEMBER_SESSION_COOKIE } from "../../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
 

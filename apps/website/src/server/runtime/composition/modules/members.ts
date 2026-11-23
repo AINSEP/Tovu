@@ -17,7 +17,7 @@ import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/rout
 import type { ServerModuleHandle } from "./types.js";
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
-import { SqlMemberExternalIdentityRepo } from "#src/features/members/index";
+import { SqlMemberExternalIdentityRepo } from "#src/features/members/repo";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";

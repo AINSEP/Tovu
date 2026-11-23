@@ -1,8 +1,10 @@
 /*
  * This admin's theme bound into `@jini-ai/admin`'s own CSS namespace. Jini screen stylesheets read
  * `--jini-admin-*` (plus the shared `--jini-*` tokens) and never this app's token names, so the binding
- * lives here with the themes. Declared on `:root`, where every admin theme sets its tokens (including the
- * dark variants), so each binding resolves to the active theme's value.
+ * lives here with the host shell wiring (`shell-notices-wiring.tsx` imports it first, ahead of the Jini
+ * component CSS that reads it), not inside the frozen theme directory. Declared on `:root`, where every
+ * admin theme sets its tokens (including the dark variants), so each binding resolves to the active
+ * theme's value.
  */
 :root {
   --jini-admin-border: var(--border);

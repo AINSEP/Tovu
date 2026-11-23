@@ -1,4 +1,4 @@
-import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/errors";
+import { NewsletterCampaignNotFoundError } from "@jini-ai/user-management/newsletter/errors";
 import { ToolInputError } from "@jini-ai/core";
 import { decodeListCursor, pageFromOverfetch, parseListPageRequest } from "@jini-ai/core/list-page";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";

@@ -4,7 +4,8 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { createPublicPostReader } from "#src/features/post/post-read";
-import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
+import type { MemberContext } from "@jini-ai/user-management/members/types";
+import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { renderStaticPage } from "#src/features/theme/static-render";
 import { injectCurrentEntityContentId, injectPageTitle } from "#src/features/theme/static-render-content";

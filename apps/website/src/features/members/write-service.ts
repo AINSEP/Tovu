@@ -9,10 +9,10 @@
  * principal. Consumption resolves that email again and creates the member then. Legacy
  * challenges without an email remain bound to their existing member id.
  */
-import type { MembersWriteService } from "./ports.js";
+import type { MembersWriteService } from "@jini-ai/user-management/members/ports";
 import { requestSignInLink } from "./member-challenge-request.js";
-import { completeSignIn } from "./member-sign-in.js";
-import { updateProfile, disableMember, compSubscription, setSubscriptionStatus } from "./member-admin-writes.js";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
+import { updateProfile, disableMember, compSubscription, setSubscriptionStatus } from "@jini-ai/user-management/members/member-admin-writes";
 
 /**
  * The `MembersWriteService` implementation, grouped into the port shape.

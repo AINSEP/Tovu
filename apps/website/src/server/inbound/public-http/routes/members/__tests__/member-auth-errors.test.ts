@@ -4,7 +4,7 @@ import express from "express";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { respondToSignInError, reportMemberDeliveryFailure } from "../sign-in.js";
 import { sendMemberAuthError } from "../complete-sign-in.js";
-import { MemberAuthError } from "#src/features/members/index";
+import { MemberAuthError } from "@jini-ai/user-management/members/types";
 
 for (const send of [respondToSignInError, sendMemberAuthError]) test(`${send.name} returns safe correlated JSON and keeps credential refusal`, async t => {
   const logs = t.mock.method(console, "error", () => {});

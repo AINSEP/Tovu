@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { MemberSignInResult } from "#src/features/members/index";
+import type { MemberSignInResult } from "@jini-ai/user-management/members/ports";
 import { captureVisitorEvent, type VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 
 /** One session outcome after its authoritative owner commits. Account metadata stays local.

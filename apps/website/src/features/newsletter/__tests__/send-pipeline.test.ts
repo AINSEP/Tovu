@@ -31,24 +31,24 @@ import {
   NewsletterCampaignNotFoundError,
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
-} from "../errors.js";
+} from "@jini-ai/user-management/newsletter/errors";
 import { ObservedOutbox } from "#src/server/runtime/composition/__tests__/form-delivery-oauth.fixture";
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { installNewsletterDataModule } from "../data-module-manifest.js";
-import { processUnsubscribe } from "../unsubscribe.js";
-import type { HookRegistry } from "../hooks.js";
-import type { LaunchGateDeps } from "../launch-gate.js";
+import { processUnsubscribe } from "@jini-ai/user-management/newsletter/unsubscribe";
+import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import type { LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
+import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "@jini-ai/user-management/newsletter/ports";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/newsletter/repo.memory";
 import { SqliteNewsletterCampaignRepo, SqliteNewsletterSendRepo } from "../repo.sqlite.js";
-import type { CampaignRecord, SendRow, SubscriptionRow } from "../types.js";
+import type { CampaignRecord, SendRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-1";
 const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z"), nowIso: () => "2026-08-21T00:00:00.000Z" };

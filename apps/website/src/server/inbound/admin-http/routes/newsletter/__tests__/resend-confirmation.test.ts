@@ -9,8 +9,8 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterResendConfirmationRoute } from "../resend-confirmation.js";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { SubscriberContact } from "#src/features/newsletter/ports";
-import type { SubscriptionRow } from "#src/features/newsletter/types";
+import type { SubscriberContact } from "@jini-ai/user-management/newsletter/ports";
+import type { SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 import type { MailerPort } from "#src/platform/mail/index";
 
 /**

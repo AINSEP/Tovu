@@ -1,6 +1,6 @@
 import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/core/list-page";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
-import { MemberAuthError, MemberConflictError } from "./types.js";
+import { MemberAuthError, MemberConflictError } from "@jini-ai/user-management/members/types";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 import type {
@@ -11,7 +11,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "./ports.js";
+} from "@jini-ai/user-management/members/ports";
 import {
   toConsentRevisionRow,
   toMagicLinkTokenRecord,
@@ -40,7 +40,7 @@ import type {
   MemberSessionRecord,
   MemberSubscriptionRecord,
   MemberTierRecord,
-} from "./types.js";
+} from "@jini-ai/user-management/members/types";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives

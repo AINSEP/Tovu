@@ -8,8 +8,8 @@ import test from "node:test";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
-import type { MemberSessionRecord } from "#src/features/members/index";
-import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 

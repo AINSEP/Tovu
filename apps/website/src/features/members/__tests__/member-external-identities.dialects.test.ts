@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { InMemoryMemberExternalIdentityRepo } from "../repo.memory.js";
+import { InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { SqlMemberExternalIdentityRepo } from "../repo.js";
 import { runExternalIdentityContract } from "./member-external-identities.contract.js";
 

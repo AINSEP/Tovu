@@ -3,7 +3,7 @@ import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { SqlMemberSessionRepo } from "../repo.js";
-import type { MemberSessionRecord } from "../types.js";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file A member session save must never undo a revocation (security: lost update on a session row).

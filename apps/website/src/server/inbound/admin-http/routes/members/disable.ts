@@ -1,6 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { disableMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
+import { disableMember } from "@jini-ai/user-management/members/member-admin-writes";
+import { MemberConflictError, MemberNotFoundError, MemberValidationError } from "@jini-ai/user-management/members/types";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

@@ -7,7 +7,7 @@ import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
-import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import { runPublicSiteGuide } from "../public-site-guide.js";
 import { VISITOR_SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";

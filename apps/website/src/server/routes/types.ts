@@ -47,13 +47,7 @@ import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
-import type {
-  MagicLinkTokenRepoPort,
-  MemberRepoPort,
-  MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
-} from "../../features/members/index.js";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";

@@ -1,7 +1,7 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
-import { signInWithPassword } from "#src/features/members/index";
+import { signInWithPassword } from "@jini-ai/user-management/members/password-auth";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";

@@ -21,8 +21,8 @@ import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "#src/features/newsletter/ports";
-import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {
   workspaceId: UUID;

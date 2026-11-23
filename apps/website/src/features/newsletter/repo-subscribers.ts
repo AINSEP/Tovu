@@ -1,8 +1,8 @@
 import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/core/list-page";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { NewsletterConfirmationTokenRepoPort, NewsletterListRepoPort, NewsletterSubscriptionRepoPort } from "./ports.js";
+import type { NewsletterConfirmationTokenRepoPort, NewsletterListRepoPort, NewsletterSubscriptionRepoPort } from "@jini-ai/user-management/newsletter/ports";
 import { type NewsletterTables, toConfirmationTokenRecord, toConfirmationTokenRow, toListRecord, toListRow, toSubscriptionRecord, toSubscriptionRow, updatableListColumns, updatableSubscriptionColumns } from "./repo.rows.js";
-import type { ConfirmationTokenRecord, NewsletterListRow, SubscriptionRow } from "./types.js";
+import type { ConfirmationTokenRecord, NewsletterListRow, SubscriptionRow } from "@jini-ai/user-management/newsletter/types";
 
 
 

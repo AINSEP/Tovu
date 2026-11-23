@@ -4,12 +4,12 @@ import { test, type TestContext } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import type { MemberRepoPort } from "../ports.js";
+import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
-import { completeSignIn } from "../member-sign-in.js";
-import { updateProfile } from "../member-admin-writes.js";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
+import { updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 
 const WS = "credential-workspace";

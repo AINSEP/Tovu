@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryMagicLinkTokenRepo } from "../repo.memory.js";
-import { memberChallengeStore } from "../member-challenge.js";
+import { InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
+import { memberChallengeStore } from "@jini-ai/user-management/members/member-challenge";
 import { requestSignInLink } from "../member-challenge-request.js";
-import { MemberValidationError } from "../types.js";
+import { MemberValidationError } from "@jini-ai/user-management/members/types";
 
 /**
  * @file F6 fix wave (L7 Stryker survivors in write-service.ts): the member challenge store refuses a

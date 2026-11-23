@@ -2,7 +2,7 @@ import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "../../../contracts/core/rate-limit/rate-limit.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";

@@ -1,7 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { MemberNotFoundError } from "#src/features/members/index";
+import { MemberNotFoundError } from "@jini-ai/user-management/members/types";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

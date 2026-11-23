@@ -4,7 +4,7 @@ import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { buildMembersRegistrations } from "#src/features/members/tool-registrations";
-import { trashMember } from "#src/features/members/trash-member";
+import { trashMember } from "@jini-ai/user-management/members/trash-member";
 /** @file gapb: member Trash uses the existing registry/table adapter and Jini Trash service.
  * Tests fail without the member entry, credential wrapper, live-read filters and stale-write fence.
  */
@@ -12,9 +12,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
-import { InMemoryMemberRepo } from "#src/features/members/repo.memory";
+import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { MembersWriteServiceDeps } from "#src/features/members/ports";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { membersWriteService } from "#src/features/members/write-service";
 import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 

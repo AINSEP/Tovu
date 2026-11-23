@@ -6,12 +6,12 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
-import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
-import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
-import { issueMemberSession } from "../member-credentials.js";
-import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "../types.js";
+import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
+import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "@jini-ai/user-management/members/types";
 
 const WS = "password-lifecycle";
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");

@@ -2,7 +2,7 @@ import type { ConfirmationDeps } from "./confirmation.js";
 import type { SendPipelineDeps } from "./send-pipeline.js";
 import type { SubscriptionsDeps } from "./subscriptions.js";
 import type { NewsletterToolDeps } from "./tool-registrations.js";
-import type { UnsubscribeDeps } from "./unsubscribe.js";
+import type { UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 export type ConfirmationSourceDeps = Pick<NewsletterToolDeps, "newsletterConfirmationTokenRepo" | "newsletterSubscriptionRepo" | "mailer" | "membersConsentCapability" | "originRegistry" | "clock" | "idGen" | "mailSenderIdentity">;
 export type SubscriptionsSourceDeps = ConfirmationSourceDeps & Pick<NewsletterToolDeps, "newsletterListRepo" | "newsletterSubscriberDirectory">;

@@ -8,11 +8,11 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
-import {
-  InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, requestSignInLink, requestPasswordReset,
-  type MemberRecord, type OutboundEmail,
-} from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/member-credentials";
+import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import { requestSignInLink, requestPasswordReset } from "#src/features/members/member-challenge-request";
+import { type MemberRecord } from "@jini-ai/user-management/members/types";
+import { type OutboundEmail } from "#src/platform/mail/index";
+import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import {
   createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP,
   type RateLimiter,

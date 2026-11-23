@@ -1,7 +1,7 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
-import { createMemberAccessResolver } from "#src/features/members/index";
+import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberWorkspace, type MemberPublicRouteDeps } from "./deps.js";
 import { sendMemberAuthError, MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";

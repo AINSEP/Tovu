@@ -1,7 +1,7 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { NewsletterAudienceSnapshotRepoPort, NewsletterSendRepoPort } from "./ports.js";
+import type { NewsletterAudienceSnapshotRepoPort, NewsletterSendRepoPort } from "@jini-ai/user-management/newsletter/ports";
 import { type NewsletterTables, toAudienceSnapshotRecord, toAudienceSnapshotRow, toSendRecord, toSendRow, updatableSendColumns } from "./repo.rows.js";
-import type { AudienceSnapshotRow, SendRow } from "./types.js";
+import type { AudienceSnapshotRow, SendRow } from "@jini-ai/user-management/newsletter/types";
 import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 
 

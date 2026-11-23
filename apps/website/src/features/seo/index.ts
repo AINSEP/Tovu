@@ -16,7 +16,7 @@ import {
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/index.js";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
-import { resolvePostMemberAccess } from "../members/index.js";
+import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/index.js";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";

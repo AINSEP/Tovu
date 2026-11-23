@@ -22,9 +22,9 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory.js";
-import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "../member-admin-writes.js";
-import { completeSignIn, createMember } from "../member-sign-in.js";
+} from "@jini-ai/user-management/members/repo.memory";
+import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "@jini-ai/user-management/members/member-admin-writes";
+import { completeSignIn, createMember } from "@jini-ai/user-management/members/member-sign-in";
 import { requestSignInLink } from "../member-challenge-request.js";
 import {
   MemberAuthError,
@@ -32,9 +32,9 @@ import {
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
-} from "../types.js";
-import { DefaultMemberAccessResolver } from "../access-resolver.js";
-import type { MembersWriteServiceDeps } from "../ports.js";
+} from "@jini-ai/user-management/members/types";
+import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 

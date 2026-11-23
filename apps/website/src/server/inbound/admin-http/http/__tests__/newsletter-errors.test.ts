@@ -6,7 +6,7 @@ import {
   NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterConflictError,
   NewsletterDefaultListProtectedError, NewsletterForbiddenError, NewsletterLaunchGateBlockedError,
   NewsletterListNotFoundError, NewsletterSubscriberNotFoundError, NewsletterSubscriptionNotFoundError, NewsletterValidationError,
-} from "#src/features/newsletter/errors";
+} from "@jini-ai/user-management/newsletter/errors";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { mapNewsletterErrorToResponse, newsletterErrorToResponse, toDataResponse } from "../newsletter.js";
 

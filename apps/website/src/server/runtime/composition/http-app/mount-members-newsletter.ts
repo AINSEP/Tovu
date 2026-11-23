@@ -3,7 +3,7 @@
  * and the newsletter module (admin + public deps). Registration order is behaviour. Moved verbatim out of `app.ts`.
  */
 
-import { createInMemoryCredentialLifecycle } from "#src/features/members/index";
+import { createInMemoryCredentialLifecycle } from "@jini-ai/user-management/members/repo.memory";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "../modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "../../../inbound/public-http/routes/site/newsletter-deps.js";

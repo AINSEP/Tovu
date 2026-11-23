@@ -1,5 +1,6 @@
 import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
-import type { MemberAccessResolver, MemberContentAccess, MemberContext } from "../../features/members/index.js";
+import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
+import type { MemberContentAccess, MemberContext } from "@jini-ai/user-management/members/types";
 
 /**
  * Structural signature matching features/post's real listPublishedPosts. Injecting the function

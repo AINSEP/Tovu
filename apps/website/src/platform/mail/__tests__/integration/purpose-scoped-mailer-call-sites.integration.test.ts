@@ -6,7 +6,7 @@ import test from "node:test";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink } from "#src/features/members/member-challenge-request";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";

@@ -6,7 +6,7 @@ import express, { type Request, type Response } from "express";
 import * as memberLogin from "#src/features/member-login/index";
 import * as oidcLogin from "@jini-ai/user-management/member-login/oidc-login";
 import { originFixture } from "#src/features/member-login/__tests__/fixtures";
-import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "#src/features/members/index";
+import { InMemoryMemberRepo, InMemoryMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";

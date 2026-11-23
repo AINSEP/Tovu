@@ -5,7 +5,7 @@ import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/
  * browser-only approval; opt-in resends and owner test sends run directly.
  * Bulk subscription import remains unavailable to the assistant.
  */
-import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service.js";
+import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "@jini-ai/user-management/newsletter/campaign-write-service";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 /** Bulk import stays absent: 1-500 imported contacts can each trigger a real confirmation email,

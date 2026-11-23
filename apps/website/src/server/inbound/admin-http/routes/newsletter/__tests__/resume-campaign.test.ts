@@ -14,7 +14,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterResumeCampaignRoute } from "../resume-campaign.js";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { CampaignRecord } from "#src/features/newsletter/types";
+import type { CampaignRecord } from "@jini-ai/user-management/newsletter/types";
 
 const WORKSPACE_ID = "workspace-local";
 

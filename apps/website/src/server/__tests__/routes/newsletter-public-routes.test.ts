@@ -11,8 +11,8 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
-import type { MembersConsentCapability } from "#src/features/newsletter/ports";
-import { buildUnsubscribeLink } from "#src/features/newsletter/unsubscribe";
+import type { MembersConsentCapability } from "@jini-ai/user-management/newsletter/ports";
+import { buildUnsubscribeLink } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 /**
  * @file SPEC-011 (Newsletter) Stage 5, AC-39/INV-09 — `CONFIRM_SUBSCRIPTION`/`UNSUBSCRIBE` never

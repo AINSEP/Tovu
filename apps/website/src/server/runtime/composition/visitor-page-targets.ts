@@ -1,5 +1,5 @@
 /** Public route metadata composed from the existing publication, membership, theme and redirect owners. */
-import { DefaultMemberAccessResolver, resolvePostMemberAccess } from '#src/features/members/index';
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from '@jini-ai/user-management/members/access-resolver';
 import { listPublishedPosts } from '#src/features/post/index';
 import { resolveActiveTheme, isStandaloneThemePage } from '#src/features/theme/index';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';

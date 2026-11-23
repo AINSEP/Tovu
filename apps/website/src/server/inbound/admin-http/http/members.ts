@@ -1,4 +1,4 @@
-import type { MemberRecord, MemberStatus } from "#src/features/members/index";
+import type { MemberRecord, MemberStatus } from "@jini-ai/user-management/members/types";
 
 /**
  * @file Admin-facing member response DTO (mirrors `apps/website/src/server/inbound/admin-http/http/posts.ts`'s pattern).

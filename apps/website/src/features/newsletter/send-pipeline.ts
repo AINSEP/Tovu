@@ -16,15 +16,15 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { MailerPort } from "../../platform/mail/index.js";
-import { transitionCampaignStatus } from "./campaign.js";
+import { transitionCampaignStatus } from "@jini-ai/user-management/newsletter/campaign";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
-} from "./errors.js";
-import { createHookRegistry, type HookRegistry } from "./hooks.js";
-import { evaluateLaunchGate, type LaunchGateDeps } from "./launch-gate.js";
+} from "@jini-ai/user-management/newsletter/errors";
+import { createHookRegistry, type HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import { evaluateLaunchGate, type LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
 import type {
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
@@ -32,9 +32,9 @@ import type {
   NewsletterSubscriptionRepoPort,
   SendBatchJob,
   SubscriberDirectoryPort,
-} from "./ports.js";
-import type { AudienceSnapshotRow, CampaignRecord, SendRow } from "./types.js";
-import { buildUnsubscribeLink, type UnsubscribeDeps } from "./unsubscribe.js";
+} from "@jini-ai/user-management/newsletter/ports";
+import type { AudienceSnapshotRow, CampaignRecord, SendRow } from "@jini-ai/user-management/newsletter/types";
+import { buildUnsubscribeLink, type UnsubscribeDeps } from "@jini-ai/user-management/newsletter/unsubscribe";
 
 const TEST_SEND_MIN = 1;
 const TEST_SEND_MAX = 10;

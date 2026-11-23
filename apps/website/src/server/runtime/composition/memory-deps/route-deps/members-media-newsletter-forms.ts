@@ -1,4 +1,4 @@
-import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "#src/features/members/index";
+import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import type { OutboundEmail } from "#src/platform/mail/index";
@@ -7,9 +7,9 @@ import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "#s
 import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
 import { InMemoryImageTransformer } from "#src/features/media/index";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
-import { ensureDefaultList } from "#src/features/newsletter/lists";
+import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { seededWorkspace } from "../../../configuration/seed.js";
-import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "#src/features/newsletter/repo.memory";
+import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterSubscriptionRepo, InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterConfirmationTokenRepo } from "@jini-ai/user-management/newsletter/repo.memory";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
