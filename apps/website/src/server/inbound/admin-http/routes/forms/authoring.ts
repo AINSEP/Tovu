@@ -6,7 +6,8 @@ import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { mapFormsWriteError, toAdminFormDefinitionResponse } from "@jini-ai/cms/admin-http/http/forms";
+import { toAdminFormDefinitionResponse } from "@jini-ai/cms/admin-http/http/forms";
+import { mapFormsWriteError } from "./forms-write-error.js";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 function authoringPatch({ body }: { body: Record<string, unknown> }, _options = {}) {
