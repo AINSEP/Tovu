@@ -21,6 +21,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  * routes/tools/subscriptions on one app's cache. `put-settings.ts` reads `deps.clock`/`deps.idGen`/
  * `deps.principalRepo`. This is a genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s
  * identical rationale), not a `RouteDeps`-widening extension.
+ *
+ * Since RT-K1-adm-seo-1, get-entry/put-entry/get-entry-analyze/post-sitemap-regenerate are Jini route
+ * specs (`@jini-ai/cms/admin-http/routes/seo/*`, each with its own small deps type); their host
+ * registrars in `runtime/composition/modules/seo.ts` read only the fields each spec names from this
+ * bag. This type stays in the host: it is a slice of `RouteDeps` plus an Express registrar.
  */
 export type SeoRouteDeps = Pick<
   RouteDeps,
