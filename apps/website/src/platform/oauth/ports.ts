@@ -24,4 +24,5 @@
  * without weakening production `node:crypto` randomness.
  */
 
-export type { OAuthClient, OAuthClientAuthMethod, OAuthFetch, OAuthGrantKind, OAuthProviderDescriptor, OAuthRandomBytes, OAuthTokenSet } from "@jini-ai/oauth";
+export type { OAuthClient } from "@jini-ai/core/contracts/oauth";
+export type { OAuthClientAuthMethod, OAuthFetch, OAuthGrantKind, OAuthProviderDescriptor, OAuthRandomBytes, OAuthTokenSet } from "@jini-ai/oauth";

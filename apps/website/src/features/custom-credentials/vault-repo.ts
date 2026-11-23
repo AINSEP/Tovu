@@ -1,6 +1,6 @@
 import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteGrantedVault } from "../project-keys/attached-vault.js";
-import type { CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
+import type { CustomCredentialCategoryId } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import { CredentialSetVaultRepo, credentialSetVaultRecord, credentialSetVaultScope } from "@jini-ai/integrations/credentialed-http/sets";
 import { tovuCredentialSetVaultPolicy as policy } from "./tovu-credential-sets.js";
 import type { CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";

@@ -2,7 +2,7 @@ import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultQuery, type VaultRecord } from "@jini-ai/core/contracts/vault";
-import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { KeyringPort, SecretSealerPort, RootKeyHandle } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "./content-kernel.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";

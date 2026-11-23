@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/agent-plugins/admin-surfaces/connections';
+import type { AdminSurfaceConnectionsHost, AdminSurfaceDeclaredConnection } from '@jini-ai/core/contracts/site/admin-surfaces-connections';
 import { createAdminSurfaceConnections } from '@jini-ai/agent-plugins/admin-surfaces/connections';
 
 function harness() {
