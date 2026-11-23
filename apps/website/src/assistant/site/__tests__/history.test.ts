@@ -55,6 +55,12 @@ describe("resolveBoundedHistory", () => {
       assert.deepEqual(turns, [{ role: "user", content: "fine" }]);
     });
 
+    it("skips an array entry even when it carries role and content fields", () => {
+      const arrayEntry = Object.assign([], { role: "user", content: "an array is not a turn" });
+      const turns = resolveBoundedHistory({ rawHistory: [arrayEntry, { role: "user", content: "fine" }] });
+      assert.deepEqual(turns, [{ role: "user", content: "fine" }]);
+    });
+
     it("skips a turn that is empty after trimming", () => {
       const turns = resolveBoundedHistory({ rawHistory: [{ role: "user", content: "   " }, { role: "user", content: "real" }] });
       assert.deepEqual(turns, [{ role: "user", content: "real" }]);

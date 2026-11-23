@@ -116,6 +116,16 @@ test("reply parser correlates ids and rejects malformed/error replies", () => {
   }
 });
 
+/** An array is an object, so a bare `typeof` check would pass one that carries record-like own fields. */
+test("array-shaped values carrying record-like fields never satisfy an object check", () => {
+  const releaseEnv = { ELECTRON_RUN_AS_NODE: "1", JINI_RUN_ID: "release-smoke" };
+  assert.throws(() => parseJiniEntryEnv({ env: Object.assign([], releaseEnv) }), { message: "malformed packaged Jini entry" });
+  assert.throws(() => parseBridgeReply({ line: '{"jsonrpc":"2.0","id":1,"result":[]}', id: 1 }), { message: "MCP request 1 failed" });
+  const valid = { initialize: { serverInfo: { name: "jini-mcp" } }, tools: { tools: [{ name: "execute_delegated_tool" }] }, serverName: "jini-mcp", toolName: "execute_delegated_tool" };
+  assert.throws(() => assertBridgeReplies({ ...valid, initialize: { serverInfo: Object.assign([], { name: "jini-mcp" }) } }), /initialize did not identify jini-mcp/);
+  assert.throws(() => assertBridgeReplies({ ...valid, tools: { tools: [Object.assign([], { name: "execute_delegated_tool" })] } }), /tools\/list did not include execute_delegated_tool/);
+});
+
 test("identity and required tool assertions cannot pass on an empty or wrong roster", () => {
   const valid = { initialize: { serverInfo: { name: "jini-mcp" } }, tools: { tools: [{ name: "execute_delegated_tool" }] }, serverName: "jini-mcp", toolName: "execute_delegated_tool" };
   assert.doesNotThrow(() => assertBridgeReplies(valid));

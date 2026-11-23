@@ -96,6 +96,13 @@ test("readRunPageContext rejects a context without a path or section", () => {
   assert.equal(readRunPageContext({ value: ["/pages"] }), undefined);
 });
 
+// An array is an object, so a bare `typeof` check would accept one that carries record-like own fields.
+test("readRunPageContext never accepts an array carrying screen fields, as the context or as its entry", () => {
+  assert.equal(readRunPageContext({ value: Object.assign([], { path: "/pages/x", section: "pages" }) }), undefined);
+  const arrayEntry = Object.assign([], { kind: "page", id: "x", title: "Looks like an entry" });
+  assert.deepEqual(readRunPageContext({ value: { path: "/pages/x", section: "pages", entry: arrayEntry } }), { path: "/pages/x", section: "pages" });
+});
+
 // Demo V3 2026-10-05: on Studio → Playground the chart was drawn on the canvas, yet the assistant
 // said "the chart in the chat above" — the screen block never said where its drawings go.
 test("the block says where drawings appear: on the screen's canvas, or in the chat", () => {

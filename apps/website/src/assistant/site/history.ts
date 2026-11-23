@@ -18,6 +18,8 @@
  *    `MAX_MESSAGE_CHARS` check).
  */
 
+import { isNonArrayRecord } from "@jini-ai/core/records";
+
 /** Oldest-dropped-first turn cap. Small on purpose: this is a single visitor's public Q&A widget over
  *  published content, not a coding-agent transcript — a handful of recent turns is enough context for
  *  a natural-language follow-up, and keeps a forged/oversized history from inflating the prompt sent
@@ -34,10 +36,6 @@ const DEFAULT_MAX_HISTORY_MESSAGE_CHARS = 2000;
 export interface ResolveBoundedHistoryOptions {
   readonly maxMessages?: number;
   readonly maxMessageChars?: number;
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** One bounded conversation turn. `role` is `ChatMessage.role`'s own vocabulary
@@ -75,11 +73,13 @@ function toHistoryRole({ role }: { role: unknown }, _options = {}): SiteAssistan
  *  Split out of {@link resolveBoundedHistory} purely to keep that function's complexity under the
  *  shop ceiling; behavior is unchanged. */
 function toBoundedHistoryTurn({ entry, maxMessageChars }: { entry: unknown; maxMessageChars: number }, _options = {}): SiteAssistantHistoryTurn | null {
-  if (!isPlainRecord(entry)) return null;
-  const role = toHistoryRole({ role: entry.role });
+  const candidate = { value: entry };
+  if (!isNonArrayRecord(candidate)) return null;
+  const fields = candidate.value;
+  const role = toHistoryRole({ role: fields.role });
   if (role === null) return null;
-  if (typeof entry.content !== "string") return null;
-  const trimmed = entry.content.trim();
+  if (typeof fields.content !== "string") return null;
+  const trimmed = fields.content.trim();
   if (trimmed.length === 0) return null;
   const bounded = trimmed.length > maxMessageChars ? `${trimmed.slice(0, maxMessageChars)}…` : trimmed;
   return { role, content: bounded };
