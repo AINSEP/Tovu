@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryMenuRepo } from "#src/features/navigation/index";
+import { InMemoryMenuRepo } from "@jini-ai/cms/navigation";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMenuUpdateTreeRoute } from "#src/server/runtime/composition/modules/menus";
 

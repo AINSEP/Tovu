@@ -42,7 +42,7 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, type MediaRecord } from "#src/features/media/index";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import {
   createVerifiedOrigin,
   InMemoryOriginSettingRepo,

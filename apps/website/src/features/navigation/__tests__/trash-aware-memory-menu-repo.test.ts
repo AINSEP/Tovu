@@ -1,8 +1,8 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryMenuRepo, MenuConflictError, type NavMenuEntry } from "../index.js";
-import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
+import { MenuConflictError } from "@jini-ai/cms/navigation/node";
+import { MenuVersionConflictError, InMemoryMenuRepo, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 
 function menu(overrides: Partial<NavMenuEntry> = {}): NavMenuEntry {

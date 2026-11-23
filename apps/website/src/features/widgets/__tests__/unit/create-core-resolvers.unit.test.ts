@@ -1,11 +1,10 @@
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc, type NavMenuEntry, type NavMenuReadModel } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
-import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
 import { createCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import type { CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
 type ContentTypeLookup = CoreResolverDeps["contentTypes"];

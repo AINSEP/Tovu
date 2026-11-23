@@ -6,14 +6,13 @@ import { sql } from "kysely";
 import { eachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { migrateFooterPageLinks } from "../migrate-footer-page-links.js";
-import { resolveMenuDoc } from "../index.js";
+import { resolveMenuDoc, type NavMenuDoc } from "@jini-ai/cms/navigation";
 import { createMenuPageTargetResolver } from "../page-target-resolver.js";
 import { SqliteMenuRepo } from "../repo.sqlite.js";
 import { toAdminMenuResponse } from "@jini-ai/cms/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
 import { postSearchFor } from "#src/features/post/search-index";
 import { renderHtmlMenu } from "#src/platform/html/menu-render";
-import type { NavMenuDoc } from "../index.js";
 
 test("footer repair counts no conversion or watermark when the database refuses the menu update", async (t) => {
   const kernel = freshSqliteContentKernel();

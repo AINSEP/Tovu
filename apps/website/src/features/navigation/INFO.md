@@ -4,6 +4,10 @@ Owns the menus/navigation write-service and render-time read model for
 ADR-029: menu trees as editable content, a derived location→menu binding
 index, and the resolved render model themes consume.
 
+The engine half lives in `@jini-ai/cms/navigation` (import it directly; this folder has no barrel).
+`importMenuEntity` and `repointMenuItems`/`menuHoldersReferencing` live in `@jini-ai/cms/navigation/site/{import-menu,repoint-menu-refs}`;
+only the host-bound adapters (`repo.sqlite.ts`, `publish-content.ts`, `reverters.ts`, `page-target-resolver.ts`, `migrate-footer-page-links.ts`, `tool-registrations.ts`) stay here.
+
 ## Responsibilities
 
 - validate and persist whole-menu-tree edits (create, whole-tree replace with

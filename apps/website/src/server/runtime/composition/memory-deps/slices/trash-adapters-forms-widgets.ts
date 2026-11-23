@@ -3,7 +3,7 @@ import type { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, StoredForm
 import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
-import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import type { InMemoryNavLocationBindingRepo } from "@jini-ai/cms/navigation";
 import type { TrashAwareInMemoryMenuRepo, TrashableMenuRecord } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 
 // The in-memory composition root's Trash adapters for forms, form submissions, widgets and menus.

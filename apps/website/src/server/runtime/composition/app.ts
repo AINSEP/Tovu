@@ -24,7 +24,7 @@ import { createPluginExportSource } from "#src/features/agent-plugins/exports/so
 import { bindSiteConsentService } from './site-consent.js';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc, createNavMenuReadModel } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
@@ -77,7 +77,6 @@ import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
 import { noopStampWatermark } from "@jini-ai/cms/taxonomy";
 

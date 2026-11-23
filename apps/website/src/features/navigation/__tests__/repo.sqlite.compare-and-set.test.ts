@@ -4,7 +4,7 @@ import test from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { assignLocation, MenuConflictError, updateMenuTree, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { importMenuEntity } from "../import-menu.js";
+import { importMenuEntity } from "@jini-ai/cms/navigation/site/import-menu";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { MenuVersionConflictError } from "@jini-ai/cms/navigation";

@@ -1,8 +1,7 @@
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { resolveMenuDoc, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, createNavMenuReadModel } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, createNavMenuReadModel } from "#src/features/navigation/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { seededPosts } from "#src/server/runtime/configuration/seed";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
