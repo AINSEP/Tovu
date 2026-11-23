@@ -21,7 +21,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
-import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { trackStartingBrowser, type StartingBrowser } from "#src/features/api-connections/__tests__/support/starting-browser";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";

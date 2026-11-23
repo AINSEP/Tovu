@@ -1,11 +1,13 @@
 /**
  * @file Tovu's copy and message types for the shared OAuth popup landing page, whose markup, XSS
  * and origin protections live in `@jini-ai/oauth/callback-page`. Every flow that serves a popup
- * (external MCP, API connections, agent-plugin sign-in) renders through {@link renderOAuthCallbackPage}.
+ * (external MCP, API connections, agent-plugin sign-in) renders through {@link renderOAuthCallbackPage};
+ * the two public callback routes (Jini `@jini-ai/cms/public-http/routes/*`) get it injected by
+ * `public-oauth-callbacks.ts`, since the copy is product wording the engine must not own.
  *
- * The failure reason is a closed vocabulary ({@link OAuthCallbackFailureReason}) for the same reason
+ * The failure reason is a closed vocabulary (`OAuthCallbackFailureReason`, Jini) for the same reason
  * `messageType` is a constant: a caller classifies its caught failure FIRST
- * (see `routes/external-mcp/oauth-callback.ts`'s classifier) and only the resulting closed value
+ * (see the Jini external-MCP callback's classifier) and only the resulting closed value
  * reaches the page, never a provider's own error text.
  *
  * Each flow has its own message type so one flow's completion cannot make another flow's bridge
@@ -13,26 +15,13 @@
  * `jini:connector-connected`; the external-MCP tab listens for {@link EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE}.
  */
 import { renderOAuthCallbackPage as renderPopupPage, type OAuthCallbackPageCopy } from "@jini-ai/oauth/callback-page";
+import type { OAuthCallbackFailureReason, OAuthCallbackPageArgs } from "@jini-ai/core/contracts/site/oauth-callback-page";
 
 /** Posted by the external-MCP OAuth callback. Distinct from the connectors one on purpose. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";
 
-/**
- * Closed, Tovu-authored vocabulary for why an OAuth callback failed. A provider's own response text
- * (its `error`, `error_description`, or anything else it sent) is NEVER a member of this type and
- * must never become one — a caller maps a caught failure onto one of these fixed values before
- * this file ever sees it. See `routes/external-mcp/oauth-callback.ts`'s classifier for the mapping
- * from `OAuthError.code` / error class to reason.
- */
-export type OAuthCallbackFailureReason =
-  | "rate_limited"
-  | "no_state"
-  | "state_expired"
-  | "browser_mismatch"
-  | "provider_denied"
-  | "exchange_failed"
-  | "server_unknown"
-  | "account_unchanged";
+/** Posted by the API-connection OAuth callback. */
+export const API_CONNECTION_CALLBACK_MESSAGE_TYPE = "tovu:api-connection-connected";
 
 /** One fixed heading/body pair. Every failure reason shares the same heading the page has always
  *  used — `admin-external-mcp-oauth-routes.test.ts` already pins `/Couldn’t finish connecting/` for
@@ -59,17 +48,11 @@ const COPY: OAuthCallbackPageCopy<OAuthCallbackFailureReason> = {
   defaultReason: "exchange_failed",
 };
 
-export interface CallbackPageOptions {
-  /** Chooses which of the two FIXED copy variants is rendered. Never derived from request data. */
-  readonly ok: boolean;
-  /** The `postMessage` type this page announces. A compile-time constant from the calling route. */
-  readonly messageType: string;
-  /** Which closed-vocabulary reason to render when `ok` is `false`; defaults to `"exchange_failed"`,
-   *  the original generic failure copy, so an unclassifying caller is unchanged. */
-  readonly reason?: OAuthCallbackFailureReason;
-}
-
-/** Renders the popup's landing page with Tovu's copy. @complexity O(1). */
-export function renderOAuthCallbackPage({ ok, messageType, reason }: CallbackPageOptions, _optional = {}): string {
+/**
+ * Renders the popup's landing page with Tovu's copy. `reason` defaults to `"exchange_failed"`, the
+ * original generic failure copy, so an unclassifying caller is unchanged. Satisfies Jini's
+ * `OAuthCallbackPageRenderer`. @complexity O(1).
+ */
+export function renderOAuthCallbackPage({ ok, messageType, reason }: OAuthCallbackPageArgs, _optional = {}): string {
   return renderPopupPage({ ok, messageType, reason, copy: COPY });
 }

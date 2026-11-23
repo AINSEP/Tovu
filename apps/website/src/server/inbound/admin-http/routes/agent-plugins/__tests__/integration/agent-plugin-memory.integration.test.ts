@@ -15,7 +15,7 @@ import { installAgentPlugin } from '../../../../../../../features/agent-plugins/
 import { resolveAgentPluginLayout } from '#src/features/agent-plugins/layout';
 import { forceRemove } from '#src/features/agent-plugins/__tests__/fixtures/force-remove';
 import { registerAgentPluginMemoryRoutes } from '../../memory.js';
-import { registerAgentPluginFilesRoute } from '../../files.js';
+import { registerAgentPluginFilesRoute } from '#src/server/runtime/composition/modules/agent-plugins-routes';
 import { DEFAULT_PLUGIN_MEMORY_LIMITS } from '@jini-ai/agent-plugins/persistent-state';
 import type { TestContext } from 'node:test';
 

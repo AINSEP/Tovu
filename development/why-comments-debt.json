@@ -4660,6 +4660,106 @@
     {
       "id": "869a187fdeaa",
       "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoSettingsDto header), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:1-1."
+    },
+    {
+      "id": "d7fe86e3a988",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/files.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "5d4390eb62b3",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/files.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "6d400feb57ff",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/http/agent-plugins.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "feb266f9ae25",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/list.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "f86f72baf313",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/{set-enabled,shared}.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "518b4e335da3",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/{set-enabled,shared}.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "287d758b1b42",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/{set-enabled,shared}.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "a26b8fb6c595",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/external-mcp/{put,put-body}.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "4a995010ba22",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/external-mcp/{put,put-body}.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "fb327ab0eaf2",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/external-mcp/tool-approvals.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "f23cce6fcfbe",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/api-connections/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "26fac6145b4e",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/api-connections/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "1f83de8b06bc",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/api-connections/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "ec8659754368",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/api-connections/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "6f87baca669c",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback-url.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "edab4b79cdbc",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback-url.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "7e65c96f5edf",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "fca1b6b21e71",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "ba784cfe5e11",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "e9155b7d7827",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/external-mcp/oauth-callback.ts; reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "f2dfcf0a4508",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/oauth/callback-page.ts (vocabulary + page args); reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "de351a89e0eb",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/oauth/callback-page.ts (vocabulary + page args); reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "4e1eaef8d87f",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/public-http/routes/oauth/callback-page.ts (vocabulary + page args); reworded only to drop Tovu-specific names (Jini is product-neutral) or to describe the injected dep that replaced a direct import."
+    },
+    {
+      "id": "2d08032d1ce7",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/connection-sign-in.ts (file header + apiConnectionSignInRoute doc); reworded only to name the injected deps."
+    },
+    {
+      "id": "3ee15d1a6c29",
+      "reason": "L4 oauth lane (RT-K1): moved with the code to Jini packages/cms/src/admin-http/routes/agent-plugins/connection-sign-in.ts (file header + apiConnectionSignInRoute doc); reworded only to name the injected deps."
     }
   ]
 }

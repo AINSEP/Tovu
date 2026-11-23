@@ -1,13 +1,13 @@
 import { registerPluginExportFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files";
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
-import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
+import { registerAgentPluginFilesRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
-import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/list";
-import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
+import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";
+import { registerAgentPluginSetEnabledRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
-import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
-import { registerApiConnectionSignInRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
+import { registerApiConnectionSignInRoute } from "./agent-plugins-routes.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -36,7 +36,7 @@ import type { ServerModuleHandle } from "./types.js";
  * session-less for the reason its own header gives (it reads a separate browser-binding cookie),
  * so it also sits outside `/api/admin`, with its own
  * per-IP limiter instance sized like the external-MCP callback's (same anonymous, exchange-costly shape).
- * Its hosted sign-in links open through the session-gated `connection-sign-in.ts` route, which
+ * Its hosted sign-in links open through the session-gated sign-in route (`agent-plugins-routes.ts`, Jini `apiConnectionSignInRoute`), which
  * binds the starting browser before redirecting to the provider.
  */
 export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {

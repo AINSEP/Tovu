@@ -159,3 +159,19 @@ test-connection) mount `"direct"` with `detectAgents`/`testAgent`/`listModels`/`
 here (DNS/dispatcher seams, redirect refusal, detection cache) and `resolveProbeCredential` from
 `inbound/admin-http/routes/assistant/stored-credential-probe.ts`, which stays host-side.
 `get-chat-attachment.ts` stays hand-written (binary bytes).
+
+Public OAuth callbacks (`runtime/composition/public-oauth-callbacks.ts`) mount Jini `ServerRoute`s
+(`@jini-ai/cms/public-http/routes/{api-connections,external-mcp}/oauth-callback`) with
+`mountJiniRouteInPlace` (`jini-routes.ts`): each stays an Express `route get` row with Express's own
+params, gets the request facts in `locals`, and answers through http-kit's `sendWebResponse`; a throw
+goes to `next(error)`. The registrar binds Tovu's copy and message types (`inbound/public-http/routes/oauth/callback-page.ts`),
+the callback path, binding-cookie rules, `ApiConnectionError`/`OAuthError`/`ExternalMcpValidationError`
+predicates, `notifyExternalMcpRosterChanged`, the `TOVU_PUBLIC_URL` origin policy
+(`resolvePublicOriginFor`) and the console logger.
+External MCP (`modules/external-mcp.ts`) mounts `@jini-ai/cms/admin-http/routes/external-mcp/*` (list, put,
+delete, admissions, tool-approvals, oauth disconnect; all `"direct"`) and injects the store functions,
+`notifyExternalMcpRosterChanged`, built-in ownership rules and the host error classes as predicates;
+probe, OAuth connect/sign-in/device-poll and the session-credential routes stay hand-written (`routes/external-mcp/`).
+Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
+(`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
+id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).

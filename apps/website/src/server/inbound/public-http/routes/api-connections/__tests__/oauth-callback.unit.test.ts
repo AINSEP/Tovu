@@ -23,7 +23,8 @@ import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
 import { API_CONNECTION_BINDING_COOKIE } from "#src/features/api-connections/browser-binding";
-import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, registerApiConnectionOAuthCallbackRoute } from "../oauth-callback.js";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
+import { API_CONNECTION_CALLBACK_MESSAGE_TYPE } from "#src/server/inbound/public-http/routes/oauth/callback-page";
 
 let harness: AcmeHarness;
 const servers: Server[] = [];

@@ -13,7 +13,8 @@ import type { ExternalMcpOAuthService } from "../../../../../features/external-m
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { externalMcpOAuthCallbackUrl } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback-url";
+import { externalMcpOAuthCallbackUrl } from "@jini-ai/cms/public-http/routes/external-mcp/oauth-callback-url";
+import { resolvePublicOrigin } from "#src/platform/express/public-origin";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
@@ -123,8 +124,9 @@ async function withinRateLimit(limiter: RateLimiter, req: import("express").Requ
  * user code and verification URL the admin renders directly. The device variant never returns the
  * device code itself — that stays server-side and the poll route looks it up.
  *
- * The callback URL is built FROM THE REQUEST (`externalMcpOAuthCallbackUrl`) so a reverse-proxied
- * deployment gets the origin the browser actually used, not the one this process thinks it has.
+ * The callback URL is built FROM THE REQUEST (`resolvePublicOrigin(req)` passed to
+ * `externalMcpOAuthCallbackUrl`) so a reverse-proxied deployment gets the origin the browser
+ * actually used, not the one this process thinks it has.
  */
 export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
   registerExternalMcpBrowserSignInRoute({ app, deps, limiter });
@@ -139,7 +141,7 @@ export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId, actorId: getAuthedPrincipal(res).id,
         ...(destination === 'shared' ? { destination } : {}),
-        redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }),
+        redirectUri: externalMcpOAuthCallbackUrl({ origin: resolvePublicOrigin(req), serverId }),
         delivery: 'hosted',
       });
       res.json({ auth: started });
@@ -178,7 +180,7 @@ function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Ex
       if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? '');
       const browserBinding = generateOAuthState({ randomBytesFn: ({ byteLength }) => randomBytes(byteLength) }, { stateBytes: 32 });
-      const start = await deps.externalMcpOAuth.beginConnect({ serverId, actorId: getAuthedPrincipal(res).id, redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }), browserBinding });
+      const start = await deps.externalMcpOAuth.beginConnect({ serverId, actorId: getAuthedPrincipal(res).id, redirectUri: externalMcpOAuthCallbackUrl({ origin: resolvePublicOrigin(req), serverId }), browserBinding });
       if (start.kind !== 'redirect_required') {
         res.status(400).json({ error: 'This connection uses a device code. Close this window and start again from Settings → External MCP.', code: 'MCP_DEVICE_SIGN_IN_REQUIRED' });
         return;
@@ -209,34 +211,6 @@ export function registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limite
       sendExternalMcpOAuthError({ res, error });
     }
   } }));
-}
-
-/**
- * `DELETE .../mcp-servers/:serverId/oauth` — drops the stored authorization.
- *
- * Clears the token and returns the connection to `disconnected`. It does NOT delete the row: the
- * operator's command, args and allowlist survive, so reconnecting is one click rather than a
- * re-entry. Deleting the server itself is the existing DELETE route's job.
- *
- * Its tools refuse from the next call, the same as DELETE — `external-mcp-revocation.ts`'s per-call
- * gate refuses a `disconnected` OAuth connection on every federated call. `restartRequired` stays
- * true because the running assistant still holds the open connection and lists the tools until it
- * restarts. Unlike DELETE, reconnecting makes them work again without a restart, once the row is
- * back to `connected`.
- *
- * Not rate-limited: it makes no outbound call, so the self-DoS the other two guard against does not
- * exist here.
- */
-export function registerAdminExternalMcpOAuthDisconnectRoute({ app, deps }: { app: Express; deps: ExternalMcpOAuthRouteDeps }, _optional = {}): void {
-  app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth", async (req, res) => {
-    try {
-      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
-      await deps.externalMcpOAuth.disconnect({ serverId: String(req.params.serverId ?? "") });
-      res.json({ disconnected: true, restartRequired: true });
-    } catch (error) {
-      sendExternalMcpOAuthError({ res, error });
-    }
-  });
 }
 
 /** Saved selection is a session-only owner act; a site reference alone cannot grant itself access. */

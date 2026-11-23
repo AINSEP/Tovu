@@ -1,3 +1,4 @@
+import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { AdminPluginFiles } from "../../plugins/api/plugins-api.types";
 
@@ -43,13 +44,9 @@ export type AdminExternalMcpConnectStart =
   | { kind: "device_code"; userCode: string; verificationUri: string; verificationUriComplete: string | null; expiresAt: string; intervalSeconds: number };
 
 /** One saved "Always allow" from `GET .../mcp-servers/tool-approvals` — a remote tool the approval
- *  card no longer asks about. Revoking it makes the card ask again. */
-export interface AdminExternalMcpToolApproval {
-  serverId: string;
-  toolName: string;
-  grantedByPrincipalId: string;
-  grantedAt: string;
-}
+ *  card no longer asks about. Revoking it makes the card ask again. The wire shape is declared once in
+ *  Jini Core (`@jini-ai/core/contracts/site/cms-external-mcp`, rv1123e K1), which the route spec answers. */
+export type AdminExternalMcpToolApproval = ExternalMcpToolApprovalDto;
 
 export interface AdminExternalMcpServer {
   /** Edit revision; sent back as `expectedVersion` so a save from an older screen is refused (409 `VERSION_CONFLICT`). */
