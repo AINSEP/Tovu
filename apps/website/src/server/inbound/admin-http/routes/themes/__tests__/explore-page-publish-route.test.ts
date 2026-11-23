@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes, isStandaloneThemePage } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemePagePublishRoute } from "../explore.js";
+import { registerAdminThemePagePublishRoute } from "#src/server/runtime/composition/modules/theme-explore";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**

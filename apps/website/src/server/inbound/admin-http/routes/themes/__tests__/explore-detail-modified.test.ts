@@ -19,7 +19,7 @@ import {
   registerAdminThemeFileCopyRoute,
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
-} from "../explore.js";
+} from "#src/server/runtime/composition/modules/theme-explore";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**

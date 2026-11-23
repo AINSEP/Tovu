@@ -22,7 +22,7 @@ import {
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileDeleteRoute,
   registerAdminThemePagePublishRoute,
-} from "../explore.js";
+} from "#src/server/runtime/composition/modules/theme-explore";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 

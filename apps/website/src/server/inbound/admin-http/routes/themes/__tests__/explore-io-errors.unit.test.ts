@@ -18,7 +18,7 @@ import {
   registerAdminThemeFileGetRoute,
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
-} from "../explore.js";
+} from "#src/server/runtime/composition/modules/theme-explore";
 
 /** n09: fault injection must reach real file I/O and preserve the live theme on failure. */
 const scenarios = [

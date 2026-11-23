@@ -7,7 +7,7 @@ import express from "express";
 import { loadTheme } from "#src/features/theme/index";
 import { dispatchHttpRequest, dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerThemeStaticAssets } from "#src/server/inbound/public-http/middleware/theme-static-assets";
-import { registerAdminThemeDetailRoute, registerAdminThemeFileGetRoute, registerAdminThemeFilePutRoute } from "../explore.js";
+import { registerAdminThemeDetailRoute, registerAdminThemeFileGetRoute, registerAdminThemeFilePutRoute } from "#src/server/runtime/composition/modules/theme-explore";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
 // Class guard: effective templates must be inspectable through both source-view entry points,

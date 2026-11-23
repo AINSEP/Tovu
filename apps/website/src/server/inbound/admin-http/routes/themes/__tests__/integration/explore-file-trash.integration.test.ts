@@ -12,7 +12,7 @@ import { buildThemesRegistrations } from "#src/features/theme/tool-registrations
 import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import type { ContentRouteDeps } from "../../../content/deps.js";
-import { registerAdminThemeDetailRoute, registerAdminThemeFileDeleteRoute } from "../../explore.js";
+import { registerAdminThemeDetailRoute, registerAdminThemeFileDeleteRoute } from "#src/server/runtime/composition/modules/theme-explore";
 
 const BASE = "/api/admin/v1/workspaces/ws-trash/themes/fixture";
 
