@@ -7,7 +7,7 @@
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { toolMetadata } from "../../contracts/core/tool-metadata/domain-dns.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/domain-dns";
 import type { DnsChangeToolDeps } from "./tool-deps.js";
 import { readMailDnsStatus, verifyMailDnsStatus, type MailDnsStatusPorts } from "./mail-dns-status.js";
 

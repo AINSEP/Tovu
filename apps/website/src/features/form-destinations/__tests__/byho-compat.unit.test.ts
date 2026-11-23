@@ -13,7 +13,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryCustomCredentialSetRepo, listCustomCredentials, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { publishStaticSite } from "#src/features/deployments/static-publish/adapter";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { listFormDestinations, loadFormDestinationRegistryFromSource } from "../index.js";

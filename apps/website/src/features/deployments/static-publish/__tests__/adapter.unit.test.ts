@@ -13,8 +13,8 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { publishStaticSite, readStaticPublishConfig, toDeployFile, publishOutputDir as computePublishOutputDir } from "../adapter.js";
-import type { HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
-import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
+import type { HostDeployPublishInput } from "@jini-ai/devops/deploy/site/deploy-targets/types";
+import type { PublishCredentialSource, StaticPublishConfig } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 
 /**

@@ -7,7 +7,7 @@ import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { registerAdminPublishSiteRoutes } from "../publish-site.js";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import type { LoadedDeployTarget, DeployTargetRegistry } from "#src/features/deployments/deploy-targets/types";
+import type { LoadedDeployTarget, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 
 // Real registry/config/plan code runs; no provider or export can be reached by these refusals.
 test("publish trigger preserves shape errors, validation order, and domain confirmation before consent", async t => {

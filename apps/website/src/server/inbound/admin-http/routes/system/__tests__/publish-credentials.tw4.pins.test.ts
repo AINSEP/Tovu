@@ -8,7 +8,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { createPublishCredential, describeCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "../publish-credentials.js";
 

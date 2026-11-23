@@ -24,7 +24,6 @@ export {
   type UpdatePublishCredentialInput,
 } from "./store.js";
 
-export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode.js";
 export { publishHostsForCredential } from "./store.js";
 
 export { bindPublishCompatibility, type PublishCompatibilitySource } from "./compatibility-port.js";

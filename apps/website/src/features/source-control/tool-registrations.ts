@@ -1,7 +1,7 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
-import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/source-control';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -35,7 +35,7 @@ import {
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
 import type { RepositoryTargetValidator } from "./provider-module.js";
-import { sourceControlSavedApiKeyLabels } from "./saved-key-bindings.js";
+import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/site/saved-key-bindings";
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";

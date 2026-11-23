@@ -59,11 +59,11 @@ import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navi
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
-import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
+import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
 import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/forms/site/import-remote-submissions";
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
-import type { DeployTargetRegistry } from "../../features/deployments/contracts.js";
+import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
@@ -1423,7 +1423,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
-  loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
+  loadInstalledDeployTargets?: import("@jini-ai/devops/deploy/site/deploy-targets/types").LoadInstalledDeployTargets;
   /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/index").DeployOpsRegistry>;
   /**

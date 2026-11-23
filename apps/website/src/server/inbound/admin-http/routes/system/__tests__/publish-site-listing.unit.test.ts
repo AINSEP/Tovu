@@ -8,7 +8,7 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 import { registerAdminPublishSiteRoutes } from "../publish-site.js";
 

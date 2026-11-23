@@ -16,7 +16,7 @@ import { exportSite } from "../site-exporter.js";
 import { captureStaticSite } from "../../site-backup/static-copy.js";
 import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
-import type { LoadedDeployTarget } from "../../deployments/deploy-targets/types.js";
+import type { LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { exportPublicOrigin, rewriteRenderOrigins } from "@jini-ai/devops/static-export/site/public-origin-policy";
 import { exportHtml } from "../export-html-policy.js";
 import { downloadForms } from "#src/features/site-backup/static-download-html";

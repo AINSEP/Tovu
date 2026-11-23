@@ -21,7 +21,7 @@ import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentia
 import { SOURCE_CONTROL_PROVIDERS_FILENAME, loadBundledSourceControlProviderRegistry, loadSourceControlProviderRegistry } from "../provider-registry.js";
 import { createSourceControlProviderKit } from "../provider-kit.js";
 import type { SourceControlProviderKit } from "../provider-module.js";
-import { sourceControlSavedApiKeyLabels } from "../saved-key-bindings.js";
+import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/site/saved-key-bindings";
 import { commitSiteToSourceControl, type SourceControlCommitAdapter } from "../commit-site.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { createSourceControlCredential } from "../store.js";

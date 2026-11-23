@@ -66,7 +66,7 @@ import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.j
 import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
 import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
-import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
+import { deploymentsAgentToolCatalog } from "@jini-ai/devops/deploy/site/agent-tools";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";

@@ -31,18 +31,6 @@ export {
   type ExportRunStatus,
 } from "./export-run.js";
 
-// `readDockerfileSource`/`writeDockerfileSource`/`writeDockerfileSourceWithIfMatch` back the admin
-// Dockerfile tab's read/write routes (`apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`) and their
-// route-level tests. `writeDockerfileSource` (the unconditional write) is kept for those tests' own
-// before/after cleanup — see `dockerfile.ts`'s own doc for why the route itself uses the `-WithIfMatch`
-// variant instead.
-export {
-  readDockerfileSource,
-  writeDockerfileSource,
-  writeDockerfileSourceWithIfMatch,
-  type DockerfileSourceSnapshot,
-} from "./dockerfile.js";
-
 // `buildDeploymentDescriptor` + the generator port back `tovu deploy config --target <id>`
 // (`cli/commands/deploy-config.ts`). The platform generators themselves are plugin modules (the
 // bundled hosting plugins' `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see

@@ -12,7 +12,7 @@ import type { DomainRecordRequirement } from "@jini-ai/core/provider-registry";
 import type { DnsPlanRequirement } from "@jini-ai/devops/dns";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
-import { toolMetadata } from "../../contracts/core/tool-metadata/domain-dns.js";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/domain-dns";
 import { domainDnsInstructions, planDomainDns, verifyDomainDns, type DnsChangeRequest, type DomainDnsPlan } from "./dns-changes.js";
 import type { DnsRequirementInclude } from "@jini-ai/devops/dns/site/mail-requirements";
 import { buildDomainDnsRegistrations, domainDnsDerivedRisk, readPublicDnsName, readPublicDomain, type DomainDnsToolDeps } from "./tools.js";

@@ -1,5 +1,5 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
-import { toolMetadata } from '../../contracts/core/tool-metadata/domain-dns.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/domain-dns';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
