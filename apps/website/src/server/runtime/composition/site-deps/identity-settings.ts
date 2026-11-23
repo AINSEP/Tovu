@@ -3,7 +3,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import type { RouteDeps } from "../../../routes/types.js";
-import { type SiteDisplayNameSource } from "#src/features/settings/site-title";
+import { type SiteDisplayNameSource } from "@jini-ai/cms/settings/site/site-title";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
@@ -27,13 +27,14 @@ import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-deli
 import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
-import { ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, set } from "@jini-ai/core/settings";
 import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
 import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
-import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
-import { preserveLegacySiteTitles } from "#src/features/settings/site-title";
+import { ensureSiteTitleSettingDefinition } from "@jini-ai/cms/settings/site/site-title";
+import { preserveLegacySiteTitles } from "@jini-ai/cms/settings/site/site-title";
+import { LEGACY_SITE_TITLE } from "#src/features/settings/site-title-legacy";
 import { resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { startSettingsRegistration } from "../settings-registration.js";
 import { startupSecretEnvironment } from "../../../../platform/secrets/startup-secrets.js";
@@ -83,7 +84,7 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   });
 
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
+  // SPEC-050 `core.site.title` (`@jini-ai/cms/settings/site/site-title`): registration, then the one-time
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
@@ -115,7 +116,7 @@ function startPersistentSiteSettings(required: {
     .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureCommerceSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
@@ -123,8 +124,8 @@ function startPersistentSiteSettings(required: {
   const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
-        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore, set, resolveDefinitionRaw },
+        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE }
       )
     )
     .then(() => undefined);

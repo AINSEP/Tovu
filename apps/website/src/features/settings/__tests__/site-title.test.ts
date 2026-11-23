@@ -6,6 +6,7 @@ import test, { type TestContext } from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   clear,
+  ensureSettingDefinitions,
   getEffective,
   InMemorySettingsRepo,
   resolveDefinitionRaw,
@@ -23,7 +24,8 @@ import {
   resolveSiteTitle,
   SITE_TITLE_KEY,
   SITE_TITLE_NAMESPACE,
-} from "../site-title.js";
+} from "@jini-ai/cms/settings/site/site-title";
+import { LEGACY_SITE_TITLE } from "../site-title-legacy.js";
 
 /**
  * @file SPEC-050 v0.2.0, Wiring Order Step 2, over the in-memory settings ledger: the pin for
@@ -49,6 +51,9 @@ interface Ledger {
   ids: typeof ids;
   principals: ReturnType<typeof createSettingsPrincipalLookup>;
   preservationStore: InMemorySiteTitlePreservationStore;
+  ensureSettingDefinitions: typeof ensureSettingDefinitions;
+  set: typeof set;
+  resolveDefinitionRaw: typeof resolveDefinitionRaw;
 }
 
 async function makeLedger(pendingWorkspaceIds: string[] = [], options: { register?: boolean } = {}): Promise<Ledger> {
@@ -58,15 +63,18 @@ async function makeLedger(pendingWorkspaceIds: string[] = [], options: { registe
     ids,
     principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
     preservationStore: new InMemorySiteTitlePreservationStore(pendingWorkspaceIds),
+    ensureSettingDefinitions,
+    set,
+    resolveDefinitionRaw,
   };
   if (options.register !== false) {
-    await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+    await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE });
   }
   return ledger;
 }
 
 function preserve(ledger: Ledger) {
-  return preserveLegacySiteTitles(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  return preserveLegacySiteTitles(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: LEGACY_SITE_TITLE });
 }
 
 function ownerWriteDeps(ledger: Ledger) {
@@ -116,6 +124,8 @@ function resolveDeps(
     preservationStore: ledger.preservationStore,
     workspaceRepo,
     siteDisplayName: { read: () => options.siteDisplayName },
+    getEffective,
+    legacySiteTitle: LEGACY_SITE_TITLE,
   };
 }
 
@@ -455,4 +465,34 @@ test("REQ-05: renderable configured and workspace names are trimmed before rende
   };
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "x".repeat(201), workspaceRepo }), { workspaceId: "ws-new" }),
     "Workspace title");
+});
+
+// ---------------------------------------------------------------------------
+// The legacy title is host-supplied (review rv1123c FIX 3)
+// ---------------------------------------------------------------------------
+
+test("FIX 3: the host-supplied legacy title is the stored default, the workspace pin, and every render fallback", async (t) => {
+  const injected = "Injected Legacy Title";
+  silenceConsoleError(t);
+
+  // Registration: the definition default stored is the injected title.
+  const ledger = await makeLedger(["ws-pre"], { register: false });
+  await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: injected });
+  assert.deepEqual(await effectiveTitle(ledger, "ws-new"), { value: injected, sourceLayer: "default" });
+
+  // Render fallback: pending, unregistered, and failed reads all render the injected title.
+  const deps = { ...resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), legacySiteTitle: injected };
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-pre" }), injected, "pending workspace");
+  const unregistered = await makeLedger([], { register: false });
+  assert.equal(await resolveSiteTitle({ ...resolveDeps(unregistered), legacySiteTitle: injected }, { workspaceId: "ws-new" }), injected, "unregistered");
+  const throwing = await makeLedger();
+  throwing.preservationStore.isPending = async () => {
+    throw new Error("injected marker read failure");
+  };
+  assert.equal(await resolveSiteTitle({ ...resolveDeps(throwing), legacySiteTitle: injected }, { workspaceId: "ws-new" }), injected, "failed read");
+
+  // Preservation: the workspace pin writes the injected title.
+  const result = await preserveLegacySiteTitles(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL_ID, legacySiteTitle: injected });
+  assert.deepEqual(result.pinnedWorkspaceIds, ["ws-pre"]);
+  assert.deepEqual(await effectiveTitle(ledger, "ws-pre"), { value: injected, sourceLayer: "workspace" });
 });

@@ -93,8 +93,6 @@ export {
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
 // Not the package's `clear` either: neither may restore the comments provider's default behind its card.
 export { set, clear, resetNamespace, refuseDedicatedSettingClear, refuseDedicatedSettingReset, refuseCommentsProviderClear, refuseCommentsProviderReset, COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON } from "./site-title-write.js";
-// Renderers consume the title resolver through the settings public surface.
-export { resolveSiteTitle } from "./site-title.js";
 
 export {
   type PurgeServiceDeps,
@@ -152,7 +150,6 @@ export type { AgentToolDefinition } from "@jini-ai/core";
 export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";
 
 
-export { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "./site-title.js";
 export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
 
 

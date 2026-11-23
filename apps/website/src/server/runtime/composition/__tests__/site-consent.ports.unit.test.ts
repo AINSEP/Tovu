@@ -67,19 +67,20 @@ test("renderPage renders the same-origin path through a consent-audit site app",
 });
 
 test('privacy defaults wait for the dependency literal, then bind title, owner, settings and outbox', async () => {
-  const { InMemorySettingsRepo } = await import('@jini-ai/core/settings');
+  const { InMemorySettingsRepo, ensureSettingDefinitions } = await import('@jini-ai/core/settings');
   const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('@jini-ai/cookie-consent/site/settings');
   const { InMemoryOutbox } = await import('#src/contracts/core/events/index');
   const { ensureSiteConsentPrivacy } = await import('../site-consent.js');
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
-  const { InMemorySiteTitlePreservationStore } = await import('#src/features/settings/site-title');
-  const { ensureSiteTitleSettingDefinition } = await import('#src/features/settings/site-title');
+  const { InMemorySiteTitlePreservationStore } = await import('@jini-ai/cms/settings/site/site-title');
+  const { ensureSiteTitleSettingDefinition } = await import('@jini-ai/cms/settings/site/site-title');
+  const { LEGACY_SITE_TITLE } = await import('#src/features/settings/site-title-legacy');
   const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo({});
   let count = 0; const ids = { newId: () => `binding-${++count}` };
   const clock = { nowMs: () => Date.parse('2026-10-22T00:00:00.000Z'), nowIso: () => '2026-10-22T00:00:00.000Z' };
   const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
   const settingDeps = { settingsRepo, clock, ids, principals };
-  await ensureSiteTitleSettingDefinition(settingDeps, { systemPrincipalId: 'system' });
+  await ensureSiteTitleSettingDefinition({ ...settingDeps, ensureSettingDefinitions }, { systemPrincipalId: 'system', legacySiteTitle: LEGACY_SITE_TITLE });
   await ensureSiteConsentDefinitions(settingDeps, { systemPrincipalId: 'system' });
   const users: unknown[] = []; const html: string[] = [];
   const outbox = new InMemoryOutbox();

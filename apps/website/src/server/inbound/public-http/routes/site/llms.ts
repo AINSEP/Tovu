@@ -1,6 +1,7 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { computeIndexableEntries, renderLlmsTxt } from "@jini-ai/cms/seo";
-import { resolveSiteTitle } from "#src/features/settings/index";
+import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
+import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
@@ -37,7 +38,7 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options 
         input: { workspaceId: deps.workspaceId },
       }, {});
       const title = await resolveSiteTitle(
-        { settingsRepo: deps.settingsRepo, preservationStore: deps.siteTitlePreservationStore, workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName },
+        { settingsRepo: deps.settingsRepo, preservationStore: deps.siteTitlePreservationStore, workspaceRepo: deps.workspaceRepo, siteDisplayName: deps.siteDisplayName, ...siteTitleHostBindings },
         { workspaceId: deps.workspaceId },
       );
       const { defaultDescription: description } = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });

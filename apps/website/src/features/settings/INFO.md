@@ -20,3 +20,10 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   `createSiteTimeZonePort` through `ResolveSiteTimeZoneDeps`).
 - `site-timezone-fallback.ts` binds the `reportFallback` sink for `resolveSiteTimeZone`: fixed text plus
   `workspaceId` and `errorClass`, never the error's message.
+- `site-title-legacy.ts` owns `LEGACY_SITE_TITLE` ("Tovu Demo Site"), the product copy the engine's
+  `@jini-ai/cms/settings/site/site-title` takes as `legacySiteTitle`: on the registrar's and the
+  pin's input in both composition roots (`site-deps/identity-settings.ts`,
+  `memory-deps/slices/site-title-settings.ts`, which also bind `set` and `resolveDefinitionRaw` on
+  `preserveLegacySiteTitles`' deps), and through `siteTitleHostBindings` (the legacy title plus
+  `getEffective`) on every `resolveSiteTitle` call site (render context, `llms.ts`, `feed.ts`, the
+  templated preview, site consent).
