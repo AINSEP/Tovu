@@ -478,6 +478,10 @@ test("identity_user_create's published schema/description are a real derivation 
   assert.equal(registration.descriptor.description, `${catalog.description}${USER_CREATE_DESCRIPTION_SUFFIX}`);
 });
 
+test("observability_send_test_error publishes the host's own test-error message, byte-identical", () => {
+  assert.equal(wiredRegistration("observability_send_test_error").descriptor.description, "Send the fixed diagnostic 'Tovu test error — safe to ignore', one test span and one telemetry_test analytics event through this site's tracker. Requires admin system.write. No confirmation needed. Returns provider ids and signals accepted locally; this is not proof of remote delivery. Analytics still requires telemetry consent. Takes no arguments.");
+});
+
 test("requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever", () => {
   for (const [id, registration] of registrationsById()) {
     assert.equal(registration.descriptor.requiresConfirmation, undefined, `${id} must not request confirmation until a transport exists`);
