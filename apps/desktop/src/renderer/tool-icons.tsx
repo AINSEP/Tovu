@@ -5,7 +5,7 @@
  * `React` global only after imports, which `icons.tsx`'s module-level glyph tables cannot wait for.
  */
 import type { JSX } from 'react';
-import { IconFrame } from './icon-frame.js';
+import { IconFrame } from '@jini-ai/ui';
 
 export type ToolIconKind = 'rescan' | 'keys' | 'import' | 'sliders' | 'memory' | 'power' | 'restart';
 
@@ -73,7 +73,7 @@ function toolPath({ kind }: { kind: ToolIconKind }, _options = {}): JSX.Element 
 
 export function ToolIcon({ kind }: { kind: ToolIconKind }) {
   return (
-    <IconFrame>
+    <IconFrame className="icon">
       {toolPath({ kind })}
     </IconFrame>
   );

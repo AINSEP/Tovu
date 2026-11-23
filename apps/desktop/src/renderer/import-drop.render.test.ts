@@ -1,9 +1,11 @@
-/** Drag and drop on the Import page, from the real hook: the highlight, routing, and a busy page. */
+/** Drag and drop on the Import page, from Jini's real drop hook fed this page's classification: the
+ * highlight, routing, and a busy page. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import { renderHookWithView as renderHook } from './app-hooks.test-support.js';
-import { useImportDrop } from './use-import-drop.hooks.js';
+import { useClassifiedPathDrop } from '@jini-ai/ui';
+import { classifyImportDrop, classifyImportFiles } from './import-drop.js';
 
 const file = (name: string) => ({ name }) as File;
 const dropEvent = (files: File[], items: unknown[]) => ({
@@ -14,10 +16,12 @@ const fileItem = (isDirectory: boolean) => ({ kind: 'file', webkitGetAsEntry: ()
 
 function setup(t: { after: (fn: () => void) => void }, busy = false) {
   const seen: string[] = [];
-  const hook = renderHook(t, () => useImportDrop(
-    { busy, onFolder: ({ path }, _options = {}) => seen.push(`folder:${path}`), onArchive: ({ path }, _options = {}) => seen.push(`archive:${path}`), onRefused: (m) => seen.push(`refused:${m}`) },
-    { getPathForFile: (f) => `/x/${f.name}` },
-  ));
+  const getPathForFile = (f: File) => `/x/${f.name}`;
+  const hook = renderHook(t, () => useClassifiedPathDrop({
+    busy, onFolder: ({ path }, _options = {}) => seen.push(`folder:${path}`), onArchive: ({ path }, _options = {}) => seen.push(`archive:${path}`), onRefused: (m) => seen.push(`refused:${m}`),
+    classifyDrop: ({ dataTransfer }) => classifyImportDrop({ dataTransfer, getPathForFile }),
+    classifyFiles: ({ files }) => classifyImportFiles({ files, getPathForFile }),
+  }));
   return { hook, seen };
 }
 
