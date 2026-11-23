@@ -1,6 +1,6 @@
 import type { ConsentSettingsView } from '@jini-ai/cookie-consent/react';
 import { ApiError } from '@/lib/admin-http/request';
-import type { ConsentDraftSaved, ConsentRevisionsPort, ConsentSettingsSnapshot } from '../settings.hooks';
+import type { ConsentDraftSaved, ConsentRevisionsPort, ConsentSettingsSnapshot } from '@jini-ai/admin/screens/consent/settings.hooks';
 
 /** Shared fakes for the consent feature's tests: a full valid config and an in-memory port. */
 export const CONSENT_CONFIG: ConsentSettingsView = {
