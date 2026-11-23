@@ -43,3 +43,14 @@ The Jini site settings helpers never import the ledger functions; Tovu binds the
   `composition/agent-plugin-connections.ts`).
 - `tool-registrations.ts` binds `validateRuntimeSelection` (`@jini-ai/agent-runtime`) on
   `prepareChatExecutionWrite`, and narrows `SettingsToolDeps` to Tovu's `AssistantAgentInventory`.
+- Visitor-tools management lives in `@jini-ai/cms/settings/site/visitor-tools-*`.
+  `settings-write-policies.ts` binds Tovu's policy contract once as `VISITOR_TOOLS_HOST` (setting,
+  permission, limits, `VisitorToolPolicyValidationError`, `parseVisitorToolPolicy`, ...), passed as
+  `visitorTools` by `server/runtime/composition/visitor-tools-management.ts`.
+  `visitor-tools-agent-tools.ts` keeps the model-facing catalog copy and binds
+  `VISITOR_TOOLS_TOOL_HOST_POLICY` (catalog, tool metadata, approval-card engine, `VISITOR_TOOLS_HOST`)
+  for `contributeVisitorTools` at `tool-catalog-manifest.ts`. `visitor-tools-permissions.ts` stays: it
+  only registers Tovu's permission and owner/admin grants on the identity `PermissionGrantRegistry`.
+- Site-setting publishing lives in `@jini-ai/cms/settings/site/publish-content`;
+  `server/runtime/composition/publish-content-manifest.ts` binds `createRepoPublishHandler`,
+  `gatewayDeps`, `PUBLISHABLE_SETTINGS`, `SETTINGS_WRITE_POLICIES` and `createSettingsPrincipalLookup`.
