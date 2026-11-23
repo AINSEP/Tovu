@@ -2,6 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, RequestHandler, Response } from "express";
 
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import {
   connectAndRecordDestination,
   disconnectAndForgetDestination,
@@ -211,7 +212,7 @@ function createDestinationConnectHandler({ deps, own, guard }: { deps: PublishCo
         });
         return;
       }
-      const normalized = normalizePeerBaseUrl({ raw: String(raw) });
+      const normalized = normalizePeerBaseUrl({ raw: String(raw), hasForbiddenRawUrlCharacter });
       if ("error" in normalized) {
         res.status(400).json({ error: "That does not look like a website address.", code: "VALIDATION_ERROR" });
         return;

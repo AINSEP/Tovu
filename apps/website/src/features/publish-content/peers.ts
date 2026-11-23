@@ -5,6 +5,7 @@ import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/
 import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import type { SealedSecret } from "#src/features/webhooks/index";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
@@ -225,7 +226,7 @@ function requireBoundedField({ value, field }: { value: unknown; field: string }
 /** @complexity O(n) in the length of `raw`. */
 function requireBaseUrl({ raw }: { raw: unknown }, _optional = {}): string {
   const trimmed = requireBoundedField({ value: raw, field: "baseUrl" });
-  const result = normalizePeerBaseUrl({ raw: trimmed });
+  const result = normalizePeerBaseUrl({ raw: trimmed, hasForbiddenRawUrlCharacter });
   if ("error" in result) throw new PublishContentPeerValidationError({ message: result.error });
   return result.baseUrl;
 }
