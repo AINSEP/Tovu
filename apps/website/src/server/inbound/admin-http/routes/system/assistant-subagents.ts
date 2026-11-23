@@ -6,7 +6,7 @@ import { resolveHostSignals } from "#src/server/runtime/composition/host-signals
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { readAssistantCliPermissions } from "#src/assistant/runtime-settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
-import { rejectSettingsRequest } from "../settings/shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 import type { Express } from "express";
 
@@ -43,18 +43,18 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
       const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
       const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
       if (malformed || unknownCapability) {
-        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
+        rejectRoute({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
       }
       return assistantCliPermissions({ enabled: body.enabled as boolean,
         ...(overrides ? { capabilities: overrides as Partial<Record<AssistantCliCapability, boolean>> } : {}) });
     },
     prepareWrite: async ({ body, settings, previous }) => {
       if (body.agentId !== undefined && (typeof body.agentId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(body.agentId))) {
-        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Choose a valid agent." });
+        rejectRoute({ status: 400, code: "VALIDATION_ERROR", error: "Choose a valid agent." });
       }
       const layer = await readCliPermissionLayer({ ...required.deps, principalId: await required.deps.ownerPrincipalId });
       if (body.expectedRevisionSeq !== undefined && body.expectedRevisionSeq !== layer.revisionSeq) {
-        rejectSettingsRequest({ status: 409, code: "REVISION_CONFLICT", error: "Agent permissions changed. Read them again before saving." });
+        rejectRoute({ status: 409, code: "REVISION_CONFLICT", error: "Agent permissions changed. Read them again before saving." });
       }
       return { value: patchCliPermissionLayer({ raw: layer.raw, defaults: typeof body.agentId === "string" ? previous : settings,
         ...(typeof body.agentId === "string" ? { agentId: body.agentId, capabilities: body.capabilities as Partial<Record<AssistantCliCapability, boolean>> } : {}) }), revisionSeq: layer.revisionSeq };

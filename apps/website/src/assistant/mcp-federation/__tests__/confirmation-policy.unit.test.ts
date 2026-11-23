@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMcpSession } from "../adapter.memory.js";
 import { federateSession } from "../registrations.js";
-import type { ToolApprovalClass } from "../../../contracts/headless/index.js";
+import type { ToolApprovalClass } from "@jini-ai/core/contracts/site/tool-metadata-approval-policy";
 
 async function run(name: string, input: Record<string, unknown>, annotations?: Record<string, boolean>, allow = true) {
   const session = new InMemoryMcpSession({tools: [{name, inputSchema: {type: "object"}, ...(annotations ? {annotations} : {})}]});

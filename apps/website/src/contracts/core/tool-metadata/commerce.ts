@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from './approval-policy.js';
+import type { ToolApprovalPolicy } from '@jini-ai/core/contracts/site/tool-metadata-approval-policy';
 
 /** The handler owns its human card; plan admits its callback without a second policy prompt. */
 export const toolMetadata = {

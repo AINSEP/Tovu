@@ -20,7 +20,8 @@ import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 
 /**

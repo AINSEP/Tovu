@@ -1,0 +1,58 @@
+# gates: base f7185f153a vs final (timings normalised); Jini merge-14 4902a6a1 linked in both
+=== size
+=== boundaries
+172c172
+< x 112 dependency violations (0 errors, 112 warnings). 6773 modules, 47138 dependencies cruised.
+---
+> x 112 dependency violations (0 errors, 112 warnings). 6775 modules, 47157 dependencies cruised.
+=== admin-tsc
+1,6d0
+< src/__tests__/render-with-jini-kits.tsx(23,104): error TS2769: No overload matches this call.
+<   The last overload gave the following error.
+<     Property 'values' is missing in type '{ components: { Button: React.ForwardRefExoticComponent<Omit<ButtonProps, "ref"> & React.RefAttributes<HTMLButtonElement>>; ... 17 more ...; ErrorNotice: ({ failure, disclosure, t, className, role, useErrorNoticeHook, ...ports }: ErrorNoticeProps & { useEr
+< src/integrations/jini-kits.ts(20,3): error TS2741: Property 'Icon' is missing in type '{ Button: React.ForwardRefExoticComponent<Omit<ButtonProps, "ref"> & React.RefAttributes<HTMLButtonElement>>; IconButton: React.ForwardRefExoticComponent<...>; ... 16 more ...; ErrorNotice: ({ failure, disclosur
+< src/integrations/jini-kits.ts(22,3): error TS2741: Property 'useT' is missing in type '{ useAgentHandle: (required: AgentControlProps, _optional?: Record<string, never>) => string | undefined; useFocusTrap: ({ containerRef }: { containerRef: React.RefObject<HTMLElement | null>; }, { active }?: { a
+< src/main.tsx(89,25): error TS2741: Property 'values' is missing in type '{ components: { Button: React.ForwardRefExoticComponent<Omit<ButtonProps, "ref"> & React.RefAttributes<HTMLButtonElement>>; ... 17 more ...; ErrorNotice: ({ failure, disclosure, t, className, role, useErrorNoticeHook, ...port
+=== errors
+=== complexity
+=== typecheck-scripts
+=== why-comments
+5c5
+< why-comments: 3180 files with removed lines checked against origin/refactor/terra..HEAD, 466 comment blocks lost (386 allow-listed)
+---
+> why-comments: 3254 files with removed lines checked against origin/refactor/terra..HEAD, 468 comment blocks lost (388 allow-listed)
+=== architecture
+5c5
+< check:architecture — 2271 files, 73 modules, production files only
+---
+> check:architecture — 2270 files, 73 modules, production files only
+8c8
+<   propagation cost (all-import)                        12.45%
+---
+>   propagation cost (all-import)                        12.44%
+15,16c15,16
+<     └ deep-import edges (informational)                2812
+<   bidirectional hub count                              13.78% (313/2271)
+---
+>     └ deep-import edges (informational)                2813
+>   bidirectional hub count                              13.79% (313/2270)
+82c82
+<   propagation cost (all-import) improved: 15.52 → 12.45
+---
+>   propagation cost (all-import) improved: 15.52 → 12.44
+92c92
+<   improved:  propagation cost (all-import)       15.52 → 12.45  (-3.07 pts, -19.78%)
+---
+>   improved:  propagation cost (all-import)       15.52 → 12.44  (-3.08 pts, -19.85%)
+=== typecheck
+=== typecheck-tests
+=== hooks
+=== worker-import-graph
+34c34
+< ℹ duration_ms 20756.998432
+---
+> ℹ duration_ms 14675.243603
+=== desktop-tsc-preload
+=== desktop-tsc-live-verify
+=== desktop-tsc-renderer
+=== desktop-tsc-main
