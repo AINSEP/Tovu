@@ -1,4 +1,4 @@
-import type { TotpSettingsPort } from '@jini-ai/user-management/react';
+import type { TotpSettingsPort } from '@jini-ai/core/contracts/site/user-management-react';
 import { requestOnce } from './admin-http/request';
 
 /** Thin site transport: single-send writes never replay a proof after a lost response.

@@ -131,7 +131,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 import { META_TOOL_DESCRIPTORS } from '../byok-tool-surface.js';
 import { buildBaseSystemOverlay } from '../../server/inbound/assistant/assistant-system-overlay.js';

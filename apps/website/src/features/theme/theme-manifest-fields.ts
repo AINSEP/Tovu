@@ -1,4 +1,4 @@
-import type { DeclaredScript } from "@jini-ai/cookie-consent";
+import type { DeclaredScript } from "@jini-ai/core/contracts/site/cookie-consent";
 import { type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
 import { readFileSync } from "node:fs";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";

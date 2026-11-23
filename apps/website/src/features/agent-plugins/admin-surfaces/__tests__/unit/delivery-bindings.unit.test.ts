@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AdminSurfaceActionError, type AdminSurfaceDeliveryBindingDraft } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 

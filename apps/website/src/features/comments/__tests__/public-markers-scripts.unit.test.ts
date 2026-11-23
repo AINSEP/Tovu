@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCommentsProviderRegistry, type CommentsProviderDefinition, type CommentsProviderAdapter } from '@jini-ai/capability-providers/comments';
-import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import { renderCommentsMarkers } from '../public-markers.js';
 
 const entry = { id: 'entry', slug: 'story', title: 'Story', canonicalUrl: '/story', status: 'published' };

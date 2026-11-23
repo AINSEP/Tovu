@@ -8,7 +8,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/widgets.js";
  * (`toolMetadata`), and the default surface store.
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildWidgetsToolRegistrations, widgetsDerivedRisk, type WidgetsPackageToolDeps } from "@jini-ai/cms/widgets";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";

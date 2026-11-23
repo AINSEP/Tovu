@@ -1,4 +1,4 @@
-import type { ConsentState, DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
+import type { ConsentState, DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
 
 /** The one switch's payload: present = this engine serves the site. */
 export interface SiteCookieConsentDeps {

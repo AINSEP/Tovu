@@ -1,4 +1,4 @@
-import type { MembersPort } from "@jini-ai/user-management/react";
+import type { MembersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { membersApi } from "@/features/members/api/members-api";
 
 /**

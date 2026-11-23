@@ -1,6 +1,13 @@
 import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/core/contracts/events";
-import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryBinding, type FormDeliveryPlan,
-  type FormDeliveryPlanPort, type FormDeliveryQueuedJob } from "@jini-ai/cms/forms";
+import {
+  FORM_DELIVERY_EVENT,
+  InMemoryFormDefinitionRepo,
+  InMemoryFormSubmissionRepo,
+  type FormDeliveryPlan,
+  type FormDeliveryPlanPort,
+  type FormDeliveryQueuedJob,
+} from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution, type AdminSurfaceActionOutcome } from "@jini-ai/agent-plugins/admin-surfaces";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";

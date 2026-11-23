@@ -1,7 +1,7 @@
 /** Tovu-specific admission and member-login host data for Jini's HTML plugin-export port. */
 import { escapeHtml } from "@jini-ai/core/text";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
-import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/cms/widgets/html";
+import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/core/contracts/site/widgets-html";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
 export type { PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
 import type { LoginProvider } from "@jini-ai/user-management/server";

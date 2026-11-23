@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { loadCredentialSchemeRegistryFromSource, type CredentialSchemeRule } from "../../agent-plugins/auth-schemes.js";
+import { loadCredentialSchemeRegistryFromSource } from "../../agent-plugins/auth-schemes.js";
+import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 
 /**
  * @file Test fixture: the self-describing token scheme rules read straight from the neutral

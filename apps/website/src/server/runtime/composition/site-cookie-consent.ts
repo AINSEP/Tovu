@@ -1,6 +1,6 @@
 /** @file Composition for declared-script consent and the server analytics gate. */
 import type { Request } from 'express';
-import type { RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
+import type { RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
 import { loadSiteConsentBridges, loadSiteConsentScripts, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
 import type { RouteDeps } from '#src/server/routes/types';

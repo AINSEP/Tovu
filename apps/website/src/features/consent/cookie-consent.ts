@@ -4,7 +4,7 @@
  * rejectLabel, preferencesLabel, privacyPolicyUrl, secondaryLink*, placement, appearance and
  * customCss map one to one. No Node, no engine state: preview, live pages and exports share it. */
 import { renderBanner, CONSENT_PLACEMENTS, type ConsentPlacement, type RenderBannerConfig, type RenderBannerOptions, type RenderedBanner } from '@jini-ai/cookie-consent/render';
-import type { RawContribution } from '@jini-ai/cookie-consent';
+import type { RawContribution } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { SiteConsentBannerMode } from './config.js';
 
 /** The saved site config fields the converter reads (a superset is fine). */

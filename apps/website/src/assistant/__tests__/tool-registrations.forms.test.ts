@@ -1,5 +1,5 @@
 import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 3 Forms tools, the union of what

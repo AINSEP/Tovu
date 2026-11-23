@@ -8,7 +8,7 @@ export type AgentPluginMcpPort = PortableAgentPluginMcpPort<import("@jini-ai/cor
 export type AgentPluginMcpServicesPort = PortableAgentPluginMcpServicesPort<import("@jini-ai/core/contracts/site/daemon").ToolAccessChange>;
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
-import type { ApiConnectionConnectStatus } from "@jini-ai/integrations/api-connections";
+import type { ApiConnectionConnectStatus } from "@jini-ai/core/contracts/site/integrations-api-connections";
 
 
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */

@@ -1,4 +1,4 @@
-import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { ThemeTemplateFor } from "@jini-ai/cms/themes/template-applicability";

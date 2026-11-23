@@ -2,7 +2,7 @@
 // @jini-ai/agent-plugins, so it reads the composed bundle the build ships (see the fixture).
 import "../../features/agent-plugins/__tests__/fixtures/composed-bundle-env.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import type { AssistantPermanentDeletesPolicy } from '../../contracts/headless/index.js';
+import type { AssistantPermanentDeletesPolicy } from '@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy';
 import { createContributionRegistry, createToolRegistry } from '@jini-ai/core';
 import { createInMemorySearchState, createStaticAccessPort } from '@jini-ai/search/testkit';
 import type { ToolContributor, DerivedToolContributor } from '../index.js';

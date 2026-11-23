@@ -18,7 +18,7 @@ import { publishStaticSite } from "#src/features/deployments/static-publish/adap
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { formDestinationKey, listFormDestinations, loadFormDestinationRegistryFromSource } from "../index.js";
 import { createFormDestinationPort } from "../port.js";
-import type { FormDestinationForm } from "@jini-ai/cms/forms";
+import type { FormDestinationForm } from "@jini-ai/core/contracts/site/cms-forms";
 
 /**
  * @file Compatibility regression for the first site that published forms before destinations were

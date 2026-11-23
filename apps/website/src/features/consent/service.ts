@@ -1,5 +1,5 @@
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
-import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { formatErrorForLog, ToolInputError } from '@jini-ai/core';

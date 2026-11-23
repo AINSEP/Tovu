@@ -9,7 +9,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildSeoToolRegistrations, seoDerivedRisk, type createSitemapService, type SeoPackageToolDeps } from "@jini-ai/cms/seo";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";

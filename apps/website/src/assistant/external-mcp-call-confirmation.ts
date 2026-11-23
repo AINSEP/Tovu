@@ -37,7 +37,8 @@ import {
 } from "@jini-ai/mcp/federation/approvals";
 import { notConfirmedResult, approvalToolHandler, type HumanConfirmSpec } from "../contracts/core/human-confirm.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
+import type { ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { toJiniConversationApprovalStore, toJiniToolApprovalRepo } from "./external-mcp-tool-approval-adapters.js";
 import type { FederatedPolicyConfirmationRequest, FederationDeps } from "./mcp-federation/registrations.js";
 import { tovuFederationMessages, TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "./mcp-federation/presets.js";

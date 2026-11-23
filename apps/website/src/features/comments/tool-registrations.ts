@@ -8,7 +8,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildCommentsToolRegistrations, commentsDerivedRisk, type CommentRepoPort, type CommentsPackageToolDeps, type CommentWriteService } from "@jini-ai/cms/comments";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -1,4 +1,4 @@
-import type { FormDeliveryJobStatus } from "@jini-ai/cms/forms";
+import type { FormDeliveryJobStatus } from "@jini-ai/core/contracts/site/cms-forms";
 
 /**
  * @file The read port `forms_delivery_status` uses to report durable form delivery. Declared as a contract,

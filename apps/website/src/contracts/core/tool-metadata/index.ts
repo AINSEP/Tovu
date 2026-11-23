@@ -17,7 +17,7 @@ import { toolMetadata as assistant } from './assistant.js';
 import { toolMetadata as change_sets } from '@jini-ai/core/tool-metadata/change-sets';
 import { toolMetadata as comments } from './comments.js';
 import { toolMetadata as content_duplication } from '@jini-ai/core/tool-metadata/content-duplication';
-import { toolMetadata as content_read } from '@jini-ai/core/tool-metadata/content-read';
+import { toolMetadata as content_read } from './content-read.js';
 import { toolMetadata as content_types } from '@jini-ai/core/tool-metadata/content-types';
 import { toolMetadata as custom_credentials } from '@jini-ai/core/tool-metadata/custom-credentials';
 import { toolMetadata as database } from '@jini-ai/core/tool-metadata/database';

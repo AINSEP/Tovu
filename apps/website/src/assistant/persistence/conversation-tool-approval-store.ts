@@ -7,7 +7,7 @@
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 
-import type { ConversationToolApprovalStore } from "../external-mcp-tool-approval-ports.js";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 
 /**
  * A {@link ConversationToolApprovalStore} over the chat kernel: one Kysely body for every dialect.

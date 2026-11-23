@@ -3,7 +3,8 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express, Request, Response } from "express";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
-import { createRateLimiter, resolveClientIp, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
+import { createRateLimiter, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import {
   issuePublishChallenge,
   verifyChallengeResponse,

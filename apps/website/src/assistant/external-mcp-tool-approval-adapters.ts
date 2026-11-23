@@ -8,7 +8,8 @@ import {
   InMemoryExternalMcpToolApprovalRepo as SharedMemoryRepo,
   createInMemoryConversationToolApprovalStore as createSharedMemoryStore,
 } from "@jini-ai/mcp/federation/testing";
-import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRecord, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
+import type { ExternalMcpToolApprovalRecord, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 
 /** Bind a required workspace once; shared code cannot choose or omit the SQL partition.
  * @complexity O(1); returned operations retain the host repository's costs and errors.

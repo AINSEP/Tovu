@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { InMemorySettingsRepo, type SettingValueRecord } from "@jini-ai/core/settings";
 
 import { FormDeliveryBindingsConflictError, guardedBindingsRepo } from "../form-delivery-write.js";

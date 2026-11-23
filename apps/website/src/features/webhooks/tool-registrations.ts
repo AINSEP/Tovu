@@ -9,7 +9,7 @@
 import { withToolMetadata, type ToolContributor, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { contentReadVocabulary } from "@jini-ai/core/tool-metadata/content-read";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import {
   buildWebhooksToolRegistrations,
   webhooksDerivedRisk,
