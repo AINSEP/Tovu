@@ -9,8 +9,8 @@ import express from "express";
 import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
-import { registerAdminAssistantDetectAgentsRoute } from "../detect-agents.js";
+import type { AssistantExecutionRouteDeps } from "#src/server/runtime/composition/modules/assistant-execution";
+import { registerAdminAssistantDetectAgentsRoute } from "#src/server/runtime/composition/modules/assistant-execution";
 import { registerAdminAssistantTestAgentRoute } from "#src/server/runtime/composition/modules/assistant-execution";
 
 const agent: DetectedAgent = {

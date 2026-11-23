@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
-import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
+import type { AssistantExecutionRouteDeps } from "#src/server/runtime/composition/modules/assistant-execution";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 /**

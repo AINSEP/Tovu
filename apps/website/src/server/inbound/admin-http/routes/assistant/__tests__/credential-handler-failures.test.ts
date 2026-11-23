@@ -13,7 +13,7 @@ import { InMemorySettingsRepo, createSettingsPrincipalLookup, set, type Resolved
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "../deps.js";
+import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "#src/server/runtime/composition/modules/assistant-settings";
 import {
   registerAdminAssistantGetExecutionCredentialRoute, registerAdminAssistantPutExecutionCredentialRoute,
   registerAdminAssistantDeleteExecutionCredentialRoute, registerAdminAssistantGetSiteCredentialRoute,
