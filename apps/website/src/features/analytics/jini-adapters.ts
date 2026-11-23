@@ -1,4 +1,4 @@
-import type { BrowserAnalyticsSource, VisitorAnalyticsDeps } from "./contracts.js";
+import type { BrowserAnalyticsSource, VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 /** Tovu ports/presets around the shared ingestion engine; no normalization or buffer logic lives here. */
 import {
   createFanOutAnalyticsSink,
