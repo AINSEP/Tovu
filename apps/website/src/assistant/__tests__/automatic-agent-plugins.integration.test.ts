@@ -19,7 +19,7 @@ import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type Du
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
 import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from '../ask-choice-tool.js';
-import { ensureAdminInterfaceSettingDefinitions } from '../../features/settings/admin-interface.js';
+import { ensureAdminInterfaceSettingDefinitions } from '@jini-ai/cms/settings/site/admin-interface';
 import { createSettingsPrincipalLookup, set } from '../../features/settings/index.js';
 import { pluginPreflightFixture } from "#src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.fixture";
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';

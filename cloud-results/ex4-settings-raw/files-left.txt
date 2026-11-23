@@ -1,0 +1,4 @@
+P9 scanner: plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 (18f1b17c0), run on a clean tree of each commit. FILES-LEFT = moving + shells (areaStats src sum + shells.json).
+base f7185f153 (worktree): moving 2483 shells 3 total 2486; scanner theme areas (theme + adm-themes) 111; excl theme areas 2375. Lane areas: settings 25, analytics 9, seo 5, site-search 4, redirects 5, consent 13
+tip (codex/ex4-settings-tovu): moving 2471 shells 3 total 2474; theme areas 111; excl theme areas 2363. Lane areas: settings 19, analytics 7, seo 4, site-search 3, redirects 5, consent 13 (admin seo: 2 files in the adm areas)
+delta -12 (X-settings-1 6, X-analytics-1 2, X-seo-1 1, X-site-search-1 1, A-K2-seo-1 2)

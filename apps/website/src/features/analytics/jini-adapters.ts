@@ -11,7 +11,7 @@ import {
   type IngestHitDeps,
   type IngestHitOptional,
 } from "@jini-ai/analytics";
-import type { AnalyticsSinkPort, IngestDeps } from "./ports.js";
+import type { AnalyticsSinkPort, IngestDeps } from "@jini-ai/analytics/site/ports";
 import type { NormalizedHit } from "@jini-ai/analytics";
 
 /**

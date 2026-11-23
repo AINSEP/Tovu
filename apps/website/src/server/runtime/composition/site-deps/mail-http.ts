@@ -24,7 +24,7 @@ import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origi
 import { formsMailOutboxReady } from "@jini-ai/cms/forms/site/mail-outbox-readiness";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
-import { readMailSenderSetting } from "#src/features/settings/index";
+import { readMailSenderSetting } from "@jini-ai/cms/settings/site/mail-sender";
 import { resolvePublishContentPeerHttpClient } from "../publish-content-http.js";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 

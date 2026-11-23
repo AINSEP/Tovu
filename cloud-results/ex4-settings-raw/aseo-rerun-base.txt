@@ -1,0 +1,3 @@
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx | Tests  52 passed | exit 0
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx | Tests  99 passed | exit 0
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx | Tests  140 passed | exit 0

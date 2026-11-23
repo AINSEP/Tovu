@@ -3488,6 +3488,26 @@
     {
       "id": "319b30ec56cf",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness.ts describePublishReadiness (K5-publish-content-1); \"says so in plain language\" reworded to \"Every sentence comes from the host's copy\"; check-order rationale verbatim."
+    },
+    {
+      "id": "bb9820c2f2c3",
+      "reason": "Moved to Jini @jini-ai/admin screens/seo/__tests__/seo-i18n-parity.unit.test.ts (A-K2-seo-1, Jini 18b88b85); product name reworded to \"the host\"."
+    },
+    {
+      "id": "4169a8aeb530",
+      "reason": "Moved to Jini @jini-ai/analytics/site/ports (X-analytics-1, Jini 65febfe6); product name reworded to \"the host\"."
+    },
+    {
+      "id": "75a11b5d85df",
+      "reason": "Moved to Jini @jini-ai/analytics/site/ports (X-analytics-1, Jini 65febfe6); the plugin hooks file name reworded neutral."
+    },
+    {
+      "id": "b5fdee0c100a",
+      "reason": "Moved to Jini @jini-ai/cms/seo/site/page-head-contributor (X-seo-1, Jini 31c512b2); product name reworded to \"the host\"."
+    },
+    {
+      "id": "35104b28f367",
+      "reason": "Moved to Jini @jini-ai/cms/settings/site/admin-interface (X-settings-1, Jini 37902e97); product name reworded to \"the host\"."
     }
   ]
 }

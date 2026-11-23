@@ -14,7 +14,8 @@ import test from "node:test";
 import { getEffective, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
-import { createSettingsPrincipalLookup, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE, set } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
+import { MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE } from "@jini-ai/cms/settings/site/mail-sender";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 

@@ -2,7 +2,7 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import type { SetValueRequired, SettingsRepoPort } from "@jini-ai/core/settings";
 
-import { readFormDeliveryBindings } from "./form-delivery.js";
+import { readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { set } from "./site-title-write.js";
 
 /**

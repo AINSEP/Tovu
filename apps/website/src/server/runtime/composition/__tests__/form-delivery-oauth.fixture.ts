@@ -26,7 +26,8 @@ import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhoo
 import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { composeFormDelivery } from "../form-delivery.js";
 import { composeFormDeliveryDeliverer } from "../form-delivery-deliverer.js";

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { buildSeoSettingsPatch, goToSeoTab, resolveSeoTabs, sitemapStateLabel, mountSeoHost, disposeSeoHost } from "./seo-host.harness";
-import { t } from "../seo-i18n";
+import { t } from "@jini-ai/admin/screens/seo/seo-i18n";
 
 const originalUrl = window.location.href;
 beforeEach(mountSeoHost);
