@@ -1,3 +1,6 @@
+import {
+  createPolicy, createRole, deletePolicy, deleteRole, updatePolicy, updateRole, writePolicyPermission,
+} from "@jini-ai/user-management/server";
 import { policyCreateRoute } from "@jini-ai/user-management/admin-http/routes/users/create-policy";
 import { roleCreateRoute } from "@jini-ai/user-management/admin-http/routes/users/create-role";
 import { policyDeleteRoute } from "@jini-ai/user-management/admin-http/routes/users/delete-policy";
@@ -16,8 +19,9 @@ import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar 
  * `createUsersModule` (`modules/users.ts`) keeps the registration order and imports these
  * registrars by their old names. `UsersRouteDeps` is read only here, at registration: each mount
  * builds that route's own small deps object. What the specs need from Tovu is injected here: the
- * identity services' deps bag (it binds Tovu's rename port) and the permissions no role may be
- * granted (the publishing backstop).
+ * identity services' deps bag (it binds Tovu's rename port), the permissions no role may be
+ * granted (the publishing backstop), and each route's one identity service function, bound from
+ * the `@jini-ai/user-management/server` node entry (the specs only see its type).
  *
  * Every route here is authorized inside the identity service (`role.manage`), never by the route,
  * so the mount mode is `"direct"`: none of them ever consulted the publishing-credential override.
@@ -45,32 +49,32 @@ function mountOptions(operation: string) {
 }
 
 export const registerAdminRoleCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleCreateRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/create-role"));
+  mountAdminJsonRoute({ app, spec: roleCreateRoute, deps: { ...accessDeps({ deps }), createRole } }, mountOptions("routes/users/create-role"));
 };
 
 export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleUpdateRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/update-role"));
+  mountAdminJsonRoute({ app, spec: roleUpdateRoute, deps: { ...accessDeps({ deps }), updateRole } }, mountOptions("routes/users/update-role"));
 };
 
 export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: roleDeleteRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/delete-role"));
+  mountAdminJsonRoute({ app, spec: roleDeleteRoute, deps: { ...accessDeps({ deps }), deleteRole } }, mountOptions("routes/users/delete-role"));
 };
 
 export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyCreateRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/create-policy"));
+  mountAdminJsonRoute({ app, spec: policyCreateRoute, deps: { ...accessDeps({ deps }), createPolicy } }, mountOptions("routes/users/create-policy"));
 };
 
 export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyUpdateRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/update-policy"));
+  mountAdminJsonRoute({ app, spec: policyUpdateRoute, deps: { ...accessDeps({ deps }), updatePolicy } }, mountOptions("routes/users/update-policy"));
 };
 
 export const registerAdminPolicyDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: policyDeleteRoute, deps: accessDeps({ deps }) }, mountOptions("routes/users/delete-policy"));
+  mountAdminJsonRoute({ app, spec: policyDeleteRoute, deps: { ...accessDeps({ deps }), deletePolicy } }, mountOptions("routes/users/delete-policy"));
 };
 
 export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   const writeDeps = {
-    ...accessDeps({ deps }),
+    ...accessDeps({ deps }), writePolicyPermission,
     ungrantablePermissions: UNGRANTABLE_ROLE_PERMISSIONS, ungrantablePermissionRefusal: UNGRANTABLE_ROLE_PERMISSION_REFUSAL,
   };
   mountAdminJsonRoute({ app, spec: policyPermissionWriteRoute, deps: writeDeps }, mountOptions("routes/users/write-policy-permission"));

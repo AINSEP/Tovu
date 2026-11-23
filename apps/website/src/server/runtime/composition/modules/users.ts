@@ -10,7 +10,7 @@ import { userUpdateRoute } from "@jini-ai/user-management/admin-http/routes/user
 import {
   assertCallerHasAnyPermission, assignRole, attachPolicy, createUser, disablePrincipal, enablePrincipal, normalizeUsername, resetUserPassword, updateUser,
 } from "@jini-ai/user-management/server";
-import { assertUserAccountAction, SelfDeleteError, trashUser, userAccountProtection } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction, SelfDeleteError, trashUser, UserInTrashError, userAccountProtection } from "#src/features/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "#src/server/inbound/admin-http/routes/users/deps";
@@ -82,6 +82,7 @@ function userServiceDeps({ deps }: { deps: UsersRouteDeps }, _optional: Record<s
 
 /** The host's own error classes, handed to the specs as predicates (the engine cannot `instanceof` them). */
 const isSelfDeleteError = ({ err }: { err: unknown }) => err instanceof SelfDeleteError;
+const isUserInTrashError = ({ err }: { err: unknown }) => err instanceof UserInTrashError;
 const isUserDeleteUnsupportedError = ({ err }: { err: unknown }) => err instanceof UserDeleteUnsupportedError;
 
 export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -97,7 +98,7 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = ({ app, deps },
 };
 
 export const registerAdminUserUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userUpdateRoute, deps: { ...userServiceDeps({ deps }), updateUser } }, mountOptions("routes/users/update"));
+  mountAdminJsonRoute({ app, spec: userUpdateRoute, deps: { ...userServiceDeps({ deps }), updateUser, isUserInTrashError } }, mountOptions("routes/users/update"));
 };
 
 export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -106,12 +107,12 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }
 };
 
 export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
-  mountAdminJsonRoute({ app, spec: userEnableRoute, deps: { ...userServiceDeps({ deps }), enablePrincipal, assertCallerHasAnyPermission } }, mountOptions("routes/users/enable"));
+  mountAdminJsonRoute({ app, spec: userEnableRoute, deps: { ...userServiceDeps({ deps }), enablePrincipal, assertCallerHasAnyPermission, isUserInTrashError } }, mountOptions("routes/users/enable"));
 };
 
 /** The reset-password mount's deps; exported so a wire test can swap only the account guard. */
 export function userResetPasswordRouteDeps({ deps }: { deps: UsersRouteDeps }, _optional: Record<string, never> = {}) {
-  return { ...userServiceDeps({ deps }), resetUserPassword, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isSelfDeleteError };
+  return { ...userServiceDeps({ deps }), resetUserPassword, ownerPrincipalId: deps.ownerPrincipalId, assertUserAccountAction, isUserInTrashError, isSelfDeleteError };
 }
 
 export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {

@@ -6,7 +6,7 @@ import type { MfaFactor, MfaPending, MfaStore } from '@jini-ai/user-management/s
 import { createRouteDeps } from '../../../runtime/composition/app.js';
 import { createCapturingResponse, extractRouteHandler } from '../../../__tests__/helpers/http-test-server.js';
 import { registerAuthRoutes } from '../dev-auth.js';
-import { registerAdminUserResetPasswordRoute } from '../routes/users/reset-password.js';
+import { registerAdminUserResetPasswordRoute } from '#src/server/runtime/composition/modules/users';
 import { ownerMfaDepsFrom } from '#src/server/runtime/composition/modules/owner-auth';
 
 /** The real HTTP handlers + Jini verifier, with only persistence held in a deterministic fixture. */

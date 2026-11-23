@@ -9,7 +9,9 @@ import { registerAdminNewsletterResendConfirmationRoute } from "#src/server/inbo
 import { registerPublicNewsletterConfirmRoute } from "#src/server/inbound/public-http/routes/site/newsletter-confirm";
 import type { NewsletterPublicRouteDeps } from "#src/server/inbound/public-http/routes/site/newsletter-deps";
 import { registerPublicNewsletterUnsubscribeRoute } from "#src/server/inbound/public-http/routes/site/newsletter-unsubscribe";
+import { describeRequestFailure } from "@jini-ai/core";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { newsletterCancelCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/cancel-campaign";
 import { newsletterCreateCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/create-campaign";
 import { newsletterGetCampaignRoute } from "@jini-ai/cms/admin-http/routes/newsletter/get-campaign";
@@ -89,11 +91,21 @@ const consoleLogger = createConsoleLogger({ prefix: "" });
  * (`features/newsletter/http-error-responses.ts`).
  */
 
-/** Every newsletter mount answers an unexpected failure with the copy the hand-written routes' shared
- *  `newsletterErrorToResponse` fallback used (operation `http/newsletter`, code `INTERNAL_ERROR`), and
- *  authorizes `"direct"`: `requireNewsletterPermissionOrRespond` called `authorizeDirectOrRespond`, so
- *  a publishing credential's grant was never consulted. Switching that is an authorization change. */
-const NEWSLETTER_MOUNT = { authorization: "direct", failure: { operation: "http/newsletter" } } as const;
+/** The 500 copy the hand-written routes' shared `newsletterErrorToResponse` fallback wrote. It called
+ *  `adminFailureResponse` with the operation only — no method or route — so the copy was always the
+ *  operation's ("The newsletter operation could not be completed."). The failure port passes the
+ *  request's method and route template, which would pick route-specific copy for some paths ("The
+ *  newsletters could not be loaded."), so the operation-only copy is pinned here as the override. */
+const NEWSLETTER_FAILURE_COPY = describeRequestFailure({ operation: "http/newsletter", vocabulary: ADMIN_FAILURE_VOCABULARY });
+
+/** Every newsletter mount answers an unexpected failure with that copy (operation `http/newsletter`, code
+ *  `INTERNAL_ERROR`), and authorizes `"direct"`: `requireNewsletterPermissionOrRespond` called
+ *  `authorizeDirectOrRespond`, so a publishing credential's grant was never consulted. Switching that is
+ *  an authorization change. */
+const NEWSLETTER_MOUNT = {
+  authorization: "direct",
+  failure: { operation: "http/newsletter", message: NEWSLETTER_FAILURE_COPY.message, failure: NEWSLETTER_FAILURE_COPY },
+} as const;
 
 /** The port fields plus the base newsletter deps every spec reads. `authorize` is read per request, as
  *  the hand-written routes read `deps.authorize`, so a later reassignment of it is still honoured. */
