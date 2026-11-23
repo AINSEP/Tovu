@@ -3016,6 +3016,10 @@
     {
       "id": "a52372a5ad70",
       "reason": "SH-3 (ex2-holds-tovu, owner-approved): extract-s8-c1-source-scan.test.ts no longer reads the deleted sets/ shells; its @file now says the moved Jini code is scanned and the shells must be absent. The old clause about the Tovu sets/ files importing only @jini-ai/core described files that no longer exist."
+    },
+    {
+      "id": "ac059ae80d3e",
+      "reason": "Moved to Jini @jini-ai/cms/posts/post-before-save.ts (landed T-post-1.J; Tovu copy deleted by T-post-1.T); product SDK name reworded to the host SDK, rest identical."
     }
   ]
 }

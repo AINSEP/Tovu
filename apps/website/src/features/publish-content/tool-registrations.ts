@@ -50,7 +50,7 @@ import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/veri
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
-import type { BeforeSaveHookPort } from "#src/features/post/index";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { publishContentFromTool } from "./publish-tool.js";

@@ -1,0 +1,5 @@
+   × derivePostSlugBase leaves room for a collision suffix, trims a trailing dash, and falls back to untitled 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/posts/__tests__/slug.test.ts > derivePostSlugBase leaves room for a collision suffix, trims a trailing dash, and falls back to untitled
+      Tests  1 failed | 2 passed (3)
+      Tests  3 passed (3)

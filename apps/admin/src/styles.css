@@ -165,7 +165,10 @@ input[type="checkbox"], input[type="radio"] {
    outside what explicitly adopts them changes size or layout. */
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field input, .field select, .field textarea { width: 100%; }
-.field-label {
+/* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
+   Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
+.field-label,
+.jini-post-publishing__field > .jini-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
@@ -1081,19 +1084,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .page > .editor-action-row + .page-html-source,
 .page > .editor-action-row + .interactive-html-editor,
 .page > .editor-action-row + .post-editor-pane,
-.page > .editor-publishing-fields + .post-editor-pane {
+.page > .jini-post-publishing__fields + .post-editor-pane {
   margin-top: calc(-1 * var(--space-3));
 }
 
 /* Scheduled publishing + featured image (2026-10-05) — one compact row right under the action row it
    qualifies, pulled up by the same 12px idiom so the two read as one publishing block. */
-.page > .editor-publishing-fields {
+.page > .jini-post-publishing__fields {
   display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap;
   gap: var(--space-4);
   margin-top: calc(-1 * var(--space-3));
 }
-.editor-publishing-field { display: flex; align-items: center; gap: var(--space-2); }
-.editor-publishing-field .field-label { margin: 0; }
+.jini-post-publishing__field { display: flex; align-items: center; gap: var(--space-2); }
+.jini-post-publishing__field > .jini-field-label { margin: 0; }
 /* A featured asset that will not load (deleted, or a non-image saved before the server refused
    those) — an empty hatched box, never a broken image with spilled alt text. The cover slot sizes it;
    the settings Image tab's 2.25rem thumb it was first drawn for is gone (2026-10-11). */
@@ -1134,7 +1137,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 @media (hover: none), (max-width: 640px) {
   .post-cover-actions { opacity: 1; }
 }
-.editor-scheduled-badge {
+.jini-post-publishing__scheduled-badge {
   font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px;
   background: var(--surface-3); color: var(--muted);
 }
@@ -6726,10 +6729,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
 
   /* PO-3: labels start their own line; featured-image controls can still sit beside each other. */
-  .page > .editor-publishing-fields { justify-content: flex-start; align-items: stretch; }
-  .editor-publishing-fields > .editor-publishing-field { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
-  .editor-publishing-fields .field-label { flex-basis: 100%; text-align: left; }
-  .editor-publishing-fields input { width: 100%; min-width: 0; }
+  .page > .jini-post-publishing__fields { justify-content: flex-start; align-items: stretch; }
+  .jini-post-publishing__fields > .jini-post-publishing__field { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .jini-post-publishing__fields .jini-field-label { flex-basis: 100%; text-align: left; }
+  .jini-post-publishing__fields input { width: 100%; min-width: 0; }
 
   /* DE-3: keep the overview title intact, with the explanatory badge on the next line. */
   .deployment-path-head { flex-wrap: wrap; }

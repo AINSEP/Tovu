@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fet
 import { postsApi } from "@/features/posts/api/posts-api";
 import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
-import { PostPublishAtField } from "../PostPublishingFields";
+import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { formatUploadFailureMessage } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";

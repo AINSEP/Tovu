@@ -1,4 +1,4 @@
-import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "./slug.js";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "@jini-ai/cms/posts/slug";
 
 import { TIPTAP_TEXT_BODY_EXAMPLE } from "./post-tool-schemas.js";
 import { TIPTAP_MARK_SCHEMA, TIPTAP_TEXT_NODE_SCHEMA } from "./tiptap-text-schema.js";

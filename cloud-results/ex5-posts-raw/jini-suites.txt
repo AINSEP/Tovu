@@ -1,0 +1,7 @@
+/tmp/claude-0/-home-user/cc62893e-738d-5cf7-8b8b-7c7f76df6816/scratchpad/jini/cms-test.txt:⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+/tmp/claude-0/-home-user/cc62893e-738d-5cf7-8b8b-7c7f76df6816/scratchpad/jini/cms-test.txt: Test Files  1 failed | 430 passed (431)
+/tmp/claude-0/-home-user/cc62893e-738d-5cf7-8b8b-7c7f76df6816/scratchpad/jini/cms-test.txt:      Tests  1 failed | 5020 passed (5021)
+/tmp/claude-0/-home-user/cc62893e-738d-5cf7-8b8b-7c7f76df6816/scratchpad/jini/admin-test.txt: Test Files  253 passed (253)
+/tmp/claude-0/-home-user/cc62893e-738d-5cf7-8b8b-7c7f76df6816/scratchpad/jini/admin-test.txt:      Tests  3090 passed (3090)
+ Test Files  252 passed (252)
+      Tests  3087 passed (3087)

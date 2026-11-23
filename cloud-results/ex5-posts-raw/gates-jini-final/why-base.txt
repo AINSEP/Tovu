@@ -1,0 +1,6 @@
+
+> jini@ check:why-comments /home/user/Jini
+> node ./scripts/check-why-comments.mjs --base 4902a6a1
+
+why-comments: 0 files with removed lines checked against 4902a6a1..HEAD, 0 comment blocks lost (0 allow-listed)
+why-comments: ok

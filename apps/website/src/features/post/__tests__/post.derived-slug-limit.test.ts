@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost } from "../post-create.js";
-import { MAX_SLUG_LENGTH } from "../slug.js";
+import { MAX_SLUG_LENGTH } from "@jini-ai/cms/posts/slug";
 import { MAX_TITLE_LENGTH } from "../post-write-fields.js";
 import { PostValidationError, type PostRecord } from "../post.js";
 import { updatePost, type UpdatePostDeps } from "../post-update.js";

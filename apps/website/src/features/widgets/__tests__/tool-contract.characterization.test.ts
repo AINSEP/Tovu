@@ -25,7 +25,8 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
-import { InMemoryPostRepo, type BeforeSaveHookPort } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { contributeWidgetsTools, type WidgetsToolDeps } from "../tool-registrations.js";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
 
