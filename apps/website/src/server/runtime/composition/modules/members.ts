@@ -15,6 +15,26 @@ import { registerPublicMemberMeRoute } from "#src/server/inbound/public-http/rou
 import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-http/routes/members/sign-out";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
+/**
+ * @file Public surface (barrel) for the `members` Tier-2 core library (ADR-030).
+ *
+ * ADR-009 §1: a module's public contract is its `index.ts`; boundary lint
+ * forbids deep imports. This now ships the real in-memory repo adapters, the
+ * console mail adapter, the `MemberAccessResolver` implementation, and the
+ * `MembersWriteService` implementation (the ADR-030 follow-up build) in
+ * addition to the original interfaces/types.
+ *
+ * Placement note: this staging location is `src/members/` per the design brief;
+ * the module's production home is `src/features/membership/` (matching the admin
+ * sitemap's `features/membership`), and in the target monorepo layout a Tier-2
+ * lib at `packages/core/src/lib/members/` (tovu-v2-design §3.5). See ADR-030.
+ */
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
+// built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
+// composition root until now (`apps/website/src/server/runtime/composition/deps.ts`).
+// `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
+// Now: the `members` barrel is gone; each Members module is a leaf subpath of `@jini-ai/user-management/members/*`,
+// and this module (with `features/members/repo.ts`'s SQL adapters) is where Tovu composes them.
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
 import { SqlMemberExternalIdentityRepo } from "#src/features/members/repo";

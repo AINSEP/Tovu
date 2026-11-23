@@ -8,10 +8,11 @@ import { commentsApi } from "@/features/comments/api/comments-api";
 import type { DashboardPort } from "@jini-ai/admin/screens/dashboard/hooks/dashboard-port.hooks";
 
 /**
- * @file The only place under `features/dashboard` that reaches `lib/api` — the host adapter that
- * binds this app's API clients into `@jini-ai/admin`'s `DashboardPort` (see that file for why the
- * split exists). Its in-memory twin, `createFakeDashboardPort`, ships beside the port.
+ * @file The only place under `features/dashboard` that reaches `lib/api` — see
+ * `dashboard-port.hooks.ts` for why the split exists.
  */
+// Now: this is the host adapter that binds this app's API clients into `@jini-ai/admin`'s `DashboardPort`
+// (`dashboard-port.hooks.ts` lives beside that port); its in-memory twin, `createFakeDashboardPort`, ships there too.
 
 /** The live implementation, as a module-level singleton. Each method wraps its `api` counterpart
  *  explicitly rather than pointing at it directly, matching `media-dependencies.hooks.ts`'s own

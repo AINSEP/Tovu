@@ -11,5 +11,7 @@ import { request } from "../../../lib/admin-http/request";
  * Now: the type is `ServerLogsResult` in `@jini-ai/core/contracts/site/platform-server-logs`, which
  * this client's `getServerLogs` returns.
  */
+/** Filters for {@link AdminServerLogs}; the same ones the `system_read_server_logs` chat tool takes. */
+// Now: those filters are `ServerLogFilters` in `@jini-ai/core/contracts/site/platform-server-logs`, which this client's `getServerLogs` takes.
 /** The admin API calls of the observability feature. Host binding: the observability client on this admin's authenticated request and workspace. */
 export const observabilityApi = createObservabilityApi({ request, workspaceId: WORKSPACE_ID });
