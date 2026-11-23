@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminIdentityUser } from "./users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 
 /** The admin API calls of the users feature. */
 export const usersApi = {

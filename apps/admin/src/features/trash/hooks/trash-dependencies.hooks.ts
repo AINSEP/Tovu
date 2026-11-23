@@ -1,4 +1,4 @@
-import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { usersApi } from "@/features/users/api/users-api";
 import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 import { trashApi } from "@/features/trash/api/trash-api";

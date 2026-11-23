@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import type { AdminIdentityUser } from "../../features/users/api/users-api.types";
+import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { usersApi } from "../../features/users/api/users-api";
 import { ApiError } from "../admin-http/request";
 

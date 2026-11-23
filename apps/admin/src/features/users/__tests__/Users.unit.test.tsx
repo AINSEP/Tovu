@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
+import { Users } from "../UsersPanel";
+import { UserManagePanel, type UserManageController } from "@jini-ai/user-management/react";
 
 /**
  * @file `Users` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/

@@ -5,8 +5,6 @@ import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import { useWiredUsers } from "./hooks/users-controller.hooks";
 import { defaultUsersPort } from "./hooks/users-dependencies.hooks";
 
-export { UserManagePanel } from "@jini-ai/user-management/react";
-export type { UserManageController } from "@jini-ai/user-management/react";
 export interface UsersProps {
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
