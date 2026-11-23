@@ -17,7 +17,8 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * that might expose secrets. Registry ownership and production tree cleanup belong to the
  * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
-import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell } from "@jini-ai/node-adapters/process";
+import { listProcessSnapshots, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { currentAgentDaemonToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '@tovu/contracts/startup-secret-keys';
@@ -44,6 +45,9 @@ import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./as
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 /**
  * The minimal shape this module needs from a spawned daemon process. Node's real `ChildProcess`

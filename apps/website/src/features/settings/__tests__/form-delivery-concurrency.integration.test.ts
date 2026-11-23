@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import { AdminSurfaceActionError, type AdminSurfaceDeliveryBindingDraft } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";

@@ -36,7 +36,8 @@ import { asyncRoute } from "../../../platform/express/async-route.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
-import { canPublishToLive } from "#src/features/publish-content/live-site-policy";
+import { canPublishToLive } from "@jini-ai/cms/publish/content/live-site-policy";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).
@@ -849,7 +850,7 @@ function registerCurrentUserRoute({ app, deps }: Parameters<typeof registerAuthR
       canManageUserTrash,
       // Affordance flag, not the boundary: the admin hides every Publish entry point when this is
       // `false` (the live site); the push routes refuse on their own (`live-site-policy.ts`).
-      canPublishToLive: canPublishToLive(),
+      canPublishToLive: canPublishToLive({ resolveRuntimeMode }),
     });
   } }));
 }

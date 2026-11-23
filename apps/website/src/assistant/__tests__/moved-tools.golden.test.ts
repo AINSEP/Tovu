@@ -19,7 +19,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { buildFormSurface } from '@jini-ai/ui/mcp-ui/surfaces';
-import type { SecretCardForm } from '@jini-ai/ui/mcp-ui/secret-card';
+import type { SecretCardForm } from '@jini-ai/core/contracts/cards';
 import { nativeToolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import { TOOL_APPROVAL_POLICY, EXTENSION_TOOL_APPROVAL_POLICY } from '../../contracts/headless/index.js';
 import { applyPluginCredentialCard, buildPluginCredentialForm, type PluginCredentialCard } from '../../contracts/core/plugin-credential-card.js';

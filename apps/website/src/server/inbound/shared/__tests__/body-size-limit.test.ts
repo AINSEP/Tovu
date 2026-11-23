@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "../body-size-limit.js";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
+import { rejectOversizedJsonBody } from "../body-size-limit.js";
 
 /**
  * @file Unit coverage for `rejectOversizedJsonBody`, the SPEC-002 api.spec.md §4 / behavior.spec.md

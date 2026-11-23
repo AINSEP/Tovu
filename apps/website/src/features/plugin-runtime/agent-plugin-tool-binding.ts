@@ -1,7 +1,7 @@
 /** Host-only lifecycle identity, scoped legacy overrides and lazy capability resolution. */
 import { ToolInputError } from '@jini-ai/core';
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginNotInstalledError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, AgentPluginActivationsUnreadableError, AgentPluginActivationsBusyError, checkAgentPluginCompatibility, agentVisiblePluginCandidate } from '@jini-ai/agent-plugins/lifecycle';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import type { ClassifiedPluginError, InstalledPluginRevision, PluginLifecycleToolsPort } from '@jini-ai/plugins/host/tools';
 import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-plugins-lifecycle";

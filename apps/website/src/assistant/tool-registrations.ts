@@ -1,8 +1,8 @@
 import { buildToolGapsRegistrations, toolGapsDerivedRisk } from "./tool-gaps-tool.js";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
-import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
@@ -38,13 +38,13 @@ import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-too
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
 import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
-export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";

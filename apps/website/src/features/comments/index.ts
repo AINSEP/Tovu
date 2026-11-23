@@ -15,7 +15,7 @@ import type { CommentsModuleDeps, CommentsSettings } from "@jini-ai/cms/comments
 import type { SettingsRepoPort } from "../settings/index.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
-import type { RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { getCommentsSettings } from "./settings.js";
 
 export { renderCommentsMarkers } from "./public-markers.js";

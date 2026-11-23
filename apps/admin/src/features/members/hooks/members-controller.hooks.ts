@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { useMembers as useJiniMembers, type MembersController as JiniController, type IdentityRefreshPort, type MembersPort } from "@jini-ai/user-management/react";
+import { useMembers as useJiniMembers, type MembersController as JiniController, type IdentityRefreshPort } from "@jini-ai/user-management/react";
+import type { MembersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";

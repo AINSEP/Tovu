@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
+import { toolMetadata } from '@jini-ai/cms/publish/content/tool-metadata';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";

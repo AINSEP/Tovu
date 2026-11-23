@@ -1,4 +1,4 @@
-import { toolMetadata } from '../contracts/core/tool-metadata/external-mcp.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/external-mcp';
 import { buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
@@ -13,9 +13,9 @@ import { ToolInputError } from "@jini-ai/core";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   askOnce,
-  type AssistantSurfaceDeps,
   type SurfaceExchange,
 } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../features/external-mcp/external-mcp-oauth.js";
 import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";

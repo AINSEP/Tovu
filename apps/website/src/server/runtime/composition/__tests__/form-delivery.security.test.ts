@@ -10,7 +10,8 @@ import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/comma
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import { createFormDestinationDeliverer } from "#src/features/form-destinations/index";
-import type { FormDeliveryConnectionPort, FormDestinationKit } from "@jini-ai/cms/forms";
+import type { FormDestinationKit } from "@jini-ai/cms/forms";
+import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";

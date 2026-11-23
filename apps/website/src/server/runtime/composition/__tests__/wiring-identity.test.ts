@@ -11,7 +11,8 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { createContributionRegistry, type DerivedToolContributor, type ToolContributor } from "@jini-ai/core";
-import { SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";

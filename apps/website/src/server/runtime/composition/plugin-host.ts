@@ -4,7 +4,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import path from 'node:path';
 import { withFileLock } from '@jini-ai/platform/fs/file-lock';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
-import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
+import type { PluginActivationRepoPort } from '@jini-ai/core/contracts/site/plugins-host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import type { AgentPluginHostCapability, PluginHostPort } from '@jini-ai/core/contracts/headless/plugin-host';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';

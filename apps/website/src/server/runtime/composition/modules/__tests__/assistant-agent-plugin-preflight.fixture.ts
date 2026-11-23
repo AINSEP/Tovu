@@ -1,7 +1,8 @@
 import express from "express";
 import type { TestContext } from "node:test";
 import { createToolRegistry, type ToolRegistration } from "@jini-ai/core";
-import { createToolExecutor, type PrepareToolGuidance } from "@jini-ai/daemon";
+import { createToolExecutor } from "@jini-ai/daemon";
+import type { PrepareToolGuidance } from "@jini-ai/core/contracts/site/daemon";
 import { createRouteDeps } from "../../app.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { createDaemonSiteTools } from "#src/server/inbound/assistant/agent-daemon-site-tools";

@@ -6,7 +6,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";

@@ -8,7 +8,7 @@ import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
-import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import type { DeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import type { ExtensionClaim } from "@jini-ai/plugins/host";
 import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";

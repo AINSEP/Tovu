@@ -8,6 +8,7 @@ import {
   type RouteInputContext,
 } from "@jini-ai/core/contracts/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
 import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
@@ -153,26 +154,6 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   };
 }
 
-/** Only deliberate HTTP rejections carry caller-visible text; other errors use CMS mappings. */
-class SettingsRequestError extends Error {
-  constructor(readonly response: { status: number; body: unknown }) {
-    super("settings request rejected");
-  }
-}
-
-/** Reject with Tovu's flat JSON envelope, preserving absent code/details fields.
- * @returns Never; the injected adapter error port writes the response.
- * @complexity O(1) time/space.
- */
-export function rejectSettingsRequest(required: {
-  status: number; error: string; code?: string; details?: { permission: string; reason: string };
-}, _optional: Record<string, never> = {}): never {
-  const body: { error: string; code?: string; details?: { permission: string; reason: string } } = { error: required.error };
-  if (required.code !== undefined) body.code = required.code;
-  if (required.details !== undefined) body.details = required.details;
-  throw new SettingsRequestError({ status: required.status, body });
-}
-
 /** Bind the JSON adapter to Tovu's ambient workspace, readiness/session and permission policy.
  * Field parsing remains in each handler: reads authorize first, while writes validate both fields
  * and body workspace first. Domain services retain their non-bypassable inner authorization.
@@ -196,11 +177,11 @@ export function mountSettingsJsonRoute<Output>(required: {
       // generic definition batch. Reuse the existing alias/batch fence before ANY item writes.
       if (method !== "get" && Array.isArray((input.body as { definitions?: unknown } | null)?.definitions)
         && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId, namespaces: ["site.assistant"] })) {
-        rejectSettingsRequest({ status: 400, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
+        rejectRoute({ status: 400, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
           error: "Visitor assistant definitions are code-owned. Save a usable provider key and a model, then enable the assistant in AI Assistant." });
       }
       if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
-        rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
+        rejectRoute({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
       }
       if (!context) throw new Error("settings route has no authenticated principal");
       if (!authorize) throw new Error("settings route has no authorizer");
@@ -209,7 +190,7 @@ export function mountSettingsJsonRoute<Output>(required: {
   }, { ports: {
     workspace: ({ raw, deps }) => {
       if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) {
-        rejectSettingsRequest({ status: 404, error: "workspace was not found" });
+        rejectRoute({ status: 404, error: "workspace was not found" });
       }
     },
     authenticate: async ({ res, deps }) => { await deps.settingsReady; return getAuthedPrincipal(res); },
@@ -217,13 +198,13 @@ export function mountSettingsJsonRoute<Output>(required: {
       const principal = context;
       if (!principal) throw new Error("settings authorization has no authenticated principal");
       const result = await deps.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType });
-      if (!result.allowed) rejectSettingsRequest({
+      if (!result.allowed) rejectRoute({
         status: 403, error: `principal '${principal.id}' is not authorized for '${permission}' (${result.reason})`,
         code: "FORBIDDEN", details: { permission, reason: result.reason },
       });
     },
     onError: ({ res, error }) => {
-      if (error instanceof SettingsRequestError) { res.status(error.response.status).json(error.response.body); return; }
+      if (error instanceof RouteRefusalError) { res.status(error.response.status).json(error.response.body); return; }
       respondToSettingsError({ res, err: error, mappings: errorMappings });
     },
   } });

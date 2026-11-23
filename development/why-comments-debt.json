@@ -2812,6 +2812,78 @@
     {
       "id": "e3e72647b3a2",
       "reason": "Moved to Jini core contracts/site/platform-site-dir.ts SiteBinding doc (Jini 0caf9c6f5); host CLI command reworded neutral."
+    },
+    {
+      "id": "f9e634a93fce",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/analytics.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/analytics.ts:4-4."
+    },
+    {
+      "id": "58622730ad17",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/change-sets.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/change-sets.ts:4-4."
+    },
+    {
+      "id": "cef6854db4ec",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/content-duplication.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/content-duplication.ts:4-4."
+    },
+    {
+      "id": "2ac6de43da4b",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/content-types.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/content-types.ts:4-4."
+    },
+    {
+      "id": "1c595af60142",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/custom-credentials.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/custom-credentials.ts:4-4."
+    },
+    {
+      "id": "e9217554290a",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/database-transfer.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/database-transfer.ts:4-4."
+    },
+    {
+      "id": "571d951f7465",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/database.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/database.ts:4-4."
+    },
+    {
+      "id": "2fd30924eb82",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/email-templates.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/email-templates.ts:4-4."
+    },
+    {
+      "id": "bf50f41fc07a",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/entries.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/entries.ts:4-4."
+    },
+    {
+      "id": "e46f1315bae4",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/core/src/tool-metadata/external-mcp.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/external-mcp.ts:4-4."
+    },
+    {
+      "id": "a95efa066be7",
+      "reason": "ex5-fnd-inject: moved with the declaration to Jini packages/cms/src/publish/content/tool-metadata.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/publish-content.ts:4-4."
+    },
+    {
+      "id": "24709a71098b",
+      "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/live-site-policy.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/live-site-policy.ts:3-11."
+    },
+    {
+      "id": "8485d830909c",
+      "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/live-site-policy.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/live-site-policy.ts:18-22."
+    },
+    {
+      "id": "d572cf643cf6",
+      "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/peer-url.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/peer-url.ts:3-34."
+    },
+    {
+      "id": "00329c9f622a",
+      "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/peer-url.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/peer-url.ts:74-86."
+    },
+    {
+      "id": "bc828ddd55cc",
+      "reason": "ex5-fnd-inject K5-publish-content-1: moved with the code to Jini packages/cms/src/publish/content/publish-readiness.ts; product names and host paths were neutralised (Tovu -> site/host, TOVU_RUNTIME_MODE -> host runtime mode), so the text no longer matches byte for byte. Was apps/website/src/features/publish-content/publish-readiness.ts:1-26."
+    },
+    {
+      "id": "4a80b78d2f91",
+      "reason": "ex5-fnd-inject RT-K1-0.T: the local rejection helper was deleted for @jini-ai/core/errors/route-refusal, whose doc carries this rationale. Was apps/website/src/server/inbound/admin-http/routes/settings/shared.ts:156-156."
+    },
+    {
+      "id": "73584ff700c8",
+      "reason": "ex5-fnd-inject RT-K1-0.T: describes the deleted local reject helper; the Jini rejectRoute (@jini-ai/core/errors/route-refusal) builds the same flat envelope and documents it. Was apps/website/src/server/inbound/admin-http/routes/settings/shared.ts:163-166."
     }
   ]
 }

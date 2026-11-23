@@ -13,7 +13,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
-import { CONTENT_HASH_VERSION } from "../content-hash.js";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { planImport } from "../planner.js";
 import { entityKey, type PublishContentReport } from "../plan-rows.js";
 import {

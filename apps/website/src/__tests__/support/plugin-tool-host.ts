@@ -3,7 +3,7 @@ import { resolveSiteRoot } from "#src/platform/site-dir/index";
 /** Existing plugin tool tests exercise the real host adapter instead of relying on cross-family
  * imports as hidden defaults. Individual lifecycle failure fakes remain explicitly injected. */
 import { buildPluginsRegistrations as build, contributePluginsTools as contribute, type PluginsToolDeps } from '../../features/plugin-runtime/tool-registrations.js';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import { createTovuPluginHost } from '../../server/runtime/composition/plugin-host.js';
 import { resolveAgentPluginLayout } from '../../features/agent-plugins/layout.js';
 export * from '../../features/plugin-runtime/tool-registrations.js';

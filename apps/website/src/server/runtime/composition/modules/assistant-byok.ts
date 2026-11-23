@@ -1,5 +1,6 @@
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun, type ToolAccessChange } from '@jini-ai/daemon';
+import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun } from '@jini-ai/daemon';
+import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
@@ -18,7 +19,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { createAccessApprover } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 /**
  * @file The admin assistant dock's "API · BYOK" execution mode (ADR-049's picker, see
  * `@jini-ai/chat`'s `AgentRuntimePicker`) — a SECOND, provider-direct run path alongside the

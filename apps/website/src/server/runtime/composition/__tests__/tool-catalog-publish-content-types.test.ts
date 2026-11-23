@@ -1,7 +1,7 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 /**
  * @file Regression (2026-09-23): the assistant's `publish_content_*` tools run in the agent daemon,
  * a separate process that boots through `installFirstPartyToolContributors()` and never calls
@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 
-import { describePublishReadiness } from "#src/features/publish-content/publish-readiness";
+import { describePublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,

@@ -673,7 +673,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
 // Curated entries from r26's multi-entry plan; implementations and registration wiring stay private.
 const PUBLIC_ENTRIES = {
   assistant: [
-    "mcp-services", "agent-daemon-port", "host-ports", "tool-contributions",
+    "mcp-services", "agent-daemon-port", "host-ports",
     "agent-discovery", "runtime-settings", "prompt-guidance", "session-services", "visitor-services",
     "public-assistant-settings", "public-assistant-availability",
   ],

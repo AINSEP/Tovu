@@ -25,7 +25,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 import { installNewsletterDataModule, NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {

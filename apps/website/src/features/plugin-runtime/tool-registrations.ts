@@ -6,8 +6,8 @@ import type { OperatorLocaleDeps, PluginHostPort, AgentPluginLayout, AgentPlugin
 import type { Clock } from '@jini-ai/core/primitives';
 import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from '@jini-ai/core/contracts/events';
 import type { RememberedApprovalPort, ToolContributor, ToolRegistration } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/plugins/host';
+import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
+import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/core/contracts/site/plugins-host';
 import type { PluginDiscoveryRecord, PluginInstallerPort } from '@jini-ai/plugins/host/node';
 import type { PluginProviderFacesPort } from './service-ports.js';
 import { buildPluginManagementRegistrations, pluginManagementDerivedRiskFor, pluginApprovalIdentity as portableApprovalIdentity } from '@jini-ai/plugins/host/tools';

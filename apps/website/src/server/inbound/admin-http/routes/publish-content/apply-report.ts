@@ -1,7 +1,7 @@
 import type { BackstopAuditPort } from "@jini-ai/cms/publish/transfer";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
-import type { PublishContentReportDto } from "#src/features/publish-content/report-contract";
+import type { PublishContentReportDto } from "@jini-ai/cms/publish/content/report-contract";
 import { toPublishContentReportDto } from "./report-dto.js";
 
 /**

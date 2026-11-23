@@ -12,7 +12,7 @@ import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { contentHash } from "#src/features/publish-content/content-hash";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 
 import { InMemoryPostRepo } from "../repo.memory.js";

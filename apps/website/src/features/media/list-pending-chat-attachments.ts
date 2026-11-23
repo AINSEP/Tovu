@@ -1,4 +1,4 @@
-import { toolMetadata } from '@jini-ai/core/tool-metadata/site/media';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
 /**
  * @file `chat_list_pending_attachments` — lets the assistant discover a chat attachment it was never
  * told about in this run: the discovery half of the bridge `promote-chat-attachment.ts` completes

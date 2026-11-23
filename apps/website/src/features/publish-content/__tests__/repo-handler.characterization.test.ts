@@ -9,8 +9,8 @@ import test from "node:test";
 import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { contentHash, CONTENT_HASH_VERSION } from "../content-hash.js";
-import { changedSincePlan, notWired } from "../precheck-reasons.js";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
+import { changedSincePlan, notWired } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "../repo-handler.js";
 import type { RepoPublishTypeConfig, RepoWriteContext } from "../repo-handler.js";
 import type { PackedEntity, PublishContentDeps, PublishContentHandler } from "../type-registry.js";

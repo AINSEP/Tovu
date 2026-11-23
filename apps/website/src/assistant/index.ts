@@ -231,6 +231,7 @@ export type { AssistantToolContributions, DerivedToolContributor, ToolContributo
 // the full rationale, including why the actual `registerDuplicateResourceHandler` calls live at the
 // composition root (`tool-catalog-manifest.ts`) rather than inside each resource feature itself.
 export { registerDuplicateResourceHandler, listDuplicateResourceHandlers, resetDuplicateResourceHandlersForTests } from "./duplicate-resource-registry.js";
+export type { DuplicateResourceHandler } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 export type { DuplicateResourceHandlerContributor } from "./tool-registrations.js";
 
 // ---------------------------------------------------------------------------------------------

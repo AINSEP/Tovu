@@ -1,6 +1,6 @@
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
-import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
-import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
+import type { SecretCardForm } from "@jini-ai/core/contracts/cards";
 
 
 /**

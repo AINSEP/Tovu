@@ -13,13 +13,11 @@ import {
   createMemoryCounterStore,
   createRateLimiter as createHttpRateLimiter,
   resolveClientIp as resolveHttpClientIp,
-  type ClientIpSource,
   type CounterStore,
-  type RateLimitProfile,
 } from "@jini-ai/http-kit/rate-limit";
+import type { ClientIpSource, RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 
 /** Tovu profiles and proxy policy; fixed-window counting is owned by HTTP-kit. */
-export type { ClientIpSource, RateLimitProfile } from "@jini-ai/http-kit/rate-limit";
 export type { RateLimitResult };
 
 /**

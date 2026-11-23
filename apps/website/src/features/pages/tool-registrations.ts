@@ -1,4 +1,4 @@
-import { toolMetadata } from '@jini-ai/core/tool-metadata/site/pages';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/pages';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 // Core keeps missing/malformed bases model-facing: ToolInputError survives delegated transport's

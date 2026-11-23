@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CONTENT_HASH_VERSION } from "../content-hash.js";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "../report-labels.js";
 import type { PackedEntity, SkippedPackEntity } from "../type-registry.js";
 

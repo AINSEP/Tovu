@@ -1,5 +1,5 @@
 import type { DeployTargetDescriptor } from "../deploy-targets/types.js";
-import type { ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
+import type { ToolFailureDiagnostic } from "@jini-ai/core/contracts/site/daemon-tool-recovery";
 import type { UUID } from "@jini-ai/core/primitives";
 
 /**

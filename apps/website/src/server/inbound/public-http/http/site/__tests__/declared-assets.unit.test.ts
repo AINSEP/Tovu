@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderSite } from '../render-site.js';
-import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 
 test('managed document constructs contribution slots after body asset collection', async () => {
   const scripts: DeclaredScript[] = [];

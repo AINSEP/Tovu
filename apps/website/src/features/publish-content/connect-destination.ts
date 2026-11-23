@@ -1,7 +1,7 @@
 import type { Clock } from "@jini-ai/core/primitives";
 import { saveConnectedDestination, removeConnectedDestination, selectConnectedDestination } from "./peers.js";
 import type { PublishContentPeerRepoPort, PublishContentPeerSummary } from "./peers.js";
-import { siteLabelFor } from "./publish-readiness.js";
+import { siteLabelFor } from "@jini-ai/cms/publish/content/publish-readiness";
 
 /**
  * @file Connecting and disconnecting as ONE step each, compensation included.

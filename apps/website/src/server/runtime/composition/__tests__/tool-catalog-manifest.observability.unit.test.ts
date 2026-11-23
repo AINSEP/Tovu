@@ -5,7 +5,7 @@ import { createContributionRegistry } from "@jini-ai/core";
 
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";

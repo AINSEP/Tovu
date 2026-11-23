@@ -16,7 +16,7 @@ import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
 import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-error";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
-import { RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
+import { RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
 import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";

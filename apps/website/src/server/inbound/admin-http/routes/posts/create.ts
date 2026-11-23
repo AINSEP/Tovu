@@ -3,8 +3,8 @@ import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/
 import { processOutbox } from "#src/contracts/core/events/index";
 import { createPost, PostConflictError, PostValidationError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import {
-  CONTENT_ENTRY_MAX_BODY_BYTES,
   rejectOversizedJsonBody,
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

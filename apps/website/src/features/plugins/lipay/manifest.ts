@@ -1,4 +1,4 @@
-import type { DataModuleDecl } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 const LIPAY_PLUGIN_ID = "lipay";
 export const LIPAY_MANIFEST: DataModuleDecl = {
   pluginId: LIPAY_PLUGIN_ID,

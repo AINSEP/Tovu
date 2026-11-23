@@ -1,6 +1,6 @@
 import type { Selectable } from "kysely";
 
-import type { PublishContentBaselineRecord, PublishContentBaselineRepoPort } from "#src/features/publish-content/baseline-repo";
+import type { PublishContentBaselineRecord, PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishContentBaselinesTable } from "../content-database.generated.js";
 

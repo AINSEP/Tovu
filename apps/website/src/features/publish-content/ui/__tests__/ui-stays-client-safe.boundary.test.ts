@@ -16,7 +16,9 @@
  *    path mapping. One `import type { … } from "../planner.js"` in a file `index.ts` reaches is
  *    enough to break `npx tsc --noEmit` in `apps/admin` — with an error pointing at a website file,
  *    which is a confusing morning for whoever hits it. The one permitted edge leaves the folder
- *    for `report-contract.ts`, a dependency-free neutral DTO module shared with the HTTP boundary.
+ *    for the report contract, a dependency-free neutral DTO module shared with the HTTP boundary.
+ *    It now lives in Jini (`@jini-ai/cms/publish/content/report-contract`), so the edge is that
+ *    exact specifier, type-only — admin resolves `@jini-ai/*` through its own node_modules.
  * 2. **No server value imports, anywhere under `ui/`.** Even a file outside the `index.ts` closure
  *    must not pull `node:*`, a repo, `planner.ts` or `baseline-repo.ts` in at runtime: the whole
  *    folder is shipped into a browser bundle by admin's Vite, and Vite resolves by directory, not by
@@ -31,12 +33,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
 const UI_ROOT = path.resolve(import.meta.dirname, "..");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
-const REPORT_CONTRACT_FILE = path.resolve(UI_ROOT, "../report-contract.ts");
+const REPORT_CONTRACT_SPECIFIER = "@jini-ai/cms/publish/content/report-contract";
+/** The published module behind the specifier; resolved from this test process (Node ESM). */
+const REPORT_CONTRACT_FILE = fileURLToPath(import.meta.resolve(REPORT_CONTRACT_SPECIFIER));
 
 const REACT_SPECIFIER_PATTERN = /^react(-dom)?(\/|$)/;
 
@@ -182,10 +187,11 @@ test("everything reachable from index.ts stays in ui/ or the one neutral report-
     if (visited.has(file)) continue;
     visited.add(file);
     for (const edge of edgesOf(file)) {
+      if (edge.specifier === REPORT_CONTRACT_SPECIFIER && edge.typeOnly) continue;
       const resolved = resolveRelative(file, edge.specifier);
       if (
         resolved === null ||
-        (!resolved.startsWith(`${UI_ROOT}${path.sep}`) && resolved !== REPORT_CONTRACT_FILE)
+        !resolved.startsWith(`${UI_ROOT}${path.sep}`)
       ) {
         escapes.push(`${relative(file)} -> ${edge.specifier}`);
         continue;
@@ -207,9 +213,7 @@ test("the shared report contract is a dependency-free client-safe leaf, not a pl
   assert.ok(fs.existsSync(REPORT_CONTRACT_FILE));
   assert.deepEqual(edgesOf(REPORT_CONTRACT_FILE), [], "the neutral DTO must not import server or UI implementation code");
   const contractFile = path.join(UI_ROOT, "contract.ts");
-  const reportEdge = edgesOf(contractFile).find(
-    (edge) => resolveRelative(contractFile, edge.specifier) === REPORT_CONTRACT_FILE
-  );
+  const reportEdge = edgesOf(contractFile).find((edge) => edge.specifier === REPORT_CONTRACT_SPECIFIER);
   assert.ok(reportEdge, "ui/contract.ts must consume the shared report DTO instead of redeclaring it");
   assert.equal(reportEdge.typeOnly, true);
   assert.equal(

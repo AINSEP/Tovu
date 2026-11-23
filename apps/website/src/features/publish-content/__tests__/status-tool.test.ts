@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PUBLISH_CONTENT_STATUS_TOOL_ID } from "../agent-tools.js";
+import { PUBLISH_CONTENT_STATUS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
 import { InMemoryPublishContentPeerRepo } from "../peers.js";
 import { context, fixture, peerRow, tool } from "./pull-tool-fixture.js";
 

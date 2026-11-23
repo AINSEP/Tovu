@@ -13,8 +13,8 @@ import {
   EXTERNAL_MCP_OAUTH_PER_IP,
   EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
   ADMIN_SURFACE_FILES_PER_IP,
-  type RateLimitProfile,
 } from "../rate-limit.js";
+import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 
 /**
  * @file Unit coverage for the REQ-14/AC-18 `LOGIN_STRICT` rate-limit

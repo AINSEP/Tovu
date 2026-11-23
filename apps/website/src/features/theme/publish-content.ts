@@ -8,7 +8,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 
 import { computeBlobStorageKey, isDocumentOnlyBlob } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { checkTreeFiles, checkTreePath, isIgnoredTreeFileName, MAX_SECRET_SCAN_BYTES, normalizeMode, resolveTreeRelativePath, wrapTreePolicyReason, type FileTreeFileInput } from "#src/features/publish-content/file-tree-policy";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type {

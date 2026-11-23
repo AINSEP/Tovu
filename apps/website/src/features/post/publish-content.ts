@@ -2,10 +2,10 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand } from "@jini-ai/cms/core";
 
-import { contentHash } from "#src/features/publish-content/content-hash";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
-import { addressHeldByOther, trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
+import { addressHeldByOther, trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type {
   PublishContentContributor,

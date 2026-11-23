@@ -1,9 +1,9 @@
-import { toolMetadata } from "@jini-ai/core/tool-metadata/site/mail-status";
+import { toolMetadata } from "@jini-ai/core/tool-metadata/mail-status";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailProviderControl, MailProviderConfigurationReport } from "../../platform/mail/index.js";
@@ -96,7 +96,7 @@ function readProviderId({ input }: { input: unknown }, _options: Record<string, 
  * @throws {ToolInputError} For malformed input, a refusal or a denied permission.
  * @complexity One catalog load and one credential list per call.
  */
-export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _options: import("@jini-ai/daemon/surface-exchanges").AssistantSurfaceDeps | Record<string, never> = {}): ToolRegistration[] {
+export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _options: import("@jini-ai/core/contracts/site/daemon-surface-exchanges").AssistantSurfaceDeps | Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail-providers", catalogModule: "features/mail-status/provider-agent-tools.ts", catalog: indexCatalogById({ catalog: mailProviderAgentToolCatalog }), derivedRisk: mailProviderDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     mail_list_providers: async (ctx) => {
       requireInputRecord({ input: ctx.input });

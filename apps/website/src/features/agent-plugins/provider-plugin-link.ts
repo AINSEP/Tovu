@@ -1,4 +1,4 @@
-import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { agentPluginActivations } from "./activation-effects.js";

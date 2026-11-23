@@ -2,7 +2,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry, type ToolRegistration } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { isSiteSwitcherEnabled } from "../../platform/site-dir/index.js";
 import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";

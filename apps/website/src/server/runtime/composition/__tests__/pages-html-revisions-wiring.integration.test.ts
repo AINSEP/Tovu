@@ -1,7 +1,7 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";

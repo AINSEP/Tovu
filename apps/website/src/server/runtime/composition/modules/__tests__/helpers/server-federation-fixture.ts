@@ -1,6 +1,6 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createContributionRegistry, type DerivedToolContributor, type ToolContributor } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { McpSessionPort, ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import { createByokToolSurface } from "#src/assistant/byok-tool-surface";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";

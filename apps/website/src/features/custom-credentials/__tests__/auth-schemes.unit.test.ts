@@ -25,8 +25,8 @@ import {
   loadCredentialSchemeRegistry,
   loadCredentialSchemeRegistryFromSource,
   loadBundledCredentialSchemeRegistry,
-  type CredentialSchemeRule,
 } from "../../agent-plugins/auth-schemes.js";
+import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /**

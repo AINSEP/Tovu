@@ -1,6 +1,6 @@
 export type { PublishContentToolDeps } from "./tool-deps.js";
 import type { PublishContentToolDeps } from "./tool-deps.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
+import { toolMetadata } from '@jini-ai/cms/publish/content/tool-metadata';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import path from "node:path";
@@ -18,13 +18,13 @@ import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
-import { executePublishContentImport, RestorePointUnavailableError } from "./execute-import.js";
+import { executePublishContentImport, RestorePointUnavailableError } from "@jini-ai/cms/publish/content/execute-import";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "./run-repo.js";
 import { entityKey, type PublishContentReport } from "./plan-rows.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contracts/core/plugin-hook-failed-error.js";
 import {
   connectDestination,
@@ -41,14 +41,15 @@ import {
 import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../publish-trust/provisioning.node-io.js";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "./agent-tools.js";
+import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "@jini-ai/cms/publish/content/agent-tools";
 import { connectAndRecordDestination } from "./connect-destination.js";
 // Both pulls and autonomous publishes resolve the same saved destination credential.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
-import { normalizePeerBaseUrl } from "./peer-url.js";
+import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
-import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
+import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import type { BeforeSaveHookPort } from "#src/features/post/index";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
@@ -189,7 +190,7 @@ async function connectPublishContentTool(
     };
   }
 
-  const normalized = normalizePeerBaseUrl({ raw });
+  const normalized = normalizePeerBaseUrl({ raw, hasForbiddenRawUrlCharacter });
   if ("error" in normalized) {
     return { connected: false, message: "That does not look like a website address.", nextStep: null };
   }

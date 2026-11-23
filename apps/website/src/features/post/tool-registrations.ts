@@ -10,7 +10,7 @@ import { type JsonObject } from "@jini-ai/core/primitives";
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
 import { type AgentToolDefinition as PostAgentToolDefinition, type ToolContributor } from "@jini-ai/core";
-import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";

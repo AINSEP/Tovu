@@ -17,7 +17,7 @@ export function withListingBatch<T extends RouteDeps>({ deps, req }: { deps: T; 
   const listingBatch = listingState.listingBatchRequestOf({ req });
   const listingPage = listingState.listingPageRequestOf({ req })?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
-  const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
+  const declaredScripts: import('@jini-ai/core/contracts/site/cookie-consent').DeclaredScript[] = [];
   const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
   const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts, ...options }) => renderAssets({ scripts: [...scripts, ...declaredScripts], ...options }) : undefined;
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;

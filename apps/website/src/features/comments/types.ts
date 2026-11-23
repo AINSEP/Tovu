@@ -4,7 +4,7 @@
  * namespace, declared as data that CORE alone executes. Domain types live in Jini.
  */
 import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
-import type { ColumnType, DataModuleDecl } from "@jini-ai/db/data-modules";
+import type { ColumnType, DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 const T = ({ name }: { name: string }, { notNull = false }: { notNull?: boolean } = {}): { name: string; type: ColumnType; notNull?: boolean } => ({
   name,

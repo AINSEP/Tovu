@@ -48,7 +48,7 @@ import {
   InMemoryOriginSettingRepo,
   OriginRegistry,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contentHash, CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { packThemeFilesEntities } from "#src/features/theme/publish-content";
 import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import {

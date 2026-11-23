@@ -1,4 +1,4 @@
-import type { UsersPort } from "@jini-ai/user-management/react";
+import type { UsersPort } from "@jini-ai/core/contracts/site/user-management-react";
 import { rolesApi } from "@/features/roles/api/roles-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";

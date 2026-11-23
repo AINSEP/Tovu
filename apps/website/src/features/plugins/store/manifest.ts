@@ -1,4 +1,4 @@
-import type { DataModuleDecl } from "@jini-ai/db/data-modules";
+import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 const STORE_PLUGIN_ID = "store";
 export const STORE_MANIFEST: DataModuleDecl = {
   pluginId: STORE_PLUGIN_ID,

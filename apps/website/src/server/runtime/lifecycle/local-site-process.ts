@@ -1,4 +1,4 @@
-import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import { createProcessControlPort, nodeCommandShell } from "@jini-ai/node-adapters/process";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { formatErrorForLog } from "@jini-ai/core";
 import { listSites, runningSiteUrl } from "#src/platform/site-dir/index";
@@ -16,7 +16,7 @@ import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { probeLoopbackHttp, requestLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";
-import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
+import { listProcessSnapshots, readFlagValue, stopProcesses, waitForProcessExit } from "@jini-ai/platform/process";
 import { omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
 import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-dir/index";
@@ -28,6 +28,9 @@ import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
 import { redactSecretShapes, TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { waitForLocalAdminBuild } from "#src/platform/site-dir/index";
+
+/** Platform's process functions behind core's port (node-adapters takes them injected). */
+const nodeProcessControl = createProcessControlPort({ functions: { listProcessSnapshots, stopProcesses, waitForProcessExit } });
 
 /** Bind site-child diagnostics to a separate parent-owned file; the child owns server.log.
  * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors

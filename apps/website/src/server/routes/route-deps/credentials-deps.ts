@@ -11,8 +11,8 @@ import type { SourceControlCredentialSetRepoPort } from "../../../features/sourc
 import type { VendorCredentialSetRepoPort } from "../../../features/vendor-credentials/index.js";
 import type { MediaProviderCredentialRepoPort } from "../../../features/media/index.js";
 import type { ExternalMcpServerRepoPort, DeviceAuthorizationStore, ExternalMcpOAuthService } from "../../../features/external-mcp/contracts.js";
-import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import type { ExternalMcpToolApprovalRepoPort } from "../../../assistant/mcp-services.js";
+import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 
 /**
  * ADR-058 credential repositories and shared sealing capabilities. Credential-CRUD

@@ -75,7 +75,7 @@ test("both pull tools honestly advertise durable writes and execute requires the
   const { contributePublishContentTools } = await import("../tool-registrations.js");
   assert.equal(contributePublishContentTools().risk.get(ID), "mutates-durable-state");
   assert.equal(contributePublishContentTools().risk.get("publish_content_execute_pull"), "mutates-durable-state");
-  const { publishContentAgentToolCatalog } = await import("../agent-tools.js");
+  const { publishContentAgentToolCatalog } = await import("@jini-ai/cms/publish/content/agent-tools");
   assert.equal(publishContentAgentToolCatalog.find(t => t.name === "publish_content_execute_pull")?.actorClassRule, "confirmer-must-equal-own-delegatedBy");
 });
 test("unknown peers and invalid peerId/extra URL inputs are refused before transport", async () => {
@@ -157,7 +157,7 @@ test("the production contributor projects the same content ports the import rout
 test("L163 pull boundary translates each known refusal and preserves unknown rejection identity", async () => {
   const { PlanStaleError, ForbiddenError } = await import("../../../contracts/core/gated-mutations/gateway.js");
   const { PublishContentBundleNotFoundError } = await import("../gated-hooks.js");
-  const { RestorePointUnavailableError } = await import("../execute-import.js");
+  const { RestorePointUnavailableError } = await import("@jini-ai/cms/publish/content/execute-import");
   const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("../peers.js");
   const { PublishContentPeerTransportError } = await import("../peer-transport.js");
   const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");

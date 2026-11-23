@@ -1,4 +1,4 @@
-import type { FormDestinationForm, FormSubmissionsInspection } from "@jini-ai/cms/forms";
+import type { FormDestinationForm, FormSubmissionsInspection } from "@jini-ai/core/contracts/site/cms-forms";
 import type { DeployTargetInspection as PluginDeployTargetInspection, DeployTargetRegistry as PluginDeployTargetRegistry, LoadedDeployTarget as PluginLoadedDeployTarget, PluginDeployTargetModule } from "@jini-ai/devops/deploy";
 
 /**

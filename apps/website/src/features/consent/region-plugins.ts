@@ -10,7 +10,7 @@ import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { consentBridgeContribution, declaredScriptsContribution, parseConsentContributions as parseConsentFile } from '@jini-ai/cookie-consent/plugins';
 import { REGION_SLOT } from '@jini-ai/cookie-consent/server';
-import type { DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
+import type { DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/core/contracts/site/cookie-consent';
 import type { LoadPluginContributions, PluginContributionDefinition } from '../agent-plugins/lifecycle.js';
 
 /** The file a plugin ships at its root to contribute cookie-consent pieces. */

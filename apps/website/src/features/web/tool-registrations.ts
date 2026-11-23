@@ -5,7 +5,8 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
+import { createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
+import type { RateLimitProfile } from "@jini-ai/core/contracts/site/http-kit-rate-limit";
 import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";
 import { MAX_MAX_CHARS, readWebFetchInput } from "@jini-ai/platform/web";

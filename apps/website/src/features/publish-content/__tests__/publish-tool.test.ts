@@ -5,7 +5,7 @@ import { plan, confirm, execute, PlanStaleError } from "../../../contracts/core/
 import { importErrorResponse } from "../../../server/inbound/admin-http/routes/publish-content/import-errors.js";
 import { stageBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
-import { contentHash } from "../content-hash.js";
+import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { contributePublishContentTools } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
 import { fixture as pullFixture, context, tool, OWNER } from "./pull-tool-fixture.js";

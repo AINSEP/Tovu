@@ -1,7 +1,7 @@
 import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 
 import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
-import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
+import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import { entityKey } from "./plan-rows.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./plan-rows.js";

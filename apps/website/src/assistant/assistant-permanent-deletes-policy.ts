@@ -1,5 +1,5 @@
-import type { AssistantPermanentDeletesPolicy } from '@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy';
 import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/index.js';
+import type { AssistantPermanentDeletesPolicy } from '@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy';
 
 /** Ordinary tools pass through; eligible permanent deletes need both switches, and forbidden tools never pass.
  * Stored grants are validated separately by the ledger reader; this pure predicate has no effects.

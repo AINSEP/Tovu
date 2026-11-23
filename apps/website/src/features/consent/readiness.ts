@@ -1,5 +1,6 @@
 /** Admin-only declaration diagnostics. Sampled HTML is inspected, never converted or returned rewritten. */
-import { CATEGORIES, type DeclaredScript } from '@jini-ai/cookie-consent';
+import { CATEGORIES } from '@jini-ai/cookie-consent';
+import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';

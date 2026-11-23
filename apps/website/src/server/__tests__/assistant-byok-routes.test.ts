@@ -33,7 +33,7 @@ import {
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";

@@ -14,7 +14,8 @@ import { domainPublishTool } from './static-publish/domain-publish-tool.js';
 import { checkToolPublishConsent } from './static-publish/publish-consent.js';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SecretCardField, SecretCardForm } from "@jini-ai/core/contracts/cards";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
@@ -53,7 +54,8 @@ import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
 
-import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
+import { askThenReport, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`

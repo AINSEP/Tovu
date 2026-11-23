@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PERMANENT_DELETE_TOOLS } from "../headless/index.js";
 /** Host port carried alongside the existing authenticated human exchange. */
 export type ChatDeleteSurfaceDeps = AssistantSurfaceDeps & {

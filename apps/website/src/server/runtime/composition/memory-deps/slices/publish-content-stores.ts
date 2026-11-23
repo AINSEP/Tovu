@@ -1,7 +1,7 @@
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore, InMemoryBlobStore } from "#src/features/media/index";
 import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
-import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
+import { InMemoryPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";

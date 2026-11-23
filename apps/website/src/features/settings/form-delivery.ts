@@ -1,4 +1,4 @@
-import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { ensureSettingDefinitions, getEffective, SCOPE_BIT, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 /**

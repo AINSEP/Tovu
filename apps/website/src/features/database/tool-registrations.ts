@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/database.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/database';
 import type { Clock } from "@jini-ai/core/primitives";
 /**
  * @file Database's half of ADR-049 Decision 4 (SPEC-017/ADR-041): maps the wireable subset of
@@ -38,7 +38,8 @@ import {
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";

@@ -17,7 +17,7 @@ import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } fro
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
 // the barrel would add the plugin loader and the credential vault to it.
 import { rewriteFormActions } from "#src/features/form-destinations/rewrite-actions";
-import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "@jini-ai/cms/forms";
+import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "@jini-ai/core/contracts/site/cms-forms";
 
 import type { ExportReport } from "#src/contracts/core/export-report";
 /**

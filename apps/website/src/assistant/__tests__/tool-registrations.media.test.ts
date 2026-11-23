@@ -37,7 +37,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 
-import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";

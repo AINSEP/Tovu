@@ -18,8 +18,8 @@ import { createChatDeleteScope } from "../../../../assistant/permanent-delete-to
 import { createAssistantToolExecutor } from "../../../../assistant/tool-recovery-preset.js";
 import { applyToolApprovalPolicy } from "../../../../assistant/tool-approval-policy.js";
 import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
-import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { PERMANENT_DELETE_TOOLS } from "../../../../contracts/headless/index.js";
+import type { AssistantPermanentDeletesPolicy } from "@jini-ai/core/contracts/site/headless-assistant-permanent-deletes-policy";
 import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 

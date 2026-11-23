@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
-import { toolMetadata } from '@jini-ai/core/tool-metadata/site/identity';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/identity';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
@@ -20,13 +20,14 @@ import { approvalToolHandler, notConfirmedResult } from "#src/contracts/core/hum
 import {
   askThenReport,
   createSurfaceExchangeStore,
-  type AssistantSurfaceDeps,
 } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "@jini-ai/user-management/server";
 import { assertCallerHasAnyPermission, normalizeUsername, parseIdentityToolInput } from "@jini-ai/user-management/server";
 import { ToolInputError, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
-import { defineSecretCardTool, type SecretCardForm, type SecretCardRun } from "@jini-ai/ui/mcp-ui/secret-card";
+import { defineSecretCardTool, type SecretCardRun } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

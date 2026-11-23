@@ -2,7 +2,8 @@ import "../../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { type FormDeliveryBinding, type FormDeliveryPlan, planFormDeliveries } from "@jini-ai/cms/forms";
+import { type FormDeliveryPlan, planFormDeliveries } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { schemaErasedKernel, type ContentKernel } from "../../content-kernel.js";
 import { SqlFormPullLeaseRepo, type SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";

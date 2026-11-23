@@ -1,4 +1,4 @@
-import { toolMetadata } from '@jini-ai/core/tool-metadata/site/navigation';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/navigation';
 import { withToolMetadata } from '@jini-ai/core';
 /**
  * @file Menus' agent-tool registrations, built by `@jini-ai/cms/navigation`.

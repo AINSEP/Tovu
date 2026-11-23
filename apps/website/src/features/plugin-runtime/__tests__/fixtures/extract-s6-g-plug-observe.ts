@@ -12,7 +12,8 @@ import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-too
 
 import { createToolRegistry, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
-import { InMemoryPluginActivationRepo, PluginInvalidError, setPluginEnabled, type PluginActivationRecord, type PluginManifest } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo, PluginInvalidError, setPluginEnabled, type PluginManifest } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";

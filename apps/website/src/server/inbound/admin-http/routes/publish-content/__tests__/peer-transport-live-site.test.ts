@@ -3,7 +3,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "#src/features/publish-content/live-site-policy";
+import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "@jini-ai/cms/publish/content/live-site-policy";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -19,9 +20,9 @@ const WORKSPACE_ID = "workspace-local";
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/publish-content/peers/peer-1`;
 
 test("canPublishToLive is false only when TOVU_RUNTIME_MODE is production", () => {
-  assert.equal(canPublishToLive({ env: { TOVU_RUNTIME_MODE: "production" } }), false);
-  assert.equal(canPublishToLive({ env: { TOVU_RUNTIME_MODE: "local" } }), true);
-  assert.equal(canPublishToLive({ env: {} }), true);
+  assert.equal(canPublishToLive({ env: { TOVU_RUNTIME_MODE: "production" }, resolveRuntimeMode }), false);
+  assert.equal(canPublishToLive({ env: { TOVU_RUNTIME_MODE: "local" }, resolveRuntimeMode }), true);
+  assert.equal(canPublishToLive({ env: {}, resolveRuntimeMode }), true);
 });
 
 function buildApp(): { app: express.Express; outbound: string[] } {

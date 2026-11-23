@@ -1,7 +1,8 @@
 import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
-import { FormDeliveryError, type FormDeliveryBinding } from "@jini-ai/cms/forms";
+import { FormDeliveryError } from "@jini-ai/cms/forms";
+import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 
-import type { FormDeliveryConnectionPort, FormDestinationCredential } from "@jini-ai/cms/forms";
+import type { FormDeliveryConnectionPort, FormDestinationCredential } from "@jini-ai/core/contracts/site/cms-forms";
 import { ConnectionBudgetExceededError } from "./budgets.js";
 import type { ApiConnectionHost } from "./host.js";
 

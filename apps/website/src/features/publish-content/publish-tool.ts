@@ -2,7 +2,8 @@ import { ToolInputError } from "@jini-ai/core";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { selectConnectedDestination } from "./peers.js";
-import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "./live-site-policy.js";
+import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "@jini-ai/cms/publish/content/live-site-policy";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { planPublishToPeer } from "./push-plan.js";
 import { confirmPeerImport, executePeerImport } from "./peer-transport.js";
 import { applyPublishCriteria, parsePublishContentToolInput, type PublishCriteria } from "./ui/criteria.js";
@@ -59,7 +60,7 @@ export async function publishContentFromTool(
   input: Record<string, unknown> = {},
 ) {
   const criteria = readCriteria(input);
-  if (!canPublishToLive()) throw new ToolInputError({ message: PUBLISH_FROM_LIVE_SITE_ERROR });
+  if (!canPublishToLive({ resolveRuntimeMode })) throw new ToolInputError({ message: PUBLISH_FROM_LIVE_SITE_ERROR });
   const { deps, principalId } = required;
   const credential = await destinationCredential({ deps, input });
   const { peer, contentDeps } = planningDeps({ deps, credential });

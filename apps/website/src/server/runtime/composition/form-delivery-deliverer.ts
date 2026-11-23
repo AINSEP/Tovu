@@ -3,7 +3,8 @@ import {
   createCustomCredentialConnectionPort,
   createFormDestinationDeliverer,
 } from "#src/features/form-destinations/index";
-import type { FormDeliveryConnectionPort, FormDestinationKit, FormDestinationRegistry } from "@jini-ai/cms/forms";
+import type { FormDestinationKit, FormDestinationRegistry } from "@jini-ai/cms/forms";
+import type { FormDeliveryConnectionPort } from "@jini-ai/core/contracts/site/cms-forms";
 import { createOAuthFormDeliveryConnectionPort } from "#src/features/api-connections/form-delivery-connection";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 

@@ -20,4 +20,3 @@ export interface ExternalMcpToolApprovalRepoPort {
   listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpToolApprovalRecord[]>;
   delete(input: { workspaceId: UUID; serverId: string; toolName: string }): Promise<boolean>;
 }
-

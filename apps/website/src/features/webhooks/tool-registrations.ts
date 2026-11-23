@@ -16,7 +16,8 @@ import {
   type WebhooksDeleteSteps,
   type WebhooksPackageToolDeps,
 } from "@jini-ai/integrations/webhooks/tools";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";

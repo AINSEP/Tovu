@@ -14,7 +14,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import type { BackstopSelection, RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
-import { CONTENT_HASH_VERSION } from "../content-hash.js";
+import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { contributeRawRowPublish, rawRowId } from "../raw-row-contributor.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
 

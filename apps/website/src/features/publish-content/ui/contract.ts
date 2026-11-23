@@ -9,7 +9,7 @@ import type {
   PublishContentOutcomeKindDto,
   PublishContentOutcomeRowDto,
   PublishContentReportDto,
-} from "../report-contract.js";
+} from "@jini-ai/cms/publish/content/report-contract";
 
 export type PublishContentOutcomeKind = PublishContentOutcomeKindDto;
 export type PublishContentOutcomeRow = PublishContentOutcomeRowDto;

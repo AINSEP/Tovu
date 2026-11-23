@@ -414,7 +414,7 @@ export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerE
 /** The optional half of {@link createByokToolSurface}'s arguments. */
 export interface ByokToolSurfaceOptions {
   readonly surfaceExchangeStore?: SurfaceExchangeStore;
-  readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
+  readonly prepareGuidance?: import("@jini-ai/core/contracts/site/daemon").PrepareToolGuidance;
   /**
    * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
    * meta-tools (`search_tools`/`describe_tool`, via `apps/website/src/assistant/tool-audit-preset.ts`'s own

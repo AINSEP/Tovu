@@ -1,4 +1,5 @@
-import { sameFrontendOwner, type FrontendSessionOwner } from '@jini-ai/daemon';
+import { sameFrontendOwner } from '@jini-ai/daemon';
+import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
 /** Visitor-only binding of Jini's bound confirmations. Never shares the admin exchange store. */
 import type { SurfaceExchangeStore } from "@jini-ai/core";
 import { createBoundConfirmations } from "@jini-ai/daemon/surface-exchanges";

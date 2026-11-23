@@ -1,5 +1,5 @@
 /** @file Site copy bounds plus Jini's policy-link and appearance validators. */
-import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent';
 import { compileConsentCss, safeHref } from '@jini-ai/cookie-consent/render';
 import { ToolInputError } from '@jini-ai/core';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';

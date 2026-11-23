@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { mountSettingsJsonRoute, rejectSettingsRequest, toWriteServiceDeps } from "../settings/shared.js";
+import { mountSettingsJsonRoute, toWriteServiceDeps } from "../settings/shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 import { set } from "#src/features/settings/index";
 export type AssistantOwnerGrantDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "settingsReady" | "settingsUiTabsReady" | "settingsRepo" | "clock" | "idGen" | "principalRepo" | "ownerPrincipalId" | "getEffective">;
 /** Shared site-owner grant ceremony over the existing audited settings chokepoint.
@@ -39,8 +40,8 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
   });
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "put", path,
     handle: async ({ request, principal, authorize }) => {
-      if (principal.id !== await deps.ownerPrincipalId) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: required.writeReason });
-      if (required.canEdit && !required.canEdit({ isOwner: true })) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: "Not available on hosted sites" });
+      if (principal.id !== await deps.ownerPrincipalId) rejectRoute({ status: 403, code: "FORBIDDEN", error: required.writeReason });
+      if (required.canEdit && !required.canEdit({ isOwner: true })) rejectRoute({ status: 403, code: "FORBIDDEN", error: "Not available on hosted sites" });
       const { settings, previous, needsAcknowledgment } = await parseGrantUpdate({ body: request.body as Record<string, unknown> | null });
       const scope = optional.scope ?? "workspace";
       await authorize({ permission: scope === "user" ? "settings.user.self.write" : "settings.workspace.write", entityType: "setting-value" });
@@ -56,11 +57,11 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
 
 function createGrantUpdateParser<T extends { enabled: boolean }>(required: Parameters<typeof registerAssistantOwnerGrantRoutes<T>>[0], optional: Parameters<typeof registerAssistantOwnerGrantRoutes<T>>[1] = {}) {
   return async function parseGrantUpdate({ body }: { body: Record<string, unknown> | null }, _optional = {}) {
-    if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectRoute({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
     const settings = required.parse({ body });
     const previous = await required.read();
     const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
-    if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    if (needsAcknowledgment && body.riskAcknowledged !== true) rejectRoute({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
     return { settings, previous, needsAcknowledgment };
   };
 }
