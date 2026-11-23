@@ -7,10 +7,10 @@ import express from "express";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseRestorePointsCreateRoute } from "../../inbound/admin-http/routes/database/restore-points.js";
-import { registerAdminRecoveryRestorePointsListRoute } from "../../inbound/admin-http/routes/recovery/restore-points.js";
-import { registerAdminRecoveryDisclosureRoute } from "../../inbound/admin-http/routes/recovery/disclosure.js";
-import { registerAdminRecoveryDeepLinkRoute } from "../../inbound/admin-http/routes/recovery/deep-link.js";
+import { registerAdminDatabaseRestorePointsCreateRoute } from "../../runtime/composition/modules/database-recovery.js";
+import { registerAdminRecoveryRestorePointsListRoute } from "../../runtime/composition/modules/database-recovery.js";
+import { registerAdminRecoveryDisclosureRoute } from "../../runtime/composition/modules/database-recovery.js";
+import { registerAdminRecoveryDeepLinkRoute } from "../../runtime/composition/modules/database-recovery.js";
 import { registerAdminRecoveryStatusRoute } from "../../inbound/admin-http/routes/recovery/status.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
@@ -459,4 +459,56 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
     assert.equal(nonErrorRes.status, 500, path);
     assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: { message: "The recovery information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load recovery information" } });
   }
+});
+
+// The Jini recovery specs are tested against typed fakes of the collaborators the host injects;
+// these mounted requests pin the other half: what the host's bindings forward to `@jini-ai/db`
+// and that the wire bodies are the computations' results, byte-for-byte.
+test("recovery mount: disclosure forwards only the covered categories and answers the computation's exact body", async (t) => {
+  const deps: RouteDeps = createRouteDeps();
+  let countReads = 0;
+  deps.disclosureWatermarkSource.getBaseline = async () => ({ available: true, watermarkAtCapture: 1, currentWatermark: 3 });
+  deps.disclosureWatermarkSource.getCategoryCounts = async () => { countReads += 1; return { posts_pages: 2, plugin_table: 0, entries: 9 }; };
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps });
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminRecoveryDisclosureRoute({ app, deps });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ restorePointId: "rp-1" }),
+  });
+  assert.equal(res.status, 200);
+  // `entries` is not a covered (watermark-stamped) category, so it never reaches the wire.
+  assert.deepEqual(await res.json(), { partial: true, watermarkBaselineAvailable: true, counts: { posts_pages: 2, plugin_table: 0 } });
+  assert.equal(countReads, 1);
+});
+
+test("recovery mount: deep-link forwards the envelope's restorePointId to the lookup and answers its exact body", async (t) => {
+  const { app, deps } = buildTestApp();
+  const asked: string[] = [];
+  deps.deepLinkRestorePointLookup.findRestorePointById = async (id: string) => { asked.push(id); return { restorePointId: id, capturedAt: "2026-07-15T00:00:00.000Z" }; };
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ envelope: { v: 1, correlationId: "c1", siteId: "site-1", ledgerEventId: null, restorePointId: "rp-7", drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z" } }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { found: true, restorePoint: { restorePointId: "rp-7", capturedAt: "2026-07-15T00:00:00.000Z" } });
+  assert.deepEqual(asked, ["rp-7"]);
+});
+
+test("recovery mount: restore-points answers the repository listing as { items } unchanged", async (t) => {
+  const { app, deps } = buildTestApp();
+  const row = { id: "rp-1", kind: "manual", watermarkAtCapture: null, createdAt: "2026-01-01T00:00:00.000Z", artifactRef: "a" };
+  let lists = 0;
+  deps.restorePointsRepo.list = (async () => { lists += 1; return [row]; }) as typeof deps.restorePointsRepo.list;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/restore-points`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { items: [row] });
+  assert.equal(lists, 1);
 });

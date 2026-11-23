@@ -2820,6 +2820,70 @@
     {
       "id": "a52372a5ad70",
       "reason": "SH-3 (ex2-holds-tovu, owner-approved): extract-s8-c1-source-scan.test.ts no longer reads the deleted sets/ shells; its @file now says the moved Jini code is scanned and the shells must be absent. The old clause about the Tovu sets/ files importing only @jini-ai/core described files that no longer exist."
+    },
+    {
+      "id": "160a3e4cccd6",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/http/redirects.ts (ex5-fnd-routes, RT-K1-adm-redirects-1) with the DTOs it documents; host paths reworded."
+    },
+    {
+      "id": "9f7b05d4b356",
+      "reason": "Documented a re-export line in the deleted admin-http/http/redirects.ts; the re-export is gone (no shells), so the note has nothing left to explain."
+    },
+    {
+      "id": "fa3d5b3a5584",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/restore-points.ts (RT-K1-adm-database-2), verbatim above the create-route spec."
+    },
+    {
+      "id": "1a4415d45207",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/schema-state.ts (RT-K1-adm-database-2), with the spec it documents."
+    },
+    {
+      "id": "a9e3ae1e4b65",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/schema-state.ts (RT-K1-adm-database-2), beside the same envelope."
+    },
+    {
+      "id": "118810861376",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/timeline.ts (RT-K1-adm-database-2), beside the query-field reader now in the spec parse."
+    },
+    {
+      "id": "77dbe83e0fed",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/timeline.ts (RT-K1-adm-database-2), beside the TimelineValidationError mapping (now a rejectRoute)."
+    },
+    {
+      "id": "8ff2006c77d1",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/database/timeline.ts (RT-K1-adm-database-2) as the spec file header."
+    },
+    {
+      "id": "4f46d23dba95",
+      "reason": "Moved with the recovery restore-points route: the header now lives on the Jini spec (@jini-ai/cms admin-http/routes/recovery/restore-points.ts) and its host registrar note in runtime/composition/modules/database-recovery.ts (RT-K1-adm-recovery-1)."
+    },
+    {
+      "id": "6a830f1a74fc",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/redirects/shared.ts (RT-K1-adm-redirects-1) with the error-mapping table it documents."
+    },
+    {
+      "id": "4d32b5376511",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/redirects/shared.ts (RT-K1-adm-redirects-1) beside REDIRECT_WRITE_ERROR_MAPPINGS."
+    },
+    {
+      "id": "addeb093dc1c",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/system/assistant-daemon.ts (RT-K1-adm-system-1) as the spec file header; host module paths reworded."
+    },
+    {
+      "id": "3c82125b5465",
+      "reason": "The default-to-real-supervisor note moved with that default into the host registrar runtime/composition/http-app/mount-admin-system.ts (registerAdminAssistantDaemonRoutes doc); the Jini spec documents the injected restartAssistantDaemon field (RT-K1-adm-system-1)."
+    },
+    {
+      "id": "e6348daa9ccf",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/system/module-status.ts (RT-K1-adm-system-1) as the spec file header."
+    },
+    {
+      "id": "5fb5eeb126d0",
+      "reason": "Moved to Jini @jini-ai/cms public-http/http/site/render/value-readers.ts (R-public-http-1), verbatim; one host path reworded."
+    },
+    {
+      "id": "45e6f55a7076",
+      "reason": "The removed paragraph explained why RedirectRouteDeps was reused from its unusual admin-http/http/redirects.ts location; that file moved to Jini and the type now lives in this module, so the location note is obsolete. The rest of the header is kept."
     }
   ]
 }

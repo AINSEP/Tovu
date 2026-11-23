@@ -1,6 +1,6 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
-import { str } from "./value-readers.js";
+import { str } from "@jini-ai/cms/public-http/http/site/render/value-readers";
 import { safeAspectRatio } from "@jini-ai/cms/html/style-values";
 
 /**

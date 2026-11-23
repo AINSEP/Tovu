@@ -6,7 +6,7 @@ import { assignLocation, MenuConflictError, MenuNotFoundError } from "#src/featu
 import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
+import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 
 /** Reads+trims `locationKey` off the body in one place; `null` means missing or blank.
  *  @complexity O(1). */

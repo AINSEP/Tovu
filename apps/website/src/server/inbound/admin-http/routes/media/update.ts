@@ -4,7 +4,7 @@ import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inboun
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
+import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
 import { resolveMediaByteSizes } from "./byte-size.js";

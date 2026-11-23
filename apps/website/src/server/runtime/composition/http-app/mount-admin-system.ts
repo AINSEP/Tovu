@@ -13,7 +13,11 @@ import { registerAdminToolGapsRoute } from "../../../inbound/admin-http/routes/s
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { createAnalyticsModule } from "../modules/analytics.js";
-import { registerAdminModuleStatusRoute } from "../../../inbound/admin-http/routes/system/module-status.js";
+import type { Express } from "express";
+import { moduleStatusRoute } from "@jini-ai/cms/admin-http/routes/system/module-status";
+import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-state";
+import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminObservabilityStatusRoute } from "../../../inbound/admin-http/routes/system/observability-status.js";
 import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
 import { registerAdminServerLogsRoute } from "../../../inbound/admin-http/routes/system/server-logs.js";
@@ -24,7 +28,8 @@ import { registerAdminMailTestSendRoute } from "../../../inbound/admin-http/rout
 import { registerAdminMailActivityRoutes } from "../../../inbound/admin-http/routes/system/mail-activity.js";
 import { createDnsChangeDepsFactory } from "../dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
-import { registerAdminAssistantDaemonRoutes } from "../../../inbound/admin-http/routes/system/assistant-daemon.js";
+import { assistantDaemonRestartRoute, type AdminAssistantDaemonDeps } from "@jini-ai/cms/admin-http/routes/system/assistant-daemon";
+import { restartAssistantDaemon as restartAssistantDaemonReal } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
 import { registerAdminAssistantSubagentsRoutes } from "../../../inbound/admin-http/routes/system/assistant-subagents.js";
 import { registerAdminDeploymentOverviewRoute } from "../../../inbound/admin-http/routes/system/deployment-overview.js";
@@ -46,6 +51,28 @@ import { registerAdminPublishSiteRoutes } from "../../../inbound/admin-http/rout
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
+
+/** `GET .../system/module-status` (Jini spec) over this process's boot readiness snapshot; direct
+ * authorization and the route's own failure copy, as the hand-written route answered.
+ * @complexity O(1) setup.
+ */
+export function registerAdminModuleStatusRoute({ app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: moduleStatusRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, getReadinessSnapshot } },
+    { authorization: "direct", failure: { operation: "routes/system/module-status", code: "INTERNAL_ERROR" } });
+}
+
+/** `POST .../system/assistant-daemon/restart` (Jini spec). `restartAssistantDaemon` defaults to the
+ * real `daemon-supervisor.ts` singleton; a route test injects it through the deps object.
+ * @complexity O(1) setup.
+ */
+export function registerAdminAssistantDaemonRoutes(
+  { app, deps }: { app: Express; deps: Pick<RouteDeps, "workspaceId" | "authorize"> & Partial<AdminAssistantDaemonDeps> },
+  _optional: Record<string, never> = {},
+): void {
+  const restartAssistantDaemon = deps.restartAssistantDaemon ?? restartAssistantDaemonReal;
+  mountAdminJsonRoute({ app, spec: assistantDaemonRestartRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, restartAssistantDaemon } },
+    { authorization: "direct", failure: { operation: "routes/system/assistant-daemon", code: "INTERNAL_ERROR" } });
+}
 
 /** The system-admin registrations of `createApp`, as five sub-mounts called in the original statement order. */
 export function mountAdminSystem({ app, routeDeps }: MountInput, _optional = {}): void {
