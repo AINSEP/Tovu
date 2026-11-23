@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
-import { readServerAdmissions } from "../external-mcp-admissions.js";
+import { readServerAdmissions } from "../external-mcp-host-copy.js";
 
 // The loopback fetch no longer exists. Remote connection spans stay with federation's transport.
 test("server admissions waits for admission without making a daemon HTTP request", async t => {

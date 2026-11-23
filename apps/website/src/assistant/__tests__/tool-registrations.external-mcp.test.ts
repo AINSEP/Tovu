@@ -19,7 +19,8 @@ import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp
 import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { type AgentToolDefinition as ExternalMcpAgentToolDefinition } from "@jini-ai/core";
-import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
+import { EXTERNAL_MCP_MANAGE_PERMISSION } from "@jini-ai/mcp/external/agent-tools";
+import { externalMcpAgentToolCatalog } from "../../features/external-mcp/external-mcp-host-copy.js";
 import { buildExternalMcpRegistrations } from "../../features/external-mcp/tool-registrations.js";
 import type { ExternalMcpToolDeps } from "../../features/external-mcp/deps.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";

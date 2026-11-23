@@ -650,7 +650,7 @@ for (const failure of [new Error("private activation failure"), "private activat
 
 test("AGENT_PLUGIN_SET_ENABLED: a package removed after discovery is still a 404", async (t) => {
   await withAgentPluginsDir(async () => {
-    const { AgentPluginNotInstalledError } = await import("#src/features/agent-plugins/set-enabled");
+    const { AgentPluginNotInstalledError } = await import("@jini-ai/agent-plugins/lifecycle");
     await installReal("site-compliance", "seed-disappearing-plugin");
     const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     const before = await readAgentPluginActivations({ workspaceRoot });

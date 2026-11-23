@@ -8,7 +8,6 @@
  * v1 exports the type + port seams; the delivery worker, repos, signer, and handlers land
  * against these contracts in the Implementation Proposal phases (see the design report).
  */
-export type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
 // Subscription CRUD write-service (ADR-036 §6): its first landed consumer was the admin HTTP API
 // (the integrations admin routes). It now lives at `@jini-ai/integrations/webhooks/site/subscriptions`,
@@ -26,6 +25,4 @@ export type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 // `db/sqlite`, same as every other outer-layer SQLite adapter (`vendor-credential-repo.sqlite.ts`
 // et al.).
 
-export { readSiteMetaJson, resolveSiteKeyFingerprint, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir, type SiteKeySource } from "./site-key-sources.js";
-export { fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, isNoSiteKeyError, parseSiteKeyHex, revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus } from "./keyring.env.js";
 

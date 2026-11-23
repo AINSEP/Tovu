@@ -2008,7 +2008,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/external-mcp/agent-tools.ts",
+        "path": "../Jini/packages/mcp/src/external/agent-tools.ts",
         "ids": [
           "content_read.external_mcp",
           "external_mcp_oauth_connect",
@@ -2025,7 +2025,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/external-mcp/operations-tools.ts",
+        "path": "../Jini/packages/mcp/src/external/operations-tools.ts",
         "ids": [
           "external_mcp_test_connection",
           "external_mcp_get_admissions",

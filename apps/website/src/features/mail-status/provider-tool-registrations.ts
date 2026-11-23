@@ -11,7 +11,7 @@ import type { MailProviderConfigurationReport } from "@jini-ai/platform/mail";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from "../agent-plugins/tool-registrations.js";
-import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 
 /**
  * @file Assistant adapters for the shared provider operations (`./provider-operations.ts`), the

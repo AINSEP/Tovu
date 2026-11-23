@@ -14,7 +14,7 @@ import {
 import { isGrantActive } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
-import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**

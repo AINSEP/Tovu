@@ -28,7 +28,8 @@ ports and the host-record readers over the hosted module; `externalMcpVaultEnvel
 
 `external-mcp-host-copy.ts` binds the host's model-facing copy (`Settings → External MCP`,
 `content_read.external_mcp`), the probe budget (`OUTBOUND_CALL_PER_IP` via `createRateLimiter`) and the
-redacting log formatter (`describeErrorForLog`) into `@jini-ai/mcp/external/*` once. It exports the
+redacting log formatter (`describeErrorForLog`) into `@jini-ai/mcp/external/*` and
+`@jini-ai/mcp/federation/external-mcp-admissions` once. It exports the
 bound `externalMcpAgentToolCatalog`, `externalMcpOperationsToolCatalog`, `readServerAdmissions` and
 `externalMcpOperationsHost`, which every `contributeExternalMcpOperationsTools` caller spreads into its
 services (`tool-catalog-manifest.ts`). `EXTERNAL_MCP_MANAGE_PERMISSION`, `ExternalMcpOperations` and

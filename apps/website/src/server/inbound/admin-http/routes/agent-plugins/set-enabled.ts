@@ -8,7 +8,10 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginNotReadyError } from "#src/features/agent-plugins/soon-lock";
+import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
+import { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

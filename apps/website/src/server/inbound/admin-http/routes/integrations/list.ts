@@ -1,7 +1,7 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import type { WebhookDeliveryRecord } from "#src/features/webhooks/index";
+import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps.js";

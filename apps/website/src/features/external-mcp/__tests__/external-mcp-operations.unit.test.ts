@@ -7,7 +7,7 @@ import { ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { probeExternalMcpServer } from "../external-mcp-probe.js";
-import { readServerAdmissions } from "../external-mcp-admissions.js";
+import { readServerAdmissions } from "../external-mcp-host-copy.js";
 
 const NOW = "2026-10-01T00:00:00.000Z";
 async function fixture(overrides: Record<string, unknown> = {}) {

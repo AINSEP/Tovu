@@ -85,7 +85,7 @@ export interface CredentialsDeps {
   externalMcpServerRepo: ExternalMcpServerRepoPort;
   /** Server federation's live admissions reader. Integration binds it to the SAME tool surface
    * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
-  externalMcpAdmissions?: import("../../../features/external-mcp/operations-tools.js").ExternalMcpOperations["admissions"];
+  externalMcpAdmissions?: import("@jini-ai/mcp/external/operations-tools").ExternalMcpOperations["admissions"];
   bundledSourceRoot: string;
   mcp: import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpPort & import("../../../features/agent-plugins/service-ports.js").AgentPluginMcpContext;
   preferences: import("../../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;

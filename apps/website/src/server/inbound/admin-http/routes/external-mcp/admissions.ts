@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

@@ -40,8 +40,7 @@ import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
-import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
-import { externalMcpOperationsToolCatalog } from "../../features/external-mcp/operations-tools.js";
+import { externalMcpAgentToolCatalog, externalMcpOperationsToolCatalog } from "../../features/external-mcp/external-mcp-host-copy.js";
 import { askAgentPluginChoice, askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
@@ -64,7 +63,7 @@ import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
 import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
-import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
+import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/tool-registrations.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";

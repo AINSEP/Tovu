@@ -14,7 +14,7 @@ import { serverFederationFixture } from "../runtime/composition/modules/__tests_
 import { InMemoryMcpSession } from "../../assistant/mcp-federation/adapter.memory.js";
 import { createApp } from "../runtime/composition/app.js";
 import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
-import type { ExternalMcpOperations } from "../../features/external-mcp/operations-tools.js";
+import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 
 const PATH = "/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions";
 
