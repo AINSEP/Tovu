@@ -31,7 +31,24 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 type ListDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "publishExecutionMode">;
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
-/** The list's store-error answers — the same ladder the four spec routes map in Jini. */
+/**
+ * The list's store-error answers — the same ladder the four spec routes map in Jini. History carried
+ * over from when this ladder served all five verbs:
+ *
+ * Every error this route can produce, shaped once so each handler below stays a thin dispatch.
+ * Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
+ * permission failure; the four typed store-error branches are new to this route and have no
+ * precedent to match.
+ *
+ * 2026-08-16 — the untyped fallback used to be `throw err`, re-throwing out of the caller's own
+ * `catch` block instead of responding. That is not a guard, it just moves the same unhandled
+ * rejection one frame up: found live when `GET`/`DELETE` below had no `try`/`catch` at all (an
+ * AST scan over every `app.<verb>()` handler in `src/server/routes/**` caught it), and the SAME
+ * scan showed `POST`/`PUT`/`POST .../:id/verify` already had a `try { ... } catch (err) {
+ * sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
+ * typed ones above still escaped every one of those handlers too. Every caller below now gets a
+ * real response for an error this function does not recognize, instead of a hung request.
+ */
 function sendStoreError({ res, err }: { res: import("express").Response; err: unknown }, _options = {}): void {
   if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   const rows: [new (...args: never[]) => Error, number, string][] = [
@@ -64,7 +81,9 @@ export function registerAdminPublishCredentialsListRoute(
       // Fires AFTER the response is already sent, and only for rows THIS call itself found still
       // `null` — never awaited, never able to change or delay what the caller above just received.
       // `accountLabelHealScheduler.triggerFor` is documented to never throw or reject, even if `heal`
-      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly).
+      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
+      // file's header for why this is the one new trigger point and why it must stay exactly this
+      // narrow.
       void triggerAccountLabelHeal(credentials);
     } catch (err) {
       sendStoreError({ res, err });

@@ -41,7 +41,26 @@ import type { RouteDeps } from "#src/server/routes/types";
 /** The deps `registerAdminMailStatusRoute` reads. */
 export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mailer" | "mailStatus">;
 
-/** `GET .../system/mail-status` (Jini spec): `direct` authorization and the route's own failure copy, as the hand-written route answered.
+/**
+ * @file `GET /api/admin/v1/workspaces/:workspaceId/system/mail-status` — reports whether this site
+ * can actually deliver email. The admin form editor greys out its notification settings while it
+ * cannot (owner ask, 2026-09-22: "no mail adapters are wired … it should be greyed out").
+ *
+ * Read-only and display-only: stored `notify_json` values and the forms write API are unaffected.
+ * Gated on `admin.forms.manage` because the form editor is the consumer, so any principal who can
+ * edit a form's notify settings can also see whether they will take effect.
+ *
+ * 2026-10-21 (email provider contract v1): when the root supplies `mailStatus`, the body also carries
+ * `state` (`ready|unconfigured|degraded`, which drives the admin's blocking banner), per-lane
+ * provider/state, `warnings` (`sender_unverified`/`sender_unknown`) and the installed providers.
+ * Never credentials.
+ *
+ * 2026-10-22 (email phase 2): `providers` entries are the safe configuration DTO
+ * (`features/mail-status/provider-operations.ts`), plus `checkedAt` and `lastError`. The status is
+ * cached for 30 s (`resolve-mailer.ts`); `?refresh=1` rebuilds it. Provider actions live beside
+ * this route in `./mail-providers.ts`.
+ *
+ * `GET .../system/mail-status` (Jini spec): `direct` authorization and the route's own failure copy, as the hand-written route answered.
  * @complexity O(1) setup.
  */
 export function registerAdminMailStatusRoute({ app, deps }: { app: Express; deps: AdminMailStatusDeps }, _optional: Record<string, never> = {}): void {
@@ -56,7 +75,21 @@ export function registerAdminMailStatusRoute({ app, deps }: { app: Express; deps
   } }, { authorization: "direct", failure: { operation: "routes/system/mail-status", code: "INTERNAL_ERROR" } });
 }
 
-/** The four mail-provider routes, in their original order: list, credential plan, credential save, activate.
+/**
+ * @file Admin mail provider actions beside `./mail-status.ts` (email phase 2, 2026-10-22). Thin
+ * HTTP adapters over `features/mail-status/provider-operations.ts`, the same operations the
+ * assistant's `mail_list_providers`, `mail_configure_provider` and `mail_set_provider` call:
+ *
+ * - `GET  …/system/mail-providers` — the safe configuration DTO (`admin.forms.manage`, like status).
+ * - `GET  …/system/mail-providers/:providerId/credential` — what saving its key takes (label,
+ * category, default endpoint, create vs rotate). `custom-credentials.write`.
+ * - `PUT  …/system/mail-providers/:providerId/credential` — body `{token?, username?, baseUrl?}`:
+ * creates or rotates the key in the custom-credentials store WITHOUT activating the provider; the
+ * next send already uses it. `custom-credentials.write`. Never echoes a secret.
+ * - `POST …/system/mail-providers/:providerId/activate` — switches BOTH lanes after re-checking the
+ * provider; the click is the person's explicit confirmation. `settings.workspace.write`.
+ *
+ * The four mail-provider routes, in their original order: list, credential plan, credential save, activate.
  * List, plan and activate are Jini specs, all `direct` (the hand-written routes called `deps.authorize`
  * themselves) with the one `routes/system/mail-providers` failure copy. The credential save STAYS
  * hand-written (K1 STOP: it reads `res.locals.authCredentialKind` for the owner-session gate).
@@ -82,7 +115,18 @@ export interface AdminMailDnsDeps {
   dns: DnsChangeToolDeps;
 }
 
-/** The two mail DNS routes (Jini specs): `direct` authorization through the DNS deps' own authorizer, as the hand-written routes did.
+/**
+ * @file The Email page's **Sender and DNS** section, over the same operations as `mail_dns_status`
+ * and `mail_dns_verify` (`features/domain-dns/mail-dns-status.ts`):
+ * - `GET  /api/admin/v1/workspaces/:workspaceId/system/mail-dns` (`deployments.read`): provider
+ * verdict, copyable rows and one unsaved record-by-record check.
+ * - `POST /api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify` (`deployments.publish`):
+ * **Check again**, saved as the sender domain's tracking state.
+ * Both answer 200 with a `MailDnsStatus` whose `state` names why a table is absent (no sender,
+ * no provider, verification unavailable for this provider, ...); only an unexpected fault is a 500.
+ * Neither changes DNS.
+ *
+ * The two mail DNS routes (Jini specs): `direct` authorization through the DNS deps' own authorizer, as the hand-written routes did.
  * Both operations run over fresh `mailDnsPorts` per request. Same operations as the assistant's `mail_dns_status`/`mail_dns_verify`.
  * @complexity O(1) setup.
  */
@@ -96,7 +140,21 @@ export function registerAdminMailDnsRoutes({ app, deps }: { app: Express; deps: 
 /** The deps `registerAdminMailTestSendRoute` reads. */
 export type AdminMailTestSendDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & MailTestSendDeps;
 
-/** `POST .../system/mail-test-send` (Jini spec): `direct` authorization. The host binds the recipient rules, a fresh idempotency
+/**
+ * @file `POST /api/admin/v1/workspaces/:workspaceId/system/mail-test-send` — the Email page's
+ * **Send test email** button. A thin adapter over the same operation `mail_send_test` runs
+ * (`features/mail-status/test-send.ts`): same recipient rules, limiter, delivery policy and
+ * truthful outcome. The person's click is the confirmation here; the assistant's tool stays
+ * approval-gated by its card.
+ *
+ * Body: `{ to?: string, requestId?: string }`. `to` defaults to the operator's account address;
+ * `requestId` (8-64 of `[A-Za-z0-9_-]`, one per click) is the idempotency key, so a retried
+ * request replays the ledger's answer instead of sending twice.
+ *
+ * 200 `{ sent, result }` for every send outcome (accepted | captured | redirected | failed),
+ * 429 for the local duplicate/rate guard, 400 for bad input, 403 without `admin.forms.manage`.
+ *
+ * `POST .../system/mail-test-send` (Jini spec): `direct` authorization. The host binds the recipient rules, a fresh idempotency
  * key and the plan-then-run send (the operation `mail_send_test` runs).
  * @complexity One authorization, one user lookup, one settings read and at most one delivery.
  */
@@ -123,7 +181,33 @@ function classifyMailActivityError(error: unknown, _optional: Record<string, nev
   return undefined;
 }
 
-/** The six activity routes (Jini specs): `direct` authorization, as the hand-written routes consulted `deps.authorize` themselves.
+/**
+ * @file The Email page's **What uses email** and **Recent sends and failures** (email phase 4):
+ * thin adapters over the operations `mail_get_readiness`, `mail_list_activity` and
+ * `mail_get_activity` run (`features/mail-status/{use-readiness,activity}.ts`).
+ *
+ * - `GET  .../system/mail-uses` (admin.forms.manage) -> `{ checkedAt, uses: MailUseRow[] }`.
+ * - `GET  .../system/mail-activity?outcome=&use=&recipient=&limit=&cursor=` (mail.activity.read
+ * for full recipients; admin.forms.manage alone gets masked rows) -> `MailActivityPage`.
+ * - `GET  .../system/mail-activity/:activityId` (mail.activity.read) -> `MailActivityDetail`, 404
+ * when no such send exists here.
+ *
+ *
+ * Phase 5 (same file, same envelopes; operations in `features/mail-status/{suppressions,feedback-setup}.ts`):
+ *
+ * - `GET  .../system/mail-suppressions?search=&scope=&reason=&limit=&cursor=` (mail.activity.read)
+ * -> `{ items: [{ address, scope, reason, createdAt }], nextCursor, empty }`.
+ * - `POST .../system/mail-suppressions/remove` (mail.suppressions.manage) body
+ * `{ address, scope: "all"|"bulk", reason, confirmed?: true }`. Without `confirmed: true` it only
+ * previews: `{ removed: false, confirmationRequired: true, plan }` (what was blocked, why, and
+ * the warnings). With it: `{ removed, removal? }`, the reason recorded in the removal audit. Every
+ * removal is a fresh confirmation; nothing about it is remembered.
+ * - `GET  .../system/mail-feedback` (admin.forms.manage) -> `MailFeedbackSetupReport`.
+ *
+ * 400 for malformed input, 403 without the permission, 503 when this root has no activity or
+ * suppression repo.
+ *
+ * The six activity routes (Jini specs): `direct` authorization, as the hand-written routes consulted `deps.authorize` themselves.
  * The platform operations run per request over `mailDomainDepsFrom`, which authorizes each answer's own permission.
  * Same operations as `mail_get_readiness`, `mail_list_activity`, `mail_get_activity` and the suppression/feedback tools.
  * @complexity One readiness pass or one activity read per request.
