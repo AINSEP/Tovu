@@ -4,7 +4,7 @@ import {
   type PageDriver, type WebMcpToolRegistration,
 } from "@jini-ai/agentic";
 import { getAgentModelContext, type AgentModelContextLike } from "@jini-ai/agentic/dom";
-import { getBrowserAgentEnabled } from "./browser-agent-settings.hooks";
+import { browserAgentSettingsPort } from "./browser-agent-settings.hooks";
 
 /** The authenticated host adapter owns confirmation and execution of opaque page effects. */
 export type RequestAdminPageAction = (required: {
@@ -26,7 +26,7 @@ export function registerAdminPageWebMcpTools(
       typeof navigator === "undefined" ? undefined : (navigator as unknown as { modelContext?: unknown }).modelContext,
     ] } }),
     requestPageAction,
-    isEnabled = () => getBrowserAgentEnabled({}),
+    isEnabled = () => browserAgentSettingsPort.getEnabled({}),
     onError = ({ name, error }) => console.warn(`[admin] WebMCP registration failed: ${name}`, error),
   }: {
     modelContext?: AgentModelContextLike;

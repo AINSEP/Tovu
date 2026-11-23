@@ -117,7 +117,7 @@ import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-the
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
-import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
+import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
@@ -711,7 +711,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
   contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations({ registrations: input.registrations, routeDeps: input.routeDeps }, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });
-  contributions.contributors.register({ contribution: contributeWorkspaceTools() });
+  contributions.contributors.register({ contribution: contributeWorkspaceTools({ readToolId: "content_read.workspace" }) });
 
   // `content_duplicate`'s per-resource handler registry (`assistant/duplicate-resource-registry.ts`)
   // — a SEPARATE registration from the ToolContributor calls above (see that file's own header for

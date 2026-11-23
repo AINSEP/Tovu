@@ -47,7 +47,9 @@ supply file bytes; file/folder inputs are tagged for discovery, but users or a b
 upload driver must provide those files. The shared add card has no border/shadow at
 any width, including the 390px Skills tab.
 
-The settings copy (`WEBMCP_DICT`/`WEBMCP_KEYS`) lives in Jini at
-`@jini-ai/admin/screens/webmcp/webmcp-i18n`; `BrowserAgentSettingsPanel.tsx` binds it to the
-admin common dictionary. The panel, preference hook and page tools stay here until their
-host importers (`SettingsUi.tsx`, `App.hooks.ts`) are free to change.
+The settings copy (`WEBMCP_DICT`/`WEBMCP_KEYS`), the preference port/hook
+(`createBrowserAgentSettingsPort`, `useBrowserAgentSettings`) and `BrowserAgentSettingsPanel` live in
+Jini at `@jini-ai/admin/screens/webmcp/*`. `browser-agent-settings.hooks.ts` here binds the admin's
+storage key (`WEBMCP_PREFERENCE_KEY`) into the one shared port and exports the bound hook
+`useAdminBrowserAgentSettings`, which `SettingsUi.tsx` injects into the panel. `admin-page-tools.ts`
+stays here: it composes `@jini-ai/agentic` and `@tovu/headless`, which `@jini-ai/admin` may not import.
