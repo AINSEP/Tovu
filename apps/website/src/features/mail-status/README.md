@@ -10,3 +10,7 @@ The catalogs, permission ids/grant registrar and `mailDomainDepsFrom` live in
   `server/runtime/composition/app-permission-grants.ts`.
 - `mailDomainDepsFrom` is called with the route/tool deps bag in `./delivery-tool-registrations.ts` and
   `server/inbound/admin-http/routes/system/mail-activity.ts`.
+- The test-send operation lives at `@jini-ai/platform/mail/test-send`. The host injects
+  `mailSenderIdentity` and `mailTestFallbackSender` (the product-named placeholder From) through the
+  site mailer's `operations` in `server/runtime/composition/site-mailer.ts`; they reach the
+  `mail_send_test` tool and the mail-test-send route through the site deps bag.

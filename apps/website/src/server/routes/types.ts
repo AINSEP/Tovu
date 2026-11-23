@@ -440,9 +440,9 @@ export interface MembersDeps {
   mailTestMode?: () => Promise<import("@jini-ai/core/contracts/mail").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestProvider?: () => Promise<string | null>;
-  mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
+  mailTestRequests?: Map<string, Promise<import("@jini-ai/platform/mail/test-send").MailTestSendResult>>;
   mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
-  mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
+  mailTestSendLimiter?: import("@jini-ai/platform/mail/test-send").MailTestSendLimiter;
   /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
   mailActivity?: import("@jini-ai/platform/mail").MailActivityRepo;
   /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
@@ -1283,7 +1283,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   agentPluginLifecycle: import("#src/features/agent-plugins/lifecycle").TovuAgentPluginLifecycle;
   /** Site-bound toggle also clears mail selections owned by a disabled plugin. */
   setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
-  skillLayout: import("#src/features/skills/layout").SkillLayout;
+  skillLayout: import("@jini-ai/agentic/skills/site/layout").SkillLayout;
   /**
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
    * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process

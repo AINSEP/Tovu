@@ -12,7 +12,7 @@ import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../p
 import type { PositionalMailer as MailerPort, MailSenderIdentityPort, MailStatusReport } from "@jini-ai/platform/mail";
 import type { MailProviderControl } from "@jini-ai/platform/mail";
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
-import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
+import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "@jini-ai/platform/mail/test-send";
 import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
 import { asToolInputError, currentLanesDetail } from "./provider-tool-registrations.js";
 
@@ -26,7 +26,7 @@ export interface MailStatusToolDeps {
   userRepo?: Pick<UserRepoPort, "findByPrincipalId">;
   /** The site's system-mail From (`platform/mail/sender-identity.ts`). */
   mailSenderIdentity?: MailSenderIdentityPort;
-  /** Shared with the admin test-send route (`features/mail-status/test-send.ts`). */
+  /** Shared with the admin test-send route (`@jini-ai/platform/mail/test-send`). */
   mailTestSendLimiter?: MailTestSendDeps["mailTestSendLimiter"];
   mailTestMode?: MailTestSendDeps["mailTestMode"];
   mailTestProvider?: MailTestSendDeps["mailTestProvider"];

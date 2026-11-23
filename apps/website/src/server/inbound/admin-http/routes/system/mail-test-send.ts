@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Express, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
-import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "#src/features/mail-status/test-send";
+import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

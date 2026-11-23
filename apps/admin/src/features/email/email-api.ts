@@ -82,7 +82,7 @@ export interface MailDnsStatus {
   dns?: { overall: MailDnsRecordStatus; records: MailDnsRecordView[]; reason?: string; checkedAt: string };
 }
 
-// --- test send (`features/mail-status/test-send.ts`) ----------------------------------------
+// --- test send (`@jini-ai/platform/mail/test-send`) ----------------------------------------
 
 interface TestCommon { to: string; from: string; driver: string; at: string }
 export type MailTestSendResult =

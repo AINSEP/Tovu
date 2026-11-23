@@ -1,7 +1,7 @@
 import { createHostMailer } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
 import { createMailPurposeGateProbe } from "@jini-ai/platform/mail";
-import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
+import { createMailTestSendLimiter, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { SettingsRevisionConflictError, type AuthorizeFn, type SettingsRepoPort, type SetValueRequired } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
@@ -35,7 +35,7 @@ export interface SiteMailerRequired {
 
 export interface SiteMailer extends ResolvedMailer {
   setAgentPluginEnabled: typeof setAgentPluginEnabled;
-  operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity"> & {
+  operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity" | "mailTestFallbackSender"> & {
     mailLaneReady: ResolvedMailer["laneReady"];
     mailSenderDomainVerification: ResolvedMailer["senderDomainVerification"];
     mailPurposeGate: import("@jini-ai/platform/mail").MailPurposeGateProbe;
@@ -94,6 +94,8 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     mailTestRequests: new Map(),
     // One bucket per site, so the Email page's button and the assistant's tool share it.
     mailTestSendLimiter: createMailTestSendLimiter(),
+    // Product copy for the test send's placeholder From (also the name a configured sender without one gets).
+    mailTestFallbackSender: { email: "no-reply@mail.local", name: "Tovu" },
     mailLaneReady: resolved.laneReady, mailSenderDomainVerification: resolved.senderDomainVerification,
     mailSenderIdentity: createMailSenderIdentityResolver({ mailer: resolved.mailer }, {
       readConfiguredSender: required.readConfiguredSender ?? (async () => ({ email: await required.readSenderEmail() })), settle: resolved.settle,

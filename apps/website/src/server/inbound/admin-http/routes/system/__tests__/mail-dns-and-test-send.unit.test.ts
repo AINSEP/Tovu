@@ -9,7 +9,7 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import type { PositionalMailer as MailerPort, MailerSendResult } from "@jini-ai/platform/mail";
 import type { DnsChangeToolDeps } from "#src/features/domain-dns/index";
 import { context, fakeAuthoritative, memoryBindings } from "#src/features/domain-dns/__tests__/dns-fakes";
-import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
+import { createMailTestSendLimiter } from "@jini-ai/platform/mail/test-send";
 import { registerAdminMailDnsRoutes } from "../mail-dns.js";
 import { registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "../mail-test-send.js";
 
