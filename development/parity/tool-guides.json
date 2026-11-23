@@ -1978,7 +1978,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/domain-dns/mail-dns-tools.ts",
+        "path": "packages/devops/src/dns/site/mail-dns-tools.ts",
         "ids": [
           "mail_dns_verify"
         ]
