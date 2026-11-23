@@ -4,7 +4,7 @@ import {
   readString as stringValue, readBoolean as booleanValue, readNumber as numberValue,
   type AdminSettingsPort, type LedgerCandidate,
 } from "@jini-ai/admin/core";
-import { settingsApi } from "../features/settings/api/settings-api";
+import { settingsApi } from "./admin-http/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingScope } from "@jini-ai/core/settings";
 export type { LedgerEntry, LedgerCandidate } from "@jini-ai/admin/core";
