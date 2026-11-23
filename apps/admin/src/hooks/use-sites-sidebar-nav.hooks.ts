@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useSidebar } from "@jini-ai/admin/react";
-import type { AdminNavGroup } from "@/nav";
+import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 import { defaultSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
 import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";
