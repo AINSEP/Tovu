@@ -2,7 +2,6 @@ import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
-export { createCredentialSaveHandlers, createCredentialToolRegistrations };
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
