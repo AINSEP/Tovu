@@ -53,6 +53,18 @@ export function adminRequestFactsFor({ context }: { context: OperatorPrincipalRe
   return { credentialKind: facts.credentialKind, publishTrust: facts.publishTrust };
 }
 
+/** Only the publish-trust grant of the request a spec is handling — for a route that never reads the
+ * credential kind (publish-content capabilities), so a request whose session layer recorded no kind
+ * still answers from its grant instead of the redacted 500 `adminRequestFactsFor` gives it.
+ * @throws When the ports never authenticated this context (a wiring bug, same message).
+ * @complexity O(1).
+ */
+export function adminPublishTrustFor({ context }: { context: OperatorPrincipalRecord | undefined }, _optional: Record<string, never> = {}): PublishTrustContext | null {
+  const facts = context ? factsByContext.get(context) : undefined;
+  if (!facts) throw new Error(MISSING_FACTS);
+  return facts.publishTrust;
+}
+
 /** The port form of `rejectUnlessSessionCredential`: same rule, same 403 body, thrown as a refusal so
  * the mount's error port writes it before parse, authorization or any side effect.
  * @complexity O(1). */

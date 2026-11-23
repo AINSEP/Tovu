@@ -3,7 +3,7 @@ import test from "node:test";
 import { defineJsonRoute, ok } from "@jini-ai/core/contracts/server";
 
 import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
-import { adminRequestFactsFor, type AdminRequestFacts } from "../admin-request-facts.js";
+import { adminPublishTrustFor, adminRequestFactsFor, type AdminRequestFacts } from "../admin-request-facts.js";
 import type { OperatorPrincipalRecord } from "../dev-auth.js";
 import { PROBE_GRANT, fakeAdminApp, listen } from "./fixtures/port-harness.js";
 
@@ -70,4 +70,21 @@ test("a request whose session layer recorded no credential kind fails closed wit
   const answered = await s.get({});
   assert.equal(answered.status, 500);
   assert.equal(answered.body?.code, "INTERNAL_ERROR");
+});
+
+// C3b: publish-content capabilities reads ONLY the grant, and its wire tests (unchanged) authenticate
+// without a credential kind — the grant read must not demand one, but must still refuse a forged context.
+test("the grant-only read needs an authenticated context but no credential kind", async (t) => {
+  const app = fakeAdminApp();
+  const spec = defineJsonRoute<void, unknown, FactsDeps, OperatorPrincipalRecord>({
+    method: "get", path, parse: () => ok({ value: undefined }),
+    handle: async ({ context }) => ok({ value: { grant: adminPublishTrustFor({ context }) } }),
+  });
+  mountAdminJsonRoute({ app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }), requestFacts: adminRequestFactsFor } });
+  const server = await listen({ app });
+  t.after(server.close);
+  const withGrant = await server.call("/api/admin/v1/workspaces/local/facts", { headers: { "x-grant": "1" } });
+  const without = await server.call("/api/admin/v1/workspaces/local/facts", { headers: {} });
+  assert.deepEqual([withGrant.status, withGrant.body, without.status, without.body], [200, { grant: PROBE_GRANT }, 200, { grant: null }]);
+  assert.throws(() => adminPublishTrustFor({ context: { id: "forged" } as OperatorPrincipalRecord }), /requireAdminSession must run before this route/);
 });
