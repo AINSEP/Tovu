@@ -5,10 +5,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RenderServiceError, type UrlCapturePort } from '@jini-ai/desktop-host';
 import { createPageCaptureForHost } from '@jini-ai/integrations/web-screenshot/desktop-page-capture';
-import { VIEWPORT_PRESETS, type PageCaptureRequest } from '@jini-ai/integrations/web-screenshot/web-screenshot';
+import type { PageCaptureRequest } from '@jini-ai/core/contracts/site/web-screenshot';
+import { CAPTURE_LIMITS, PageCaptureError, VIEWPORT_PRESETS } from '@jini-ai/integrations/web-screenshot/web-screenshot';
 import type { HttpClientPort } from '#src/platform/http/index';
 import { desktopRenderForHost } from '#src/platform/headless-browser/desktop-render';
-import { createPlaywrightPageCapture, type PlaywrightPageCaptureOptions } from '../playwright-page-capture.js';
+import { importPlaywrightChromium } from '#src/platform/headless-browser/playwright-loader';
+import { createPlaywrightPageCapture, type PlaywrightPageCaptureOptions } from '@jini-ai/diagnostics/web-evidence/playwright-page-capture';
 
 const request: PageCaptureRequest = { url: 'http://127.0.0.1:4200/about', viewport: VIEWPORT_PRESETS.mobile,
   fullPage: true, maxPageHeightPx: 8000, settleMs: 1200, allowedOrigins: ['http://127.0.0.1:4200'] };
@@ -19,7 +21,10 @@ function hostCapture(
   required: { httpClient: HttpClientPort },
   { env = process.env, nativeCapture = desktopRenderForHost({ env }), ...options }: PlaywrightPageCaptureOptions & { env?: NodeJS.ProcessEnv; nativeCapture?: UrlCapturePort | null } = {},
 ) {
-  return createPageCaptureForHost({ playwright: createPlaywrightPageCapture(required, options), nativeCapture,
+  const captureDeps = { limits: CAPTURE_LIMITS, importPlaywrightChromium,
+    createCaptureError: (fields: ConstructorParameters<typeof PageCaptureError>[0]) => new PageCaptureError(fields),
+    isCaptureTimeout: ({ error }: { error: unknown }) => error instanceof PageCaptureError && error.kind === 'timeout' };
+  return createPageCaptureForHost({ playwright: createPlaywrightPageCapture({ ...required, ...captureDeps }, options), nativeCapture,
     isRenderServiceError: (error): error is RenderServiceError => error instanceof RenderServiceError });
 }
 

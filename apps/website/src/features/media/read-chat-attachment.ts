@@ -9,7 +9,8 @@
  * the current session, off a client-side `File` cache keyed by upload path
  * (`apps/admin/.../attachment-preview-cache.ts`): anything from an earlier turn, or anything at all
  * after a reload, could never be previewed. This module is the server half that makes those bytes
- * reachable; `routes/assistant/get-chat-attachment.ts` is the HTTP half.
+ * reachable; `@jini-ai/cms/admin-http/routes/assistant/get-chat-attachment` (bound in
+ * `server/runtime/composition/modules/assistant-attachment-read.ts`) is the HTTP half.
  *
  * ## Why this reads the store's on-disk records instead of calling the store
  *

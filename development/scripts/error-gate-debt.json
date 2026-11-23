@@ -1035,16 +1035,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 3
-  },
-  {
     "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",
     "rule": "catch-reads-error",
     "value": 1

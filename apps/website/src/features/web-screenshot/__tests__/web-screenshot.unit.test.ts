@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { ToolInputError } from "@jini-ai/core";
 
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
+import type { PageCapture, PageCapturePort, PageCaptureRequest } from "@jini-ai/core/contracts/site/web-screenshot";
 import {
   captureRelativePaths,
   createWebScreenshotService,
@@ -13,9 +14,6 @@ import {
   PageCaptureError,
   readWebScreenshotInput,
   UNTRUSTED_NOTICE,
-  type PageCapture,
-  type PageCapturePort,
-  type PageCaptureRequest,
   type WebScreenshotEvent,
   type WebScreenshotPorts,
 } from "@jini-ai/integrations/web-screenshot/web-screenshot";

@@ -4,7 +4,8 @@ import test from 'node:test';
 import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { delegatedText, executeDelegatedRegisteredTool, invokeRegisteredTool } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 import { buildWebScreenshotRegistrations } from '../tool-registrations.js';
-import { createWebScreenshotService, readWebScreenshotInput, type PageCaptureRequest, type WebScreenshotPorts } from '@jini-ai/integrations/web-screenshot/web-screenshot';
+import type { PageCaptureRequest } from '@jini-ai/core/contracts/site/web-screenshot';
+import { createWebScreenshotService, readWebScreenshotInput, type WebScreenshotPorts } from '@jini-ai/integrations/web-screenshot/web-screenshot';
 
 function deferred() {
   let resolve!: () => void;

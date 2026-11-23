@@ -72,9 +72,10 @@ import { contributeWebTools } from "#src/features/web/tool-registrations";
 import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
-import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
+import { importPlaywrightChromium, playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
-import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
+import { createPlaywrightPageCapture } from "@jini-ai/diagnostics/web-evidence/playwright-page-capture";
+import { CAPTURE_LIMITS, PageCaptureError } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { desktopRenderForHost } from "#src/platform/headless-browser/desktop-render";
 import { RenderServiceError } from "@jini-ai/desktop-host";
 import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
@@ -611,7 +612,8 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
       capture: createPageCaptureForHost({
-        playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+        playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }), limits: CAPTURE_LIMITS, importPlaywrightChromium,
+          createCaptureError: fields => new PageCaptureError(fields), isCaptureTimeout: ({ error }) => error instanceof PageCaptureError && error.kind === "timeout" }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
         nativeCapture: desktopRenderForHost({ env: process.env }),
         isRenderServiceError: (error): error is RenderServiceError => error instanceof RenderServiceError,
       }),
