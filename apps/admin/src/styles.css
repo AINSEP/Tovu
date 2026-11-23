@@ -78,7 +78,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .jini-post-notice__btn {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -1181,7 +1181,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Card copy and notices: bare paragraphs and list items inside a card, and every `.notice`, take
    the same 13px as `.card-lead` instead of inheriting the 16px page text. `:where` keeps this at
    zero specificity, so any class that sets its own size (hints, labels, empty states) still wins. */
-:where(.card p, .card li, .notice) { font-size: var(--text-sm); }
+:where(.card p, .card li, .notice, .jini-post-notice) { font-size: var(--text-sm); }
 /* Danger-zone card modifier (2026-08-31: the left-accent-border idiom this used to share with
    `.notice.error`/`.notice.warning` is retired everywhere in this app — owner's explicit call,
    "I don't like that idiom at all" — see the `.notice` rules below for the fuller reasoning).
@@ -1213,15 +1213,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary, .jini-post-notice__btn { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .jini-post-notice__btn:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .jini-post-notice__btn:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .jini-post-notice__btn:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1229,7 +1229,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .jini-post-notice__btn:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); opacity: 1; }
@@ -1867,17 +1867,17 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    of its own to fall back on, so its border stays `--border-strong` (was already the left edge's
    color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
    reads as a slightly more emphatic box than a plain card, just without a directional rail. */
-.notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
-.notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
-.notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
-.notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
+.notice, .jini-post-notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.notice.error, .jini-post-notice.jini-post-notice--error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.notice.warning, .jini-post-notice.jini-post-notice--warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
+.notice.warning label, .jini-post-notice.jini-post-notice--warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
 /* Banner action pairs (2026-09-16) — the editors' notices put their buttons straight after the
    message (Load latest / Keep my edits, Restore / Discard, Save anyway / Keep editing), and JSX
    leaves no whitespace between them, so each pair rendered touching. Same `--space-2` step
    `.card-head-actions` uses for its buttons. Direct children only: a notice that lays its buttons out
    in its own flex row already has a gap. */
 .notice.warning > .btn-secondary + .btn-secondary,
-.notice.error > .btn-secondary + .btn-secondary { margin-left: var(--space-2); }
+.notice.error > .btn-secondary + .btn-secondary, .jini-post-notice.jini-post-notice--warning > .jini-post-notice__btn + .jini-post-notice__btn, .jini-post-notice.jini-post-notice--error > .jini-post-notice__btn + .jini-post-notice__btn { margin-left: var(--space-2); }
 /* Recovery's top-of-screen degraded banner (2026-09-10, owner: read as plain text, not a boxed
    card) — `DegradedBannerView` in `Recovery.tsx`. (Its sibling `RestoreCapabilityNotice` got this
    same treatment the same day, then was cut outright — "seems useless" — later the same day; this
@@ -2433,16 +2433,16 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .editor-drag-handle svg { width: 16px; height: 16px; }
 .editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
 .editor-toolbar .grp:last-child { border-right: none; padding-right: 0; }
-.tb-btn {
+.tb-btn, .jini-post-toolbar__btn {
   min-width: 26px; height: 26px; padding: 0 7px; display: inline-grid; place-items: center;
   font-family: var(--font-ui); font-size: 12px; font-weight: 600; line-height: 1;
   color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.tb-btn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
-.tb-btn.on { background: var(--accent-dim); color: var(--accent-text); }
-.tb-btn:disabled { opacity: 0.38; cursor: default; }
-.tb-btn i { font-style: italic; } .tb-btn s { text-decoration: line-through; }
+.tb-btn:hover:not(:disabled), .jini-post-toolbar__btn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
+.tb-btn.on, .jini-post-toolbar__btn.on { background: var(--accent-dim); color: var(--accent-text); }
+.tb-btn:disabled, .jini-post-toolbar__btn:disabled { opacity: 0.38; cursor: default; }
+.tb-btn i, .jini-post-toolbar__btn i { font-style: italic; } .tb-btn s, .jini-post-toolbar__btn s { text-decoration: line-through; }
 /* Align-icon buttons (`PostEditor.tsx`'s `Toolbar`, 2026-08-11 — icons replacing the Left/Center/
    Right/Justify word labels) — same size band every other house SVG-in-button already uses
    (`.admin-topbar-toggle svg`, `.cms-item svg`, `.row-menu-trigger svg`: 16-18px). Scoped to
@@ -2451,7 +2451,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    different size without that button also opting into `.tb-btn`'s own 30px frame. `currentColor` on
    the `<svg>` itself (not here) is what makes the icon track `.tb-btn.on`'s active-state color swap
    for free. */
-.tb-btn svg { width: 16px; height: 16px; }
+.tb-btn svg, .jini-post-toolbar__btn svg { width: 16px; height: 16px; }
 /* Text/background color swatches (`PostEditor.tsx`'s `Toolbar`, 2026-08-11) — a native
    `<input type="color">` renders with no consistent cross-browser chrome on its own (a raw square
    with a visible native border in some browsers, none in others), so this wraps it in the same
@@ -2546,7 +2546,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   .editor-toolbar .grp > [data-tb="primary"] { order: 0; }
   .editor-toolbar .tb-more { display: inline-grid; order: 0; margin-left: auto; }
   .editor-toolbar .grp > [data-tb="primary"]:not([data-tb-rank="0"]) { margin-left: auto; }
-  .editor-toolbar .tb-btn { white-space: nowrap; }
+  .editor-toolbar .tb-btn, .editor-toolbar .jini-post-toolbar__btn { white-space: nowrap; }
   .editor-toolbar:not([data-more-open="true"]) .grp > :not([data-tb="primary"]),
   .editor-toolbar:not([data-more-open="true"]) .editor-toolbar-count { display: none; }
   .editor-toolbar[data-more-open="true"] { position: static; }
@@ -2557,7 +2557,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
   .editor-toolbar[data-more-open="true"] .editor-toolbar-count { margin-left: 0; }
 }
 @media (max-width: 640px) {
-  .editor-toolbar .tb-btn { min-width: 44px; height: 44px; white-space: nowrap; }
+  .editor-toolbar .tb-btn, .editor-toolbar .jini-post-toolbar__btn { min-width: 44px; height: 44px; white-space: nowrap; }
   .editor-toolbar .tb-color { width: 44px; height: 44px; }
   .editor-toolbar .tb-select { height: 44px; min-height: 44px; }
 }

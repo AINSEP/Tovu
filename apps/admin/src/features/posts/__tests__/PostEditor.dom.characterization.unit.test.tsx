@@ -483,7 +483,7 @@ describe("PostEditor — DOM order of the regions", () => {
         saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined },
       },
     }));
-    const handles = Array.from(container.querySelectorAll('.notice[data-agent-element]')).map((el) => el.getAttribute("data-agent-element"));
+    const handles = Array.from(container.querySelectorAll('.notice[data-agent-element], .jini-post-notice[data-agent-element]')).map((el) => el.getAttribute("data-agent-element"));
     // A save conflict hides the stale-basis notice: the conflict banner's Load latest / Replace their
     // version is the one choice left (tv-bugs3b B2).
     expect(handles).toEqual(["post-autosave-recovery", "post-version-conflict"]);
