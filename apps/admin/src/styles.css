@@ -1221,7 +1221,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-.btn-secondary, .jini-content-analysis-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+  box-shadow: var(--jini-control-shadow, none);
+}
+/* Alias of `.btn-secondary` for the moved Content analysis card (a separate rule: style tests look the global rule up by its exact selector). */
+.jini-content-analysis-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
 .btn-secondary:hover, .jini-content-analysis-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
@@ -1993,7 +1997,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
 :root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: var(--accent-ink); }
-.status, .jini-content-analysis-status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.jini-content-analysis-status, .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 /* A disabled form is switched off, not failed or destructive — so it takes the same muted
@@ -2247,7 +2251,7 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
-.editor-actions, .jini-content-analysis-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.jini-content-analysis-editor-actions, .editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error, .jini-content-analysis-save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
