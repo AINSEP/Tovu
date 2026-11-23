@@ -329,7 +329,7 @@ const REASON_REWRITES: readonly ReasonRewrite[] = [
     pattern: /themes folder spans two disks/,
     friendly: "The site's themes folder isn't set up correctly.",
   },
-  // Site settings and the active theme (`features/settings/publish-content.ts`,
+  // Site settings and the active theme (`@jini-ai/cms/settings/site/publish-content`,
   // `features/theme/active-theme-publish-content.ts`), then Jini's settings/presentation refusals.
   {
     pattern: /^site-setting '.+' is not one this site publishes/,
