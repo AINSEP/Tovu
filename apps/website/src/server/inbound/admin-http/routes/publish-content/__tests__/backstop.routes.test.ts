@@ -4,7 +4,7 @@ import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishBackstopRoutes } from "../backstop.js";
 import type { PublishContentRouteDeps } from "../deps.js";
-import { registerAdminPolicyWritePermissionRoute } from "../../users/write-policy-permission.js";
+import { registerAdminPolicyWritePermissionRoute } from "#src/server/runtime/composition/modules/users-access";
 import type { UsersRouteDeps } from "../../users/deps.js";
 import { isKnownPermission } from "@jini-ai/user-management";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";

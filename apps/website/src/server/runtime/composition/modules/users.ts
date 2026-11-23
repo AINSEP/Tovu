@@ -14,17 +14,14 @@ import { assertUserAccountAction, SelfDeleteError, trashUser, UserInTrashError, 
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "#src/server/inbound/admin-http/routes/users/deps";
-import { registerAdminPolicyCreateRoute } from "#src/server/inbound/admin-http/routes/users/create-policy";
-import { registerAdminRoleCreateRoute } from "#src/server/inbound/admin-http/routes/users/create-role";
 import { registerAdminPolicyListRoute } from "#src/server/inbound/admin-http/routes/users/list-policies";
 import { registerAdminRoleListRoute } from "#src/server/inbound/admin-http/routes/users/list-roles";
-import { registerAdminRoleUpdateRoute } from "#src/server/inbound/admin-http/routes/users/update-role";
-import { registerAdminRoleDeleteRoute } from "#src/server/inbound/admin-http/routes/users/delete-role";
-import { registerAdminPolicyUpdateRoute } from "#src/server/inbound/admin-http/routes/users/update-policy";
-import { registerAdminPolicyDeleteRoute } from "#src/server/inbound/admin-http/routes/users/delete-policy";
-import { registerAdminPolicyWritePermissionRoute } from "#src/server/inbound/admin-http/routes/users/write-policy-permission";
 import { registerAdminPolicyPermissionListRoute } from "#src/server/inbound/admin-http/routes/users/list-policy-permissions";
 import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/inbound/admin-http/routes/users/remove-policy-permission";
+import {
+  registerAdminPolicyCreateRoute, registerAdminPolicyDeleteRoute, registerAdminPolicyUpdateRoute, registerAdminPolicyWritePermissionRoute,
+  registerAdminRoleCreateRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute,
+} from "./users-access.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -56,6 +53,9 @@ import type { ServerModuleHandle } from "./types.js";
  * object. The Tovu-owned collaborators the specs need are injected here too: the identity-deps
  * assembler, the Trash index and trash move, the account-protection guard/read and the host error
  * classes (as predicates). The identity services are bound from `@jini-ai/user-management/server`.
+ * The role/policy half (7 specs) is mounted by `./users-access.ts`; list-roles, list-policies,
+ * list-policy-permissions and remove-policy-permission are still hand-written (K1 STOP: they send no
+ * `entityType` / pin a bare `res.send()` 204, which the admin JSON ports cannot reproduce yet).
  */
 /** The two port fields every users mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
