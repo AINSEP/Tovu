@@ -1,7 +1,7 @@
 import { FakeCaptureClock } from "@jini-ai/diagnostics/web-evidence/testing";
 
 import type { CaptureBrowser, CaptureBrowserLauncher, CapturePage } from "../playwright-page-capture.js";
-import { VIEWPORT_PRESETS, type PageCapture, type PageCaptureRequest } from "../web-screenshot.js";
+import { VIEWPORT_PRESETS, type PageCapture, type PageCaptureRequest } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file A fake browser whose every step takes time on ONE virtual clock, so the three deadlines of a

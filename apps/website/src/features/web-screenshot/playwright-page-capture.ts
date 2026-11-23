@@ -6,7 +6,7 @@ import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRender
 import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
-import { CAPTURE_LIMITS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "./web-screenshot.js";
+import { CAPTURE_LIMITS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file `web_screenshot_page`'s {@link PageCapturePort}: headless Chromium through Playwright, on the

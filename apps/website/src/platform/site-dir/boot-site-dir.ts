@@ -5,13 +5,13 @@ import type { SitesWorkspace } from "./sites-home.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import fs from "node:fs";
 import path from "node:path";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
-import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
 import { completeKeyOnlySiteMeta } from "./key-only-site-meta.js";
 import { readSiteDir } from "./read-site-dir.js";
@@ -165,7 +165,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     if (decision === "migrate") {
       const runtime = runtimeSchemaVersion();
       const updatedMeta: SiteMetaJson = { ...meta, schemaVersion: runtime.index, schemaTag: runtime.tag };
-      writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: updatedMeta }, { filesystem: options.metadataFilesystem });
+      writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: updatedMeta, fs: options.metadataFilesystem ?? createNodeAtomicFilesystem({}, {}) }, {});
     }
 
     // BR-05 step 6 / CIC U-002-ORD2: workspace resolution is the final gate before the caller

@@ -16,8 +16,8 @@ import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ADMIN_SCREENS } from "../admin-screens.generated.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
 import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
-import { SITE_CAPABILITIES_SECTION_NAMES } from "../site-capabilities.js";
-import { SITE_PROFILE_SECTION_NAMES } from "../site-profile.js";
+import { SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
+import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 import {
   buildSiteInspectionRegistrations,
   contributeSiteInspectionTools,

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { createPlaywrightPageCapture } from "../playwright-page-capture.js";
-import { PageCaptureError } from "../web-screenshot.js";
+import { PageCaptureError } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { captureFixture, captureRequest, watch, type CaptureFixture, type StepTimes } from "./capture-deadlines-fixture.js";
 
 /**

@@ -26,7 +26,7 @@
  * synchronous, side-effect-free call, no IPC channel, no filesystem read (`webUtils.getPathForFile`
  * reads a `File` handle's own OS path, already-Chromium-known metadata — it does not open or stat
  * anything). `window.tovuFiles` existing is the renderer's own capability signal here too, the same
- * shape `voice-input-port.ts` uses for `tovuVoice`: `apps/admin/src/features/fs-files/folder-drop-port.ts`
+ * shape `voice-input-port.ts` uses for `tovuVoice`: `@jini-ai/admin/screens/fs-files/folder-drop-port`
  * checks for its presence before attempting to recover a folder path, and does nothing (falls through
  * to the ordinary attachment-upload path) when it is absent — a plain browser tab, not this shell.
  *

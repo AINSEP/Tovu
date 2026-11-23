@@ -1,6 +1,6 @@
 import { ToolInputError } from "@jini-ai/core";
 
-import { WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type OwnSiteServer } from "./web-screenshot.js";
+import { WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type OwnSiteServer } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 
 /**
  * @file The own-site opener behind `web_screenshot_page`'s `sitePath` + `themeId`: checks the theme

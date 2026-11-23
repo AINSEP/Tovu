@@ -22,7 +22,7 @@ import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter }
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
 import { AdminSubagents } from "./AdminSubagents";
-import { AssistantToggleRow } from "./AssistantToggleRow";
+import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
 import { VisitorAssistantPanel } from "./VisitorAssistantPanel";
 import { VisitorAssistantTabs } from "./VisitorAssistantTabs";
 import { visitorKeyFooterLines } from "./rules";
@@ -202,7 +202,7 @@ function AdminAssistantSwitch({
   // does, and the ⓘ carries the one sentence that is still useful.
   return (
     <div className="assistant-switch">
-      <AssistantToggleRow t={t} label={t("Open the assistant panel")}
+      <AssistantToggleRow t={t} InfoTip={InfoTip} label={t("Open the assistant panel")}
         info={t("Shows or hides the assistant panel in this admin.")}
         checked={open} onChange={(open) => setOpen({ open })}
         inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} />

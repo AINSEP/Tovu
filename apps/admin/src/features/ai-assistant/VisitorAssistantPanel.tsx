@@ -3,7 +3,7 @@ import { useId, type ComponentType } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import { AssistantToggleRow } from "./AssistantToggleRow";
+import { AssistantToggleRow } from "@jini-ai/admin/screens/assistant-settings/AssistantToggleRow";
 import type { AiAssistantController } from "./hooks/use-ai-assistant.hooks";
 import { useVisitorAssistantPanel } from "./hooks/use-visitor-assistant-panel.hooks";
 import { useWiredVisitorCredentialForm } from "./hooks/use-visitor-credential-form.hooks";
@@ -100,7 +100,7 @@ export function VisitorAssistantPanel({
           <div className="visitor-step-head">
             <h3 className="visitor-step-title">{t("Turn it on")}</h3>
           </div>
-          <AssistantToggleRow t={t} variant="switch" label={t("Enable the AI assistant on the public site")}
+          <AssistantToggleRow t={t} InfoTip={InfoTip} variant="switch" label={t("Enable the AI assistant on the public site")}
             info={t(panel.enableInfo)} checked={settings.publicEnabled}
             disabled={saving || !panel.canEnable} onChange={(checked) => void setPublicEnabled({ publicEnabled: checked })}
             describedBy={panel.enableBlockedReason ? reasonId : undefined}

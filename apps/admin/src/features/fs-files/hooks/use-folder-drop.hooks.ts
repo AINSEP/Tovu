@@ -6,7 +6,7 @@ import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 
 import { fsFilesApi } from "../api/fs-files-api";
 import { ApiError } from "../../../lib/admin-http/request";
-import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
+import { getFolderDropPort, type FolderDropPort } from "@jini-ai/admin/screens/fs-files/folder-drop-port";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
@@ -95,7 +95,7 @@ export interface UseFolderDropInput {
 }
 
 export interface UseFolderDropDeps {
-  /** Test seam — defaults to the real `getFolderDropPort({ targetWindow: undefined })` (`window.tovuFiles`). Called
+  /** Test seam — defaults to the real `getFolderDropPort({ targetWindow: undefined, bridgeKey: "tovuFiles" })` (`window.tovuFiles`). Called
    *  at render, not at drop; a drop uses the latest committed render's port. */
   readonly getPort?: () => FolderDropPort | null;
   /** Test seam — defaults to the real `api.setFsFilesCustomRoot`. */
@@ -122,7 +122,7 @@ const DEFAULT_AUTO_DISMISS_MS = 4000;
  * @complexity Time/space: O(1).
  */
 function defaultGetPort(): FolderDropPort | null {
-  return getFolderDropPort({ targetWindow: undefined });
+  return getFolderDropPort({ targetWindow: undefined, bridgeKey: "tovuFiles" });
 }
 
 /**

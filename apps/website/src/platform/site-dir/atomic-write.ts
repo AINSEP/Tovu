@@ -13,9 +13,11 @@ export type SiteAtomicWriteOptions = AtomicWriteOptions & { filesystem?: AtomicF
  *
  * Purpose:
  * state.spec.md §7: "Atomicity: JSON files are written via temp-file + rename (best-effort
- * atomic on POSIX)." Used by `init-site.ts` (`.site-meta.json`'s initial write) and
- * `boot-site-dir.ts` (CIC U-002-B2's `schemaVersion`+`schemaTag` stamp rewrite, which must land
- * both fields in one atomic operation, never a torn partial write).
+ * atomic on POSIX)." Its last production caller is `init-site.ts` (`.site-meta.json`'s initial
+ * write) — historically also `boot-site-dir.ts` (CIC U-002-B2's `schemaVersion`+`schemaTag` stamp
+ * rewrite, which must land both fields in one atomic operation, never a torn partial write); every other site-dir writer binds `@jini-ai/platform/fs`'s `writeFileAtomic` /
+ * `writeJsonFileAtomic` directly with `createNodeAtomicFilesystem`. Delete this wrapper (and its
+ * unit test) once `init-site.ts` does the same (P9K D04, BX-29).
  *
  * Architectural role:
  * `site-dir` internal utility — no exported contract in the Implementation Outline's Contract

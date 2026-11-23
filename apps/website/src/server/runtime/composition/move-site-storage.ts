@@ -6,8 +6,8 @@ import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { acquireOwnerLock, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPostgresKernel, storageOps } from "#src/platform/db/kernel/index";
 import { type KyselyKernel } from "@jini-ai/db/kernel";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
-import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { ValidationError } from "#src/platform/site-dir/errors";
 import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import { parseSiteStorage, SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
@@ -121,7 +121,7 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
 
     if (secretRef === "site") await writeSealedConnectionString({ siteDir, connectionString }, optional.sealer);
     const storage: SiteStorage = { kind: "postgres", secretRef };
-    writeJsonFileAtomic({ filePath: path.join(siteDir, SITE_META_FILENAME), data: { ...meta, storage } }, {});
+    writeJsonFileAtomic({ filePath: path.join(siteDir, SITE_META_FILENAME), data: { ...meta, storage }, fs: createNodeAtomicFilesystem({}, {}) }, {});
     return { storage, tables, keptPgliteDir: dataDir };
   } finally {
     await target?.close();

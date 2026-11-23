@@ -76,7 +76,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   // function this test cares about. DI now preserves those real exports without replacing a module
   // or depending on its first-load ordering -- see this file's header for the original failure.
 
-  const { registerAdminAssistantTestAgentRoute } = await import("../test-agent.js");
+  const { registerAdminAssistantTestAgentRoute } = await import("#src/server/runtime/composition/modules/assistant-execution");
 
   const app = express();
   app.use(express.json());

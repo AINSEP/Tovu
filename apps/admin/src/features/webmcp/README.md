@@ -46,3 +46,8 @@ Cancel and Skills GitHub/upload/confirmation controls. Browser page tools cannot
 supply file bytes; file/folder inputs are tagged for discovery, but users or a browser
 upload driver must provide those files. The shared add card has no border/shadow at
 any width, including the 390px Skills tab.
+
+The settings copy (`WEBMCP_DICT`/`WEBMCP_KEYS`) lives in Jini at
+`@jini-ai/admin/screens/webmcp/webmcp-i18n`; `BrowserAgentSettingsPanel.tsx` binds it to the
+admin common dictionary. The panel, preference hook and page tools stay here until their
+host importers (`SettingsUi.tsx`, `App.hooks.ts`) are free to change.

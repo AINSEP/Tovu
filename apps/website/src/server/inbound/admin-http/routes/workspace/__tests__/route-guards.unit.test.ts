@@ -2,12 +2,9 @@ import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { InMemoryWorkspaceRepo, WorkspaceLastRemainingError } from "#src/features/workspace/index";
+import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminWorkspaceCreateRoute } from "../create.js";
-import { deleteWorkspaceUnlessBound, registerAdminWorkspaceDeleteRoute, sendDeleteWorkspaceError } from "../delete.js";
-import { registerAdminWorkspaceGetRoute } from "../get.js";
-import { registerAdminWorkspaceUpdateRoute } from "../update.js";
+import { registerAdminWorkspaceCreateRoute, registerAdminWorkspaceDeleteRoute, registerAdminWorkspaceGetRoute, registerAdminWorkspaceUpdateRoute } from "#src/server/runtime/composition/modules/workspace";
 
 /**
  * @file Direct-handler coverage for the workspace routes' defensive edges: the `?? ""` route-param
@@ -102,52 +99,23 @@ test("deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05)
   assert.deepEqual(await repo.list(), [own, other]);
 });
 
-/** A `res` stand-in that also records `status(204).send()` — the success path ends in `send`, not `json`. */
-function sendingResponse() {
-  const { res, capture } = createCapturingResponse();
-  const sent: unknown[] = [];
-  (res as any).send = (body?: unknown) => { sent.push(body); return res; };
-  return { res, capture, sent };
-}
-
-test("deleteWorkspaceUnlessBound, given a non-bound target, runs the domain delete on deps.workspaceId (the pre-extraction handler's id) and answers 204", async () => {
-  const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
-  const { res, capture, sent } = sendingResponse();
-  await deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repo }, targetWorkspaceId: "ws-8" });
-  assert.equal(capture.statusCode, 204);
-  assert.deepEqual(sent, [undefined]);
-  assert.deepEqual(await repo.list(), [other]);
-});
-
-test("deleteWorkspaceUnlessBound lets the domain's typed errors through for sendDeleteWorkspaceError to map", async () => {
-  const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own] });
-  const { res } = sendingResponse();
-  await assert.rejects(deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repo }, targetWorkspaceId: "ws-8" }), WorkspaceLastRemainingError);
-  assert.deepEqual(await repo.list(), [own]);
-});
-
-test("deleteWorkspaceUnlessBound refuses to run without a transaction port", async () => {
-  const deleted: unknown[] = [];
-  const repoWithoutTransaction = { findById: async () => other, list: async () => [own, other], delete: async (x: unknown) => { deleted.push(x); } };
-  const { res } = sendingResponse();
-  await assert.rejects(
-    deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repoWithoutTransaction as any }, targetWorkspaceId: "ws-8" }),
-    { message: "workspace deletion requires a transaction port" }
-  );
-  assert.deepEqual(deleted, []);
-});
-
-test("sendDeleteWorkspaceError logs a non-Error throw and an Error without a stack, answering a message-free 500", (t) => {
+// The direct `deleteWorkspaceUnlessBound`/typed-error-mapping cases moved with the route to Jini
+// (`@jini-ai/cms` admin-http/routes/workspace/__tests__/workspace-routes.test.ts). The host's own
+// half — the opaque, logged 500 for anything the spec does not map — is pinned over the mount here.
+test("a stackless Error carrying secrets on the delete route is logged and answered by the opaque 500, leaking no message", async (t) => {
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
-  const stackless = new Error("stackless failure");
+  const stackless = new Error("db exploded: connection string postgres://user:pw@host");
   stackless.stack = undefined;
-  for (const err of ["plain string failure", stackless]) {
-    const { res, capture } = createCapturingResponse();
-    sendDeleteWorkspaceError({ res, err });
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
-  }
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^plain string failure$/, /^Error: stackless failure$/] });
+  const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
+  const app = express();
+  registerAdminWorkspaceDeleteRoute({ app, deps: { workspaceId: "ws-7", workspaceRepo: repo, authorize: async () => { throw stackless; } } as any });
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-7" };
+  await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
+  assert.doesNotMatch(JSON.stringify(capture.jsonBody), /db exploded|postgres:\/\//);
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^Error: db exploded/] });
 });
 
 test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async (t) => {

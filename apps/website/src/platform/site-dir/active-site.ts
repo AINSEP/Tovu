@@ -1,9 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 // These narrow transforms use the first unquoted KEY= line; Node interprets the actual .env at boot.
-import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
-
-import { writeFileAtomic } from "./atomic-write.js";
+import { createNodeAtomicFilesystem, readEnvLine, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
+import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
 /**
  * @file Admin "Sites" screen backend, activate half (2026-09-04 sites-switcher decision,
@@ -21,7 +20,7 @@ import { writeFileAtomic } from "./atomic-write.js";
  * the one place local-dev config already persists across restarts in this codebase; no new config
  * system invented. `persistActiveSite` upserts exactly ONE line (`TOVU_SITE=<name>`) and leaves
  * every other line — secrets included — byte-identical, via the same temp-file+rename atomic-write
- * discipline `init-site.ts`'s `.site-meta.json` write already uses (`atomic-write.ts`).
+ * discipline `init-site.ts`'s `.site-meta.json` write already uses (`@jini-ai/platform/fs`'s `writeFileAtomic`).
  *
  * Daemon-cwd trap (`reference_daemon_inherits_cwd_not_site_dir`) — investigated, not a new risk
  * here: `daemon-supervisor.ts`'s `buildDaemonSpawnEnvOverrides` already threads `TOVU_SITE_DIR`
@@ -48,6 +47,9 @@ export interface ActiveSiteEnvOptional {
    *  assumes `<cwd>/sites/...`, so this reuses the same assumption rather than a second one).
    *  Injectable so a test never touches a real `.env`. */
   cwd?: string;
+  /** Atomic `.env` replacement effects; defaults to the native filesystem. Injectable so a test can
+   *  prove the mode-preserving, fsync + directory-flush replacement is the one actually used. */
+  filesystem?: AtomicFilesystemPort | undefined;
 }
 
 /** Absolute path to the `.env` file this module reads/writes. */
@@ -91,7 +93,8 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
     existing = "";
   }
   // The shared transform removes split's trailing blank artifact and writes one final newline.
-  writeFileAtomic({ filePath: envFilePath, content: upsertEnvLine({ source: existing, key: "TOVU_SITE", value: required.name }) }, {});
+  const content = upsertEnvLine({ source: existing, key: "TOVU_SITE", value: required.name });
+  writeFileAtomic({ filePath: envFilePath, content, fs: optional.filesystem ?? createNodeAtomicFilesystem({}, {}) }, {});
 }
 
 /**

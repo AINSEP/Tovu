@@ -8,7 +8,7 @@ import { resolveSiteName } from "./init-site.js";
 import { carriedKeyFields, readKeyOnlySiteMeta, UNKNOWN_TEMPLATE_ID, UNKNOWN_TEMPLATE_VERSION } from "./key-only-site-meta.js";
 import { readAppliedSchemaIdentityOfFile } from "./read-applied-schema-identity.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
-import { writeJsonFileAtomic } from "./atomic-write.js";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
@@ -305,10 +305,10 @@ export async function repairSite(required: RepairSiteRequired, _optional: Record
 
   let wroteConfig = false;
   try {
-    writeJsonFileAtomic({ filePath: configPath, data: plan.config }, {});
+    writeJsonFileAtomic({ filePath: configPath, data: plan.config, fs: createNodeAtomicFilesystem({}, {}) }, {});
     wroteConfig = true;
     // The commit marker, written LAST on success (mirrors `initSite`'s own CIC U-003-ORD1).
-    writeJsonFileAtomic({ filePath: metaPath, data: plan.meta }, {});
+    writeJsonFileAtomic({ filePath: metaPath, data: plan.meta, fs: createNodeAtomicFilesystem({}, {}) }, {});
   } catch (err) {
     if (wroteConfig) {
       try {

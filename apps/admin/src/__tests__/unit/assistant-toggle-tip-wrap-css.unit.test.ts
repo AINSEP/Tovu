@@ -27,16 +27,16 @@ function phoneDeclarations(selector: string): Record<string, string> {
 
 describe("AI Assistant toggle rows keep the ⓘ beside the label on phones", () => {
   it("makes the label-to-ⓘ join unbreakable while the label itself still wraps", () => {
-    expect(phoneDeclarations(".assistant-toggle-copy")["white-space"]).toBe("nowrap");
-    expect(phoneDeclarations(".assistant-toggle-copy > label")["white-space"]).toBe("normal");
+    expect(phoneDeclarations(".jini-assistant-toggle-copy")["white-space"]).toBe("nowrap");
+    expect(phoneDeclarations(".jini-assistant-toggle-copy > label")["white-space"]).toBe("normal");
   });
 
   it("takes the ⓘ's 44px hit area back to its icon size in the layout", () => {
-    expect(phoneDeclarations(".assistant-toggle-copy > .info-tip > .info-tip-icon")).toEqual({ margin: "calc((1.1rem - 44px) / 2)" });
+    expect(phoneDeclarations(".jini-assistant-toggle-copy > .info-tip > .info-tip-icon")).toEqual({ margin: "calc((1.1rem - 44px) / 2)" });
   });
 
   it("uses a 20px line so a wrapped label is not spaced 40px apart", () => {
-    expect(phoneDeclarations(".assistant-toggle-copy")).toMatchObject({ "line-height": "20px", "min-height": "40px", "padding-block": "10px" });
+    expect(phoneDeclarations(".jini-assistant-toggle-copy")).toMatchObject({ "line-height": "20px", "min-height": "40px", "padding-block": "10px" });
   });
 
   it("takes the 44px floor's slack out of each visitor step head", () => {

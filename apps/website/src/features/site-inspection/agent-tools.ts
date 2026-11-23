@@ -1,9 +1,9 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
-import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
-import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
+import { SITE_CAPABILITIES_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-capabilities";
+import { SITE_PROFILE_SECTION_NAMES } from "@jini-ai/cms/site-inspection/site-profile";
 import { MAX_PATH_LENGTH } from "@jini-ai/diagnostics/web-evidence";
 import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "./published-page.js";
-import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
+import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "@jini-ai/cms/site-inspection/site-profile";
 
 /**
  * @file The Site Inspection domain's agent-tool catalog, instantiating SPEC-016 REQ-22's

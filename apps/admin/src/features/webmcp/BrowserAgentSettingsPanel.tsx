@@ -1,6 +1,11 @@
 import { useId } from "react";
 import { useBrowserAgentSettings } from "./browser-agent-settings.hooks";
-import { t } from "./webmcp-i18n";
+import { createDictionaryTranslator } from "@jini-ai/core/text";
+import { WEBMCP_DICT } from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
+import { COMMON_I18N } from "../../lib/i18n-common";
+
+/** The dictionary ships in Jini; the host binds it to its own common words (same as before the move). */
+const t = createDictionaryTranslator({ featureDictionary: WEBMCP_DICT }, { commonDictionary: COMMON_I18N });
 
 /** Same `jini-toggle-row` switch the Privacy tab's own toggles use, so the host CSS styles it. */
 export function BrowserAgentSettingsPanel({ locale, useBrowserAgentSettingsHook = useBrowserAgentSettings }: { locale: string; useBrowserAgentSettingsHook?: typeof useBrowserAgentSettings; }) {

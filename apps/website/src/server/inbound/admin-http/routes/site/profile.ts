@@ -5,9 +5,9 @@ import {
   buildSiteProfile,
   MAX_PAGE_ITEMS,
   SITE_PROFILE_SECTION_NAMES,
-  toSiteProfileDeps,
   type SiteProfileSectionName,
-} from "#src/features/site-inspection/index";
+} from "@jini-ai/cms/site-inspection/site-profile";
+import { toSiteProfileDeps } from "#src/features/site-inspection/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

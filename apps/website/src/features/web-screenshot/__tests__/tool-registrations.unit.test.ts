@@ -14,7 +14,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
 import { createScreenshotTileEncoder } from "../screenshot-image.js";
 import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "../tool-registrations.js";
-import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type PageCapturePort, type WebScreenshotPorts } from "../web-screenshot.js";
+import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type PageCapturePort, type WebScreenshotPorts } from "@jini-ai/integrations/web-screenshot/web-screenshot";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
