@@ -23,7 +23,7 @@ interface DesktopRoots {
   defaultCliMode: "source" | "compiled";
   userDataDir: string;
   /** The bundled npm package's root — `bin/npx-cli.js` and `bin/npm-cli.js` live under it. Read by
-   *  `node-toolchain.ts`'s toolchain writer, never by this module (see plan
+   *  `@jini-ai/desktop-host/shell/node-toolchain`'s toolchain writer, never by this module (see plan
    *  `plan-desktop-bundled-npx-2026-09-24.md` §2, §6 S3). */
   npmRoot: string;
 }

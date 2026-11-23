@@ -4,7 +4,7 @@
  *
  * Not part of `npm test`: it launches a real Electron app, so it is opt-in and slow. Run it after
  * touching anything in `src/renderer/use-find-in-page.hooks.ts`, `src/find-in-page-ipc.ts`,
- * `src/find-menu.ts` or `src/contracts/find-in-page.ts`:
+ * `src/main/boot/boot-sequence.ts`'s Find menu or `src/contracts/find-in-page.ts`:
  *
  *   cd apps/desktop
  *   npm run build:renderer            # the window loads dist/, never src/
@@ -91,7 +91,7 @@ const inputState = ({ win }: { win: Page }, _options = {}): Promise<{ active: st
     value: document.querySelector<HTMLInputElement>('.findbar__input')?.value ?? null,
   }));
 
-/** Opens the bar the way the app menu does — `find-menu.ts` just sends this channel. A real
+/** Opens the bar the way the app menu does — the Find menu (`main/boot/boot-sequence.ts`) just sends this channel. A real
  *  `Meta+F` only reaches a menu accelerator when the app owns the OS focus, which a headed test
  *  run cannot assume. Targets `homeWindowId` — see this file's header — not `getAllWindows()[0]`. */
 async function openBar({ app, win, homeWindowId }: { app: ElectronApplication; win: Page; homeWindowId: number }, _options = {}): Promise<void> {

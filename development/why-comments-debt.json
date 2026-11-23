@@ -4240,6 +4240,198 @@
     {
       "id": "5aee2dca9f35",
       "reason": "Moved to Jini @jini-ai/admin/recovery/rules.ts (A-K2-recovery-1), verbatim."
+    },
+    {
+      "id": "ff27ce41c664",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: file header now describes the per-instance runner; host paths/route names, dated history and the host process names dropped, the DI-instead-of-import cycle rationale and the DISCLOSED CROSS-PROCESS GAP kept; the host-specific half (why the ONE instance lives under features/deployments) moved to the new Tovu binding module features/deployments/export-run-binding.ts."
+    },
+    {
+      "id": "0afdb7e5e6f6",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: 'moved verbatim from export-site.ts' history dropped, the narrower-than-report rationale kept."
+    },
+    {
+      "id": "836d6ac8f4de",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "faacba0ad152",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "bea2cb10126b",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "b179523b73c1",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file paths replaced by 'the export engine's report' / 'the one place the host binds it'."
+    },
+    {
+      "id": "bdb36643d052",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "3b206cf19649",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file path replaced by 'the export engine' and 'the host's full route-deps object'."
+    },
+    {
+      "id": "c61f5cb9b4a0",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: the process-local module slot is now the runner instance's slot ('The instance's mutable slot — every operation below reads and writes this one value'); which callers share an instance is in the file header and the Tovu binding module header."
+    },
+    {
+      "id": "38db799056e6",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: 'moved verbatim from export-site.ts' history dropped."
+    },
+    {
+      "id": "c4f25285176f",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: 'in this process' -> 'on this runner'."
+    },
+    {
+      "id": "c9ba6d7f19bd",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded neutral: host file paths and TOVU_EXPORT_DIR env name replaced by 'the host's composition root (its env override, then the served site's export folder)'; caller contract kept verbatim."
+    },
+    {
+      "id": "7365501621ca",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "f0f90ebe264f",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), reworded: 'the process-local owner of export state' -> 'this runner's export state'."
+    },
+    {
+      "id": "7a5c9bbd9b0c",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/export-run.ts (K5-deployments-1, devops2: export-run factory), verbatim."
+    },
+    {
+      "id": "c1529bec4cba",
+      "reason": "Obsolete with the move (devops2): the deployments barrel no longer re-exports the export-run types/functions — importers take types from @jini-ai/devops/deploy/site/export-run and the functions from the host binding features/deployments/export-run-binding.ts, whose header documents which callers share the one instance."
+    },
+    {
+      "id": "2200b5080619",
+      "reason": "Reworded in place (DT-desktop-1): find-menu.ts no longer exists; the same doc now says the channel is bound by main/boot/boot-sequence.ts's Find menu and pinned by find-menu.test.ts."
+    },
+    {
+      "id": "80b3cdc8683a",
+      "reason": "Reworded in place (DT-desktop-1): find-menu.test.ts header now names the Jini shell/find-menu binding in boot-sequence.ts; same coverage rationale kept."
+    },
+    {
+      "id": "0578a73fb828",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: module header keeps the guest-focus accelerator and 'only opening the bar needs main' why; Tovu-specific file pointers and the channel-inlining note dropped (channel is now injected from contracts/find-in-page.ts in boot-sequence.ts)."
+    },
+    {
+      "id": "399ca4ac8844",
+      "reason": "Obsolete pointer (DT-desktop-1): the rationale it pointed at now sits in Jini @jini-ai/desktop-host/shell/find-menu.ts's own header, next to the code."
+    },
+    {
+      "id": "904203b70a6a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "da25bdaaf2ce",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: 'Send the host's find toggle to a native focused window.'"
+    },
+    {
+      "id": "dcaf590a07e4",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/find-menu.ts (DT-desktop-1), reworded neutral: 'Build native menu callbacks with the host's channel and wording.'"
+    },
+    {
+      "id": "a1a2855d34b2",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: module header now says the host's banner and env names are injected into the node-native binding."
+    },
+    {
+      "id": "69eeb369b50d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: cross-process contract rationale (dir names + two env names, silent fallback to system tooling, not forwarded to MCP children) kept in the module header; the TOVU_* specifics also kept in Tovu main/index.ts beside bindNodeToolchain."
+    },
+    {
+      "id": "19f3bb1d3ab6",
+      "reason": "Superseded (DT-desktop-1): the per-function wrapper is gone; Jini @jini-ai/desktop-host/shell/node-toolchain.ts bindNodeToolchain documents that it binds the injected banner and native path joiner."
+    },
+    {
+      "id": "ed0caec934b0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: bindNodeToolchain doc keeps 'I/O failures from the writer propagate; returns null for a transient launch'."
+    },
+    {
+      "id": "9e0173b921f0",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "5c32ae6281de",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/node-toolchain.ts (DT-desktop-1), reworded neutral: NodeToolchainNames field docs say the env names are what the host's stdio launch resolver reads."
+    },
+    {
+      "id": "23a3fee91c44",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: zero-model-download, no-silent-network-fallback, helper spike history and lazy swiftc cache rationale kept; product name -> 'a local-first host', Tovu file pointers dropped."
+    },
+    {
+      "id": "1818f7d1ce34",
+      "reason": "Obsolete pointer (DT-desktop-1): the binding now lives in Jini beside speech/macos; its header cites speech/macos/speech-helper.swift directly."
+    },
+    {
+      "id": "f7f15983275b",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "9eeaedba40fb",
+      "reason": "Kept in Tovu apps/desktop/src/speech/speech-host-config.ts above DEFAULT_BINARY_PATH (DT-desktop-1), verbatim plus one added line on where the cache is resolved from."
+    },
+    {
+      "id": "c2a90049266c",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded: same sentence plus a note that it resolves the file the speech-helper.swift export names."
+    },
+    {
+      "id": "ff8acdbd1160",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "8de462fb5321",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "0a58460f6da4",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: drops the 'since 0.4.1 (this app's floor)' host version note, keeps why there is no spawnSync adapter."
+    },
+    {
+      "id": "34e8ecbe2ae6",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/mac-on-device-transcriber.ts (DT-desktop-1), reworded neutral: 'Construct on-device recognition with host policy...'; rest verbatim."
+    },
+    {
+      "id": "510957d1955d",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), reworded neutral: 'the one module that knows IPC and the port', and the validate-before-cost / 8 GB structured-clone rationale kept; tovuVoice -> 'the host's voice bridge', main.ts wiring pointers dropped (Tovu main/index.ts keeps its own SPEECH_PRELOAD_PATH doc)."
+    },
+    {
+      "id": "9d9ff337ed5a",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim (on buildDefaultTranscriptionPort)."
+    },
+    {
+      "id": "9307f9ab3b53",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim (on registerNativeSpeechIpc)."
+    },
+    {
+      "id": "fc36ccb04d30",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), reworded neutral: 'Which platform's default port to build...'."
+    },
+    {
+      "id": "2dec7e0e4444",
+      "reason": "Moved to Jini @jini-ai/desktop-host/shell/speech/speech-ipc.ts (DT-desktop-1), verbatim."
+    },
+    {
+      "id": "1ecad95f1385",
+      "reason": "Obsolete pointer (DT-desktop-1): the binding now sits beside the Jini speech-ipc/pcm-wav-encoder modules whose own comments hold that rationale."
+    },
+    {
+      "id": "63c2a386ea59",
+      "reason": "Deduped (DT-desktop-1): the Tovu file only bound wording onto Jini @jini-ai/desktop-host/speech resolveTranscriptionPort; the swap-the-recognizer seam is that Jini module's own contract, and Tovu's wording now lives in speech/speech-host-config.ts."
+    },
+    {
+      "id": "bedae7e38212",
+      "reason": "Obsolete pointer (DT-desktop-1): file deduped onto Jini @jini-ai/desktop-host/speech transcription-port, which it pointed at."
+    },
+    {
+      "id": "505928c62268",
+      "reason": "Deduped (DT-desktop-1): wrapper removed; Tovu's unavailable wording is SPEECH_HOST.transcriptionMessages in speech/speech-host-config.ts, consumed by Jini unavailablePort."
+    },
+    {
+      "id": "f97bdf75284b",
+      "reason": "Deduped (DT-desktop-1): wrapper removed; Tovu's platform wording is SPEECH_HOST.transcriptionMessages and Jini buildDefaultTranscriptionPort keeps the lazy macOS factory."
     }
   ]
 }

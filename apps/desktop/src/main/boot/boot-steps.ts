@@ -63,7 +63,7 @@ export function nodeToolchainWarning({ event }: { event: NodeToolchainSetupEvent
 
 /**
  * The bundled node/npm/npx shims' env contract (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`),
- * or `undefined` if writing them failed — see `node-toolchain.ts` and
+ * or `undefined` if writing them failed — see `@jini-ai/desktop-host/shell/node-toolchain` and
  * `plan-desktop-bundled-npx-2026-09-24.md` §2, §6 S4. Written once, after `userData` is set
  * (the shims live under it) and before any site is served, then handed to every
  * `startTovuServer` call so a stdio MCP server naming `npx`/`npm`/`node` can be found
@@ -72,7 +72,7 @@ export function nodeToolchainWarning({ event }: { event: NodeToolchainSetupEvent
  * Best-effort, never a crash: the mechanics (and why) are Jini's `prepareNodeToolchainEnvBestEffort`;
  * this binding adds only this app's warning copy.
  *
- * @param required.writeNodeToolchain `node-toolchain.ts`'s writer; `null` from a disk image. May throw.
+ * @param required.writeNodeToolchain `@jini-ai/desktop-host/shell/node-toolchain`'s writer; `null` from a disk image. May throw.
  * @complexity O(1) beyond the writer's own I/O.
  */
 export function prepareNodeToolchainEnv({ userDataDir, electronPath, npmRoot, writeNodeToolchain, buildNodeToolchainEnv, warn }: {

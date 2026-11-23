@@ -441,7 +441,7 @@ test("buildServeEnv pins TOVU_AGENT_CWD to the requested site despite an inherit
 });
 
 // S4 (plan-desktop-bundled-npx-2026-09-24.md §6): `main.ts`'s own `writeNodeToolchain` call hands
-// this function the two-key env contract `node-toolchain.ts`'s `buildNodeToolchainEnv` returns.
+// this function the two-key env contract `@jini-ai/desktop-host/shell/node-toolchain`'s `buildNodeToolchainEnv` returns.
 // Merged in, not layered underneath `baseEnv`, so a stale inherited value from another checkout
 // (dev shells routinely carry exports from a previous session) can never survive a launch that
 // minted its own toolchain.
