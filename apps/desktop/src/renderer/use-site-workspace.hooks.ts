@@ -23,7 +23,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * `useReducer` and two effects.
  */
 import { useEffect, useReducer, useState, type Dispatch } from 'react';
-import { useWebviewLoadFailure } from './App.hooks.js';
+import { useWebviewLoadFailure } from '@jini-ai/ui/live-views';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
 import { PROJECT_NOT_OPEN_MESSAGE } from '../contracts/project.js';
@@ -362,7 +362,7 @@ export function useSiteWorkspace({ project, hidden }: { project: SiteRecord; hid
     );
     return () => { active = false; };
   }, [project.id, project.externalUrl, getBridge]);
-  const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure({ resetKey: loadResetKey(state) });
+  const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure<HTMLWebViewElement>({ resetKey: loadResetKey(state) });
 
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
   useEffect(() => {

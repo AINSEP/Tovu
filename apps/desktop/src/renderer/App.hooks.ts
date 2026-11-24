@@ -37,9 +37,6 @@ export { appPresentation, deriveSitesHomeView, type SitesHomeView } from './site
 export { useExpandedMode } from './use-expanded-mode.hooks.js';
 export { useDeleteConfirmation } from './use-delete-confirmation.hooks.js';
 export { performSiteStart, startThenNotify, useSiteStart, type SiteStartResult } from './use-site-start.hooks.js';
-import { useWebviewLoadFailure as useGuestLoadFailure } from '@jini-ai/ui/live-views';
-// Bound to this app's `<webview>` type; an instantiation expression, so the runtime value is the same function.
-export const useWebviewLoadFailure = useGuestLoadFailure<HTMLWebViewElement>;
 export { useWorkspaceChatTransport } from './use-workspace-chat-transport.hooks.js';
 export { useRunnerConversations, type UseRunnerConversations } from './use-runner-conversations.hooks.js';
 export {

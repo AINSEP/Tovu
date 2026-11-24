@@ -21,9 +21,9 @@ import {
   useSiteRescan,
   useSiteStart,
   useSitesPolling,
-  useWebviewLoadFailure,
   useWorkspaceChatTransport,
 } from './App.hooks.js';
+import { useWebviewLoadFailure } from '@jini-ai/ui/live-views';
 
 // Installed up front: the first assertion below reads the jsdom `window` before any render.
 const window = installDom();
