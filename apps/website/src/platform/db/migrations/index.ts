@@ -1,3 +1,4 @@
+import { agentPauseCreatorKind } from './0044_agent_pause_creator_kind.js';
 import { mediaCaptions } from './0045_media_captions.js';
 import { webhookSubscriptionCreatorKind } from './0043_webhook_subscription_creator_kind.js';
 import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
@@ -123,6 +124,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]
   ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
   optimisticConcurrencyVersions({ checksum: pinned('0042_optimistic_concurrency_versions') }),
   webhookSubscriptionCreatorKind({ checksum: pinned('0043_webhook_subscription_creator_kind') }),
+  agentPauseCreatorKind({ checksum: pinned('0044_agent_pause_creator_kind') }),
   mediaCaptions({ checksum: pinned('0045_media_captions') }),
 ];
 

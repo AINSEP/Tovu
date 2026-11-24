@@ -209,6 +209,8 @@ export const posts = sqliteTable(
      * public read until the instant passes (render-time check, `@jini-ai/core/scheduled-publish`).
      */
     publishAt: text("publish_at"),
+    /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made scheduled posts pause while the assistant is off. */
+    createdByKind: text("created_by_kind").notNull().default("person"),
     /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a
      *  trashed/deleted asset simply resolves to "no image" at render time, like every other media ref. */
     featuredMediaId: text("featured_media_id"),
@@ -940,6 +942,8 @@ export const newsletterCampaigns = sqliteTable(
     countersJson: text("counters_json").notNull(),
     version: integer("version").notNull(),
     createdByPrincipal: text("created_by_principal").notNull(),
+    /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made sends pause while the assistant is off. */
+    createdByKind: text("created_by_kind").notNull().default("person"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -2415,3 +2419,10 @@ export const ownerPasskeys = sqliteTable("owner_passkeys", {
   primaryKey({ columns: [t.workspaceId, t.credentialId], name: "owner_passkeys_workspace_credential_pk" }),
   index("idx_owner_passkeys_scope").on(t.workspaceId, t.principalId),
 ]);
+
+/** Migration 0044: one row per workspace while agent-created work is held by the assistant switch;
+ *  deleted only by an approved resume card (`server/runtime/composition/agent-pause-gate.ts`). */
+export const agentPauseHolds = sqliteTable("agent_pause_holds", {
+  workspaceId: text("workspace_id").primaryKey(),
+  heldSince: text("held_since").notNull(),
+});

@@ -1,3 +1,4 @@
+import { AGENT_PAUSE_CREATOR_KIND_STATEMENTS } from '../migrations/0044_agent_pause_creator_kind.js';
 import { MEDIA_CAPTIONS_STATEMENTS } from '../migrations/0045_media_captions.js';
 import { WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS } from '../migrations/0043_webhook_subscription_creator_kind.js';
 import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
@@ -273,6 +274,9 @@ function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonl
     },
     "0043_webhook_subscription_creator_kind": () => {
       for (const statement of WEBHOOK_SUBSCRIPTION_CREATOR_KIND_STATEMENTS) client.exec(statement);
+    },
+    "0044_agent_pause_creator_kind": () => {
+      for (const statement of AGENT_PAUSE_CREATOR_KIND_STATEMENTS) client.exec(statement);
     },
     "0045_media_captions": () => {
       for (const statement of MEDIA_CAPTIONS_STATEMENTS) client.exec(statement);

@@ -1,3 +1,5 @@
+import { createAgentPauseGate, sqlAgentPauseHoldStore } from "../agent-pause-gate.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeStoreBasics } from "./store-basics.js";
@@ -93,8 +95,11 @@ interface RouteDepsExecutionPluginsRequired {
   pluginExports: ReturnType<typeof composePreAssembly>["pluginExports"];
 }
 
-export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "presentationRepo" | "settingsRepo" | "getEffective" | "set" | "instructionsNamespace" | "seoReady" | "seoDeps" | "sitemapService" | "settingsReady" | "assistantSettingsReady" | "visitorToolsManagement" | "adminAssistantEnabled" | "siteAssistantCredentialRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "databaseTransferChatSnapshot" | "databaseTransferDestinationStore" | "adminExecutionCredentialRepo" | "mediaProviderCredentialRepo" | "externalMcpServerRepo" | "bundledSourceRoot" | "mcp" | "preferences" | "providerFaces" | "notifyRosterChanged" | "builtInExternalMcpServerIds" | "externalMcpToolApprovalRepo"> {
+export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "presentationRepo" | "settingsRepo" | "getEffective" | "set" | "instructionsNamespace" | "seoReady" | "seoDeps" | "sitemapService" | "settingsReady" | "assistantSettingsReady" | "visitorToolsManagement" | "adminAssistantEnabled" | "agentPauseGate" | "siteAssistantCredentialRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "databaseTransferChatSnapshot" | "databaseTransferDestinationStore" | "adminExecutionCredentialRepo" | "mediaProviderCredentialRepo" | "externalMcpServerRepo" | "bundledSourceRoot" | "mcp" | "preferences" | "providerFaces" | "notifyRosterChanged" | "builtInExternalMcpServerIds" | "externalMcpToolApprovalRepo"> {
   const { agentPluginLayout, kernel, workspaceId, chat, clock, idGen, identity, settingsPrincipals, presentationRepo, settingsRepo, settingsReady, assistantSettingsReady, seoReady, siteAssistantSecretKeyring, siteAssistantSecretSealer, siteAssistantCredentialRepo, externalMcpServerRepo, siteThemes, seoDeps, sitemapService, agentPluginMcp, routeDeps } = required;
+  // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
+  // `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`.
+  const adminAssistantEnabled = isAdminAssistantEnabled();
   return {
     presentationRepo,
     settingsRepo,
@@ -114,9 +119,10 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     assistantSettingsReady,
     visitorToolsManagement: composeVisitorToolsManagement({ workspaceId, ready: assistantSettingsReady,
       settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
-    // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
-    // `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`.
-    adminAssistantEnabled: isAdminAssistantEnabled(),
+    adminAssistantEnabled,
+    // The resume hold lives in the content store so it outlives the restart that flips the switch.
+    agentPauseGate: createAgentPauseGate({ store: sqlAgentPauseHoldStore({ kernel: kernel as KyselyKernel<unknown> }), workspaceId,
+      assistantEnabled: () => adminAssistantEnabled, clock }),
     siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
