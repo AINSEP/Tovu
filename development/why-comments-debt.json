@@ -5396,6 +5396,10 @@
     {
       "id": "9cd5168611b9",
       "reason": "Moved to Jini packages/platform/src/fs/leased-directory-move.ts (w5 DISAGREE split of move-sites-home; release-after-move rationale)."
-    }
+    },
+    {"id": "bad15529609e", "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (checkpointer section header and CheckpointWatch doc), reworded neutral; the Tovu file is now the binding and says so."},
+    {"id": "c0061347a4fd", "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (inline note above the checkpoint interval selection); the host-side checkpointDelay helper no longer exists."},
+    {"id": "c1598057223a", "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (doc block of the engine `checkpoint` function), reworded neutral."},
+    {"id": "f256f3f97b39", "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (doc block of `writeCheckpoint`); the delta-receipt wording is now the host ledger binding's concern."}
   ]
 }
