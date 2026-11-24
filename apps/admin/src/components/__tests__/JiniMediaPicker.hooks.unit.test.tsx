@@ -95,7 +95,7 @@ describe("useJiniMediaPicker", () => {
     const onSelect = vi.fn();
     const { result } = renderHook(() => useJiniMediaPicker({ ...jiniMediaPickerHostArgs, picker: useHostMediaPicker(), onSelect, onCancel: vi.fn() }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m3" }); });
-    await waitFor(() => expect(result.current.error).toBe("Unable to choose media. Please try again."));
+    await waitFor(() => expect(result.current.error?.message).toBe("The media could not be chosen."));
     expect(onSelect).not.toHaveBeenCalled();
   });
 
@@ -104,7 +104,7 @@ describe("useJiniMediaPicker", () => {
     stubMediaList(new Error("boom"));
     const { result } = renderHook(() => useJiniMediaPicker({ ...jiniMediaPickerHostArgs, picker: useHostMediaPicker(), onSelect: vi.fn(), onCancel: vi.fn() }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m1" }); });
-    await waitFor(() => expect(result.current.error).toBe("Unable to choose media. Please try again."));
+    await waitFor(() => expect(result.current.error?.message).toBe("The media could not be chosen."));
   });
 
   it("uses the latest callbacks without reopening the picker", async () => {
@@ -199,8 +199,9 @@ describe("MediaPickerDialog under the host picker", () => {
     expect(picker.pick).toHaveBeenCalledTimes(1);
 
     await act(async () => { calls[0]!.resolve({ id: "gone" }); });
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Unable to choose media. Please try again.");
+    // `ErrorNotice` carries its own alert role inside the dialog wrapper; the wrapper (outermost) is first.
+    const alert = (await screen.findAllByRole("alert"))[0]!;
+    expect(alert).toHaveTextContent("The media could not be chosen.");
     fireEvent.click(within(alert).getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

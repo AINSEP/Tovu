@@ -86,6 +86,8 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Min: ["id", "it"],
   Max: ["it"],
   Dashboard: ["de"],
+  // Italian writes "file" unchanged.
+  "1 file, {size}": ["it"],
   Database: ["it"],
   Desktop: ["id", "de", "pt-BR", "it"],
   Email: ["id", "it"],
