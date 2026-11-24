@@ -1,9 +1,10 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/site-inspection.js';
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { toolMetadata } from "../../contracts/core/tool-metadata/site-inspection.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { readPageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveEgressRefusal, type LiveOriginPolicy } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";

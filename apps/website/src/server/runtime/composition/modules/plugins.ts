@@ -9,16 +9,11 @@ import { projectKeyUseRoute } from "@jini-ai/cms/admin-http/routes/plugins/proje
 import { pluginProviderSettingsGetRoute, pluginProviderSettingsSaveRoute, type ProviderSettingsRouteDeps as ProviderSettingsSpecDeps } from "@jini-ai/cms/admin-http/routes/plugins/provider-settings";
 import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
-import {
-  PluginAlreadyInTrashError, PluginConflictError, PluginEnabledError, PluginHookFailedError, PluginIncompatibleError, PluginInvalidError,
-  PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin,
-} from "@jini-ai/plugins/host";
+import { PluginAlreadyInTrashError, PluginConflictError, PluginEnabledError, PluginHookFailedError, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin } from "@jini-ai/plugins/host";
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 import { lowerPluginToolAccess } from "@jini-ai/plugins/runtime/lower-tool-access";
-import {
-  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
-} from "#src/server/inbound/admin-http/admin-json-route-ports";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { registerChartProviderRoutes } from "#src/server/inbound/admin-http/routes/plugins/chart-providers";
 import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";

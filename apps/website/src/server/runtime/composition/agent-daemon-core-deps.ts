@@ -1,3 +1,4 @@
+import { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** ADR-070 retained daemon composition. No site routes, migrations, plugin lifecycle or outbox.
  * The server owns durable attempts and provider plugins; a client opens only already-migrated
@@ -7,7 +8,7 @@ import { getEffective, InMemorySettingsRepo, INSTRUCTIONS_NAMESPACE, type Settin
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import type { AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
-import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
+
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";
 import { DaemonCoreError, type DaemonCoreSnapshot, type DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
 import { openSiteDbClient, type SiteDbClient, type ImportSiteDbDriver, type ResolvePostgresConnectionString } from "#src/platform/db/client/open-site-db-client";

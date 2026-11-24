@@ -1,3 +1,4 @@
+import { readDefinedPlugin } from "@jini-ai/plugins/runtime/plugin-export";
 /** Tovu's product inputs for the Jini host. The runtime owns algorithms; this binding owns the
  * SDK vocabulary, declarations, admission policy and executable import boundary. */
 import { createHash } from "node:crypto";

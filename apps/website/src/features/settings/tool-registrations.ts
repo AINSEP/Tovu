@@ -1,7 +1,7 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
+import { toolMetadata } from "../../contracts/core/tool-metadata/settings.js";
 import { buildUiLocalesRegistrations, uiLocalesDerivedRisk, type UiLocalesToolDeps } from "@jini-ai/cms/settings/site/ui-locales-tool";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
-import { withToolMetadata } from '@jini-ai/core';
+import { withToolMetadata } from "@jini-ai/core";
 import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/index.js";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/index.js";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
@@ -44,7 +44,7 @@ import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME
 import { CHAT_EXECUTION_KEYS } from "@jini-ai/cms/settings/site/chat-execution-write";
 import { settingsConfirmWrite, type SettingsConfirmWriteCopy } from "@jini-ai/cms/settings/site/settings-confirm-write";
 
-import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { SettingsToolDeps as SiteSettingsToolDeps } from "@jini-ai/cms/settings/site/tool-deps";
 
 /** The settings tools' deps bound to this host's full chat-picker inventory. */

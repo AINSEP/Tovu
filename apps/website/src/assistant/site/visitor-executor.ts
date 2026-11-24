@@ -10,11 +10,11 @@ import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS
 import type { VisitorToolPolicy, VisitorToolPresentation } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
 import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
-import { withToolAttemptAudit, type ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS_PER_TURN, type VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
+
+
 import type { ClientDirective } from "@jini-ai/core/contracts/site/client-directives";
-import type { VisitorConfirmations } from "./visitor-confirmations.js";
-import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
+
+
 import { createVisitorConfirmationGate, VisitorPlanRefused } from "./visitor-confirmation-gate.js";
 
 export interface VisitorCapabilityContract extends VisitorToolPresentation {

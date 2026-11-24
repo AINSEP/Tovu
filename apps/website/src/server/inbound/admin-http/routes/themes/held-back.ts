@@ -1,3 +1,4 @@
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "@jini-ai/core/gated-mutations";
 import type { Express, Response } from "express";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
@@ -7,7 +8,7 @@ import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh"
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
+
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildHeldBackRestoreHooks, HELD_BACK_READ_PERMISSION, HELD_BACK_RESTORE_DOMAIN, HELD_BACK_RESTORE_PERMISSION, type HeldBackRestoreScope } from "#src/features/theme/held-back-gated-hooks";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

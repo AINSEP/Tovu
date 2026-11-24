@@ -1,7 +1,7 @@
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
-import { toolMetadata } from '@jini-ai/core/tool-metadata/media-import';
+import { toolMetadata } from "@jini-ai/core/tool-metadata/media-import";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -12,15 +12,7 @@ import type { ToolContributor } from "@jini-ai/core";
 // anything; see {@link isImportShapeRejection}.
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import {
-  sniffContentType,
-  uploadMedia,
-  type AssetBlobRepoPort,
-  type AssetRenditionRepoPort,
-  type BlobStorePort,
-  type TransformDefinitionRepoPort,
-  type UploadMediaInput,
-} from "../media/index.js";
+import { sniffContentType, uploadMedia, type AssetBlobRepoPort, type AssetRenditionRepoPort, type BlobStorePort, type TransformDefinitionRepoPort, type UploadMediaInput } from "../media/index.js";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/public-urls.js";
@@ -28,7 +20,7 @@ import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS, type FsRootId } from "../fs-files/layout.js";
-import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
+import { FS_FOLDER_READ_RECOVERY } from "@tovu/contracts/fs-folder-recovery";
 import { buildMediaImportAgentToolCatalog } from "@jini-ai/cms/media/site-import/agent-tools";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";

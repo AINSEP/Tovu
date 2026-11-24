@@ -1,3 +1,4 @@
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "@jini-ai/cms/posts/post-read";

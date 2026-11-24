@@ -1,6 +1,6 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ConfirmationDeps } from "./confirmation.js";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { SendPipelineDeps } from "@jini-ai/user-management/newsletter/send-pipeline";
 import { processOutbox } from "../../contracts/core/events/index.js";

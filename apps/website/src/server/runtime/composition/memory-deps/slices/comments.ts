@@ -1,11 +1,12 @@
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentTargetLookup } from '@jini-ai/cms/comments/site/comment-targets';
+import { createCommentTargetLookup } from "@jini-ai/cms/comments/site/comment-targets";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { createCommentsCapability } from '@jini-ai/cms/comments/site/provider-selection';
-import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import { createCommentsCapability } from "@jini-ai/cms/comments/site/provider-selection";
+import { createCommentsProviderRegistry } from "@jini-ai/capability-providers/comments";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemorySettingsRepo } from "#src/features/settings/index";

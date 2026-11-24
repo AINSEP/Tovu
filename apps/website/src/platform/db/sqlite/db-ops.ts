@@ -1,6 +1,7 @@
+import { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { SqliteDbOpsAdapter as JiniSqliteDbOpsAdapter } from "@jini-ai/db/sqlite";
 
-import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+
 import { schemaErasedKernel } from "../content-kernel.js";
 import { readKernelWatermark } from "@jini-ai/db/watermark/kernel";
 import { WRITE_WATERMARK_TABLES } from "../write-watermark-tables.js";

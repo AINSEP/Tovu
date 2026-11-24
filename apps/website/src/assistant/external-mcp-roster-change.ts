@@ -1,5 +1,8 @@
+import type { McpRosterChangeListener } from "@jini-ai/mcp/federation";
+import { createMcpRosterChangeBus } from "@jini-ai/mcp/federation";
+import type { McpRosterChangeNotifyOptions } from "@jini-ai/mcp/federation";
 import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
-import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
+import type { ToolAccessChange } from "@jini-ai/core/contracts/site/daemon";
 /**
  * @file The website process's ONE external-MCP roster-change bus — the seam that lets every process
  * holding a live federated-tool registry (the agent daemon's own, and BYOK's per-request

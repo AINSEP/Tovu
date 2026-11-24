@@ -1,8 +1,9 @@
-import { createVisitorPageTargets } from '../visitor-page-targets.js';
-import { createVisitorFrontendControl } from '#src/assistant/site/visitor-frontend-control';
-import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '../jini-routes.js';
-import { requestHookInput } from '#src/server/inbound/shared/request-facts';
-import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
+import { type ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
+import { createVisitorPageTargets } from "../visitor-page-targets.js";
+import { createVisitorFrontendControl } from "#src/assistant/site/visitor-frontend-control";
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../jini-routes.js";
+import { requestHookInput } from "#src/server/inbound/shared/request-facts";
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from "#src/server/inbound/shared/json-body-parsers";
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
@@ -14,34 +15,18 @@ import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budge
 import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import { VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
-import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
+import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS } from "#src/assistant/site/visitor-confirmations";
 import { readVisitorToolsSnapshot } from "@jini-ai/cms/settings/site/visitor-tools-write";
 import { VISITOR_TOOLS_HOST } from "#src/features/settings/settings-write-policies";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
 import { randomBytes } from "node:crypto";
-import {
-  isSameOrigin,
-  normalizeOriginCandidate,
-} from "@jini-ai/core/contracts/server/verified-origin";
+import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/core/contracts/server/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
-import {
-  createSiteCapabilityRegistry,
-  createSiteAssistantErrorReporter,
-  siteAssistantIncident,
-  type SiteAssistantErrorReporter,
-  type SiteAssistantErrorLogEntry,
-  resolveBoundedHistory,
-  resolveSiteAssistantMode,
-  isPublicAssistantEnabled,
-  resolvePublicAssistantAvailability,
-  type ResolvedSiteAssistantCredential,
-  type SiteAssistantHistoryTurn,
-  type SiteAssistantModeResolution,
-} from "#src/assistant/index";
+import { createSiteCapabilityRegistry, createSiteAssistantErrorReporter, siteAssistantIncident, type SiteAssistantErrorReporter, type SiteAssistantErrorLogEntry, resolveBoundedHistory, resolveSiteAssistantMode, isPublicAssistantEnabled, resolvePublicAssistantAvailability, type ResolvedSiteAssistantCredential, type SiteAssistantHistoryTurn, type SiteAssistantModeResolution } from "#src/assistant/index";
 import { providerTurnAdapters, resolveProviderProtocol, runProviderToolTurn, type ProviderProtocol, type ProviderToolCall, type ProviderToolResult } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s

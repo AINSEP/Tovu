@@ -10,7 +10,7 @@ import { contributeRawFilePublish } from "#src/features/publish-content/raw-file
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { contributeRedirectPublish } from "@jini-ai/cms/redirects/site/publish-content";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
+import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 import { contributeSiteSettingPublish } from "@jini-ai/cms/settings/site/publish-content";
 import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";

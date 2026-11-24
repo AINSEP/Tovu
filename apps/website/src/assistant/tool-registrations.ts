@@ -1,3 +1,5 @@
+import type { BatchableTool } from "@jini-ai/core";
+import { withBatchInput } from "@jini-ai/core";
 import { buildToolGapsRegistrations, toolGapsDerivedRisk } from "./tool-gaps-tool.js";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
@@ -29,11 +31,7 @@ import type { CommentsToolDeps } from "../features/comments/tool-registrations.j
 import { buildAdminScreenLinkRegistrations, adminScreenLinkDerivedRisk } from "./admin-screen-link-tool.js";
 import { buildAskChoiceRegistrations, askChoiceDerivedRisk } from "./ask-choice-tool.js";
 import { buildComponentCatalogRegistrations, componentCatalogDerivedRisk } from "./component-catalog-tool.js";
-import {
-  buildExternalMcpReauthRegistrations,
-  externalMcpReauthDerivedRisk,
-  type ExternalMcpReauthToolDeps,
-} from "./external-mcp-reauth-tool.js";
+import { buildExternalMcpReauthRegistrations, externalMcpReauthDerivedRisk, type ExternalMcpReauthToolDeps } from "./external-mcp-reauth-tool.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";

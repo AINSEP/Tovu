@@ -1,17 +1,11 @@
+import { POST_SEARCH_HOST } from "./search-host-config.js";
 import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
 
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
-import type {
-  PostAutosaveSnapshot,
-  PostRecord,
-  PostRepoPort,
-  PostRevisionAppendResult,
-  PostRevisionInput,
-  PostRevisionRecord,
-} from "@jini-ai/cms/posts/post";
+import type { PostAutosaveSnapshot, PostRecord, PostRepoPort, PostRevisionAppendResult, PostRevisionInput, PostRevisionRecord } from "@jini-ai/cms/posts/post";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "@jini-ai/cms/posts/search";

@@ -1,3 +1,4 @@
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
 import { executeCommand } from "@jini-ai/cms/core/commands";
 import { trashedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";

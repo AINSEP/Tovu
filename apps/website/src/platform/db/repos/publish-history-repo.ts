@@ -1,15 +1,12 @@
+import { StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
+import { resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 import type { Insertable, Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/index";
-import type { StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
-import type {
-  PublishHistoryEntry,
-  PublishHistoryStore,
-  PublishTrigger,
-  StaticPublishTargetId,
-} from "#src/features/deployments/static-publish/index";
+
+
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishHistoryTable } from "../content-database.generated.js";
 import { toBool } from "@jini-ai/core/contracts/storage";

@@ -1,3 +1,4 @@
+import { checkSiteRelativeTarget } from "@jini-ai/cms/routing/site/reserved-paths";
 import { listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
@@ -5,7 +6,7 @@ import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-them
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { checkSiteRelativeTarget, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../../../platform/express/async-route.js";
 import { resolveRequestedSlug, redirectLookupPath } from "../request-policy.js";

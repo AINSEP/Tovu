@@ -1,3 +1,4 @@
+import { REDIRECT_TABLES } from "@tovu/contracts/redirect-tables";
 /**
  * @file `TrashAdapter` for redirects. Marker: `redirects.status = 'disabled'`.
  *

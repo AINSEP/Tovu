@@ -1,4 +1,4 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "@tovu/contracts/widget-tables";
 
 /**
  * @file The content database's persisted table names, the host schema every Jini `@jini-ai/cms/<feature>/sql`

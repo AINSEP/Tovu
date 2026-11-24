@@ -7,7 +7,7 @@
  * or the media route knows a Trash exists.
  */
 import { createDirectoryRollbackReporter } from "@jini-ai/cms/trash/site/directory-rollback-log";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 export { TRASH_TABLES } from "./repo.sqlite.js";
 // Shared trash forks were removed; @jini-ai/cms/trash owns their implementation.
 export type {

@@ -1,7 +1,8 @@
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /** @file Closed request and revision-token contract shared by HTTP and tool transports. */
 import { ToolInputError } from "@jini-ai/core";
 import { resolveSitePath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+
 
 /** Reject unknown request fields and malformed version tokens before any mutation. O(fields). */
 export function readConsentRequest({ body, fields }: { body: unknown; fields: readonly string[] }, _options = {}): Record<string, unknown> {

@@ -1,12 +1,12 @@
-import { createRunStartHandler, type RunStartRequired } from './agent-daemon-run-start.js';
-import { createScopeApp } from './agent-daemon-scope-http.js';
-import { createAttachmentRunFieldsResolver, createRunUserMessageDelivery, openScopeAttachments, mountScopeAttachments } from './agent-daemon-scope-attachments.js';
-import { createScopeRuntime, createScopePromptAugmenter, createScopeBridge, createScopeAgentExecutor, startBridgeProbe } from './agent-daemon-scope-runtime.js';
-import { createScopeToolRegistry, createScopeToolExecutor } from './agent-daemon-scope-tools.js';
-import { createScopeLifetime } from './agent-daemon-scope-lifetime.js';
-import type { AgentDaemonCoreDeps } from '../../runtime/composition/agent-daemon-core-deps.js';
-import { type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
-import { type ToolAccessRun, createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from '@jini-ai/daemon';
+import { createRunStartHandler, type RunStartRequired } from "./agent-daemon-run-start.js";
+import { createScopeApp } from "./agent-daemon-scope-http.js";
+import { createAttachmentRunFieldsResolver, createRunUserMessageDelivery, openScopeAttachments, mountScopeAttachments } from "./agent-daemon-scope-attachments.js";
+import { createScopeRuntime, createScopePromptAugmenter, createScopeBridge, createScopeAgentExecutor, startBridgeProbe } from "./agent-daemon-scope-runtime.js";
+import { createScopeToolRegistry, createScopeToolExecutor } from "./agent-daemon-scope-tools.js";
+import { createScopeLifetime } from "./agent-daemon-scope-lifetime.js";
+import type { AgentDaemonCoreDeps } from "../../runtime/composition/agent-daemon-core-deps.js";
+import { type ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
+import { type ToolAccessRun, createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
@@ -15,7 +15,7 @@ import { TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assist
 import express from "express";
 import { type Principal } from "@jini-ai/core";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
-import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
+
 import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 import { resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
 import { type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";

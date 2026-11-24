@@ -1,29 +1,26 @@
-import type { ToolRegistration } from '@jini-ai/core';
-import { formatErrorForLog } from '@jini-ai/core';
-import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
-import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
-import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
-import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
-import { createCommerceWorker } from './commerce-worker.js';
-import { readCommerceDrain } from './commerce-drain.js';
-import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type KyselyKernel } from '@jini-ai/db/kernel';
-import type { Clock, HttpClientPort, IdGenerator } from '@jini-ai/core/primitives';
-import type { SettingsRepoPort } from '@jini-ai/core/settings';
-import { createCommerceServer, readCommerceConfiguration, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
-import { commerceOrderRepoFor, commerceOrderPaymentRepoFor, commercePriceProviderRefRepoFor, commercePriceRepoFor,
-  commerceProductRepoFor, commerceStorefrontFor, commerceConfigurationKey, selectCommerceDrain, type CommerceConfiguration } from '@jini-ai/commerce/repo';
-import { createPaymentsService, createPaymentsOperator, createKernelProviderRegistry, createProviderContexts,
-  createWebhookReceiver, createInboxWorker, createOutboxRelay, paymentError, type KernelProviderRegistry,
-  LedgerConstraintError, type LedgerTx, type LedgerKeyScope, type QuarantineRecord,
-  type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
-import { migrateCommercePayments, sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
-import { runMigrations } from '@jini-ai/db/migrate';
-import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
-import { createAgentPluginEnabledReader } from '@jini-ai/agent-plugins/site/activation-effects';
-import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
-import type { ProviderPluginPorts } from './provider-plugins.js';
-import type { ProviderConfigSource } from './provider-config-source.js';
+import { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
+import type { ToolRegistration } from "@jini-ai/core";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from "@jini-ai/commerce/tools";
+import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from "@jini-ai/commerce/payments/tools";
+import { createCommerceWorker } from "./commerce-worker.js";
+import { readCommerceDrain } from "./commerce-drain.js";
+import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type KyselyKernel } from "@jini-ai/db/kernel";
+import type { Clock, HttpClientPort, IdGenerator } from "@jini-ai/core/primitives";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
+import { createCommerceServer, readCommerceConfiguration, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from "@jini-ai/commerce";
+import { commerceOrderRepoFor, commerceOrderPaymentRepoFor, commercePriceProviderRefRepoFor, commercePriceRepoFor, commerceProductRepoFor, commerceStorefrontFor, commerceConfigurationKey, selectCommerceDrain, type CommerceConfiguration } from "@jini-ai/commerce/repo";
+import { createPaymentsService, createPaymentsOperator, createKernelProviderRegistry, createProviderContexts, createWebhookReceiver, createInboxWorker, createOutboxRelay, paymentError, type KernelProviderRegistry, LedgerConstraintError, type LedgerTx, type LedgerKeyScope, type QuarantineRecord, type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from "@jini-ai/commerce/payments/kernel";
+import { migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
+import { runMigrations } from "@jini-ai/db/migrate";
+import { migrateCommerceDatabase } from "#src/platform/db/migrations/index";
+import { createAgentPluginEnabledReader } from "@jini-ai/agent-plugins/site/activation-effects";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
+import type { ProviderPluginPorts } from "./provider-plugins.js";
+
 
 export type CommerceServer = ReturnType<typeof createCommerceServer>;
 /** The host keeps scope/configuration private; routes supply only the authenticated member and order. */
