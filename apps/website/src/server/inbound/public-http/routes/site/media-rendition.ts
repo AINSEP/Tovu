@@ -12,7 +12,6 @@ import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
-import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { sendMediaOriginalTrashed, writeMediaOriginalReply } from "#src/server/inbound/shared/media-original-writer";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
