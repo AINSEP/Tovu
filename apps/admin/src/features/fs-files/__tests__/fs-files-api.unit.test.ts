@@ -1,7 +1,9 @@
 import { expect, it } from "vitest";
 
 import { ApiError } from "../../../lib/admin-http/request";
-import { isFolderPickerBusyError } from "../api/fs-files-api";
+import { nativeFolderPickerDeps } from "../api/fs-files-api";
+
+const isFolderPickerBusyError = ({ error }: { error: unknown }) => nativeFolderPickerDeps.isDialogAlreadyOpen(error);
 
 /**
  * @file The host binding `AssistantDock` passes to `@jini-ai/admin`'s `useNativeFolderPicker` as

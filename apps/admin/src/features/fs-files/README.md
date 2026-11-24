@@ -11,7 +11,7 @@ and the `fs-files` admin API client (`api/fs-files-api.ts`).
   existing `input` object:
   - `probe` = `fsFilesApi.getFolderPicker` and `pick` = `fsFilesApi.pickFolder` (this folder's
     `api/fs-files-api.ts`, which stays in Tovu because it uses Tovu's `lib/admin-http`);
-  - `isDialogAlreadyOpen` = `isFolderPickerBusyError` (same file: an `ApiError` with status 409 means
+  - `isDialogAlreadyOpen` (`nativeFolderPickerDeps`, same file: an `ApiError` with status 409 means
     a dialog is already open in another tab, so the button stays usable and nothing is reported).
   - `onPicked`/`onFailed` = `useFolderDrop`'s `insertFolderPath`/`showPathHint`, as before.
   The hook renders nothing, so it carries no CSS classes and needs no stylesheet.
