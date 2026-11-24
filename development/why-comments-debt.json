@@ -4910,6 +4910,34 @@
     {
       "id": "da710843f623",
       "reason": "Header of the deleted empty SqliteSiteTitlePreservationStore subclass; SqlSiteTitlePreservationStore header already documents the store (w5-webfeat)"
+    },
+    {
+      "id": "e8a80618df48",
+      "reason": "Moved to Jini @jini-ai/plugins/runtime/sdk-resolver (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "575ccc64026d",
+      "reason": "Moved to Jini @jini-ai/plugins/runtime/sdk-resolver (w5-webfeat)"
+    },
+    {
+      "id": "8bf58e2b8b26",
+      "reason": "Moved to Jini @jini-ai/plugins/runtime/sdk-resolver (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "02cad8ca25fd",
+      "reason": "Moved to Jini @jini-ai/plugins/runtime/sdk-resolver (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "99210a914cf3",
+      "reason": "Moved to Jini @jini-ai/plugins/runtime/sdk-resolver (w5-webfeat); reworded neutral"
+    },
+    {
+      "id": "fa58c38bc822",
+      "reason": "Moved to Jini @jini-ai/devops/backup/site/static-export-selection (w5-webfeat); @throws reworded for the injected refusal"
+    },
+    {
+      "id": "72917d3a567e",
+      "reason": "Obsolete: boot/plugin-sdk-resolver.ts was a compatibility re-export and is now the host binding with its own docs (w5-webfeat)"
     }
   ]
 }
