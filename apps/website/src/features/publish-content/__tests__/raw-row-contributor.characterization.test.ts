@@ -16,7 +16,8 @@ import type { BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import type { BackstopSelection, RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { contributeRawRowPublish, rawRowId } from "../raw-row-contributor.js";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const COLUMNS: readonly RawColumn[] = [{ name: "id", type: "TEXT", pk: 1, notnull: 0 }, { name: "title", type: "TEXT", pk: 0, notnull: 0 }];
 type Pk = Readonly<Record<string, RawValue>>;

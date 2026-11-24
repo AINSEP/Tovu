@@ -8,7 +8,9 @@ import type { BackstopAuditPort, BackstopAuditRecord, BackstopInverse } from "@j
 import type { BackstopPorts, BackstopSelection, RawFilePort } from "@jini-ai/cms/publish/transfer";
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
-import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { SkippedPackEntity } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { entityKey } from "#src/features/publish-content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";

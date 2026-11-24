@@ -22,7 +22,8 @@ import { entityKey } from "./plan-rows.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./plan-rows.js";
 import { NO_PUBLISH_CONTENT_SEED_HASH } from "./seed-hash.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
-import type { EntityReplacement, PackedEntity, PublishContentHandler } from "./type-registry.js";
+import type { EntityReplacement, PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /**
  * R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — capitalizes a handler's own `entityType`

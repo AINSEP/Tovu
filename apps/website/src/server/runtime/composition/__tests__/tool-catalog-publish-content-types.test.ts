@@ -16,10 +16,7 @@ import test from "node:test";
 
 import { describePublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
 import { PUBLISH_READINESS_COPY } from "#src/features/publish-content/publish-readiness-copy";
-import {
-  listPublishContentContributors,
-  resetPublishContentContributorsForTests,
-} from "#src/features/publish-content/type-registry";
+import { listPublishContentContributors, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 
 import { installFirstPartyPublishContentTypes } from "../publish-content-manifest.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";

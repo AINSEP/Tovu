@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { checkRawTable, checkRawFilePath, checkRawValues } from "./backstop-policy.js";
 import type { BackstopPorts, RawRowSnapshot } from "@jini-ai/cms/publish/transfer";
-import type { PackedEntity } from "./type-registry.js";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 export interface BackstopPreview {
   readonly entityType: string;

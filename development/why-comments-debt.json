@@ -5524,6 +5524,226 @@
     {
       "id": "ae9b5b494419",
       "reason": "Moved to Jini @jini-ai/devops/backup/site/static-download-html (K5-site-backup-1), reworded: the @example now passes the injected sourceEdits editor; rationale unchanged."
+    },
+    {
+      "id": "822f6de1482e",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "ff7e9391a7de",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "f8feb344c019",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "2b079e310680",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "9611fa15d41b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "96504ef4ad20",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "34d6dc08dcf2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: product/repo paths (plan doc, assistant/ and features/ file names, the default port-bag note) replaced by role names; the 'no default bag' rule now states the bag is required."
+    },
+    {
+      "id": "0656aae9ec04",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d60bfa77e02b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3a614a6ec195",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "2382005cb937",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "09904657dc7d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3d44c7518296",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "eb6014c67311",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "1ded608b861b",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "85a40a7319df",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "6174e14c4827",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "a2ff401a1f20",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "95bfd3c668bb",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "e96109076577",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "664285009b70",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "5711f460cadc",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "3910184f149a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "af20e7ece2cd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "fbe2f75ad240",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "944e4cb88107",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "10e07c9debbb",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "c4df8f33f012",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "9833441cc57d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "63fa5bd06fe1",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "e58e0e770f69",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "75c67ffd58e4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b0e148feb022",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d36c2faf6faa",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "8c1409614ea2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "878dccdb04cf",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "6ff481a3a301",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "cc80ae4d43fd",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b3335059c717",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "b37cf8f3db73",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "aee0d321bf86",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "cca0ef70f90f",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "d0b693e518ad",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: host file-name references (planner.ts, apply-loop.ts, export-bundle.ts, file-tree-policy.ts, theme contributor) replaced by role names, otherwise verbatim."
+    },
+    {
+      "id": "8fab020313e2",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "7104f630187a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "96273eb87c36",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "d6f227f2cdb4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "b9a717a02892",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "003c219a076c",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "6198617e56e4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "b8a4830ba2a6",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "1f80855f477d",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "7db0a2173e60",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "64ac50aa44f9",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "a3aecdae47c4",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
     }
   ]
 }

@@ -21,11 +21,8 @@ import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
 import type { PublishContentReport } from "../plan-rows.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import {
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-  type PublishContentHandler,
-} from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
 import { plan } from "../../../contracts/core/gated-mutations/gateway.js";
 

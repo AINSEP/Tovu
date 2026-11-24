@@ -7,10 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
-import {
-  listPublishContentContributors,
-  resetPublishContentContributorsForTests,
-} from "#src/features/publish-content/type-registry";
+import { listPublishContentContributors, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { isBackstopEntityType } from "@jini-ai/cms/publish/trust/grant";
 
 import {

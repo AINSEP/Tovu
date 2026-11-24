@@ -4,7 +4,7 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/tr
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "@jini-ai/cms/publish/trust/grant";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
-import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 import { getPublishTrustContext, type PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

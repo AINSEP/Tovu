@@ -12,12 +12,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import {
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-  type PackedEntity,
-  type PublishContentContributor,
-} from "#src/features/publish-content/type-registry";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";

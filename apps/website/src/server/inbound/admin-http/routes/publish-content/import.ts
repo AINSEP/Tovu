@@ -28,7 +28,7 @@ import {
 } from "./route-helpers.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
-import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 
 /**
