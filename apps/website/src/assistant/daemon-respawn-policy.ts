@@ -11,8 +11,6 @@
 import { createRespawnPolicy as createSidecarRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import type { RespawnPolicy, RespawnPolicyOptions as SidecarRespawnPolicyOptions } from "@jini-ai/sidecar/respawn-policy";
 
-export type { RespawnDecision, RespawnFailureInput, RespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
-
 export interface RespawnPolicyOptions extends SidecarRespawnPolicyOptions {
   now?: () => number;
 }

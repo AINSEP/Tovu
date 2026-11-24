@@ -6,7 +6,7 @@ import { createScopeToolRegistry, createScopeToolExecutor } from './agent-daemon
 import { createScopeLifetime } from './agent-daemon-scope-lifetime.js';
 import type { AgentDaemonCoreDeps } from '../../runtime/composition/agent-daemon-core-deps.js';
 import { type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
-import { type ToolAccessRun } from '@jini-ai/daemon';
+import { type ToolAccessRun, createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from '@jini-ai/daemon';
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
@@ -15,14 +15,13 @@ import { TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assist
 import express from "express";
 import { type Principal } from "@jini-ai/core";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
-import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import type { AttachmentStore } from "@jini-ai/daemon/http";
 import { resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
 import { type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 
 import { createAssistantAgentInventory } from "#src/assistant/agents";
-import { createLiveRunTracker, createConversationStartLock } from "#src/assistant/agent-session-preset";
+import { createLiveRunTracker, createConversationStartLock } from "@jini-ai/daemon/session-coordination";
 import { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assistant/daemon-access";
 import { createRunActiveContextStore } from "@jini-ai/daemon/http";

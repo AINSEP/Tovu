@@ -14,6 +14,7 @@ import * as childEnvironment from "@jini-ai/platform/child-environment";
 import * as agents from "#src/assistant/agents";
 import * as access from "#src/assistant/daemon-access";
 import * as sessions from "#src/assistant/agent-session-preset";
+import * as coordination from "@jini-ai/daemon/session-coordination";
 import * as instructions from "@jini-ai/agent-runtime/custom-instructions";
 import * as core from "../../../runtime/composition/agent-daemon-core-deps.js";
 import * as policy from "../assistant-run-tool-policy.js";
@@ -93,16 +94,18 @@ mock.module("#src/assistant/daemon-access", { namedExports: { ...access,
 } });
 mock.module("#src/assistant/agent-session-preset", { namedExports: { ...sessions,
   agentCarriesOwnMemory: () => controls.memory,
-  createLiveRunTracker: (...args: Parameters<typeof sessions.createLiveRunTracker>) => {
-    const actual = sessions.createLiveRunTracker(...args);
+} });
+mock.module("@jini-ai/daemon/session-coordination", { namedExports: { ...coordination,
+  createLiveRunTracker: (...args: Parameters<typeof coordination.createLiveRunTracker>) => {
+    const actual = coordination.createLiveRunTracker(...args);
     return { ...actual,
       register: (...input: Parameters<typeof actual.register>) => { controls.note("register"); return actual.register(...input); },
       hasConcurrentLiveRun: (...input: Parameters<typeof actual.hasConcurrentLiveRun>) => { controls.note("concurrency"); return actual.hasConcurrentLiveRun(...input); },
     };
   },
-  failRunBeforeStart: async (...args: Parameters<typeof sessions.failRunBeforeStart>) => {
+  failRunBeforeStart: async (...args: Parameters<typeof coordination.failRunBeforeStart>) => {
     controls.failures.push(args[0]); controls.note("failure");
-    return sessions.failRunBeforeStart(...args);
+    return coordination.failRunBeforeStart(...args);
   },
 } });
 mock.module("@jini-ai/agent-runtime/custom-instructions", { namedExports: { ...instructions,

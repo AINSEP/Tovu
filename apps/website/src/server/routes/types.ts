@@ -1,7 +1,7 @@
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
 import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
-import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express, Request } from "express";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
@@ -35,11 +35,13 @@ import type {
   UserRepoPort,
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
-import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
+import type { GoLiveCandidatesPort, EntryRepoPort, EntryListPort, EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
-import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
+import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
+import type { ChatRunLedger } from "../../assistant/persistence/run-ledger.js";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
@@ -100,47 +102,36 @@ import type {
   SiteStatusPort,
 } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
-import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
+import type { ContentTypeRepoPort, IndexProvisionerPort, ContentTypeListPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
-import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
-import type { EntryRepoPort } from "@jini-ai/cms/entries";
-import type { EntryListPort } from "@jini-ai/cms/entries";
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "@jini-ai/cms/entries/site/public-list";
-import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
 } from "@jini-ai/cms/taxonomy";
-import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
+import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort, MergeableEntryTermRepoPort, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
-import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
-import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {
   RemoveTermFn,
   RemoveTaxonomyFn,
   TermTrashReadPort,
   TaxonomyTrashReadPort,
 } from "@jini-ai/cms/taxonomy";
-import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
-import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
-import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort, EntryRefsRepoPort } from "@jini-ai/cms/widgets";
+import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
+import type { PluginDiscoveryRecord, PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
-import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
-import type { RemovePluginFn } from "@jini-ai/core/contracts/site/plugins-host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
-import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
+import type { PublishContentBundleRepoPort, FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "@jini-ai/cms/publish/content/baseline-repo";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
-import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**

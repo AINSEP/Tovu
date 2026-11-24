@@ -15,8 +15,8 @@ import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool
 import { runWithDaemonCallContext, type DaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { buildDaemonAttachmentTools } from "#src/server/runtime/composition/modules/assistant-tool-exec";
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
-import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
-import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
+import { waitForStoppingRuns } from "../../../../assistant/agent-session-preset.js";
+import { createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "@jini-ai/daemon/session-coordination";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { statementsFor, captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";

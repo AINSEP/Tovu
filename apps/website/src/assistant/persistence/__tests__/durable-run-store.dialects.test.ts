@@ -4,7 +4,7 @@ import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 import { createChatRunLedger } from "../run-ledger.js";
 import { createChatStoreFactory } from "../store-factory.js";
-import { RunSlotBusyError, RUN_SLOT_BUSY } from "../durable-run-store.js";
+import { RunSlotBusyError, RUN_SLOT_BUSY } from "@jini-ai/chat/store/runtime";
 import { CONTINUATION_DIVIDER, createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import { INCIDENT_PARTIAL } from "../../durable-runs/__tests__/incident.fixture.js";
 import type { DurableRun } from "@jini-ai/chat/server/durable-runs";

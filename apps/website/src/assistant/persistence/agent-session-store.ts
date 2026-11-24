@@ -5,7 +5,6 @@ import {
   type AgentSessionStore,
 } from "@jini-ai/daemon/store/agent-sessions";
 import { createAgentSessionStoreForKernel } from "@jini-ai/daemon/store/agent-sessions/kernel";
-export type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";

@@ -7,6 +7,7 @@ import * as installedExtensions from "../installed-extension-tools.js";
 import * as connectionSource from "../external-mcp-connection-source.js";
 import * as rosterChange from "../external-mcp-roster-change.js";
 import * as sessions from "../agent-session-preset.js";
+import * as sessionCoordination from "@jini-ai/daemon/session-coordination";
 import * as permanentDeletes from "../permanent-delete-settings.js";
 import * as deleteGate from "../permanent-delete-tool-gate.js";
 import * as subagentSettings from "../subagent-settings.js";
@@ -94,19 +95,19 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   onExternalMcpRosterChanged: rosterChange,
   notifyExternalMcpRosterChanged: rosterChange,
   agentCarriesOwnMemory: sessions,
-  extractSessionRefFromEndEvent: sessions,
-  resolveResumeSessionField: sessions,
-  shouldClearSessionOnFailedResume: sessions,
-  wouldForcedColdStartLoseConversationContext: sessions,
+  extractSessionRefFromEndEvent: sessionCoordination,
+  resolveResumeSessionField: sessionCoordination,
+  shouldClearSessionOnFailedResume: sessionCoordination,
+  wouldForcedColdStartLoseConversationContext: sessionCoordination,
   CONCURRENT_RUN_REFUSAL_MESSAGE: sessions,
-  createLiveRunTracker: sessions,
-  failRunBeforeStart: sessions,
-  STOPPING_RUN_WAIT_MS: sessions,
+  createLiveRunTracker: sessionCoordination,
+  failRunBeforeStart: sessionCoordination,
+  STOPPING_RUN_WAIT_MS: sessionCoordination,
   waitForStoppingRuns: sessions,
   agentAcceptsHostMintedSessionId: sessions,
-  resolveHostMintedSessionId: sessions,
-  resolveNewSessionField: sessions,
-  createConversationStartLock: sessions,
+  resolveHostMintedSessionId: sessionCoordination,
+  resolveNewSessionField: sessionCoordination,
+  createConversationStartLock: sessionCoordination,
   readChatPermanentDeletesPolicy: permanentDeletes,
   createChatDeleteScope: deleteGate,
   ALL_CHAT_DELETE_TOOLS: deleteGate,

@@ -38,8 +38,6 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
  * ADR-053 Decision 6 requires widening this surface only by deliberate per-tool review.
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = nativeToolMetadata.redeemableIds;
-/** Fixed, secret-free recovery copy shared by both HTTP hops. */
-export { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from '@jini-ai/daemon/http';
 
 /**
  * Whether `toolName` may be executed through the MCP-UI redemption endpoint.

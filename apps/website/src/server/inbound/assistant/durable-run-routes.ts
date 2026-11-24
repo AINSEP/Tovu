@@ -1,9 +1,7 @@
 import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
-import {
-  redactAdminRunContextRef,
-  UNKNOWN_MUTATION_ERROR,
-  RUN_PRINCIPAL_HEADER,
-} from "#src/assistant/session-services";
+import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
+import { UNKNOWN_MUTATION_ERROR } from "@jini-ai/chat/server/durable-runs";
+import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import type { Express } from "express";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 

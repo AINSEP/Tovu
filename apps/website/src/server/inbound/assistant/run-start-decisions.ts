@@ -1,4 +1,4 @@
-import type { DurableRun } from "#src/assistant/session-services";
+import type { DurableRun } from "@jini-ai/chat/server/durable-runs";
 
 /**
  * @file Pure decisions `agent-daemon-server.ts` makes while starting a run: which stored session

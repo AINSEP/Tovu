@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { createEarlySessionCapture, sessionIdFromRunEvent } from "../early-run-session.js";
 import { verifyAttemptChildDead } from "../attempt-process-identity.js";
 import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
-import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 
 for (const [agentId, sessionId] of [["codex", "thread-123"], ["opencode", "session-456"]]) {
   test(`${agentId} first status persists its session and OS child identity without waiting for end`, async () => {

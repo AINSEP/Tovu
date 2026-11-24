@@ -1,6 +1,6 @@
 import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import type { AgentSessionStore } from "#src/assistant/session-services";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import type { ProcessStartReader } from "./attempt-process-identity.js";
 
 interface SessionEvent { readonly kind: string; readonly payload: unknown }

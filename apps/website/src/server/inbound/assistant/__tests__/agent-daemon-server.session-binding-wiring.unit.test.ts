@@ -8,9 +8,8 @@ import path from "node:path";
 import test, { describe } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../assistant/agent-session-preset.js";
-import { resolveResumeSessionField } from "../../../../assistant/agent-session-preset.js";
-import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
+import { agentAcceptsHostMintedSessionId } from "../../../../assistant/agent-session-preset.js";
+import { resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField, createConversationStartLock } from "@jini-ai/daemon/session-coordination";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
@@ -275,10 +274,11 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     // `assert.ok(regex.test(...))` rather than `assert.match(source, regex)` throughout this file:
     // a failed `assert.match` embeds the ENTIRE 80 KB daemon source in its own error object, which
     // buries the one-line reason under a screenful of unrelated text.
-    for (const name of ["agentAcceptsHostMintedSessionId", "resolveHostMintedSessionId", "resolveNewSessionField"]) {
+    const owners = { agentAcceptsHostMintedSessionId: "agent-session-preset(\\.js)?", resolveHostMintedSessionId: "@jini-ai/daemon/session-coordination", resolveNewSessionField: "@jini-ai/daemon/session-coordination" };
+    for (const [name, owner] of Object.entries(owners)) {
       assert.ok(
-        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(runModuleSource),
-        `onStarted must import ${name} through agent-session-preset.ts, not reimplement that decision inline`,
+        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*${owner}["']`, "s").test(runModuleSource),
+        `onStarted must import ${name} from its decision owner (${owner}), not reimplement that decision inline`,
       );
     }
   });
@@ -358,8 +358,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
 describe("Defect 1 wiring — run starts must be serialized per conversation", () => {
   test("imports createConversationStartLock and constructs exactly one module-level instance", () => {
     assert.ok(
-      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
-      "agent-daemon-server.ts must import createConversationStartLock through agent-session-preset.ts",
+      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["']@jini-ai\/daemon\/session-coordination["']/s.test(DAEMON_ENTRY_SOURCE),
+      "agent-daemon-server.ts must import createConversationStartLock from @jini-ai/daemon/session-coordination",
     );
     assert.ok(
       /const\s+conversationStartLock\s*=\s*createConversationStartLock\(\{\},\s*\{\}\)\s*;/.test(DAEMON_ENTRY_SOURCE),

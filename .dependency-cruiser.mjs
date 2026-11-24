@@ -674,7 +674,6 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
 const PUBLIC_ENTRIES = {
   assistant: [
     "mcp-services", "agent-daemon-port", "host-ports",
-    "agent-discovery", "runtime-settings", "prompt-guidance", "session-services", "visitor-services",
     "public-assistant-settings", "public-assistant-availability",
   ],
   // Public page reads and render workers use these existing owners without loading feature-wide

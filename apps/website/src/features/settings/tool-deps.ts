@@ -1,6 +1,6 @@
 import type { ToolExecutionContext, RememberedApprovalPort } from "@jini-ai/core";
 import type { SettingsToolDeps as CoreSettingsToolDeps } from "@jini-ai/core/settings";
-import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { set } from "./site-title-write.js";
 
 /** Native grants are bound to the invoking plugin's admitted identity/version/digest, never model input. */

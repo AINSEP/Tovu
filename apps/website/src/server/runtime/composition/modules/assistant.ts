@@ -2,7 +2,7 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
-import { restoreSurface } from '@jini-ai/daemon/http';
+import { restoreSurface, a2uiNotPendingBody, deliverA2uiAction, isTypedSurfaceAnswer, readA2uiAction } from '@jini-ai/daemon/http';
 import { answerSurface } from '#src/assistant/surface-answer';
 import { nodeIntervalScheduler } from '../jini-routes.js';
 /**
@@ -66,7 +66,6 @@ import {
   MCP_UI_TOOL_CALLS_PATH,
   RUN_PRINCIPAL_HEADER,
 } from "#src/assistant/index";
-import { a2uiNotPendingBody, deliverA2uiAction, isTypedSurfaceAnswer, readA2uiAction } from "@jini-ai/daemon/http";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
@@ -82,7 +81,7 @@ import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
-import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
+import { RunSlotBusyError } from "@jini-ai/chat/store/runtime";
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
 type AssistantRouteDeps = RouteDeps & {

@@ -18,7 +18,7 @@ import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-
 import { resolveAgentPluginRefs } from "../../../features/agent-plugins/lifecycle.js";
 import { translateRetiredPluginRefs } from "../../../features/agent-plugins/bundled-catalog.js";
 
-import { failRunBeforeStart } from "../../../assistant/session-services.js";
+import { failRunBeforeStart } from "@jini-ai/daemon/session-coordination";
 
 type OnStartedContext = Parameters<RunStartHandler>[0];
 

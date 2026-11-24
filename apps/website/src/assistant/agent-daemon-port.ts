@@ -74,12 +74,23 @@ export type { AssistantToolExtensions } from "./installed-extension-tools.js";
 export { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "./external-mcp-connection-source.js";
 export { onExternalMcpRosterChanged, notifyExternalMcpRosterChanged } from "./external-mcp-roster-change.js";
 export {
-  agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField,
-  shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext,
-  CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart,
-  STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId,
-  resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock,
+  agentCarriesOwnMemory,
+  CONCURRENT_RUN_REFUSAL_MESSAGE,
+  waitForStoppingRuns,
+  agentAcceptsHostMintedSessionId,
 } from "./agent-session-preset.js";
+export {
+  extractSessionRefFromEndEvent,
+  resolveResumeSessionField,
+  shouldClearSessionOnFailedResume,
+  wouldForcedColdStartLoseConversationContext,
+  createLiveRunTracker,
+  failRunBeforeStart,
+  STOPPING_RUN_WAIT_MS,
+  resolveHostMintedSessionId,
+  resolveNewSessionField,
+  createConversationStartLock,
+} from "@jini-ai/daemon/session-coordination";
 export { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 export { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
 export { readAssistantCliPermissions } from "./subagent-settings.js";
