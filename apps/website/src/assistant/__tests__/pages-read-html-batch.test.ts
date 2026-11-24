@@ -11,7 +11,7 @@ import { peerFixture } from "../../server/runtime/composition/__tests__/peer-sit
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "./fixtures/registry-deps.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { bindContentTargetInputs } from "../../server/runtime/composition/content-target-inputs.js";
-import type { BatchResult } from "../batch-tool-inputs.js";
+import type { BatchResult } from "@jini-ai/core";
 
 /** Real registry and page store, with authorization outcomes controlled per item. */
 async function harness({ resolveTargets = false } = {}) {

@@ -82,7 +82,7 @@ import {
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
-import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
+import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "@jini-ai/agent-runtime/custom-instructions";
 import { readPickedFolders, readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -97,7 +97,7 @@ import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
-import { readDaemonCallContext } from "#src/assistant/daemon-call-context";
+import { readDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import type { InternalRouteTarget } from "./tool-execution-caller-express.js";
 import type { AttachmentLookup } from "@jini-ai/daemon/http";
 

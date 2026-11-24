@@ -13,6 +13,7 @@ import * as subagentSettings from "../subagent-settings.js";
 import * as lostFrontend from "../lost-frontend-binding.js";
 import * as navigateErrors from "../rewrap-page-navigate-error.js";
 import * as activeContexts from "../run-active-context.js";
+import * as daemonHttp from "@jini-ai/daemon/http";
 
 import * as mcpFederation from "@jini-ai/mcp/federation";
 
@@ -20,7 +21,7 @@ import * as a2uiActionsRoute from "../a2ui-actions-route.js";
 import * as port from "../agent-daemon-port.js";
 import * as agents from "../agents.js";
 import * as componentCatalogQuery from "../component-catalog-query.js";
-import * as customInstructions from "../custom-instructions.js";
+import * as customInstructions from "@jini-ai/agent-runtime/custom-instructions";
 import * as daemonAccess from "../daemon-access.js";
 import * as externalMcpOAuth from "../../features/external-mcp/external-mcp-oauth.js";
 import * as externalMcpStore from "../../features/external-mcp/external-mcp-store.js";
@@ -33,7 +34,6 @@ import * as readOnlyConstraint from "../read-only-tool-constraint.js";
 import * as runPageContext from "../run-page-context.js";
 import * as runStartContext from "../run-start-context.js";
 import * as toolAuditPreset from "../tool-audit-preset.js";
-import * as toolCatalogLiveQuery from "../tool-catalog-live-query.js";
 import * as toolCatalogQuery from "../tool-catalog-query.js";
 import * as serverFederationDiagnosis from "../server-federation-diagnosis.js";
 import * as toolRecoveryPreset from "../tool-recovery-preset.js";
@@ -57,7 +57,6 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   withReadOnlyFrontendCapabilities: frontendControl,
   attachFederatedMcpTools: federationBootstrap,
   createFederationReloadCoordinator: federationReload,
-  createLiveToolCatalogQuery: toolCatalogLiveQuery,
   buildFederatedRefusalPrefix: mcpFederation,
   withFederatedRefusalDiagnosis: serverFederationDiagnosis,
   readEnabledExternalMcpConfigs: externalMcpStore,
@@ -116,7 +115,7 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   createLostFrontendBindings: lostFrontend,
   withPageNavigateErrorRewrap: navigateErrors,
   delegatedToolErrorDisclosure: toolRecoveryPreset,
-  createRunActiveContextStore: activeContexts,
+  createRunActiveContextStore: daemonHttp,
   registerRunActiveContextRoute: activeContexts,
   createRunScopedCredentials: daemonAccess,
 };

@@ -13,7 +13,7 @@ import { withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-contro
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
-import { pageApprovalOptions } from "#src/assistant/page-approval-context";
+import { pageApprovalOptions } from "@jini-ai/daemon";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";

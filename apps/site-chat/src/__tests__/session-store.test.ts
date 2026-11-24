@@ -296,6 +296,31 @@ describe("real-sessionStorage-bound wrappers", () => {
     assert.deepEqual(JSON.parse(sessionStorage.getItem(TRANSCRIPT_STORAGE_KEY) as string), state);
   });
 
+  it("a comparison pane's wrappers read, write and clear only its own suffixed key", () => {
+    dom.window.document.body.innerHTML = '<div id="tovu-site-assistant-root" data-chat-compare="react"></div>';
+    const savedDocument = (globalThis as { document?: unknown }).document;
+    (globalThis as { document?: unknown }).document = dom.window.document;
+    try {
+      const visitor = { open: true, messages: [message("v", "user", "real visitor thread")] };
+      const pane = { open: false, messages: [message("c", "assistant", "comparison reply")] };
+      sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(visitor));
+      saveSiteAssistantState(pane);
+      assert.deepEqual(JSON.parse(sessionStorage.getItem(`${TRANSCRIPT_STORAGE_KEY}.compare.react`) as string), pane);
+      assert.deepEqual(loadSiteAssistantState(), pane);
+      clearSiteAssistantState();
+      assert.equal(sessionStorage.getItem(`${TRANSCRIPT_STORAGE_KEY}.compare.react`), null);
+      assert.deepEqual(JSON.parse(sessionStorage.getItem(TRANSCRIPT_STORAGE_KEY) as string), visitor, "the visitor's real thread is untouched");
+    } finally { (globalThis as { document?: unknown }).document = savedDocument; }
+  });
+
+  it("a stored envelope at both caps (the largest this module ever wrote) still rehydrates", () => {
+    const messages = Array.from({ length: 50 }, (_, i) => ({ ...message(String(i), i % 2 ? "assistant" : "user", "x".repeat(3_900)), events: [] }));
+    const state = { open: true, messages };
+    sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(state));
+    assert.ok(new TextEncoder().encode(JSON.stringify(state)).length <= 200_000);
+    assert.deepEqual(loadSiteAssistantState(), state);
+  });
+
   it("clearSiteAssistantState removes the real sessionStorage entry", () => {
     sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: true, messages: [] }));
     clearSiteAssistantState();

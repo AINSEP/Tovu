@@ -22,7 +22,7 @@ import { createEarlySessionCapture } from "../../early-run-session.js";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
-import { createRunActiveContextStore, type RunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore, type RunActiveContextStore } from "@jini-ai/daemon/http";
 import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-assembly.js";
 import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";

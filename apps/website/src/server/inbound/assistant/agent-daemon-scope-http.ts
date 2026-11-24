@@ -12,7 +12,8 @@ import { FRONTEND_CONTROL_CAPABILITIES } from "#src/assistant/frontend-control-c
 import { adminFrontendOwner } from "#src/assistant/admin-frontend-owner";
 import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
 import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
-import { registerRunActiveContextRoute, type RunActiveContextStore } from "#src/assistant/run-active-context";
+import { registerRunActiveContextRoute } from "#src/assistant/run-active-context";
+import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler } from "../../runtime/composition/jini-routes.js";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";

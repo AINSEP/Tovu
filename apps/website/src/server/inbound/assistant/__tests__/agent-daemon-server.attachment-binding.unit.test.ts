@@ -12,7 +12,7 @@ import { sniffContentType } from "@jini-ai/cms/media";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, prepareMessageAttachments } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, stageAttachmentClaim, delegatedToolExecuteRoute, type AttachmentLookup, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
-import { runWithDaemonCallContext, type DaemonCallContext } from "#src/assistant/daemon-call-context";
+import { runWithDaemonCallContext, type DaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { buildDaemonAttachmentTools } from "#src/server/runtime/composition/modules/assistant-tool-exec";
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";

@@ -46,13 +46,13 @@ import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor, type AssistantToolExecutorDeps } from "./tool-recovery-preset.js";
-import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
+import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { readDaemonCallContext } from "./daemon-call-context.js";
+import { readDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 
 
-export type { ByokMetaToolResult } from "./byok-meta-tool-result.js";
+export type { ByokMetaToolResult } from "@jini-ai/daemon/byok-meta-tool-result";
 
 /** A request-owned exposure; releasing it at turn completion releases its pinned descriptors. */
 export interface ByokToolRun {

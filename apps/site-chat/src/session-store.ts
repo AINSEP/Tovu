@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { createBrowserSessionStore, type BrowserSessionStore, type PersistedEmbedState, type SessionStoragePort } from "@jini-ai/chat/browser/session-store";
 import { readSiteChatComparisonVariant } from "./site-chat-comparison";
 
 /**
@@ -8,25 +8,15 @@ import { readSiteChatComparisonVariant } from "./site-chat-comparison";
  * cannot inherit this conversation. One envelope keeps fail-soft rehydration atomic.
  * Navigation is terminal; no queued effects or credentials are persisted here.
  *
- * ## Narrow storage seam, not the DOM `Storage` type
+ * ## Host binding over Jini's bounded store
  *
- * Every exported function takes a `SessionStore`, a 3-method interface (`getItem`/`setItem`/
- * `removeItem`), instead of the full DOM `Storage` type. `Storage` also requires `length`, `key()`,
- * and `clear()`, none of which this module ever calls — a test double for the full type has to
- * implement three methods nobody exercises. `SessionStore` documents exactly what is touched and
- * keeps fakes trivial. This is dependency injection for testability only: there is exactly one real
- * backend (`sessionStorage`) and no swappable-adapter goal, so there is no port/adapter abstraction
- * here beyond this one interface.
+ * The bounded, fail-soft envelope logic is Jini `createBrowserSessionStore`
+ * (`@jini-ai/chat/browser/session-store`); this file binds the product key, the caps, the message
+ * allowlist and the comparison-frame key suffix. Every exported function takes Jini's narrow
+ * 3-method `SessionStoragePort` (`getItem`/`setItem`/`removeItem`) instead of the full DOM `Storage`
+ * type, so test doubles stay trivial; a real `Storage` (including `sessionStorage`) satisfies it
+ * structurally. There is exactly one real backend (`sessionStorage`).
  */
-
-/** The narrow seam every function in this module depends on, instead of the full DOM `Storage`
- *  type (`length`, `key()`, `clear()` — unused here). A real `Storage` instance (including
- *  `sessionStorage` itself) satisfies this structurally with no adapter needed. */
-export interface SessionStore {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
 
 export const TRANSCRIPT_STORAGE_KEY = "tovu.site-assistant.transcript.v1";
 
@@ -39,12 +29,7 @@ const MAX_MESSAGES = 50;
  *  is a quota-exceeded exception mid-conversation, which is the failure this cap exists to prevent. */
 const MAX_BYTES = 200_000;
 
-export interface PersistedSiteAssistantState {
-  readonly open: boolean;
-  readonly messages: ChatMessage[];
-}
-
-const EMPTY_STATE: PersistedSiteAssistantState = { open: false, messages: [] };
+export type PersistedSiteAssistantState = PersistedEmbedState;
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -62,8 +47,9 @@ function isValidMessage(value: unknown): value is ChatMessage {
   return typeof value.id === "string" && (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
 }
 
-function byteLength({ value }: { value: string }, _options = {}): number {
-  return new TextEncoder().encode(value).length;
+function bindStore(storage: SessionStoragePort): BrowserSessionStore {
+  return createBrowserSessionStore({ storage, transcriptKey: TRANSCRIPT_STORAGE_KEY, maxMessages: MAX_MESSAGES, maxBytes: MAX_BYTES,
+    validateMessage: ({ value }) => isValidMessage(value) });
 }
 
 /**
@@ -76,23 +62,13 @@ function byteLength({ value }: { value: string }, _options = {}): number {
  * Storage access itself is also guarded: a browser that throws on `sessionStorage` access at all
  * (private-mode Safari historically, a sandboxed iframe without the `allow-storage-access-by-user-
  * activation` permission) degrades to the same empty default rather than crashing the widget on load.
+ * An envelope over either cap is cleared like a corrupt one; this module never writes one (`save` trims).
  *
  * @complexity O(n) in message count for the shape check; O(1) storage calls.
  * @overallScore 100
  */
-export function loadPersistedState(storage: SessionStore): PersistedSiteAssistantState {
-  const raw = orFallbackSync({ work: () => storage.getItem(TRANSCRIPT_STORAGE_KEY), fallback: null, step: "Read visitor transcript" });
-  if (raw === null) return EMPTY_STATE;
-
-  return orFallbackSync({ work: () => {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isPlainRecord(parsed)) throw new Error("persisted state is not an object");
-    if (typeof parsed.open !== "boolean") throw new Error("persisted state.open is not a boolean");
-    if (!Array.isArray(parsed.messages) || !parsed.messages.every(isValidMessage)) {
-      throw new Error("persisted state.messages is not a valid ChatMessage[]");
-    }
-    return { open: parsed.open, messages: parsed.messages };
-  }, fallback: EMPTY_STATE, step: "Decode visitor transcript" }, { observe: () => clearPersistedState(storage) });
+export function loadPersistedState(storage: SessionStoragePort): PersistedSiteAssistantState {
+  return bindStore(storage).load({});
 }
 
 /**
@@ -106,26 +82,17 @@ export function loadPersistedState(storage: SessionStore): PersistedSiteAssistan
  *   `MAX_MESSAGES` on entry in the caller's normal usage, so this is not unbounded in practice.
  * @overallScore 100
  */
-export function savePersistedState({ storage, state }: { storage: SessionStore; state: PersistedSiteAssistantState }, _optional: Record<string, never> = {}): void {
-  let messages = state.messages;
-  if (messages.length > MAX_MESSAGES) messages = messages.slice(messages.length - MAX_MESSAGES);
-
-  let serialized = JSON.stringify({ open: state.open, messages });
-  while (messages.length > 0 && byteLength({ value: serialized }) > MAX_BYTES) {
-    messages = messages.slice(1);
-    serialized = JSON.stringify({ open: state.open, messages });
-  }
-
+export function savePersistedState({ storage, state }: { storage: SessionStoragePort; state: PersistedSiteAssistantState }, _optional: Record<string, never> = {}): void {
   // Quota exceeded (even after trimming) or storage disabled — the conversation continues in
   // memory for this tab; nothing here may throw into a message-send path.
-  orFallbackSync({ work: () => storage.setItem(TRANSCRIPT_STORAGE_KEY, serialized), fallback: undefined, step: "Save visitor transcript" });
+  bindStore(storage).save({ state });
 }
 
 /** "New thread" must clear the persisted copy, not just in-memory state (REQ-1) — otherwise a reload
  *  right after resetting would rehydrate the discarded conversation straight back. */
-export function clearPersistedState(storage: SessionStore): void {
+export function clearPersistedState(storage: SessionStoragePort): void {
   // Storage inaccessible — there is nothing to clear, and nothing here may throw.
-  orFallbackSync({ work: () => storage.removeItem(TRANSCRIPT_STORAGE_KEY), fallback: undefined, step: "Clear visitor transcript" });
+  bindStore(storage).clear({});
 }
 
 /**
@@ -133,7 +100,7 @@ export function clearPersistedState(storage: SessionStore): void {
  * `main.tsx` call these, never `sessionStorage` itself — this is what makes the guard test in
  * `__tests__/session-store.test.ts` ("no other file in `src` names `sessionStorage`") meaningful
  * rather than accidental. The injectable forms above stay exported for tests, which supply a fake
- * `SessionStore` instead.
+ * `SessionStoragePort` instead.
  */
 export function loadSiteAssistantState(): PersistedSiteAssistantState {
   return loadPersistedState(browserStorage);
@@ -149,7 +116,7 @@ export function clearSiteAssistantState(): void {
 
 // Access the browser getter inside the injectable helpers' existing try blocks: private browsing
 // may throw even when reading sessionStorage itself, before getItem can run.
-const browserStorage: SessionStore = {
+const browserStorage: SessionStoragePort = {
   getItem: (key) => sessionStorage.getItem(siteStorageKey({ key })),
   setItem: (key, value) => sessionStorage.setItem(siteStorageKey({ key }), value),
   removeItem: (key) => sessionStorage.removeItem(siteStorageKey({ key })),

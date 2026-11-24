@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
-import { createRunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore } from "@jini-ai/daemon/http";
 import { captureDaemonRun, daemonFunction } from "./helpers/daemon-source.js";
 
 /**

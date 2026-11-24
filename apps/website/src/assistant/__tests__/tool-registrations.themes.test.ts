@@ -1,5 +1,5 @@
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
-import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry, batchDescriptorFor, withBatchInput } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -15,11 +15,11 @@ import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
-import { resolveBatchableTools, batchDescriptorFor, withBatchInput } from "../batch-tool-inputs.js";
+import { resolveBatchableTools } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
-import { mapToolExecutionResult } from "../byok-meta-tool-result.js";
+import { mapToolExecutionResult } from "@jini-ai/daemon/byok-meta-tool-result";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),

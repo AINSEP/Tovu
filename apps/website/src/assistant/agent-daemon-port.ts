@@ -18,7 +18,7 @@
  * `export *` — every line here exists because `agent-daemon-server.ts` uses it today.
  */
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
-export { createCustomInstructionsCache } from "./custom-instructions.js";
+export { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-access.js";
 export { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
@@ -32,10 +32,6 @@ export type { FederationReloadResult } from "@jini-ai/mcp/federation";
 // for `onAuthFailed`'s parameter to infer as `McpAuthFailedError` (this type's own field) rather than
 // `unknown`, now that it is built as a standalone `const` instead of inline at the boot call site.
 export type { FederationDeps } from "./mcp-federation/registrations.js";
-// The discovery-side counterpart to the reload coordinator above — see its own header for why
-// `search_tools`/`describe_tool` need a rebindable snapshot even though `execute_delegated_tool`
-// already resolves a named id against the live `registry` on every call.
-export { createLiveToolCatalogQuery } from "./tool-catalog-live-query.js";
 // Pure, no transport: turns the SAME boot admission snapshot `attachFederatedMcpTools` returns into
 // the prompt text that tells the model which external tools were withheld and why. Exported through
 // this port for the same reason the line above is — the daemon process reaches this subtree only
@@ -90,6 +86,7 @@ export { readAssistantCliPermissions } from "./subagent-settings.js";
 export { createLostFrontendBindings } from "./lost-frontend-binding.js";
 export { withPageNavigateErrorRewrap } from "./rewrap-page-navigate-error.js";
 export { delegatedToolErrorDisclosure } from "./tool-recovery-preset.js";
-export { createRunActiveContextStore, registerRunActiveContextRoute } from "./run-active-context.js";
+export { registerRunActiveContextRoute } from "./run-active-context.js";
+export { createRunActiveContextStore } from "@jini-ai/daemon/http";
 export { createRunScopedCredentials } from "./daemon-access.js";
 export type { RunPageContext } from "./run-page-context.js";

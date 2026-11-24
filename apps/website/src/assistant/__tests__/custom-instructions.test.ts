@@ -13,7 +13,7 @@ import {
   createCustomInstructionsCache,
   formatCustomInstructionsOverlay,
   resolveCustomInstructions,
-} from "../custom-instructions.js";
+} from "@jini-ai/agent-runtime/custom-instructions";
 
 /**
  * @file `resolveCustomInstructions`/`formatCustomInstructionsOverlay`/`createCustomInstructionsCache`

@@ -52,7 +52,7 @@ export const pureHelpers = [
   { name: 'isLoopbackHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
   { name: 'resolveBindHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
   { name: 'isLocalAdminUrl', module: 'apps/website/src/server/runtime/boot/local-owner-signin' },
-  { name: 'isRecord', module: 'apps/website/src/assistant/byok-meta-tool-result' },
+  { name: 'isRecord', module: '@jini-ai/daemon/byok-meta-tool-result' },
 ];
 const rules = { 'catch-reads-error': catchReadsError, 'no-generic-failure-text': noGenericFailureText, 'failure-text-from-catalog': failureTextFromCatalog };
 const ruleNames = Object.keys(rules);

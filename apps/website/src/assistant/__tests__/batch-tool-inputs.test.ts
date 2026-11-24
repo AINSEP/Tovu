@@ -20,7 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createContributionRegistry, ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { createContributionRegistry, ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration, batchDescriptorFor, batchEligibilityFor, DEFAULT_MAX_BATCH_ITEMS, withBatchInput, type BatchResult } from "@jini-ai/core";
 import { invokeRegisteredTool as invokeRegistration } from "./fixtures/execute-registered-tool.js";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -30,7 +30,7 @@ import { buildImportThemeFileRegistrations } from "../../features/theme/import-t
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { applyBatchInputs, BATCH_OPT_OUT, batchDescriptorFor, batchEligibilityFor, DEFAULT_MAX_BATCH_ITEMS, resolveBatchableTools, withBatchInput, type BatchResult } from "../batch-tool-inputs.js";
+import { applyBatchInputs, BATCH_OPT_OUT, resolveBatchableTools } from "../batch-tool-inputs.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { approvalClassAsks, toolApprovalPolicyFor } from "../assistant-tool-approval-policy.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";

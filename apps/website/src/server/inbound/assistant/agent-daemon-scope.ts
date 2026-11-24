@@ -23,9 +23,9 @@ import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemo
 
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createLiveRunTracker, createConversationStartLock } from "#src/assistant/agent-session-preset";
-import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
+import { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assistant/daemon-access";
-import { createRunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { readProcessStart } from "./attempt-process-identity.js";

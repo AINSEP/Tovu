@@ -33,12 +33,12 @@ import { createAssistantChromeProbe, type AssistantRuntimeGuidanceInput } from "
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, createConversationStartLock } from "#src/assistant/agent-session-preset";
-import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
+import { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assistant/daemon-access";
 import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant/run-page-context";
-import { createRunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { durableAttemptOwnsAnswer, selectRunHistoryPrompt } from "./run-start-decisions.js";

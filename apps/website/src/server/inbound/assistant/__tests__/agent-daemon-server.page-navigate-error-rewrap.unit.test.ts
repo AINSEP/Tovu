@@ -87,7 +87,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { withReadOnlyFrontendCapabilities } = await import("#src/assistant/frontend-control-capabilities");
   const { createLostFrontendBindings } = await import("#src/assistant/lost-frontend-binding");
   const { applyToolApprovalPolicy } = await import("#src/assistant/tool-approval-policy");
-  const { pageApprovalOptions } = await import("#src/assistant/page-approval-context");
+  const { pageApprovalOptions } = await import("@jini-ai/daemon");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
   const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
   const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/platform/system");

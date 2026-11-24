@@ -8,7 +8,7 @@ import { createFrontendControl } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
-import { pageApprovalOptions } from "#src/assistant/page-approval-context";
+import { pageApprovalOptions } from "@jini-ai/daemon";
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";
 import { withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
@@ -112,7 +112,7 @@ for (const registration of withPageNavigateErrorRewrap({ registrations: withRead
   // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
   const bound = lostFrontendBindings.wrap({ registration });
   registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } },
-    pageApprovalOptions({ toolId: registration.descriptor.id, execute })));
+    pageApprovalOptions({ toolId: registration.descriptor.id, execute, navigationQuery: "__tovu_navigation_context__" })));
 }
   return { registry, siteTools, visibleRegistry, lostFrontendBindings, frontendControl };
 }

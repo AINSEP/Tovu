@@ -14,108 +14,21 @@
  * contract `get_active_context`'s own description states.
  *
  * Trust: every value comes from the browser via `readRunPageContext`, already validated and capped.
+ *
+ * The per-run store itself is `@jini-ai/daemon/http`'s `createRunActiveContextStore`; this file is the
+ * Express mount only.
  */
 import type { Express } from "express";
-import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/daemon/http";
-
-import type { RunPageContext } from "./run-page-context.js";
+import type { RunActiveContextStore } from "@jini-ai/daemon/http";
 
 /** The route `@jini-ai/mcp`'s `get_active_context` calls. */
 export const ACTIVE_CONTEXT_PATH = "/api/active";
-
-/** `GET /api/active`'s body — http-kit's `GetActiveOutput` shape, plus the full `pageContext`. */
-export type RunActiveContextAnswer =
-  | { readonly active: false }
-  | {
-      readonly active: true;
-      /** The open entry's id (usable with the content tools), else the admin path. */
-      readonly resourceRef: string;
-      /** The open entry's title, else `null`. */
-      readonly resourceName: string | null;
-      /** The admin route path. */
-      readonly detail: string;
-      /** When the screen was recorded (run start), epoch ms. */
-      readonly ts: number;
-      readonly ageMs: number;
-      readonly pageContext: RunPageContext;
-    };
-
-/** The live runs' screens: recorded at run start, forgotten at run end. */
-export interface RunActiveContextStore {
-  record(required: { runId: string; pageContext: RunPageContext }, optional?: Record<string, never>): void;
-  forget(required: { runId: string }, optional?: Record<string, never>): void;
-  read(): RunActiveContextAnswer;
-}
-
-interface Recorded {
-  readonly pageContext: RunPageContext;
-  readonly ts: number;
-}
-
-/** Two recordings name the same screen when their path and open entry match; a renamed title does not make them differ. */
-function screenKey(pageContext: RunPageContext): string {
-  return JSON.stringify([pageContext.path, pageContext.entry?.kind ?? null, pageContext.entry?.id ?? null]);
-}
-
-/** The newest live recording when every live run shows the same screen; undefined when none is
- * live or two live runs disagree. Ties on `ts` go to the later recording in iteration order.
- * @complexity O(live runs). */
-function agreedRecording({ recordings, at }: { recordings: Iterable<Recorded>; at: number }, _options = {}): Recorded | undefined {
-  let newest: Recorded | undefined;
-  const screens = new Set<string>();
-  for (const recorded of recordings) {
-    if (at - recorded.ts > ACTIVE_CONTEXT_TTL_MS) continue;
-    screens.add(screenKey(recorded.pageContext));
-    if (newest === undefined || recorded.ts >= newest.ts) newest = recorded;
-  }
-  return screens.size === 1 ? newest : undefined;
-}
-
-/** The active answer for one agreed recording read at `at`. @complexity O(1). */
-function activeAnswer({ recorded, at }: { recorded: Recorded; at: number }, _options = {}): RunActiveContextAnswer {
-  const { pageContext, ts } = recorded;
-  return {
-    active: true,
-    resourceRef: pageContext.entry?.id ?? pageContext.path,
-    resourceName: pageContext.entry?.title ?? null,
-    detail: pageContext.path,
-    ts,
-    ageMs: at - ts,
-    pageContext,
-  };
-}
-
-/**
- * Builds the store the daemon records each run's screen in.
- *
- * @param options.now - Clock seam. @default Date.now
- * @returns The store. `read` is O(live runs); entries are removed by `forget`, so size is bounded by
- *   the number of concurrently live runs.
- */
-export function createRunActiveContextStore(options: { readonly now?: () => number } = {}): RunActiveContextStore {
-  const now = options.now ?? Date.now;
-  const byRunId = new Map<string, Recorded>();
-
-  return {
-    record({ runId, pageContext }, _optional = {}) {
-      byRunId.set(runId, { pageContext, ts: now() });
-    },
-    forget({ runId }, _optional = {}) {
-      byRunId.delete(runId);
-    },
-    read() {
-      const at = now();
-      const newest = agreedRecording({ recordings: byRunId.values(), at });
-      return newest ? activeAnswer({ recorded: newest, at }) : { active: false };
-    },
-  };
-}
 
 /**
  * Mounts `GET /api/active` on the daemon app. Mount it AFTER `requireAgentDaemonToken`: `jini-mcp`
  * sends the daemon token (`mcp-injection.ts`), and nothing else may read the operator's screen.
  */
-export function registerRunActiveContextRoute({ app, store }: { app: Pick<Express, "get">; store: RunActiveContextStore }, _optional: Record<string, never> = {}): void {
+export function registerRunActiveContextRoute({ app, store }: { app: Pick<Express, "get">; store: Pick<RunActiveContextStore, "read"> }, _optional: Record<string, never> = {}): void {
   app.get(ACTIVE_CONTEXT_PATH, (_req, res) => {
     res.json(store.read());
   });

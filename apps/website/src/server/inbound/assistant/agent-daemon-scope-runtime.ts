@@ -19,7 +19,7 @@ import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "./assist
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
-import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
+import { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
 
 export function createScopeRuntime({ env, toolExecTokenHolder }: { env: NodeJS.ProcessEnv; toolExecTokenHolder: NodeJS.ProcessEnv }, _optional = {}) {

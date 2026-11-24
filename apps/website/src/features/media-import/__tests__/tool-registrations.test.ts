@@ -1,6 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "@jini-ai/core";
 import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -24,7 +24,6 @@ import {
 } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
-import { batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

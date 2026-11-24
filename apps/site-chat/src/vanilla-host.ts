@@ -3,7 +3,8 @@ import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
 import { createSiteAssistantTransport } from './site-assistant-transport';
 import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from './session-store';
-import { installSiteChatComparisonSend } from './site-chat-comparison';
+import { installEmbedSendBridge } from '@jini-ai/chat/browser/embed-send-bridge';
+import { isSiteChatComparisonRoot, SITE_CHAT_COMPARISON_COPY, SITE_CHAT_COMPARISON_NAMES } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
 import { createVanillaToolConfirmation } from './vanilla-tool-confirmation';
 import { confirmSiteAssistantTool } from './tool-confirmation';
@@ -66,10 +67,11 @@ export function mountSiteVanillaChat({ mount }: { mount: (args: ReturnType<typeo
   const element = document.getElementById('tovu-site-assistant-root');
   if (!element) return;
   const widget = mount(createSiteVanillaArgs({ element }), { initialOpen: element.dataset.chatOpen === 'true' || loadSiteAssistantState().open });
-  installSiteChatComparisonSend({ root: element, send: async ({ text }) => {
-    if (widget.controller.getState({}).busy) throw new Error('This pane is already replying.');
+  const { requestEventName, readyMessageType } = SITE_CHAT_COMPARISON_NAMES;
+  installEmbedSendBridge({ root: element, enabled: isSiteChatComparisonRoot({ root: element }), requestEventName, readyMessageType, send: async ({ text }) => {
+    if (widget.controller.getState({}).busy) throw new Error(SITE_CHAT_COMPARISON_COPY.busyMessage);
     await widget.controller.send({ text });
     const error = widget.controller.getState({}).error;
     if (error) throw new Error(error);
-  } });
+  } }, { busyMessage: SITE_CHAT_COMPARISON_COPY.busyMessage });
 }

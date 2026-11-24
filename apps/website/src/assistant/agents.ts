@@ -8,7 +8,7 @@
  * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
 import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
-import { createCliProbeCache } from "./cli-probe-cache.js";
+import { createCliProbeCache } from "@jini-ai/agent-runtime/cli-probe-cache";
 import { MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 import type { AgentSummary } from "@jini-ai/daemon/http";
 

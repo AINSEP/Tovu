@@ -14,7 +14,7 @@ import * as childEnvironment from "@jini-ai/platform/child-environment";
 import * as agents from "#src/assistant/agents";
 import * as access from "#src/assistant/daemon-access";
 import * as sessions from "#src/assistant/agent-session-preset";
-import * as instructions from "#src/assistant/custom-instructions";
+import * as instructions from "@jini-ai/agent-runtime/custom-instructions";
 import * as core from "../../../runtime/composition/agent-daemon-core-deps.js";
 import * as policy from "../assistant-run-tool-policy.js";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
@@ -105,7 +105,7 @@ mock.module("#src/assistant/agent-session-preset", { namedExports: { ...sessions
     return sessions.failRunBeforeStart(...args);
   },
 } });
-mock.module("#src/assistant/custom-instructions", { namedExports: { ...instructions,
+mock.module("@jini-ai/agent-runtime/custom-instructions", { namedExports: { ...instructions,
   createCustomInstructionsCache: (...args: Parameters<typeof instructions.createCustomInstructionsCache>) => {
     const actual = instructions.createCustomInstructionsCache(...args);
     return { ...actual, refresh: async () => { controls.note("refresh"); await controls.refresh?.promise; await actual.refresh(); } };

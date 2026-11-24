@@ -8,10 +8,10 @@ import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { buildPagesRegistrations } from "../../features/pages/tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../features/pages/html-document-store.memory.js";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
-import { applyBatchInputs, type BatchResult } from "../batch-tool-inputs.js";
+import { applyBatchInputs } from "../batch-tool-inputs.js";
 import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import { withContentTargets } from "./fixtures/content-target-inputs.js";
-import { withBatchInput } from "@jini-ai/core";
+import { withBatchInput, type BatchResult } from "@jini-ai/core";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 

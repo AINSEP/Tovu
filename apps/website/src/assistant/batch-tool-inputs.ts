@@ -1,7 +1,6 @@
 import { applyBatchInputs as applyCoreBatchInputs, batchEligibilityFor, defaultBatchableTools, ToolInputError, type ToolRegistration, type BatchableTool, type BatchOptOut } from '@jini-ai/core';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../contracts/core/tool-metadata/theme.js';
 import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/index.js';
-export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BATCH_ITEMS, type BatchableTool, type BatchOptOut, type BatchResult, type BatchItemResult } from '@jini-ai/core';
 
 /** Cheap row-level writes the assistant repeats by the dozen (owner evidence, 2026-10-22: 145
  *  taxonomy_create_term, 83 redirects_tombstone, 51 taxonomy_assign_terms, 51

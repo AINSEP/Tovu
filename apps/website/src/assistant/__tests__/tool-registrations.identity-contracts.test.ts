@@ -1,7 +1,6 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
-import { batchDescriptorFor } from "../batch-tool-inputs.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, batchDescriptorFor } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";

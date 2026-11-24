@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type BatchResult } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   InMemoryAssetBlobRepo,
@@ -20,7 +20,7 @@ import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { applyBatchInputs } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */

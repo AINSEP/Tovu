@@ -42,7 +42,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
-import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
+import { applyBatchInputs } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
@@ -94,7 +94,7 @@ import type { RedirectsToolDeps } from "../features/redirects/tool-registrations
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
-import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
+import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions, withBatchInput, type BatchableTool } from "@jini-ai/core";
 import type { PeerSiteReads as GenericPeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { nowIso } from "@jini-ai/core/primitives";

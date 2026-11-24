@@ -36,7 +36,7 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
-import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
+import { formatCustomInstructionsOverlay } from "@jini-ai/agent-runtime/custom-instructions";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { POST_ENTITY_TYPE } from "../../features/trash/adapters/post.js";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
