@@ -4,7 +4,7 @@
  *
  * The setup and diagnostics catalogs, their handlers and the admissions reader live in
  * `@jini-ai/mcp/external/*` and name no product; the settings-screen location, the host's own read
- * tool, the outbound-call rate-limit profile and the redacting log formatter are this host's, so they
+ * tool, the outbound-call rate-limit profile and the redacting failure log line are this host's, so they
  * are passed in here and every tool binding, composition caller and test reads the bound values from
  * this module.
  */
@@ -37,7 +37,9 @@ export const externalMcpOperationsHost: Pick<ExternalMcpOperations, "copy" | "cr
   createProbeLimiter: ({ clock }) => createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock }),
 };
 
-export const readServerAdmissions = createServerAdmissionsReader({ describeErrorForLog });
+export const readServerAdmissions = createServerAdmissionsReader({
+  reportReadFailure: ({ error }) => console.error("external-mcp server admissions read failed", describeErrorForLog({ err: error })),
+});
 
 export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer"> & {
   /**
@@ -59,6 +61,8 @@ export const probeExternalMcpServer = createExternalMcpProbe<ExternalMcpProbeSer
       { deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, oauth: deps.externalMcpOAuth?.tokenResolver }, workspaceId }),
     connectHttpSession: connectMcpHttpSession,
     reauthRequired: createExternalMcpReauthRequiredError,
+    // The 409's outward text is this host's copy: the reauthorization error class's own message.
+    reauthResponseText: input => createExternalMcpReauthRequiredError(input).message,
     settingsDeepLink: externalMcpSettingsDeepLink,
     reauthCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
     connectFailureText: credentialText,

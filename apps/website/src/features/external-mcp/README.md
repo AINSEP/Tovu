@@ -51,3 +51,10 @@ deps (`externalMcpServerRepo`, `siteAssistantSecretSealer`, `externalMcpOAuth?.t
 `@tovu/contracts/credential-copy`. `ExternalMcpProbeServiceDeps` is declared there too; the probe route
 (`server/inbound/admin-http/routes/external-mcp/probe.ts`), `tool-catalog-manifest.ts` and the tests import the
 bound `probeExternalMcpServer` and that type from the host-copy module.
+
+## Wiring (admissions report and probe reauth copy)
+
+`external-mcp-host-copy.ts` binds `createServerAdmissionsReader({ reportReadFailure })`: the host's own
+`console.error("external-mcp server admissions read failed", describeErrorForLog({ err: error }))` line (Jini never
+writes the console). The probe's `host.reauthResponseText` is the reauthorization error class's own message, so the
+409 body text is the host's copy and Jini never copies a stored error message into a response.

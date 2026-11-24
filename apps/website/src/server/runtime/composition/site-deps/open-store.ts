@@ -126,7 +126,7 @@ function startOwnerSweeps(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
-  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }, { onError: () => console.warn("[mail-retention] purge failed") }) : async () => {};
   return { stopChatSweep, stopSubmissionIpSweep, stopMailRetention };
 }
 
