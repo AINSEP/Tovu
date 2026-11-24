@@ -9,7 +9,7 @@ import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "@jini-ai/admin/screens/email/email-api.types";
 import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
-import { isFullyActive, type EmailProviderController } from "./hooks/use-email-provider.hooks";
+import { isFullyActive, type EmailProviderController } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
 
 /**
  * @file One provider card at a time (owner, 2026-10-22: every card stacked was too much).

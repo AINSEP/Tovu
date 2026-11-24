@@ -1,3 +1,4 @@
+import type { AdminAgentPluginRow } from "@jini-ai/core/contracts/site/cms-agent-plugins";
 import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { AdminPluginFiles } from "../../plugins/api/plugins-api.types";
@@ -325,33 +326,12 @@ export interface AdminWebhookDelivery {
  *  site/runtime plugins `AdminPlugin` describes — see that route's own header. `version`/
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
-export interface AdminAgentPlugin {
-  /** Account state is independent of activation; absent for plugins with no sign-in. */
-  connectionStatus?: "connected" | "disconnected" | "pending" | "needs_reauth";
-  /** Tovu host maturity; absent means normal. */
-  maturity?: "untested" | "soon";
-  /** The provider plugin (Plugins screen) whose switch this plugin follows; it has no switch of its own. */
-  providerPlugin?: string;
-  provides?: string[];
-  origin?: "bundled" | "operator-installed";
-  hostOk?: boolean;
-  missingRequires?: string[];
-  requiredBy?: string[];
-  archiveDigest?: string;
-  pluginId: string;
-  /** `plugin.json`'s `extensions.jini.displayName`; `null` (or absent, from a server predating the
-   *  field) means title-case `pluginId` instead. */
-  displayName?: string | null;
-  /** `plugin.json`'s `extensions.jini.summary` — the plain-language explainer the row shows in place
-   *  of `description` (which is written for the assistant); `null`/absent means show `description`. */
-  summary?: string | null;
-  version: string | null;
-  description: string | null;
-  keywords: string[];
-  enabled: boolean;
-  skills: Array<{ name: string; summary: string }>;
-  mcpServerIds: string[];
-}
+export type AdminAgentPlugin = AdminAgentPluginRow<
+  /** This host's maturity values; absent means normal. */
+  "untested" | "soon",
+  "connected" | "disconnected" | "pending" | "needs_reauth",
+  "bundled" | "operator-installed"
+>;
 
 /** `AGENT_PLUGIN_FILES`' response (`server/inbound/admin-http/routes/agent-plugins/files.ts`,
  *  2026-09-13): one installed Agent Plugin's own files — the same entries and caps as
