@@ -133,6 +133,7 @@ Today a site can (re)deploy through its hosting platform with the `deployment_op
   - Keep the previous version to roll back to.
   - Never auto-update without the owner's OK.
 - [ ] Desktop-made sites and self-hosted sites need the same path. Plan with Codex, contract-first, platform deploy adapters reused.
+  - **bt-dec-a 11-24 (owner YES 11-23):** Jini `createDesktopSiteUpdate` + `createSelfHostedSiteUpdate` (image tag from the release version only) on the same `SiteUpdatePort`/`runSiteUpdate` approval, never automatic. Tovu desktop IPC, image-tag adapter and the shared approval card are AFTER-MERGE (w3 files; see `cloud-results/bt-dec-a.md`).
 
 ## LATER (owner 2026-10-29 ~4:30 PM): ui-ux-design — one shared copy (Tovu still uses its own)
 Phase 0 of the plugin split made `@jini-ai/plugin-ui-ux-design` a standalone package, but Tovu still serves its own copy in `content/agent-plugins/ui-ux-design` until the owner approves the merged wording.
@@ -1213,7 +1214,7 @@ Build in this order.
       permission version; execution-time authorization stays mandatory regardless.
 - [ ] **Two-sided conformance test**, taken verbatim from Strapi's suite: *a read-only principal
       cannot see write tools and cannot invoke them.* One test, both halves of the anti-pattern.
-- [ ] **Kill-switch completeness test.** Verify that disabling the AI feature stops artifacts the
+- [ ] **Kill-switch completeness test.** (bt-dec-a 11-24, owner YES 11-23: pause only AGENT-created webhooks / scheduled sends / scheduled publishes / API keys and record the creator. Jini webhooks part done: `CreatorKind` in core, subscriptions record `createdByKind`, agent-made deliveries held while off. Tovu migration 0043, worker wiring, newsletter / scheduled-publish / API-key holds AFTER-MERGE — `cloud-results/bt-dec-a.md`.) Verify that disabling the AI feature stops artifacts the
       agent already created, not just new invocations. Directus (agent-authored Flow with an `exec`
       step) and novamira (agent-written sandbox PHP) both fail this — two of ten products.
 - [ ] **Actor kind in the event envelope.** Record agent-vs-human on every mutation. Directus knows
@@ -2302,8 +2303,9 @@ Email nav stays SOON until these land.
 - [ ] Email senders phases 2–5 (plan: ADS-memory/.local-artifacts/codex/2026-10-22-email-sources-plan/PLAN.md + REVIEW.md): forms send their own emails (delivery binding + plan/freeze send), Email automations page, sign-in secret fields ({{code}}/{{sign_in_link}}/{{reset_link}}, no temp passwords), durable outbox (production sends no background mail until then — durableOutboxReady=false).
 - [ ] Template {{fields}} have no data source until senders phase 2 (preview samples only).
 - [ ] Senders phase 1 (Jini, jini-int codex/email-senders-p1 57fbd0d2): committed, untested, unreleased → Jini cloud test + release.
-- [ ] Decide: delete sent-email records after 30 days (implemented 500b5c5bd) — owner to confirm.
-- [ ] Decide: auto-delete captured test emails after 24h + "clear all" button (they keep working sign-in links) — Q21.
+- [x] Decide: delete sent-email records after 30 days — owner YES 11-23; already on base (`MAIL_ACTIVITY_RETENTION_MS`, features/mail/retention.ts).
+- [x] Decide: auto-delete captured test emails — owner YES 11-23: after **7 days** + "clear all" (approval card).
+- [ ] Implement: captured test emails 24h → 7 days + "clear all" behind an approval card. AFTER-MERGE: retention moves to Jini `packages/platform/src/mail/sql/` on w3-addons (`cloud-results/bt-dec-a.md`).
 - [ ] Guided "Connect email" flow (SMTP under advanced) — Q18/25 suggestion.
 - [ ] tovu.dev: save the Resend key ON tovu.dev itself (no localhost→prod key transfer), set a sender address, check Resend domain verification (needs full-access Resend connect or the Resend dashboard).
 - [ ] LATER idea: encrypted key transfer localhost → production (owner: "not right now").

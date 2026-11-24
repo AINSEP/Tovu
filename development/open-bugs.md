@@ -410,3 +410,11 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
 - `B233` stale collection sort — `WidgetConfigFields.hooks.tsx` is changed by `codex/ex5-collections-tovu`.
 - `C043` tier-2 import allowlist — `plugin-tier2/worker.ts` is changed by `codex/ex2-holds-tovu`, which already
   carries a C043 import policy and `worker-import-allowlist.integration.test.ts`.
+
+## Fixed by owner decision (bt-dec-a, 2026-11-24)
+
+### `B229-permanent-delete-keeps-appdata-dbs` — FIXED
+
+Permanent site delete now also removes `<appData>/databases/<siteId>/`, behind the existing checkbox +
+confirm, and only that one real, non-symlinked folder. Pinned by
+`apps/website/src/platform/site-dir/__tests__/integration/site-trash.integration.test.ts` ("B229: …").
