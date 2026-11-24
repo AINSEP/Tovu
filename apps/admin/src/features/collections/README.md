@@ -4,8 +4,8 @@ Custom content types — the three screens behind the sidebar's **Content → Co
 
 | file | what it is |
 |---|---|
-| `Collections.tsx` | The content-type registry list plus the "New content type" modal (design-spec.md §1, ADR-022/ADR-043). |
-| `CollectionEntries.tsx` | Per-content-type entry list, `/admin/collections/{typeKey}`. |
+| `CollectionsScreen.tsx` | Host composition of `@jini-ai/admin`'s `Collections` screen (the content-type registry list plus the "New content type" modal, design-spec.md §1, ADR-022/ADR-043): binds the `useWired*` hooks, `ServerLabel`, `PublishSectionButton` and `contentTypeMenuItems`, and imports the native-dialog stylesheet. |
+| `CollectionEntriesScreen.tsx` | Host composition of `@jini-ai/admin`'s `CollectionEntries` screen (per-content-type entry list, `/admin/collections/{typeKey}`). |
 | `CollectionEntryEditor.tsx` | Per-entry editor, `/admin/collections/{typeKey}/{entryId|new}`. Its own Tiptap wiring, separate from `features/posts`'s (see the file's own header for the disclosed deviation from design-spec.md §1.5). |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
@@ -17,8 +17,9 @@ Custom content types — the three screens behind the sidebar's **Content → Co
 
 ## Notes for anyone editing here
 
-`Collections.tsx` has **no unit test**. `CollectionEntries.tsx` and `CollectionEntryEditor.tsx` each
-have one (`__tests__/`).
+The two list screens' markup lives in `@jini-ai/admin/screens/collections/{Collections,CollectionEntries}`
+and is tested there with a fake kit; `__tests__/` here keeps the host-kit dialog behaviour and the
+real-hook wiring. `CollectionEntryEditor.tsx` has its own test.
 
 ## Wiring
 
