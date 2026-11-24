@@ -37,12 +37,12 @@ Owner rules this rests on: inject everything (11-22, never ask import-vs-inject)
 12. **`app-version-ipc.ts`, `find-in-page-ipc.ts` and other thin host adapters over Jini bridges.** STAYS-HOST; add them to `plan.mjs` KEEP_RULES, which Codex rv1123q will confirm.
 
 13. **Content-lane holds:**
-    - tiptap editor files stay in the host until a Jini rich-text package exists (OWNER-CONFIRM, recommended: keep).
+    - tiptap editor files stay in the host until a Jini rich-text package exists (OWNER CONFIRMED 11-23 7:35 PM: keep).
     - R5 model-facing copy that names host tools: pass the copy in through K3 args; the schema moves.
     - K4i i18n file over 500 lines: 500-line files never block work (owner 11-20); split by feature.
     - HW3 module state: convert to an injected store.
 
-14. **A425:** user MCP servers count as "can write" (keep the disclosure). OWNER-CONFIRM, recommended as stated.
+14. **A425:** user MCP servers count as "can write" (keep the disclosure). OWNER CONFIRMED 11-23 7:35 PM.
 
 15. **Add-ons:**
     - webhook sealer: same as item 11.
