@@ -23,7 +23,6 @@ import type {
 } from "@jini-ai/core/contracts/vault";
 import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-export type { VendorCredentialSetSummary } from "@jini-ai/core/contracts/vault";
 export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly tokenHint?: CredentialTokenHint | null }
 /** Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1).
  *

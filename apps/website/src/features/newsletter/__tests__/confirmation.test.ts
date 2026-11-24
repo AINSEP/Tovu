@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
+import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
+import type { PositionalMailer as MailerPort, MailerSendOptions, OutboundEmail } from "@jini-ai/platform/mail";
 import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
 import { NewsletterConfirmTokenInvalidError } from "@jini-ai/user-management/newsletter/errors";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo.memory";

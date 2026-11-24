@@ -416,7 +416,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .admin-content::after {
     content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance);
   }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
     padding-bottom: var(--assistant-clearance);
   }
 }
@@ -1825,7 +1825,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   /* Same clearance for the fixed-height tab panels that scroll on their own (Settings; Agent
      Plugins is page flow since AP-3): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
-  .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content { padding-bottom: 88px; }
+  .settings-ui-section:not(.settings-ui-section--page-flow):not(.jini-skills-page, .agent-plugins-section) .jini-tabbed-dialog-content { padding-bottom: 88px; }
 
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
@@ -4095,8 +4095,8 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .agent-plugin-row-chevron {
   flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--jini-text-disabled);
 }
-.agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
-.agent-plugin-row-summary[aria-expanded="true"] .agent-plugin-chevron-glyph { transform: rotate(90deg); }
+.jini-agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
+.agent-plugin-row-summary[aria-expanded="true"] .jini-agent-plugin-chevron-glyph { transform: rotate(90deg); }
 
 /* The hairline between the summary zone and the action zone. Without it the summary's own chevron
    read as a control floating between the description and the switch, belonging to neither — seen
@@ -4313,7 +4313,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 @media (prefers-reduced-motion: reduce) {
   .agent-plugin-row::before,
   .agent-plugin-row-glyph,
-  .agent-plugin-chevron-glyph,
+  .jini-agent-plugin-chevron-glyph,
   .agent-plugin-switch,
   .jini-settings-interface-switch,
   .agent-plugin-switch-knob,

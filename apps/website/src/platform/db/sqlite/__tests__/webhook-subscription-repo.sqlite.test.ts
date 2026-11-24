@@ -5,12 +5,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
-import { InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { webhookSubscriptionsOn } from "#src/platform/db/__tests__/webhook-adapters";
 import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite.js";
-import type { WebhookSubscriptionRepoPort } from "#src/features/webhooks/ports";
-import type { WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
+import type { WebhookSubscriptionRecord, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Shared `WebhookSubscriptionRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T020),
@@ -103,7 +103,7 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
   });
 }
 
-runContractSuite("InMemoryWebhookSubscriptionRepo", () => new InMemoryWebhookSubscriptionRepo());
+runContractSuite("InMemoryWebhookSubscriptionRepo", () => new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite }));
 runContractSuite("SqliteWebhookSubscriptionRepo", () => new SqliteWebhookSubscriptionRepo({ store: openContentDb(":memory:") }));
 
 test("ADR-046 Phase 1: SqliteWebhookSubscriptionRepo persists across a simulated process restart (real on-disk file, fresh repo instance)", async () => {

@@ -21,7 +21,7 @@ import { capabilityCard as seo } from "#src/features/seo/capability-card";
 import { capabilityCard as members } from "#src/features/members/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
-import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";
+import { capabilityCard as plugins } from "#src/features/plugin-runtime/plugin-host-copy";
 import { capabilityCard as jini } from "#src/features/site-guide/index";
 
 // The engine card names its read pointer `{{read:member}}`; Tovu reads members through `content_read.member`.

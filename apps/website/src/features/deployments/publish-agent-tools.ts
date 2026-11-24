@@ -5,8 +5,8 @@ import { ToolInputError, type AgentToolDefinition as SharedAgentToolDefinition, 
 import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
-import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { toolMetadata } from '@jini-ai/core/tool-metadata/deployments';
+import { findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
+import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
 import { approvalToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';

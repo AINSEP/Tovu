@@ -14,7 +14,7 @@ import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
-import { type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "../../../external-mcp/contracts.js";
+import type { ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "@jini-ai/core/contracts/hosted-mcp";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";

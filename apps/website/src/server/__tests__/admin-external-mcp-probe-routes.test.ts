@@ -4,7 +4,8 @@ import test from "node:test";
 
 import express from "express";
 
-import type { ExternalMcpOAuthService, ExternalMcpServerRecord } from "../../features/external-mcp/contracts.js";
+import type { ExternalMcpServerRecord } from "@jini-ai/core/contracts/hosted-mcp";
+import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { createRouteDeps } from "../runtime/composition/app.js";

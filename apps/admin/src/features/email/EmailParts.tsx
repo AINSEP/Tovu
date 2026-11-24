@@ -2,8 +2,8 @@ import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
-import { t } from "./email-i18n";
-import type { LoadView } from "./hooks/email-load.hooks";
+import { t } from "@jini-ai/admin/screens/email/email-i18n";
+import type { LoadView } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
 
 /**
  * @file Small pieces every Email tab shares: the status chip, the titled card, the read-state line

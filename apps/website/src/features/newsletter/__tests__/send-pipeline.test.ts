@@ -36,14 +36,14 @@ import {
 import { ObservedOutbox } from "#src/server/runtime/composition/__tests__/form-delivery-oauth.fixture";
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { installNewsletterDataModule } from "../data-module-manifest.js";
+import { processUnsubscribe } from "../unsubscribe.js";
+import type { HookRegistry } from "../hooks.js";
+import type { LaunchGateDeps } from "../launch-gate.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
-import { processUnsubscribe } from "@jini-ai/user-management/newsletter/unsubscribe";
-import type { HookRegistry } from "@jini-ai/user-management/newsletter/hooks";
-import type { LaunchGateDeps } from "@jini-ai/user-management/newsletter/launch-gate";
-import type { MailerPort } from "#src/platform/mail/index";
-import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "@jini-ai/user-management/newsletter/ports";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,

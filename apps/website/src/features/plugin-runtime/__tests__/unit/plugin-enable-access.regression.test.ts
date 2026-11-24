@@ -1,4 +1,4 @@
-import { applyExternalMcpAccess } from "../../../external-mcp/external-mcp-store.js";
+import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { answerCard, harness } from '../fixtures/plugins-tool-harness.js';

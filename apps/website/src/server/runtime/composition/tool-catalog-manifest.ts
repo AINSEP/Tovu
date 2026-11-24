@@ -12,7 +12,7 @@ import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { nodeProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning.node-io";
 import { resolveCommittedConfigRoot } from "#src/features/publish-trust/host-settings";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { LoadPluginCredentialCards } from "#src/features/custom-credentials/plugin-credential-card";
+import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import path from "node:path";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { bindContentTargetInputs } from "./content-target-inputs.js";
@@ -94,10 +94,9 @@ import type { DeployOpsRegistry } from "#src/features/deployments/index";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "@jini-ai/cms/entries/site/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
-import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
-import { probeExternalMcpServer } from "#src/features/external-mcp/external-mcp-probe";
-import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
-import type { ExternalMcpOperations } from "#src/features/external-mcp/operations-tools";
+import { contributeExternalMcpOperationsTools } from "@jini-ai/mcp/external/operations-tools";
+import { externalMcpOperationsHost, probeExternalMcpServer, readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
+import type { ExternalMcpOperations } from "@jini-ai/mcp/external/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
@@ -105,7 +104,7 @@ import { contributeEmailTemplatesTools } from "#src/features/email-templates/ind
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
-import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
+import { contributeSkillsInstallTools } from "@jini-ai/agentic/skills/site/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
@@ -475,7 +474,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
   // one uninstall id for both plugin families instead of two near-identically-named tools. See
-  // `features/agent-plugins/uninstall-tool.ts`'s header for the merge.
+  // `@jini-ai/agent-plugins/site/uninstall-tool`'s header for the merge.
   contributions.contributors.register({ contribution: contributeCommentsTools() });
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s
@@ -505,7 +504,7 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
-  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: readAdmissions }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools<import("#src/features/external-mcp/deps").ExternalMcpToolDeps>({ ...externalMcpOperationsHost, probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });
@@ -667,7 +666,7 @@ function installCredentialSaveTools(contributions: AssistantToolContributions) {
             ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider, tracker: originalDeps.tracker, userId: `site:${originalDeps.workspaceId}` }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),
-        } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
+        } satisfies import("@jini-ai/agent-plugins/connect").CredentialSaveAdapters;
       };
       const projectKeys = originalDeps.projectKeys;
       return buildCredentialSaveRegistrations({

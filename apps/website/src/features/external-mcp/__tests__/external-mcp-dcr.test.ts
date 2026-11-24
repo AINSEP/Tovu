@@ -7,10 +7,11 @@ import { OAuthError } from "@jini-ai/oauth";
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpValidationError, listExternalMcpServerViews, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
-import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
+import { listExternalMcpServerViews, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
+import { ExternalMcpValidationError, resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 
 /**
  * @file The wiring: an external-MCP connection that has no `client_id` — or, since, no `grant` —

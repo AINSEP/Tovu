@@ -2,7 +2,7 @@ import { act, render, renderHook, waitFor } from "@/__tests__/fetch-query-render
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SKILLS_CHANGED_EVENT } from "../api";
-import type { InstalledSkill } from "@jini-ai/admin/screens/skills/api/skills-api.types";
+import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skill";
 import { useSkills } from "../use-skills.hooks";
 
 afterEach(() => {

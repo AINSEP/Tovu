@@ -2,7 +2,6 @@ import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
-export { createCredentialSaveHandlers, createCredentialToolRegistrations };
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 
 import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
@@ -44,7 +43,8 @@ import {
 import { bindCredentialedRequestPort } from "./credential-ports.js";
 import { cleanCardToken } from "./card-token.js";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
-import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { readPluginCredentialValues } from "./plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, findPluginCredentialCard, type LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildCreateForm, buildCreateOutcome } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";

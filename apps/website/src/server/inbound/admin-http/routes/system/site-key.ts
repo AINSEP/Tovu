@@ -15,14 +15,14 @@ import {
   revealSiteKeyMaterial,
   SiteKeyFileAlreadyExistsError,
   type SiteKeyStatus,
-} from "#src/features/webhooks/index";
+} from "#src/features/webhooks/keyring.env";
 import {
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
   siteKeyFilePathFrom,
   siteKeySourcesForSiteDir,
   type SiteKeySource,
-} from "#src/features/webhooks/index";
+} from "#src/features/webhooks/site-key-sources";
 import { hasKeyDependentData } from "#src/platform/db/key-dependent-data";
 import { findSiteKeyDependentData, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
 import { SITE_KEY_MANAGE_PERMISSION } from "@jini-ai/user-management/identity/site-key-permission";

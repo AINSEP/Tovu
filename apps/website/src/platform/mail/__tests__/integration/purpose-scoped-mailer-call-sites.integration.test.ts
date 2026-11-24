@@ -10,8 +10,9 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
+import { wrapPositionalMailerWithPurposeGate } from "@jini-ai/platform/mail";
+import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/platform/mail";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
-import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/core/contracts/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -90,7 +91,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
     send: async (message) => { providerSends.push(message.to.email); markSendStarted(); await pendingSend; return success; },
     sendBatch: async () => { throw new Error("these call sites must use send"); },
   };
-  const gate = wrapMailerWithPurposeGate({ inner, mode: "production", durableOutboxReady: () => false });
+  const gate = wrapPositionalMailerWithPurposeGate({ inner, mode: "production", durableOutboxReady: () => false });
   const mailer: MailerPort = { ...gate, send: async (message, opts) => { options.push(opts); return gate.send(message, opts); } };
   let completed = false;
   let id = 0;

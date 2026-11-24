@@ -1,11 +1,11 @@
-import { InMemoryMemberRepo } from "@jini-ai/user-management/members/repo.memory";
-import { InMemoryKeyring } from "#src/features/webhooks/index";
-import { MembersSubscriberDirectory } from "@jini-ai/user-management/members/subscriber-directory";
-import { createHookRegistry } from "@jini-ai/user-management/newsletter/hooks";
+import { InMemoryMemberRepo } from "#src/features/members/index";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { MembersSubscriberDirectory } from "#src/features/members/index";
+import { createHookRegistry } from "#src/features/newsletter/send-pipeline";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemorySiteAssistantCredentialRepo } from "../../../../../assistant/index.js";
 import { InMemoryExternalMcpServerRepo } from "../../../../../features/external-mcp/external-mcp-store.memory.js";
-import { createDeviceAuthorizationStore } from "../../../../../features/external-mcp/external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
 export function composeMemberSecrets(_required: Record<string, never> = {}, _optional = {}) {
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads

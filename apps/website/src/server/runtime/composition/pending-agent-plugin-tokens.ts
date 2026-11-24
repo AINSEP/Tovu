@@ -4,7 +4,7 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 import { siteSecretSealer, type SiteSecretSealer } from "./storage-secret.js";
 

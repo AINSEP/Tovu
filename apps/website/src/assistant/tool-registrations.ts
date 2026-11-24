@@ -125,7 +125,7 @@ export type DuplicateResourceHandlerContributor = import("@jini-ai/core/contract
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/tool-registrations").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("@jini-ai/analytics/site/tool-registrations").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/tool-registrations").ConsentToolDeps & ToolGapsToolDeps & import("@jini-ai/agentic/skills/site/install-tool").SkillsInstallToolDeps & import("@jini-ai/analytics/site/tool-registrations").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
     commerce?: import("./host-contracts.js").CommerceToolHost;
     apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
@@ -138,6 +138,8 @@ export type AssistantToolRegistryDeps = import("@jini-ai/cookie-consent/site/too
   AssistantHistoryHostDeps &
   import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
+  Pick<import("@jini-ai/platform/mail/feedback-setup").MailFeedbackSetupDeps, "listCustomCredentials" | "mailWebhookSecretLabels"> &
+  Required<Pick<import("@jini-ai/platform/mail/use-readiness").MailUseReadinessDeps, "evaluateNewsletterLaunchGate">> &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
   { getEffective: typeof getEffectiveSetting } &

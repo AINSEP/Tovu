@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { EmailTabHooks } from "../Email";
-import type { EmailTemplateEditorController } from "../hooks/use-email-template-editor.hooks";
+import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
 import { DNS, PREVIEW, TEMPLATE } from "./email.test-helpers";
 
 /** @file Static controller fakes for markup tests. Hook behavior is tested against fake API ports. */

@@ -10,7 +10,7 @@ import { AssistantDock } from '@/components/AssistantDock/AssistantDock';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { DEFAULT_APPEARANCE, DEFAULT_INSTRUCTIONS, DEFAULT_INTERFACE, DEFAULT_NOTIFICATIONS, DEFAULT_PRIVACY, ADMIN_LOCALES } from '@/lib/settings-tabs';
 import type { SettingsSlice } from '../use-settings-slice.hooks';
-import { emptyComposerCapabilityProjection } from '@/features/plugins/composer-capabilities';
+import { emptyComposerCapabilityProjection } from '@jini-ai/admin/screens/plugins/composer-capabilities';
 import { useTovuExecutionPolicy } from '../use-tovu-execution-policy.hooks';
 import { DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
 import { t } from '@jini-ai/admin/screens/settings/settings-execution-i18n';

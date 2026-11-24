@@ -79,26 +79,28 @@ type PinnedDepsKeys = "shared" | "workspaceId" | "repo" | "sealer" | "keyring" |
 
 test("canonical core record and the Tovu aliases equal the c3801c833 pins (keys + both assignability directions)", () => {
   const checks: true[] = [
-    pinned<PinnedRecord, Core.ExternalMcpServerRecord>(true), pinned<PinnedRecord, T.ExternalMcpServerRecord>(true),
-    pinned<PinnedSnapshot, Core.ExternalMcpAccessSnapshot>(true), pinned<PinnedSnapshot, TAccess.ExternalMcpAccessSnapshot>(true), pinned<PinnedSnapshot, T.ExternalMcpAccessSnapshot>(true),
+    pinned<PinnedRecord, Core.ExternalMcpServerRecord>(true),
+    pinned<PinnedSnapshot, Core.ExternalMcpAccessSnapshot>(true), pinned<PinnedSnapshot, TAccess.ExternalMcpAccessSnapshot>(true),
     pinned<PinnedApprovedAccess, Core.ExternalMcpApprovedAccess>(true), pinned<PinnedApprovedAccess, TAccess.ExternalMcpApprovedAccess>(true),
-    pinned<PinnedAccessUpdate, Core.ExternalMcpAccessUpdate>(true), pinned<PinnedAccessUpdate, T.ExternalMcpAccessUpdate>(true),
-    pinned<PinnedSaveOAuth, T.SaveExternalMcpOAuthInput>(true), pinned<PinnedSave, Core.SaveExternalMcpServerInput>(true), pinned<PinnedSave, T.SaveExternalMcpServerInput>(true),
-    pinned<PinnedOAuthView, T.ExternalMcpOAuthView>(true), pinned<PinnedView, T.ExternalMcpServerView>(true), pinned<PinnedView, Core.ExternalMcpServerView<CredentialTokenHint>>(true),
+    pinned<PinnedAccessUpdate, Core.ExternalMcpAccessUpdate>(true),
+    pinned<PinnedSaveOAuth, Core.SaveExternalMcpOAuthInput>(true), pinned<PinnedSave, Core.SaveExternalMcpServerInput>(true),
+    pinned<PinnedOAuthView, Core.ExternalMcpOAuthView>(true), pinned<PinnedView, T.ExternalMcpServerView>(true), pinned<PinnedView, Core.ExternalMcpServerView<CredentialTokenHint>>(true),
     pinned<PinnedBearer, Core.McpBearerTokenSupplier>(true), pinned<PinnedBearer, import("@jini-ai/mcp/federation").McpBearerTokenSupplier>(true),
-    pinned<PinnedTarget, T.ExternalMcpServerTarget>(true), pinned<PinnedConfig, T.ExternalMcpServerConfig>(true),
-    pinned<PinnedSealedPayload, T.ExternalMcpSealedOAuthPayload>(true), pinned<PinnedSealedOAuth, T.SealedExternalMcpOAuth>(true),
-    pinned<PinnedConnectStart, Core.ExternalMcpConnectStart>(true), pinned<PinnedReason, T.ExternalMcpRevocationReason>(true),
-    pinned<"stdio" | "streamable_http", T.ExternalMcpTransport>(true), pinned<(typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number], Core.ExternalMcpTransport>(true),
-    pinned<"authorization_code" | "device_code", T.ExternalMcpOAuthGrant>(true), pinned<(typeof EXTERNAL_MCP_OAUTH_GRANTS)[number], Core.ExternalMcpOAuthGrant>(true),
+    pinned<PinnedTarget, Core.ExternalMcpServerTarget>(true), pinned<PinnedConfig, Core.ExternalMcpServerConfig>(true),
+    pinned<PinnedSealedPayload, Core.ExternalMcpSealedOAuthPayload>(true), pinned<PinnedSealedOAuth, Core.SealedExternalMcpOAuth>(true),
+    pinned<PinnedConnectStart, Core.ExternalMcpConnectStart>(true), pinned<PinnedReason, Core.ExternalMcpRevocationReason>(true),
+    pinned<"stdio" | "streamable_http", Core.ExternalMcpTransport>(true), pinned<(typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number], Core.ExternalMcpTransport>(true),
+    pinned<"authorization_code" | "device_code", Core.ExternalMcpOAuthGrant>(true), pinned<(typeof EXTERNAL_MCP_OAUTH_GRANTS)[number], Core.ExternalMcpOAuthGrant>(true),
     pinned<"none" | "static_env" | "oauth", TAuth.ExternalMcpAuthMode>(true), pinned<(typeof EXTERNAL_MCP_AUTH_MODES)[number], Core.ExternalMcpAuthMode>(true),
     pinned<PinnedOAuthView["status"], TAuth.ExternalMcpOAuthStatus>(true), pinned<(typeof EXTERNAL_MCP_OAUTH_STATUSES)[number], Core.ExternalMcpOAuthStatus>(true),
-    pinned<PinnedRepoKeys, keyof T.ExternalMcpServerRepoPort>(true), pinned<T.ExternalMcpServerRepoPort, Core.ExternalMcpServerRepoPort>(true),
-    pinned<PinnedServiceKeys, keyof T.ExternalMcpOAuthService>(true), pinned<T.ExternalMcpOAuthService, Signin.ExternalMcpOAuthService>(true),
+    pinned<PinnedRepoKeys, keyof Core.ExternalMcpServerRepoPort>(true),
+    pinned<PinnedServiceKeys, keyof Signin.ExternalMcpOAuthService>(true),
     pinned<PinnedDepsKeys, keyof T.ExternalMcpOAuthDeps>(true), pinned<T.ExternalMcpOAuthDeps, Signin.ExternalMcpOAuthDeps<SharedExternalMcpOwner>>(true),
-    pinned<T.DeviceAuthorizationStore, Signin.DeviceAuthorizationStore>(true), pinned<"put" | "get" | "delete", keyof T.DeviceAuthorizationStore>(true),
+    pinned<"put" | "get" | "delete", keyof Signin.DeviceAuthorizationStore>(true),
   ];
-  assert.equal(checks.length, 39);
+  // 32, not 39: `contracts.ts` no longer re-exports the canonical types, so the seven pins of those
+  // re-exports compared a type with itself (or repeated the adjacent canonical pin) and were dropped.
+  assert.equal(checks.length, 32);
   assert.ok(checks.every(Boolean));
 });
 

@@ -3,7 +3,7 @@ import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 import { lowerAssistantToolAccess } from './assistant-tool-access-lowering.js';
 import type { ByokToolSurface } from "#src/assistant/byok-tool-surface";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
-import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-host-copy";
 
 /**
  * Demand ports over the server's single existing tool surface. Constructing this starts nothing.

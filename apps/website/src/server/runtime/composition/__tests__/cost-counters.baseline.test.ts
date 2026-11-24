@@ -27,7 +27,7 @@ import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tes
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
-import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { createResolvedMailer, type ResolveMailerDeps } from "#src/server/runtime/boot/resolve-mailer";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

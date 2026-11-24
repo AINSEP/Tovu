@@ -6,7 +6,7 @@ import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PAGES_EDIT_HTML_PERMISSION } from "../pages/index.js";
-import { emailTemplatesAgentToolCatalog } from "./agent-tools.js";
+import { createEmailTemplatesAgentToolCatalog } from "@jini-ai/platform/mail/email-template-agent-tools";
 import {
   createEmailTemplate,
   editEmailTemplate,
@@ -19,6 +19,9 @@ import {
   requireText,
 } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "./operations.js";
+
+/** The email-template tool catalog, bound once with this host's Pages HTML edit permission. */
+export const emailTemplatesAgentToolCatalog = createEmailTemplatesAgentToolCatalog({ copy: { editHtmlPermission: PAGES_EDIT_HTML_PERMISSION } });
 
 export interface EmailTemplatesToolDeps extends EmailTemplateDeps {
   authorize: AuthorizeFn;

@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
-import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/index";
-import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/index";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 

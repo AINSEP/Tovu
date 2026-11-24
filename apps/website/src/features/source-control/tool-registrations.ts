@@ -1,4 +1,4 @@
-import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "@jini-ai/devops/source-control/site/commit-schema";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/source-control';

@@ -1,7 +1,6 @@
 import { AesGcmSecretSealer as JiniSecretSealer } from "@jini-ai/platform/secrets";
-import type { SiteKeyHandle } from "./ports.js";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { SealedSecret } from "@jini-ai/core/contracts/vault";
+import type { KeyringPort, SecretSealerPort, RootKeyHandle as SiteKeyHandle } from "@jini-ai/integrations/webhooks";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 /** Host port adapter preserving the existing sealed wire format and canonical open(input, optional) contract.
  *

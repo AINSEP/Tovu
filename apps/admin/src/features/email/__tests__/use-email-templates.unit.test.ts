@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
-import { useEmailTemplates } from "../hooks/use-email-templates.hooks";
+import { useEmailTemplates } from "@jini-ai/admin/screens/email/hooks/use-email-templates.hooks";
 import { createEmailFake, TEMPLATE } from "./email.test-helpers";
 
 /** @file List actions use versioned rename and generic trash; creation opens the new editor. */
@@ -10,7 +10,7 @@ describe("useEmailTemplates", () => {
     const api = createEmailFake();
     api.createTemplate.mockResolvedValue({ ...TEMPLATE, id: "id/with space" });
     const open = vi.fn();
-    const { result } = renderHook(() => useEmailTemplates({ api }, { open, newName: "Correo sin título" }));
+    const { result } = renderHook(() => useEmailTemplates({ api, ApiError, open }, { newName: "Correo sin título" }));
     await act(() => result.current.create());
     expect(api.createTemplate).toHaveBeenCalledExactlyOnceWith({ name: "Correo sin título" });
     expect(open).toHaveBeenCalledExactlyOnceWith("/email/templates/id%2Fwith%20space");
@@ -19,7 +19,7 @@ describe("useEmailTemplates", () => {
 
   it("trims a rename, sends its loaded version, updates the list, then trashes only on confirmation", async () => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailTemplates({ api }));
+    const { result } = renderHook(() => useEmailTemplates({ api, ApiError, open: vi.fn() }));
     await waitFor(() => expect(result.current.view.kind).toBe("loaded"));
     act(() => result.current.startRename(TEMPLATE));
     act(() => result.current.setRenameName(" Welcome back "));
@@ -37,7 +37,7 @@ describe("useEmailTemplates", () => {
 
   it.each([" ", TEMPLATE.name])("does not write a blank or unchanged name (%s)", async (name) => {
     const api = createEmailFake();
-    const { result } = renderHook(() => useEmailTemplates({ api }));
+    const { result } = renderHook(() => useEmailTemplates({ api, ApiError, open: vi.fn() }));
     act(() => result.current.startRename(TEMPLATE));
     act(() => result.current.setRenameName(name));
     await act(() => result.current.confirmRename());
@@ -50,7 +50,7 @@ describe("useEmailTemplates", () => {
     const open = vi.fn();
     api.createTemplate.mockRejectedValue(new ApiError({ message: "Create refused", status: 403 }));
     api.trashTemplate.mockRejectedValue(new ApiError({ message: "Trash refused", status: 403 }));
-    const { result } = renderHook(() => useEmailTemplates({ api }, { open }));
+    const { result } = renderHook(() => useEmailTemplates({ api, ApiError, open }));
     await waitFor(() => expect(result.current.view.kind).toBe("loaded"));
     await act(() => result.current.create());
     expect(open).not.toHaveBeenCalled();

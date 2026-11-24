@@ -2,8 +2,8 @@
  * Never populate this registry from an imported archive or activate imported plugins. */
 import { createNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { COMMENTS_DATA_MODULE } from "../../../features/comments/types.js";
-import { STORE_MANIFEST } from "../../../features/plugins/store/manifest.js";
-import { LIPAY_MANIFEST } from "../../../features/plugins/lipay/manifest.js";
+import { STORE_MANIFEST } from "@jini-ai/plugins/site/store/manifest";
+import { LIPAY_MANIFEST } from "@jini-ai/plugins/site/lipay/manifest";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
 
 /** The stored provenance publisher of every bundled data module. `checkNamespaceAdoption` compares it

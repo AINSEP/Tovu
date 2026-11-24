@@ -6,7 +6,7 @@ import { usePlugins } from '@/features/plugins/hooks/use-plugins.hooks';
 import { createFakePluginsPort } from '@/features/plugins/hooks/plugins-dependencies.hooks';
 import { useSkills } from '@/features/skills/use-skills.hooks';
 import { useInvalidate } from '@jini-ai/ui/fetch-query';
-import type { InstalledSkill } from '@jini-ai/admin/screens/skills/api/skills-api.types';
+import type { InstalledSkill } from '@jini-ai/core/contracts/site/installed-skill';
 
 beforeEach(() => vi.stubGlobal('fetch', async () => Response.json({ data: [] })));
 afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear(); });

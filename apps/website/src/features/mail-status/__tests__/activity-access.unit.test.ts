@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit } from "@jini-ai/platform/mail";
-import type { MailActivityDeps, MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "@jini-ai/core/contracts/site/platform-mail";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "../permissions.js";
+import {
+  getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit,
+  type MailActivityDeps, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
+} from "@jini-ai/platform/mail";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 
 /**
  * @file Security acceptance for the email activity read path, written against the code where it

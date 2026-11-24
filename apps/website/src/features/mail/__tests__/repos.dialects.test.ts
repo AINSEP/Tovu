@@ -6,7 +6,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {
   createMailCaptureRepo, createMailFeedbackInboxRepo, createMailSendLedgerRepo, createMailSuppressionRepo, MAX_CAPTURE_LIST,
-} from "../index.js";
+} from "@jini-ai/platform/mail/sql";
 
 /**
  * @file The four mail repos (migration 0023) on SQLite and PGlite through one body: the ledger's

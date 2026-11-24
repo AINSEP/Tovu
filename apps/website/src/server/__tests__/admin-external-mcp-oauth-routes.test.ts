@@ -7,7 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
+import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -77,7 +78,7 @@ function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedC
   return { fetchFn, requests };
 }
 
-async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean; sharedOAuth?: Partial<import("../../features/external-mcp/contracts.js").ExternalMcpOAuthService> } = {}) {
+async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean; sharedOAuth?: Partial<import("@jini-ai/integrations/api-connections/hosted-mcp").ExternalMcpOAuthService> } = {}) {
   const base = createRouteDeps();
   const http = scriptedFetch(options.script ?? [], options);
   const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {

@@ -29,8 +29,6 @@ import type { PluginPostReadPort } from "./service-ports.js";
  * snapshots the registry into a one-shot FTS index — a registered-late tool is invisible to `search_tools`.
  */
 
-export type { PluginCapabilityFieldSource, PluginCapabilityToolSource } from "@jini-ai/plugins/host";
-
 /** Tovu's exact model-facing wording for the capability tools (text only). */
 const CAPABILITY_TOOL_MESSAGES: PluginCapabilityToolText = {
   genericFieldDescription: ({ pluginName, path, type }) =>

@@ -5,7 +5,7 @@ import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/
 import { AgentPluginSurfaceFrame } from "../AgentPluginSurfaceFrame";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
-import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "../hooks/agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
 import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
 
 /**

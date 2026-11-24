@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadAgentPluginConnectionStatuses } from '../../connection-status.js';
+import { loadAgentPluginConnectionStatuses as loadWithPorts } from '@jini-ai/agent-plugins/connect';
+import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
+
+/** The host binds its canonical projection pair when a caller carries none (the former shim's job). */
+const loadAgentPluginConnectionStatuses = (required: Parameters<typeof withAgentPluginMcpPorts>[0] & Omit<Parameters<typeof loadWithPorts>[0], 'projections'>) =>
+  loadWithPorts(withAgentPluginMcpPorts(required));
 
 test('Agent Plugins shows signed-in state independently of whether a plugin is enabled', async () => {
   const statuses = await loadAgentPluginConnectionStatuses({

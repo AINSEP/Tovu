@@ -49,11 +49,17 @@ import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
-import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
-import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type {
+  MagicLinkTokenRepoPort,
+  MemberRepoPort,
+  MemberSessionRepoPort,
+  MemberSubscriptionRepoPort,
+  MemberTierRepoPort,
+} from "../../features/members/index.js";
+import type { PositionalMailer as MailerPort, MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "@jini-ai/cms/navigation/site/trash-menu";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import type { PublishExecutionMode } from "@jini-ai/devops/deploy/site/publish-credentials/execution-mode";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
@@ -61,7 +67,7 @@ import type { FormsAutoPullPort, FormSubmissionsPullPort } from "@jini-ai/cms/fo
 import type { FormDeliveryStatusPort } from "@jini-ai/core/contracts/headless/form-delivery-status";
 import type { DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
-import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
+import type { LoadPluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import type { CredentialSchemeRule } from "@jini-ai/core/contracts/site/integrations-credentialed-http";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type {
@@ -420,7 +426,7 @@ export interface MembersDeps {
   mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("@jini-ai/platform/mail").MailStatusReport>;
   /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
    *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
-  mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
+  mailProviderControl?: import("@jini-ai/platform/mail").MailProviderControl;
   /** The active transactional provider's DNS records for the configured sender domain
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
    *  Absent in roots without a resolved mailer: that include then refuses. */
@@ -437,15 +443,21 @@ export interface MembersDeps {
   mailTestMode?: () => Promise<import("@jini-ai/core/contracts/mail").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestProvider?: () => Promise<string | null>;
-  mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
+  mailTestRequests?: Map<string, Promise<import("@jini-ai/platform/mail/test-send").MailTestSendResult>>;
   mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
-  mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
+  mailTestSendLimiter?: import("@jini-ai/platform/mail/test-send").MailTestSendLimiter;
   /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
   mailActivity?: import("@jini-ai/platform/mail").MailActivityRepo;
   /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
-  mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+  mailPurposeGate?: import("@jini-ai/platform/mail").MailPurposeGateProbe;
   /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
   mailSuppressionAdmin?: import("@jini-ai/platform/mail").MailSuppressionAdminRepo;
+  /** Feedback setup's credential lister (`@jini-ai/platform/mail/feedback-setup`): labels and update times only. */
+  listCustomCredentials: typeof import("../../features/custom-credentials/index.js").listCustomCredentials;
+  /** Feedback setup's persisted product-prefixed signing-secret labels (`features/mail/index.ts`). */
+  mailWebhookSecretLabels: typeof import("../../features/mail/index.js").mailWebhookSecretLabels;
+  /** Mail readiness's Newsletter launch gate (`@jini-ai/platform/mail/use-readiness`): the one gate the send path runs. */
+  evaluateNewsletterLaunchGate: typeof import("../../features/newsletter/index.js").evaluateLaunchGate;
 }
 
 /**
@@ -633,7 +645,7 @@ export interface SettingsDeps {
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
   consentAdapters?: (required: { base: string }) => readonly import('@jini-ai/core/contracts/headless/site-cookie-consent').ConsentPluginContribution[];
   /** `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks); omitted by hermetic callers. */
-  mailFeedbackRoute?: import('#src/features/mail/index').MailFeedbackRoute;
+  mailFeedbackRoute?: import('@jini-ai/platform/mail').MailFeedbackRoute;
   /**
    * The real `features/settings`'s own `getEffective` — threaded through `RouteDeps` (rather than
    * each consumer importing it directly) so `assistant/public-assistant-settings.ts`'s
@@ -1280,7 +1292,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   agentPluginLifecycle: import("#src/features/agent-plugins/lifecycle").TovuAgentPluginLifecycle;
   /** Site-bound toggle also clears mail selections owned by a disabled plugin. */
   setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
-  skillLayout: import("#src/features/skills/layout").SkillLayout;
+  skillLayout: import("@jini-ai/agentic/skills/site/layout").SkillLayout;
   /**
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
    * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process

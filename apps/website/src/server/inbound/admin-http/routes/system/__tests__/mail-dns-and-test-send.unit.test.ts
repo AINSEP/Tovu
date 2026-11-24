@@ -6,11 +6,12 @@ import express from "express";
 import { createDnsProviderRegistry } from "@jini-ai/devops/dns";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
-import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
+import type { PositionalMailer as MailerPort, MailerSendResult } from "@jini-ai/platform/mail";
+import type { DnsChangeToolDeps } from "#src/features/domain-dns/index";
 import { context, fakeAuthoritative, memoryBindings } from "#src/features/domain-dns/__tests__/dns-fakes";
-import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
-import { registerAdminMailDnsRoutes, registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "#src/server/runtime/composition/modules/system-mail";
+import { createMailTestSendLimiter } from "@jini-ai/platform/mail/test-send";
+import { registerAdminMailDnsRoutes } from "../mail-dns.js";
+import { registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "../mail-test-send.js";
 
 /**
  * @file The Email page's phase-3 admin adapters, driven as direct handler calls: each route checks

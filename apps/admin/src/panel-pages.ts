@@ -12,7 +12,7 @@ import { lazy } from "react";
  * React owns promise caching and forwards failed imports to the existing root error handling.
  * Use these components only beneath the panel registry's Suspense boundary.
  */
-export const Skills = lazy(() => import("./features/skills/Skills").then(module => ({ default: module.Skills })));
+export const Skills = lazy(() => import("./features/skills/SkillsPage").then(module => ({ default: module.Skills })));
 export const Themes = lazy(() => import("./features/themes").then(module => ({ default: module.Themes })));
 export const ThemeExplore = lazy(() => import("./features/themes").then(module => ({ default: module.ThemeExplore })));
 export const AdminUi = lazy(() => import("./features/admin-ui/AdminUi").then(module => ({ default: module.AdminUi })));

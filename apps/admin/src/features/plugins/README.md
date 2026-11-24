@@ -65,3 +65,15 @@ Tests were written but not executed in the dispatched worker; validation belongs
 - Kit slots: `I18nProvider` come from the `@jini-ai/admin/react/kit` facades; the host binds them to `@jini-ai/ui` in `integrations/jini-kits.ts` (`satisfies AdminKit`) and mounts `AdminKitProvider` in `main.tsx`.
 - `SettingsDialogShell` comes from the kit facade; its `labels` prop is the kit `SettingsDialogChromeLabels` mirror of the UI owner's chrome labels.
 - Residual `@jini-ai/ui` imports: `SETTINGS_DIALOG_DICTIONARIES`, `SettingsDialogShell`.
+- Leaves now owned by `@jini-ai/admin/screens/plugins/*`: `add-plugin-tab-soon`, `agent-plugins-visuals`,
+  `plugins-memory-i18n`, `hooks/use-linked-lock-tip.hooks`, `hooks/agent-plugin-surfaces-port.hooks`.
+- This app injects `translateAdminNavLabel` (`lib/admin-nav-i18n.ts`) into the tab-tag helpers from
+  `Plugins.tsx` and `AgentPlugins.tsx`; the glyphs and padlock tip read the kit mounted in `main.tsx`
+  (`integrations/jini-kits.ts`), so tests rendering them wrap in `AdminKitProvider`.
+- `styles.css` styles the moved chevron by `.jini-agent-plugin-chevron-glyph`.
+- `composer-capabilities.ts` keeps only the host half: the bundled catalog
+  (`createBundledComposerCapabilitySource`) and `resolveTovuComposerDiscoveryRoute`. The contract,
+  projection and ranking are owned by `@jini-ai/admin/screens/plugins/composer-capabilities`
+  (Tovu files alias `ComposerCapability` as `TovuComposerCapability` at the import);
+  `AssistantDock/hooks/composer-discovery.hooks.ts` passes the bundled and installed-skills sources
+  into `projectComposerCapabilities({ sources })`.

@@ -41,7 +41,7 @@ export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDep
   readonly postRepo: import("../features/post/index.js").PostRepoPort;
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly agentPluginLayout: import("@jini-ai/core/contracts/headless/plugin-host").AgentPluginLayout;
-  readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
+  readonly skillLayout: import("@jini-ai/agentic/skills/site/layout").SkillLayout;
   readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   /** Host ports for executable Agent Plugin tools; omitted, that family is not registered. */

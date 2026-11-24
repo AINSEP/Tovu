@@ -4,7 +4,7 @@ import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";
 
-import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
+import type { AgentPluginGlyphKind } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
 import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
 

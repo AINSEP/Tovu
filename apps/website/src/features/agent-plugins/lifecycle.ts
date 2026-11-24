@@ -27,7 +27,7 @@ import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, fo
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
   type SupersessionManifestsPort,
-} from "./supersession.js";
+} from "@jini-ai/agent-plugins/site/supersession";
 import type {
   AgentPluginArchiveEntry as JiniArchiveEntry, AgentPluginArchiveReaderPort as JiniArchiveReader,
   AgentPluginLayoutPort, UninstallAgentPluginRequired as JiniUninstallRequired,

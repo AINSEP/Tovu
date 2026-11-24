@@ -9052,6 +9052,262 @@
     {
       "id": "3c39ec11d85f",
       "reason": "Moved with the code to Jini @jini-ai/devops/source-control/site/provider-module (K5-source-control-1); Tovu paths, product names and permission vocabulary reworded neutral (host-owned values are now injected), meaning kept."
+    },
+    {
+      "id": "fb946c94c7e9",
+      "reason": "Header of the deleted features/agent-plugins/connection-status.ts compatibility shim (ex7 batch G): the shim is gone, callers use @jini-ai/agent-plugins/connect directly and bind the host projection pair through agentPluginMcpPortsOf / withAgentPluginMcpPorts, whose own docs keep the rationale."
+    },
+    {
+      "id": "2894da9cc44e",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts header (ex7 batch D, K5-webhooks-1.J); host path citations reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "d44542584760",
+      "reason": "Moved to Jini @jini-ai/integrations/webhooks/site/repo.memory.ts (ex7 batch D); the type name now reads DeliveryEnvelopeStorePort (the host alias was dropped), rest identical."
+    },
+    {
+      "id": "411472e97f47",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/feedback-setup.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "836ded059680",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/email/hooks/use-email-activity.hooks.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "3871f9e92c39",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/email/hooks/use-email-overview.hooks.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "44813d2ee7c7",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/email/hooks/use-email-template-editor.hooks.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2e95d43050bc",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/email/hooks/use-email-templates.hooks.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "397b88fd219b",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/__tests__/add-plugin-tab-soon.unit.test.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "39f6e91c3de4",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/add-plugin-tab-soon.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "bbefeb81ede0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/agent-plugins-visuals.tsx (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "46100d078ab0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/skills/skill-failure.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "df40dfaacad7",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/__tests__/supersession.unit.test.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "9339130e1f7d",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/admin-surfaces/delivery-bindings.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "db7bd539d7c5",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2a7c14326247",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "fb2104a4d6ca",
+      "reason": "Header of the h1a identity test; rewritten in place (w3 FIX 12) because the external-mcp store no longer forwards the error classes — the new header states what the test still pins."
+    },
+    {
+      "id": "fd84dcc49206",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "80a4dcfb9001",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "a26427d5d00e",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "0a39743d70af",
+      "reason": "Described contracts.ts as the re-export hub for hosted-MCP DTOs; w3 batch E removed those forwards (importers take the types from @jini-ai/core/contracts/hosted-mcp), and features/external-mcp/README.md Wiring names the owners."
+    },
+    {
+      "id": "c4039a7383b8",
+      "reason": "Labelled the re-exported vocabulary constants in contracts.ts; w3 batch E removed the forward — the constants are imported from @jini-ai/mcp/federation/hosted, where their own docs live."
+    },
+    {
+      "id": "c3a3de49d1c2",
+      "reason": "Labelled the re-exported core record/repository closure in contracts.ts; w3 batch E removed the forward (importers use @jini-ai/core/contracts/hosted-mcp directly, which carries the canonical-closure doc)."
+    },
+    {
+      "id": "baa59042b1e7",
+      "reason": "Labelled the re-exported sign-in contracts in contracts.ts; w3 batch E removed the forward (ExternalMcpOAuthService/DeviceAuthorizationStore come from @jini-ai/integrations/api-connections/hosted-mcp). The two host bindings below it keep their own docs."
+    },
+    {
+      "id": "8a8e32f827ce",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-probe.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "d56f3db10c3b",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-probe.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "9ed98c98add3",
+      "reason": "Explained a forwarding re-export of ExternalMcpSecretStoreUnconfiguredError; w3 FIX 12 removed the forward (importers take the class from @jini-ai/mcp/federation/hosted, where it is documented)."
+    },
+    {
+      "id": "9924c2555868",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/operations-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "a92f4aa6f072",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/operations-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2a0730c32594",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/save-form.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2c2380d6f495",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/save-form.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "1ca96721b3ff",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/save-form.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "a929dfe7cf24",
+      "reason": "Moved with the code to Jini packages/mcp/src/external/save-form.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "8a58154ad1b4",
+      "reason": "Moved with the code to Jini packages/user-management/src/mail/status/domain-deps.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "94ef9871d6fe",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/sql/capture.repo.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "9552cdaccd8c",
+      "reason": "File header of the features/mail barrel; w3 batch I moved the repos to @jini-ai/platform/mail(/sql) (their headers moved with them) and index.ts now only binds the persisted webhook-secret label prefix, with a new header saying so."
+    },
+    {
+      "id": "a69acb92c126",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/sql/site-feedback-route.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "e4da8859a7d6",
+      "reason": "Moved with the code to Jini packages/plugins/src/runtime/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "b298155854bb",
+      "reason": "Moved with the code to Jini packages/plugins/src/runtime/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "bcfeba6ca713",
+      "reason": "Moved with the code to Jini packages/plugins/src/runtime/agent-tools.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "d3dfbe9026d8",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/layout.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "7fd876fa2c44",
+      "reason": "Moved with layout.ts to Jini packages/agentic/src/skills/site/layout.ts (w3 batch P); the product env name is injected through SkillSiteHost, so the comment names it neutrally."
+    },
+    {
+      "id": "cef6dd126a70",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/__tests__/site-skill-host.test.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "1515b8dc561b",
+      "reason": "Moved with the code to Jini packages/integrations/src/webhooks/site/delivery.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "209308232631",
+      "reason": "Moved with the code to Jini packages/integrations/src/webhooks/site/delivery.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "7cc363a6fc6c",
+      "reason": "Moved with the code to Jini packages/integrations/src/webhooks/site/delivery.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "7ee89e32563a",
+      "reason": "Moved with the code to Jini packages/integrations/src/webhooks/site/delivery.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2d2c59a15834",
+      "reason": "Explained the webhooks barrel re-exporting HttpClientPort/EgressPolicy; w3 batch K removed the forward (importers take them from platform/http/ports and @jini-ai/core)."
+    },
+    {
+      "id": "bd00df82cf25",
+      "reason": "Barrel note about where the in-memory webhook adapters live; the webhooks barrel no longer forwards anything (w3 batch K + coordinator), and features/webhooks/INFO.md Wiring records the owners."
+    },
+    {
+      "id": "50a3ad18b1ae",
+      "reason": "File header of webhooks/ports.ts, which held only forwards and was deleted (w3 batch K); the docblock was preserved verbatim in features/webhooks/INFO.md."
+    },
+    {
+      "id": "f05a9ddfdbc5",
+      "reason": "Moved with the code to Jini packages/integrations/src/webhooks/site/delivery.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "2d203aa0f1ef",
+      "reason": "Documented the MailerPort forward in platform/mail/index.ts; w3 FIX 12 removed it (importers alias PositionalMailer from @jini-ai/platform/mail, which documents the positional mailer)."
+    },
+    {
+      "id": "6e5b30d97f5f",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/mail-status.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "6871eaa3937e",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/positional-purpose-gate.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "32e2abcb2b4b",
+      "reason": "Moved with the code to Jini packages/platform/src/mail/positional-purpose-gate.ts (w3 add-ons/integrations lane); product names in the wording made neutral where the host value is now injected."
+    },
+    {
+      "id": "be3a2ee17da0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "70c8025751c0",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "2dae107f967d",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/plugins/composer-capabilities.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "4a137f3959f7",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "bac76edb5bef",
+      "reason": "Moved with the code to Jini packages/agent-plugins/src/site/uninstall-tool.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "6ac35bcb9404",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-admissions.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "d318b21bac1a",
+      "reason": "Moved with the code to Jini packages/mcp/src/federation/external-mcp-probe.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "9695593ba4a5",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/tool-registrations.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
+    },
+    {
+      "id": "b99aeac1199d",
+      "reason": "Moved with the code to Jini packages/agentic/src/skills/site/tool-registrations.ts (w3 add-ons/integrations lane); wording follows the neutral rename (batch X) or the host-injected reporter/collaborator that replaced the host call (batches Y/Z)."
     }
   ]
 }

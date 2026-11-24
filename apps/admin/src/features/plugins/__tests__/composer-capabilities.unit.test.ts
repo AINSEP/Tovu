@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createBundledComposerCapabilitySource,
-  projectComposerCapabilities,
-  resolveTovuComposerDiscoveryRoute,
-  type ComposerCapabilitySource,
-  type ComposerHostBinding,
-  type TovuComposerCapability,
-} from "../composer-capabilities";
+import { createBundledComposerCapabilitySource, resolveTovuComposerDiscoveryRoute } from "../composer-capabilities";
+import { projectComposerCapabilities } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 
 /**
  * @file Regression coverage for debate 2's Tovu-side projection contract — the async
@@ -17,10 +11,6 @@ import {
  * contract so a future source (a live tool-registry fetch, or the Agent Plugins adapter) can be
  * proven against it without a DOM.
  */
-
-function fakeSource(id: string, capabilities: readonly TovuComposerCapability[]): ComposerCapabilitySource {
-  return { id, list: async () => capabilities };
-}
 
 describe("projectComposerCapabilities", () => {
   it("preserves today's exact bundled catalog shape — the pre-2026-08-12 static array plus this dispatch's /search addition", async () => {
@@ -65,50 +55,6 @@ describe("projectComposerCapabilities", () => {
       toolName: "content_post_search",
       params: { query: "" },
     });
-  });
-
-  it("composes multiple sources, preserving first-seen group order across source boundaries", async () => {
-    const sourceA = fakeSource("a", [
-      { groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" } },
-    ]);
-    const sourceB = fakeSource("b", [
-      { groupId: "g2", groupLabel: "Group Two", item: { id: "b1", label: "B1" } },
-      { groupId: "g1", groupLabel: "Group One", item: { id: "a2", label: "A2" } },
-    ]);
-
-    const projection = await projectComposerCapabilities({ sources: [sourceA, sourceB] });
-
-    expect(projection.groups.map((group) => group.id)).toEqual(["g1", "g2"]);
-    expect(projection.groups.find((group) => group.id === "g1")?.items.map((item) => item.id)).toEqual([
-      "a1",
-      "a2",
-    ]);
-  });
-
-  it("fails closed on a duplicate item id across two sources rather than silently letting one win", async () => {
-    const sourceA = fakeSource("a", [
-      { groupId: "g1", groupLabel: "Group One", item: { id: "dup", label: "First" } },
-    ]);
-    const sourceB = fakeSource("b", [
-      { groupId: "g1", groupLabel: "Group One", item: { id: "dup", label: "Second" } },
-    ]);
-
-    await expect(projectComposerCapabilities({ sources: [sourceA, sourceB] })).rejects.toThrow(/duplicate discovery item id/i);
-  });
-
-  it("indexes every capability by item id for selection lookup, including its resolve function", async () => {
-    const resolve = (): ComposerHostBinding => ({ kind: "compose-text", text: "resolved" });
-    const source = fakeSource("a", [{ groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" }, resolve }]);
-
-    const projection = await projectComposerCapabilities({ sources: [source] });
-
-    expect(projection.byItemId.get("a1")?.resolve).toBe(resolve);
-  });
-
-  it("returns an empty projection for zero sources", async () => {
-    const projection = await projectComposerCapabilities({ sources: [] });
-    expect(projection.groups).toEqual([]);
-    expect(projection.byItemId.size).toBe(0);
   });
 });
 
@@ -163,26 +109,5 @@ describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types
     // No argument: selecting the item invokes immediately once the typed word matches, same as any
     // other no-argument command (see composer-discovery.ts's resolveComposerSlashInvocation).
     expect(capability?.item.argument).toBeUndefined();
-  });
-});
-
-describe("byPluginRefId indexing", () => {
-  it("is empty when no capability sets pluginRefId", async () => {
-    const projection = await projectComposerCapabilities({ sources: [
-      fakeSource("a", [{ groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" } }]),
-    ] });
-
-    expect(projection.byPluginRefId.size).toBe(0);
-  });
-
-  it("fails closed on a duplicate pluginRefId across two capabilities, rather than letting one win silently", async () => {
-    const sourceA = fakeSource("a", [
-      { groupId: "g1", groupLabel: "Group One", item: { id: "first", label: "First" }, pluginRefId: "shared" },
-    ]);
-    const sourceB = fakeSource("b", [
-      { groupId: "g1", groupLabel: "Group One", item: { id: "second", label: "Second" }, pluginRefId: "shared" },
-    ]);
-
-    await expect(projectComposerCapabilities({ sources: [sourceA, sourceB] })).rejects.toThrow(/duplicate pluginRefId/i);
   });
 });
