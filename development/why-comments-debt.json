@@ -4588,6 +4588,242 @@
     {
       "id": "ff96a8d44adc",
       "reason": "Forwarder deleted (w4-webfeat-a FORWARDER-REMOVE): the header described the SqliteMediaProviderCredentialRepo alias subclass, which no longer exists; callers use SqlMediaProviderCredentialRepo directly."
+    },
+    {
+      "id": "3928f5d7f7fd",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/admin-surfaces/__tests__/handlers.test.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "b57c6816589f",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/admin-surfaces/handlers.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "83edc2cbf005",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/admin-surfaces/public-config.ts @file (w4-webfeat-a, split)."
+    },
+    {
+      "id": "600647ca214d",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/analytics-provider-registry (w4-webfeat-a); the filename is injected (K3) and documented on the injected field."
+    },
+    {
+      "id": "c126e9bfbfa4",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/auth-schemes.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "e39a0ea34e3b",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/bundled-contribution-sources.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "e8cad189088a",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/customize-tool.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "17d65046bb12",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/deploy-split-activation.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "978e148c56a5",
+      "reason": "Obsolete with its code: the two pass-through functions it introduced (deriveAgentPluginConnectionId/isEmptyJsonList wrappers) were removed as forwarders (w4-webfeat-a); callers import @jini-ai/agent-plugins/connect directly."
+    },
+    {
+      "id": "092cee109f6f",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "ad69611e2d7f",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "2b2b7c0a821f",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "e95581b3c99e",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "6276540fa68e",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "4b00446c1f3c",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral."
+    },
+    {
+      "id": "66741ae628c8",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-plugin-guidance.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "0566110ad6f1",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/host-signals.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "2da5d9c904e8",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/provider-plugin-link.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "5e57eeeda8f9",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/retired-plugin-tool-aliases.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "6e6ac9d312d2",
+      "reason": "Moved to Jini @jini-ai/agent-plugins src/site/retired-plugin-tool-aliases.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "01e785f8e21a",
+      "reason": "Moved to Jini @jini-ai/agent-plugins/site/service-ports.ts (w4-webfeat-a), reworded host-neutral."
+    },
+    {
+      "id": "c2d5e461089f",
+      "reason": "Moved to Jini @jini-ai/integrations src/api-connections/budgets.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "7001b9f80483",
+      "reason": "Moved to Jini @jini-ai/cms src/change-sets/tool-registrations.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "16ef60b11b89",
+      "reason": "Moved to Jini @jini-ai/cms src/content-duplication/__tests__/derive-available-name.test.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "c2c050805781",
+      "reason": "Moved to Jini @jini-ai/cms src/content-duplication/agent-tools.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "812a1c7b8e16",
+      "reason": "Moved to Jini @jini-ai/cms src/content-duplication/derive-available-name.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "07c52358bcfc",
+      "reason": "Reworded in place (w4-webfeat-a): content-types/write-service.ts keeps its @file header ('reserved routes' binding) after its re-exports were removed."
+    },
+    {
+      "id": "15ec3f28a056",
+      "reason": "Moved to Jini @jini-ai/integrations/custom-credentials/agent-tools.ts (w4-webfeat-a, split)."
+    },
+    {
+      "id": "7992fcf741b4",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/agent-tools.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "ad7808aa3f4e",
+      "reason": "Moved to Jini @jini-ai/integrations/custom-credentials/agent-tools.ts input-shape doc (w4-webfeat-a, split)."
+    },
+    {
+      "id": "dddebb7919a3",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/credential-ports.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "60514c2ef572",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/credential-ports.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "d4be2acfb3d1",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/credentialed-request.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "edc6601d3a9b",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/credentialed-request.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "382c90ecf84b",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/custom-credential-create-ui.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "2498a8384740",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/custom-credential-create-ui.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "f76c15d15b3d",
+      "reason": "Moved to Jini @jini-ai/integrations/custom-credentials/custom-credential-set-token-ui.ts @file (w4-webfeat-a), reworded host-neutral."
+    },
+    {
+      "id": "5af3b9931c56",
+      "reason": "Moved to Jini @jini-ai/integrations src/custom-credentials/custom-credential-set-token-ui.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "80646e51ac08",
+      "reason": "Moved to Jini @jini-ai/devops src/deploy/site/deploy-config-registry.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "7b9f8ba87aed",
+      "reason": "Moved to Jini @jini-ai/devops src/deploy/site/deploy-config-registry.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "8fd495bab566",
+      "reason": "Folded into the deployConfigGenerators member-list doc in deployments/deploy-config-registry.ts when the 8 forwarding `export const X = source.X` lines became one bound export (w4-webfeat-a review fix)."
+    },
+    {
+      "id": "df288cd6d2c4",
+      "reason": "Obsolete with its re-export: parseDeployConfigsFile lives in @jini-ai/devops/deploy, which carries its doc; the Tovu forwarding re-export was removed (w4-webfeat-a)."
+    },
+    {
+      "id": "632a0be485e1",
+      "reason": "Moved to Jini @jini-ai/devops src/deploy/site/ports.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "1d718af01f1f",
+      "reason": "Moved to apps/website/src/features/email-templates/README.md when the index.ts barrel was removed (w4-webfeat-a FORWARDER-REMOVE)."
+    },
+    {
+      "id": "5cbe8f4501c1",
+      "reason": "Reworded in place (w4-webfeat-a split): the generic repair moved to @jini-ai/cms/entries/site/unreadable-owner-entries-repair; the Tovu file keeps the @file header for its host binding."
+    },
+    {
+      "id": "d6253108a63a",
+      "reason": "Moved to Jini @jini-ai/cms src/forms/destinations/deliver.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "011f5e459baf",
+      "reason": "Moved to Jini @jini-ai/cms src/forms/destinations/rewrite-actions.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "a314fc6d12e3",
+      "reason": "Moved to Jini @jini-ai/cms src/forms/site/submission-ip-expiry-sweep.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "9d17f9ecaf62",
+      "reason": "Moved to Jini @jini-ai/cms src/fs-files/native-folder-picker.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "407e2830fdb2",
+      "reason": "Moved to Jini @jini-ai/cms src/fs-files/write-files.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "d3ff441c5fe1",
+      "reason": "Moved to Jini @jini-ai/cms src/media/site-generation/media-provider-registry.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "c15bf7151a91",
+      "reason": "Moved to Jini @jini-ai/cms src/media/site-generation/media-provider-registry.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "f97e39ffcd47",
+      "reason": "Obsolete with its re-export: the navigation barrel no longer re-exports the reverters, which moved to @jini-ai/cms/navigation/site/reverters with their own docs (w4-webfeat-a)."
+    },
+    {
+      "id": "b7b7d1e757fd",
+      "reason": "Moved to Jini @jini-ai/cms src/navigation/site/reverters.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "0bd056d39a59",
+      "reason": "Moved to Jini @jini-ai/cms src/navigation/site/reverters.ts (w4-webfeat-a), reworded host-neutral ('Tovu' -> 'the host'); the Tovu-only checker cannot see the Jini copy."
+    },
+    {
+      "id": "42e3bc2c7d54",
+      "reason": "Obsolete with the deleted object-storage barrel and its test (w4-webfeat-a FORWARDER-REMOVE); the wire constants are pinned by wire-constants.unit.test.ts."
+    },
+    {
+      "id": "af90c88f83c2",
+      "reason": "Moved to Jini @jini-ai/platform/object-store/site/registry.ts @file (w4-webfeat-a), reworded host-neutral."
+    },
+    {
+      "id": "dcd85b0f6d5a",
+      "reason": "Moved to Jini @jini-ai/platform/object-store/site/registry.ts (w4-webfeat-a), reworded host-neutral."
+    },
+    {
+      "id": "8d55c341ad8d",
+      "reason": "Moved to Jini @jini-ai/platform/object-store/site/registry.ts (w4-webfeat-a), reworded host-neutral."
     }
   ]
 }
