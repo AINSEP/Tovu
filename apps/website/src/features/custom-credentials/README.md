@@ -13,6 +13,9 @@ Tovu's binding of the custom credential store, cards and credentialed requests t
   `recovery.withSetup` binding.
 - `custom-credential-repo.ts` (`SqlCustomCredentialSetRepo`) binds the content kernel and Tovu's vault
   owner key; `server/runtime/composition/site-deps/provider-config.ts` constructs it directly.
+- `tool-registrations.ts` passes the platform `EgressRefusedError` to `bindCredentialedRequestPort`
+  (`deployments/deploy-ops/run-ops.ts` passes it to `classifyCredentialedRequestError`) and the Base URL
+  field hint (`baseUrlHint`) to `buildCreateForm`.
 - `repo.memory.ts`, `tovu-credential-card-identity.ts` and `publish-compatibility-port.ts` stay host-side
   (Tovu fixtures, Tovu card URI namespace/app names, and the workspace-scoped publish port).
 - The create / set-token card builders come from `@jini-ai/integrations/custom-credentials/custom-credential-{create,set-token}-ui`;
