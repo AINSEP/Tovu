@@ -2,7 +2,7 @@ import type { AdminAgentPlugin } from "../integrations/api/integrations-api.type
 import type { AdminPlugin, AdminPluginConflict, AdminPluginFiles, AdminPluginPackageFile, AdminPluginProviderSettingField } from "./api/plugins-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
-import { t } from "./plugins-i18n";
+import { translatePlugins as t } from "../../lib/i18n-common";
 
 import type { AgentPluginGlyphKind } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";

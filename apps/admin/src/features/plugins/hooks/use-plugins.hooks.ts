@@ -6,7 +6,7 @@ import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { t as translate } from "../plugins-i18n";
+import { translatePlugins as translate } from "../../../lib/i18n-common";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
 import { usePluginInstall, type PluginInstallController } from "./use-plugin-install.hooks";
@@ -26,14 +26,14 @@ import { interpolate, type Translate } from '@jini-ai/core/text';
  *
  * `deps.port` is injected (see `plugins-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
  * directly — the same `useX(dependencies)` / `useWiredX()` split `redirects`/`widgets` use.
- * `plugins-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid colliding with this
+ * `translatePlugins`'s own `t(locale, key)` — aliased `translate` here to avoid colliding with this
  * file's own bound `(key) => string` closure — stays a direct import for this hook's OWN error
  * strings: a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary, same "pure, no-I/O"
  * category the convention doc names for `describeApiError`.
  *
  * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import): injected so `Plugins.tsx` sources its UI
- * copy from this hook instead of its own `useAdminLocale()`/`plugins-i18n` import.
+ * copy from this hook instead of its own `useAdminLocale()`/`translatePlugins` import.
  *
  * `expandedIds`/`onToggleExpanded` moved here (2026-09-10) from a bare `useState` directly in
  * `Plugins.tsx` — this admin's own rule that component logic belongs in `hooks/`, not `.tsx`, same
@@ -271,7 +271,7 @@ function usePluginsState(
 }
 
 /**
- * Binds the real `/api/.../plugins` client, the real `useAdminLocale()`, and a `plugins-i18n.ts`-
+ * Binds the real `/api/.../plugins` client, the real `useAdminLocale()`, and a `translatePlugins`-
  * bound translator — see `plugins-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
