@@ -95,3 +95,26 @@ for (const failingLog of failingLogs) {
     assert.deepEqual(unhandled, []);
   });
 }
+
+test("the host binding sends the watch's ids and projection and carries the ledger's persisted state back to the next write", async () => {
+  const calls: { progress: unknown; options: { expected?: number; previous?: unknown } }[] = [];
+  const persisted = { version: "receipt", length: 42, contentLength: 1, tailLength: 1, tail: "]" } as unknown as NonNullable<ReturnType<typeof quietWatch>["checkpointState"]>;
+  const ledger: CheckpointerPorts["ledger"] = {
+    checkpoint: async (progress, options = {}) => { calls.push({ progress, options: { expected: options.expected, previous: options.previous } }); options.onPersisted?.(persisted); return true; },
+  };
+  const { timers } = manualTimers();
+  const clock = { now: NOW };
+  const checkpointer = createCheckpointer({ ledger, now: () => clock.now, checkpointTimers: timers, log: { error: () => {} }, checkpointIntervalMs: 0 });
+  const watch = quietWatch();
+  watch.events.push({ kind: "text", text: "one" });
+  checkpointer.onFrame({ watch });
+  await flush();
+  watch.events.push({ kind: "text", text: "two" });
+  checkpointer.onFrame({ watch });
+  await flush();
+
+  assert.deepEqual(calls[0]!.progress, { conversationId: "chat", messageId: "answer", runId: RUN, content: "one", events: [{ kind: "text", text: "one" }] });
+  assert.deepEqual(calls[0]!.options, { expected: undefined, previous: undefined });
+  assert.equal(watch.checkpointState, persisted);
+  assert.deepEqual(calls[1]!.options, { expected: 42, previous: persisted });
+});
