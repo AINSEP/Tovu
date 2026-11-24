@@ -12,10 +12,7 @@ import { seoPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/seo/put-sett
 import { getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "@jini-ai/cms/seo/site/settings";
 import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/sitemap";
-import { registerSeoRobotsRoute } from "#src/server/inbound/public-http/routes/site/robots";
-import { registerLlmsTxtRoute } from "#src/server/inbound/public-http/routes/site/llms";
-import { registerFeedRoute } from "#src/server/inbound/public-http/routes/site/feed";
+import { registerFeedRoute, registerLlmsTxtRoute, registerSeoRobotsRoute, registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/seo-documents";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -29,7 +26,7 @@ import type { ServerModuleHandle } from "./types.js";
  * authorizer the entry write chokepoint re-checks with.
  *
  * Owns all 10 registrations: the 6 admin routes plus 4 public, unauthenticated site routes
- * (`GET /sitemap.xml`, `/robots.txt`, `/llms.txt`, `/feed.xml`) that live in `public-http/routes/site/`
+ * (`GET /sitemap.xml`, `/robots.txt`, `/llms.txt`, `/feed.xml`) that live in `public-http/routes/site/seo-documents.ts`
  * — mirrors `media.ts`'s precedent of bundling a public route into an otherwise-admin module. Same
  * relative order as before.
  *

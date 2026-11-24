@@ -8,8 +8,8 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
-import { registerAdminFormsDeleteSubmissionRoute } from "../../inbound/admin-http/routes/forms/delete-submission.js";
+import { registerAdminFormsCreateRoute } from "#src/server/runtime/composition/modules/forms-admin";
+import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import { registerAdminFormsGetSubmissionRoute } from "../../runtime/composition/modules/forms-admin.js";
 import { registerAdminFormsListSubmissionsRoute } from "../../runtime/composition/modules/forms-admin.js";
 import { createTrashModule } from "../../runtime/composition/modules/trash.js";

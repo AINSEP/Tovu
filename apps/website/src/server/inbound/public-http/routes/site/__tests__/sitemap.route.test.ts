@@ -12,7 +12,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
-import { registerSeoSitemapRoute } from "../sitemap.js";
+import { registerSeoSitemapRoute } from "../seo-documents.js";
 
 /**
  * @file Coverage-gap fill for `registerSeoSitemapRoute` (`routes/site/sitemap.ts`). The happy

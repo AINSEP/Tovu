@@ -2,11 +2,12 @@ import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash } from "node:crypto";
 
-import { downgradedRow, withRefusedItem, type ApplyRowResult } from "./apply-failure.js";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import { downgradedRow, withRefusedItem, type ApplyRowResult } from "@jini-ai/cms/publish/content/apply-failure";
 import {
   applyOrdinaryRow, applyRetiringRow, checkAgreement, checkExistence, refreshNonWritingRow,
   type ApplyRowContext, type ApplyRowStep,
-} from "./apply-row.js";
+} from "@jini-ai/cms/publish/content/apply-row";
 import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import {
   currentChangeSetIds, currentReport, currentRetiredChangeSetIds, runItemStates, saveRunRecord, saveRunSnapshot,
@@ -470,7 +471,12 @@ async function failRun({ run, error }: { run: ApplyRun<TovuPublishPorts>; error:
   await runRepointPass({ run });
   await saveRunSnapshot({ run, phase: "failed", finishedAt: clockNowIso({ clock: run.input.clock }) });
   await saveFailureAudit({ run, error, rollbackErrors });
-  throw transactional ? error : withRefusedItem({ error, itemKey: progress.activeItemKey });
+  throw transactional ? error : withRefusedItem({
+    error,
+    itemKey: progress.activeItemKey,
+    isPluginHookFailure: (candidate): candidate is PluginHookFailedError => candidate instanceof PluginHookFailedError,
+    attachRefusedItem: (failure, refusedItemRef) => new PluginHookFailedError(failure.pluginId, failure.message, { cause: failure, refusedItemRef }),
+  });
 }
 
 async function executeRows({ run, ctx }: { run: ApplyRun<TovuPublishPorts>; ctx: ApplyRowContext }, _optional = {}): Promise<void> {

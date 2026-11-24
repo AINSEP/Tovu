@@ -1,6 +1,8 @@
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, Response } from "express";
 import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
+
+import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
 import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure } from "./admin-json-route-ports.js";
@@ -58,19 +60,32 @@ function registeringUnderName(
   return { [method]: register } as unknown as Express;
 }
 
+/** A host-owned unexpected-failure writer for a public raw mount whose answer is not JSON (a text/plain 500). */
+export type PublicRawFailureWriter = (required: { res: Response; error: unknown }) => void;
+
 /** Mount a raw public spec behind the visitor ports (`createPublicJsonRoutePorts`); `workspaceId`
  * opts a `:workspaceId` path into the shared workspace 404; `origin` as for {@link mountAdminRawRoute}.
+ * `failure` is the visitor copy of the JSON 500, or a {@link PublicRawFailureWriter} that writes the host's own
+ * 500 (it owns the incident report); a `RouteRefusalError` still takes the shared refusal writer either way.
  * @returns Void; registers one endpoint.
  * @throws At registration, when the spec sets `requireSameOrigin` and `origin` is absent.
  * @complexity O(1) setup.
  * @example mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError } });
  */
 export function mountPublicRawRoute<Deps extends object>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string; origin?: RouteHostContext },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure | PublicRawFailureWriter; workspaceId?: string; origin?: RouteHostContext },
   _optional: Record<string, never> = {},
 ): void {
   const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
-  const ports = createPublicJsonRoutePorts({ ...required.failure, workspaceId });
+  const { failure } = required;
+  const base = createPublicJsonRoutePorts(typeof failure === "function" ? { operation: "", visitorError: "", workspaceId } : { ...failure, workspaceId });
+  const ports = typeof failure !== "function" ? base : {
+    ...base,
+    onError: ({ res, error }: { res: Response; error: unknown }) => {
+      if (error instanceof RouteRefusalError) base.onError?.({ res, error });
+      else failure({ res, error });
+    },
+  };
   mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter });
 }

@@ -7,7 +7,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { toAdminFormDefinitionDto } from "@jini-ai/cms/admin-http/http/forms";
-import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";
+import { registerAdminFormsAuthoringRoute } from "#src/server/runtime/composition/modules/forms-admin";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { buildFormsRegistrations } from "../tool-registrations.js";
 

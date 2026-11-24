@@ -6,8 +6,8 @@ import type { Express, Request, RequestHandler, Response } from 'express';
 import { createFormDefinition } from '#src/features/forms/index';
 import { fixture, WS } from '#src/server/__tests__/helpers/admin-route-failures';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
-import { registerAdminFormsAuthoringRoute } from '../authoring.js';
-import { registerAdminFormsDeleteSubmissionRoute } from '../delete-submission.js';
+import { registerAdminFormsAuthoringRoute } from '#src/server/runtime/composition/modules/forms-admin';
+import { registerAdminFormsDeleteSubmissionRoute } from '#src/server/runtime/composition/modules/forms-admin';
 
 // Capture the real route callback; the response fake also observes bodyless 204 responses.
 async function invoke({ register, deps, params, body, key }: {
@@ -27,7 +27,7 @@ async function invoke({ register, deps, params, body, key }: {
     json(value: unknown) { responseBody = value; return res; },
     end() { ended = true; return res; },
   };
-  const req = { params, body, get: (name: string) => name === 'Idempotency-Key' ? key : undefined };
+  const req = { params, body, headers: key === undefined ? {} : { 'idempotency-key': key }, get: (name: string) => name === 'Idempotency-Key' ? key : undefined };
   await handler(req as unknown as Request, res as unknown as Response, () => assert.fail('unexpected next'));
   return { status, body: responseBody, ended };
 }
