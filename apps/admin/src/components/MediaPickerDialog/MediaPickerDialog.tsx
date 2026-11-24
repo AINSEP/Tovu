@@ -58,6 +58,8 @@ import { splitOnPlaceholders } from '@jini-ai/core/text';
 
 export interface MediaPickerDialogProps {
   useJiniMediaPickerHook?: typeof useJiniMediaPicker;
+  /** The host picker-context read, injectable like the other hooks here (defaults to the real context). */
+  useHostMediaPickerHook?: typeof useHostMediaPicker;
   useAdminLocaleHook?: typeof useAdminLocale;
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
@@ -160,8 +162,8 @@ export const jiniMediaPickerHostArgs = {
 };
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
-export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
-  const picker = useHostMediaPicker();
+export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useHostMediaPickerHook = useHostMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
+  const picker = useHostMediaPickerHook();
   const vm = useJiniMediaPickerHook({ ...props, ...jiniMediaPickerHostArgs, picker });
   const locale = useAdminLocaleHook();
   return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;

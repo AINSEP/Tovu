@@ -4644,6 +4644,14 @@
     {
       "id": "897742a9e109",
       "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e6c411d1bdf6",
+      "reason": "The popup-position half of this test file moved to Jini @jini-ai/admin/shell/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx (w4-admin-shell batch J) with this header; the Tovu half keeps a rewritten header naming where the popup tests went."
+    },
+    {
+      "id": "78e2e1ebdb48",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields (w4-admin-shell batch I); host file names reworded to the host in words, every why-sentence kept."
     }
   ]
 }
