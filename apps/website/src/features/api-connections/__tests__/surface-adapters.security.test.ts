@@ -23,7 +23,8 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
-import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
+import { deriveApiConnectionKey, createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
+import { FormDeliveryError } from "@jini-ai/cms/forms";
 import type { AgentPluginStateReader } from "@jini-ai/agent-plugins/lifecycle/tools";
 import { startLoopbackAuthorizationReceiver, type OAuthHttpPorts } from "@jini-ai/oauth";
 
@@ -34,7 +35,6 @@ import { PUBLIC_CONFIG_REFUSED_MESSAGE } from "@jini-ai/agent-plugins/site/admin
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "@jini-ai/agent-plugins/connect/executable";
 import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
 import { parseApiConnectionsFile } from "../contribution.js";
-import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { PLUGIN_STATE_MAX_KEYS, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
@@ -296,7 +296,7 @@ test("form delivery: the credential allows only the connection's declared https 
   const host = makeHost();
   await connected(host);
   const connectionRef = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
-  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => PLUGIN });
+  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => PLUGIN, deliveryError: (init) => new FormDeliveryError(init) });
   const binding = { bindingId: "b1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { accountId: ADA.id } };
   const { getAccessToken, ...credential } = (await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }, { binding }))!;
   assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });

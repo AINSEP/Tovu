@@ -18,7 +18,8 @@ import express from "express";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { deriveApiConnectionKey, CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "@jini-ai/integrations/api-connections";
+import { deriveApiConnectionKey, CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE, createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
+import { FormDeliveryError } from "@jini-ai/cms/forms";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
@@ -27,7 +28,6 @@ import { byoClientLabel } from "../byo-client.js";
 import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { runApiConnectionConnect } from "../connect.js";
-import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { parseApiConnectionsFile } from "../contribution.js";
@@ -172,7 +172,7 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
   assert.ok(!callbackPage.includes(accessToken) && !callbackPage.includes(refreshToken));
 
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
-  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
+  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office", deliveryError: (init) => new FormDeliveryError(init) });
   // The push kit's host allowlist is the connection's declared API origin, never empty.
   const binding = { bindingId: "b1", adapterId: "row-append", connectionRef, enabled: true, config: { accountId: "acct-1" } };
   const { getAccessToken, ...credential } = (await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }, { binding }))!;
@@ -188,7 +188,7 @@ test("security: a form-delivery credential stays on the job's frozen account, fo
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => { assert.equal((await followConsent(signInUrl)).status, 200); },
   });
-  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
+  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office", deliveryError: (init) => new FormDeliveryError(init) });
   const target = { workspaceId: "ws-1", connectionRef, adapterId: "row-append" };
   const frozenOn = (accountId: string) => ({ binding: { bindingId: "b1", adapterId: "row-append", connectionRef, enabled: true, config: { accountId } } });
   // The attempt's first read is recorded in the delivery ledger, so it carries the delivery code (not retried).

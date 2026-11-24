@@ -13,3 +13,10 @@
 
 - `__tests__/copy-library.test.ts` binds `@jini-ai/cms/media/site/document-archive` with the `yauzl` SDK and
   agent-plugins' `createYauzlAgentPluginArchiveReader` (`documentArchiveDeps`).
+
+## Wiring (write-files)
+
+- Batched picked-folder writes live in `@jini-ai/cms/fs-files/write-files`. This folder's
+  `fs-files.ts` `resolveFsFilePath` (Tovu's denylist + containment over Jini's guarded reader) is passed
+  as the REQUIRED `resolveFsFilePath` field to `prepareFileWrites`/`writePreparedFiles` in
+  `tool-registrations.ts` (and by `asset-transfer/` for its site/picked writes and source lstat walk).

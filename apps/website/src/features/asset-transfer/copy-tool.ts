@@ -16,7 +16,7 @@ import { ASSET_SOURCE_SCHEMA, readAssetSource, readLocalFile, resolveAssetSource
 import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { FsFilePathError, listFsFiles } from "../fs-files/fs-files.js";
-import { FsWriteInputError } from "../fs-files/write-files.js";
+import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";

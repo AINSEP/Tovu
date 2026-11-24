@@ -1,5 +1,5 @@
 import { createSharedOAuthOwnerStorage } from "#src/features/api-connections/shared-owner";
-import type { SharedApiConnectionDeps } from "#src/features/api-connections/shared-api";
+import type { SharedApiConnectionDeps } from "@jini-ai/integrations/api-connections";
 import type { ProjectStore, ProjectVaultScope } from "./project-store.js";
 import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";

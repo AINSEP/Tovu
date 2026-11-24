@@ -15,7 +15,8 @@ import { resolveThemeFilePath, writeThemeBinaryFile } from "../theme/asset-opera
 import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, type ThemeToolDeps } from "../theme/asset-operations.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../fs-files/custom-root-permission.js";
-import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "../fs-files/write-files.js";
+import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "@jini-ai/cms/fs-files/write-files";
+import { resolveFsFilePath } from "../fs-files/fs-files.js";
 import { preparePickedFolderBatch, type FsFilesToolDeps, type PreparedWriteBatch } from "../fs-files/tool-registrations.js";
 
 export type AssetToolDeps = FsFilesToolDeps & ThemeToolDeps & MediaImportToolDeps & { documentArchiveReader?: DocumentArchiveReaderPort };
@@ -47,7 +48,7 @@ function choosePath({ folder, path, policy, reserved }: { folder: string; path: 
   for (let attempt = 0; attempt < 1000; attempt++) {
     const alreadyInBatch = reserved.has(candidate.toLowerCase());
     if (alreadyInBatch && policy === "overwrite") throw new ToolInputError({ message: `${candidate}: duplicate destination in this batch` });
-    const occupied = inspectWriteTarget({ folder, path: candidate }).overwrite || alreadyInBatch;
+    const occupied = inspectWriteTarget({ folder, path: candidate, resolveFsFilePath }).overwrite || alreadyInBatch;
     if (!occupied || policy === "overwrite") { reserved.add(candidate.toLowerCase()); return candidate; }
     if (policy === "skip") return undefined;
     occupiedPaths.add(candidate);
@@ -98,7 +99,7 @@ function approvalBatch({ deps, destination, files }: { deps: AssetToolDeps; dest
   if (!encoded.length) return undefined;
   if (destination.kind === "picked") return preparePickedFolderBatch({ routeDeps: deps, files: encoded });
   const folder = deps.siteBinding.dir;
-  return destination.kind === "site" ? { folder, writes: prepareFileWrites({ folder, files: encoded }) } : undefined;
+  return destination.kind === "site" ? { folder, writes: prepareFileWrites({ folder, files: encoded, resolveFsFilePath }) } : undefined;
 }
 
 /** Execute prepared writes via the owning writers. Partial failures remain visible to callers.
@@ -107,7 +108,7 @@ function approvalBatch({ deps, destination, files }: { deps: AssetToolDeps; dest
  * @example await writeAssetFiles({ deps, ctx, prepared }); */
 export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetToolDeps; ctx: ToolExecutionContext; prepared: PreparedAssets }, _options = {}) {
   const { destination, files, skipped, batch } = prepared;
-  if (batch) return { ...writePreparedFiles(batch), skipped };
+  if (batch) return { ...writePreparedFiles({ ...batch, resolveFsFilePath }), skipped };
   if (destination.kind === "library") return writeLibraryFiles({ deps, ctx, files, skipped });
   if (destination.kind === "media") {
     const media = [];

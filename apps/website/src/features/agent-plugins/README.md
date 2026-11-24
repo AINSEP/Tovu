@@ -37,6 +37,14 @@ card identity, product copy and the bindings that hand them to the portable Jini
 - `@jini-ai/agent-plugins/site/service-ports`: consumers import the ports directly; Tovu instantiates
   `AgentPluginApiConnectionsPort<DeclaredApiConnection>` (`api-connections/contribution.ts`) in
   `connect-tool.ts` and `server/runtime/composition/agent-plugin-service-ports.ts`.
+- `@jini-ai/agent-plugins/site/analytics-provider-registry`: `server/runtime/composition/analytics-providers.ts`
+  injects `analytics` (`@jini-ai/analytics`'s forwarder/ingest-hook contracts, `asAnalyticsForwarderModule`,
+  `asAnalyticsIngestHook`, `createAnalyticsForwarderRegistry`, and Tovu's `tovu-analytics-forwarders.json` /
+  `tovu-analytics-hooks.json` manifest filenames) next to `loadContributions` into `loadAnalyticsProviders`.
+- `@jini-ai/agent-plugins/site/host-signals`: `server/runtime/composition/host-signals.ts` and
+  `apps/desktop/src/desktop-host-signals.ts` inject `sources` (`bundled-contribution-sources.ts`'s
+  `bundledContributionSources`) and `@tovu/contracts/host-signals`' `evaluateHostSignals` /
+  `selectCoreHostSignalDeclaration` (the core security fallback owner) into `resolveBundledHostSignals`.
 - `@jini-ai/agent-plugins/connect`: `connect-card-ui.ts` binds Tovu's card identity (`card-host-bindings.ts`)
   and token-form copy; `federate-mcp.ts` binds the lifecycle reads, trust rule and federation copy.
   Portable names (`buildAgentPluginConnectCardWithPorts`, `AgentPluginConnectCardSpec`,

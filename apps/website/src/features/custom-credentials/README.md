@@ -28,3 +28,7 @@ Tovu's binding of the custom credential store, cards and credentialed requests t
 - `bindCredentialedRequestPort` / `classifyCredentialedRequestError` come from
   `@jini-ai/integrations/custom-credentials/credential-ports`; `tool-registrations.ts` passes
   `TOVU_CREDENTIALED_REQUEST_OPERATIONS` (this folder's `credentialed-request.ts` functions) as `operations`.
+- The agent-tool schema shapes come from `@jini-ai/integrations/custom-credentials/agent-tools`'s
+  `buildCustomCredentialsAgentToolCatalog`; `agent-tools.ts` passes Tovu's tool `ids` (incl.
+  `WRITE_FILES_TOOL_ID`), `permissions`, every description sentence (`copy`) and `WRITE_FILES_LIMITS`
+  (`write-files-validation.ts`), so the catalog stays byte-identical.

@@ -33,9 +33,9 @@ import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools"
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
-import { createOAuthFormDeliveryConnectionPort } from "#src/features/api-connections/form-delivery-connection";
+import { createOAuthFormDeliveryConnectionPort } from "@jini-ai/integrations/api-connections";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
-import type { FormDestinationKit } from "@jini-ai/cms/forms";
+import { FormDeliveryError, type FormDestinationKit } from "@jini-ai/cms/forms";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { startConfirmingCall } from "#src/features/agent-plugins/executable-tools/__tests__/fixtures";
 
@@ -249,6 +249,7 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   const credentialFor = createOAuthFormDeliveryConnectionPort({
     hostFor: ({ workspaceId }) => (workspaceId === WORKSPACE ? composition.apiConnections.host : null),
     adapterPluginId: async ({ adapterId }) => destinations.get(adapterId)?.pluginId ?? null,
+    deliveryError: (init) => new FormDeliveryError(init),
   });
   // The binding freezes the account it was set up with (`config.accountId`), as every OAuth binding must.
   const binding = { bindingId: "binding-1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { table: "Signups", accountId: "acct-1" } };

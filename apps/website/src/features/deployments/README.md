@@ -13,3 +13,13 @@ Tovu's export, publish and plugin deploy paths over `@jini-ai/devops/deploy`.
   `@jini-ai/integrations/custom-credentials/credential-ports`' `classifyCredentialedRequestError`.
 - `deploy-ops/typed-secret-card.ts` injects Tovu card copy (`@tovu/contracts/credential-copy`), the
   `tovu` URI host and the operator locale into the Jini secret-card collector.
+- `deploy-config.ts` binds `@jini-ai/devops/deploy/site/deploy-config` (descriptor derivation, generator kit,
+  deploy-notes overlay): it injects the `tovu deploy config` command label, `REQUIRED_SECRETS`, the readiness
+  route source (`server/inbound/public-http/routes/ops/health.ts`), `MIGRATIONS_NOTE`, `ValidationError`, the
+  overlay root `content/agent-plugin-overlays` and `process.cwd()` as the repo root. `HOST_DEPLOY_ENV` stays here.
+- `deploy-config-registry.ts` binds `createDeployConfigGeneratorSource` (`@jini-ai/devops/deploy/site/deploy-config-registry`)
+  to `DEPLOY_CONFIGS_FILENAME`, `../agent-plugins/bundled-contribution-sources.ts`, the agent-plugins
+  contribution seam (`../agent-plugins/lifecycle.ts`) and `console.warn` for installed-loader refusals.
+  `parseDeployConfigsFile` is imported from `@jini-ai/devops/deploy` directly.
+- The provider-neutral deployment port types live in `@jini-ai/devops/deploy/site/ports`, generic over the
+  HTTP client type; a Tovu consumer pins `#src/platform/http/index`'s `HttpClientPort` as the type argument.

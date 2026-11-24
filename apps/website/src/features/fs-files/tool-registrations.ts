@@ -19,10 +19,10 @@ import {
   getFsFilesAgentToolCatalog,
 } from "./agent-tools.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
-import { FsFilePathError, listFsFiles, readFsFile } from "./fs-files.js";
+import { FsFilePathError, listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
 import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
-import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "./write-files.js";
+import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "@jini-ai/cms/fs-files/write-files";
 
 /**
  * @file Wires `fs_list_files`/`fs_read_file` into the assistant's tool catalog, through the same
@@ -140,7 +140,7 @@ export function resolvePickedFolder({ routeDeps }: { routeDeps: FsFilesToolDeps 
 export function preparePickedFolderBatch({ routeDeps, files }: { routeDeps: FsFilesToolDeps; files: unknown }, _optional = {}): PreparedWriteBatch {
   try {
     const folder = resolvePickedFolder({ routeDeps });
-    return { folder, writes: prepareFileWrites({ folder, files }) };
+    return { folder, writes: prepareFileWrites({ folder, files, resolveFsFilePath }) };
   } catch (error) {
     throw error instanceof FsWriteInputError ? new ToolInputError({ message: error.message }) : error;
   }
@@ -204,7 +204,7 @@ export function buildFsFilesRegistrations(
       },
       describe: ({ prepared }) => describeWriteBatch(prepared),
       run: async ({ prepared }) => {
-        const outcome = writePreparedFiles(prepared);
+        const outcome = writePreparedFiles({ ...prepared, resolveFsFilePath });
         return { applied: outcome.failed === undefined, ...outcome };
       },
     }, { flag: "applied" }),

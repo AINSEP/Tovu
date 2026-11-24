@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { resolveBundledHostSignals } from "../../website/src/features/agent-plugins/host-signals.ts";
+import { resolveBundledHostSignals } from "@jini-ai/agent-plugins/site/host-signals";
+import { bundledContributionSources } from "../../website/src/features/agent-plugins/bundled-contribution-sources.ts";
 import { bundledAgentPluginsDir } from "../../website/src/server/runtime/composition/site-paths.ts";
-import type { HostSignals } from "@tovu/contracts/host-signals";
+import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignals } from "@tovu/contracts/host-signals";
 
 /**
  * Bind shipped host data to Electron's payload, or normal product-root discovery in development.
@@ -15,7 +16,7 @@ import type { HostSignals } from "@tovu/contracts/host-signals";
 export function resolveDesktopHostSignals(
   required: { env: Readonly<Record<string, string | undefined>> },
   { resourcesPath = process.resourcesPath, pathExists = existsSync, resolveSignals = resolveBundledHostSignals }: {
-    resourcesPath?: string; pathExists?: (file: string) => boolean; resolveSignals?: typeof resolveBundledHostSignals;
+    resourcesPath?: string; pathExists?: (file: string) => boolean; resolveSignals?: typeof resolveBundledHostSignals<HostSignals>;
   } = {},
 ): HostSignals {
   let sourceRoot: string | undefined;
@@ -23,7 +24,7 @@ export function resolveDesktopHostSignals(
     const payload = path.join(resourcesPath, "tovu", "dist", "content", "agent-plugins");
     if (pathExists(payload)) sourceRoot = payload;
   }
-  return resolveSignals({ ...required,
+  return resolveSignals({ ...required, sources: bundledContributionSources, evaluateHostSignals, selectCoreHostSignalDeclaration,
     get bundledSourceRoot() { return sourceRoot ?? bundledAgentPluginsDir({}, { env: required.env }); },
   });
 }
