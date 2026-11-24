@@ -26,9 +26,11 @@ import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
+import type { PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
-import { rememberPostEditorRouteRename } from "../post-editor-route-key";
+import type { PostEditorRouteKeys } from "@jini-ai/admin/posts/post-editor-route-keys";
+import { defaultPostEditorRouteKeys } from "./post-editor-dependencies.hooks";
 import { editorTemplateOptions } from "@jini-ai/admin/shell/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useAgentScreenEntry } from "@jini-ai/admin/shell/hooks/use-agent-screen-context.hooks";
@@ -112,12 +114,6 @@ export type { PostFormState } from './post-editor-state.rules';
 import type { PostFormState } from './post-editor-state.rules';
 
 import { type Translate } from '@jini-ai/core/text';
-/** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
- *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
- *  in the UI) — mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s `PageEditorView`, minus
- *  the HTML/Interactive tabs a `bodyJson`-based post has no equivalent of. */
-export type PostEditorView = "edit" | "preview";
-
 /**
  * The data/state controller `PostEditor.tsx` mounts, extended with {@link PostEditorUiController}'s
  * bound interaction handlers (2026-08-20, UI-subhook pass — see `use-post-editor-ui.hooks.ts`'s file
@@ -349,6 +345,8 @@ export interface PostEditorDependencies {
    *  `use-widget-instance-editor.hooks.ts`'s own `navigate` dependency already documents. */
   navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
+  /** The host's ONE route-key store: a save-driven slug rename is recorded here so the keying site keeps the editor mounted. */
+  routeKeys: PostEditorRouteKeys;
 }
 
 /**
@@ -418,7 +416,7 @@ function persistedPost({ post }: { post: AdminPost | null }, _options: Record<st
 }
 
 export function usePostEditor({ postId, deps }: { postId: string; deps: PostEditorDependencies }, _options: Record<string, never> = {}): PostEditorController {
-  const { port, navigate, t } = deps;
+  const { port, navigate, t, routeKeys } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
   const [storedSlug, setStoredSlug] = useState("");
@@ -880,7 +878,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     setMessage(formatOutsideChangeMessage({ version: fresh.version, t: t }));
     if (postId !== fresh.slug && postId !== fresh.id) {
       savedRouteSlug.current = fresh.slug;
-      rememberPostEditorRouteRename({ from: postId, to: fresh.slug });
+      routeKeys.remember({ from: postId, to: fresh.slug });
       navigate(`/posts/${fresh.slug}`, { replace: true });
     }
   }
@@ -1028,7 +1026,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     // An id URL still resolves, so only a stale slug URL is replaced.
     if (postId !== saved.slug && postId !== saved.id) {
       savedRouteSlug.current = saved.slug;
-      rememberPostEditorRouteRename({ from: postId, to: saved.slug });
+      routeKeys.remember({ from: postId, to: saved.slug });
       navigate(`/posts/${saved.slug}`, { replace: true });
     }
     // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
@@ -1258,5 +1256,5 @@ export function useWiredPostEditor({ postId }: { postId: string }, _options: Rec
     const text = translate({ locale, key });
     return text === key ? translatePageEditor({ locale, key }) : text;
   };
-  return usePostEditor({ postId: postId, deps: { port: defaultPostEditorPort, navigate, t } });
+  return usePostEditor({ postId: postId, deps: { port: defaultPostEditorPort, navigate, t, routeKeys: defaultPostEditorRouteKeys } });
 }

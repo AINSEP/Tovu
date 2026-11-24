@@ -1,6 +1,6 @@
 import { WiredThemePreviewReloadButton } from "../../../themes/ThemePreviewReloadButton";
 import { PostEditorTemplatePicker } from "../template/PostEditorTemplatePicker";
-import { type PostEditorView } from "../../hooks/use-post-editor.hooks";
+import { type PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 
 /**
  * The toolbar's right-hand group: the preview reload (Preview tab only) followed by the

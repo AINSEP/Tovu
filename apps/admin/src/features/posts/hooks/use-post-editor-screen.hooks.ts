@@ -13,12 +13,12 @@ import type { PostEditorNotices } from "../editor/notices/PostEditorNotices";
 import type { PostEditorSlugCollisionWarning } from "../editor/notices/PostEditorSlugCollisionWarning";
 import type { PostPreview } from "../editor/preview/PostPreview";
 import type { PostEditorTemplateModalGate } from "../editor/template/PostEditorTemplateModalGate";
-import { VIEW_TABS } from "../editor/view-bar/view-tabs";
+import { VIEW_TABS, type PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
 import type { PostSettingsDialog } from "../PostSettingsDialog";
 import { usePostSettingsDialog, type PostSettingsDialogController } from "./use-post-editor-ui.hooks";
-import type { PostEditorController, PostEditorView, useWiredPostEditor } from "./use-post-editor.hooks";
+import type { PostEditorController, useWiredPostEditor } from "./use-post-editor.hooks";
 
 /**
  * @file The wiring half of the post/page editor screen: every hook `PostEditor` calls, in the order
