@@ -1,4 +1,5 @@
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+import { MAX_UPLOAD_BATCH_BYTES, MAX_UPLOAD_BYTES } from "@tovu/contracts/upload-limits";
 import { partitionChatPackages } from "@jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
@@ -28,20 +29,12 @@ import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
  * const uploadAttachments = useAttachmentUploader();
  */
 /**
- * Mirrors the website daemon's own per-file/per-turn caps so a rejection surfaces here, before any
- * bytes are sent, rather than only after the daemon's own enforcement rejects them. `apps/admin` is
- * a separate browser bundle from `apps/website` (no shared import today — see `tsconfig.json`'s
- * `@tovu/*` aliases for the narrow, dependency-free exceptions that DO cross that boundary), so
- * these are duplicated literals, not an import, matching this codebase's existing convention for a
- * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
- * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
- *
- * Owner-directed (2026-09-21): must stay equal to `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, which the website imports as
- * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
- * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
+ * The same limits the server enforces, read from the shared contract (`apps/admin` is a browser
+ * bundle and cannot import website code) so a rejection surfaces here, before any bytes are sent.
+ * One number for Library, Media, chat attachments and assistant imports (owner 2026-10-29).
  */
-const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
-const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
+export const CHAT_ATTACHMENT_MAX_BYTES = MAX_UPLOAD_BYTES;
+export const CHAT_ATTACHMENT_MAX_BATCH_BYTES = MAX_UPLOAD_BATCH_BYTES;
 
 export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
   return useMemo(
