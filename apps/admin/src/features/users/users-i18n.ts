@@ -1,6 +1,6 @@
 import { translationEntry } from "@jini-ai/admin/shell/lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { mergeLocaleOverlays } from "@jini-ai/admin/shell/lib/merge-locale-overlays";
+import { mergeLocaleOverlays } from "@jini-ai/core/text";
 import { createDictionaryTranslator, interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Users screen (`Users.tsx`) — this feature's own dictionary,

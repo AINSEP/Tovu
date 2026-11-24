@@ -7,8 +7,9 @@
  */
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { createPostsDictionary } from "@jini-ai/admin/posts/posts-i18n/create-posts-dictionary";
+import { EDITOR_FAILURE_DICT } from "@jini-ai/admin/shell/lib/editor-failure-i18n";
 
 /** `POSTS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
  *  (same fallback `trash-i18n.ts` uses); `Posts.tsx`, `rules.ts`'s `postRowMenuItems` and
  *  `use-post-editor.hooks.ts` call `t` directly. */
-export const { dictionary: POSTS_DICT, t } = createPostsDictionary({ commonDictionary: COMMON_I18N });
+export const { dictionary: POSTS_DICT, t } = createPostsDictionary({ commonDictionary: COMMON_I18N, editorFailureDictionary: EDITOR_FAILURE_DICT });
