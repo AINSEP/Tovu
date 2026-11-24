@@ -18,14 +18,19 @@ function fixture(options: { ttlMs?: number; maxEntries?: number } = {}) {
 
 /**
  * The admission sequence `handleChat` runs per POST, with an injected fake provider standing in for
- * `runVisitorProviderTurn`: a refused attempt answers without ever calling it.
+ * `runVisitorProviderTurn`: a refused attempt answers without ever calling it. `failAt` simulates a
+ * server failure before the provider was invoked, or a client disconnect after the provider started
+ * but before any response header was written; either way the server reports `delivered: false`.
  */
 function fakeChatRoute({ dedupe }: { dedupe: VisitorTurnDedupePort }) {
   let providerRuns = 0;
-  const post = ({ turnId, delivered = true }: { turnId: string | null; delivered?: boolean }) => {
+  const post = ({ turnId, delivered = true, failAt }: { turnId: string | null; delivered?: boolean; failAt?: "before-provider" | "disconnect-before-headers" }) => {
     const admission = dedupe.admit({ scope: "site-1|203.0.113.7", turnId });
     if (!admission.admitted) return { status: 409, state: admission.state };
+    if (failAt === "before-provider") { admission.finish({ delivered: false }); return { status: 500 }; }
+    admission.providerStarted();
     providerRuns += 1;
+    if (failAt === "disconnect-before-headers") { admission.finish({ delivered: false }); return { status: 0 }; }
     // `delivered: true` means the server finished the turn; the RESPONSE may still be lost in transit.
     admission.finish({ delivered });
     return { status: 200 };
@@ -76,12 +81,29 @@ test("no turn ID keeps today's behaviour: every request is admitted and nothing 
   assert.equal(dedupe.size(), 0);
 });
 
-test("a server-side failure before any reply releases the turn so the one retry can run", () => {
+test("a server-side failure before the provider was invoked releases the turn so the one retry can run", () => {
+  const { dedupe } = fixture();
+  const route = fakeChatRoute({ dedupe });
+  assert.deepEqual(route.post({ turnId: TURN_A, failAt: "before-provider" }), { status: 500 });
+  assert.deepEqual(route.post({ turnId: TURN_A }), { status: 200 });
+  assert.equal(route.providerRuns(), 1);
+});
+
+test("once provider work has begun, an undelivered finish keeps the turn: the replay is refused and the provider ran once", () => {
+  const { dedupe } = fixture();
+  const route = fakeChatRoute({ dedupe });
+  // The visitor disconnected after the provider started but before any header went out.
+  assert.deepEqual(route.post({ turnId: TURN_A, failAt: "disconnect-before-headers" }), { status: 0 });
+  assert.deepEqual(route.post({ turnId: TURN_A }), { status: 409, state: "finished" });
+  assert.equal(route.providerRuns(), 1);
+});
+
+test("a provider failure after invocation also keeps the turn (the run was already spent)", () => {
   const { dedupe } = fixture();
   const route = fakeChatRoute({ dedupe });
   route.post({ turnId: TURN_A, delivered: false });
-  assert.deepEqual(route.post({ turnId: TURN_A }), { status: 200 });
-  assert.equal(route.providerRuns(), 2);
+  assert.deepEqual(route.post({ turnId: TURN_A }), { status: 409, state: "finished" });
+  assert.equal(route.providerRuns(), 1);
 });
 
 test("finish is idempotent: a late second finish cannot release a finished turn", () => {

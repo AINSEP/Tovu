@@ -7,12 +7,16 @@
  * one question. The widget therefore sends one stable `turnId` per visitor message, identical on
  * every automatic retry, and the route consults this port BEFORE calling the provider:
  *
- * - first attempt for `(scope, turnId)` → admitted; the route calls `finish()` when the response ends;
+ * - first attempt for `(scope, turnId)` → admitted; the route calls `providerStarted()` immediately
+ *   before it invokes the provider, and `finish()` when the response ends;
  * - repeat while in flight, or within the TTL after a delivered finish → refused (the route answers
  *   with a plain-words 409; replaying the finished stream is not possible because nothing about the
  *   reply is persisted server-side, see `site-assistant-transport.ts`'s header);
- * - repeat after `finish({ delivered: false })` (the server failed before replying) → admitted, so
- *   the widget's one retry still covers a genuine server failure;
+ * - repeat after `finish({ delivered: false })` from a failure BEFORE `providerStarted()` → admitted,
+ *   so the widget's one retry still covers a server failure that spent nothing;
+ * - repeat after `finish({ delivered: false })` once the provider was started (a provider error, or
+ *   the visitor disconnecting before any header was written) → refused like a delivered turn: the
+ *   provider run is already spent, so replaying it would bill the site twice for one question;
  * - no `turnId` at all (a cached widget bundle from before this change) → admitted, nothing stored.
  *
  * Memory bound: at most `maxEntries` keys (default {@link VISITOR_TURN_DEDUPE_MAX_ENTRIES}). Each key
@@ -34,7 +38,12 @@ export const VISITOR_TURN_DEDUPE_MAX_ENTRIES = 10_000;
 const TURN_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 export type VisitorTurnAdmission =
-  | { readonly admitted: true; finish(required: { delivered: boolean }, optional?: Record<string, never>): void }
+  | {
+    readonly admitted: true;
+    /** Call right before invoking the provider: from here on the turn is kept even if undelivered. */
+    providerStarted(): void;
+    finish(required: { delivered: boolean }, optional?: Record<string, never>): void;
+  }
   | { readonly admitted: false; readonly state: "in-flight" | "finished" };
 
 /** Feature-owned port the visitor chat route consults before it spends a provider run. */
@@ -48,6 +57,8 @@ export interface VisitorTurnDedupePort {
 interface Entry {
   state: "in-flight" | "finished";
   expiresAtMs: number;
+  /** Set by `providerStarted()`; an undelivered finish only releases the turn while this is false. */
+  providerStarted: boolean;
 }
 
 /**
@@ -78,7 +89,7 @@ export function createVisitorTurnDedupe(
     { ttlMs?: number; inFlightCeilingMs?: number; maxEntries?: number } = {},
 ): VisitorTurnDedupePort {
   const entries = new Map<string, Entry>();
-  const admitted = { admitted: true as const, finish: () => {} };
+  const admitted = { admitted: true as const, providerStarted: () => {}, finish: () => {} };
   return {
     admit({ scope, turnId }) {
       if (turnId === null) return admitted;
@@ -89,14 +100,16 @@ export function createVisitorTurnDedupe(
       if (existing && existing.expiresAtMs > nowMs) return { admitted: false, state: existing.state };
       entries.delete(key);
       makeRoom({ entries, nowMs, maxEntries });
-      const entry: Entry = { state: "in-flight", expiresAtMs: nowMs + inFlightCeilingMs };
+      const entry: Entry = { state: "in-flight", expiresAtMs: nowMs + inFlightCeilingMs, providerStarted: false };
       entries.set(key, entry);
       return {
         admitted: true,
+        providerStarted() { entry.providerStarted = true; },
         finish({ delivered }) {
           // Only the first finish counts, and only for this exact entry (it may have been evicted).
           if (entry.state !== "in-flight" || entries.get(key) !== entry) return;
-          if (!delivered) { entries.delete(key); return; }
+          // Release only when nothing was spent; once the provider ran, keep the turn even undelivered.
+          if (!delivered && !entry.providerStarted) { entries.delete(key); return; }
           entry.state = "finished";
           entry.expiresAtMs = clock.nowMs() + ttlMs;
         },
