@@ -42,6 +42,8 @@ interface EntryClaims {
 
 const SHARE_INVENTORY_ROOTS = /^(?:media|themes|plugins|agent-plugins|skills)\/.+/;
 const SHARE_SETTINGS_FILES = ["settings.json"];
+/** Same plain sentence the desktop shows for a file whose contents no longer match what was exported. */
+const CHANGED_ARCHIVE_MESSAGE = "That file looks damaged or changed since it was exported. No website was created. Export it again and import the fresh copy.";
 
 export function refuseArchive({ message }: { message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message }); }
 
@@ -260,6 +262,6 @@ function claimNormalizedEntries(required: { entries: readonly AgentPluginArchive
 /** Editable code changes disable their entire unit; data integrity failures always refuse. */
 function verifyListedIntegrity(required: { content: Buffer; expected: InventoryRecord; unit: string | undefined; modified: Set<string> | undefined }): void {
   if (required.content.length === required.expected.bytes && sha256Hex({ bytes: required.content }) === required.expected.sha256) return;
-  if (!required.unit || !required.modified) refuseArchive({ message: "ZIP size or SHA-256 mismatch." });
+  if (!required.unit || !required.modified) refuseArchive({ message: CHANGED_ARCHIVE_MESSAGE });
   required.modified.add(required.unit);
 }
