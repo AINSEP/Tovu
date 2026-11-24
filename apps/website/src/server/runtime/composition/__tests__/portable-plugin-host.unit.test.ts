@@ -65,7 +65,7 @@ test("approved enable whose provisioning failed refuses with host copy before an
   const calls: Call[] = [];
   const { capability } = hostWith({ calls, failed: [{ serverKey: "b", reason: "boom" }] });
   await assert.rejects(capability.provisionMcp({ pluginId: "p", principalId: "u" }, { approvedEnable: true, approvedEnableKey: "key-1" }),
-    (error: unknown) => error instanceof ToolInputError && error.message === "other-host: other-host: p failed");
+    (error: unknown) => error instanceof ToolInputError && error.message === "other-host: p failed");
   assert.equal(calls.some(call => call.step === "grant"), false);
 });
 
