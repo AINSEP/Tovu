@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { ToolInputError } from "@jini-ai/core";
-import { registerAdminCredentialCopyRoutes } from "../credential-copy.js";
+import { registerAdminCredentialCopyRoutes } from "#src/server/runtime/composition/modules/system-credential-copy";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 /**

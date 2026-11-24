@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminCredentialCopyRoutes } from "../credential-copy.js";
+import { registerAdminCredentialCopyRoutes } from "#src/server/runtime/composition/modules/system-credential-copy";
 
 type Deps = Parameters<typeof registerAdminCredentialCopyRoutes>[0]["deps"];
 const path = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
@@ -36,10 +36,13 @@ function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}
       response.res.setHeader = (name, value) => { writtenHeaders[name] = value; return response.res; };
       response.res.locals.principal = { id: actor }; response.res.locals.authCredentialKind = credential;
       const requestHeaders = { host, ...headers, ...(origin === undefined ? {} : { origin }) };
-      await extractRouteHandler(app, method, path)({ params: { workspaceId }, body, protocol,
+      const req = { params: { workspaceId }, body, protocol,
         socket: { localAddress: local, remoteAddress: remote }, headers: requestHeaders,
         get: (name: string) => requestHeaders[name as keyof typeof requestHeaders],
-      }, response.res);
+      };
+      // Express links every response to its request (`res.req`); the local-host answer reads it there.
+      Object.assign(response.res, { req });
+      await extractRouteHandler(app, method, path)(req, response.res);
       assert.equal(writtenHeaders["Cache-Control"], "no-store");
       return response.capture;
     },
