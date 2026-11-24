@@ -26,7 +26,7 @@ function shareInputJob(required: { value: unknown }, _options = {}): string | un
 const DOWNLOAD_STEP = "Export download";
 
 type ShareBackend = NonNullable<RouteDeps["siteShareBackend"]>;
-type ShareFail = (res: Response, error: unknown, req: Request) => void;
+type ShareFail = (res: Response, error: unknown) => void;
 
 /** Workspace match, session kind, RBAC and backend availability — resolves the backend or has already responded.
  * The same gate the Jini site-share specs run behind their admin mount; the download keeps it host-side. */
@@ -51,7 +51,7 @@ function sendShareZip({ req, res, row, registry, fail }: { req: Request; res: Re
       res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: the ZIP is missing from storage. Create a new export." });
       return;
     }
-    fail(res, error, req);
+    fail(res, error);
   });
 }
 
@@ -75,6 +75,6 @@ export function registerAdminSiteShareDownloadRoute(required: { app: Express; de
         return;
       }
       sendShareZip({ req, res, row, registry, fail });
-    } catch (error) { fail(res, error, req); }
+    } catch (error) { fail(res, error); }
   });
 }

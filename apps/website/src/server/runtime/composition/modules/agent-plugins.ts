@@ -4,7 +4,7 @@ import { registerAgentPluginFilesRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginInstallRoute } from "./agent-plugin-install-route.js";
 import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginSetEnabledRoute } from "./agent-plugins-routes.js";
-import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
+import { registerAgentPluginAdminSurfaceRoutes } from "./agent-plugin-admin-surfaces-routes.js";
 import { registerAdminSurfaceFilesRoute } from "./agent-plugin-surface-files-route.js";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { registerApiConnectionSignInRoute } from "./agent-plugins-routes.js";

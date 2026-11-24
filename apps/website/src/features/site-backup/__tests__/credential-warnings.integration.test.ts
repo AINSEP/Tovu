@@ -18,7 +18,7 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { verifySiteImport } from "../import-verifier.js";
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";

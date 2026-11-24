@@ -49,6 +49,10 @@ refusal (`{ status }` alone is `res.sendStatus`, `{ status, body }` is JSON). Si
   buffered raw spec; `routes/system/sites.ts` and `routes/themes/preview.ts` read `sitePreviewTargets`/`servingAddressOf` from it.
 (`runtime/composition/modules/system-site-backups.ts`) bind the backup service, its error ladder and
 `adminPublishTrustFor` into `@jini-ai/cms/admin-http/routes/system/site-backups`'s raw specs.
+`runtime/composition/modules/system-site-shares.ts` (w4-routes O) binds the share backend, `readShareInput`,
+`parseStaticExportInput`, the registry's token/file rules, `adminPublishTrustFor` and a captured `sendSiteShareFailure`
+(with `deps.tracker`) into `@jini-ai/cms/admin-http/routes/system/site-shares`'s raw specs; the streamed ZIP download
+(`inbound/admin-http/routes/system/site-shares.ts`) and the password reveal stay host routes in the same order.
 Public Express middleware stays host adapters over Jini decisions (w4-routes): `inbound/public-http/middleware/`
 `canonical-site-host.ts` resolves the origin with `@jini-ai/cms/seo` and asks
 `@jini-ai/cms/public-http/middleware/canonical-site-host` for the 308 target (passes `Host` only, and `toAbsoluteUrl`); `theme-content-security-headers.ts` writes
@@ -249,6 +253,14 @@ Agent plugins memory GET/PUT (`modules/agent-plugin-memory-routes.ts`, own modul
 mocks load) mount `@jini-ai/cms/admin-http/routes/agent-plugins/memory` (`"guarded"`) with the installed check,
 `pluginMemory` and the default caps bound; PUT's `failureFor` claims only errors its bound `writeNote` threw
 (`agent-plugins:write-note`, "The note could not be saved."), so a failing list read keeps the route's copy.
+Agent plugin admin surfaces (`modules/agent-plugin-admin-surfaces-routes.ts`, w4-routes batch P, registrar
+`registerAgentPluginAdminSurfaceRoutes`, called by `modules/agent-plugins.ts`) mount cms `defineAdminSurfaceRoutes`
+(`"guarded"`, operation `routes/agent-plugins/admin-surfaces`): the list binds the surface source (or the
+test seam's `adminSurfaceSource`) and `adminSurfaceFileUrl`; the two writes bind `findAdminSurface`, the host's
+bootstrap data/handlers/sign-in collector (`NO_ADMIN_SURFACE_HOST` by default), `@jini-ai/agent-plugins`'
+dispatcher/envelope/headers, the clock and the handler-error log, and mount the legacy order with `preflight`
+(Tovu's `CROSS_ORIGIN_REFUSED` copy over cms `adminSurfaceWritePreflight`) → `sessionCredentialOnly` →
+`authenticateBeforeWorkspace` (pin: `routes/agent-plugins/__tests__/admin-surfaces.gate-order.wire.test.ts`).
 Agent plugins install/update upload (`modules/agent-plugin-install-route.ts`, w4-routes batch L) mounts
 `@jini-ai/cms/admin-http/routes/agent-plugins/install` (both specs) with `mountAdminRawRoute` (`"guarded"`,
 `failure: routes/agent-plugins/install-response`, `failureCopy: "operation"`) and NO `express.raw` ahead: the spec

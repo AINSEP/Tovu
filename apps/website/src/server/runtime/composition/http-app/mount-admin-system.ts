@@ -6,7 +6,7 @@
 
 import { bindSiteConsentService } from '../site-consent.js';
 import { registerAdminConsentRoutes } from '../modules/consent.js';
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { registerAdminSiteBackupRoutes } from "#src/server/runtime/composition/modules/system-site-backups";
 import { registerAdminToolGapsRoute } from "../../../inbound/admin-http/routes/system/tool-gaps.js";

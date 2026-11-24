@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { registerAdminSiteShareRoutes } from "../site-shares.js";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";

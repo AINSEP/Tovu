@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import express from "express";
-import { registerAdminSiteShareRoutes } from "../site-shares.js";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
