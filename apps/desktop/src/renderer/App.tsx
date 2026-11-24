@@ -250,8 +250,8 @@ function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavig
           ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
           chat. Two things were wrong with it. It advertised a feature with no main-process half at
           all: `WORKSPACE_CHAT_CHANNELS` (`contracts/workspace-chat.ts`) has no `ipcMain.handle` anywhere
-          in this app, so `workspace:chat:start` reaches nothing, and `WorkspaceChatPane` (its own module) has zero
-          call sites. And because it was `position: fixed` on the HOST page while the real
+          in this app, so `workspace:chat:start` reaches nothing, and the workspace chat pane (now
+          `@jini-ai/chat/react/conversation-chat-pane`'s `ConversationChatPane`) has zero call sites here. And because it was `position: fixed` on the HOST page while the real
           per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
           `z-index`, the decoy composited on top of it and swallowed every click meant for the
           working one — an unbuilt placeholder was blocking the built feature.
@@ -260,8 +260,10 @@ function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavig
           content database are. That leaves the sites home tab with no assistant, which is the intended
           trade: there is no site in view there to assist with. When a workspace-level chat is
           actually built it should be a PANEL reachable from this app's own chrome, not a second
-          floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
-          in `app.css` are kept for it. */}
+          floating button competing with the guest's. Compose it from
+          `@jini-ai/chat/react/conversation-chat-pane` (`ConversationChatPane`, which takes this app's
+          transport/conversation hooks and copy as props); the `.chat-fab*` and `.runner-chat-pane`
+          rules in `app.css` are kept for it. */}
     </div>
     </ResourcesMonitor>
   );
