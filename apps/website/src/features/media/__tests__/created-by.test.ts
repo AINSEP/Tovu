@@ -8,7 +8,7 @@ import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, uploadMedia, updateMediaMetadata, type MediaRecord } from "../index.js";
 import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { duplicateMediaAsset } from "@jini-ai/cms/media/site/duplicate-asset";
-import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVersionedMediaRepo, uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
