@@ -65,4 +65,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0041_owner_passkeys": "df042694218e9c1b82b69f5969c4fa63545d0e52511300f97326906d494ea20d",
   "commerce/0000_catalog": "56fecf3aebb6e372ae017a51fb678c357bbe8ac2272f7da91768441c444330d6",
   "0042_optimistic_concurrency_versions": "d1760220186d4de4a528bbadb1123548d51490f26b8e8b60bb0c17e6e2beb50b",
+  "0043_webhook_subscription_creator_kind": "e5acaafff22bfc4f7747139e2c7cf2c20b71ffaa31c15e634392cd485b1029ce",
 };

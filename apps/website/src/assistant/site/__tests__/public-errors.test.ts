@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { redactSecrets } from "@jini-ai/core";
-import { createSiteAssistantErrorReporter, type SiteAssistantErrorLogEntry } from "../public-errors.js";
+import { createSiteAssistantErrorReporter, siteAssistantIncident, VISITOR_TURN_DUPLICATE_CODE, type SiteAssistantErrorLogEntry } from "../public-errors.js";
 
 test("visitorsafe: every diagnostic maps to fixed visitor text and a matching redacted log id", () => {
   const logs: SiteAssistantErrorLogEntry[] = [];
@@ -70,4 +70,16 @@ test("visitorsafe: an Error without a stack still logs its message for operators
   const error = report({ code: "provider_error", diagnostic });
   assert.equal(error.errorId, "error-nostack");
   assert.deepEqual(logs, [{ code: "provider_error", errorId: "error-nostack", diagnostic: "upstream refused the request" }]);
+});
+
+test("visitorsafe: a duplicate visitor turn gets plain words with its lookup id and is not an incident", () => {
+  const entries: SiteAssistantErrorLogEntry[] = [];
+  const report = createSiteAssistantErrorReporter({
+    ids: { newId: () => "ERR-dup-1" }, log: (entry) => { entries.push(entry); }, redact: redactSecrets,
+  });
+  const result = report({ code: VISITOR_TURN_DUPLICATE_CODE, diagnostic: "turn already admitted" });
+  assert.match(result.message, /already received this message/);
+  assert.match(result.message, /ERR-dup-1/);
+  // A retried duplicate is the widget's own retry, not a server fault, so no error-tracker incident.
+  assert.equal(siteAssistantIncident({ entry: entries[0]! }), undefined);
 });

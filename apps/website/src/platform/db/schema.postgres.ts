@@ -1219,6 +1219,7 @@ export const webhookSubscriptions = pgTable("webhook_subscriptions", {
   status: text("status").notNull(),
   createdByPrincipalId: text("created_by_principal_id").notNull(),
   createdByPluginId: text("created_by_plugin_id"),
+  createdByKind: text("created_by_kind"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull().default(1),

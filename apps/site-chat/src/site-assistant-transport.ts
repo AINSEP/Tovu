@@ -162,6 +162,10 @@ export interface SiteAssistantTransportOptions {
   };
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
   readonly onToolConfirmation?: (required: { directive: ToolConfirmation | null }, optional?: Record<string, never>) => void;
+  /** Mints the one turn id a visitor message keeps across every automatic retry of its POST, so the
+   *  server can refuse a retry of a turn it already admitted (`visitor-turn-dedupe.ts`). Defaults to
+   *  `crypto.randomUUID`. */
+  readonly newTurnId?: () => string;
   /** Defaults to the global `fetch`, resolved per call. */
   readonly fetch?: typeof fetch;
   /** Defaults to {@link IDLE_TIMEOUT_MS}. */
@@ -181,7 +185,8 @@ function consumeToolConfirmation({ data, settled, receive }: {
 }
 
 type Options = SiteAssistantTransportOptions;
-type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
+/** `turnId` is minted once in `startRun`, so every POST made for this run (a retry included) reuses it. */
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; turnId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
 
 /** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
 function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs }: RunArgs, _options = {}) {
@@ -262,7 +267,7 @@ function postChat({ args, message, frontendHeaders }: { args: RunArgs; message: 
     credentials: "same-origin", mode: "same-origin", redirect: "error",
     // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
     // key stays server-side, and this route requires no admin session.
-    body: JSON.stringify({ message, history: boundHistoryForRequest({ history: args.input.history as ChatMessage[] }) }),
+    body: JSON.stringify({ message, turnId: args.turnId, history: boundHistoryForRequest({ history: args.input.history as ChatMessage[] }) }),
     signal: args.controller.signal,
   });
 }
@@ -317,6 +322,7 @@ async function performRun({ args, life, message }: { args: RunArgs; life: RunLif
 export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): ChatTransport {
   const fetchChat: typeof fetch = options.fetch ?? ((...args) => globalThis.fetch(...args));
   const idleTimeoutMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
+  const newTurnId = options.newTurnId ?? (() => crypto.randomUUID());
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       const message = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
@@ -325,7 +331,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      const args: RunArgs = { input, handlers, options, runId, controller, idleTimeoutMs, fetchChat };
+      const args: RunArgs = { input, handlers, options, runId, turnId: newTurnId(), controller, idleTimeoutMs, fetchChat };
       void performRun({ args, life: createRunLifecycle(args), message });
       return { runId };
     },

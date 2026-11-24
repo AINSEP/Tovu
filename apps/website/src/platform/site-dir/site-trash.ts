@@ -1,10 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createSitesWorkspace } from "./sites-home.js";
+import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import type { ResolveSiteRootOptional } from "./site-root.js";
 import { listSites } from "./site-registry.js";
 import { readSiteDir } from "./read-site-dir.js";
+import {
+  classifySiteDatabaseDir, resolveSiteDatabasePaths, withSiteIdentityLock, type SiteDatabaseDirFs, type SiteIdentityLock,
+} from "./site-databases.js";
 import { assertLocalSiteName, LocalSiteError } from "./local-site-supervisor.js";
 
 /**
@@ -127,24 +130,100 @@ export function trashSite({ base, name }: { base: string; name: string }, option
   return { id, name, displayName: config.name };
 }
 
-/** Restore never overwrites another site's data. @complexity O(1). */
-export function restoreSite({ base, id }: { base: string; id: string }, optional: SiteTrashOptions = {}): void {
-  const { dir, name } = trashEntry({ base, id }, optional);
-  readSiteDir({ dir });
-  const target = path.join(restoreRoot({ base }, optional), name);
-  // lstat catches a dangling symlink too; existsSync alone would allow rename over it.
-  if (lstatIfPresent({ file: target })) throw new LocalSiteError({ code: "SITE_ALREADY_EXISTS" });
-  fs.renameSync(dir, target);
-  const { config, meta } = readSiteDir({ dir: target });
-  sitesWorkspace({ base }, optional).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
+/** Restore never overwrites another site's data. @complexity O(1) plus the identity lock wait. */
+export function restoreSite(
+  { base, id }: { base: string; id: string },
+  { identityLock = withSiteIdentityLock, ...optional }: SiteTrashOptions & { identityLock?: SiteIdentityLock } = {},
+): void {
+  // Under the identity lock: between the move out of Trash and the catalog merge, neither Trash nor
+  // the catalog claims this siteId, so a concurrent permanent delete must not look in that window.
+  identityLock({ appData: sitesWorkspace({ base }, optional).config({}).appData, run: () => {
+    const { dir, name } = trashEntry({ base, id }, optional);
+    readSiteDir({ dir });
+    const target = path.join(restoreRoot({ base }, optional), name);
+    // lstat catches a dangling symlink too; existsSync alone would allow rename over it.
+    if (lstatIfPresent({ file: target })) throw new LocalSiteError({ code: "SITE_ALREADY_EXISTS" });
+    fs.renameSync(dir, target);
+    const { config, meta } = readSiteDir({ dir: target });
+    sitesWorkspace({ base }, optional).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
+  } });
 }
 
-/** Only the Trash route calls permanent removal, after checkbox + confirm. @complexity O(bytes). */
+/** Injectable seams of a permanent delete: how a trashed folder's database paths resolve, and the fs that removes them. */
+type PermanentDeleteOptions = SiteTrashOptions & {
+  databasePaths?: (required: { dir: string; workspace: SitesWorkspace }) => { contentDbPath: string; chatDbPath: string };
+  databaseFs?: SiteDatabaseDirFs;
+  identityLock?: SiteIdentityLock;
+};
+
+/** Default resolution: the same lookup boot uses, minus the identity reservation a delete must not write. */
+function resolveTrashedDatabasePaths({ dir, workspace }: { dir: string; workspace: SitesWorkspace }) {
+  return resolveSiteDatabasePaths({ dir }, { workspace, reserveIdentity: false });
+}
+
+/**
+ * Whether a Trash entry other than `id` names `siteId` in its metadata. Reads only `.site-meta.json`,
+ * not the full site check restore makes: an entry with, say, a broken config.json can be repaired and
+ * restored later, and its databases must still be there. Unreadable metadata claims nothing.
+ * @complexity O(n) Trash entries.
+ */
+function otherTrashEntryClaims({ root, id, siteId }: { root: string; id: string; siteId: string }): boolean {
+  return fs.readdirSync(root).some((other) => {
+    if (other === id || !TRASH_ID.test(other)) return false;
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(trashDir({ root, id: other }), ".site-meta.json"), "utf8")) as { siteId?: unknown; siteKeyId?: unknown };
+      return (meta.siteId ?? meta.siteKeyId) === siteId;
+    } catch { return false; }
+  });
+}
+
+/**
+ * The `<appData>/databases/<siteId>/` folders a permanent delete must also remove (none for in-folder placement).
+ * @throws LocalSiteError SITE_PATH_UNSAFE for any database path outside the site's own app-data folder.
+ * @complexity O(n) registry records plus O(1) path checks.
+ */
+function trashedSiteDatabaseDirs(
+  { dir, id, siteId, workspace }: { dir: string; id: string; siteId: string; workspace: SitesWorkspace },
+  { databasePaths = resolveTrashedDatabasePaths, databaseFs }: Pick<PermanentDeleteOptions, "databasePaths" | "databaseFs">,
+): string[] {
+  // App-data DBs are keyed by siteId only. If a live catalog entry claims this id (e.g. a Finder copy
+  // that booted after the original went to Trash), the databases are that site's now: keep them.
+  if (workspace.registry({}).list({}).some((entry) => entry.id === siteId)) return [];
+  // Likewise a second recoverable Trash entry with this id (a trashed copy) would restore without data.
+  if (otherTrashEntryClaims({ root: path.dirname(dir), id, siteId })) return [];
+  const { contentDbPath, chatDbPath } = databasePaths({ dir, workspace });
+  const appData = workspace.config({}).appData;
+  const dirs = new Set<string>();
+  for (const dbPath of [contentDbPath, chatDbPath]) {
+    const where = classifySiteDatabaseDir({ siteDir: dir, siteId, dbPath, appData }, databaseFs ? { fs: databaseFs } : {});
+    if (where.kind === "unsafe") throw new LocalSiteError({ code: "SITE_PATH_UNSAFE" });
+    if (where.kind === "appData") dirs.add(where.dir);
+  }
+  return [...dirs];
+}
+
+/**
+ * Only the Trash route calls permanent removal, after checkbox + confirm. App-data placement keeps the
+ * site's databases outside its folder, so their `<appData>/databases/<siteId>/` folder goes too (B229),
+ * unless a live site or another Trash entry still claims that siteId.
+ * @complexity O(bytes) plus O(n) Trash entries and catalog records, plus the identity lock wait.
+ */
 export function permanentlyDeleteTrashedSite(
-  { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean }, optional: SiteTrashOptions = {},
+  { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean },
+  { databasePaths, databaseFs, identityLock = withSiteIdentityLock, ...optional }: PermanentDeleteOptions = {},
 ): void {
   if (!checked || !confirmed) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
-  const { dir } = trashEntry({ base, id }, optional);
-  readSiteDir({ dir });
-  fs.rmSync(dir, { recursive: true });
+  const workspace = sitesWorkspace({ base }, optional);
+  // The ownership check and the removal hold the identity lock that restore and boot-time identity
+  // reservation also take, so no claim can appear between "nobody else owns these" and the delete.
+  identityLock({ appData: workspace.config({}).appData, run: () => {
+    const { dir } = trashEntry({ base, id }, optional);
+    const { meta } = readSiteDir({ dir });
+    // Resolved and checked before anything is removed, so a refusal deletes nothing.
+    const databaseDirs = trashedSiteDatabaseDirs({ dir, id, siteId: meta.siteId, workspace }, { databasePaths, databaseFs });
+    // Folder first: if the database removal then fails, orphaned databases stay on disk rather than
+    // a still-restorable Trash entry losing its data.
+    fs.rmSync(dir, { recursive: true });
+    for (const target of databaseDirs) (databaseFs ?? fs).rmSync(target, { recursive: true, force: true });
+  } });
 }
