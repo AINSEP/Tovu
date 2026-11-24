@@ -22,7 +22,7 @@ import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
 
-import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
+import { useAgentPluginTab } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-tab.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";

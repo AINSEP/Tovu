@@ -3,11 +3,11 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
-import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "./import-export-links";
+import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "@jini-ai/admin/screens/import-export/import-export-links";
 import { resolveImportExportTabId, resolveImportExportTabs, type ImportExportTabId } from "./import-export-tabs";
 import { useWiredImportExportTranslate, useWiredSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/import-export-dependencies.hooks";
 import { useWiredGitBackup } from "./hooks/git-backup-dependencies.hooks";
-import { GitBackupCard } from "./GitBackupCard";
+import { GitBackupCard } from "@jini-ai/admin/screens/import-export/GitBackupCard";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -60,7 +60,7 @@ function OtherTab({ t, useGitBackup = useWiredGitBackup }: { t: Translate; useGi
       <div className="import-export-grid">
         {IMPORT_EXPORT_LINKS.map((link) => <ImportExportCard key={link.id} link={link} t={t} />)}
       </div>
-      <GitBackupCard controller={gitBackup} t={t} />
+      <GitBackupCard controller={gitBackup} t={t} agentHandle={agentHandle} />
     </>
   );
 }

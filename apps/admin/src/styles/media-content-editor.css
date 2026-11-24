@@ -110,7 +110,7 @@
 /* The widget node's Style dialog hosts this editor for a per-placement override; give it room. */
 .media-node-edit-dialog:has(.media-content-editor) { --admin-dialog-width: 52rem; }
 .media-content-editor__preview .page-preview-frame { height: 220px; margin: 0; }
-.media-content-editor__preview .page-preview-iframe { background: var(--tovu-site-preview-bg); }
+.media-content-editor__preview .page-preview-iframe { background: var(--jini-admin-site-preview-bg); }
 .jini-widget-embed-content-choice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); border: 0; padding: 0; margin: 0; }
 /* The legend is a `.jini-field-label` (styled with `.field-label`), like the dialog's other labels; only its box is reset here. */
 .jini-widget-embed-content-choice > legend { padding: 0; margin-bottom: 4px; }

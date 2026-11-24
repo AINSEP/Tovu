@@ -1,7 +1,7 @@
 import type { AuthenticationSettingsShellProps } from "@jini-ai/admin/screens/authentication/authentication-host-slots";
 import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import "./authentication.css";
+import "@jini-ai/admin/screens/authentication/authentication.css";
 
 /**
  * @file The host's bindings for the Jini Authentication screen — what Tovu injects besides its

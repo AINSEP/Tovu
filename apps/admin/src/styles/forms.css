@@ -245,7 +245,8 @@
    finally existed in this environment to check it against) are all confirmed live at 1440 and 640,
    measured via `getBoundingClientRect()`, not eyeballed: every control in every row still lands on
    one shared top offset per row, unchanged from before this rule existed. */
-.field-row {
+.field-row,
+.jini-field-row {
   align-items: end;
 }
 

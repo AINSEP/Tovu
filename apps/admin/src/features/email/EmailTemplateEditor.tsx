@@ -17,8 +17,8 @@ import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import { Chip, Loaded } from "./EmailParts";
 import type { EmailTemplateEditorController } from "@jini-ai/admin/screens/email/hooks/use-email-template-editor.hooks";
 import { useWiredEmailTemplateEditor } from "./email-hooks-host";
-import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "./hooks/use-email-template-view.hooks";
-import "./email.css";
+import { useEmailTemplateView, type EmailTemplateTab, type EmailTemplateViewState } from "@jini-ai/admin/screens/email/hooks/use-email-template-view.hooks";
+import "@jini-ai/admin/screens/email/email.css";
 
 /**
  * @file One email template's editor page (`/admin/email/templates/:id`), laid out like the Pages

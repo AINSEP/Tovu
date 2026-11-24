@@ -68,7 +68,7 @@ The complete new name/value table is in the [step-2 token contract](admin-theme-
 | Overlays | `overlay-tooltip-{bg,text,border}`, `overlay-bg-{preview,navigation,lightbox,source,chat}` |
 | Code/status/panels | `code-{string,number}`, `file-icon-{folder,json,markdown,javascript,typescript,config,html,css,image,shell}`, `status-complete-ink-fallback`, `panel-border-muted` |
 | Complete shadows | `control-shadow-{focus,focus-subtle,focus-accent,selected,swatch-selected,segment,segment-raised}`, `control-thumb-shadow{,-strong}`, `overlay-{tooltip-shadow,toast-shadow,menu-shadow-above,menu-shadow}`, `panel-shadow-{divider,sticky,banner,flat}`, `status-{danger,warning}-shadow`; existing `overlay-shadow` activated |
-| Tovu only | `--tovu-site-preview-bg`, `--tovu-theme-preview-{paper,atlas,glass}-{bg,text}` |
+| Tovu only | `--jini-admin-site-preview-bg`, `--tovu-theme-preview-{paper,atlas,glass}-{bg,text}` |
 
 Reuse: complete control/media/preview paints and shadows; searched current Tovu CSS plus Jini UI `styles/variables.css`, admin `themes/default/admin.css` and the shared token contract for palette, overlays, controls, defaults and scheme inputs; extended the existing UI input/role owner and Classic theme inputs (decision 2), with native CSS only. Existing quiet-control shadows are reused; no parallel lifecycle, theme runtime or dependency is introduced. S11 alone re-resolves its input **and public alias** at existing light-pin boundaries using only theme/scheme selectors, preserving Settings' local gap color. Chat code and cycle-breaking seams remain unchanged.
 

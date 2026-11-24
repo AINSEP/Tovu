@@ -35,9 +35,9 @@ import { useEditMediaModal } from "@jini-ai/admin/screens/media/hooks/use-edit-m
 import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
-import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
+import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
-import { PINNED_MEDIA_PROVIDER_IDS } from "./pinned-media-providers";
+import { PINNED_MEDIA_PROVIDER_IDS } from "@jini-ai/admin/screens/media/pinned-media-providers";
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";

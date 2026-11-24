@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import type { MediaTabId } from "./use-media-tabs.hooks";
+import type { MediaTabId } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 
 /**
  * @file `/admin/media?id=<mediaId>` — a link to ONE media item (open-bugs 10-31). The item's

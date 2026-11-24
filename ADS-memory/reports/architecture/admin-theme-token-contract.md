@@ -215,7 +215,7 @@ Classic alone owns the seven product tokens; no Jini counterpart or admin-panel 
 
 | Tovu token | Classic value, both schemes |
 |---|---|
-| `--tovu-site-preview-bg` | `#fff` |
+| `--jini-admin-site-preview-bg` | `#fff` |
 | `--tovu-theme-preview-paper-bg` | `#faf6ef` |
 | `--tovu-theme-preview-paper-text` | `#2b2620` |
 | `--tovu-theme-preview-atlas-bg` | `#0e1420` |
