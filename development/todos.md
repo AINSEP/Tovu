@@ -236,6 +236,12 @@ Memory for the in-app Claude agent is turned OFF for now (it kept trying to save
 ## AFTER this round ships: overbuild cleanup (owner 2026-10-11)
 Owner: coding agents go overboard and create unnecessary code; review and cut excess code AND tests. When: after the 10-11 round is tested, committed and released (no reviews on moving code). Measure first (knip/ts-prune unused exports + files, single-user abstractions, near-duplicate code, LOC per feature vs what it does; start from `ADS-memory/.local-artifacts/overengineering-audit-2026-10-07/REPORT.md`), then cut in small waves per area, tests green after each, coordinator reviews every cut. Tests: drop ones that only re-check fakes/implementation details, duplicates and coverage padding; keep behaviour + regression guards. KEEP deferred work (owner): anything marked "Soon", items listed in this file, flag-off/parked half-built features; unsure → ask the owner, never delete.
 
+## A452: "Held back on import" themes (owner YES 2026-11-23, lane `codex/bt-themes-quarantine-tovu`)
+- [x] List `.import-quarantine` themes on the Themes screen, re-run import's own manifest/file checks plus the theme load check, restore (move, never activate) behind `theme.edit` + the approval card with the checked digest, and a notice when the site's chosen theme was held back and it fell back to the default. Routes `GET/POST /api/admin/v1/workspaces/:id/held-back-themes{,/check,/restore}`; tests `held-back-themes.unit.test.ts`, `held-back-route.test.ts`, admin `held-back-themes.unit.test.tsx`.
+- [ ] AFTER-MERGE: regenerate `create-app-route-table.snapshot.json` (`UPDATE_ROUTE_TABLE_PIN=1`, +3 held-back rows after `themes/:themeId`) once the w3 branches that touch it land.
+- [ ] Coordinator real-browser pass (375 px + desktop, light/dark): section states, approval card, notice.
+- [ ] Later (not in the owner call): an agent tool for the same restore.
+
 ## LATER: offer shipped-theme updates to sites (owner 2026-10-11, "we're going to need it, but not now")
 Each site keeps its own copy of its theme (e.g. Documents/Tovu/tovu-dev/themes/static/tovu-theme), so fixes to Tovu's shipped themes never reach existing sites (10-11: tovu-dev's toggle/form styling was broken until an agent synced theme.css by hand; other sites still have the old copy). Build: when the shipped version of a site's theme changes, offer an update in admin → Themes as a reviewable diff the owner approves (never silent overwrite; keep the site's own edits; backup before apply).
 
