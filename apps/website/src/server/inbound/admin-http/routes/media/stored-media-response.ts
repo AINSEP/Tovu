@@ -1,6 +1,7 @@
 import type { MediaRecord } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
-import { toAdminMediaResponse, type AdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
+import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
+import type { AdminMediaEnvelope } from "@jini-ai/core/contracts/site/cms-media";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteDeps } from "./deps.js";
 
@@ -16,7 +17,7 @@ import type { MediaRouteDeps } from "./deps.js";
  */
 export async function toStoredMediaResponse(
   { deps, media, contentType, byteLength }: { deps: MediaRouteDeps; media: MediaRecord; contentType: string; byteLength: number },
-): Promise<{ media: AdminMediaResponse }> {
+): Promise<AdminMediaEnvelope> {
   const publicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null;
   const byteSize = contentType === "image/svg+xml"
     ? (await resolveMediaByteSizes({ deps, media: [media] })).get(media.source.sha256) ?? null

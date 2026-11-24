@@ -4,7 +4,7 @@ import { readCliPermissionLayer, patchCliPermissionLayer } from '#src/assistant/
 import { set } from '#src/features/settings/index';
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from '@tovu/contracts/assistant-subagents-policy';
 import { toWriteServiceDeps } from '#src/server/inbound/admin-http/routes/settings/shared';
-import type { AssistantOwnerGrantDeps } from '#src/server/inbound/admin-http/routes/system/assistant-owner-grant';
+import type { AssistantOwnerGrantDeps } from '#src/server/runtime/composition/modules/system-assistant';
 
 type Deps = AssistantOwnerGrantDeps;
 /** A fresh card snapshot contains authority and the addressed layer revision, never raw settings. */

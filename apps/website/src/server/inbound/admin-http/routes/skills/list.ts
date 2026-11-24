@@ -12,7 +12,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * (skills-composer-typeahead), §Q1/§Contract Map.
  *
  * A plain read, same path grammar/workspace guard/authorize-then-project shape as
- * `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
+ * `@jini-ai/cms/admin-http/routes/plugins/list`'s `PLUGINS_LIST` (`pluginListRoute`). Reads `<site>/skills/` fresh on every request via
  * `loadInstalledSkillToolSources` — the SAME function the agent daemon calls once at boot
  * (`agent-daemon-server.ts:887`) to register `skill_*` tools, while the agent registries refresh before discovery and execution. Permission is
  * `admin.assistant.use` (D-3): the same permission the skill tools themselves declare

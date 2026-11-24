@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readPersistedActiveSite as readPersistedActiveSiteForTest, resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
-import { registerAdminSitesRoutes, type AdminSitesDeps } from "../sites.js";
+import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
 

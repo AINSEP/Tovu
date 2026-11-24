@@ -93,7 +93,7 @@ function assertRefused(reply: Tier2Reply, specifier: string): void {
   assert.match(reply.error, /only the plugin SDK/);
 }
 
-for (const specifier of ["node:fs", "fs", "child_process", "node:child_process", FIXTURE_DEPENDENCY, "@jini-ai/cms/seo/content-analysis", "#src/platform/html/slug", "data:text/javascript,export default 1"]) {
+for (const specifier of ["node:fs", "fs", "child_process", "node:child_process", FIXTURE_DEPENDENCY, "@jini-ai/cms/seo/content-analysis", "@jini-ai/cms/html/site/slug", "data:text/javascript,export default 1"]) {
   test(`a site-layout tier-2 plugin is refused when it imports "${specifier}"`, async () => {
     await withPluginPackage(
       `import { definePlugin } from "@tovu/sdk";\nimport * as other from ${JSON.stringify(specifier)};\n` +

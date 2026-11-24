@@ -4,7 +4,7 @@ import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { agentHandle, agentHandleSegment } from '@jini-ai/core/agent-handles';
 import type { PagePublication, PublishedPageAction, PublishedPageElement } from '@jini-ai/agentic/core';
 import { checkSiteRelativeTarget } from '#src/platform/routing/index';
-import { escapeHtml } from '#src/platform/html/escape';
+import { escapeHtml } from '@jini-ai/core/text';
 
 type Element = DefaultTreeAdapterMap['element'];
 type Node = DefaultTreeAdapterMap['childNode'];

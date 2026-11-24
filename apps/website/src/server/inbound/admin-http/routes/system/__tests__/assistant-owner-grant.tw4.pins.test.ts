@@ -5,7 +5,7 @@ import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@j
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace } from "#src/contracts/headless/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "../assistant-owner-grant.js";
+import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "#src/server/runtime/composition/modules/system-assistant";
 
 async function fixture({ previous = false, requireAcknowledgment }: { previous?: boolean; requireAcknowledgment?: boolean }, _options = {}) {
   const repo = new InMemorySettingsRepo();

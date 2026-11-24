@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
+import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 
 /**
  * @file Create-site onboarding's optional `agentPluginTokens` on `POST .../system/sites`

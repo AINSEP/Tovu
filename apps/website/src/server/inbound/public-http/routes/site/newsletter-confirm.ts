@@ -4,7 +4,7 @@ import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
 import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 

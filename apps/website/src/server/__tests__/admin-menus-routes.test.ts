@@ -9,15 +9,15 @@ import express from "express";
 import { menuVersionConflictError } from "@jini-ai/cms/navigation";
 import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRepoPort } from "@jini-ai/cms/navigation";
-import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
+import type { MenuRouteDeps } from "../runtime/composition/modules/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminMenuAssignLocationRoute } from "../inbound/admin-http/routes/menus/assign-location.js";
-import { registerAdminMenuCreateRoute } from "../inbound/admin-http/routes/menus/create.js";
-import { registerAdminMenuDeleteRoute } from "../inbound/admin-http/routes/menus/delete.js";
-import { registerAdminMenuGetRoute } from "../inbound/admin-http/routes/menus/get-by-id.js";
-import { registerAdminMenuListRoute } from "../inbound/admin-http/routes/menus/list.js";
-import { registerAdminMenuUpdateTreeRoute } from "../inbound/admin-http/routes/menus/update-tree.js";
+import { registerAdminMenuAssignLocationRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuCreateRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuDeleteRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuGetRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuListRoute } from "../runtime/composition/modules/menus.js";
+import { registerAdminMenuUpdateTreeRoute } from "../runtime/composition/modules/menus.js";
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
@@ -1109,4 +1109,101 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
 
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "menu 'menu-1' was modified concurrently (expected version 1, found 2)", code: "VERSION_CONFLICT" });
+});
+
+/**
+ * rv1123e K1-tovu #1: update-tree answers its two checks from two sources, as the hand-written route
+ * did — `admin.menus.update` from RBAC only (`authorizeDirectOrRespond`), the raw-HTML permission from
+ * a publishing grant when the request carries one (`authorizeOrRespond`). The grant and RBAC are made
+ * to disagree on both permissions, so any mount that picks one mode for both checks fails here.
+ * Mutation `update-html-use-direct-rbac` (drop the per-permission override) turns case 1 into a 403;
+ * mutation `update-use-grant` (mount update-tree guarded) turns case 2 into a 200.
+ */
+async function serveUpdateTreeWithGrant(grantCapabilities: readonly string[], rbacAllows: readonly string[]) {
+  const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
+  const deps: MenuRouteDeps = createRouteDeps();
+  const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
+    doc: { type: "menu" as const, version: 1, items: [] }, locations: [], updatedAt: "2026-10-05T00:00:00.000Z", version: 1 };
+  deps.menuRepo = new InMemoryMenuRepo({}, { initialRows: [menu] }) as unknown as MenuRouteDeps["menuRepo"];
+  const rbacCalls: Array<Record<string, unknown>> = [];
+  deps.authorize = async (params) => {
+    rbacCalls.push({ ...params });
+    const allowed = rbacAllows.includes(params.permission);
+    return { allowed, reason: allowed ? "granted" : "no_grant" } as Awaited<ReturnType<MenuRouteDeps["authorize"]>>;
+  };
+  const app = express();
+  app.use(express.json());
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: "publisher", kind: "user" };
+    res.locals.publishTrust = { sourceInstallationId: "src", capabilities: grantCapabilities, entityTypes: ["menu"], generation: 1 };
+    next();
+  });
+  registerAdminMenuUpdateTreeRoute({ app, deps });
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  const port = (server.address() as import("node:net").AddressInfo).port;
+  const put = async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/admin/v1/workspaces/${deps.workspaceId}/menus/m1`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedVersion: 1, mode: "html", html: "<a href=\"/\">Home</a>" }),
+    });
+    return { status: response.status, body: await response.json() as Record<string, unknown> };
+  };
+  const stored = async () => (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: "m1" }))?.version;
+  return { put, stored, rbacCalls, close: () => new Promise((resolve) => server.close(resolve)) };
+}
+
+test("update-tree: admin.menus.update stays on RBAC while the raw-HTML check answers from the publishing grant", async (t) => {
+  const s = await serveUpdateTreeWithGrant(["pages.edit_html"], ["admin.menus.update"]);
+  t.after(s.close);
+  const answer = await s.put();
+  assert.equal(answer.status, 200, JSON.stringify(answer.body));
+  assert.equal(await s.stored(), 2);
+  // RBAC was asked only for the update permission, naming the menu.
+  assert.deepEqual(s.rbacCalls.map((call) => [call.permission, call.entityId]), [["admin.menus.update", "m1"]]);
+});
+
+test("update-tree: a publishing grant holding admin.menus.update does not stand in for a denied RBAC decision", async (t) => {
+  const s = await serveUpdateTreeWithGrant(["admin.menus.update", "pages.edit_html"], ["pages.edit_html"]);
+  t.after(s.close);
+  const answer = await s.put();
+  assert.equal(answer.status, 403);
+  assert.equal(answer.body.code, "FORBIDDEN");
+  assert.deepEqual(answer.body.details, { permission: "admin.menus.update", reason: "no_grant" });
+  assert.equal(await s.stored(), 1);
+});
+
+/**
+ * rv1123e K1-tovu #2: missing-principal deferral is opted into per mount. update-tree (parse-first
+ * by hand) keeps its 400 for a malformed body with no session, and a valid body with no session
+ * fails closed in `authorize` before the save; delete (principal-first by hand) still fails before
+ * reading anything. Mutation `defer-every-mount` / `defer-no-mount` breaks one side of this.
+ */
+test("menus: deferral is per mount — update-tree keeps its 400 without a session, valid input stops before the save", async (t) => {
+  const { InMemoryMenuRepo } = await import("@jini-ai/cms/navigation");
+  const deps: MenuRouteDeps = createRouteDeps();
+  const menu = { id: "m1", workspaceId: deps.workspaceId, slug: "nav", title: "Nav", status: "published" as const,
+    doc: { type: "menu" as const, version: 1, items: [] }, locations: [], updatedAt: "2026-10-05T00:00:00.000Z", version: 1 };
+  deps.menuRepo = new InMemoryMenuRepo({}, { initialRows: [menu] }) as unknown as MenuRouteDeps["menuRepo"];
+  let authorizeCalls = 0;
+  deps.authorize = async () => { authorizeCalls += 1; return { allowed: true, reason: "granted" } as Awaited<ReturnType<MenuRouteDeps["authorize"]>>; };
+  const app = express();
+  app.use(express.json());
+  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuGetRoute({ app, deps });
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const url = `http://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}/api/admin/v1/workspaces/${deps.workspaceId}/menus/m1`;
+  const put = async (body: unknown) => {
+    const response = await fetch(url, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.json() as Record<string, unknown> };
+  };
+  assert.deepEqual(await put({ expectedVersion: 1 }), { status: 400, body: { error: "items must be an array" } });
+  const valid = await put({ expectedVersion: 1, items: [] });
+  assert.equal(valid.status, 500);
+  assert.equal(valid.body.code, "INTERNAL_ERROR");
+  assert.equal((await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: "m1" }))?.version, 1);
+  const get = await fetch(url);
+  assert.equal(get.status, 500);
+  assert.equal(authorizeCalls, 0);
 });

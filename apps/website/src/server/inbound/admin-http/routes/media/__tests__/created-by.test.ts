@@ -5,7 +5,7 @@ import { test } from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMediaUploadRoute } from "../upload.js";
-import { registerAdminMediaUpdateRoute } from "../update.js";
+import { registerAdminMediaUpdateRoute } from "#src/server/runtime/composition/modules/media";
 import { registerAdminMediaListRoute } from "../list.js";
 import type { MediaRouteDeps } from "../deps.js";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";

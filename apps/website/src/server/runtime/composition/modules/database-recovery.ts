@@ -11,9 +11,28 @@ import { recoveryDisclosureRoute } from "@jini-ai/cms/admin-http/routes/recovery
 import { recoveryDeepLinkRoute } from "@jini-ai/cms/admin-http/routes/recovery/deep-link";
 import type { Express } from "express";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { registerAdminRecoveryStatusRoute } from "#src/server/inbound/admin-http/routes/recovery/status";
-import type { DatabaseRecoveryRouteDeps } from "#src/server/inbound/admin-http/routes/database-recovery/deps";
+import { recoveryStatusRoute } from "@jini-ai/cms/admin-http/routes/recovery/status";
+import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
+import { isOperationInFlight } from "#src/contracts/core/operation-lock";
+import type { DatabaseRecoveryDeps, RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+
+/**
+ * Database/recovery read and capture composition contract (ADR-046/SPEC-042), the host bag these
+ * registrars read (moved here from `inbound/admin-http/routes/database-recovery/deps.ts` when its
+ * routes became Jini specs — it describes the host's own `RouteDeps`, so it stays host-side).
+ *
+ * Composes `DatabaseRecoveryDeps` with workspace/authorization/clock and the schema-state
+ * introspection port. `clock` is picked alone because these routes do not read `idGen`.
+ * See `DatabaseRecoveryDeps` in `server/routes/types.ts` for the group boundary.
+ *
+ * Recovery status queries the module-level `isOperationInFlight` with `workspaceId`,
+ * alongside `dbOps` and `siteStatusRepo`; the operation lock is not a `RouteDeps` field.
+ * Migrate-forward and recovery restore have separate gated-mutation ceremonies requiring
+ * `gatedMutations.gatewayDeps`, which is outside this read/capture contract.
+ */
+export type DatabaseRecoveryRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "databaseIntrospection"> &
+  DatabaseRecoveryDeps;
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `database-recovery` server module (ADR-041
@@ -24,7 +43,7 @@ import type { ServerModuleHandle } from "./types.js";
  * (`TM-adr041-043-044-045-audit-001`, 7 rounds, converged PASS 9.2/10), including a real bug
  * (`R6-F1`) in a prior refactor of this exact composition wiring. This module is a narrower,
  * purely additive `Pick`-type extraction — same registrar function bodies, no logic change, no
- * reordering of gates/middleware — but see `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts`'s own header
+ * reordering of gates/middleware — but see `DatabaseRecoveryRouteDeps`'s own doc comment above
  * for the explicit disclosure of how `status.ts`'s `core/operation-lock` read (the prior audit's
  * Finding 3 fix) is preserved unchanged by this move.
  *
@@ -35,7 +54,7 @@ import type { ServerModuleHandle } from "./types.js";
  *  - `registerAdminDatabaseTimelineRoute` (Database's read-first Timeline)
  *  - `registerAdminDatabaseSchemaStateRoute` (2026-08-24, ADR-041 §3 — Database's drift status;
  *    the 8th registration, added after this header's original count. It is the first consumer of
- *    `databaseIntrospection`, which `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts` had excluded from its
+ *    `databaseIntrospection`, which `DatabaseRecoveryRouteDeps` had excluded from its
  *    narrow `Pick` precisely because nothing here read it — see that file's own 2026-08-24 note.
  *    Read-only: it reports drift, and deliberately offers no repair action. Ordering is
  *    irrelevant for the same reason the note below gives — `/api/admin/v1/database/schema-state`
@@ -76,13 +95,17 @@ function withRequestTimePorts<T extends object>(
   }) as T & AdminJsonRoutePortDeps;
 }
 
-const recoveryMountOptions = (operation: string) => ({ failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const });
+/** Each recovery mount's 500 copy key; every one is `"direct"` and none opts into
+ *  `deferMissingPrincipal`: each hand-written recovery route read the session before validating input. */
+function recoveryMountOptions({ operation }: { operation: string }, _optional: Record<string, never> = {}) {
+  return { failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const };
+}
 
 /** `GET /api/admin/v1/recovery/restore-points` (Jini spec), gated by `backup.read`. */
 export function registerAdminRecoveryRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute({ app, spec: recoveryRestorePointsListRoute, deps: withRequestTimePorts({ deps, own: {
     listRestorePoints: () => listRestorePoints({ repo: deps.restorePointsRepo }),
-  } }) }, recoveryMountOptions("routes/recovery/restore-points"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/restore-points" }));
 }
 
 /** `POST /api/admin/v1/recovery/disclosure` (Jini spec), gated by `backup.read`. */
@@ -90,7 +113,7 @@ export function registerAdminRecoveryDisclosureRoute({ app, deps }: { app: Expre
   mountAdminJsonRoute({ app, spec: recoveryDisclosureRoute, deps: withRequestTimePorts({ deps, own: {
     computeDisclosure: ({ restorePointId, coveredCategories }: { restorePointId: string; coveredCategories: readonly string[] }) =>
       computeDisclosure({ deps: { watermarkSource: deps.disclosureWatermarkSource, coveredCategories }, input: { restorePointId } }),
-  } }) }, recoveryMountOptions("routes/recovery/disclosure"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/disclosure" }));
 }
 
 /** `POST /api/admin/v1/recovery/deep-link` (Jini spec), gated by `backup.read`. The spec has
@@ -99,7 +122,7 @@ export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express
   mountAdminJsonRoute({ app, spec: recoveryDeepLinkRoute, deps: withRequestTimePorts({ deps, own: {
     resolveDeepLinkContext: (input: { principalId: string; principalKind: "user"; envelope: object }) =>
       resolveDeepLinkContext({ deps: { lookup: deps.deepLinkRestorePointLookup }, input: { ...input, envelope: input.envelope as DatabaseContextEnvelope } }),
-  } }) }, recoveryMountOptions("routes/recovery/deep-link"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/deep-link" }));
 }
 
 /** The Timeline's 400 classification: the ledger's undecodable-cursor `ToolInputError`, or
@@ -107,6 +130,16 @@ export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express
  * `TimelineValidationError` class. Anything else stays a 500 through the mount's failure port. */
 function isTimelineValidationError({ err }: { err: unknown }, _optional: Record<string, never> = {}): boolean {
   return err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
+}
+
+/** `GET /api/admin/v1/recovery/status` (Jini spec), gated by `backup.read`. The host binds the
+ * operation-lock peek (`core/operation-lock`, ADR-041/043/044/045 re-audit Finding 3) and the
+ * database package's pure banner precedence; `dbOps`/`siteStatusRepo` are read per request. */
+export function registerAdminRecoveryStatusRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
+  mountAdminJsonRoute({ app, spec: recoveryStatusRoute, deps: withRequestTimePorts({ deps, own: {
+    get dbOps() { return deps.dbOps; }, get siteStatusRepo() { return deps.siteStatusRepo; },
+    isOperationInFlight, resolveDegradedBanner,
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/status" }));
 }
 
 const RESTORE_POINTS_FAILURE: FailureOptions = { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" };

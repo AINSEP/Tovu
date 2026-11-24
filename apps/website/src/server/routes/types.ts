@@ -1003,7 +1003,7 @@ export interface PluginRuntimeDeps {
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** AW-7 Tier 2 (2026-10-04) — the same process-lifetime hook registry's preview: ONE attached
    * plugin's beforeSave patch for a draft, nothing saved or counted toward quarantine; `null` ⇒ not
-   * attached in this process. Read by `PLUGIN_PREVIEW` (`routes/plugins/preview.ts`) and, in the
+   * attached in this process. Read by `PLUGIN_PREVIEW` (`@jini-ai/cms/admin-http/routes/plugins/preview`) and, in the
    * agent daemon, by tier-2 capability tools for a fresh result (`capability-tool-registrations.ts`). */
   previewPluginBeforeSave: PluginBeforeSavePreview;
   /** The same process-lifetime hook registry's content-facing port. */

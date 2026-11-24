@@ -9,8 +9,8 @@ import type { PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSeoGetEntryRoute } from "../../inbound/admin-http/routes/seo/get-entry.js";
-import { registerAdminSeoPutEntryRoute } from "../../inbound/admin-http/routes/seo/put-entry.js";
+import { registerAdminSeoGetEntryRoute } from "#src/server/runtime/composition/modules/seo";
+import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 

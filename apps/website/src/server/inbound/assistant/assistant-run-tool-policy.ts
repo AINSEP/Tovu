@@ -4,7 +4,7 @@ import type { RuntimeAgentDef } from '@jini-ai/core/contracts/agents';
 import { resolveAssistantCliPermissions, resolveFullCliAccess, fullCliEnvLock, isHostedAssistantRuntime, assistantCliPermissions } from '@tovu/contracts/assistant-native-fallbacks';
 import { resolveHostSignals } from '#src/server/runtime/composition/host-signals';
 import { readAssistantCliPermissions } from '#src/assistant/subagent-settings';
-import type { AssistantOwnerGrantDeps as Deps } from '#src/server/inbound/admin-http/routes/system/assistant-owner-grant';
+import type { AssistantOwnerGrantDeps as Deps } from '#src/server/runtime/composition/modules/system-assistant';
 
 export interface AssistantRunToolPolicyInput {
   deps: Pick<Deps, "settingsRepo" | "getEffective" | "settingsUiTabsReady" | "workspaceId" | "ownerPrincipalId">; principalId: string; agentId: string; env: NodeJS.ProcessEnv;

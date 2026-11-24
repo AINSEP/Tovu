@@ -54,12 +54,14 @@ function findComponents(sf) {
   return found;
 }
 
-/** Names of destructured props that default to a hook: `{ useFooHook = useFoo }`. */
+/** Names of destructured hook props: defaulted (`{ useFooHook = useFoo }`) or required
+ *  (`{ useFooHook }`). A required hook prop is injection too — the caller must pass it — and is the
+ *  owner's preferred form (P12 #6 F6.4: no default hook to drift from the host binding). */
 function injectedHooks(fn) {
   const pattern = fn.parameters[0]?.name;
   if (!pattern || !ts.isObjectBindingPattern(pattern)) return new Set();
   const names = pattern.elements
-    .filter(el => el.initializer && ts.isIdentifier(el.name) && HOOK_NAME.test(el.name.text))
+    .filter(el => !el.dotDotDotToken && ts.isIdentifier(el.name) && HOOK_NAME.test(el.name.text))
     .map(el => el.name.text);
   return new Set(names);
 }
