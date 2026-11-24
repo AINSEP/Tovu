@@ -5452,6 +5452,22 @@
     {
       "id": "8ba488396f4a",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/dialog/report-rows.ts or report-reasons.ts (K5-publish-content-ui-1) with the code; host path/product citations reworded neutral, and type-column wording now names the host-injected labeler instead of sections.ts."
+    },
+    {
+      "id": "855a1dcd0f6f",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "fcfbcf0f7a6d",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "009fdfee3ccb",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/__tests__/source-control-i18n.unit.test.ts (admin6 source-control-i18n), verbatim."
+    },
+    {
+      "id": "1ef200a805e2",
+      "reason": "Moved to Jini @jini-ai/admin/source-control/source-control-i18n.ts (admin6 source-control-i18n), reworded neutral: `lib/credential-submit-error.ts` now cited as the host's own file."
     }
   ]
 }
