@@ -589,6 +589,18 @@ mountAdminRawRoute({ app, spec: { ...exportRoute, requireSameOrigin: true }, dep
   ```ts
   { authorization: "direct", deferMissingPrincipal: true, authenticateBeforeWorkspace: true, failure: { operation: "http/widgets" }, failureCopy: "operation" }
   ```
+- **`preflight: { readHeaders, check }`** (w4-routes P) — the hand-written route refused BEFORE every admin
+  gate (admin-surface bootstrap/actions: their own cross-origin 403 `CROSS_ORIGIN_REFUSED` ahead of the
+  credential 403 and the workspace 404). `check({ headers, deps })` runs first, in the workspace port — before
+  the workspace 404, http-kit's same-origin gate, `sessionCredentialOnly` and `authenticateBeforeWorkspace`'s
+  order — and sees only the headers it declares (lower-cased keys, an absent header has no key; the mount adds
+  them to the spec's `readHeaders`, so `raw.headers` carries them too). A returned `{ status, body }` is written
+  as-is; `undefined` admits. Product-neutral decisions come from Jini (`isSameOriginBrowserWrite` via cms
+  `adminSurfaceWritePreflight({ refusal })`); the refusal copy stays in the host. `mountAdminRawRoute` takes it too.
+  Pins: `admin-json-route-ports-legacy-order.test.ts` (mutation `preflight-after-credential-gate`).
+  ```ts
+  { preflight: adminSurfaceWritePreflight({ refusal: { status: 403, body: { error: "…", code: "CROSS_ORIGIN_REFUSED" } } }), sessionCredentialOnly: { message, permission }, authenticateBeforeWorkspace: true }
+  ```
 - **`workspaceRefusal: ({ workspaceId, requested }) => ({ status, body? })`** (w4-routes K) — the route's own
   workspace refusal instead of the shared JSON 404: no `body` is `res.sendStatus(status)` (`Not Found` as
   `text/plain`, site-backups), a `body` is written as JSON (the `{ code: "NOT_FOUND", message: "<step> failed: this

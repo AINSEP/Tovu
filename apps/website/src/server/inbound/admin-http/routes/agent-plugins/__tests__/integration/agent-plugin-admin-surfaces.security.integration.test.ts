@@ -13,7 +13,7 @@ import type { AdminSurfaceHost, AdminSurfaceRequestContext, AdminSurfaceSource }
 import { registerAdminSurfaceFilesRoute } from "#src/server/runtime/composition/modules/agent-plugin-surface-files-route";
 import type { IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
-import { registerAgentPluginAdminSurfaceRoutes } from "../../admin-surfaces.js";
+import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/runtime/composition/modules/agent-plugin-admin-surfaces-routes";
 
 /**
  * @file Security pins for the admin-surface mount (phase A): the public files route serves only
