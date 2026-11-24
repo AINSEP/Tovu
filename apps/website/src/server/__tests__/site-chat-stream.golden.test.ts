@@ -13,7 +13,8 @@ import { set as setLegacySetting } from "@jini-ai/core/settings";
 import type { SchedulerPort } from "@jini-ai/daemon/scheduler";
 
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
-import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
+import { writeVisitorTools } from "@jini-ai/cms/settings/site/visitor-tools-write";
+import { VISITOR_TOOLS_HOST, SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 import { publishVisitorPage } from "#src/features/theme/visitor-publication";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
@@ -78,7 +79,7 @@ async function boot({ t, respond, ask = false, confirmationScheduler, seed }: { 
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
   { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
-  if (ask) await writeVisitorTools({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+  if (ask) await writeVisitorTools({ visitorTools: VISITOR_TOOLS_HOST, writePolicies: SETTINGS_WRITE_POLICIES, deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
     workspaceId: deps.workspaceId, callerPrincipalId: "test-caller", value: { version: 1, tools: { list_categories: { mode: "ask" } } } });
   let siteOrigin: URL | undefined;
   deps.originRegistry.canonicalOrigin = async () => ({ scheme: "http", host: siteOrigin!.hostname, port: Number(siteOrigin!.port),

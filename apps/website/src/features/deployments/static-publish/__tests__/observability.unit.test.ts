@@ -11,12 +11,12 @@ import { SpanStatusCode } from "@opentelemetry/api";
 import type { DeployTarget } from "@jini-ai/devops/deploy";
 
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
-import type { DeployTargetModule, DeployTargetRegistry } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetModule, DeployTargetRegistry } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { publishStaticSite } from "../adapter.js";
-import type { PublishCredentialSource } from "../types.js";
+import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { InMemoryPublishCredentialVerificationCache, verifyPublishCredential } from "../verify.js";
 
 /**

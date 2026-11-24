@@ -6,7 +6,7 @@ import express from "express";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession, type AdminSignInPort } from "../inbound/admin-http/dev-auth.js";
 import { resolveLocalOwnerSignIn } from "../runtime/boot/local-owner-signin.js";
-import { mintBootSessionToken } from "../../features/identity/boot-session-token.js";
+import { mintBootSessionToken } from "../../features/identity/boot-session-token-binding.js";
 import { extractRouteHandler, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 import { createServingFormPullTrigger, FORM_PULL_FAILED_LINE } from "../runtime/composition/form-pull-triggers.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -261,7 +261,9 @@ test("devsignin: remote peer, remote Host and missing/cross origin refuse before
   ]) {
     let status = 200; let cookieSet = false; const bodies: unknown[] = [];
     const response = { status(code: number) { status = code; return response; }, json(body: unknown) { bodies.push(body); }, cookie() { cookieSet = true; } };
-    await handler({ socket: { remoteAddress: request.peer }, headers: { host: request.host }, get(name: string) { return name === "origin" ? request.origin : name === "sec-fetch-mode" ? "cors" : "same-origin"; } }, response);
+    const req = { socket: { remoteAddress: request.peer }, headers: { host: request.host }, get(name: string) { return name === "origin" ? request.origin : name === "sec-fetch-mode" ? "cors" : "same-origin"; } };
+    // Express sets `res.req`; the K1 route reads the request only through it (U-AUTH-T1).
+    await handler(req, Object.assign(response, { req }));
     assert.equal(status, 403); assert.equal(cookieSet, false);
     assert.deepEqual(bodies, [{ error: "local owner sign-in requires a same-origin loopback request", code: "FORBIDDEN" }]);
   }

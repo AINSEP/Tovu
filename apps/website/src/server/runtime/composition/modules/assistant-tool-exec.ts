@@ -25,7 +25,7 @@ import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MA
 import { jsonResponse } from "@jini-ai/core/contracts/server";
 import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
 import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
-import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
+import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";

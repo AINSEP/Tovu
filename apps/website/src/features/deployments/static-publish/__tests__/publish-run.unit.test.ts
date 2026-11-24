@@ -12,7 +12,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { StaticPublishDeps, StaticPublishInput } from "../adapter.js";
 import { InMemoryPublishHistoryStore, listStaticPublishDestinations } from "../publish-history.js";
 import { getPublishRunSnapshot, startPublishRun } from "../publish-run.js";
-import type { PublishCredentialSource } from "../types.js";
+import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { createDbPublishCredentialSource } from "../credentials.js";
 import { createPublishCredential, deletePublishCredential } from "../../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
@@ -50,7 +50,7 @@ function testRouteDeps(): ReturnType<typeof createRouteDeps> {
 }
 
 /** Await the production entrypoint's settlement hook, without polling or sleeping. */
-function runPublishForTest(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, history: InMemoryPublishHistoryStore): Promise<import('../types.js').StaticPublishOutcome> {
+function runPublishForTest(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, history: InMemoryPublishHistoryStore): Promise<import('@jini-ai/devops/deploy/site/static-publish/types').StaticPublishOutcome> {
   return new Promise((resolve, reject) => startPublishRun({ deps, input, clock, historyStore: history }, {
     triggeredBy: "agent_tool",
     onSettled: () => {

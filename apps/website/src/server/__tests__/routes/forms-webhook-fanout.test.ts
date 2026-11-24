@@ -6,8 +6,9 @@ import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "#src/features/webhooks/index";
-import { enqueueDelivery } from "#src/features/webhooks/delivery";
+} from "@jini-ai/integrations/webhooks/site/repo.memory";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import { enqueueDelivery } from "@jini-ai/integrations/webhooks/site/delivery";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { submitForm } from "#src/features/forms/index";
@@ -51,7 +52,7 @@ function makeHarness() {
   const idGen = { newId: () => `id-${++counter}` };
   const rateLimiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
 
-  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo({ assertVersionedWrite });
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const envelopeStore = new InMemoryDeliveryEnvelopeStore();
 

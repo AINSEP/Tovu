@@ -12,7 +12,7 @@ import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { adminLogger } from "./shell-collaborators";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
-export { parseFrame } from "./sse-frames";
+
 
 /** Product endpoints and projections; Jini owns the chat transport lifecycle. */
 const RUNS_URL = "/api/runs";

@@ -6,15 +6,12 @@ import { ContentTypeAlreadyExistsError, type ContentTypeRecord } from "@jini-ai/
 
 import {
   applyDeclaredContentTypes,
-  MAX_DECLARED_CONTENT_TYPES,
-  MAX_DECLARED_FIELDS,
-  MAX_DECLARED_QUERYABLE_FIELDS,
   parseDeclaredContentTypes,
   planDeclaredContentTypes,
   validateDeclarativeManifest,
   type DeclaredContentTypePorts,
 } from "../../declarative-content-types.js";
-import { PluginInvalidError } from "@jini-ai/plugins/host";
+import { MAX_DECLARED_CONTENT_TYPES, MAX_DECLARED_FIELDS, MAX_DECLARED_QUERYABLE_FIELDS, PluginInvalidError } from "@jini-ai/plugins/host";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 
 const FAQ = { key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text", required: true }, { name: "order", kind: "integer" }] };

@@ -1,0 +1,10 @@
+admin-tsc=0
+typecheck=2
+size=1
+complexity=1
+hooks=0
+why=0
+errors=0
+boundaries=0
+architecture=1
+typecheck-scripts=2

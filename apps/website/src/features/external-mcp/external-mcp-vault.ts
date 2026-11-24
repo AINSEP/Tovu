@@ -5,8 +5,7 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import type { SealedSecret } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret, KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "../../platform/secrets/vault-kinds.js";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpVaultPorts, Identity, Kind } from "@jini-ai/mcp/federation/hosted";
@@ -21,9 +20,6 @@ export const externalMcpVaultPorts: HostedMcpVaultPorts = {
     validateMeta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
   } }).metaParsers,
 };
-
-export const externalMcpVaultEnvelope = hosted.externalMcpVaultEnvelope;
-export const deleteExternalMcpVaultEnvelope = hosted.deleteExternalMcpVaultEnvelope;
 
 export function externalMcpVaultRecord(
   input: { sealed: SealedSecret; identity: Identity; kind: Kind }, _options = {},

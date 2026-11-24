@@ -1,4 +1,10 @@
-import type { ProviderDomainVerification } from "@/features/email/api/mail-status-api.types";
+import type {
+  EmailApi, EmailTemplateDetail, EmailTemplatePreview, EmailTemplateSummary, MailActivityDetail, MailActivityFilter,
+  MailActivityPage, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
+  MailProviderCredentialInput, MailSuppressionPage, MailSuppressionRemovalPlan, MailSuppressionScope, MailTestSendResult,
+  MailUseRow,
+} from "@jini-ai/admin/screens/email/email-api.types";
+import type { MailFeedbackSetupReport } from "@jini-ai/core/contracts/site/platform-mail";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
 
@@ -13,205 +19,6 @@ import { WORKSPACE_ID } from "../../lib/admin-http/config";
 
 const SYSTEM = `/workspaces/${WORKSPACE_ID}/system`;
 const TEMPLATES = `/workspaces/${WORKSPACE_ID}/email-templates`;
-
-// --- providers (`platform/mail/mail-status.ts`) ---------------------------------------------
-
-export type MailLane = "transactional" | "bulk";
-
-/** One credential field a provider's setup form shows — declared by the provider, never by a vendor branch here. */
-export interface MailProviderField {
-  key: string;
-  label: string;
-  type: "secret" | "text" | "url" | "email";
-  required: boolean;
-  defaultValue?: string;
-  placeholder?: string;
-  help?: string;
-  helpUrl?: string;
-}
-
-export interface MailProviderConfiguration {
-  pluginId?: string;
-  id: string;
-  label: string;
-  origin: "core" | "plugin";
-  hosted: boolean;
-  lanes: readonly MailLane[];
-  capabilities: { feedback: boolean; domainVerification: boolean };
-  credential: { required: boolean; saved: boolean; label?: string; credentialId?: string; updatedAt?: string };
-  selectable: boolean;
-  refusal?: string;
-  setup: { fields: readonly MailProviderField[]; helpUrl?: string };
-}
-
-export interface MailProviderConfigurationReport {
-  setting: { transactional: string | null; bulk: string | null };
-  providers: readonly MailProviderConfiguration[];
-  refusals: readonly string[];
-}
-
-export interface MailProviderCredentialInput {
-  token?: string;
-  username?: string;
-  baseUrl?: string;
-}
-
-// --- DNS (`features/domain-dns/mail-dns-status.ts`) -----------------------------------------
-
-export type MailDnsRecordStatus = "Checking" | "Matches" | "Missing" | "Mismatch" | "Pending" | "Unknown" | "TimedOut";
-
-export interface MailDnsRecordView {
-  type: string;
-  host: string;
-  name: string;
-  expected: string;
-  observed: string[];
-  status: MailDnsRecordStatus;
-  purpose: "mail" | "other";
-  priority?: number;
-  note?: string;
-}
-
-export type { ProviderDomainVerification } from "@/features/email/api/mail-status-api.types";
-
-export interface MailDnsStatus {
-  state: "checked" | "no_sender" | "no_provider" | "verification_unavailable" | "requirements_unavailable" | "requirements_failed" | "check_failed";
-  message?: string;
-  senderDomain: string | null;
-  providerId: string | null;
-  providerVerification: ProviderDomainVerification | null;
-  dns?: { overall: MailDnsRecordStatus; records: MailDnsRecordView[]; reason?: string; checkedAt: string };
-}
-
-// --- test send (`features/mail-status/test-send.ts`) ----------------------------------------
-
-interface TestCommon { to: string; from: string; driver: string; at: string }
-export type MailTestSendResult =
-  | (TestCommon & { outcome: "accepted"; providerMessageId: string })
-  | (TestCommon & { outcome: "captured"; where: "capture" | "console"; providerMessageId: string })
-  | (TestCommon & { outcome: "redirected"; redirectedTo: string; providerMessageId: string })
-  | (TestCommon & { outcome: "failed" | "unknown"; errorCode: string; message: string; retryable: boolean });
-
-// --- uses, activity, suppressions, feedback (`features/mail-status/*.ts`) -------------------
-
-export type MailUseState = "ready" | "blocked" | "disabled" | "not_configured" | "unknown";
-
-export interface MailUseRow {
-  use: "sign_in" | "newsletter_confirmation" | "form_notifications" | "newsletter";
-  label: string;
-  mailLane: MailLane;
-  state: MailUseState;
-  reasons: string[];
-  sender: string | null;
-  formsConfigured?: number;
-  evidence: { outcome: string; at: string } | null;
-}
-
-export interface MailActivityItem {
-  id?: string;
-  recipient: string;
-  originalRecipient?: string;
-  deliveryMode?: "redirect" | "capture";
-  use: string;
-  outcome: string;
-  lane: MailLane;
-  providerId: string;
-  providerMessageId?: string | null;
-  errorCode: string | null;
-  message?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MailActivityPage {
-  access: "full" | "masked";
-  items: MailActivityItem[];
-  nextCursor: string | null;
-  empty: "none_recorded" | "no_matches" | null;
-}
-
-export interface MailActivityDetail {
-  activity: MailActivityItem;
-  feedback: { kind: string; occurredAt: string; receivedAt: string }[];
-}
-
-export interface MailActivityFilter {
-  outcome?: string;
-  recipient?: string;
-}
-
-export type MailSuppressionScope = "all" | "bulk";
-
-export interface MailSuppressionEntry {
-  address: string;
-  scope: MailSuppressionScope;
-  reason: "bounced" | "complained" | "manual";
-  createdAt: string;
-  revision: string;
-}
-
-export interface MailSuppressionPage {
-  items: MailSuppressionEntry[];
-  nextCursor: string | null;
-  empty: "none_recorded" | "no_matches" | null;
-}
-
-export interface MailSuppressionRemovalPlan {
-  address: string;
-  scope: MailSuppressionScope;
-  reason: string;
-  suppressionReason: MailSuppressionEntry["reason"];
-  suppressedAt: string;
-  revision: string;
-  warnings: string[];
-}
-
-export interface MailFeedbackProviderSetup {
-  providerId: string;
-  label: string;
-  supported: boolean;
-  webhookUrl: string | null;
-  webhookPath: string;
-  signingSecret: { current: { label: string; configured: boolean } } | null;
-  lastVerifiedEvent: { kind: string; receivedAt: string } | null;
-  state: "unsupported" | "secret_missing" | "no_events_yet" | "receiving";
-}
-
-export interface MailFeedbackSetupReport {
-  available: boolean;
-  providers: MailFeedbackProviderSetup[];
-}
-
-// --- templates (`@jini-ai/platform/mail/email-template-operations`) ------------------------
-
-export interface EmailTemplateField {
-  name: string;
-  sample?: string;
-}
-
-export interface EmailTemplateSummary {
-  id: string;
-  name: string;
-  subject: string;
-  fields: EmailTemplateField[];
-  version: number;
-  updatedAt: string;
-}
-
-export interface EmailTemplateDetail extends EmailTemplateSummary {
-  html: string;
-  undeclaredFields: string[];
-}
-
-export interface EmailTemplatePreview {
-  subject: string;
-  html: string;
-  missingFields: string[];
-  undeclaredFields: string[];
-  mode: "admin" | "sent";
-  scriptsStripped: boolean;
-  text?: string;
-}
 
 const query = (params: Record<string, string | undefined>): string => {
   const search = new URLSearchParams();
@@ -228,7 +35,7 @@ const send = <T>(
 const enc = encodeURIComponent;
 
 /** The Email page's API port: one object a test replaces wholesale. */
-export const emailApi = {
+export const emailApi: EmailApi = {
   listProviders: () => get<MailProviderConfigurationReport>({ path: `${SYSTEM}/mail-providers` }),
   saveProviderKey: ({ providerId, input }: { providerId: string; input: MailProviderCredentialInput }) =>
     send<{ provider: MailProviderConfiguration }>({ method: "PUT", path: `${SYSTEM}/mail-providers/${enc(providerId)}/credential` }, { body: input }),
@@ -271,5 +78,3 @@ export const emailApi = {
   saveSender: ({ key, value }: { key: "senderEmail" | "senderName"; value: string }) =>
     send<unknown>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/settings/value` }, { body: { namespace: "core.mail", key, scope: "workspace", valueJson: value } }),
 };
-
-export type EmailApi = typeof emailApi;

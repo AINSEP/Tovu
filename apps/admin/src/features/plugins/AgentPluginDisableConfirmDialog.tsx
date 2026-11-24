@@ -30,7 +30,7 @@ import { type Translate } from '@jini-ai/core/text';
  *
  * Markup, classes (`settings-dialog`/`settings-dialog-backdrop`, `btn-secondary`/`btn-danger`), and
  * behaviour (Escape-to-cancel via the paired hook, Cancel default-focused so the destructive-leaning
- * action is never the default) mirror `features/settings/ExternalMcpRemoveConfirmDialog.tsx` — the
+ * action is never the default) mirror `@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog` — the
  * most recent precedent for exactly this shape of dialog in this app, reused rather than
  * re-invented.
  */

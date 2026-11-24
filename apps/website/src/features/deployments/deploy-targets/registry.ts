@@ -3,7 +3,7 @@ import { asDeployTargetModule, parseDeployTargetsFile as parseDeployTargetsDescr
 import { defineExecutablePluginContribution, type LoadPluginContributions, type PluginContributionDefinition, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
 import type { FormDestinationForm, FormSubmissionsInspection } from "@jini-ai/core/contracts/site/cms-forms";
-import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTargetDescriptor, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
+import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTargetDescriptor, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 
 /**
  * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets each hosting

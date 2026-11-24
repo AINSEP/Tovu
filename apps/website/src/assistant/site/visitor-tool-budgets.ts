@@ -4,7 +4,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { afterSettled } from "@jini-ai/core/errors/idioms";
 import { createMemoryCounterStore, type CounterStore } from "@jini-ai/http-kit/rate-limit";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
-import type { VisitorToolLimits } from "../../contracts/site-assistant/visitor-tools.js";
+import type { VisitorToolLimits } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 
 interface Bucket { readonly store: CounterStore; readonly max: number; readonly limiter: RateLimiter }
 export interface VisitorToolBudgetTarget {

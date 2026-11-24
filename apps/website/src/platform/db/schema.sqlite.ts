@@ -491,7 +491,7 @@ export const settingRevisions = sqliteTable(
  * SPEC-050 (`core.site.title`, NC-3 = A): one row per workspace that existed when the marker migration
  * (`*_site_title_preexisting_workspaces`) ran, i.e. before the site-title setting shipped. Only that
  * migration inserts rows, so a site created later has none and renders its display name. The pin
- * (`features/settings/site-title.ts`) sets `preservedAt` once it has pinned or skipped the workspace;
+ * (`@jini-ai/cms/settings/site/site-title`) sets `preservedAt` once it has pinned or skipped the workspace;
  * a NULL `preservedAt` is a pin still pending. No foreign key: a row for a deleted workspace is inert.
  */
 export const siteTitlePreexistingWorkspaces = sqliteTable("site_title_preexisting_workspaces", {
@@ -919,7 +919,7 @@ export const memberRevisions = sqliteTable(
  * Newsletter (SPEC-011, ADR-PIPE-011 Decision §2). The campaign editorial row is a BESPOKE Drizzle
  * table pair (not the ADR-023 `dataModule` path) — the 5 relational `p_newsletter__*` tables (lists/
  * subscriptions/audience_snapshots/sends/confirmation_tokens) are `declareDataModule()`-owned instead
- * (see `apps/website/src/features/newsletter/data-module-manifest.ts`), NOT declared here. `countersJson`/`stateJson` are
+ * (see `@jini-ai/user-management/newsletter/data-module-manifest`), NOT declared here. `countersJson`/`stateJson` are
  * JSON-serialized text columns, mirroring `settingRevisions`/`redirectRevisions`'s convention.
  */
 export const newsletterCampaigns = sqliteTable(

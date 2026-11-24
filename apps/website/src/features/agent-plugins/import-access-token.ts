@@ -14,7 +14,6 @@ import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedT
 import { tovuInstalledMcpReads } from './federate-mcp.js';
 import { withOverrides } from './mcp-host-bindings.js';
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
-export type { ImportAgentPluginAccessTokenOutcome, InstalledAgentPluginServers, TokenImportLog } from '@jini-ai/agent-plugins/connect';
 
 /** Recorded as `updatedBy`/principal on what an import writes. */
 export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = 'system:token-import';

@@ -8,18 +8,8 @@ import { mediaFileReplacementRecord, type MediaRecord, type MediaFileReplacement
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
-import type {
-  VersionedMediaRepoPort,
-  AssetBlobRepoPort,
-  AssetRenditionRepoPort,
-  TransformDefinitionRepoPort,
-  AssetBlobRecord,
-  AssetBlobStatus,
-  AssetRenditionRecord,
-  MediaStatus,
-  TransformDefinitionRecord,
-  TransformParams,
-} from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort, AssetBlobRepoPort, AssetRenditionRepoPort, TransformDefinitionRepoPort, AssetBlobRecord, AssetBlobStatus, AssetRenditionRecord, MediaStatus, TransformDefinitionRecord } from "@jini-ai/cms/media";
+import type { TransformParams } from "@jini-ai/core/contracts/site/cms-media";
 
 /**
  * @file ADR-046 Phase 1 — THE durable adapters for the `media` library's four route-consumed repo

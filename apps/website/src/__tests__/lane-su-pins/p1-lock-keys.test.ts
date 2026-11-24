@@ -14,7 +14,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createIdentityTransactions } from "#src/features/identity/repo";
-import { SqliteWorkspaceRepo } from "#src/features/workspace/repo.sqlite";
+import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
 import { recordingKernel } from "./support/recording-kernel.js";
 
 /**
@@ -29,7 +29,7 @@ const WS = "lane-su-ws";
 describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
   test("workspace roster", async () => {
     const { kernel, keys } = recordingKernel();
-    await new SqliteWorkspaceRepo({ store: kernel }).transaction({ fn: async () => "done" });
+    await new SqliteWorkspaceRepo({ store: kernel, kernelFor: schemaErasedKernel }).transaction({ fn: async () => "done" });
     assert.deepEqual(keys, ["workspace:roster"]);
   });
 

@@ -6,9 +6,10 @@ import { createSystemClock } from '@jini-ai/platform/system';
 import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
-import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '../save-form.js';
-import { externalMcpAccessSnapshot } from '../external-mcp-store.js';
-import type { ExternalMcpServerRecord, ExternalMcpServerView } from '../contracts.js';
+import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '@jini-ai/mcp/external/save-form';
+import { externalMcpAccessSnapshot } from '@jini-ai/mcp/federation/hosted';
+import type { ExternalMcpServerRecord } from '@jini-ai/core/contracts/hosted-mcp';
+import type { ExternalMcpServerView } from '../contracts.js';
 import type { ExternalMcpToolDeps } from '../deps.js';
 
 const now = '2026-11-06T04:00:00.000Z';
@@ -107,7 +108,7 @@ test('grant removals and disabling remain available without a cached catalog', a
 });
 
 test('credential setup discloses fixed grant lists without editable access fields', () => {
-  const form = buildExternalMcpSaveForm({ save: { id: 'source', transport: 'streamable_http', authMode: 'static_env', allowedToolNames: 'read, write', writeAllowedToolNames: 'write' }, isUpdate: false });
+  const form = buildExternalMcpSaveForm({ save: { id: 'source', transport: 'streamable_http', authMode: 'static_env', allowedToolNames: 'read, write', writeAllowedToolNames: 'write' }, isUpdate: false, appName: 'tovu-external-mcp-save' });
   assert.ok(form.fields.some(field => field.name === 'accessToken'), 'credential entry stays available');
   assert.ok(form.fields.every(field => field.name !== 'allowedToolNames' && field.name !== 'writeAllowedToolNames'));
   const disclosure = JSON.stringify(form.details); assert.match(disclosure, /read, write/); assert.match(disclosure, /May write/);

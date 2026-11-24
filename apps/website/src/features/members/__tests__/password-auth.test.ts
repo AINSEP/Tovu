@@ -1,21 +1,23 @@
 /** OPUS-REVIEW shard C: password policy, anti-enumeration, reset cutoff and password/reset races. */
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { OutboundEmail } from "#src/platform/mail/index";
-import type { MembersWriteServiceDeps } from "../ports.js";
+import type { OutboundEmail } from "@jini-ai/platform/mail";
+import type { MembersWriteServiceDeps } from "@jini-ai/user-management/members/ports";
 import {
   createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
-} from "../repo.memory.js";
-import { completeSignIn } from "../member-sign-in.js";
-import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "../member-credentials.js";
-import { requestSignInLink, requestPasswordReset } from "../member-challenge-request.js";
-import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
-import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "../types.js";
+} from "@jini-ai/user-management/members/repo.memory";
+import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "@jini-ai/user-management/members/member-credentials";
+import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
+import { resetPassword, setMemberPassword, signInWithPassword } from "@jini-ai/user-management/members/password-auth";
+import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 const WS = "member-passwords";
 const EMAIL = "ada@example.test";
@@ -29,6 +31,7 @@ function harness() {
   const verifications: Array<{ hash: string; password: string }> = [];
   const hashInputs: string[] = [];
   const deps: MembersWriteServiceDeps = {
+    orFallbackSync,
     // Policy tests use memory ports; real lock/rollback guarantees live in password-lifecycle.dialects.test.ts.
     credentialLifecycle: createInMemoryCredentialLifecycle(),
     clock, ids: { newId: () => `id-${++seq}` }, members: new InMemoryMemberRepo(),
@@ -43,6 +46,7 @@ function harness() {
       canonicalOrigin: async () => ({ scheme: "https", host: "members.example.test", source: "workspace-setting", verifiedAt: clock.nowIso() }),
       isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false,
     },
+    mailTransport: membersMailTransport,
     mailer: {
       capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: clock.nowIso() }; },

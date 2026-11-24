@@ -8,7 +8,7 @@ import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `AgentPluginDisableConfirmDialog`'s three behaviours — Escape-to-cancel, the name-derived
  * copy, and (2026-09-20 platform review, Finding 4) the Tab focus trap — so the dialog component
- * itself is only markup. Mirrors `features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts`
+ * itself is only markup. Mirrors `@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks`
  * (same split, same reason: `copy` is a derived value, not something the component should compute
  * inline).
  *

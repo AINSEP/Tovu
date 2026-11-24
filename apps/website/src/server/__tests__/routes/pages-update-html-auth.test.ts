@@ -8,13 +8,13 @@ import test from "node:test";
 import express from "express";
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 
-import { type IdentityRepos } from "@jini-ai/user-management";
+import type { IdentityRepos } from "@jini-ai/core/contracts/site/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 
 import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
-import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
-import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
-import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
+import { applyBuiltinRoleGrants } from "@jini-ai/user-management/identity/builtin-role-grants";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/runtime/composition/modules/pages";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 

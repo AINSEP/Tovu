@@ -1,19 +1,19 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { useLocalSites, type LocalSitesController } from "./use-local-sites.hooks";
-import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
+import { useLocalSites, type LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
+import { useSiteConfirm, type SiteConfirmController } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
 
-import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { QueryStatus } from "@jini-ai/core/fetch";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSitesSnapshot } from "./use-sites-snapshot.hooks";
+import { useSitesSnapshot } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../sites-i18n";
 import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
-import { defaultSitesPort } from "./sites-dependencies.hooks";
-import type { SitesPort } from "./sites-port.hooks";
+import { LOCAL_SITE_CONFIRM_PRESENTATION, SITES_LISTING, defaultSitesPort, localSitesDeps, type LOCAL_SITE_CONFIRM_KEYS } from "./sites-dependencies.hooks";
+import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
 import { resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
 
@@ -22,7 +22,7 @@ import { type Translate } from '@jini-ai/core/text';
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
  *
  * One list read plus two writes, in the `useX(port, t)` / `useWiredX()` shape
- * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`sites-port.hooks.ts`) so a test
+ * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`@jini-ai/admin/screens/sites/sites-port.hooks`) so a test
  * describes outcomes against `createFakeSitesPort` rather than stubbing global `fetch`.
  *
  * ## The one behavior worth stating up front: Activate does not switch anything
@@ -54,7 +54,7 @@ import { type Translate } from '@jini-ai/core/text';
 export interface SitesController {
   localSites?: LocalSitesController;
   /** The modal that answers {@link SitesController.localSites}' Trash/Delete/Switch confirmations. */
-  siteConfirm?: SiteConfirmController;
+  siteConfirm?: SiteConfirmController<keyof typeof LOCAL_SITE_CONFIRM_KEYS>;
   /** `undefined` until the first successful load — the view renders its loading state. */
   snapshot: AdminSitesSnapshot | undefined;
   /** {@link SitesController.snapshot}'s rows in render order (serving first, then by name), or an
@@ -271,9 +271,9 @@ function useSiteActivation({ port, writes: sitesWrites }: { port: SitesPort; wri
 }
 
 export function useSites(port: SitesPort, t: Translate): SitesController {
-  const list = useSitesSnapshot({ port });
-  const siteConfirm = useSiteConfirm({ t });
-  const localSites = useLocalSites({ port, snapshot: list.data, t }, { confirm: siteConfirm.confirm });
+  const list = useSitesSnapshot({ port, listing: SITES_LISTING });
+  const siteConfirm = useSiteConfirm({ t, presentation: LOCAL_SITE_CONFIRM_PRESENTATION });
+  const localSites = useLocalSites({ port, snapshot: list.data, t, deps: localSitesDeps }, { confirm: siteConfirm.confirm });
   const writes: SitesWrites = { createMutation: useCreateSiteMutation({ port }), activateMutation: useActivateSiteMutation({ port }) };
   const create = useSiteCreate({ port, t, snapshot: list.data, writes });
   const { activate, activatingName, activation } = useSiteActivation({ port, writes });

@@ -1,6 +1,6 @@
 import { isBuiltInExternalMcpServer } from "@jini-ai/mcp/external/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
-import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
+import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "@jini-ai/user-management/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
@@ -8,11 +8,11 @@ import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";
-import { deleteExternalMcpServer } from "../../../features/external-mcp/external-mcp-store.js";
+import { deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";
 import type { PermanentDeletePlan, PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";
-import type { PermanentDeleteToolId } from "#src/features/permanent-delete/agent-tools";
+import type { PermanentDeleteToolId } from "@jini-ai/cms/trash/permanent/agent-tools";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /** Host adapter only: the tools never import server or reach credential services directly. */

@@ -11,7 +11,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
+import { createInMemoryToolAttemptAuditSink } from "@jini-ai/diagnostics/tool-audit/repo.memory";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
-import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { verifyPublishedMedia } from "../verify-published-media.js";

@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
-import { emptyComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
+import { emptyComposerCapabilityProjection } from "@jini-ai/admin/screens/plugins/composer-capabilities";
 import { AssistantDock } from "../AssistantDock";
 
 /** Real dock header and Jini editor, with existing hook seams replacing IO. */

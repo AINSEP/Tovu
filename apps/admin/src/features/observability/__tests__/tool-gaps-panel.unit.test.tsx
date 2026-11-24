@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@/__tests__/fetch-query-render';
 import { describe, expect, it } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
-import { ToolGapsPanel } from '../tool-gaps-panel';
+import { ToolGapsPanel } from '@jini-ai/admin/screens/observability/tool-gaps-panel';
 
 describe('Observability Tool gaps filter', () => {
   it('shows the persisted fallback metadata and an explicit absent explanation', async () => {

@@ -4,11 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Database } from "../Database";
-import type { TimelineSectionController } from "../hooks/use-timeline-section.hooks";
-import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
-import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
+import type { TimelineSectionController } from "@jini-ai/admin/screens/database/hooks/use-timeline-section.hooks";
+import type { MigrateForwardSectionController } from "@jini-ai/admin/screens/database/hooks/use-migrate-forward-section.hooks";
+import type { SchemaStateSectionController } from "@jini-ai/admin/screens/database/hooks/use-schema-state-section.hooks";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
+import type { AdminLedgerRow } from "@jini-ai/admin/core";
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for
@@ -54,16 +54,16 @@ const { timelineRef, migrateForwardRef, schemaStateRef } = vi.hoisted(() => ({
   schemaStateRef: { current: null as unknown },
 }));
 
-vi.mock("../hooks/use-timeline-section.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-timeline-section.hooks")>();
+vi.mock("../hooks/timeline-section-dependencies.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/timeline-section-dependencies.hooks")>();
   return { ...actual, useWiredTimelineSection: () => timelineRef.current };
 });
-vi.mock("../hooks/use-migrate-forward-section.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-migrate-forward-section.hooks")>();
+vi.mock("../hooks/migrate-forward-section-dependencies.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/migrate-forward-section-dependencies.hooks")>();
   return { ...actual, useWiredMigrateForwardSection: () => migrateForwardRef.current };
 });
-vi.mock("../hooks/use-schema-state-section.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-schema-state-section.hooks")>();
+vi.mock("../hooks/schema-state-section-dependencies.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/schema-state-section-dependencies.hooks")>();
   return { ...actual, useWiredSchemaStateSection: () => schemaStateRef.current };
 });
 

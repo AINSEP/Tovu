@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { fingerprintSiteKeyHex, parseSiteKeyHex } from '../../../webhooks/index.js';
+import { fingerprintSiteKeyHex, parseSiteKeyHex } from '../../../webhooks/keyring.env.js';
 import { recordDeployOps, S9_SITE_KEY, S9_PLAIN } from './extract-s9-g-deploy.support.js';
 
 test('G-deploy real-tool results, card bytes, history, and I/O counts equal the immutable pre-seam recording', async () => {

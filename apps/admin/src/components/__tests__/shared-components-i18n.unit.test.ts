@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SHARED_COMPONENTS_DICT } from "../shared-components-i18n";
+import { SHARED_COMPONENTS_DICT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -72,7 +72,7 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
 
   // Spot-check every key the currently-wired call sites actually call t()/interpolate() with.
   const CALL_SITE_KEYS = [
-    // AdminFailureNotice.tsx: incident dismissal remains translated before sign-in.
+    // lib/shell-notices-wiring.tsx (TovuAdminFailureNotice): incident dismissal remains translated before sign-in.
     "Dismiss error",
     // SecretInput.tsx (`secretToggleLabels`): the eye toggle's accessible name.
     "Show {label}",

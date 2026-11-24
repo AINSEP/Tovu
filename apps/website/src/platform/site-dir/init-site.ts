@@ -5,6 +5,23 @@ import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+/**
+ * SPEC-003 — the shared atomic JSON-write helper for the install-dir domain is `@jini-ai/platform/fs`.
+ *
+ * Purpose:
+ * state.spec.md §7: "Atomicity: JSON files are written via temp-file + rename (best-effort
+ * atomic on POSIX)." This file was the last production caller of the site-dir wrapper
+ * (`.site-meta.json`'s initial write) — historically also `boot-site-dir.ts` (CIC U-002-B2's
+ * `schemaVersion`+`schemaTag` stamp rewrite, which must land both fields in one atomic operation,
+ * never a torn partial write); every site-dir writer now binds `@jini-ai/platform/fs`'s `writeFileAtomic` /
+ * `writeJsonFileAtomic` directly with `createNodeAtomicFilesystem`. The wrapper (and its
+ * unit test) were deleted once this file did the same (P9K D04, BX-29).
+ *
+ * Permissions (2026-09-05 site-dir env perms audit, F1): the rename target's mode is preserved
+ * across an overwrite, and a brand-new file defaults to `0600` — never the loose
+ * `0666 & ~umask` `fs.writeFileSync` gives an unmoded write. See the owner's `writeFileAtomic` doc.
+ */
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
 import { contentKernel } from "../db/content-kernel.js";
@@ -12,7 +29,6 @@ import { closeSqliteConnection, openPostgresKernel, sqliteKernel } from "../db/k
 import { migrateContentDatabase } from "../db/migrations/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { openSqliteContentConnection } from "../db/sqlite/content-db.js";
-import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
 import { stockThemesDir } from "./product-root.js";
@@ -298,7 +314,7 @@ async function createSiteContents({ site, options, progress }: { site: NewSite; 
   // `timezone` (Bug D): post dates render in the site's zone; until the owner sets one, it is the
   // zone of the machine that created the site.
   const config: ConfigJson = { name: site.resolvedName, domain: null, port: null, timezone: (options.detectTimeZone ?? detectProcessTimeZone)() };
-  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, { filesystem: options.filesystem });
+  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config, fs: siteFilesystem({ options }) }, {});
 
   // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
   // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
@@ -314,7 +330,12 @@ async function createSiteContents({ site, options, progress }: { site: NewSite; 
   // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
   // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
   options.verifiedRestore?.signal?.throwIfAborted();
-  writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: siteMeta(site) }, { filesystem: options.filesystem });
+  writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: siteMeta(site), fs: siteFilesystem({ options }) }, {});
+}
+
+/** The injected atomic filesystem port, else the Node one (see `InitSiteOptions.filesystem`). */
+function siteFilesystem({ options }: { options: Pick<InitSiteOptions, "filesystem"> }, _optional = {}): AtomicFilesystemPort {
+  return options.filesystem ?? createNodeAtomicFilesystem({}, {});
 }
 
 /** Step 4 (target + placeholder subdirectories) and step 4b (seeded themes). */

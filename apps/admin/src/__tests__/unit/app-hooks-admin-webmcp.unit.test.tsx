@@ -2,10 +2,10 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
-import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
+import { PUBLISH_CONTENT_CAPABILITY } from "@jini-ai/cms/publish/content/dialog";
 import { PAGE_CAPABILITIES, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
-import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
+import { browserAgentSettingsPort } from "../../features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, subscribeToAdminPageSurfaces } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
@@ -22,7 +22,7 @@ const navigatorContextDescriptor = Object.getOwnPropertyDescriptor(navigator, "m
 
 afterEach(() => {
   vi.restoreAllMocks();
-  act(() => setBrowserAgentEnabled({ enabled: true }));
+  act(() => browserAgentSettingsPort.setEnabled({ enabled: true }));
   createBridge.mockClear();
   for (const [target, descriptor] of [[document, documentContextDescriptor], [navigator, navigatorContextDescriptor]] as const) {
     if (descriptor) Object.defineProperty(target, "modelContext", descriptor);
@@ -45,7 +45,7 @@ afterEach(() => {
 
 describe("registerAdminWebMcpTool", () => {
   it("a disabled browser-agent setting refuses new registrations", () => {
-    act(() => setBrowserAgentEnabled({ enabled: false }));
+    act(() => browserAgentSettingsPort.setEnabled({ enabled: false }));
     const registerTool = vi.fn();
     registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: new AbortController().signal }, { modelContext: { registerTool } });
     expect(registerTool).not.toHaveBeenCalled();
@@ -218,11 +218,11 @@ describe("registerAdminWebMcpTool", () => {
     const bridge = result.current.agentBridge!;
     const callsBeforeToggle = createBridge.mock.calls.length;
     const signals = registerTool.mock.calls.map((call) => call[1].signal as AbortSignal);
-    act(() => setBrowserAgentEnabled({ enabled: false }));
+    act(() => browserAgentSettingsPort.setEnabled({ enabled: false }));
     expect(signals.every((signal) => signal.aborted)).toBe(true);
     expect(result.current.agentBridge).toBe(bridge);
     expect(bridge.close).not.toHaveBeenCalled();
-    act(() => setBrowserAgentEnabled({ enabled: true }));
+    act(() => browserAgentSettingsPort.setEnabled({ enabled: true }));
     expect(registerTool).toHaveBeenCalledTimes(2 * (1 + PAGE_CAPABILITIES.length));
     expect(createBridge.mock.calls).toHaveLength(callsBeforeToggle);
   });
@@ -231,7 +231,7 @@ describe("registerAdminWebMcpTool", () => {
     const registerTool = vi.fn();
     const executor = vi.fn();
     registerAdminWebMcpTool({ executors: { "admin.": executor }, signal: new AbortController().signal }, { modelContext: { registerTool } });
-    act(() => setBrowserAgentEnabled({ enabled: false }));
+    act(() => browserAgentSettingsPort.setEnabled({ enabled: false }));
     await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow(/disabled/);
     expect(executor).not.toHaveBeenCalled();
   });
@@ -297,7 +297,7 @@ it.each(['disabled', 'navigation'])("aborts a protected WebMCP request on %s whi
   await waitFor(() => expect(requestSignal).toBeDefined());
   expect(requestSignal!.aborted).toBe(false);
   act(() => {
-    if (state === 'disabled') setBrowserAgentEnabled({ enabled: false });
+    if (state === 'disabled') browserAgentSettingsPort.setEnabled({ enabled: false });
     else navigate({ routePath: '/webmcp-abort-navigation' });
   });
   await rejected;

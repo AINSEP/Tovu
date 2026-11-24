@@ -1,5 +1,5 @@
 import { FORM_DELIVERY_EVENT, FORM_NOTIFY_DELIVERY_EVENT, FORM_ATTACHMENT_CLEANUP_EVENT, formDeliveryRetryPolicy } from "@jini-ai/cms/forms";
-import type { OutboxRetryPolicyResolver } from "@jini-ai/infra/events/outbox";
+import type { OutboxRetryPolicyResolver } from "@jini-ai/core/contracts/site/events-outbox";
 import { computeBackoffMs, MAX_DELIVERY_ATTEMPTS } from "@jini-ai/integrations/webhooks";
 
 /**

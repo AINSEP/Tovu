@@ -255,7 +255,8 @@ async function bootWithStore(t: import("node:test").TestContext) {
 test("an API key cannot answer a local or daemon-held approval", async (t) => {
   const { baseUrl, cookie, surfaceExchanges, deps } = await bootWithStore(t);
   const { apiKeyServiceDepsFrom } = await import("../inbound/admin-http/routes/api-keys/deps.js");
-  const { createApiKeyPrincipal, issueApiKey } = await import("../../features/identity/api-key-service.js");
+  const { createApiKeyPrincipal } = await import("@jini-ai/user-management/identity/api-key-service");
+  const { issueApiKey } = await import("../../features/identity/api-key-binding.js");
   const callerPrincipalId = await authedPrincipalId(baseUrl, cookie);
   const service = apiKeyServiceDepsFrom(deps);
   const { principal } = await createApiKeyPrincipal({ deps: service, input: {

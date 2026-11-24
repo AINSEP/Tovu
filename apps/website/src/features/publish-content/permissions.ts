@@ -1,4 +1,4 @@
-import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
+import type { PermissionGrantRegistry } from "@jini-ai/user-management/identity/permission-grants";
 import { registerPermission } from "@jini-ai/user-management";
 
 /**

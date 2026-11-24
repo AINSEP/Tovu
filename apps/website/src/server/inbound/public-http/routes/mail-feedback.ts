@@ -1,5 +1,5 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
-import type { MailFeedbackRoute } from "#src/features/mail/index";
+import type { MailFeedbackRoute } from "@jini-ai/platform/mail";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**

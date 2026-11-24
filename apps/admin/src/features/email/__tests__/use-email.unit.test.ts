@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import type { AdminMailStatus } from "@jini-ai/admin/screens/email/api/mail-status-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { emailSummary, useEmail, type EmailPort } from "../hooks/use-email.hooks";
+import { emailSummary, useEmail, type EmailPort } from "@jini-ai/admin/screens/email/hooks/use-email.hooks";
 
 /**
  * @file `useEmail` over an injected port: loading → loaded, 403 → forbidden, any other failure →
@@ -24,7 +24,7 @@ function port(getMailStatus: EmailPort["getMailStatus"]): EmailPort {
 describe("useEmail", () => {
   it("starts loading, then shows the status", async () => {
     const fake = port(vi.fn(async () => READY));
-    const { result } = renderHook(() => useEmail({ port: fake, locale: "es" }));
+    const { result } = renderHook(() => useEmail({ port: fake, locale: "es", ApiError }));
     expect(result.current.view).toEqual({ kind: "loading" });
     expect(result.current.locale).toBe("es");
     await waitFor(() => expect(result.current.view).toEqual({ kind: "loaded", status: READY }));
@@ -32,7 +32,7 @@ describe("useEmail", () => {
 
   it("reports a 403 as forbidden", async () => {
     const fake = port(vi.fn(async () => { throw new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }); }));
-    const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));
+    const { result } = renderHook(() => useEmail({ port: fake, locale: "en", ApiError }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "forbidden" }));
   });
 
@@ -41,7 +41,7 @@ describe("useEmail", () => {
       .mockRejectedValueOnce(new ApiError({ message: "internal error", status: 500 }))
       .mockResolvedValueOnce(READY);
     const fake = port(getMailStatus);
-    const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));
+    const { result } = renderHook(() => useEmail({ port: fake, locale: "en", ApiError }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "error" }));
     act(() => result.current.retry());
     await waitFor(() => expect(result.current.view).toEqual({ kind: "loaded", status: READY }));
@@ -51,7 +51,7 @@ describe("useEmail", () => {
   it("ignores a status that arrives after unmount", async () => {
     let resolve: (value: AdminMailStatus) => void = () => {};
     const fake = port(() => new Promise<AdminMailStatus>((done) => { resolve = done; }));
-    const { result, unmount } = renderHook(() => useEmail({ port: fake, locale: "en" }));
+    const { result, unmount } = renderHook(() => useEmail({ port: fake, locale: "en", ApiError }));
     unmount();
     resolve(READY);
     await Promise.resolve();

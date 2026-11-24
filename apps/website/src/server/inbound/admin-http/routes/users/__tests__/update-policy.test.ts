@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyUpdateRoute } from "../update-policy.js";
+import { registerAdminPolicyUpdateRoute } from "#src/server/runtime/composition/modules/users-access";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createPolicy } from "@jini-ai/user-management/server";
 

@@ -2,7 +2,7 @@ import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-
 import type { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { vi } from "vitest";
 
-import type { EmailApi, EmailTemplateDetail, EmailTemplatePreview, MailActivityItem, MailDnsStatus, MailProviderConfiguration, MailSuppressionEntry, MailSuppressionRemovalPlan } from "../email-api";
+import type { EmailApi, EmailTemplateDetail, EmailTemplatePreview, MailActivityItem, MailDnsStatus, MailProviderConfiguration, MailSuppressionEntry, MailSuppressionRemovalPlan } from "@jini-ai/admin/screens/email/email-api.types";
 
 /** @file Email fixtures and typed fake API ports. No fake ever delegates to the network. */
 export const MAIL_PLUGIN: AdminAgentPlugin = { pluginId: "mail-plugin", displayName: "Example Mail", summary: "Send site email.", provides: ["outbound-mail"], origin: "bundled", enabled: false, version: "1", description: null, keywords: [], skills: [], mcpServerIds: [] };

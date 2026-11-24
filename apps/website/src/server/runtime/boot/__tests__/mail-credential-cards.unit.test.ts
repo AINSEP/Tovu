@@ -9,7 +9,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/credential-save";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -19,7 +19,8 @@ import { buildPluginCredentialForm, type PluginCredentialCard } from "../../../.
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { buildMailProviderRegistrations } from "#src/features/mail-status/provider-tool-registrations";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { loadMailCredentialCards, loadMailProviderCatalog, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
 import { describeMailProviders } from "../mail-provider-configuration.js";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";

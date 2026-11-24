@@ -2,14 +2,14 @@ import { isDeepStrictEqual } from "node:util";
 import { sql, type Selectable } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
 import { VaultError, type VaultRecord } from "@jini-ai/core/contracts/vault";
-import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
+import { persistExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
+import { externalMcpAccessSnapshot, externalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { insertRow, toRow, updateRowIfVersion, updateRuntime, type ServerKey } from "./external-mcp-repo.writes.js";
-import type { ExternalMcpAccessUpdate, ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import type { ExternalMcpAccessUpdate, ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ExternalMcpServersTable } from "../../platform/db/content-database.generated.js";

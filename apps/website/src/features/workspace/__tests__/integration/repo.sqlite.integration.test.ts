@@ -5,7 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteWorkspaceRepo } from "../../repo.sqlite.js";
+import { SqliteWorkspaceRepo } from "@jini-ai/cms/workspace/site/repo.sqlite";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 
 /**
  * @file Real SQLite persistence for `features/workspace` (this dispatch — closes a gap confirmed
@@ -29,11 +30,11 @@ function openTempContentDb() {
 test("insert -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqliteWorkspaceRepo({ store: dbAfterRestart });
+    const repoAfterRestart = new SqliteWorkspaceRepo({ store: dbAfterRestart, kernelFor: schemaErasedKernel });
     const found = await repoAfterRestart.findById({ id: "ws-1" });
     assert.ok(found);
     assert.equal(found?.name, "Acme");
@@ -47,7 +48,7 @@ test("insert -> restart-simulated (fresh repo instance against the same file) ->
 test("findBySlug finds by slug, not by id, and returns null for an unknown slug", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     const bySlug = await repo.findBySlug({ slug: "acme" });
@@ -67,7 +68,7 @@ test("findBySlug finds by slug, not by id, and returns null for an unknown slug"
 test("list() returns every workspace row", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
     await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
@@ -85,7 +86,7 @@ test("list() returns every workspace row", async () => {
 test("update() changes only the targeted row's name/slug, leaving a sibling row untouched", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
     await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
@@ -108,7 +109,7 @@ test("update() changes only the targeted row's name/slug, leaving a sibling row 
 test("delete() removes only the targeted row from real SQLite, leaving a sibling row untouched", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
     await repo.insert({ id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 });
 
@@ -117,7 +118,7 @@ test("delete() removes only the targeted row from real SQLite, leaving a sibling
     // Query a FRESH handle against the same file — proves the row is actually gone from disk, not
     // merely absent from an in-process cache.
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqliteWorkspaceRepo({ store: dbAfterRestart });
+    const repoAfterRestart = new SqliteWorkspaceRepo({ store: dbAfterRestart, kernelFor: schemaErasedKernel });
     assert.equal(await repoAfterRestart.findById({ id: "ws-1" }), null, "the deleted row must not survive a restart");
     const sibling = await repoAfterRestart.findById({ id: "ws-2" });
     assert.ok(sibling, "a delete targeting ws-1 must not remove ws-2's row");
@@ -130,7 +131,7 @@ test("delete() removes only the targeted row from real SQLite, leaving a sibling
 test("the schema's real UNIQUE constraint on slug is enforced by SQLite itself, not just application-level checking", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteWorkspaceRepo({ store: db });
+    const repo = new SqliteWorkspaceRepo({ store: db, kernelFor: schemaErasedKernel });
     await repo.insert({ id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 });
 
     // `createWorkspace` (the Jini package's write-service) checks `findBySlug` before inserting to

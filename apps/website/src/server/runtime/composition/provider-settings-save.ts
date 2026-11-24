@@ -1,15 +1,16 @@
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { type PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError } from "./provider-config-source.js";
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import { providerInputOf } from "./provider-plugins.js";
 import type { Tracker } from '@jini-ai/core/contracts/site/diagnostics-observability';
 
 /**
  * @file The one save rule for a provider plugin's settings (2026-10-25), shared by the admin settings
- * card (`routes/plugins/provider-settings.ts`) and the assistant's key card (a `provider-settings`
+ * card (`@jini-ai/cms/admin-http/routes/plugins/provider-settings`, mounted in `modules/plugins.ts`) and the assistant's key card (a `provider-settings`
  * credential card an agent plugin declares, `features/custom-credentials/provider-settings-card.ts`).
  * Same declared fields, same validation, same secret re-entry rule, same `ProviderConfigSource`
  * (site first, then attached project rows), so a key saved from chat and one saved from Settings are the same row.

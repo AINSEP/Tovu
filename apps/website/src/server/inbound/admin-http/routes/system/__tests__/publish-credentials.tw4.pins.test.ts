@@ -8,7 +8,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { createPublishCredential, describeCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
@@ -130,6 +130,23 @@ test("publish list still answers when the after-response account-label heal cann
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(loads, 1);
   assert.deepEqual(logged.mock.calls.map(c => c.arguments), [["[publish-credentials] account-label heal skipped: deploy targets could not be loaded", loadFailure]]);
+});
+
+test("publish list logs a failed after-response account-label heal through the route's bound reporter", async t => {
+  const f = await fixture({ accountLabel: "fixture-account" });
+  const logged = t.mock.method(console, "error", () => {});
+  // The fixture target does not declare `yieldsAccountLabel`; re-serve it with the flag so the
+  // saved row (label still null) becomes a heal candidate, then make persisting the label fail.
+  const base = await f.ports.loadDeployTargets();
+  const fixtureTarget = base.list()[0]!;
+  const yielding: LoadedDeployTarget = { ...fixtureTarget, descriptor: { ...fixtureTarget.descriptor, credential: { ...fixtureTarget.descriptor.credential!, yieldsAccountLabel: true } } };
+  f.ports.loadDeployTargets = async () => ({ get: name => name === "fixture" ? yielding : undefined, list: () => [yielding], refusals: [] });
+  const failure = new Error("vault locked");
+  t.mock.method(f.repo, "updateAccountLabel", async () => { throw failure; });
+  const listed = await f.call("get", collection);
+  assert.equal(listed.statusCode, 200);
+  for (let i = 0; i < 20 && logged.mock.callCount() === 0; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [[`[publish-credentials] background account-label heal failed for '${f.saved.id}'`, failure]]);
 });
 
 test("publish create reports no verification when the new row vanished before it could be verified", async t => {

@@ -18,7 +18,9 @@ import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publ
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import type { PublishContentOutcomeRow, PublishContentReport } from "../plan-rows.js";
 import { InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "../run-repo.js";
-import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity, type PublishContentDeps, type PublishContentHandler } from "../type-registry.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 const WS = "ws-1";
 const SRC = "source-peer";

@@ -4,10 +4,11 @@ import { describe, test } from "node:test";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMemberTierRepo } from "../repo.js";
-import { InMemoryMemberTierRepo } from "../repo.memory.js";
-import type { MemberTierRepoPort } from "../ports.js";
-import type { MemberTierRecord } from "../types.js";
+import { SqlMemberTierRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../repo.sqlite.js";
+import { InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
+import type { MemberTierRepoPort } from "@jini-ai/user-management/members/ports";
+import type { MemberTierRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file Lost-update regression (refactor pattern lost-update, example L-REPO-CAS): two editors open
@@ -55,7 +56,7 @@ function lostUpdateCases(make: () => MemberTierRepoPort): void {
   });
 }
 
-describeEachDialect("member tier lost update", { tables: ["member_tiers"], make: (kernel: ContentKernel) => new SqlMemberTierRepo(kernel) }, (make) => {
+describeEachDialect("member tier lost update", { tables: ["member_tiers"], make: (kernel: ContentKernel) => new SqlMemberTierRepo(memberSqlDeps({ store: kernel })) }, (make) => {
   lostUpdateCases(make);
 });
 

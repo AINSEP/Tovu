@@ -13,7 +13,9 @@ import test from "node:test";
 import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { installNewsletterDataModule } from "../data-module-manifest.js";
+import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { declareDataModule } from "@jini-ai/db/data-modules";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -21,7 +23,7 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../repo.memory.js";
+} from "@jini-ai/user-management/newsletter/repo.memory";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -37,7 +39,7 @@ import type {
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "../ports.js";
+} from "@jini-ai/user-management/newsletter/ports";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -45,7 +47,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "../types.js";
+} from "@jini-ai/user-management/newsletter/types";
 
 const WS = "ws-newsletter-contract";
 const NOW = "2026-07-13T00:00:00.000Z";
@@ -76,7 +78,7 @@ function makeContractCampaign(overrides: Partial<CampaignRecord> = {}): Campaign
 
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
-  await installNewsletterDataModule({
+  await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule,
     db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });
@@ -349,7 +351,7 @@ for (const [name, makeRepo] of sendAdapters) {
     assert.equal((await repo.listPendingByAudienceSnapshot({ workspaceId: WS, audienceSnapshotId: "snap-1", limit: 10 })).length, 1);
     assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 1);
 
-    await repo.saveBatch([{ ...base, id: "send-2", subscriberId: "subscriber-2", idempotencyKey: "newsletter:camp-1:subscriber-2:snap-1" }]);
+    await repo.saveBatch({ rows: [{ ...base, id: "send-2", subscriberId: "subscriber-2", idempotencyKey: "newsletter:camp-1:subscriber-2:snap-1" }] });
     assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 2);
 
     await repo.save({ ...base, status: "delivered" });
@@ -596,7 +598,7 @@ test("memory audience snapshots miss on either lookup key and remain immutable w
   const second = { ...row, id: "snapshot-2", campaignId: "camp-2" };
   await repo.save(second);
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-2" }), second);
-  await assert.rejects(repo.save({ ...row, recipientCount: 99 }), { message: "AudienceSnapshotRow snapshot-1 already exists and is immutable (INV-06)" });
+  await assert.rejects(repo.save({ ...row, recipientCount: 99 }), { message: "AudienceSnapshotRow snapshot-1 already exists and is immutable" });
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-1" }), row);
 });
 

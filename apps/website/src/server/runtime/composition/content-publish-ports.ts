@@ -1,5 +1,5 @@
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
-import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { PostRepoPort } from "#src/features/post/post";
 import { createContentTargetPorts } from "@jini-ai/cms/taxonomy/site/content-targets";
 import type { EntryPublishPorts, TovuPublishPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";

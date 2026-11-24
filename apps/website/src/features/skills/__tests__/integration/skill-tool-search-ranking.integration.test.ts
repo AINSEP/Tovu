@@ -11,7 +11,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
-import { registerInstalledSkillTools } from "../../tool-registrations.js";
+import { registerInstalledSkillTools } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

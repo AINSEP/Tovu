@@ -1,10 +1,9 @@
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
-import { AllSitesTab, type AllSitesTabProps } from "../AllSitesTab";
+import { AllSitesTab, type AllSitesTabProps } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";
-import { resolveSiteCardPreview } from "../hooks/use-site-card-preview.hooks";
 
 /**
  * @file Sites card preview (2026-10-08): the URL carries the capture version, a site without a
@@ -25,17 +24,12 @@ function props(previewVersions?: Record<string, number>): AllSitesTabProps {
   return { sites: SITES, snapshot: snapshot(previewVersions), switchingEnabled: true, activatingName: null, createdName: null, listPrefs: staticListPrefs(), onActivate: vi.fn(), t: (key) => key };
 }
 
-describe("resolveSiteCardPreview", () => {
+// The resolver and hook themselves are tested in Jini (`@jini-ai/ui/site-card`); this file keeps the
+// host's address builder and the rendered card it is wired into.
+describe("adminSitePreviewUrl (the address the host injects)", () => {
   it("builds the versioned, encoded admin preview URL", () => {
     expect(adminSitePreviewUrl({ name: "atlas", version: 1728388800123.5 }))
       .toBe("/api/admin/v1/workspaces/workspace-local/system/sites/atlas/preview?v=1728388800123.5");
-    expect(resolveSiteCardPreview({ site: { name: "atlas" }, snapshot: { previewVersions: { atlas: 7 } } }, { urlFor: ({ name, version }) => `${name}#${version}` }))
-      .toEqual({ src: "atlas#7" });
-  });
-
-  it("is a placeholder without a version for this site, or from an older server without the field", () => {
-    expect(resolveSiteCardPreview({ site: { name: "boreal" }, snapshot: { previewVersions: { atlas: 7 } } })).toEqual({ src: null });
-    expect(resolveSiteCardPreview({ site: { name: "atlas" }, snapshot: {} })).toEqual({ src: null });
   });
 });
 

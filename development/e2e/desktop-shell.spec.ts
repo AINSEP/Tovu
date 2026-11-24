@@ -188,7 +188,7 @@ test.describe("apps/desktop shell", () => {
           await expect(input).toBeFocused();
         }
         const count = async () => {
-          const match = /^(\d+) of (\d+)$/.exec((await win.locator(".findbar__count").textContent())?.trim() ?? "");
+          const match = /^(\d+) of (\d+)$/.exec((await win.locator(".jini-findbar__count").textContent())?.trim() ?? "");
           return match ? { ordinal: Number(match[1]), total: Number(match[2]) } : null;
         };
         await expect.poll(async () => (await count())?.total ?? 0).toBeGreaterThanOrEqual(3);

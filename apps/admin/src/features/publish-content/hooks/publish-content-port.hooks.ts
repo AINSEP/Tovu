@@ -4,7 +4,7 @@ import type {
   PublishContentPeerSummary,
   PublishContentPlanResult,
   PublishScope,
-} from "@tovu/publish-content-ui";
+} from "@jini-ai/cms/publish/content/dialog";
 
 import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 

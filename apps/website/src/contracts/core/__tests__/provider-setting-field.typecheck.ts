@@ -1,7 +1,7 @@
 /** Provider-field projections stay local until the plugins vocabulary lane moves.
  * This host-only pin compares both current public owners, including optional additions.
  */
-import type { ProviderSettingFieldProjection } from '@jini-ai/agent-plugins/lifecycle/host-tools';
+import type { ProviderSettingFieldProjection } from "@jini-ai/core/contracts/site/lifecycle-host-tools";
 import type { PluginProviderSettingField } from '@jini-ai/core/contracts/plugin-sdk';
 
 type Assert<T extends true> = T;

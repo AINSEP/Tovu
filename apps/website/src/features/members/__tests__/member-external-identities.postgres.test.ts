@@ -6,7 +6,8 @@ import { openPostgresKernel } from "#src/platform/db/kernel/drivers/postgres";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
-import { SqlMemberExternalIdentityRepo } from "../repo.js";
+import { SqlMemberExternalIdentityRepo } from "@jini-ai/user-management/members/repo";
+import { memberSqlDeps } from "../repo.sqlite.js";
 import { runExternalIdentityContract } from "./member-external-identities.contract.js";
 
 const DATABASE = "tovu_member_external_identities_contract";
@@ -21,5 +22,5 @@ after(async () => {
 });
 runExternalIdentityContract({ name: "postgres", open: async () => {
   await kernel.execute(sql`DELETE FROM member_external_identities`);
-  return new SqlMemberExternalIdentityRepo({ kernel });
+  return new SqlMemberExternalIdentityRepo(memberSqlDeps({ store: kernel }));
 } });

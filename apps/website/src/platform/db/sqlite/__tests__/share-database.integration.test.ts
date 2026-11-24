@@ -4,17 +4,20 @@ import { existsSync } from "node:fs";
 import { statfs } from "node:fs/promises";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
-import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
+import { SITE_CONSENT_DEFAULTS } from "@jini-ai/cookie-consent/site/config";
 import { computeBlobStorageKey, MediaValidationError } from "#src/features/media/index";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
-import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-manifest";
+import { createNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
+import { FIRST_PARTY_PUBLISHER } from "#src/server/runtime/composition/data-modules";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openContentDb } from "../content-db.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";
+
+const NEWSLETTER_DATA_MODULE = createNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER });
 
 /**
  * @file Boundary pins for the share projection (`../share-database.ts`) against real in-memory

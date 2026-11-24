@@ -1,4 +1,4 @@
-import { revokeApiKey } from "#src/features/identity/api-key-service";
+import { revokeApiKey } from "@jini-ai/user-management/identity/api-key-service";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import {
   apiKeyServiceDepsFrom,

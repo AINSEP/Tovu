@@ -6,7 +6,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError } from "#src/features/custom-credentials/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
-import type { MailProviderControl } from "#src/platform/mail/mail-status";
+import type { MailProviderControl } from "@jini-ai/platform/mail";
 import {
   activateMailProvider,
   checkMailProvider,

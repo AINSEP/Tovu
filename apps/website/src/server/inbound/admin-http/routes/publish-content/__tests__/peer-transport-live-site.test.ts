@@ -8,7 +8,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
-import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
+import { registerPublishContentPeerTransportRoutes } from "../../../../../runtime/composition/modules/publish-content-transport.js";
 
 /**
  * @file The live site (`TOVU_RUNTIME_MODE=production`, set by the Fly plugin's generated config) has nowhere to publish

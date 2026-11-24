@@ -9,8 +9,9 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PostRecord } from "../../post/post.js";
 import { postRepoFor } from "../../post/repo.js";
-import { CMS_SEARCH_EVENTS, cmsSearchRevision, cmsSearchVisibility, createCmsSearchDocumentSources } from "../cms-document-source.js";
-import { createCmsSearchAccessPort, memberSearchAudiences } from "../access.js";
+import { createCmsSearchDocumentSources } from "@jini-ai/search/site/cms-document-source";
+import { createCmsSearchAccessPort } from "@jini-ai/search/site/access";
+import { CMS_SEARCH_RULES } from "../cms-search-rules.js";
 
 /**
  * @file The CMS search source and access port on SQLite and PGlite, over real `posts` rows saved by
@@ -36,10 +37,10 @@ function setup(kernel: ContentKernel) {
   const clock = { now: () => nowMs, set: (ms: number) => { nowMs = ms; } };
   let runs = 0;
   const counted: ContentKernel = { ...kernel, run: (fn) => { runs += 1; return kernel.run(fn); } };
-  const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now }) as [SearchDocumentSource, SearchDocumentSource];
+  const [posts, pages] = createCmsSearchDocumentSources({ kernel, now: clock.now, ...CMS_SEARCH_RULES }) as [SearchDocumentSource, SearchDocumentSource];
   return {
     kernel, repo: postRepoFor(kernel), posts, pages, clock,
-    access: createCmsSearchAccessPort({ kernel: counted, now: clock.now }),
+    access: createCmsSearchAccessPort({ kernel: counted, now: clock.now, ...CMS_SEARCH_RULES }),
     runs: () => runs,
     load: (source: SearchDocumentSource, documentId: string, occurredAtMs = T0, workspaceId = WS) => source.load({ siteId: SITE, workspaceId, documentId, occurredAtMs }),
   };
@@ -47,51 +48,6 @@ function setup(kernel: ContentKernel) {
 
 const key = (documentId: string, collection = "post", overrides: { siteId?: string; workspaceId?: string } = {}) =>
   ({ siteId: SITE, workspaceId: WS, collection, documentId, ...overrides });
-
-test("documentIdOf claims only post.ts's own events for its own kind", () => {
-  const [posts, pages] = createCmsSearchDocumentSources({ kernel: {} as ContentKernel, now: () => 0 }) as [SearchDocumentSource, SearchDocumentSource];
-  const event = (name: string, payload?: unknown) => ({ name, workspaceId: WS, occurredAt: iso(T0), aggregateId: "p1", payload });
-  for (const name of CMS_SEARCH_EVENTS) assert.equal(posts.documentIdOf({ event: event(name, { entryId: "p1", contentType: "post" }) }), "p1");
-  assert.equal(pages.documentIdOf({ event: event("entry.updated", { entryId: "g1", contentType: "page" }) }), "g1");
-  assert.equal(posts.documentIdOf({ event: event("entry.updated", { entryId: "g1", contentType: "page" }) }), null, "a page is not a post");
-  assert.equal(posts.documentIdOf({ event: event("entry.published", { workspaceId: WS, entryId: "e1" }) }), null, "generic entries carry no contentType");
-  assert.equal(posts.documentIdOf({ event: event("entry.created", { entryId: "p1", contentType: "post" }) }), null, "not a search event");
-  assert.equal(posts.documentIdOf({ event: event("entry.updated") }), null, "no payload");
-  assert.equal(posts.documentIdOf({ event: event("entry.updated", { entryId: 7, contentType: "post" }) }), null, "non-string id");
-});
-
-test("default sources are post and page with the transition events; collections can be narrowed", () => {
-  const sources = createCmsSearchDocumentSources({ kernel: {} as ContentKernel, now: () => 0 });
-  assert.deepEqual(sources.map(source => [source.collection, source.events]), [["post", CMS_SEARCH_EVENTS], ["page", CMS_SEARCH_EVENTS]]);
-  assert.deepEqual(createCmsSearchDocumentSources({ kernel: {} as ContentKernel, now: () => 0 }, { collections: ["page"] }).map(s => s.collection), ["page"]);
-});
-
-test("member gates become audiences; anything unreadable is restricted to nobody", () => {
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: null }), { kind: "public" });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"public"}' }), { kind: "public" });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"members"}' }), { kind: "restricted", audiences: ["members"] });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"paid"}' }), { kind: "restricted", audiences: ["paid"] });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"tiers","tierIds":["gold","silver"]}' }), { kind: "restricted", audiences: ["tier:gold", "tier:silver"] });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"tiers"}' }), { kind: "restricted", audiences: [] });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: "{not json" }), { kind: "restricted", audiences: [] });
-  assert.deepEqual(cmsSearchVisibility({ memberAccessJson: '{"visibility":"everyone"}' }), { kind: "restricted", audiences: [] });
-});
-
-test("viewer audiences use the same tokens, and an anonymous viewer has none", () => {
-  assert.deepEqual(memberSearchAudiences({ context: { isAuthenticated: false, activeTierIds: ["gold"], isPaid: true } }), []);
-  assert.deepEqual(memberSearchAudiences({ context: { isAuthenticated: true, activeTierIds: ["gold"], isPaid: false } }), ["members", "tier:gold"]);
-  assert.deepEqual(memberSearchAudiences({ context: { isAuthenticated: true, activeTierIds: [], isPaid: true } }), ["members", "paid"]);
-});
-
-test("revisions: live rows by max(updatedAt, publishAt), others by max(updatedAt, occurredAt), missing outranks the millisecond", () => {
-  const row = { updated_at: iso(T0), publish_at: null, version: 1_004 };
-  assert.equal(cmsSearchRevision({ row, live: true, occurredAtMs: T0 + 5 }), T0 * 1000 + 4, "a live revision ignores the event time");
-  assert.equal(cmsSearchRevision({ row: { ...row, publish_at: iso(T0 + 9) }, live: true, occurredAtMs: 0 }), (T0 + 9) * 1000 + 4);
-  assert.equal(cmsSearchRevision({ row, live: false, occurredAtMs: T0 + 5 }), (T0 + 5) * 1000 + 4);
-  assert.equal(cmsSearchRevision({ row, live: false, occurredAtMs: T0 - 5 }), T0 * 1000 + 4);
-  assert.equal(cmsSearchRevision({ row: null, live: false, occurredAtMs: T0 }), T0 * 1000 + 999);
-  assert.ok(Number.isSafeInteger(cmsSearchRevision({ row: null, live: false, occurredAtMs: Date.parse("2200-01-01T00:00:00.000Z") })));
-});
 
 describeEachDialect("CMS search source + access", { tables: ["posts", "post_revisions"], make: setup }, (make) => {
   test("load: a live post is a plain-text public document at its public URL", async () => {
@@ -255,7 +211,7 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
   test("access: a collection left out of the port is never visible", async () => {
     const s = make();
     await s.repo.save(post("g1", { kind: "page" }));
-    const postsOnly = createCmsSearchAccessPort({ kernel: s.kernel, now: s.clock.now }, { collections: ["post"] });
+    const postsOnly = createCmsSearchAccessPort({ kernel: s.kernel, now: s.clock.now, ...CMS_SEARCH_RULES }, { collections: ["post"] });
     assert.deepEqual(await postsOnly.visibleKeys({ siteId: SITE, keys: [key("g1", "page")], audiences: [] }), new Set());
   });
 });

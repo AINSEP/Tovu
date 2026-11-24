@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminMediaDeleteRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaImportUrlRoute } from '../import-url.js';
+import { registerAdminMediaImportUrlRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaListRoute } from '../list.js';
 import { registerAdminMediaOriginalRoute, resolveMediaOriginalBlob } from '../original.js';
 import { registerAdminMediaPutProvidersRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaReplaceRoute } from '../replace.js';
-import { registerAdminMediaTextRoute } from '../text.js';
+import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/modules/media';
+import { registerAdminMediaTextRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
-import { registerAdminMediaUploadRoute } from '../upload.js';
-import { registerAdminMediaWhereUsedRoute } from '../where-used.js';
+import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
+import { registerAdminMediaWhereUsedRoute } from '#src/server/runtime/composition/modules/media';
 import { EgressRefusedError } from '#src/platform/http/index';
 import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
 import { createCapturingResponse, startTestServer } from '#src/server/__tests__/helpers/http-test-server';
@@ -269,6 +269,16 @@ test('media usage: unknown asset is 404 and no reference information is queried'
   });
   assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/where-used`), { status: 404, body: { error: 'media was not found' } });
   assert.equal(queries, 0);
+});
+
+test('media usage: a denied media.read is the route\'s own 403 body (no details) and reads nothing (w3 C4 pin)', async () => {
+  let reads = 0;
+  const { app } = fixture(({ app, deps }) => registerAdminMediaWhereUsedRoute({ app, deps }), {
+    authorize: async () => ({ allowed: false, reason: 'no_role' }),
+    mediaRepo: { findById: async () => { reads++; return null; } },
+  });
+  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/where-used`), { status: 403, body: { error: 'media.read is required', code: 'FORBIDDEN' } });
+  assert.equal(reads, 0);
 });
 
 test('media usage (direct invoke): missing :workspaceId 404s and a missing :mediaId is looked up as "", never "undefined"', async () => {

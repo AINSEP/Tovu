@@ -12,7 +12,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import type { ImportArchiveInput, ImportedSiteRecord, SiteRecord } from '../contracts/project.js';
-import { copyableDetails } from './import-error-details.js';
+import { copyableDetails } from '@jini-ai/ui/app-shell';
 import { isShareLink, siteNameFromAddress, websiteAddress, type SiteAdminPage } from './import-site-entry.js';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { humanSiteError } from './site-shell-policy.js';

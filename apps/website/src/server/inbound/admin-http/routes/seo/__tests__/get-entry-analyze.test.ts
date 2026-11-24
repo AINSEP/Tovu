@@ -1,7 +1,7 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "#src/features/seo/index";
+import { createSeoDeps, seoSettingsHostBindings } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
-import { setSeoSettings } from "#src/features/seo/settings";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -109,7 +109,7 @@ test("get-entry-analyze: valid entry returns analysis score and issues (200)", a
     kind: "post", status: "published", bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null,
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
   }] });
-  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+  await setSeoSettings({ ...seoSettingsHostBindings, settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "" } });
   const originRegistry = { isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry), isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry), canonicalOrigin: async () => ({ scheme: "https", host: "seo.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };

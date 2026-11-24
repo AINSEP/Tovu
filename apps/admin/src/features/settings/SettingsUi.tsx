@@ -1,4 +1,6 @@
-import { createSettingsTabChange, createSettingsUiTranslators } from "./SettingsUi.hooks";
+import { createSettingsTabChange, createSettingsUiTranslators } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
+import { t as tApp } from "../../app-i18n";
+import { t as tCapability } from "./settings-capabilities-i18n";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
@@ -107,22 +109,20 @@ import { useEffect } from "react";
 
 import {
   ExecutionTab,
-  I18nProvider,
   InstructionsTab,
   LanguageTab,
   MemorySettingsPanel,
   NotificationsTab,
   PrivacyTab,
   SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
   type ExecutionConfig,
   type MemoryConfigFlagKey,
   type MemoryEntrySummary,
   type MemoryExtractionRecord,
   type NotificationsPreferences,
   type PrivacyConsentState,
-  type SettingsDialogTab,
 } from "@jini-ai/ui";
+import { I18nProvider, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/admin/react/kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
@@ -130,22 +130,27 @@ import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { Workspace } from "../workspace";
 import { t as tWorkspace } from "../workspace/workspace-i18n";
 import { describeSaveStatus, resolveByokConfig } from "./rules";
-import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
+import { useWiredSettingsLocaleSync } from "../../integrations/jini-admin/settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
-import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scroll.hooks";
+import { useSettingsActiveTabScroll } from "@jini-ai/admin/screens/settings/hooks/use-settings-active-tab-scroll.hooks";
 
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
-import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
-import { aiAgentPanelDictionaries } from "./settings-execution-i18n";
+import { createProbeErrorDescriber } from "../../lib/shell-collaborators";
+import { aiAgentPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-execution-i18n";
+import { SETTINGS_EXECUTION_PRODUCT_VARS } from "../../integrations/jini-admin/settings-execution-copy";
 import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
-import { t as tInterfaceCopy } from "./settings-interface-i18n";
-import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
-import { memoryPanelDictionaries } from "./settings-memory-i18n";
-import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
+import { t as tInterfaceCopy } from "@jini-ai/admin/screens/settings/settings-interface-i18n";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { UserInterfaceSettingsPanel } from "@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel";
+import "@jini-ai/admin/screens/settings/user-interface-settings.css";
+import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
+import { memoryPanelDictionaries } from "@jini-ai/admin/screens/settings/settings-memory-i18n";
+import { BrowserAgentSettingsPanel } from "@jini-ai/admin/screens/webmcp/BrowserAgentSettingsPanel";
+import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-settings.hooks";
 
-import { type Translate } from '@jini-ai/core/text';
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -303,7 +308,9 @@ export function SettingsUi({
   const settingsRootRef = useSettingsActiveTabScrollHook({ ready: !s.loading, tabId });
 
   const settingsLocale = s.language.value as string;
-  const { t, tCap, tExecution } = createSettingsUiTranslators({ settingsLocale });
+  const { t, tCap, tExecution } = createSettingsUiTranslators({
+    settingsLocale, dialogDictionaries: SETTINGS_DIALOG_DICTIONARIES, translateApp: tApp, translateCapability: tCapability,
+  });
 
   const executionPolicy = useTovuSettingsExecutionHook({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
 
@@ -414,7 +421,7 @@ export function SettingsUi({
       // controls govern site analytics rather than this operator's product-analytics consent.
       panel: (
         <div className="settings-ui-inert-wrap">
-          <BrowserAgentSettingsPanel locale={settingsLocale} />
+          <BrowserAgentSettingsPanel locale={settingsLocale} t={webMcpT} useBrowserAgentSettingsHook={useAdminBrowserAgentSettings} />
           {/* The policy is said once, in PrivacyTab's footer; a second note above it said the same. */}
           <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy"
             labels={{ metricsLabel: t("Product analytics"), metricsHint: t("Usage events sent to your configured analytics provider."),
@@ -461,7 +468,7 @@ export function SettingsUi({
           <circle cx="12" cy="11.5" r="1.5" />
         </TabIcon>
       ),
-      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} />,
+      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} useUserInterfaceTabHook={useUserInterfaceTab} agentHandle={agentHandle} />,
     },
     {
       id: "memory",
@@ -652,7 +659,7 @@ export function SettingsUi({
      */
     <I18nProvider
       initialLocale={s.language.value as string}
-      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES })}
+      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES, locales: ADMIN_LOCALES })}
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
@@ -694,7 +701,7 @@ function SettingsExecutionPanel({ adminCredential, agentPresentation, executionP
             localCliUnavailableReason={executionPolicy.unavailableReason}
             port={agentPresentation.port}
             // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
-            localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
+            localCliScopeLabel={interpolate({ template: tExecution(agentPresentation.scopeCopy), vars: SETTINGS_EXECUTION_PRODUCT_VARS })}
             ariaLabel={tExecution("AI agent")}
             // The admin's own BYOK credential is encrypted server-side and write-only
             // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about

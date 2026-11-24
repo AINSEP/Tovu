@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { packHandlerEntities } from "../export-bundle.js";
-import type { PackedEntity, PublishContentHandler } from "../type-registry.js";
+import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
 /** @file The per-type authorization gate and packed-metadata check of `packAuthorizedEntities`,
  *  driven through its handler-list seam with hand-written handlers. */

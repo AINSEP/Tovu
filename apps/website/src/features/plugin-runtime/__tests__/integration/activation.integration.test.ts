@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "@jini-ai/plugins/host";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { buildAc11FixtureInstallDir } from "../fixtures/ac11-fixture.js";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

@@ -3,8 +3,8 @@
  * their original positional signatures and bind Tovu's lifecycle reads and `system:tool-renames`. */
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { AgentPluginMcpPort } from "./service-ports.js";
-import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
-import { applyAgentPluginToolRenames as applyWithPorts, renameToolNames as renameWithPorts } from "@jini-ai/agent-plugins/connect";
+import { listInstalledAgentPluginServers } from "./import-access-token.js";
+import { applyAgentPluginToolRenames as applyWithPorts, renameToolNames as renameWithPorts, type InstalledAgentPluginServers, type TokenImportLog } from "@jini-ai/agent-plugins/connect";
 
 /** Recorded as the row's write-grant attribution when a rename changes its write list. */
 const TOOL_RENAMES_ACTOR = "system:tool-renames";

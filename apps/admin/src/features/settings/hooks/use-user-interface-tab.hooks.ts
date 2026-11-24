@@ -3,7 +3,9 @@ import { DEFAULT_INTERFACE, type InterfaceConfig } from "@/lib/settings-tabs";
 /**
  * @file Settings → User Interface's toggle state. The slice (`useSettingsUi`'s `interface`, a
  * `useSettingsSlice` over `core.interface`) owns load, debounce and autosave; this only maps the
- * switches onto it, so `UserInterfaceSettingsPanel.tsx` stays markup.
+ * switches onto it, so `UserInterfaceSettingsPanel.tsx` stays markup. It is the host binding the Jini
+ * panel (`@jini-ai/admin/screens/settings/UserInterfaceSettingsPanel`) takes as its required
+ * `useUserInterfaceTabHook`; its result satisfies the panel's `UserInterfaceSettingsPanelTab`.
  */
 
 export interface UserInterfaceTabSlice {

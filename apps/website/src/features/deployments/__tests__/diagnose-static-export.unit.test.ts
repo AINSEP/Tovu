@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { getExportRunSnapshot, startExportRun, type ExportRunReportLike } from "../export-run.js";
+import { getExportRunSnapshot, startExportRun } from "../export-run-binding.js";
+import type { ExportRunReportLike } from "@jini-ai/devops/deploy/site/export-run";
 import { deploymentsDerivedRisk, buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../tool-registrations.js";
 import { capabilityCard } from "../capability-card.js";
 

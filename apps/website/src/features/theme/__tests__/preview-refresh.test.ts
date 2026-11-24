@@ -134,7 +134,7 @@ test("both active-theme settings writers signal a new preview revision", async (
   const { createFakeClock } = await import("../../../__tests__/support/fake-clock.js");
   const { buildSetActiveThemeRegistrations } = await import("../set-active-theme-tool.js");
   const { registerAdminPresentationPatchRoute } = await import(
-    "../../../server/inbound/admin-http/routes/presentation/patch-active-theme.js"
+    "../../../server/runtime/composition/modules/presentation.js"
   );
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "active-refresh-"));
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));

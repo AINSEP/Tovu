@@ -1,5 +1,15 @@
 import type { AgentToolDefinition } from "@jini-ai/core";
+import type { VisitorToolsToolHostPolicy } from "@jini-ai/cms/settings/site/visitor-tools-registrations";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { toolMetadata } from "../../contracts/core/tool-metadata/visitor-tools.js";
 import { VISITOR_TOOLS_PERMISSION } from "../../contracts/site-assistant/visitor-tools.js";
+import { VISITOR_TOOLS_HOST } from "./settings-write-policies.js";
+
+/**
+ * @file This host's visitor-tools assistant catalog (model-facing product copy) and the policy the
+ * package's `contributeVisitorTools` (`@jini-ai/cms/settings/site/visitor-tools-registrations`) is
+ * bound with once, at `server/runtime/composition/tool-catalog-manifest.ts`.
+ */
 
 /** Four category tools from the approved review; saved-request mutations stay deferred to T4. */
 export const visitorToolsAgentCatalog: AgentToolDefinition[] = [
@@ -23,3 +33,10 @@ export const visitorToolsAgentCatalog: AgentToolDefinition[] = [
     description: "Reserved for T4: permanently deleting created visitor tools is unavailable in this phase. Returns {available:false, code:VISITOR_TOOLS_T4_REQUIRED}; deletes nothing. Use visitor_tool_configure mode off to disable a tool. T4 will require permanent-delete confirmation. Requires visitor-tools.manage.",
     inputSchema: { type: "object", additionalProperties: false, required: ["toolId"], properties: { toolId: { type: "string", minLength: 1 } } } },
 ];
+
+/** The host's catalog, metadata, approval-card engine and policy contract for the four visitor-tools tools. */
+export const VISITOR_TOOLS_TOOL_HOST_POLICY: VisitorToolsToolHostPolicy = {
+  catalog: visitorToolsAgentCatalog, catalogModule: "features/settings/visitor-tools-agent-tools.ts", toolMetadata,
+  approvalToolHandler: (required, optional) => approvalToolHandler(required, optional),
+  visitorTools: VISITOR_TOOLS_HOST,
+};

@@ -9,8 +9,9 @@ import {
 } from "@jini-ai/cms/forms";
 import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
-import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution, type AdminSurfaceActionOutcome } from "@jini-ai/agent-plugins/admin-surfaces";
-import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
+import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceActionOutcome } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -26,10 +27,13 @@ import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhoo
 import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/index";
 import type { FormDestinationKit } from "@jini-ai/cms/forms";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
+import { ensureFormDeliverySettings, readFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { composeFormDelivery } from "../form-delivery.js";
 import { composeFormDeliveryDeliverer } from "../form-delivery-deliverer.js";
+import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";
 
 /**
  * @file Harness for the G14b end-to-end proof that a form submission reaches a push destination
@@ -168,7 +172,7 @@ export async function createOAuthDeliverySite(required: {
   const idGen = { newId: () => `id-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
-  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids: idGen, principals }, systemPrincipalId: "system" });
+  await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids: idGen, principals, ensureSettingDefinitions }, systemPrincipalId: "system" });
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test owner" });
   const settings = { repo: settingsRepo, clock, ids: idGen, authorize, principals };
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
@@ -215,9 +219,9 @@ export async function createOAuthDeliverySite(required: {
     },
     async setPluginSetting({ pluginId, key, value }) { await host.pluginState.forPlugin({ workspaceId: WORKSPACE, pluginId }).set({ key, value }); },
     async bind({ bindings }) {
-      await writeFormDeliveryBindings({ deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
+      await writeFormDeliveryBindings({ writePolicies: SETTINGS_WRITE_POLICIES, deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
     },
-    bindings: () => readFormDeliveryBindings({ settingsRepo, workspaceId: WORKSPACE }),
+    bindings: () => readFormDeliveryBindings({ settingsRepo, workspaceId: WORKSPACE, getEffective }),
     async surfaceAction({ pluginId, surfaceId, action, payload = {} }, optional = {}) {
       await connections.adminSurfaceHost.refresh();
       const surfaces = await required.loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) });

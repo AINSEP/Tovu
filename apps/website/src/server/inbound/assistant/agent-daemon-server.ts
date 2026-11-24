@@ -2,7 +2,8 @@
 import express from "express";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
-import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
+import { createAtomicWriterPort } from "@jini-ai/node-adapters/fs";
+import { backupOriginalOnce, writeFileAtomicAsync, writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
@@ -16,6 +17,8 @@ import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeAtomicWriter = createAtomicWriterPort({ writeFileAtomicAsync, writeJsonFileAtomicAsync, backupOriginalOnce });
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
 const scopeEnvironments = new Map<SiteScopeKey, string>();

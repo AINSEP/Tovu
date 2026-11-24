@@ -29,10 +29,12 @@ import {
 } from "../../features/media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
+import { ensureSeoSettingDefinitions, getSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { createSitemapService, getSeoAgentToolCatalog, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "../../features/seo/index.js";
-import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
+import { createSeoDeps, seoSettingsHostBindings } from "../../features/seo/index.js";
+import { toolMetadata as seoToolMetadata } from "#src/contracts/core/tool-metadata/seo";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
+import { contributeSeoTools } from "@jini-ai/cms/seo/site/tool-registrations";
 
 import {
   assertRiskMetadataIsWirable,
@@ -52,7 +54,7 @@ const contributions = {
 // Explicit contributor installation: see ../tool-contribution-registry.ts.
 // Reset first to isolate this file's registrations in the process registry.
 contributions.contributors.clear({});
-contributions.contributors.register({ contribution: contributeSeoTools() });
+contributions.contributors.register({ contribution: contributeSeoTools({ toolMetadata: seoToolMetadata, hostReads: contentReadVocabulary, settingsLedger: seoSettingsHostBindings }) });
 
 const WORKSPACE_ID = "ws-seo-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -96,7 +98,7 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   };
 
   await ensureSeoSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: principalRepo },
+    { ...seoSettingsHostBindings, settingsRepo, clock, ids: idGen, principals: principalRepo },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-seo" },
   );
 
@@ -284,7 +286,7 @@ test("seo_set_entry_overrides: self-enforcing chokepoint — a denied principal 
 
 test("seo_set_settings: self-enforcing chokepoint — a denied principal is rejected and nothing is written", async () => {
   const { deps, settingsRepo } = await fakeRouteDeps({ allow: false });
-  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  const before = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID });
 
   // The settings write-service's own `set()` throws its local `features/settings/errors.ts`
   // `ForbiddenError` (a DIFFERENT class from `core/commands`'s, which `setEntrySeoOverrides` above
@@ -299,7 +301,7 @@ test("seo_set_settings: self-enforcing chokepoint — a denied principal is reje
     },
   );
 
-  const after = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  const after = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID });
   assert.deepEqual(after, before, "the permission gate must run ahead of any durable effect");
 });
 
@@ -315,7 +317,7 @@ test("seo_set_entry_overrides: rejects an unregistered field the same way the ch
 // authorizes before it — a denied caller learns nothing about the asset it names.
 test("seo_set_settings: a denied principal naming a video gets the permission error, not the image refusal", async () => {
   const { deps, settingsRepo } = await fakeRouteDeps({ allow: false });
-  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  const before = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID });
   await assert.rejects(
     () => wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-clip:og" })),
     (error: unknown) => {
@@ -324,7 +326,7 @@ test("seo_set_settings: a denied principal naming a video gets the permission er
       return true;
     },
   );
-  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+  assert.deepEqual(await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
 });
 
 test("seo_set_entry_overrides and seo_set_settings refuse a video as a share image, nothing written", async () => {
@@ -334,12 +336,12 @@ test("seo_set_entry_overrides and seo_set_settings refuse a video as a share ima
     /ogImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
   );
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.seoExtJson, null);
-  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  const before = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID });
   await assert.rejects(
     () => wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-clip:og" })),
     /defaultOgImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
   );
-  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+  assert.deepEqual(await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
   await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, ogImage: "m-share:og" }));
   assert.equal((await wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-share:og" })) as { settings: { defaultOgImage?: string } }).settings.defaultOgImage, "m-share:og");
 });
@@ -421,9 +423,9 @@ test("seo_regenerate_sitemap rebuilds the active cache rather than only acknowle
 
 test("SEO tools reject invalid settings without writes and clear an override back to the derived title", async () => {
   const { deps, settingsRepo } = await fakeRouteDeps();
-  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  const before = await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID });
   await assert.rejects(wired(deps, "seo_set_settings").handler(executionContext({ titleTemplate: "no placeholder" })), /titleTemplate must contain '%s'/);
-  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+  assert.deepEqual(await getSeoSettings({ ...seoSettingsHostBindings, settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
   await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", expectedVersion: 1, title: "Override Title" }));
   const read = () => wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" })) as Promise<{ meta: { title: string } }>;
   assert.equal((await read()).meta.title, "Override Title");

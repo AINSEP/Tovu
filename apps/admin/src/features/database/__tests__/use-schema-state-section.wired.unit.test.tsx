@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { useWiredSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
+import { useWiredSchemaStateSection } from "../hooks/schema-state-section-dependencies.hooks";
 
 // Exercises the wired entry point through the real HTTP adapter and locale query.
 afterEach(() => vi.unstubAllGlobals());

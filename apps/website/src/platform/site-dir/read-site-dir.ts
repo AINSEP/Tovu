@@ -164,7 +164,7 @@ export function createLiveSiteDisplayName(required: ReadSiteDirRequired, _option
 /**
  * Bug D: `dir`'s `config.json` `timezone` (the zone detected at creation), re-read on every `read()`
  * like the display name. `undefined` when there is none or the file cannot be read; never throws.
- * Validity is the resolver's concern (`features/settings/site-timezone.ts`).
+ * Validity is the resolver's concern (`@jini-ai/cms/settings/site/site-timezone`).
  * @complexity O(1) per read — one small, bounded-size file read.
  */
 export function createSiteCreationTimeZone(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): { read(): string | undefined } {

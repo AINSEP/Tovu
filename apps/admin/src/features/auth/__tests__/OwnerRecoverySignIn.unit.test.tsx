@@ -2,7 +2,7 @@ import { formatUserFacingError } from '@jini-ai/core';
 import { ApiError } from '@/lib/admin-http/request';
 import { render, screen, fireEvent } from "@/__tests__/render-with-jini-kits";
 import { it, expect, vi } from 'vitest';
-import { OwnerRecoverySignIn } from '../OwnerRecoverySignIn';
+import { OwnerRecoverySignIn } from '../auth-host-binding';
 
 it('keeps saved login passwords out of the recovery code, hidden and revealed', () => {
   render(<OwnerRecoverySignIn />);

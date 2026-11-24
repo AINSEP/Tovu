@@ -3,7 +3,7 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { DefaultMemberAccessResolver } from "#src/features/members/access-resolver";
+import { DefaultMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
@@ -14,9 +14,9 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminMemberDisableRoute } from "../disable.js";
+import { registerAdminMemberDisableRoute } from "#src/server/runtime/composition/modules/members";
 import type { MembersRouteDeps } from "../deps.js";
-import type { MemberRecord } from "#src/features/members/index";
+import type { MemberRecord } from "@jini-ai/user-management/members/types";
 
 /**
  * @file Route-level branch coverage for `POST .../members/:memberId/disable` (ADR-021 §5). The

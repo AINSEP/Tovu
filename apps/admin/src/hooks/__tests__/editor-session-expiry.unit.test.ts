@@ -7,7 +7,7 @@ import { createFakePostEditorPort } from "../../features/posts/hooks/post-editor
 import { usePageEditor } from "../../features/pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../../features/pages/hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../../features/pages/hooks/theme-canvas-dependencies.hooks";
-import { readStandingDraftLocalBackup } from "../../lib/standing-draft-local-backup";
+import { standingDraftLocalBackup } from "../../lib/shell-collaborators";
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { withTitleNode } from "../../features/posts/rules";
 import { COMMON_I18N } from "../../lib/i18n-common";
@@ -34,7 +34,7 @@ it("a failed post Save preserves the exact working document before re-login", as
   });
   const document = first.result.current.editor!.getJSON();
   await act(async () => first.result.current.save({}));
-  expect(readStandingDraftLocalBackup({ entryId: row.id }, scope)).toMatchObject({ title: "Unsaved post title", slug: "unsaved-post-slug", bodyJson: document });
+  expect(standingDraftLocalBackup.read({ entryId: row.id }, scope)).toMatchObject({ title: "Unsaved post title", slug: "unsaved-post-slug", bodyJson: document });
   first.unmount();
   const restoredPort = { ...fake, getBackupPrincipalId: () => scope.principalId };
   const second = renderHook(() => usePostEditor({ postId: row.id, deps: { port: restoredPort, navigate: () => {}, t: key => key } }));
@@ -42,7 +42,7 @@ it("a failed post Save preserves the exact working document before re-login", as
   expect(second.result.current.title).toBe("Saved title");
   act(() => second.result.current.restoreRecoveredDraft());
   await act(async () => second.result.current.save({}));
-  expect(readStandingDraftLocalBackup({ entryId: row.id }, scope)).toBeNull();
+  expect(standingDraftLocalBackup.read({ entryId: row.id }, scope)).toBeNull();
 });
 
 it("a failed HTML page Save preserves the exact working HTML, title and slug", async () => {
@@ -54,14 +54,14 @@ it("a failed HTML page Save preserves the exact working HTML, title and slug", a
   await waitFor(() => expect(first.result.current.page).not.toBeNull());
   act(() => { first.result.current.setTitle("Unsaved page title"); first.result.current.setSlug("unsaved-page-slug"); first.result.current.setHtml("<p>Exact typed HTML</p>"); });
   await act(async () => first.result.current.save());
-  expect(readStandingDraftLocalBackup({ entryId: page.id }, scope)).toMatchObject({ title: "Unsaved page title", slug: "unsaved-page-slug", bodyHtml: "<p>Exact typed HTML</p>" });
+  expect(standingDraftLocalBackup.read({ entryId: page.id }, scope)).toMatchObject({ title: "Unsaved page title", slug: "unsaved-page-slug", bodyHtml: "<p>Exact typed HTML</p>" });
   first.unmount();
   const restoredDeps = { ...deps, port: { ...fake, getBackupPrincipalId: () => scope.principalId } };
   const second = renderHook(() => usePageEditor({ routeSlug: page.slug, deps: restoredDeps }));
   await waitFor(() => expect(second.result.current.recoverableDraft?.title).toBe("Unsaved page title"));
   expect(second.result.current.title).toBe("Saved title");
   await act(async () => second.result.current.discardRecoveredDraft());
-  expect(readStandingDraftLocalBackup({ entryId: page.id }, scope)).toBeNull();
+  expect(standingDraftLocalBackup.read({ entryId: page.id }, scope)).toBeNull();
 });
 
 it("recovery says which timestamp is newer and translates every phrase in every locale", () => {

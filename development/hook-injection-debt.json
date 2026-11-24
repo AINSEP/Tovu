@@ -91,24 +91,6 @@
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
-    "AssistantDaemonRestart::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
-      ]
-    },
-    "AssistantDaemonRestart::useAssistantDaemonRestartHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
-      ]
-    },
-    "AssistantDaemonRestart::usePolicy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
-      ]
-    },
     "CollectionEntryEditor::useCollectionEntryEditorHook": {
       "count": 1,
       "files": [
@@ -125,18 +107,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/media/Media.tsx"
-      ]
-    },
-    "ExternalMcpSharedChoice::useLocal": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
-      ]
-    },
-    "ExternalMcpSharedChoice::useSaved": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
       ]
     },
     "ExternalProvidersPanel::useAdminThemeBoundary": {

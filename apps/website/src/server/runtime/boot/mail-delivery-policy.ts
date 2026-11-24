@@ -1,14 +1,6 @@
-import {
-  createMailPolicyWrapper as createJiniMailPolicyWrapper,
-  type MailCapturePort,
-  type MailProviderModule,
-  type MailResendPolicy,
-  type MailSendLedgerPort,
-  type MailSuppressionRepoPort,
-} from "@jini-ai/platform/mail";
-import type { MailAttemptObserver } from "#src/features/mail/attempts.repo";
-import type { MailTestModeSetting } from "@jini-ai/core/contracts/mail";
-import type { MailerPort, MailerSendOptions } from "#src/platform/mail/index";
+import { createMailPolicyWrapper as createJiniMailPolicyWrapper, type MailProviderModule, type MailResendPolicy } from "@jini-ai/platform/mail";
+import type { MailAttemptObserver } from "@jini-ai/platform/mail/sql";
+import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort, MailTestModeSetting, PositionalMailer as MailerPort, MailerSendOptions } from "@jini-ai/core/contracts/mail";
 import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /**

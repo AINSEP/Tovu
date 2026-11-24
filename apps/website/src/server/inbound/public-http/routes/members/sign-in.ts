@@ -3,8 +3,9 @@ import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
-import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError, prepareMemberChallenge } from "#src/features/members/index";
-import { sendMemberAuthError } from "./complete-sign-in.js";
+import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError } from "@jini-ai/user-management/members/types";
+import { prepareMemberChallenge } from "@jini-ai/user-management/members/member-challenge-request";
+import { memberAuthRefusal } from "./complete-sign-in.js";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
@@ -60,13 +61,27 @@ export function reportMemberDeliveryFailure({ error }: { error: unknown }, _opti
  * @complexity O(1); writes one response, without logging credentials or provider detail.
  */
 export function respondToSignInError({ error, res }: { error: unknown; res: Response }, _options = {}): void {
-  if (error instanceof MemberAuthError) { sendMemberAuthError({ res, error }); return; }
+  const refusal = memberSignInRefusal({ error });
+  if (refusal) { res.status(refusal.status).json(refusal.body); return; }
+  const { errorId } = reportServerFailure({ error, operation: MEMBER_SIGN_IN_FAILURE.operation }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ error: MEMBER_SIGN_IN_FAILURE.visitorError, errorId });
+}
+
+/** The sign-in request routes' unexpected-failure copy (`reportServerFailure` operation + visitor sentence). */
+export const MEMBER_SIGN_IN_FAILURE = {
+  operation: "public:member-sign-in",
+  visitorError: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.",
+} as const;
+
+/** `respondToSignInError`'s known answers: credential 401, site-wide setup 503, validation 400.
+ * @returns The refusal (status + flat body), or `undefined` for an unexpected error (the 500).
+ */
+export function memberSignInRefusal({ error }: { error: unknown }, _options = {}): { status: number; body: { error: string; code?: string } } | undefined {
+  if (error instanceof MemberAuthError) return memberAuthRefusal({ error });
   if (error instanceof MemberSignInUnavailableError || error instanceof SenderIdentityNotConfiguredError) {
-    res.status(503).json({ error: error instanceof SenderIdentityNotConfiguredError
-      ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
-    return;
+    return { status: 503, body: { error: error instanceof SenderIdentityNotConfiguredError
+      ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" } };
   }
-  if (error instanceof MemberValidationError) { res.status(400).json({ error: error.message }); return; }
-  const { errorId } = reportServerFailure({ error, operation: "public:member-sign-in" }, { tracker: res.locals.adminFailureTracker });
-  res.status(500).json({ error: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.", errorId });
+  if (error instanceof MemberValidationError) return { status: 400, body: { error: error.message } };
+  return undefined;
 }

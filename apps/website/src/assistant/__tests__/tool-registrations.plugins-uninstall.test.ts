@@ -7,7 +7,7 @@ import test, { after } from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
@@ -19,9 +19,9 @@ import {
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { mcpTestPort } from "../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/plugin-host-copy.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 import type { TovuPluginHostDeps } from "../../server/runtime/composition/plugin-host.js";

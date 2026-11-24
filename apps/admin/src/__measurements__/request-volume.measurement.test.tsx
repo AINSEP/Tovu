@@ -338,7 +338,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`]);
@@ -352,7 +352,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;
@@ -374,7 +374,7 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { useWiredRoles } = await import("../features/roles/hooks/use-wired-roles.hooks");
     const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;
@@ -400,7 +400,7 @@ describe("users", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredUsers } = await import("../features/users/hooks/users-controller.hooks");
+    const { useWiredUsers } = await import("../features/users/hooks/use-wired-users.hooks");
     const { result } = renderHook(() => useWiredUsers(), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/users`, `GET ${WORKSPACE}/roles`, `GET ${WORKSPACE}/policies`, `GET ${ADMIN}/auth/me`]);
@@ -569,7 +569,7 @@ describe("database", () => {
   it("timeline: initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { useWiredTimelineSection } = await import("../features/database/hooks/timeline-section-dependencies.hooks");
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     await expectRequests(calls, [`GET ${ADMIN}/database/timeline`]);
@@ -580,7 +580,7 @@ describe("database", () => {
   it("timeline: filter change", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { useWiredTimelineSection } = await import("../features/database/hooks/timeline-section-dependencies.hooks");
     const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     calls.length = 0;

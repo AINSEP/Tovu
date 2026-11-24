@@ -1,9 +1,9 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { backstopGrantAllows, DEFAULT_PUBLISHING_CAPABILITIES, parsePublishTrustGrant } from "../grant.js";
+import { backstopGrantAllows, DEFAULT_PUBLISHING_CAPABILITIES, parsePublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import { connectDestination, disconnectDestination, findCandidateDestination, type ConnectDeps } from "../connect.js";
-import { COMMITTED_JSON_CODEC, createFileProvisioning, type ProvisioningFileIo } from "../provisioning.js";
+import { COMMITTED_JSON_CODEC, createFileProvisioning, type ProvisioningFileIo } from "@jini-ai/cms/publish/trust/provisioning";
 
 test("backstop requires a separate capability AND an explicit raw entity type", () => {
   for (const entityType of ["raw-row", "raw-file"]) {

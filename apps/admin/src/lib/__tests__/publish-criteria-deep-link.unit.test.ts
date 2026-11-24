@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 
-import { encodePublishCriteriaToQuery } from "@tovu/publish-content-ui";
+import { encodePublishCriteriaToQuery } from "@jini-ai/cms/publish/content/dialog";
 
 import { takePublishCriteriaFromQuery } from "../publish-criteria-deep-link";
 

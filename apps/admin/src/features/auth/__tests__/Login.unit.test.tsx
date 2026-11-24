@@ -2,8 +2,8 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { Login } from "../Login";
-import type { LoginController } from "../hooks/use-login.hooks";
+import { Login } from "../index";
+import type { LoginController } from "@jini-ai/admin/screens/auth/hooks/use-login.hooks";
 import { formatUserFacingError } from "@jini-ai/core";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 
@@ -85,7 +85,7 @@ describe("Login", () => {
   it("shows no error banner when error is null", () => {
     const { container } = render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: null })} useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
-    expect(container.querySelector(".login-error")).toBeNull();
+    expect(container.querySelector(".jini-login-error")).toBeNull();
   });
 
   it("shows the hook's error message verbatim when set", () => {

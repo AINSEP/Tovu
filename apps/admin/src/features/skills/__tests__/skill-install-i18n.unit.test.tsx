@@ -2,7 +2,8 @@ import { cleanup, render, screen, within } from "@/__tests__/fetch-query-render"
 import { afterEach, expect, it, vi } from "vitest";
 
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
-import { SkillInstallConfirmation } from "../SkillInstallConfirmation";
+import { SkillInstallConfirmation } from "@jini-ai/admin/screens/skills/SkillInstallConfirmation";
+import { SKILL_INSTALL_CONFIRMATION_HOST } from "../skill-install-confirmation-host";
 import type { useSkillInstall } from "../use-skill-install.hooks";
 
 /**
@@ -27,10 +28,10 @@ it("covers the production locale picker, not a hand-kept list", () => {
 });
 
 it("renders reviewed Spanish copy for the dismiss row and the dialog", () => {
-  const { unmount } = render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale="es" />);
+  const { unmount } = render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale="es" {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   expect(screen.getByRole("button", { name: "Descartar" })).toHaveTextContent("Descartar");
   unmount();
-  render(<SkillInstallConfirmation install={install({ pending })} locale="es" />);
+  render(<SkillInstallConfirmation install={install({ pending })} locale="es" {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   expect(screen.getByRole("dialog", { name: "Instalar habilidad" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "¿Instalar habilidad?" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
@@ -38,12 +39,12 @@ it("renders reviewed Spanish copy for the dismiss row and the dialog", () => {
 });
 
 it("keeps English when no locale is given (existing callers and tests)", () => {
-  render(<SkillInstallConfirmation install={install({ error: "boom" })} />);
+  render(<SkillInstallConfirmation install={install({ error: "boom" })} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   expect(screen.getByRole("button", { name: "Dismiss" })).toHaveTextContent("Dismiss");
 });
 
 it.each(NON_ENGLISH)("%s translates the dismiss row's text and accessible name", locale => {
-  render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale={locale} />);
+  render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale={locale} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   const alert = screen.getByRole("alert");
   const dismiss = alert.querySelector("button[aria-label]")!;
   expect(dismiss.textContent?.trim()).not.toBe("Dismiss");
@@ -54,7 +55,7 @@ it.each(NON_ENGLISH)("%s translates the dismiss row's text and accessible name",
 });
 
 it.each(NON_ENGLISH)("%s translates the install dialog's accessible name and copy", locale => {
-  render(<SkillInstallConfirmation install={install({ pending })} locale={locale} />);
+  render(<SkillInstallConfirmation install={install({ pending })} locale={locale} {...SKILL_INSTALL_CONFIRMATION_HOST} />);
   const dialog = screen.getByRole("dialog");
   expect(dialog.getAttribute("aria-label")).not.toBe("Install skill");
   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);

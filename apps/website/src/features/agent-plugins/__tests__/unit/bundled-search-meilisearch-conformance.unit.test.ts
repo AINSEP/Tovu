@@ -3,7 +3,8 @@ import path from "node:path";
 import test from "node:test";
 
 import type { HttpClientPort } from "@jini-ai/core/primitives";
-import type { SearchProvider, SearchProviderContext } from "@jini-ai/search";
+import type { SearchProviderContext } from "@jini-ai/search";
+import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { createFakeHttpClient, createUnavailableHttpClient, runSearchProviderConformance } from "@jini-ai/search/testkit";
 
 import { createMeilisearchEmulator } from "../fixtures/meilisearch-emulator.js";
