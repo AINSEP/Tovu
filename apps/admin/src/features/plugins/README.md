@@ -58,3 +58,13 @@ If restoring a replaced version fails, the installer retains its old bytes in st
 Implementation reference: `ADS-memory/.local-artifacts/terra-runs/sol/plugin-install-plan.md`
 (owner-approved 2026-09-22; SHA-256 `568b1fd6ddc9bbab348e89931baa976eda51fa11432de5c54f3abb319424c608`).
 Tests were written but not executed in the dispatched worker; validation belongs to the coordinator.
+
+## Wiring
+
+- `plugins-host-ports.ts` binds `@jini-ai/admin/screens/plugins/api/plugins-api`'s `createPluginsApi`
+  once to this app's `request` and `WORKSPACE_ID`; every caller imports `pluginsApi` from there.
+- `PluginRow.tsx` passes its summary button selector (`.plugin-row-summary`) as the required
+  `summarySelector` of `@jini-ai/admin`'s `usePluginRowFocus`.
+- Port interfaces (`PluginsPort`, `PluginInstallPort`, `AgentPluginMemoryPort`) and the wire types
+  (`plugins-api.types`) come from `@jini-ai/admin/screens/plugins/…`; the `*-dependencies.hooks.ts`
+  files here implement them over this app's API clients.

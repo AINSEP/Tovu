@@ -10,6 +10,9 @@ The Posts list and the Post editor — the two screens behind the sidebar's **Co
 
 ## Wiring
 
+- `Posts.tsx` passes this app's `posts-i18n` lookup as the required `translate` field of
+  `@jini-ai/admin/posts/Posts.hooks`'s `createPostsTranslator({ locale, translate })` (K3: the
+  dictionary stays here).
 - `PostSettingsDialog.tsx` binds Core's `agentHandle` into `@jini-ai/admin/posts`'s
   `PostAuthorFields` and `PostPublishAtField` as a required prop; the Jini components import no
   handle implementation of their own.

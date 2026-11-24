@@ -4508,6 +4508,74 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "ea8ba7afc7c7",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-port.hooks.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "daac20c24768",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-wrapper.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "3bd9f34017f9",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "e06d297a3490",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "710678703eb3",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "33bab939de61",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "f5c6a1659b54",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugin-install-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "619acd86f384",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugins-port.hooks.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "278527a6b9e8",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugins-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "7a13a7513eb1",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/use-plugin-row-focus.hooks.ts @file (plus the required summarySelector note) (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "c0ae45de982e",
+      "reason": "Moved with the code to Jini @jini-ai/admin security/host/SiteKeyTab.hooks.tsx @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "e4fb808a50bb",
+      "reason": "Dead file deleted (w4-admin-feat): features/redirects/api/redirects-api.types.ts had 0 importers; the redirect shapes are owned by Jini @jini-ai/admin core/ports/redirects.ts."
+    },
+    {
+      "id": "e225835a150a",
+      "reason": "Dead file deleted (w4-admin-feat): redirects-api.types.ts had 0 importers; Jini core/ports/redirects.ts owns the import-item shape."
+    },
+    {
+      "id": "284524e1d126",
+      "reason": "Dead file deleted (w4-admin-feat): redirects-api.types.ts had 0 importers; Jini core/ports/redirects.ts owns the import-result shape."
+    },
+    {
+      "id": "26381110d7ef",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "3c010118bdb5",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-pages-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "0c815aaf66d8",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/ThemePageDetailsModal.hooks.tsx (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
     }
   ]
 }
