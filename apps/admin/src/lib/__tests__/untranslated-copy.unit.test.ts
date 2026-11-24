@@ -128,7 +128,6 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Optional: ["de"],
   Platform: ["id", "hu", "tr"],
   "Region:": ["pl"],
-  Roles: ["es"],
   Route: ["de", "fr"],
   site: ["pt-BR", "fr", "tr"],
   Sites: ["pt-BR", "fr"],
