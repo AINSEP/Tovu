@@ -8,7 +8,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash, useWiredTrash } from "../hooks/use-trash.hooks";
-import type { TrashPort } from "../hooks/trash-port.hooks";
+import type { TrashPort } from "@jini-ai/admin/screens/trash/hooks/trash-port.hooks";
 import { KEYS, TRASH_RESOURCE } from "@jini-ai/admin/screens/trash/rules";
 
 /**

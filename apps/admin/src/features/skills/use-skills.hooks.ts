@@ -5,7 +5,7 @@ import type { InstalledSkill } from "@jini-ai/core/contracts/site/installed-skil
 import type { SkillRowView } from "@jini-ai/admin/screens/skills/skills-screen.types";
 import { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillConfirmation } from "@jini-ai/admin/screens/skills/use-skill-confirmation.hooks";
-import { useSkillsTabs } from "./use-skills-tabs.hooks";
+import { useSkillsTabs } from "@jini-ai/admin/screens/skills/use-skills-tabs.hooks";
 
 import { skillFailure } from "@jini-ai/admin/screens/skills/skill-failure";
 

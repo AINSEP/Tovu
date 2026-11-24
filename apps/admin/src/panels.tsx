@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
-import { useIntegrationsRedirect } from "./features/integrations/hooks/use-integrations-redirect.hooks";
+import { useAddonsRedirect } from "./lib/use-addons-redirect.hooks";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
@@ -623,19 +623,19 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "admin-themes",
     description: "Open admin interface appearance settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" useIntegrationsRedirectHook={useAddonsRedirect} />,
   },
   {
     id: "admin-appearance",
     description: "Open admin interface appearance settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useAddonsRedirect} />,
   },
   {
     id: "design-system",
     description: "Open admin interface design settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useAddonsRedirect} />,
   },
   {
     id: "playground",
@@ -826,7 +826,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // `providers`/`integrations` tab merge.
         return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
       }
-      return <IntegrationsRedirect useIntegrationsRedirectHook={useIntegrationsRedirect} />;
+      return <IntegrationsRedirect useIntegrationsRedirectHook={useAddonsRedirect} />;
     },
     routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
@@ -1206,7 +1206,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "notifications",
     description: "Review site notifications.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/email" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
+    render: () => <IntegrationsRedirect routePath="/email" useIntegrationsRedirectHook={useAddonsRedirect} />,
   },
   {
     id: "trash",

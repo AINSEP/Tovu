@@ -13,9 +13,9 @@
 
 import { useMemo } from "react";
 
-import type { PushToTalkIndicator } from "./push-to-talk-state.hooks";
+import type { PushToTalkIndicator } from "@jini-ai/admin/screens/voice-input/hooks/push-to-talk-state.hooks";
 
-const BASE_CLASS = "tovu-push-to-talk";
+const BASE_CLASS = "jini-push-to-talk";
 
 export interface MicButtonView {
   className: string;

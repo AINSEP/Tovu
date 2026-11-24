@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { TranscriptionAvailability } from "@jini-ai/core/contracts/speech-transcription";
 import { getVoiceInputPort, type VoiceInputPort } from "../voice-input-port";
-import { NO_DESKTOP_SHELL_REASON, describeVoiceUnavailability } from "../voice-unavailability";
+import { NO_DESKTOP_SHELL_REASON, describeVoiceUnavailability } from "@jini-ai/admin/screens/voice-input/voice-unavailability";
 import { createMicPushToTalkCapture, type PushToTalkCapture } from "./mic-capture";
 import {
   INITIAL_PUSH_TO_TALK_STATE,
@@ -11,7 +11,7 @@ import {
   nextPushToTalkState,
   type PushToTalkIndicator,
   type PushToTalkState,
-} from "./push-to-talk-state.hooks";
+} from "@jini-ai/admin/screens/voice-input/hooks/push-to-talk-state.hooks";
 
 /**
  * @file Orchestrates the push-to-talk gesture: resolves the voice port, probes availability once,
@@ -81,7 +81,7 @@ export function describeAvailability({ availability }: { availability: Transcrip
 } {
   if (availability === null) return { available: null, unavailableReason: undefined };
   if (availability.available) return { available: true, unavailableReason: undefined };
-  return { available: false, unavailableReason: describeVoiceUnavailability({ reason: availability.reason }) };
+  return { available: false, unavailableReason: describeVoiceUnavailability({ reason: availability.reason, appName: "Tovu" }) };
 }
 
 /**

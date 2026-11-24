@@ -1,4 +1,4 @@
-import { navigateProvidersTab } from "./Providers.hooks";
+import { navigateProvidersTab } from "@jini-ai/admin/screens/providers/Providers.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";

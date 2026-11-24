@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useWiredAlwaysAllow } from "./hooks/use-always-allow.hooks";
-import "./always-allow.css";
+import "@jini-ai/admin/screens/providers/always-allow.css";
 
 /**
  * @file The Integrations page's "Always allow" tab — markup only; state and API calls live in
@@ -23,7 +23,7 @@ export function AlwaysAllowPanel({ useAlwaysAllowHook = useWiredAlwaysAllow }: A
   if (!groups) return <div className="notice">{t("Loading…")}</div>;
 
   return (
-    <div className="always-allow-panel">
+    <div className="jini-always-allow-panel">
       <p className="page-description">{t("These tools run without asking. Revoke one and it asks again.")}</p>
       {revokeError ? <div className="notice error">{revokeError}</div> : null}
       {groups.length === 0 ? (
@@ -36,7 +36,7 @@ export function AlwaysAllowPanel({ useAlwaysAllowHook = useWiredAlwaysAllow }: A
       {groups.map((group) => (
         <section
           key={group.serverId}
-          className="always-allow-server"
+          className="jini-always-allow-server"
           {...agentHandle({ handle: group.handle }, {
             role: "region",
             label: `Tools on the ${group.label} server set to Always allow`,
@@ -53,7 +53,7 @@ export function AlwaysAllowPanel({ useAlwaysAllowHook = useWiredAlwaysAllow }: A
                       <code>{tool.toolName}</code>
                     </td>
                     <td className="muted-cell">{formatDate({ grantedAt: tool.grantedAt })}</td>
-                    <td className="always-allow-actions">
+                    <td className="jini-always-allow-actions">
                       <button
                         type="button"
                         className="btn-secondary"

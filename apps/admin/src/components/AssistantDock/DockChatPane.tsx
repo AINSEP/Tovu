@@ -14,7 +14,7 @@ import { ChatPane, ChatSettingsDialog, JiniChatProvider, createMidRunMessagePost
 import type { ComponentProps } from "react";
 import { createAdminTypedAnswerPoster } from "../../lib/shell-collaborators";
 import { FailureSurfaceContext } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
-import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
+import { VOICE_INPUT_ENABLED } from "@jini-ai/admin/screens/voice-input/voice-input-config";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
