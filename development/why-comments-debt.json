@@ -3980,6 +3980,30 @@
     {
       "id": "8dd47a012640",
       "reason": "Header said the client types mirror the settings response contracts; the value/reset responses now alias the Core DTOs (@jini-ai/core/contracts/site/cms-settings, rv1123e §2.1), so 'mirroring' is no longer true."
+    },
+    {
+      "id": "ec1df623d9d9",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): clear.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/clear.ts:65 (verbatim, shared.ts -> @jini-ai/core/settings)."
+    },
+    {
+      "id": "d0a8c4efc097",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-effective.ts @file block -> Jini @jini-ai/cms/admin-http/routes/settings/get-effective.ts spec doc; resolution rationale already lived in Jini core settings cms-adapter."
+    },
+    {
+      "id": "12783307cacc",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-raw.ts layer-resolution doc -> Jini @jini-ai/cms/admin-http/routes/settings/get-raw.ts:34."
+    },
+    {
+      "id": "ccb49fc91f9c",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts partition-selection doc -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:51."
+    },
+    {
+      "id": "fc0f6811a69d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:67 (verbatim)."
+    },
+    {
+      "id": "b1045df6b29d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): set.ts ambient-workspace note -> Jini @jini-ai/cms/admin-http/routes/settings/set.ts:76."
     }
   ]
 }
