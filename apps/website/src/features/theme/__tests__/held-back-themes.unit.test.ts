@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { explainThemeTree } from "#src/features/site-backup/import-restore-placement";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
 import { parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
 
@@ -38,16 +39,16 @@ test("held-back check refuses a tree that contains a link and never follows it",
   const outside = path.join(siteDir, "secret.txt");
   fs.writeFileSync(outside, "do not read");
   fs.symlinkSync(outside, path.join(dir, "css", "linked.css"));
-  const check = checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/minimal-declarative" });
+  const check = checkHeldBackTheme({ siteDir, themesDir, explainThemeTree, themeId: "declarative/minimal-declarative" });
   assert.equal(check.passes, false);
   assert.equal(check.digest, null);
   assert.match(check.problems.join(" "), /contains a link \(css\/linked\.css\)/);
-  assert.throws(() => restoreHeldBackTheme({ siteDir, themesDir, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: "x".repeat(64) }), (err: { code?: string }) => err.code === "CHECK_FAILED");
+  assert.throws(() => restoreHeldBackTheme({ siteDir, themesDir, explainThemeTree, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: "x".repeat(64) }), (err: { code?: string }) => err.code === "CHECK_FAILED");
   assert.ok(fs.lstatSync(path.join(dir, "css", "linked.css")).isSymbolicLink());
 
   // A held-back folder that is itself a link is not addressable at all.
   fs.symlinkSync(dir, path.join(held, "declarative", "linked-theme"));
-  assert.throws(() => checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/linked-theme" }), (err: { code?: string }) => err.code === "HELD_BACK_NOT_FOUND");
+  assert.throws(() => checkHeldBackTheme({ siteDir, themesDir, explainThemeTree, themeId: "declarative/linked-theme" }), (err: { code?: string }) => err.code === "HELD_BACK_NOT_FOUND");
   assert.deepEqual(listHeldBackThemes({ siteDir, themesDir }).map(theme => theme.id), ["declarative/minimal-declarative"]);
 });
 
@@ -116,10 +117,10 @@ test("held-back restore refuses a live themes parent that is redirected by a lin
   const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-held-back-elsewhere-"));
   fs.mkdirSync(themesDir, { recursive: true });
   fs.symlinkSync(elsewhere, path.join(themesDir, "declarative"));
-  const check = checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/minimal-declarative" });
+  const check = checkHeldBackTheme({ siteDir, themesDir, explainThemeTree, themeId: "declarative/minimal-declarative" });
   assert.equal(check.passes, true);
   assert.throws(
-    () => restoreHeldBackTheme({ siteDir, themesDir, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: check.digest! }),
+    () => restoreHeldBackTheme({ siteDir, themesDir, explainThemeTree, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: check.digest! }),
     (err: { code?: string }) => err.code === "LIVE_FOLDER_UNSAFE",
   );
   assert.deepEqual(fs.readdirSync(elsewhere), []);

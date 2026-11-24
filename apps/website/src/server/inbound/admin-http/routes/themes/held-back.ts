@@ -1,7 +1,7 @@
 import type { Express, Response } from "express";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
+import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme, type ExplainThemeTree } from "#src/features/theme/held-back-themes";
 import { chosenThemeHeldBack, HeldBackThemeError, type HeldBackErrorCode } from "#src/features/theme/held-back-choice";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -28,7 +28,10 @@ import { bodyRecord } from "@jini-ai/cms/admin-http/routes/themes/explore-shared
  */
 
 /** Only what these three routes read — never the whole `RouteDeps` locator. */
-export type HeldBackRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "themes" | "themesDir" | "siteBinding" | "presentationRepo" | "gatedMutations">;
+export type HeldBackRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "themes" | "themesDir" | "siteBinding" | "presentationRepo" | "gatedMutations"> & {
+  /** Site import's placement check, bound by the composition (the theme feature may not import site-backup). */
+  explainThemeTree: ExplainThemeTree;
+};
 
 const BASE = "/api/admin/v1/workspaces/:workspaceId/held-back-themes";
 
@@ -96,7 +99,7 @@ function registerCheckRoute({ app, deps }: { app: Express; deps: HeldBackRouteDe
     try {
       if (!(await allowed({ req, res, deps, permission: HELD_BACK_READ_PERMISSION }))) return;
       const themeId = String(bodyRecord({ body: req.body }).themeId ?? "");
-      const check = checkHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themeId });
+      const check = checkHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themeId, explainThemeTree: deps.explainThemeTree });
       const planned = check.passes && check.digest
         ? await plan({ deps: deps.gatedMutations.gatewayDeps, ...actor(res), hooks: restoreHooks({ deps, scope: { themeId: check.themeId, digest: check.digest } }) })
         : null;
@@ -140,7 +143,7 @@ function registerRestoreRoute({ app, deps }: { app: Express; deps: HeldBackRoute
       const approvedDigest = stringField(body, "approvedDigest");
       const confirmationToken = stringField(body, "confirmationToken");
       if (!approvedDigest || !confirmationToken) throw approvalRequired();
-      const restore = () => restoreHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themes: deps.themes, themeId, approvedDigest });
+      const restore = () => restoreHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themes: deps.themes, themeId, approvedDigest, explainThemeTree: deps.explainThemeTree });
       const result = await execute({ deps: deps.gatedMutations.gatewayDeps, ...actor(res), hooks: restoreHooks({ deps, scope: { themeId, digest: approvedDigest }, restore }), confirmationToken });
       requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
       res.status(201).json(result);
