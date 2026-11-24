@@ -311,8 +311,12 @@ export const {
   packAgentPluginDirectory, createBundledSourceArchiveReader,
   readTrustedPluginFile, importContainedModule, loadPluginContributionsFromSource,
   readInstalledSkillFile, readInstalledSkillMarkdown, readInstalledMcpServerIds, readInstalledMcpServers,
-  mcpServerTrustClassifier,
+  classifyAgentPluginMcpServerTrust,
 } = explicitRootLifecycle;
+
+/** The federation/connect planners take a positional `classifyTrust(server)` callback; this adapts
+ * the lifecycle owner's single object-shaped trust rule to it rather than keeping a second classifier. */
+export const mcpServerTrustClassifier = (server: Parameters<typeof classifyAgentPluginMcpServerTrust>[0]['server']) => classifyAgentPluginMcpServerTrust({ server });
 
 /** This boot's lifecycle owner; installed contributions always use its fixed site layout. */
 export type TovuAgentPluginLifecycle = ReturnType<typeof createTovuAgentPluginLifecycle>;

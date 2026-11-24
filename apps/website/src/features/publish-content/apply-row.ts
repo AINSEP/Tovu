@@ -221,6 +221,9 @@ export function applyRetiringRow({ step }: { step: RetiringRowStep }, _optional 
       }),
       refreshBaseline,
       appliedResult: ({ row, changeSetId, retiredChangeSetId }) => ({ row, changeSetId, retiredChangeSetId }),
+      rollbackFailureMessage: ({ row, createCause, undoCause }) =>
+        `${row.entityType} '${row.entityId}' was not created (${createCause}), and putting the retired ` +
+        `${row.retires.entityType} '${row.retires.entityId}' back failed too (${undoCause}) — restore it from Trash`,
     },
   });
 }
