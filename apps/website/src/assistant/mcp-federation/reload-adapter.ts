@@ -1,6 +1,6 @@
 /** @file Host DI/ABI adapter for Jini-owned admission freezing and reload coalescing. */
-import { createFederationReloadCoordinator as createJiniReload, type FederationReloadResult } from "@jini-ai/mcp/federation";
-import { attachFederatedMcpTools, createDefaultConnect, tovuStdioLaunchResolverFromEnv, type AttachFederatedMcpToolsParams, type FederationLogger } from "./bootstrap.js";
+import { createFederationReloadCoordinator as createJiniReload, type FederationHostLogger, type FederationReloadResult } from "@jini-ai/mcp/federation";
+import { attachFederatedMcpTools, createDefaultConnect, tovuStdioLaunchResolverFromEnv, type AttachFederatedMcpToolsParams } from "./bootstrap.js";
 import { toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
@@ -10,7 +10,7 @@ export interface FederationReloadCoordinatorDeps {
   readonly deps: FederationDeps;
   readonly resolveConnections: () => Promise<readonly ResolvedFederatedConnection[]>;
   readonly attach?: typeof attachFederatedMcpTools;
-  readonly logger?: FederationLogger;
+  readonly logger?: FederationHostLogger;
   readonly connect?: AttachFederatedMcpToolsParams["connect"];
 }
 

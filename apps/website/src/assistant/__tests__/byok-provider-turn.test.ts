@@ -13,8 +13,9 @@ import {
   providerTurnAdapters,
   runProviderToolTurn,
   sanitizeGoogleSchema,
+  type ProviderToolTurnInput,
+  type ProviderTurnAdapters,
 } from "@jini-ai/agent-runtime/providers/tool-turn";
-import { runByokProviderTurn, type ByokProviderTurnInput } from "../byok-provider-turn.js";
 
 // REGRESSION: fails if Jini's OpenAI tool_result mapping removes event.isError from its OR guard.
 test("the adopted provider mapper preserves an adapter-reported tool error without a fold marker", async () => {
@@ -75,7 +76,7 @@ test("the adopted provider mapper preserves an adapter-reported tool error witho
  *    confirmed-unsupported keys/shapes anywhere, and that every schema node has an explicit `type`
  *    unless it uses `anyOf` (Gemini's own confirmed requirement, from the same "Available Fields"
  *    evidence).
- * 3. End to end, through `runByokProviderTurn`: a tool schema carrying `additionalProperties` at
+ * 3. End to end, through `runProviderToolTurn`: a tool schema carrying `additionalProperties` at
  *    top level AND nested reaches Gemini's outbound request body fully stripped, while the exact
  *    source schema now reaches Anthropic/OpenAI through the approved strict projection, while
  *    the authoritative descriptor stays unchanged. Google alone strips its unsupported keywords;
@@ -433,10 +434,10 @@ async function captureOutboundRequest(t: import("node:test").TestContext): Promi
   };
 }
 
-function baseInput(protocol: ByokProviderTurnInput["protocol"], baseUrl: string): ByokProviderTurnInput {
+function baseInput(protocol: ProviderToolTurnInput["protocol"]): ProviderToolTurnInput {
   return {
     protocol,
-    baseUrl,
+    adapters: providerTurnAdapters,
     apiKey: "test-key-not-real",
     model: protocol === "google" ? "gemini-3.6-flash" : "claude-opus-4-8",
     system: "be terse",
@@ -446,8 +447,7 @@ function baseInput(protocol: ByokProviderTurnInput["protocol"], baseUrl: string)
       throw new Error("must not be called — the stub server never returns a tool call");
     },
     onEvent: () => {},
-    signal: undefined,
-  } satisfies ByokProviderTurnInput;
+  } satisfies ProviderToolTurnInput;
 }
 
 
@@ -486,7 +486,7 @@ function assertOutboundIdentity(protocol: "google" | "anthropic" | "openai", cap
 
 test("runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested", async (t) => {
   const capture = await captureOutboundRequest(t);
-  await runByokProviderTurn(baseInput("google", capture.baseUrl));
+  await runProviderToolTurn(baseInput("google"), { baseUrl: capture.baseUrl });
   assertOutboundIdentity("google", capture);
 
   const body = capture.body();
@@ -512,7 +512,7 @@ test("runByokProviderTurn(google): the outbound Gemini request has additionalPro
 
 test("runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema", async (t) => {
   const capture = await captureOutboundRequest(t);
-  await runByokProviderTurn(baseInput("anthropic", capture.baseUrl));
+  await runProviderToolTurn(baseInput("anthropic"), { baseUrl: capture.baseUrl });
   assertOutboundIdentity("anthropic", capture);
 
   const body = capture.body();
@@ -557,9 +557,9 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
   assert.ok(statusCodeSchema, "expected redirects_create to carry an inputSchema");
 
   let receivedInput: unknown;
-  await runByokProviderTurn({
+  await runProviderToolTurn({
     protocol: "google",
-    baseUrl,
+    adapters: providerTurnAdapters,
     apiKey: "test-key-not-real",
     model: "gemini-3.6-flash",
     system: "be terse",
@@ -570,7 +570,7 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
       return { content: "ok" };
     },
     onEvent: () => {},
-  });
+  }, { baseUrl });
 
   assert.ok(isRecordForTest(receivedInput), "expected the tool executor to have been called with an input object");
   assert.equal(receivedInput.statusCode, 301, "expected statusCode to be coerced back to a number before the tool executor saw it");
@@ -590,7 +590,7 @@ function isRecordForTest(value: unknown): value is Record<string, unknown> {
  * literal `data: [DONE]\n\n` — matches `openai-chat.ts`'s `processOpenAiStreamFrame`/
  * `DONE_SENTINEL`, which `azure-chat.ts` reuses byte-identically per that module's own header:
  * "Azure OpenAI's chat-completions JSON request/response body is byte-identical to plain
- * OpenAI's"). `runOpenAiTurn`/`runAzureTurn` (`byok-provider-turn.ts`) are each their OWN function
+ * OpenAI's"). `runOpenAiTurn`/`runAzureTurn` (`@jini-ai/agent-runtime/providers/tool-turn`) are each their OWN function
  * body with their own copy of the `[tool error] ` fold/derive logic — hitting it through one
  * protocol does not cover the other's copy, so both get exercised below.
  */
@@ -623,8 +623,9 @@ function byokTools(...ids: string[]): ToolDescriptor[] {
 
 test("runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)", async () => {
   const events: unknown[] = [];
-  const result = await runByokProviderTurn({
+  const result = await runProviderToolTurn({
     protocol: "azure",
+    adapters: providerTurnAdapters,
     // No baseUrl and no stub server started for this test — if this ever DID attempt a real
     // request, it would try to reach a real (non-loopback) host and this test would hang or fail
     // with a connection error instead of resolving immediately with the expected refusal.
@@ -648,7 +649,7 @@ test("runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUr
 
 test("runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance", async (t) => {
   const capture = await captureOutboundRequest(t);
-  await runByokProviderTurn(baseInput("openai", capture.baseUrl));
+  await runProviderToolTurn(baseInput("openai"), { baseUrl: capture.baseUrl });
   assertOutboundIdentity("openai", capture);
 
   const body = capture.body();
@@ -672,9 +673,9 @@ test("runByokProviderTurn(openai): a failed tool result is folded into the outbo
   });
 
   const events: Array<{ type: string; [key: string]: unknown }> = [];
-  const result = await runByokProviderTurn({
+  const result = await runProviderToolTurn({
     protocol: "openai",
-    baseUrl,
+    adapters: providerTurnAdapters,
     apiKey: "test-key-not-real",
     model: "gpt-5",
     system: "be terse",
@@ -682,7 +683,7 @@ test("runByokProviderTurn(openai): a failed tool result is folded into the outbo
     tools: byokTools("tool_ok", "tool_bad"),
     executeTool: async (call) => (call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine" }),
     onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
-  });
+  }, { baseUrl });
 
   assert.equal(result.stopReason, "stop");
 
@@ -712,7 +713,7 @@ test("runByokProviderTurn(openai): a failed tool result is folded into the outbo
  *  protocols at once. Returns where that protocol's outbound request puts a function/tool
  *  declaration's `description` key, so the assertion below can check it is absent (not `undefined`
  *  — actually absent from the JSON, matching what a real provider's wire parser would see). */
-function outboundToolDeclaration(protocol: ByokProviderTurnInput["protocol"], body: Record<string, unknown>): Record<string, unknown> {
+function outboundToolDeclaration(protocol: ProviderToolTurnInput["protocol"], body: Record<string, unknown>): Record<string, unknown> {
   const tools = body.tools as unknown[];
   const first = tools[0] as Record<string, unknown>;
   if (protocol === "anthropic") return first;
@@ -726,10 +727,10 @@ function outboundToolDeclaration(protocol: ByokProviderTurnInput["protocol"], bo
 for (const protocol of ["anthropic", "openai", "azure", "google"] as const) {
   test(`runByokProviderTurn(${protocol}): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined`, async (t) => {
     const capture = await captureOutboundRequest(t);
-    await runByokProviderTurn({
-      ...baseInput(protocol, capture.baseUrl),
+    await runProviderToolTurn({
+      ...baseInput(protocol),
       tools: [{ id: "no_description_tool", inputSchema: { type: "object", properties: {}, required: [] } }],
-    });
+    }, { baseUrl: capture.baseUrl });
 
     const declaration = outboundToolDeclaration(protocol, capture.body());
     assert.equal("description" in declaration, false, `expected no "description" key at all, got: ${JSON.stringify(declaration)}`);
@@ -750,9 +751,9 @@ test("runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as op
   });
 
   const events: Array<{ type: string; [key: string]: unknown }> = [];
-  const result = await runByokProviderTurn({
+  const result = await runProviderToolTurn({
     protocol: "azure",
-    baseUrl,
+    adapters: providerTurnAdapters,
     apiKey: "test-key-not-real",
     model: "gpt-5-deployment",
     system: "be terse",
@@ -760,7 +761,7 @@ test("runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as op
     tools: byokTools("tool_ok", "tool_bad"),
     executeTool: async (call) => (call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine" }),
     onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
-  });
+  }, { baseUrl });
 
   assert.equal(result.stopReason, "stop");
 
@@ -808,11 +809,11 @@ for (const protocol of ["anthropic", "google"] as const) {
         anthropicFrame("message_delta", { delta: { stop_reason: "end_turn" } }) + anthropicFrame("message_stop", {}) };
     });
     const events: Array<{ type: string; [key: string]: unknown }> = [];
-    const result = await runByokProviderTurn({
-      ...baseInput(protocol, baseUrl), tools: byokTools("tool_ok", "tool_bad"),
+    const result = await runProviderToolTurn({
+      ...baseInput(protocol), tools: byokTools("tool_ok", "tool_bad"),
       executeTool: async (call) => call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine", isError: false },
       onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
-    });
+    }, { baseUrl });
     assert.equal(requests, 2);
     assert.equal(result.stopReason, "stop");
     assert.deepEqual(events.filter((event) => event.type === "tool_result").map(({ toolUseId, content, isError }) => ({ toolUseId, content, isError })), [
@@ -834,7 +835,7 @@ for (const protocol of ["anthropic", "google"] as const) {
 }
 
 // PLAN-structural-FINAL T2: keep the real shared mapper; replace only its provider I/O port.
-test("T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn", async (t) => {
+test("T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn", async () => {
   const { createToolExposure, createToolRegistry } = await import("@jini-ai/core");
   const registry = createToolRegistry({});
   const descriptor: ToolDescriptor = {
@@ -847,11 +848,11 @@ test("T2 BYOK forwards the live snapshot: search → describe → strict typed c
   const calls: Array<{ name: string; input: unknown }> = [];
   const snapshots: string[][] = [];
   const fallback: unknown[] = [];
-  t.mock.module("@jini-ai/agent-runtime/providers/tool-turn", { namedExports: {
-    runProviderToolTurn,
-    providerTurnAdapters: {
+  const adapters: ProviderTurnAdapters = {
       ...providerTurnAdapters,
-      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], options: NonNullable<Parameters<typeof providerTurnAdapters.openai>[1]>) => {
+      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], optional?: Parameters<typeof providerTurnAdapters.openai>[1]) => {
+        // The adapter port types its options as optional; the shared mapper always supplies them.
+        const options = optional ?? assert.fail("the adapter receives its options object");
         assert.ok(options.getTools);
         assert.ok(options.executeTool);
         for (const name of ["search_tools", "describe_tool"]) {
@@ -869,19 +870,18 @@ test("T2 BYOK forwards the live snapshot: search → describe → strict typed c
         await options.executeTool({ id: "typed", name: concrete.function.name, input: { id: "record-1", note: null } });
         return { finishReason: "stop", toolTurns: 3 };
       },
-    },
-  } });
-  const entry = "../byok-provider-turn.js?t2=refresh";
-  const { runByokProviderTurn: run } = await import(entry) as typeof import("../byok-provider-turn.js");
-  const result = await run({
-    ...baseInput("openai", "http://127.0.0.1:1"), tools: initial,
-    getToolSnapshot: () => [...initial, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
-    onSchemaFallback: event => fallback.push(event),
+    };
+  const result = await runProviderToolTurn({
+    ...baseInput("openai"), adapters, tools: initial,
     executeTool: async call => {
       calls.push({ name: call.name, input: call.input });
       if (call.name === "describe_tool") exposure.promote({ toolIds: [descriptor.id] });
       return { content: "ok" };
     },
+  }, {
+    baseUrl: "http://127.0.0.1:1",
+    getToolSnapshot: () => [...initial, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
+    onSchemaFallback: event => fallback.push(event),
   });
   assert.deepEqual(result, { stopReason: "stop", toolTurns: 3 });
   assert.deepEqual(snapshots.map(snapshot => snapshot.length), [2, 2, 3]);
@@ -894,15 +894,15 @@ test("T2 BYOK forwards the live snapshot: search → describe → strict typed c
   assert.doesNotMatch(JSON.stringify(fallback), /record-1|inspect a record/);
 });
 
-test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons", async (t) => {
+test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons", async () => {
   const descriptor: ToolDescriptor = { id: "t2_open_map", inputSchema: { type: "object", additionalProperties: true } };
   const fallbacks: unknown[] = [];
   const received: unknown[] = [];
-  t.mock.module("@jini-ai/agent-runtime/providers/tool-turn", { namedExports: {
-    runProviderToolTurn,
-    providerTurnAdapters: {
+  const adapters: ProviderTurnAdapters = {
       ...providerTurnAdapters,
-      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], options: NonNullable<Parameters<typeof providerTurnAdapters.openai>[1]>) => {
+      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], optional?: Parameters<typeof providerTurnAdapters.openai>[1]) => {
+        // The adapter port types its options as optional; the shared mapper always supplies them.
+        const options = optional ?? assert.fail("the adapter receives its options object");
         assert.ok(options.getTools);
         assert.ok(options.executeTool);
         const tools: ReturnType<NonNullable<typeof options.getTools>> = options.getTools({ strict: true });
@@ -912,35 +912,22 @@ test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free
         assert.match(String(result.content), /host validation rejected/);
         return { finishReason: "stop", toolTurns: 1 };
       },
-    },
-  } });
-  const entry = "../byok-provider-turn.js?t2=fallback";
-  const { runByokProviderTurn: run } = await import(entry) as typeof import("../byok-provider-turn.js");
-  await run({
-    ...baseInput("openai", "http://127.0.0.1:1"), tools: [descriptor],
-    getToolSnapshot: () => [descriptor], onSchemaFallback: event => fallbacks.push(event),
+    };
+  await runProviderToolTurn({
+    ...baseInput("openai"), adapters, tools: [descriptor],
     executeTool: async call => { received.push(call.input); return { content: "host validation rejected", isError: true }; },
+  }, {
+    baseUrl: "http://127.0.0.1:1",
+    getToolSnapshot: () => [descriptor], onSchemaFallback: event => fallbacks.push(event),
   });
   assert.deepEqual(received, [{ secret: "value-not-for-telemetry", arbitrary: { retained: true } }]);
   assert.deepEqual(fallbacks, [{ toolId: "t2_open_map", protocol: "openai", reason: "open-map" }]);
 });
 
-test("resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively", async () => {
-  const { resolveByokProtocol } = await import("../byok-provider-turn.js");
-  assert.equal(resolveByokProtocol({ provider: "anthropic" }), "anthropic");
-  assert.equal(resolveByokProtocol({ provider: "  OpenAI " }), "openai");
-  assert.equal(resolveByokProtocol({ provider: "Google" }), "google");
-  assert.equal(resolveByokProtocol({ provider: "azure" }), "azure");
-  // An unknown provider, a blank one, and an inherited Object key are all refused.
-  assert.equal(resolveByokProtocol({ provider: "mistral" }), null);
-  assert.equal(resolveByokProtocol({ provider: "   " }), null);
-  assert.equal(resolveByokProtocol({ provider: "constructor" }), null);
-});
-
 test("runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools", async (t) => {
   const capture = await captureOutboundRequest(t);
   const snapshotTool: ToolDescriptor = { ...TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES, id: "snapshot_tool" };
-  await runByokProviderTurn({ ...baseInput("anthropic", capture.baseUrl), maxTokens: 321, maxToolTurns: 2,
+  await runProviderToolTurn(baseInput("anthropic"), { baseUrl: capture.baseUrl, maxTokens: 321, maxToolTurns: 2,
     getToolSnapshot: () => [snapshotTool], onSchemaFallback: () => {} });
   const body = capture.body();
   assert.equal(body.max_tokens, 321);
@@ -952,7 +939,7 @@ test("runByokProviderTurn honours an already-aborted signal: no provider request
   const baseUrl = await startStubProviderServer(t, () => { calls++; return { status: 400, body: "{}" }; });
   const controller = new AbortController();
   controller.abort();
-  const result = await runByokProviderTurn({ ...baseInput("anthropic", baseUrl), signal: controller.signal });
+  const result = await runProviderToolTurn(baseInput("anthropic"), { baseUrl, signal: controller.signal });
   assert.equal(calls, 0);
   assert.deepEqual(result, { stopReason: "error", toolTurns: 0 });
 });

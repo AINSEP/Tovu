@@ -1,4 +1,4 @@
-import { createFederatedMcpPresetRegistry, resolveFederatedMcpPresets, type FederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { createFederatedMcpPresetRegistry, createFederationConsoleLogger, resolveFederatedMcpPresets, type AttachFederatedToolsResult, type FederatedMcpPresetRegistry, type FederationHostLogger } from "@jini-ai/mcp/federation";
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
 import type { ToolRegistry } from "@jini-ai/core";
@@ -10,8 +10,6 @@ import type { McpBearerTokenSupplier } from "@jini-ai/mcp/federation";
 import { desktopMcpRuntime } from "../desktop-mcp-runtime.js";
 import { tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDeps } from "./registrations.js";
-// The shared admission report is canonical in Jini; the host registration adapter does not redeclare it.
-import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 
 /**
  * @file Tovu binds host ports, presets, messages and launch policy to Jini's federation boot loop.
@@ -19,65 +17,9 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  * fail-closed. The detailed admission, collision and session-cleanup rationale is at the Jini owner.
  */
 
-/** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
- * so a future structured logger is a parameter change rather than an edit. */
-export interface FederationLogger {
-  info(required: { message: string }, optional?: { error?: unknown }): void;
-  warn(required: { message: string }, optional?: { error?: unknown }): void;
-}
-
-/** Jini's federation loop logs fixed words in `message` and hands the original error as `{ error }` for the
- * host sink; this console IS Tovu's host sink, so the error rides along as a second console argument
- * (without it a failed connection would log no cause at all). */
-const consoleArgs = ({ line, error }: { line: string; error: unknown }): unknown[] => (error === undefined ? [line] : [line, error]);
-
-const consoleLogger: FederationLogger = {
-  info: ({ message }, { error } = {}) => console.log(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
-  warn: ({ message }, { error } = {}) => console.warn(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
-};
-
-export interface AttachFederatedToolsResult {
-  /** Ids actually registered. Empty when federation is off or every attempt failed. */
-  readonly registeredToolIds: readonly string[];
-  /** Live sessions, for the caller to close at shutdown. */
-  readonly sessions: readonly McpSessionPort[];
-  /**
-   * One entry per connection that reached admission — i.e. every connection whose session
-   * connected and listed tools, whether or not any tool was ultimately registered. A connection
-   * that failed before `federateSession` ran (a bad spawn, a timed-out handshake, a collision) has
-   * no admission decision to report and contributes no entry here — see
-   * {@link attachOneFederatedConnection}'s catch branch.
-   *
-   * This is the same accounting `logFederatedAdmissionReport` already turns into stderr lines and
-   * then discards. Kept here so a caller (today, `agent-daemon-server.ts`, over `GET
-   * /api/federation/admissions`) can serve it to an operator instead of it only ever reaching
-   * whoever happens to be tailing the daemon's terminal at boot. See the write-tools implementation
-   * outline, C-009.
-   */
-  readonly reports: readonly {
-    readonly connectionId: string;
-    readonly report: FederatedAdmissionReport;
-    /**
-     * Whether this connection came from `presets.ts`'s registry rather than the operator-editable
-     * roster (`extraConnections` below). Threaded through so a consumer — today, the admin admissions
-     * banner (`external-mcp-admissions-rules.ts`) — can tell "no roster card because this is a preset,
-     * by design" apart from "no roster card because the operator just deleted it".
-     * A deleted-but-live roster connection must be reported as drift.
-     */
-    readonly isPreset: boolean;
-  }[];
-  /**
-   * One entry per connection that failed BEFORE reaching admission — a bad spawn, a timed-out
-   * handshake, a malformed tool listing, or a native-id collision. This is the
-   * connection-level counterpart to `reports` above: `reports` never carries an entry for one of
-   * these. `configFailures` covers separate boot-time configuration resolution and cannot know
-   * about failures inside `connect()`. `reason` is the human-readable connection error, the
-   * same text `logger.warn` already prints for this exact failure, so this field discloses nothing
-   * that was not already reaching this process's own stderr; it is never a raw env value or secret,
-   * since nothing in this file's `connect`/`spawn` error paths ever formats one into a message.
-   */
-  readonly connectFailures: readonly { readonly connectionId: string; readonly reason: string }[];
-}
+/** Tovu's console sink: Jini's prefixed federation console logger (original error as a second
+ * console argument) under the daemon's historical `[agent-daemon]` prefix. */
+const consoleLogger: FederationHostLogger = createFederationConsoleLogger({ prefix: "[agent-daemon]" });
 
 /**
  * Connects every configured federated MCP server, registers whatever clears the trust tier into
@@ -115,7 +57,7 @@ export interface AttachFederatedMcpToolsParams {
    */
   extraConnections?: readonly ResolvedFederatedConnection[];
   connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
-  logger?: FederationLogger;
+  logger?: FederationHostLogger;
   env?: NodeJS.ProcessEnv;
   /**
    * The desktop-only stdio launch rewrite (desktop-npx plan §2): given a stdio launch spec, decides
@@ -132,37 +74,13 @@ export interface AttachFederatedMcpToolsParams {
   stdioLaunchResolver?: McpStdioLaunchResolver;
 }
 
-/** One connection paired with where it came from — the signal `attachFederatedMcpTools`'s `reports`
- *  now carries as `isPreset`, computed here rather than downstream because this is the one place
- *  that still has the two lists (presets, roster) separate before they are merged into a single
- *  loop. */
-interface OriginTaggedConnection {
-  readonly connection: ResolvedFederatedConnection;
-  readonly isPreset: boolean;
-}
-
-/** Resolves the defaulted inputs `attachFederatedMcpTools` needs — `logger`, `connect`, and the
- *  merged connection list (presets or an injected override, plus any extra roster connections),
- *  each tagged with its origin.
- *
- *  `params.connections` (an injected override, used throughout this file's own tests) stands in for
- *  the preset list, not the roster — it replaces `resolveRegisteredPresets`'s result, and
- *  `extraConnections` is documented on {@link AttachFederatedMcpToolsParams} as specifically the
- *  operator-editable roster. So the origin tag is exactly which of the two arrays a connection came
- *  from. */
-/** Stamps a preset-sourced connection's config with `origin: {kind:"preset"}`, so
- *  `external-mcp-revocation.ts`'s per-call gate can tell it apart from a roster connection (which
- *  carries its OWN origin already, stamped by `external-mcp-store.ts`'s
- *  `toResolvedFederatedConnections`) and skip the row re-check a preset has no row to support. Split
- *  out purely to keep {@link resolveFederationAttachInputs} under the shop complexity ceiling. */
-function withPresetOrigin(connection: ResolvedFederatedConnection): ResolvedFederatedConnection {
-  return { ...connection, config: { ...connection.config, origin: { kind: "preset" } } };
-}
-
+/** Resolves the host-defaulted inputs: `logger`, the stdio-bound `connect`, and the preset list
+ *  (an injected override, used throughout this file's own tests, stands in for the presets, not the
+ *  roster). Jini stamps preset origin and keeps presets ahead of `extraConnections`. */
 function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
-  logger: FederationLogger;
+  logger: FederationHostLogger;
   connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
-  connections: readonly OriginTaggedConnection[];
+  connections: readonly ResolvedFederatedConnection[];
 } {
   const logger = params.logger ?? consoleLogger;
   // Resolve bundled settings only for a stdio connection. A broken bundle must refuse that
@@ -172,11 +90,7 @@ function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
     resolve: ({ spec }) => tovuStdioLaunchResolverFromEnv(env).resolve({ spec }),
   };
   const connect = params.connect ?? createDefaultConnect({ resolver: stdioLaunchResolver }, { logger });
-  const presetConnections = params.connections ?? resolveRegisteredPresets({ env: params.env ?? process.env, logger, registry: params.presetRegistry ?? createFederatedMcpPresetRegistry({}) });
-  const connections = [
-    ...presetConnections.map((connection): OriginTaggedConnection => ({ connection: withPresetOrigin(connection), isPreset: true })),
-    ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
-  ];
+  const connections = params.connections ?? resolveRegisteredPresets({ env, logger, registry: params.presetRegistry ?? createFederatedMcpPresetRegistry({}) });
   return { logger, connect, connections };
 }
 
@@ -205,8 +119,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
   }, {
     buildRegistrations: ({ tools, session, config, nativeToolIds }) => buildFederatedMcpRegistrations({ tools, session, config, nativeToolIds, deps: params.deps }),
     // Resolve the injected host instance once; presets retain first claim over roster entries.
-    connections: connections.filter(entry => entry.isPreset).map(entry => entry.connection),
-    extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
+    connections, extraConnections: params.extraConnections ?? [],
     env: params.env ?? process.env,
     logger: {
       info: ({ message }, { error } = {}) => logger.info({ message }, { error }),
@@ -230,7 +143,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
  * @complexity O(p) for p registered presets; resolution remains owned by Jini.
  */
 export function resolveRegisteredPresets({ env, logger, registry }: {
-  env: NodeJS.ProcessEnv; logger: FederationLogger; registry: FederatedMcpPresetRegistry;
+  env: NodeJS.ProcessEnv; logger: FederationHostLogger; registry: FederatedMcpPresetRegistry;
 }, _optional: Record<string, never> = {}): ResolvedFederatedConnection[] {
   return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn({ message }) } });
 }
@@ -243,7 +156,7 @@ export function resolveRegisteredPresets({ env, logger, registry }: {
  */
 export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchResolver }, {
   spawnChannel, logger = consoleLogger, bearerToken = desktopMcpRuntime.bearerToken,
-}: { spawnChannel?: (resolved: ResolvedStdioLaunch) => McpStdioChannel; logger?: FederationLogger; bearerToken?: McpBearerTokenSupplier } = {}):
+}: { spawnChannel?: (resolved: ResolvedStdioLaunch) => McpStdioChannel; logger?: FederationHostLogger; bearerToken?: McpBearerTokenSupplier } = {}):
   (connection: ResolvedFederatedConnection) => Promise<McpSessionPort> {
   const connect = createJiniConnect({ resolver, clientInfo: TOVU_MCP_CLIENT_INFO,
     messages: tovuFederationMessages, bearerToken,

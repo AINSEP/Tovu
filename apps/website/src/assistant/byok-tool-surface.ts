@@ -37,7 +37,7 @@ import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetai
 import { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource, type StoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
 import { attachAssistantToolExtensions, type AssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
-import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
+import type { FederationRuntime } from "@jini-ai/mcp/federation";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
