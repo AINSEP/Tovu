@@ -1,6 +1,6 @@
 /** Explicit SQLite maintenance entrypoint. Preview opens read-only; apply holds exclusive admission.
  * No migration, owner bootstrap, schedule, file listing or immediate object deletion occurs here. */
-import { createMediaAccessEvidence } from "../apps/website/src/features/media/access-evidence.js";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
