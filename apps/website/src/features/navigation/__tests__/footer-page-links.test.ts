@@ -9,7 +9,7 @@ import { migrateFooterPageLinks } from "../migrate-footer-page-links.js";
 import { resolveMenuDoc } from "../index.js";
 import { createMenuPageTargetResolver } from "../page-target-resolver.js";
 import { SqliteMenuRepo } from "../repo.sqlite.js";
-import { toAdminMenuResponse } from "#src/server/inbound/admin-http/http/menus";
+import { toAdminMenuResponse } from "@jini-ai/cms/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
 import { postSearchFor } from "#src/features/post/search-index";
 import { renderHtmlMenu } from "#src/platform/html/menu-render";
@@ -132,7 +132,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     const readMenu = await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" });
     assert.ok(readMenu);
     await menuRepo.save(readMenu);
-    assert.deepEqual(toAdminMenuResponse((await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))!).menu.items[0].target, pageTarget);
+    assert.deepEqual(toAdminMenuResponse({ menu: (await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))! }).menu.items[0].target, pageTarget);
     assert.deepEqual(converted.items.slice(1), doc.items.slice(1));
     assert.deepEqual(JSON.parse(rows.find((row) => row.slug === "header-nav")!.doc_json), doc);
     assert.equal(footer.version, 2);

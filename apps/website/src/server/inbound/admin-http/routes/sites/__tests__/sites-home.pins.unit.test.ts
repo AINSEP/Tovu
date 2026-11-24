@@ -6,9 +6,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import express from "express";
-import { registerSitesHomeRoutes } from "../sites-home.js";
+import { registerSitesHomeRoutes } from "#src/server/runtime/composition/modules/sites";
 import { createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
-import type { AdminSitesDeps } from "../../system/sites.js";
+import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 type Deps = Pick<AdminSitesDeps, "workspaceId" | "authorize" | "isSiteSwitcherEnabled">;

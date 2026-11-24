@@ -9,6 +9,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
 import { appShellApiBody } from "../app-shell-api.fixture";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file Owner decision, 2026-09-21 (option A): Jini's shared `ConfirmDialog` hard-codes its Cancel
@@ -80,7 +83,7 @@ it("translates the logout confirm's Cancel button under a non-English locale", a
   const user = userEvent.setup();
   // Availability reads belong to a stable session object, just like useAdminSession's result.
   const session = fakeSession();
-  render(<App useSession={() => session} />);
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
 
   // `navLocale` starts at `DEFAULT_LOCALE` and updates once the stubbed fetch above resolves — see
   // `useAdminLocale`'s own doc comment. Waiting on the translated nav label (already covered

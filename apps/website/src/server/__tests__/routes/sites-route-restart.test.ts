@@ -8,7 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
+import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { SITE_SWITCH_RESTART_INSTRUCTIONS, SITE_SWITCH_RESTARTING_NOTICE } from "#src/features/sites/index";
 
 /**

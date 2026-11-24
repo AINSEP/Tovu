@@ -7,7 +7,7 @@ import express from 'express';
 import { desktopRenderForHost } from '../../headless-browser/desktop-render.js';
 import { startRenderBridge } from '@jini-ai/desktop-host/render-bridge';
 import { desktopMcpRuntime } from '#src/assistant/desktop-mcp-runtime';
-import { buildDeploymentOverviewSnapshot } from '../../../server/inbound/admin-http/routes/system/deployment-overview.js';
+import { buildDeploymentOverviewSnapshot } from '#src/server/runtime/composition/modules/system-deploy';
 import { resolveOwnerCredentials } from '#src/features/identity/wiring';
 import { spawn } from 'node:child_process';
 import { provideNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';

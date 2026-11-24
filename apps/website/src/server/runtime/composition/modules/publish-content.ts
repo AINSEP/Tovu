@@ -10,9 +10,8 @@ import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-ht
 import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
 import { registerPublishContentCapabilitiesRoute } from "#src/server/inbound/admin-http/routes/publish-content/capabilities";
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
-import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
+import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes } from "./publish-content-transport.js";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
-import { registerPublishContentDestinationRoutes } from "#src/server/inbound/admin-http/routes/publish-content/destination";
 import { registerPublishBackstopRoutes } from "#src/server/inbound/admin-http/routes/publish-content/backstop";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import {

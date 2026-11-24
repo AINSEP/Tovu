@@ -11,7 +11,7 @@ import { registerAdminDatabaseRestorePointsCreateRoute } from "../../runtime/com
 import { registerAdminRecoveryRestorePointsListRoute } from "../../runtime/composition/modules/database-recovery.js";
 import { registerAdminRecoveryDisclosureRoute } from "../../runtime/composition/modules/database-recovery.js";
 import { registerAdminRecoveryDeepLinkRoute } from "../../runtime/composition/modules/database-recovery.js";
-import { registerAdminRecoveryStatusRoute } from "../../inbound/admin-http/routes/recovery/status.js";
+import { registerAdminRecoveryStatusRoute } from "../../runtime/composition/modules/database-recovery.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";

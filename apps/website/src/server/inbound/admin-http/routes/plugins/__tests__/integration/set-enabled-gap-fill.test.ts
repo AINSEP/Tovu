@@ -12,8 +12,8 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo, PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
-import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
-import type { PluginsRouteDeps } from "../../deps.js";
+import { registerPluginSetEnabledRoute } from "#src/server/runtime/composition/modules/plugins";
+import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**
@@ -347,4 +347,32 @@ test("set-enabled: `req.params.pluginId ?? \"\"` fallback names no discovered pl
   assert.equal(capture.statusCode, 404);
   assert.equal((capture.jsonBody as { code?: string }).code, "PLUGIN_NOT_FOUND");
   assert.equal(await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "" }), null);
+});
+
+/**
+ * rv1123j rt-l5-recovery FIX 1: the hand-written route refused a malformed `enabled` (400) before
+ * `getAuthedPrincipal(res)`, so this mount opts into `deferMissingPrincipal`. With no session, a
+ * malformed body keeps its 400; a valid body fails closed (redacted 500) before discovery or the
+ * gateway runs. Mutation `drop-set-enabled-deferral` (remove the opt-in) turns the first into a 500.
+ */
+test("set-enabled: with no principal, a malformed body is still 400 and a valid body is 500 before discovery or the command", async () => {
+  let discoverCalls = 0;
+  let authorizeCalls = 0;
+  const { app, pluginDeps } = buildTestApp({
+    discoverPlugins: async () => { discoverCalls += 1; return DISCOVERY; },
+    authorize: async () => { authorizeCalls += 1; return { allowed: true, reason: "matched" }; },
+  });
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId");
+  const malformed = createCapturingResponse();
+  await handler({ params: { workspaceId: WORKSPACE_ID, pluginId: "word-count" }, body: { enabled: "true" } }, malformed.res);
+  assert.equal(malformed.capture.statusCode, 400);
+  assert.deepEqual(malformed.capture.jsonBody, { error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
+  const valid = createCapturingResponse();
+  await handler({ params: { workspaceId: WORKSPACE_ID, pluginId: "word-count" }, body: { enabled: true } }, valid.res);
+  assert.equal(valid.capture.statusCode, 500);
+  assert.equal((valid.capture.jsonBody as { code?: string }).code, "INTERNAL_ERROR");
+  assert.equal(discoverCalls, 0);
+  assert.equal(authorizeCalls, 0);
+  assert.deepEqual((pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls, []);
+  assert.equal(await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" }), null);
 });

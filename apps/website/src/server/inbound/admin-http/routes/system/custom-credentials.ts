@@ -4,14 +4,12 @@ import { invalidatePublishCredentialCompatibility } from "#src/features/deployme
 import type { Express, Request, Response } from "express";
 
 import {
-  createCustomCredential,
   describeCredential,
   CustomCredentialDuplicateLabelError,
   CustomCredentialConcurrentModificationError,
   CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
-  deleteCustomCredential,
   listCustomCredentialInventory,
   updateCustomCredential,
   type UpdateCustomCredentialInput,
@@ -24,7 +22,13 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
- * @file Admin Access Tokens page's "Add custom provider" CRUD backend.
+ * @file Admin Access Tokens page's "Add custom provider" backend — the LIST and UPDATE verbs only,
+ * still hand-written (K1 STOP, RT-K1-adm-system-10): both read `res.locals.authCredentialKind`
+ * (the owner-session gate on Shared Keys, the owner-session shared-key replacement), which the admin
+ * JSON ports do not carry. Create and delete are Jini specs
+ * (`@jini-ai/cms/admin-http/routes/system/custom-credentials`) mounted by
+ * `runtime/composition/modules/system-credentials.ts`, which calls the two registrars below in the
+ * original order (list, create, update, delete).
  *
  * Registers `GET`/`POST` on the collection and `PUT`/`DELETE` on a single credential set, all under
  * `/api/admin/v1/workspaces/:workspaceId/system/custom/credentials`. Deliberately a THIN HTTP
@@ -41,7 +45,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  *
  * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
  */
-export type AdminCustomCredentialsDeps = Pick<
+type AdminCustomCredentialsDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
 > & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache" | "projectKeys" | "ownerPrincipalId">>;
@@ -103,22 +107,6 @@ function buildUpdateCredentialInput({ workspaceId, id, body }: { workspaceId: st
     // and gets skipped, same "omitted key vs. present null" distinction `store.ts`'s own
     // `UpdateCustomCredentialInput.username` doc relies on.
     ...(body.username !== undefined ? { username: body.username } : {}),
-  };
-}
-
-/** The site's Access Tokens add action is its explicit yes; other sites still need their own yes. */
-async function attachAddedProjectKey({ credential, keys }: { credential: CustomCredentialSummary; keys: AdminCustomCredentialsDeps["projectKeys"] }, _optional = {}) {
-  if (credential.scope !== "project" || !keys) return credential;
-  const usage = await keys.use({ keyId: credential.id, use: true });
-  return { ...credential, usedBy: usage.usedBy, usedByThisSite: usage.usedByThisSite };
-}
-
-function optionalCreateFields({ body }: { body: Record<string, unknown> }, _optional = {}) {
-  return {
-    ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
-    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
-    // "site" = only for this site; omitted = the project store when one is attached (store.ts).
-    ...(body.scope !== undefined ? { scope: body.scope } : {}),
   };
 }
 
@@ -185,28 +173,6 @@ function registerListRoute({ app, deps, readDeps, rejectUnlessAuthorized }: Cred
   } }));
 }
 
-function registerCreateRoute({ app, deps, writeDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
-  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res)) return;
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    try {
-      const registry = await registryForInvalidation({ deps });
-      const credential = await createCustomCredential(writeDeps, {
-        workspaceId: deps.workspaceId,
-        label: body.label,
-        category: body.category,
-        baseUrl: body.baseUrl,
-        connection: body.connection,
-        ...optionalCreateFields({ body }),
-      });
-      if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
-      res.status(201).json({ credential: await attachAddedProjectKey({ credential, keys: deps.projectKeys }) });
-    } catch (err) {
-      sendStoreError({ res, err });
-    }
-  } }));
-}
-
 function registerUpdateRoute({ app, deps, readDeps, writeDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
   app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
@@ -224,33 +190,22 @@ function registerUpdateRoute({ app, deps, readDeps, writeDeps, rejectUnlessAutho
   } }));
 }
 
-function registerDeleteRoute({ app, deps, readDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
-  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res)) return;
-    try {
-      // Idempotent — `deleteCustomCredential`/`CustomCredentialSetRepoPort.delete` are both no-ops
-      // (not errors) for a missing row, matching this route's own documented 204-always contract.
-      const registry = await registryForInvalidation({ deps });
-      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-      await deleteCustomCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-      if (before && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
-      res.status(204).end();
-    } catch (err) {
-      sendStoreError({ res, err });
-    }
-  } }));
-}
-
-export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
-  const context: CredentialRouteContext = {
+function buildContext({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }): CredentialRouteContext {
+  return {
     app,
     deps,
     readDeps: { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
     writeDeps: buildWriteDeps(deps),
     rejectUnlessAuthorized: (req, res) => rejectUnlessAuthorizedFor({ deps, req, res }),
   };
-  registerListRoute(context);
-  registerCreateRoute(context);
-  registerUpdateRoute(context);
-  registerDeleteRoute(context);
+}
+
+/** `GET` the inventory (owner-session gate when a project key store is attached). */
+export function registerAdminCustomCredentialsListRoute({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
+  registerListRoute(buildContext({ app, deps }));
+}
+
+/** `PUT` one credential (owner-session shared-key replacement). */
+export function registerAdminCustomCredentialsUpdateRoute({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
+  registerUpdateRoute(buildContext({ app, deps }));
 }

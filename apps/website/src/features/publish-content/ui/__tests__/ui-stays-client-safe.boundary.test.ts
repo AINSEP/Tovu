@@ -17,8 +17,8 @@
  *    enough to break `npx tsc --noEmit` in `apps/admin` — with an error pointing at a website file,
  *    which is a confusing morning for whoever hits it. The one permitted edge leaves the folder
  *    for the report contract, a dependency-free neutral DTO module shared with the HTTP boundary.
- *    It now lives in Jini (`@jini-ai/cms/publish/content/report-contract`), so the edge is that
- *    exact specifier, type-only — admin resolves `@jini-ai/*` through its own node_modules.
+ *    It now lives in Jini Core (`@jini-ai/core/contracts/site/cms-publish-content`), so the edge is
+ *    that exact specifier, type-only — admin resolves `@jini-ai/*` through its own node_modules.
  * 2. **No server value imports, anywhere under `ui/`.** Even a file outside the `index.ts` closure
  *    must not pull `node:*`, a repo, `planner.ts` or `baseline-repo.ts` in at runtime: the whole
  *    folder is shipped into a browser bundle by admin's Vite, and Vite resolves by directory, not by
@@ -44,7 +44,7 @@ import ts from "typescript";
 const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/publish/content/dialog"))), "../../../../src/publish/content/dialog");
 const HOST_SECTIONS_FILE = path.resolve(import.meta.dirname, "../sections.ts");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
-const REPORT_CONTRACT_SPECIFIER = "@jini-ai/cms/publish/content/report-contract";
+const REPORT_CONTRACT_SPECIFIER = "@jini-ai/core/contracts/site/cms-publish-content";
 /** The published module behind the specifier; resolved from this test process (Node ESM). */
 const REPORT_CONTRACT_FILE = fileURLToPath(import.meta.resolve(REPORT_CONTRACT_SPECIFIER));
 

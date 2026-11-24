@@ -1,6 +1,6 @@
 import { formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import type { SiteRenderContext } from "../render-context.js";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { renderHtmlPageBody } from "./page-body.js";

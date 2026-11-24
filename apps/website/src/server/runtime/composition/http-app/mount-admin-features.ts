@@ -35,8 +35,7 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // unauthenticated submission route, which stays inline near the site catch-all).
   mountRoutes({ app, mod: createCommentsModerationModule(routeDeps) });
   // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
-  // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
-  // `apps/website/src/server/inbound/admin-http/http/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
+  // routes (ADR-029), Jini route specs mounted with per-route deps (see `modules/menus.ts`).
   mountRoutes({ app, mod: createMenusModule(routeDeps) });
   // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.

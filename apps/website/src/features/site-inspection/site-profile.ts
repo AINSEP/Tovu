@@ -88,8 +88,8 @@ export type SiteProfileSectionName = (typeof SITE_PROFILE_SECTION_NAMES)[number]
  * already uses, reused rather than invented:
  * - `pages` -> `content.read` (`features/pages/agent-tools.ts`)
  * - `theme` -> `theme.set` (`features/theme/agent-tools.ts`'s `THEME_READ_PERMISSION`)
- * - `plugins` -> `admin.plugins.read` (`features/plugin-runtime/agent-tools.ts`,
- *   `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`)
+ * - `plugins` -> `admin.plugins.read` (`features/plugin-runtime/agent-tools.ts`, the Jini spec
+ *   `@jini-ai/cms/admin-http/routes/plugins/list`'s `pluginListRoute`, mounted by `modules/plugins.ts`)
  * - `settings` -> `settings.read` (`@jini-ai/core/settings`'s `settings_get_effective`)
  * - `contentTypes` -> `admin.collections.read` (`apps/website/src/server/inbound/admin-http/routes/content-types/list.ts`)
  *

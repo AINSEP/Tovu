@@ -1,19 +1,13 @@
-/** Mirrors `src/seo/types.ts`'s `SeoSettings`/`RobotsRule` (SPEC-008). */
-export interface RobotsRule {
-  userAgent: string;
-  allow?: string[];
-  disallow?: string[];
-}
+import type {
+  AdminSeoAnalysisDto, AdminSeoIssueDto, AdminSeoIssueSeverity, AdminSeoMetaDto, AdminSeoOpenGraphDto, AdminSeoOpenGraphType,
+  AdminSeoRobotsRuleDto, AdminSeoSettingsDto, AdminSeoTwitterCardDto, AdminSeoTwitterCardKind,
+} from "@jini-ai/core/contracts/site/cms-seo";
 
-export interface SeoSettings {
-  titleTemplate: string;
-  defaultDescription?: string;
-  defaultOgImage?: string;
-  twitterSite?: string;
-  defaultRobots: { noindex: boolean; nofollow: boolean };
-  sitemapEnabled: boolean;
-  robotsRules: RobotsRule[];
-}
+/** The site-level settings body (SPEC-008) — the server's wire shape, declared once in Jini Core
+ *  (`@jini-ai/core/contracts/site/cms-seo`, rv1123e K1), so the client no longer restates it. */
+export type RobotsRule = AdminSeoRobotsRuleDto;
+
+export type SeoSettings = AdminSeoSettingsDto;
 
 /**
  * The shape `setSeoSettings` accepts — `Partial<SeoSettings>` with the three nullable-on-write
@@ -33,41 +27,20 @@ export type SeoSettingsPatch = Partial<Omit<SeoSettings, "defaultDescription" | 
 };
 
 /**
- * Per-entry SEO (SPEC-008, mirrored from `src/seo/types.ts` per SPEC-037 REQ-06/07 — read
- * directly off `SeoMeta`/`SeoAnalysis`/`SeoIssue`, not guessed).
+ * Per-entry SEO (SPEC-008). The resolved bodies the server answers — `getSeoEntry`/`putSeoEntry`'s
+ * meta and the analysis — are declared once in Jini Core (`@jini-ai/core/contracts/site/cms-seo`,
+ * rv1123i K1) and pinned there against the SEO model, so the client no longer mirrors them by hand
+ * (the hand mirror had already lost the image provenance fields). Only the editor-side override
+ * bag and its patch below stay local.
  */
-export type SeoOpenGraphType = "website" | "article" | "profile";
-export type SeoTwitterCardKind = "summary" | "summary_large_image";
+export type SeoOpenGraphType = AdminSeoOpenGraphType;
+export type SeoTwitterCardKind = AdminSeoTwitterCardKind;
 
-export interface SeoOpenGraph {
-  title: string;
-  description?: string;
-  type: SeoOpenGraphType;
-  url: string;
-  image?: string;
-  siteName?: string;
-}
+export type SeoOpenGraph = AdminSeoOpenGraphDto;
 
-export interface SeoTwitterCard {
-  card: SeoTwitterCardKind;
-  title: string;
-  description?: string;
-  image?: string;
-  site?: string;
-}
+export type SeoTwitterCard = AdminSeoTwitterCardDto;
 
-/** Mirrors `src/seo/types.ts`'s `SeoMeta` — the fully-resolved effective meta for one entry
- * (author overrides layered over site defaults layered over derived-from-entry). Both
- * `getSeoEntry` and `putSeoEntry` return this same resolved shape (not the raw override bag). */
-export interface SeoEntryMeta {
-  title: string;
-  description?: string;
-  canonical: string;
-  robots: { noindex: boolean; nofollow: boolean };
-  openGraph: SeoOpenGraph;
-  twitter: SeoTwitterCard;
-  jsonLd: Record<string, unknown>[];
-}
+export type SeoEntryMeta = AdminSeoMetaDto;
 
 /**
  * Mirrors `Jini packages/cms/src/seo/types.ts`'s `SeoExtFields` — the per-entry override
@@ -107,20 +80,8 @@ export interface SeoEntryOverrides {
  */
 export type SeoEntryOverridesPatch = { [K in keyof SeoEntryOverrides]?: SeoEntryOverrides[K] | null };
 
-export type SeoIssueSeverity = "error" | "warning" | "info";
+export type SeoIssueSeverity = AdminSeoIssueSeverity;
 
-/** Mirrors `src/seo/types.ts`'s `SeoIssue`. */
-export interface SeoIssue {
-  code: string;
-  severity: SeoIssueSeverity;
-  message: string;
-  field?: string;
-}
+export type SeoIssue = AdminSeoIssueDto;
 
-/** Mirrors `src/seo/types.ts`'s `SeoAnalysis` — `analyzeEntry`'s return shape. */
-export interface SeoEntryAnalysis {
-  entryId: string;
-  score: number;
-  issues: SeoIssue[];
-  resolved: SeoEntryMeta;
-}
+export type SeoEntryAnalysis = AdminSeoAnalysisDto;

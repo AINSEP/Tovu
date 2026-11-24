@@ -114,7 +114,7 @@ test("init and CLI boot share the new data.nosync and appData layouts", async ()
 });
 
 test('web config endpoint checks capability and permission, validates atomically, and persists for desktop', async () => {
-  const { registerSitesHomeRoutes } = await import('../../../../server/inbound/admin-http/routes/sites/sites-home.js');
+  const { registerSitesHomeRoutes } = await import('#src/server/runtime/composition/modules/sites');
   const f = fixture();
   try {
     const handlers = new Map<string, import('express').RequestHandler>();

@@ -23,3 +23,109 @@ Admin JSON routes are Jini `defineJsonRoute` specs mounted with `mountJsonRoute`
 `inbound/admin-http/admin-json-route-ports.ts` supplies the host ports. Its `authorize` port turns a
 by-id route's `{ entityId }` scope into the `entityId` field of `deps.authorize`; list/import send none.
 Covered by `inbound/admin-http/routes/redirects/__tests__/authorize-entity-id.test.ts`.
+On a mount that opts in (`deferMissingPrincipal`), the `authenticate` port answers `undefined`
+without a session, so a spec's `parse` refusal (400) still precedes the missing-session 500, as in
+the hand-written parse-first routes; `authorize` then fails closed. Every other mount fails in
+`authenticate`, before parse, as before. `authorizationByPermission` answers one permission from a
+different source than the mount default.
+Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
+inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
+raw-HTML check is overridden to `"guarded"` (its hand-written `authorizeOrRespond`), and create,
+update-tree and assign-location opt into the deferral.
+System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/admin-http/routes/system/mail-*`
+(all `"direct"`); the live mailer, status source and platform operations are read per request because boot
+swaps them in after mount. Mail providers mount list, credential plan and activate from Jini in the original
+order around the credential PUT, which stays hand-written in `routes/system/mail-providers.ts` (it reads
+`res.locals.authCredentialKind`, which the admin ports do not carry) and shares Jini's `mailProviderRefusal` table.
+`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) and
+`browser-telemetry.ts` (204 beacon, `Retry-After`, content-length) stay hand-written.
+Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
+`registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
+`createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
+hand-written: `PUT …/sites/config` (two failure copies by phase), the socket-reading list and the
+header-gated `/internal/dev-warm-site` (`routes/system/sites.ts`), card previews (binary) and the warm relay.
+Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount the source-control (5), custom
+(create, delete) and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure`
+operations; store deps are bound once at registration as before and the heal scheduler is built once per
+registration and injected. Still hand-written in `inbound/admin-http/routes/system/`: custom list and update
+(they read `res.locals.authCredentialKind`), the publish GET list (a pinned direct-call rejection) and
+`credential-copy.ts` (socket/headers, `Cache-Control: no-store`). Their Jini specs for publish list and custom
+list/update exist but are not mounted until the admin ports carry the credential kind.
+Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
+per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
+per-error failure copy from the admin ports (owner decisions).
+System deploy (`runtime/composition/modules/system-deploy.ts`) mounts the overview and export specs `"direct"` and
+publish status/preview/targets `"guarded"`, binding `buildDeploymentOverviewSnapshot`, `DEFAULT_OWNER_PASSWORD`,
+the export run slot shared with the agent export tools and the publish readers. The publish trigger (blocked-publish
+product events), the destinations listing (publish-trust peer read from `res.locals`) and `dockerfile-source.ts`
+(ETag/If-Match headers) stay hand-written, registered in their original order.
+Settings (`runtime/composition/modules/settings.ts`) mounts the 7 Jini settings specs `"direct"` with failure
+`{ operation: "routes/settings", message: "The settings request could not finish." }`, binding readiness, the
+ledger, `SETTINGS_WRITE_FENCE`, `createTovuSettingsService` (comments-provider refusal, site-title bounds,
+mail-cache invalidation) and the `settings.user.read` cross-principal policy from
+`inbound/admin-http/routes/settings/shared.ts` (host composition). The SSE feed (`events.ts`) stays hand-written.
+Assistant owner grants (`runtime/composition/modules/system-assistant.ts`, `registerAssistantOwnerGrantRoutes`) mount
+the Jini `createOwnerGrantRoutes` pairs `"direct"` with the settings failure copy, readiness bound to
+`settingsUiTabsReady`, the `SETTINGS_WRITE_FENCE` and `set` over `toWriteServiceDeps`; the subagents read projection
+(`projectAssistantSubagentsRead`) is host policy and lives there too.
+
+SEO (`runtime/composition/modules/seo.ts`) mounts `@jini-ai/cms/admin-http/routes/seo/*` and injects
+`seoReady` (every SEO spec waits on it before authorizing), the host `seo.*` settings ledger
+(`readSeoSettings`/`writeSeoSettings` over `features/seo/settings.ts`), the sitemap cache and, for
+put-entry, `entryAuthorize` (the RBAC `deps.authorize` its write chokepoint re-checks with). Put-entry
+mounts `"guarded"` with its operation-only 500 copy pinned (`PUT_ENTRY_FAILURE`); the rest `"direct"`.
+The public sitemap/robots/llms/feed routes in the same module stay hand-written (non-JSON).
+Media (`runtime/composition/modules/media.ts`) mounts `@jini-ai/cms/admin-http/routes/media/{update,trash,
+delete,get-providers,put-providers}` (delete `"guarded"`, the rest `"direct"`) and binds the single-asset
+DTO lookups (recorded content type, public URL, blob size), the transactional `removeMedia` trash flip,
+the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
+`MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
+`@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
+remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).
+Assistant settings, credentials and visitor tools (`runtime/composition/modules/assistant-settings.ts`)
+mount `@jini-ai/cms/admin-http/routes/assistant/*` `"direct"` and inject `ADMIN_ASSISTANT_PERMISSION`, the
+settings ledger, the sealed site/execution credential stores, the visitor-tools service and each route's
+ordered error table (host classes, the 503 site-key copy, the visitor-tools 409 `reload`). Execution-credential
+and visitor-tools routes ask no RBAC permission (session-scoped / service-authorized), as before.
+The execution probes (`modules/assistant-execution.ts`: detect-agents, list-models, test-agent,
+test-connection) mount `"direct"` with `detectAgents`/`testAgent`/`listModels`/`testConnection` bound
+here (DNS/dispatcher seams, redirect refusal, detection cache) and `resolveProbeCredential` from
+`inbound/admin-http/routes/assistant/stored-credential-probe.ts`, which stays host-side.
+`get-chat-attachment.ts` stays hand-written (binary bytes).
+
+Public OAuth callbacks (`runtime/composition/public-oauth-callbacks.ts`) mount Jini `ServerRoute`s
+(`@jini-ai/cms/public-http/routes/{api-connections,external-mcp}/oauth-callback`) with
+`mountJiniRouteInPlace` (`jini-routes.ts`): each stays an Express `route get` row with Express's own
+params, gets the request facts in `locals`, and answers through http-kit's `sendWebResponse`; a throw
+goes to `next(error)`. The registrar binds Tovu's copy and message types (`inbound/public-http/routes/oauth/callback-page.ts`),
+the callback path, binding-cookie rules, `ApiConnectionError`/`OAuthError`/`ExternalMcpValidationError`
+predicates, `notifyExternalMcpRosterChanged`, the `TOVU_PUBLIC_URL` origin policy
+(`resolvePublicOriginFor`) and the console logger.
+External MCP (`modules/external-mcp.ts`) mounts `@jini-ai/cms/admin-http/routes/external-mcp/*` (list, put,
+delete, admissions, tool-approvals, oauth disconnect; all `"direct"`) and injects the store functions,
+`notifyExternalMcpRosterChanged`, built-in ownership rules and the host error classes as predicates;
+probe, OAuth connect/sign-in/device-poll and the session-credential routes stay hand-written (`routes/external-mcp/`).
+Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
+(`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
+id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
+
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
+Recovery/database (`modules/database-recovery.ts`, `modules/recovery-restore.ts`,
+`modules/database-migrate-forward.ts`): status binds the operation-lock peek and the db banner
+precedence; the restore and migrate-forward ceremonies bind the gated-mutation gateway, the
+restore/migrate hooks, the operation lock and the db orchestrator per request, mount `"direct"`, and
+pass `getAuthedPrincipal`'s diagnosis as `missingPrincipalMessage`. `DatabaseRecoveryRouteDeps`
+lives in `modules/database-recovery.ts`.
+Publish-content (`modules/publish-content-transport.ts`) mounts the peer and destination specs
+`"guarded"`; plugins (`modules/plugins.ts`) mounts list/files/uninstall/preview `"guarded"` and
+injects `pluginHookFailedBody` (stays in Tovu until lane L1 moves it). Both drop the spec's
+`entityType` before `deps.authorize`, because those hand-written routes never sent one.
+Plugins set-enabled mounts `"direct"` and binds `deps.authorize` raw and lazily as
+`authorizeCommand` (the cms `executeCommand` gateway names the `plugin-activation` entity itself),
+plus the pre-bound `setPluginEnabled`, `lowerPluginToolAccess`, `recordSiteApproval` and the
+`ToolAccessLoweringError` + plugins host error classes.
+Still hand-written: routes that read `res.locals.authCredentialKind` or the publish-trust grant
+(publish-content import/backstop/bundle-create/export/capabilities/peer-transport, plugins
+provider-settings) — they need that context on the admin JSON ports — and the byte/stream/upload
+routes (blob-get/put, blobs-probe's own 413 body, export, plugins install/chart-providers).
