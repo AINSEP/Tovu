@@ -10,13 +10,14 @@ import { readChatAttachmentForOwner, sniffContentType } from "#src/features/medi
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DISALLOWED_INLINE_CONTENT_TYPES, SVG_CONTENT_SECURITY_POLICY } from "#src/server/inbound/admin-http/routes/media/original";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { mountJiniRoutes } from "../jini-routes.js";
+import { mountJiniMethodRoute } from "../jini-routes.js";
 
 /**
  * @file Host binding for the chat-attachment read route (`@jini-ai/cms`'s
  * `createChatAttachmentReadRoute`): the filesystem reader, the session principal, the media route's
- * response policy and the admin failure reply go in; the route is mounted through the Jini route
- * bridge at the position the assistant module calls this. The security model is in the route's own
+ * response policy and the admin failure reply go in; the route is mounted as an Express GET method
+ * route (`mountJiniMethodRoute`, never an `app.use` dispatcher layer) at the position the assistant
+ * module calls this, after its `/api/attachments` session gate. The security model is in the route's own
  * module doc; the authorization rule is in `features/media/read-chat-attachment.ts`.
  */
 
@@ -108,5 +109,5 @@ export function registerAdminChatAttachmentReadRoute(
     svgContentSecurityPolicy: SVG_CONTENT_SECURITY_POLICY,
     failureResponse: adminFailureWebResponse,
   } });
-  mountJiniRoutes({ app, routes: [withExpressValidators({ route })] });
+  mountJiniMethodRoute({ app, route: withExpressValidators({ route }) });
 }

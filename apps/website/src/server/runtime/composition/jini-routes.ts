@@ -10,7 +10,7 @@ import type { RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/c
 import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes } from "@jini-ai/http-kit/node-bridge";
-import type { RequestHandler } from "express";
+import type { Express, RequestHandler } from "express";
 import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
 
 /**
@@ -29,13 +29,38 @@ export function mountJiniRoutes(
   { app, routes }: { app: { use: (handler: RequestHandler) => unknown }; routes: readonly ServerRoute[] },
   { rawBody = false, redactionPatterns = [] }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[] } = {},
 ): void {
+  app.use(dispatchingHandler({ routes, rawBody, redactionPatterns }));
+}
+
+/** The Express handler that hands a request to a dispatcher owning `routes`; shared by both mount shapes. */
+function dispatchingHandler({ routes, rawBody, redactionPatterns }: { routes: readonly ServerRoute[]; rawBody: boolean; redactionPatterns: readonly SecretRedactionPattern[] }): RequestHandler {
   // Express answered these routes before they were lists. Callers (and the admin proxy, which forwards a path as the client spelled it) kept their spellings: the answers stay.
   const dispatcher = createNodeDispatcher({}, { redactionPatterns, expressCompatible: true });
   for (const route of routes) dispatcher.server.route(route);
-  app.use((req, res, next) => {
+  return (req, res, next) => {
     // A route that throws is answered by the dispatcher itself, so this promise always settles.
     void dispatcher.handle({ incoming: req, out: res }, { next, locals: requestFactsLocals({ req }, { base: res.locals }), ...(rawBody ? {} : { parsedBody: req.body as unknown }) });
-  });
+  };
+}
+
+/** The Express registrar for each `ServerRoute` method. */
+type ExpressMethodRegistrar = Pick<Express, "get" | "head" | "post" | "put" | "patch" | "delete" | "options">;
+
+/**
+ * Mounts ONE route as an Express method route (`app.get(path, ...)` for a GET route), not as an
+ * `app.use` layer. Use it where a route used to be a method route at this position and that must
+ * stay so: the route table keeps its `route <method> <path>` row, Express routes only that method
+ * (plus HEAD for GET) and path to it, and an OPTIONS is answered by Express's own router with the
+ * `Allow` header it built for that row. Same mount rule as {@link mountJiniRoutes}: call it on the
+ * line the hand-written route stood, after the gates that guard it.
+ * @complexity O(1) once; one route-table lookup per request.
+ */
+export function mountJiniMethodRoute(
+  { app, route }: { app: ExpressMethodRegistrar; route: ServerRoute },
+  { rawBody = false, redactionPatterns = [] }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[] } = {},
+): void {
+  const method = route.method.toLowerCase() as Lowercase<ServerRoute["method"]>;
+  app[method](route.path, dispatchingHandler({ routes: [route], rawBody, redactionPatterns }));
 }
 
 /** Keepalive timers on Node's clock. Unref'd, as the stream helpers they replace were: an idle stream must not keep the process alive. */

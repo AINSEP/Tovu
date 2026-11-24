@@ -15,24 +15,31 @@ import { registerAdminChatAttachmentReadRoute } from "../assistant-attachment-re
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);
 const PNG_ETAG = 'W/"10-r4SYYu5Go1HfNbojGP6SICn0Jt8"';
 
-/** A raw GET: `fetch` adds `Cache-Control: no-cache` whenever `If-None-Match` is set, which no 304 survives. */
-function rawGet(url: string, headers: Record<string, string>): Promise<{ status: number; headers: Record<string, string | string[] | undefined>; length: number }> {
+/** A raw request: `fetch` adds `Cache-Control: no-cache` whenever `If-None-Match` is set, which no 304 survives. */
+function rawGet(url: string, headers: Record<string, string>, method = "GET"): Promise<{ status: number; headers: Record<string, string | string[] | undefined>; length: number; text: string }> {
   return new Promise((resolve, reject) => {
-    httpRequest(url, { headers }, (res) => {
+    httpRequest(url, { headers, method }, (res) => {
       let length = 0;
-      res.on("data", (chunk: Buffer) => { length += chunk.byteLength; });
-      res.on("end", () => { resolve({ status: res.statusCode ?? 0, headers: res.headers, length }); });
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => { length += chunk.byteLength; chunks.push(chunk); });
+      res.on("end", () => { resolve({ status: res.statusCode ?? 0, headers: res.headers, length, text: Buffer.concat(chunks).toString("utf8") }); });
     }).on("error", reject).end();
   });
 }
 
-async function serve(t: test.TestContext): Promise<string> {
+interface RouterLayer { name: string; route?: { path: unknown; methods: Record<string, boolean> } }
+
+function buildApp(): express.Express {
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory: "/unused", readChatAttachmentForOwner: async (_deps, { ref }) => (
     ref === "png" ? { ok: true, bytes: PNG } : { ok: false, reason: "not-found" }
   ) as Awaited<ReturnType<NonNullable<Parameters<typeof registerAdminChatAttachmentReadRoute>[0]["deps"]["readChatAttachmentForOwner"]>>> } });
-  return `${await startTestServer(app, t)}/api/attachments`;
+  return app;
+}
+
+async function serve(t: test.TestContext): Promise<string> {
+  return `${await startTestServer(buildApp(), t)}/api/attachments`;
 }
 
 test("attachment read keeps Express's weak ETag on every finished body", async (t) => {
@@ -63,4 +70,35 @@ test("attachment read answers a matching If-None-Match with Express's bodiless 3
   assert.equal(stale.status, 200);
   const notFound = await rawGet(`${base}/nope`, { "if-none-match": 'W/"37-JW7WQy07V2B7vfnZ8YMDJsY0G1I"' });
   assert.equal(notFound.status, 404, "only a 2xx can be fresh");
+});
+
+test("attachment read is a GET method route at its own path, never an app.use dispatcher layer", () => {
+  const stack = (buildApp() as unknown as { _router: { stack: RouterLayer[] } })._router.stack;
+  const last = stack[stack.length - 1];
+  assert.equal(last?.route?.path, "/api/attachments/:ref", "the registered layer is a route row, as the route-table pin records it");
+  assert.deepEqual(last?.route?.methods, { get: true });
+});
+
+test("attachment read: an authenticated OPTIONS gets Express's own Allow answer for a GET route", async (t) => {
+  const base = await serve(t);
+  const options = await rawGet(`${base}/png`, {}, "OPTIONS");
+  assert.equal(options.status, 200);
+  assert.equal(options.headers.allow, "GET,HEAD");
+  assert.equal(options.headers["content-type"], "text/html; charset=utf-8");
+  assert.equal(options.text, "GET,HEAD");
+});
+
+test("attachment read: a HEAD answers with the GET's validators and no body, and is 304 when fresh", async (t) => {
+  const base = await serve(t);
+  const head = await rawGet(`${base}/png`, {}, "HEAD");
+  assert.equal(head.status, 200);
+  assert.equal(head.headers.etag, PNG_ETAG);
+  assert.equal(head.headers["content-length"], "16");
+  assert.equal(head.length, 0);
+  const cached = await rawGet(`${base}/png`, { "if-none-match": PNG_ETAG }, "HEAD");
+  assert.equal(cached.status, 304);
+  assert.equal(cached.headers.etag, PNG_ETAG);
+  assert.equal(cached.headers["content-type"], undefined);
+  const stale = await rawGet(`${base}/png`, { "if-none-match": 'W/"other"' }, "HEAD");
+  assert.equal(stale.status, 200);
 });
