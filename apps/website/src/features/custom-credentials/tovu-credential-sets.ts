@@ -36,8 +36,8 @@ export const tovuCredentialSetHost: CredentialSetStoreHost<CustomCredentialCateg
   /** Constrain one feature service; permission checks remain in routes/tools. */
   openVault: ({ deps, kind }) => createTovuStoreVault({ ...deps, kind,
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) }),
-  scopes: credentialScopes,
-  createTarget: credentialCreateTarget,
+  scopes: (deps, workspaceId) => credentialScopes({ deps, workspaceId }),
+  createTarget: (deps, input, invalid) => credentialCreateTarget({ deps, input, invalid }),
   // The integrations host port is positional; core's isUniqueViolation takes { err } (args-jini-core-mcp).
   isUniqueViolation: (err) => isUniqueViolation({ err }),
   isCreateConflict: (error): error is Error => error instanceof ProjectKeyCreateConflictError,
