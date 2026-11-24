@@ -102,6 +102,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   alt: "transferred",
   caption: "transferred",
   credit: "transferred",
+  description: "transferred",
   source: "transferred",
   status: "transferred",
   createdAt: "provenance",

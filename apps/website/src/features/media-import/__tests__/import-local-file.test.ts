@@ -291,7 +291,7 @@ for (const [format, text] of [["HTML", "<!DOCTYPE html><html></html>"], ["PDF", 
     const f = await setup(t);
     fs.writeFileSync(path.join(f.rootPath, "fake.png"), text);
     const actualType = format === "HTML" ? "text/html" : "application/octet-stream";
-    await assert.rejects(() => f.run({ root: "custom", path: "fake.png" }), rejection(`'fake.png' is not an importable file: its actual bytes are '${actualType}'. Only image/png, image/jpeg, image/gif, image/webp, image/avif, image/svg+xml, video/mp4, video/webm can be imported (the file extension is deliberately ignored — the bytes decide).`));
+    await assert.rejects(() => f.run({ root: "custom", path: "fake.png" }), rejection(`'fake.png' is not an importable file: its actual bytes are '${actualType}'. Only image/png, image/jpeg, image/gif, image/webp, image/avif, image/svg+xml, video/mp4, video/webm, video/quicktime, video/x-m4v can be imported (the file extension is deliberately ignored — the bytes decide).`));
     await f.noWrites();
   });
 }

@@ -149,6 +149,16 @@ export class SqlUserRepo implements UserRepoPort {
     return rows.map(toUserRecord);
   }
 
+  async recordLogin(required: { workspaceId: string; principalId: string; lastLoginAt: string }): Promise<void> {
+    await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: required.workspaceId, execute: () => this.kernel.run((db) =>
+      db
+        .updateTable("identity_users")
+        .set({ last_login_at: required.lastLoginAt })
+        .where("workspace_id", "=", required.workspaceId)
+        .where("principal_id", "=", required.principalId)
+        .execute()) });
+  }
+
   async save(record: UserRecord): Promise<void> {
     const row: Insertable<IdentityUsersTable> = {
       principal_id: record.principalId,

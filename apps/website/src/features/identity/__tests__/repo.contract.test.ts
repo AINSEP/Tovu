@@ -64,6 +64,20 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
     assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: row.principalId }), { ...row, email: undefined, lastLoginAt: undefined });
   });
 
+  test(`[${adapterName}] UserRepoPort: recordLogin sets only lastLoginAt, never reverts a concurrent password change, and spares other users (B262)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "old" });
+    await repo.save({ principalId: "p-other", workspaceId: WS, username: "other", passwordHash: "x" });
+    await repo.save({ principalId: "p-b262", workspaceId: WS, username: "b262", passwordHash: "reset" }); // a reset commits after login's read
+    await repo.recordLogin({ workspaceId: WS, principalId: "p-b262", lastLoginAt: "2026-02-01T00:00:00.000Z" });
+    const row = await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-b262" });
+    assert.equal(row?.passwordHash, "reset");
+    assert.equal(row?.lastLoginAt, "2026-02-01T00:00:00.000Z");
+    assert.equal((await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-other" }))?.lastLoginAt, undefined);
+    await repo.recordLogin({ workspaceId: WS, principalId: "p-gone", lastLoginAt: "2026-02-01T00:00:00.000Z" });
+    assert.equal(await repo.findByPrincipalId({ workspaceId: WS, principalId: "p-gone" }), null, "a missing row is a no-op, not an insert");
+  });
+
   test(`[${adapterName}] UserRepoPort: save + findByPrincipalId/findByUsername round-trip, save is upsert`, async () => {
     const repo = makeRepo();
     await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h1" });
