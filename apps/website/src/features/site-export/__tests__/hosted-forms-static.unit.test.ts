@@ -11,7 +11,7 @@ import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/re
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
 import { exportHtml } from '../export-html-policy.js';
 import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
-import * as sourceEdits from '#src/platform/html/source-edits';
+import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';
 import { createShareArchiveReader } from '../../site-backup/import-archive-reader.js';
 

@@ -6,6 +6,8 @@ import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { PositionalMailer as MailerPort, MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
+import { listCustomCredentials } from "#src/features/custom-credentials/index";
+import { mailWebhookSecretLabels } from "#src/features/mail/index";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "#src/server/runtime/composition/modules/system-mail";
 
 /**

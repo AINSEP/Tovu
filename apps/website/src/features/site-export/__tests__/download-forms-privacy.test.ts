@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { downloadForms } from '@jini-ai/devops/backup/site/static-download-html';
-import * as sourceEdits from '#src/platform/html/source-edits';
+import * as sourceEdits from '@jini-ai/cms/html/site/source-edits';
 
 test('download forms cannot submit answers through native GET, implicit submit or external controls', () => {
   const html = '<form id="contact" action="/forms/contact/submit" method="post"><input name="secret"><button formaction="/leak">Send</button></form><input form="contact" name="outside"><button form="contact">Send</button>';

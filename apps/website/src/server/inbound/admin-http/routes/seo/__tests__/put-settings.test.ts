@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { setSeoSettings } from "#src/features/seo/settings";
+import { setSeoSettings } from "@jini-ai/cms/seo/site/settings";
 import { registerAdminSeoGetSettingsRoute } from "#src/server/runtime/composition/modules/seo";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
