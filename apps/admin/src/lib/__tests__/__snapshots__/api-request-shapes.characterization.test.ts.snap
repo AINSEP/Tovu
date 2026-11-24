@@ -5309,7 +5309,7 @@ exports[`request-shape table: what every fetching member sends > listPlugins 1`]
         "url": "/api/admin/v1/workspaces/workspace-local/plugins",
       },
     ],
-    "outcome": "resolved",
+    "outcome": "rejected: TypeError",
   },
   "min": {
     "calls": [
@@ -5329,7 +5329,7 @@ exports[`request-shape table: what every fetching member sends > listPlugins 1`]
         "url": "/api/admin/v1/workspaces/workspace-local/plugins",
       },
     ],
-    "outcome": "resolved",
+    "outcome": "rejected: TypeError",
   },
 }
 `;

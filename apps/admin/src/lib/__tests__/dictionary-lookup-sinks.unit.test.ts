@@ -170,7 +170,14 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
             parent.initializer === node &&
             ((parent.name.getText(f.ast) === "featureDictionary" && call.arguments[0] === parent.parent) ||
              (node.text === "COMMON_I18N" && parent.name.getText(f.ast) === "commonDictionary" && call.arguments[1] === parent.parent))));
-        if (!declaration && !syntaxName && !translator && !isConstruction(node)) {
+        // The Jini feature-dictionary factories (`createPluginsDictionary({ commonDictionary: COMMON_I18N })`)
+        // take the shared fallback as their one `commonDictionary` option and own the lookup.
+        const factoryBinding = ts.isPropertyAssignment(parent) && parent.initializer === node &&
+          node.text === "COMMON_I18N" && parent.name.getText(f.ast) === "commonDictionary" &&
+          ts.isObjectLiteralExpression(parent.parent) && ts.isCallExpression(parent.parent.parent) &&
+          parent.parent.parent.arguments[0] === parent.parent && ts.isIdentifier(parent.parent.parent.expression) &&
+          /^create\w+Dictionary$/.test(parent.parent.parent.expression.text);
+        if (!declaration && !syntaxName && !translator && !factoryBinding && !isConstruction(node)) {
           report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
         }
       }
@@ -326,6 +333,10 @@ describe("findInlineDictionaryLookups: the detector", () => {
     ]);
     const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; const DICT: Record<string, Record<string, string>> = {}; export const t = createDictionaryTranslator({ featureDictionary: DICT }, { commonDictionary: COMMON_I18N });" };
     expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+    const factory = { path: "lib/i18n-common.ts", source: "export const COMMON_I18N: Record<string, Record<string, string>> = {}; export const { t } = createPluginsDictionary({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([factory])).toEqual([]);
+    const strayFactory = { path: HOOK_FILE.path, source: "import { COMMON_I18N } from '../../../lib/i18n-common'; const x = lookupWords({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, strayFactory])).toEqual([`${HOOK_FILE.path}: references COMMON_I18N`]);
   });
 });
 

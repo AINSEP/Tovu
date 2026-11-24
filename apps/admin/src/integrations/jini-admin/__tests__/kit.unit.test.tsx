@@ -72,7 +72,7 @@ describe('Tovu kit classes', () => {
     const hostCss = readFileSync(path.resolve('src/styles.css'), 'utf8');
     // jsdom cannot parse some unrelated modern rules in the full stylesheet.
     // Use the actual container rule responsible for the browser regression.
-    style.textContent = hostCss.match(/\.settings-dialog \{[^}]*\}/)![0] +
+    style.textContent = hostCss.match(/\.settings-dialog, \.jini-settings-dialog \{[^}]*\}/)![0] +
       readFileSync(path.resolve('src/integrations/jini-admin/jini-media.css'), 'utf8');
     document.head.append(style);
     try {

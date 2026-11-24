@@ -140,8 +140,10 @@ test("listPlugins GETs the workspace plugins collection and resolves the parsed 
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }] })
   );
+  // The client returns Core's `AdminPluginDto` and fills `conflicts: []` for a server row that predates it
+  // (Jini 532838b5, tested first in Jini `plugins-api.unit.test.ts`); every other field passes through.
   await expect(pluginsApi.listPlugins()).resolves.toEqual({
-    plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }],
+    plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true, conflicts: [] }],
   });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/plugins`);
   expect(method()).toBe("GET");

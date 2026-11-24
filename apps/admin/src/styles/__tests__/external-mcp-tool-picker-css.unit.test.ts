@@ -60,8 +60,10 @@ function ruleBlocks(css: string): RuleBlock[] {
   return blocks;
 }
 
+/** A rule matches when `selector` is the whole selector or one entry of its comma list, because the
+ *  global stylesheet now pairs each legacy class with its `jini-*` twin (`.btn-secondary, .jini-btn-secondary`). */
 function findRule(blocks: RuleBlock[], selector: string): RuleBlock | undefined {
-  return blocks.find((block) => block.selector === selector);
+  return blocks.find((block) => block.selector === selector || block.selector.split(",").some((entry) => entry.trim() === selector));
 }
 
 function declarations(block: RuleBlock): Record<string, string> {
@@ -123,7 +125,9 @@ describe("styles/external-mcp-tool-picker.css", () => {
     expect(declarations(primary!)).toMatchObject({ background: "var(--primary)", color: "var(--primary-ink)" });
     const action = findRule(blocks, ".external-mcp-tool-actions button")!;
     expect(declarations(action).background ?? declarations(primary!).background).toBe("var(--primary)");
-    const secondary = findRule(globalBlocks, ".btn-secondary");
+    // The shared `.btn-secondary, .jini-btn-secondary, .btn-ghost, …` base rule comes first; the
+    // fill and text colour are set by the later rule scoped to the secondary pair, which wins the cascade.
+    const secondary = globalBlocks.filter((block) => block.selector.split(",").some((entry) => entry.trim() === ".btn-secondary") && "background" in declarations(block)).at(-1);
     expect(secondary).toBeDefined();
     // Classic maps --jini-theme-control-bg to var(--surface), so the rendered fill is unchanged.
     expect(declarations(secondary!)).toMatchObject({ background: "var(--jini-control-bg)", color: "var(--fg-2)" });
