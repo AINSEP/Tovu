@@ -20,6 +20,8 @@ Tovu's export, publish and plugin deploy paths over `@jini-ai/devops/deploy`.
 - `deploy-config-registry.ts` binds `createDeployConfigGeneratorSource` (`@jini-ai/devops/deploy/site/deploy-config-registry`)
   to `DEPLOY_CONFIGS_FILENAME`, `../agent-plugins/bundled-contribution-sources.ts`, the agent-plugins
   contribution seam (`../agent-plugins/lifecycle.ts`) and `console.warn` for installed-loader refusals.
+  The bound source is the ONE export `deployConfigGenerators`; callers use its members
+  (`deployConfigGenerators.readBundledDeployConfigCandidatePaths(...)` etc.) rather than per-member aliases.
   `parseDeployConfigsFile` is imported from `@jini-ai/devops/deploy` directly.
 - The provider-neutral deployment port types live in `@jini-ai/devops/deploy/site/ports`, generic over the
   HTTP client type; a Tovu consumer pins `#src/platform/http/index`'s `HttpClientPort` as the type argument.
