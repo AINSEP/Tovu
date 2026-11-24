@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
@@ -62,6 +63,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo({}, { initialRows: [] }),
     memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [] }),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo({}, { initialRows: [] }),
+    membersMailTransport,
     // SPEC-022 REQ-09/REQ-10 — see deps.ts's identical wiring for the rationale. This hermetic
     // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
     // inert here — existing tests are unaffected (INV-06).

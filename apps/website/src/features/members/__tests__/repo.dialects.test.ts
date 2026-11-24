@@ -3,7 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMagicLinkTokenRepo, SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "../repo.sqlite.js";
 import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "@jini-ai/user-management/members/types";
 

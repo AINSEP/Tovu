@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 /** Google login S3: real HTTP + real sealed state/JWT/link owners, entirely local protocol I/O.
  * Binding changes and owner 2026-10-24 require first-link inbox proof and member-only cookies.
  * Deliberately not executed by the shard worker; central commands are in the handoff.
@@ -45,6 +46,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
     memberRepo: new InMemoryMemberRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(),
     memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}), origin: originFixture(),
+    membersMailTransport,
     passwordHasher: { hash: async ({ password }) => `hash:${password}`, verify: async ({ hash, password }) => hash === `hash:${password}` },
     mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async message => { sent.push(message); return { ok: true, providerMessageId: "sent", acceptedAt: crypto.clock.nowIso() }; }, sendBatch: async () => [] },

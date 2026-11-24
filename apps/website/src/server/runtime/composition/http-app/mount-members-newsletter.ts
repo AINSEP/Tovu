@@ -80,6 +80,7 @@ function memberPublicDepsFor(required: {
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
     mailSenderIdentity: routeDeps.mailSenderIdentity,
+    membersMailTransport: routeDeps.membersMailTransport,
     magicLinkPerEmailLimiter,
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,

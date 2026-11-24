@@ -5,7 +5,8 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import type { MemberRepoPort } from "@jini-ai/user-management/members/ports";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "../repo.sqlite.js";
 import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { completeSignIn } from "@jini-ai/user-management/members/member-sign-in";

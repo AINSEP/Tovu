@@ -425,6 +425,9 @@ export interface MembersDeps {
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
    *  Absent in roots without a resolved mailer: that include then refuses. */
   mailDomainRequirements?: (required: { workspaceId: string }) => Promise<import("@jini-ai/core/provider-registry").DomainRequirement | null>;
+  /** The host mail transport the Jini member challenge flow runs on (`features/members/mail-transport.ts`),
+   *  bound by the composition root; the route deps builders pass it as `MembersWriteServiceDeps.mailTransport`. */
+  membersMailTransport: import("@jini-ai/user-management/members/ports").MembersMailTransport;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;

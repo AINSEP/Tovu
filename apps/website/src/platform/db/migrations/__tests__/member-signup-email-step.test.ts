@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { memberAuthStatements } from "../0034_member_auth.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";

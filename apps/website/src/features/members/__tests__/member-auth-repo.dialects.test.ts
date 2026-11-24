@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort } from "@jini-ai/user-management/members/ports";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "../repo.sqlite.js";
 import type { MagicLinkTokenRecord, MemberRecord } from "@jini-ai/user-management/members/types";
 

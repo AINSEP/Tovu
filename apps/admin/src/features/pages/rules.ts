@@ -33,6 +33,53 @@ import { type Translate } from '@jini-ai/core/text';
  * popover, which is how its `page.status` conditional ended up permanently untested.
  */
 
+// Pre-move rationale of the editor rules now in `@jini-ai/admin/pages/page-editor-rules`, kept verbatim
+// with this app's paths: `hasAuthoredDocument`, `pageAcceptsHtmlBody`, and `buildPageSavePlan`'s version guard.
+
+/** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
+ *  `DEFAULT_BODY_JSON` (`{ type: "doc", content: [] }`) every `createPost` row is born with
+ *  (`apps/website/src/features/post/post.ts`). Deliberately conservative: ANY non-empty `content`
+ *  array counts as real content, including a single empty paragraph, because the only thing this
+ *  answer gates is whether we are willing to DESTROY that document — and the cost of being wrong in
+ *  the cautious direction is a refusal the operator is told about, while the cost of being wrong in
+ *  the other direction is silent data loss. An absent/non-array `content` is treated as empty: it is
+ *  not a document this editor could lose anything from. */
+
+/**
+ * Whether this editor's HTML working copy is a body it may actually write — the single predicate
+ * behind `save`'s `updatePageHtml` call, `contentDirty`'s body comparison, and the standing-draft
+ * autosave's format, so those three cannot disagree about what the operator is editing.
+ *
+ * **An already-`html` Page: always.** That is the original, unchanged rule.
+ *
+ * **A `doc`-format Page: only when the operator authored non-empty HTML into a Page that has no
+ * Tiptap document to lose.** This is the 2026-09-06 fix for "the Pages editor cannot write HTML into
+ * a newly created page": `New Page` (`use-pages.hooks.ts`'s `createPage`) goes through `createPost`,
+ * which forces `bodyFormat: "doc"` by construction (ADR-056 CIC-3 — `CreatePostInput` has no
+ * `bodyFormat` field at all), while `PageEditor.tsx` offers that page an HTML textarea and a GrapesJS
+ * canvas regardless of format. A flat `bodyFormat === "html"` test therefore made every keystroke of
+ * hand-authored markup unsavable through the product, which is why operators had to bypass the
+ * editor and `PUT /pages/:id/html` by hand.
+ *
+ * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
+ * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
+ * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
+ * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
+ * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
+ * converted at all, even if markup IS typed over it; that operator gets
+ * {@link pageSaveSuccessMessage}'s "can't be edited here yet" refusal instead of a blanked page.
+ *
+ * @complexity Time O(1), space O(1) — one property read and one length check.
+ */
+
+// The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
+// routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
+// reads the row and writes it back inside one request (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`),
+// so the version it conditions on is one it captured microseconds earlier and can never be
+// the version THIS editor loaded. That is why `save` now writes metadata first and only
+// reaches the body once this guard has passed — see `save`'s own doc.
+
 /**
  * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
  * for why this is a plain colocated constant rather than a shared registry. `pages_write_html`

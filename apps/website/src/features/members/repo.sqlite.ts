@@ -2,16 +2,18 @@ import { type ContentKernel, schemaErasedKernel } from "../../platform/db/conten
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 import {
-  SqlMagicLinkTokenRepo,
   SqlMemberConsentRepo,
   SqlMemberExternalIdentityRepo,
   SqlMemberRepo,
-  SqlMemberSessionRepo,
   SqlMemberSubscriptionRepo,
   SqlMemberTierRepo,
   type MemberSessionSqlRequired,
   type MemberTables,
 } from "@jini-ai/user-management/members/repo";
+import {
+  SqlMagicLinkTokenRepo,
+  SqlMemberSessionRepo,
+} from "@jini-ai/user-management/members/repo.sessions";
 
 /** This site's member table names (the Jini adapters have no default). */
 export const MEMBER_TABLES: MemberTables = {

@@ -1,3 +1,4 @@
+import { membersMailTransport } from "#src/features/members/mail-transport";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /** Shard D: real HTTP security contracts, with transactional member storage and a deterministic hasher. */
 import assert from "node:assert/strict";
@@ -7,7 +8,8 @@ import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
@@ -47,6 +49,7 @@ function harness() {
     memberRepo: new SqlMemberRepo(memberSqlDeps({ store: kernel })), memberSessionRepo: new SqlMemberSessionRepo(memberSqlDeps({ store: kernel })),
     memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
     magicLinkRepo: new SqlMagicLinkTokenRepo(memberSqlDeps({ store: kernel })), principalRepo: new InMemoryPrincipalRepo({}),
+    membersMailTransport,
     passwordHasher: { hash: async ({ password }) => hash(password), verify: async input => input.hash === hash(input.password) },
     origin: {
       canonicalOrigin: async () => ({ scheme: "https", host: "members.example.test", source: "workspace-setting", verifiedAt: clock.nowIso() }),

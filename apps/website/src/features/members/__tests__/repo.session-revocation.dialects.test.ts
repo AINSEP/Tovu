@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo";
+import { SqlMemberSessionRepo } from "@jini-ai/user-management/members/repo.sessions";
 import { memberSqlDeps } from "../repo.sqlite.js";
 import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
 

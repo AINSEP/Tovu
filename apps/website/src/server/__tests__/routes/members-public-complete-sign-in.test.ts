@@ -36,6 +36,7 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
     memberSubscriptionRepo: routeDeps.memberSubscriptionRepo,
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
+    membersMailTransport: routeDeps.membersMailTransport,
     mailer: routeDeps.mailer,
     origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
