@@ -12,7 +12,7 @@ import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "#src/featur
 import type { PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";
+import { registerPublishTrustHandshakeRoutes } from "#src/server/runtime/composition/modules/publish-trust";
 
 /**
  * @file Host-gate predicates of the publishing trust middleware and handshake route that no other

@@ -10,7 +10,7 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
-import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
+import { registerPublishContentPeerTransportRoutes } from "../../../../../runtime/composition/modules/publish-content-transport.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

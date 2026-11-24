@@ -1,6 +1,7 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Response } from "express";
+import { serialize } from "cookie";
 import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
 import { MEMBER_SESSION_COOKIE, toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
@@ -29,27 +30,38 @@ export function setMemberSessionCookie({ res, rawToken, expiresAtIso }: {
   res.cookie(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, maxAge });
 }
 
-/** Clear exactly the attributes used to set the cookie, so sign-out removes it reliably. O(1). */
-export function clearMemberSessionCookie({ res }: { res: Response }, _options = {}): void {
-  res.clearCookie(MEMBER_SESSION_COOKIE, MEMBER_COOKIE_OPTIONS);
+/** Clear exactly the attributes used to set the cookie, so sign-out removes it reliably. O(1).
+ * @returns The `Set-Cookie` value Express 4's `res.clearCookie(MEMBER_SESSION_COOKIE, MEMBER_COOKIE_OPTIONS)`
+ *   wrote: an empty value expiring at the epoch (`expires: new Date(1)`), the same name and attributes.
+ */
+export function clearedMemberSessionCookie(_optional: Record<string, never> = {}): string {
+  return serialize(MEMBER_SESSION_COOKIE, "", { ...MEMBER_COOKIE_OPTIONS, expires: new Date(1) });
 }
 
-/** Credential failures share one body across password, link, code and reset; no exception text leaks. */
-export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
+/** The public member routes' unexpected-failure copy (`reportServerFailure` operation + visitor sentence). */
+export const MEMBER_AUTH_FAILURE = {
+  operation: "public:member-auth",
+  visitorError: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.",
+} as const;
+
+/** Credential failures share one body across password, link, code and reset; no exception text leaks.
+ * @returns The refusal (status + flat body), or `undefined` for an unexpected error (the 500).
+ */
+export function memberAuthRefusal({ error }: { error: unknown }, options: { reset?: boolean } = {}): { status: number; body: { error: string; code?: string } } | undefined {
   if (error instanceof MemberReauthenticationRequiredError) {
-    res.status(401).json({ error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" });
-    return;
+    return { status: 401, body: { error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" } };
   }
-  if (error instanceof MemberAuthError) {
-    res.status(401).json({ error: "invalid credentials", code: "INVALID_CREDENTIALS" });
-    return;
-  }
-  if (options.reset && error instanceof MemberValidationError) {
-    res.status(400).json({ error: error.message });
-    return;
-  }
-  const { errorId } = reportServerFailure({ error, operation: "public:member-auth" }, { tracker: res.locals.adminFailureTracker });
-  res.status(500).json({ error: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.", errorId });
+  if (error instanceof MemberAuthError) return { status: 401, body: { error: "invalid credentials", code: "INVALID_CREDENTIALS" } };
+  if (options.reset && error instanceof MemberValidationError) return { status: 400, body: { error: error.message } };
+  return undefined;
+}
+
+/** Write `memberAuthRefusal`'s answer, or report the failure and answer the redacted 500. */
+export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
+  const refusal = memberAuthRefusal({ error }, options);
+  if (refusal) { res.status(refusal.status).json(refusal.body); return; }
+  const { errorId } = reportServerFailure({ error, operation: MEMBER_AUTH_FAILURE.operation }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ error: MEMBER_AUTH_FAILURE.visitorError, errorId });
 }
 
 /** Exactly one credential form, with no missing/empty handle passed to the repository. O(1). */

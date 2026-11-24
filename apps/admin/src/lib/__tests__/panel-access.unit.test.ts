@@ -144,7 +144,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   appearance: `${ROUTES}/themes/list.ts`,
   plugins: `${CMS_ROUTES}/plugins/list.js`,
   "agent-plugins": `${CMS_ROUTES}/agent-plugins/list.js`,
-  skills: `${ROUTES}/skills/list.ts`,
+  skills: `${CMS_ROUTES}/skills/list.js`,
   database: `${CMS_ROUTES}/database/timeline.js`,
   recovery: `${CMS_ROUTES}/recovery/status.js`,
   deployment: `${CMS_ROUTES}/system/deployment-overview.js`,

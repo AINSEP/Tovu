@@ -20,9 +20,9 @@ import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { resolveFsRoots } from "#src/features/fs-files/layout";
 import { setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
-import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
+import { registerAgentPluginMemoryRoutes } from "#src/server/runtime/composition/modules/agent-plugin-memory-routes";
 import { registerAgentPluginFilesRoute } from "#src/server/runtime/composition/modules/agent-plugins-routes";
-import { registerSkillFilesRoute } from "#src/server/inbound/admin-http/routes/skills/files";
+import { registerSkillFilesRoute } from "#src/server/runtime/composition/modules/skills";
 import type { RouteDeps } from "#src/server/routes/types";
 
 const workspaceId = "workspace-local";

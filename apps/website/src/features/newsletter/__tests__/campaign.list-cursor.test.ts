@@ -8,7 +8,7 @@ import express from "express";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { registerAdminNewsletterListCampaignsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-campaigns";
+import { registerAdminNewsletterListCampaignsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { SqlNewsletterCampaignRepo } from "../repo.js";

@@ -9,12 +9,12 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "..
 import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminIntegrationsCreateRoute } from "../inbound/admin-http/routes/integrations/create.js";
-import { registerAdminIntegrationsDeleteRoute } from "../inbound/admin-http/routes/integrations/delete.js";
-import { registerAdminIntegrationsDeliveriesRoute } from "../inbound/admin-http/routes/integrations/deliveries.js";
-import type { IntegrationsRouteDeps } from "../inbound/admin-http/routes/integrations/deps.js";
-import { registerAdminIntegrationsListRoute } from "../inbound/admin-http/routes/integrations/list.js";
-import { registerAdminIntegrationsPauseRoute } from "../inbound/admin-http/routes/integrations/pause.js";
+import { registerAdminIntegrationsCreateRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsDeleteRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsDeliveriesRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import type { IntegrationsRouteDeps } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsListRoute } from "#src/server/runtime/composition/modules/integrations-admin";
+import { registerAdminIntegrationsPauseRoute } from "#src/server/runtime/composition/modules/integrations-admin";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

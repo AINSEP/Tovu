@@ -14,7 +14,7 @@ import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-c
 import { CONTENT_HASH_VERSION, contentHash } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
-import { registerPublishContentImportRoutes } from "../import.js";
+import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import type { PublishContentRouteDeps } from "../deps.js";
 
 test("real import plan returns safe before/after values for raw rows without requiring report.backstop", async (t) => {

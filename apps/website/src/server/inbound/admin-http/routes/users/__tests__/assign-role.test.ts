@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserAssignRoleRoute } from "../assign-role.js";
+import { registerAdminUserAssignRoleRoute } from "#src/server/runtime/composition/modules/users";
 import type { UsersRouteDeps } from "../deps.js";
 
 /**

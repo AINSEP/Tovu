@@ -5,7 +5,7 @@ import type { Express } from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { WS } from '#src/server/__tests__/helpers/admin-route-failures';
 import type { Deps } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaReplaceRoute } from '../replace.js';
+import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/modules/media';
 import { mediaApp } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace';

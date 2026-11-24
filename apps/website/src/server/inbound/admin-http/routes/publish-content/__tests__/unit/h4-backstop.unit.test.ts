@@ -5,7 +5,7 @@ import { createCapturingResponse, extractRouteHandler } from '#src/server/__test
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { BACKSTOP_FORBIDDEN } from '#src/features/publish-content/backstop-service';
 import type { PublishContentRouteDeps } from '../../deps.js';
-import { registerPublishBackstopRoutes } from '../../backstop.js';
+import { registerPublishBackstopRoutes } from '#src/server/runtime/composition/modules/publish-content-backstop';
 
 for (const [role, allowed] of [[null, false], [{ name: 'admin', isBuiltin: false }, false],
   [{ name: 'viewer', isBuiltin: true }, false], [{ name: 'admin', isBuiltin: true }, true], [{ name: 'owner', isBuiltin: true }, true]] as const) {

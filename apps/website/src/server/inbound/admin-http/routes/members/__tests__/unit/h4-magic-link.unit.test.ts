@@ -10,7 +10,7 @@ import type { MembersRouteDeps } from '../../deps.js';
 
 let send: typeof members.requestSignInLink = async (_required) => assert.fail('unexpected sign-in mail');
 mock.module('#src/features/members/index', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
-const { registerAdminMemberRequestMagicLinkRoute } = await import('../../request-magic-link.js');
+const { registerAdminMemberRequestMagicLinkRoute } = await import('#src/server/runtime/composition/modules/members');
 const PATH = '/api/admin/v1/workspaces/:workspaceId/members/request-magic-link';
 
 for (const [error, status, body] of [

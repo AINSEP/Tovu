@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminPolicyWritePermissionRoute } from "../write-policy-permission.js";
+import { registerAdminPolicyWritePermissionRoute } from "#src/server/runtime/composition/modules/users-access";
 import type { UsersRouteDeps } from "../deps.js";
 
 /**
