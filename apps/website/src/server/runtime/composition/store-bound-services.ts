@@ -5,7 +5,6 @@ import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import type { SiteStore } from "./open-site-store.js";
 import { sqliteOnlyServices } from "./sqlite-only-services.js";
 
-export type { StoreBoundServices } from "./store-bound-contracts.js";
 
 /**
  * @file The composition body's one seam between storage engines (R1 plan R1d step 4, R1f).

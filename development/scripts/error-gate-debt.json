@@ -515,11 +515,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/contracts/core/model-facing-tool-errors.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/agent-plugins/exports/runtime.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -1463,16 +1458,6 @@
     "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/release-body.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/report.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/website/src/server/runtime/composition/modules/site-search.ts",
