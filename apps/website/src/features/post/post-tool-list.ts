@@ -5,7 +5,8 @@ import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { POST_LIST_FIELDS } from "./post-tool-schemas.js";
 import { extractPostPlainText } from "@jini-ai/cms/posts/search";
-import { resolvePublicUrl, resolveAdminUrl, scheduleView, type PostToolViewWithPublicUrl } from "./post-tool-views.js";
+import { resolvePublicUrl, resolveAdminUrl, scheduleView, type PostToolViewWithPublicUrl } from "@jini-ai/cms/posts/post-tool-views";
+import { postToolViewDeps } from "./post-tool-view-deps.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 /**
@@ -115,12 +116,12 @@ export function toPostListRow({ routeDeps, post, excerptChars }: { routeDeps: Po
     status: post.status,
     updatedAt: post.updatedAt,
     version: post.version,
-    publicUrl: resolvePublicUrl(routeDeps, post),
-    adminUrl: resolveAdminUrl(post),
+    publicUrl: resolvePublicUrl({ deps: postToolViewDeps({ routeDeps }), post }),
+    adminUrl: resolveAdminUrl({ post }),
     excerpt: toExcerpt({ text, maxChars: excerptChars }),
     bodyChars: text.length,
     author: post.author ?? null,
     showAuthor: post.showAuthor ?? false,
-    ...scheduleView(post),
+    ...scheduleView({ post }),
   };
 }

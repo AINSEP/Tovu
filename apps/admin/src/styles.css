@@ -78,7 +78,8 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .jini-post-notice__btn, .jini-post-btn-secondary {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore, .jini-post-notice__btn, .jini-post-btn-secondary,
+.jini-collections-dialog .jini-btn-secondary, .jini-collections-dialog .jini-btn-danger, .jini-collections-dialog .jini-btn-warning {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -163,12 +164,14 @@ input[type="checkbox"], input[type="radio"] {
 /* Field primitives — label -> control -> hint/error, and the two-column short-field grid, both
    modeled on the OD custom-form reference. Opt-in (`.field`/`.field-row`/`.field-group`), so nothing
    outside what explicitly adopts them changes size or layout. */
-.field { display: flex; flex-direction: column; gap: 4px; }
-.field input, .field select, .field textarea { width: 100%; }
+.field, .jini-collections-dialog .jini-field { display: flex; flex-direction: column; gap: 4px; }
+.field input, .field select, .field textarea,
+.jini-collections-dialog .jini-field input, .jini-collections-dialog .jini-field select, .jini-collections-dialog .jini-field textarea { width: 100%; }
 /* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
    Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
 .field-label,
-.jini-post-publishing__field > .jini-field-label {
+.jini-post-publishing__field > .jini-field-label,
+.jini-collections-dialog .jini-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
@@ -1219,15 +1222,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* The Jini post-notice buttons' twin of the rule above, kept as its own block so `.btn-secondary`
    stays a standalone global rule (the external-MCP picker pairs its action text with it).
    `.jini-post-btn-secondary` is the post URL dialog's outline Cancel (Jini emits only `jini-*`). */
-.jini-post-notice__btn, .jini-post-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+.jini-post-notice__btn, .jini-post-btn-secondary, .jini-collections-dialog .jini-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
   box-shadow: var(--jini-control-shadow, none);
 }
-.btn-secondary:hover, .jini-post-notice__btn:hover, .jini-post-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-secondary:hover, .jini-post-notice__btn:hover, .jini-post-btn-secondary:hover, .jini-collections-dialog .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 /* Keep state elevation below cover-specific shadows, including while pressed. */
-.btn-secondary:where(:hover), .jini-post-notice__btn:where(:hover), .jini-post-btn-secondary:where(:hover) {
+.btn-secondary:where(:hover), .jini-post-notice__btn:where(:hover), .jini-post-btn-secondary:where(:hover), .jini-collections-dialog .jini-btn-secondary:where(:hover) {
   box-shadow: var(--jini-control-shadow-hover, none);
 }
-.btn-secondary:where(:not(:disabled):active), .jini-post-notice__btn:where(:not(:disabled):active), .jini-post-btn-secondary:where(:not(:disabled):active) {
+.btn-secondary:where(:not(:disabled):active), .jini-post-notice__btn:where(:not(:disabled):active), .jini-post-btn-secondary:where(:not(:disabled):active), .jini-collections-dialog .jini-btn-secondary:where(:not(:disabled):active) {
   box-shadow: var(--jini-control-shadow-pressed, none);
 }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -1235,10 +1238,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
    rather than taking `button:disabled`'s neutral fill, which would turn an outline button solid.
    Source order after the `:hover` rules above (same (0,2,0)) keeps hover from repainting them. */
-.btn-secondary:disabled, .jini-post-notice__btn:disabled, .jini-post-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
+.btn-secondary:disabled, .jini-post-notice__btn:disabled, .jini-post-btn-secondary:disabled, .jini-collections-dialog .jini-btn-secondary:disabled { background: var(--surface); color: var(--faint); border-color: var(--border); }
 .btn-ghost:disabled { background: transparent; color: var(--faint); }
-.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-.btn-danger:hover { background: var(--danger-bg); opacity: 1; }
+.btn-danger, .jini-collections-dialog .jini-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover, .jini-collections-dialog .jini-btn-danger:hover { background: var(--danger-bg); opacity: 1; }
 /* Disabled destructive control, read as calm and deliberately unavailable rather than broken.
    Without this, `button:disabled` (specificity 0,1,1) out-specifies `.btn-danger`'s own background/
    color (0,1,0) and applies the PRIMARY-tinted disabled fill everywhere else on the page — verified
@@ -1271,7 +1274,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    Lightness is identical to 4dp on every channel in both themes — oklab and oklch interpolate L
    the same way — so the "stays legibly in the danger family" goal the comment above states is
    preserved exactly. */
-.btn-danger:disabled {
+.btn-danger:disabled, .jini-collections-dialog .jini-btn-danger:disabled {
   cursor: not-allowed;
   background: color-mix(in oklab, var(--danger) 12%, var(--surface));
   border-color: color-mix(in oklab, var(--danger) 40%, var(--border-strong));
@@ -1280,13 +1283,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Scaffold for phase 2 (MSG-14's hierarchy audit) — reversible-but-access-affecting row actions
    (Users' Disable/Reset-password) that are neither plain secondary nor fully destructive. No
    caller in this dispatch's own files; see `--warning`'s token comment for why. */
-.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); }
-.btn-warning:hover { background: var(--warning-bg); opacity: 1; }
+.btn-warning, .jini-collections-dialog .jini-btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); }
+.btn-warning:hover, .jini-collections-dialog .jini-btn-warning:hover { background: var(--warning-bg); opacity: 1; }
 /* Same idea as `.btn-danger:disabled` (muted, still legibly in its family), minus the fill: the
    warning outline has none to mute. Mixed toward `--faint`/`--border` rather than `--muted`/
    `--border-strong` — the warning hue is already soft, and the stronger partners left it looking
    live. `in oklab` for the reason that rule's comment gives. */
-.btn-warning:disabled {
+.btn-warning:disabled, .jini-collections-dialog .jini-btn-warning:disabled {
   background: transparent;
   border-color: color-mix(in oklab, var(--warning) 30%, var(--border));
   color: color-mix(in oklab, var(--warning) 45%, var(--faint));
@@ -2246,12 +2249,12 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
-.editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.editor-actions, .jini-collections-dialog .jini-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 /* Twin for the Jini post settings dialog's action row (Jini emits only `jini-*` classes); its own
    block so `.editor-actions` stays the standalone rule its ~30 other callers share. */
 .jini-post-settings-dialog__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
-.save-error { color: var(--danger); font-size: 0.85rem; }
+.save-error, .jini-collections-dialog .jini-save-error { color: var(--danger); font-size: 0.85rem; }
 .save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
@@ -3265,9 +3268,12 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
 .tier { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
 .plugin-errors { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
 
-.collections-type-dialog { max-width: 34rem; max-height: 85vh; overflow-y: auto; }
-.collections-field-row { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.7rem 0.8rem; margin: 0 0 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-.collections-field-row legend { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); padding: 0 0.3rem; }
+/* `jini-collections-*` / dialog-scoped `jini-*` twins: the Jini collections dialogs
+   (`NewContentTypeDialog`, `EditFieldsDialog`, `LifecycleConfirmDialog`) emit only `jini-*` classes;
+   the generic twins are scoped to `.jini-collections-dialog` so other Jini emitters are unaffected. */
+.collections-type-dialog, .jini-collections-type-dialog { max-width: 34rem; max-height: 85vh; overflow-y: auto; }
+.collections-field-row, .jini-collections-field-row { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.7rem 0.8rem; margin: 0 0 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.collections-field-row legend, .jini-collections-field-row legend { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); padding: 0 0.3rem; }
 .collections-row-actions { display: flex; gap: 0.4rem; }
 .collections-dynamic-fields { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-5) var(--space-6); margin-top: 1rem; display: flex; flex-direction: column; gap: 0.7rem; } /* `.card`'s padding, so its content edge lines up with the Categories & Tags card below */
 .collections-dynamic-field { display: flex; flex-direction: column; gap: 0.3rem; }

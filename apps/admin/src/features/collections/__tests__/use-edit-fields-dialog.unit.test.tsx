@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { EditFieldsDialog } from "../EditFieldsDialog";
+import { EditFieldsDialog } from "@jini-ai/admin/screens/collections/EditFieldsDialog";
 import { createFakeEditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog } from "@jini-ai/admin/screens/collections/hooks/use-edit-fields-dialog.hooks";
 import { useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";

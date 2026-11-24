@@ -140,7 +140,8 @@
    small rule rather than a misuse of that primitive. Layout only: the surrounding `.field-group`
    in `FormEditor.tsx` supplies the vertical rhythm to its neighbors, same as every other field on
    this screen, so this rule does not set its own margin. */
-.form-checkbox-field {
+.form-checkbox-field,
+.jini-collections-dialog .jini-form-checkbox-field {
   display: flex;
   align-items: center;
   gap: var(--space-2);

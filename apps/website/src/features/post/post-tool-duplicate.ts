@@ -11,7 +11,8 @@ import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
-import { toPostWriteResultView } from "./post-tool-views.js";
+import { toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
+import { postToolViewDeps } from "./post-tool-view-deps.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 /**
@@ -124,7 +125,7 @@ async function duplicatePostOrPage(
   // common case enqueues nothing).
   await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-  return { post: toPostWriteResultView(routeDeps, finalPost) };
+  return { post: toPostWriteResultView({ deps: postToolViewDeps({ routeDeps }), post: finalPost }) };
 }
 
 async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, title, slug, status, bodyJsonForCreate, sourceHtml, input }: {

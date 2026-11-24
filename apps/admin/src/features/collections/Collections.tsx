@@ -10,9 +10,9 @@ import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialo
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useWiredLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import { NewContentTypeDialog } from "./NewContentTypeDialog";
+import { NewContentTypeDialog } from "@jini-ai/admin/screens/collections/NewContentTypeDialog";
 import { LifecycleConfirmDialog } from "@jini-ai/admin/screens/collections/LifecycleConfirmDialog";
-import { EditFieldsDialog } from "./EditFieldsDialog";
+import { EditFieldsDialog } from "@jini-ai/admin/screens/collections/EditFieldsDialog";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -96,7 +96,7 @@ function CollectionsDialogs(props: {
   return (
     <>
       {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} t={t}
-        useNewContentTypeDialogHook={props.dialogHooks?.useNewContentTypeDialogHook} /> : null}
+        useNewContentTypeDialogHook={props.dialogHooks?.useNewContentTypeDialogHook ?? useWiredNewContentTypeDialog} /> : null}
       {pendingLifecycle ? (
         <LifecycleConfirmDialog
           op={pendingLifecycle.op}
@@ -109,7 +109,7 @@ function CollectionsDialogs(props: {
       ) : null}
       {editingFieldsFor ? (
         <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} t={t}
-          useEditFieldsDialogHook={props.dialogHooks?.useEditFieldsDialogHook} />
+          useEditFieldsDialogHook={props.dialogHooks?.useEditFieldsDialogHook ?? useWiredEditFieldsDialog} />
       ) : null}
     </>
   );

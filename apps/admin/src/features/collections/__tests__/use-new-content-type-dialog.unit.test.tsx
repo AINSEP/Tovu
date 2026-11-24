@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { NewContentTypeDialog } from "../NewContentTypeDialog";
+import { NewContentTypeDialog } from "@jini-ai/admin/screens/collections/NewContentTypeDialog";
 import { createFakeNewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-dependencies.hooks";
 import { useNewContentTypeDialog } from "@jini-ai/admin/screens/collections/hooks/use-new-content-type-dialog.hooks";
 import { useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";

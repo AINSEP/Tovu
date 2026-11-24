@@ -12,7 +12,7 @@ import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
-import { PAGE_HEADER_NAVIGATION } from "../post-tool-views.js";
+import { PAGE_HEADER_NAVIGATION } from "../post-tool-view-deps.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
 
 /**
