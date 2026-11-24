@@ -5,7 +5,7 @@ import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
-import { resolveConfiguredOrigin } from "../../origin/index.js";
+import { resolveConfiguredOrigin } from "../../origin/configured-origin.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { ensureSeoSettingDefinitions } from "@jini-ai/cms/seo/site/settings";

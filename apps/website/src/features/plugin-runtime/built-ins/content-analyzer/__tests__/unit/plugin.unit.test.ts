@@ -5,8 +5,7 @@ import type { ContentEntryDraft, ExtPatch, HookContext, PluginSdk } from "@tovu/
 
 import { analyzeContent } from "../../analyze-content.js";
 import contentAnalyzerPlugin, { buildContentAnalyzerPatch, readMetaDescription } from "../../plugin.js";
-import { summarizeReport } from "@jini-ai/cms/seo/content-analysis";
-import { tiptapToBlocks } from "../../tiptap-blocks.js";
+import { summarizeReport, tiptapToBlocks } from "@jini-ai/cms/seo/content-analysis";
 
 /**
  * @file `content-analyzer`'s worker-side entry module (`plugin.ts`) end to end through a tiny fake

@@ -1,8 +1,8 @@
 /**
  * @file The `content-analyzer` built-in's binding of `analyzeContent` (`@jini-ai/cms/seo/content-analysis`)
  * to the renderer's slug rule (AW-7 Tier 2): TOC anchors use `toSlug`, so transliterated headings
- * match the ids the site renderer emits. The TipTap adapter lives in `./tiptap-blocks.ts` and the
- * plugin wiring in `./plugin.ts`.
+ * match the ids the site renderer emits. The TipTap adapter is `tiptapToBlocks` in the same Jini entry and the
+ * plugin wiring is in `./plugin.ts`.
  */
 import { analyzeContent as analyzeWithSlugify, type AnalyzeContentOptional, type AnalyzeContentRequired, type ContentAnalysisReport } from "@jini-ai/cms/seo/content-analysis";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
