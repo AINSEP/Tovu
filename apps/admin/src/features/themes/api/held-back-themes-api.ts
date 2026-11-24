@@ -47,6 +47,15 @@ export interface HeldBackCheckResult {
   digest: string | null;
   /** A live theme folder already exists where this one would go. */
   nameTaken: boolean;
+  /** The plan the approval card confirms — only when `passes`; `null` otherwise. */
+  approval: { planId: string; planHash: string } | null;
+}
+
+/** The server's record of the approval card's answer; only an approval carries a token. */
+export interface HeldBackApprovalResult {
+  approved: boolean;
+  /** Single-use, bound to this person, workspace, theme and digest. */
+  confirmationToken?: string;
 }
 
 export interface HeldBackRestoreResult {
@@ -68,11 +77,15 @@ export const heldBackThemesApi = {
   /** Read-only re-check. 400 `INVALID_ID`, 404 `HELD_BACK_NOT_FOUND`. */
   check: ({ themeId }: { themeId: string }, _optional: Record<string, never> = {}) =>
     post<HeldBackCheckResult>({ path: `${BASE_PATH}/check`, body: { themeId } }),
+  /** Records the owner's "Restore" click on the approval card for the checked plan. Needs `theme.edit`. */
+  approveRestore: ({ themeId, planId, planHash }: { themeId: string; planId: string; planHash: string }, _optional: Record<string, never> = {}) =>
+    post<HeldBackApprovalResult>({ path: `${BASE_PATH}/restore/approval`, body: { themeId, planId, planHash, decision: "approve" } }),
   /**
-   * Moves the theme to its live place (never activates it). Needs `theme.edit`. Refusals:
-   * 400 `APPROVAL_REQUIRED`/`INVALID_ID`; 404 `HELD_BACK_NOT_FOUND`; 409 `CHECK_FAILED` (with `problems`),
-   * `CHANGED_SINCE_CHECK`, `NAME_TAKEN`.
+   * Moves the theme to its live place (never activates it). Needs `theme.edit`, the check's digest (a
+   * version check) AND the approval's token. Refusals: 400 `APPROVAL_REQUIRED`/`INVALID_ID`;
+   * 403 `ACTOR_CLASS_MISMATCH`; 404 `HELD_BACK_NOT_FOUND`; 409 `CHECK_FAILED` (with `problems`),
+   * `CHANGED_SINCE_CHECK`, `NAME_TAKEN`, `PLAN_STALE`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_REDEEMED`.
    */
-  restore: ({ themeId, approvedDigest }: { themeId: string; approvedDigest: string }, _optional: Record<string, never> = {}) =>
-    post<HeldBackRestoreResult>({ path: `${BASE_PATH}/restore`, body: { themeId, approvedDigest } }),
+  restore: ({ themeId, approvedDigest, confirmationToken }: { themeId: string; approvedDigest: string; confirmationToken: string }, _optional: Record<string, never> = {}) =>
+    post<HeldBackRestoreResult>({ path: `${BASE_PATH}/restore`, body: { themeId, approvedDigest, confirmationToken } }),
 };

@@ -90,7 +90,7 @@ describe("held back on import: check", () => {
   it("held back on import: re-check refused on a still-bad manifest shows the problems and no Restore", async () => {
     const port = createFakeHeldBackThemesPort({
       themes: [FOO],
-      checkResults: { "static/foo": { themeId: "static/foo", passes: false, problems: ["theme.json cannot be read", "run.php is not a supported file"], digest: null, nameTaken: false } },
+      checkResults: { "static/foo": { themeId: "static/foo", passes: false, problems: ["theme.json cannot be read", "run.php is not a supported file"], digest: null, nameTaken: false, approval: null } },
     });
     const { user } = await renderReady(port);
     await user.click(screen.getByRole("button", { name: "Check Foo Theme" }));
@@ -114,7 +114,7 @@ describe("held back on import: check", () => {
   it("held back on import: a passing check on a taken name gives the reason instead of an enabled Restore", async () => {
     const port = createFakeHeldBackThemesPort({
       themes: [FOO],
-      checkResults: { "static/foo": { themeId: "static/foo", passes: true, problems: [], digest: "d1", nameTaken: true } },
+      checkResults: { "static/foo": { themeId: "static/foo", passes: true, problems: [], digest: "d1", nameTaken: true, approval: null } },
     });
     const { user } = await renderReady(port);
     await user.click(screen.getByRole("button", { name: "Check Foo Theme" }));
@@ -143,6 +143,7 @@ describe("held back on import: restore", () => {
   it("held back on import: restore requires approval", async () => {
     const port = createFakeHeldBackThemesPort({ themes: [FOO, BAR] });
     const restore = vi.spyOn(port, "restore");
+    const approveRestore = vi.spyOn(port, "approveRestore");
     const onRestored = vi.fn();
     const { user } = await renderReady(port, onRestored);
     await user.click(screen.getByRole("button", { name: "Check Foo Theme" }));
@@ -154,17 +155,20 @@ describe("held back on import: restore", () => {
     expect(within(dialog).getByText("It becomes a normal theme and stays switched off until you activate it. Nothing is deleted.")).toBeInTheDocument();
     expect(restore).not.toHaveBeenCalled();
 
-    // Cancelling calls NO restore.
+    // Cancelling asks the server for NO approval and calls NO restore.
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+    expect(approveRestore).not.toHaveBeenCalled();
     expect(restore).not.toHaveBeenCalled();
     expect(onRestored).not.toHaveBeenCalled();
 
-    // Confirming calls restore with the digest from the check.
+    // Confirming records the approval on the server for the checked plan, then restores with the
+    // digest (version check) AND the server-minted approval token — the digest alone is not approval.
     await user.click(screen.getByRole("button", { name: "Restore… Foo Theme" }));
     const second = screen.getByText("Restore Foo Theme?").closest("dialog") as HTMLElement;
     await user.click(within(second).getByRole("button", { name: "Restore" }));
-    await waitFor(() => expect(restore).toHaveBeenCalledWith({ themeId: "static/foo", approvedDigest: "digest-static/foo" }));
+    await waitFor(() => expect(approveRestore).toHaveBeenCalledWith({ themeId: "static/foo", planId: "plan-static/foo", planHash: "hash-static/foo" }));
+    await waitFor(() => expect(restore).toHaveBeenCalledWith({ themeId: "static/foo", approvedDigest: "digest-static/foo", confirmationToken: "token-static/foo" }));
     await waitFor(() => expect(onRestored).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Restored "Foo Theme". It is switched off until you activate it.')).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Check Foo Theme" })).not.toBeInTheDocument();

@@ -117,16 +117,19 @@ describe("the real port", () => {
     return fetchMock;
   }
 
-  it("sends ids in the body of POST .../held-back-themes/check and /restore, never in the URL", async () => {
-    const fetchMock = stubFetch({ themeId: "static/foo", passes: true, problems: [], digest: "d", nameTaken: false });
+  it("sends ids in the body of POST .../held-back-themes/check, /restore/approval and /restore, never in the URL", async () => {
+    const fetchMock = stubFetch({ themeId: "static/foo", passes: true, problems: [], digest: "d", nameTaken: false, approval: { planId: "p", planHash: "h" } });
     await defaultHeldBackThemesPort.check({ themeId: "static/foo" });
-    await defaultHeldBackThemesPort.restore({ themeId: "static/foo", approvedDigest: "d" });
+    await defaultHeldBackThemesPort.approveRestore({ themeId: "static/foo", planId: "p", planHash: "h" });
+    await defaultHeldBackThemesPort.restore({ themeId: "static/foo", approvedDigest: "d", confirmationToken: "tok" });
     const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
     expect(calls[0]![0]).toMatch(/\/workspaces\/[^/]+\/held-back-themes\/check$/);
     expect(calls[0]![1].method).toBe("POST");
     expect(JSON.parse(String(calls[0]![1].body))).toEqual({ themeId: "static/foo" });
-    expect(calls[1]![0]).toMatch(/\/workspaces\/[^/]+\/held-back-themes\/restore$/);
-    expect(JSON.parse(String(calls[1]![1].body))).toEqual({ themeId: "static/foo", approvedDigest: "d" });
+    expect(calls[1]![0]).toMatch(/\/workspaces\/[^/]+\/held-back-themes\/restore\/approval$/);
+    expect(JSON.parse(String(calls[1]![1].body))).toEqual({ themeId: "static/foo", planId: "p", planHash: "h", decision: "approve" });
+    expect(calls[2]![0]).toMatch(/\/workspaces\/[^/]+\/held-back-themes\/restore$/);
+    expect(JSON.parse(String(calls[2]![1].body))).toEqual({ themeId: "static/foo", approvedDigest: "d", confirmationToken: "tok" });
     expect(calls.every(([url]) => !url.includes("static%2Ffoo") && !url.includes("static/foo"))).toBe(true);
   });
 
@@ -141,9 +144,11 @@ describe("the fake port", () => {
   it("hides the chosen-theme marker once that theme leaves the list, and refuses an unknown id", async () => {
     const port = createFakeHeldBackThemesPort({ themes: [FOO], chosenThemeHeldBack: { themeId: "static/foo", name: "Foo Theme", fallbackThemeId: "s" } });
     expect((await port.list()).chosenThemeHeldBack).not.toBeNull();
-    await port.restore({ themeId: "static/foo", approvedDigest: "x" });
+    await port.restore({ themeId: "static/foo", approvedDigest: "x", confirmationToken: "t" });
     expect(await port.list()).toEqual({ themes: [], chosenThemeHeldBack: null });
     await expect(port.check({ themeId: "static/foo" })).rejects.toMatchObject({ code: "HELD_BACK_NOT_FOUND" });
-    await expect(port.restore({ themeId: "static/foo", approvedDigest: "" })).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" });
+    await expect(port.restore({ themeId: "static/foo", approvedDigest: "", confirmationToken: "t" })).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" });
+    // The digest alone is a version check, not an approval.
+    await expect(port.restore({ themeId: "static/foo", approvedDigest: "x", confirmationToken: "" })).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" });
   });
 });

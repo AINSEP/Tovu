@@ -12,8 +12,9 @@ import type { HeldBackThemesPort } from "./held-back-themes-port.hooks";
  * @file Everything the "Held back on import" section does (A452), so `HeldBackThemes.tsx` is markup.
  *
  * The flow: load the list; per row, `check` re-runs the server's safety checks and keeps the answer
- * (with its digest); `requestRestore` opens the approval card and only on accept sends the digest
- * the check returned — the server refuses a theme whose files changed since. A restore moves the
+ * (with its digest and plan); `requestRestore` opens the approval card and only on accept records the
+ * approval on the server (which mints a single-use token for the checked plan), then restores with
+ * that token plus the check's digest — the digest is only the version check, never the approval. A restore moves the
  * theme to its live place (never activates it), so on success the list reloads and `onRestored`
  * lets the Themes screen rescan so the new card appears.
  */
@@ -131,10 +132,11 @@ export function useHeldBackThemes(
     }
   }
 
-  async function restore({ themeId, name, approvedDigest }: { themeId: string; name: string; approvedDigest: string }) {
+  async function restore({ themeId, name, approvedDigest, plan }: { themeId: string; name: string; approvedDigest: string; plan: { planId: string; planHash: string } }) {
     patchRow(themeId, { phase: "restoring", failure: null });
     try {
-      await port.restore({ themeId, approvedDigest });
+      const { confirmationToken } = await port.approveRestore({ themeId, ...plan });
+      await port.restore({ themeId, approvedDigest, confirmationToken: confirmationToken ?? "" });
     } catch (error) {
       refuse({ themeId, error, fallbackKey: "failed to restore theme" });
       return;
@@ -147,7 +149,7 @@ export function useHeldBackThemes(
   async function requestRestore({ themeId }: { themeId: string }) {
     const checked = rows[themeId]?.check;
     // No passing, name-free check means no digest to approve: nothing to ask the owner about.
-    if (!checked?.passes || !checked.digest || checked.nameTaken) return;
+    if (!checked?.passes || !checked.digest || !checked.approval || checked.nameTaken) return;
     const name = list.themes.find((theme) => theme.id === themeId)?.name ?? themeId;
     const t = tRef.current;
     const accepted = await approval.confirm({
@@ -157,7 +159,7 @@ export function useHeldBackThemes(
         confirmLabel: t("Restore"),
       },
     });
-    if (accepted) await restore({ themeId, name, approvedDigest: checked.digest });
+    if (accepted) await restore({ themeId, name, approvedDigest: checked.digest, plan: checked.approval });
   }
 
   return {

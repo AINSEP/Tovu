@@ -1,4 +1,4 @@
-import type { HeldBackCheckResult, HeldBackRestoreResult, HeldBackThemesList } from "../api/held-back-themes-api";
+import type { HeldBackApprovalResult, HeldBackCheckResult, HeldBackRestoreResult, HeldBackThemesList } from "../api/held-back-themes-api";
 
 /**
  * @file What `use-held-back-themes.hooks.ts` needs from the outside world, as an interface rather
@@ -11,6 +11,8 @@ export interface HeldBackThemesPort {
   list(): Promise<HeldBackThemesList>;
   /** Re-run the safety checks on one theme. Changes nothing. */
   check(required: { themeId: string }, optional?: Record<string, never>): Promise<HeldBackCheckResult>;
-  /** Move a checked theme to its live place; `approvedDigest` is the digest the check returned. */
-  restore(required: { themeId: string; approvedDigest: string }, optional?: Record<string, never>): Promise<HeldBackRestoreResult>;
+  /** Record the approval card's "Restore" for the check's plan; the server mints the approval token. */
+  approveRestore(required: { themeId: string; planId: string; planHash: string }, optional?: Record<string, never>): Promise<HeldBackApprovalResult>;
+  /** Move a checked theme to its live place: `approvedDigest` is the version check, `confirmationToken` the approval. */
+  restore(required: { themeId: string; approvedDigest: string; confirmationToken: string }, optional?: Record<string, never>): Promise<HeldBackRestoreResult>;
 }

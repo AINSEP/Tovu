@@ -12,7 +12,8 @@ import type { HeldBackThemesPort } from "./held-back-themes-port.hooks";
 export const defaultHeldBackThemesPort: HeldBackThemesPort = {
   list: () => heldBackThemesApi.list(),
   check: ({ themeId }, _optional = {}) => heldBackThemesApi.check({ themeId }),
-  restore: ({ themeId, approvedDigest }, _optional = {}) => heldBackThemesApi.restore({ themeId, approvedDigest }),
+  approveRestore: ({ themeId, planId, planHash }, _optional = {}) => heldBackThemesApi.approveRestore({ themeId, planId, planHash }),
+  restore: ({ themeId, approvedDigest, confirmationToken }, _optional = {}) => heldBackThemesApi.restore({ themeId, approvedDigest, confirmationToken }),
 };
 
 /**
@@ -31,7 +32,7 @@ export function heldBackApiError(
 export interface FakeHeldBackThemesPortOptions {
   themes?: HeldBackTheme[];
   chosenThemeHeldBack?: ChosenThemeHeldBack | null;
-  /** Scripted check answers by theme id; any other theme passes with digest `digest-<id>`. */
+  /** Scripted check answers by theme id; any other theme passes with digest `digest-<id>` and plan `plan-<id>`/`hash-<id>`. */
   checkResults?: Record<string, HeldBackCheckResult>;
 }
 
@@ -55,10 +56,15 @@ export function createFakeHeldBackThemesPort(options: FakeHeldBackThemesPortOpti
     },
     async check({ themeId }, _optional = {}) {
       requireHeld(themeId);
-      return options.checkResults?.[themeId] ?? { themeId, passes: true, problems: [], digest: `digest-${themeId}`, nameTaken: false };
+      return options.checkResults?.[themeId] ?? { themeId, passes: true, problems: [], digest: `digest-${themeId}`, nameTaken: false, approval: { planId: `plan-${themeId}`, planHash: `hash-${themeId}` } };
     },
-    async restore({ themeId, approvedDigest }, _optional = {}) {
-      if (!approvedDigest) throw heldBackApiError({ status: 400, code: "APPROVAL_REQUIRED", message: "Approval is required." });
+    async approveRestore({ themeId }, _optional = {}) {
+      requireHeld(themeId);
+      return { approved: true, confirmationToken: `token-${themeId}` };
+    },
+    async restore({ themeId, approvedDigest, confirmationToken }, _optional = {}) {
+      // Like the server: the digest is only a version check, so a missing token is no approval.
+      if (!approvedDigest || !confirmationToken) throw heldBackApiError({ status: 400, code: "APPROVAL_REQUIRED", message: "Approval is required." });
       requireHeld(themeId);
       const [held] = themes.splice(themes.findIndex((theme) => theme.id === themeId), 1);
       return { theme: { id: themeId.split("/").pop() ?? themeId, name: held!.name, status: "valid" as const }, restoredFrom: themeId };
