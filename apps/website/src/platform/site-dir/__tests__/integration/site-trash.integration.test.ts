@@ -3,6 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import { createSitesWorkspace } from "../../sites-home.js";
 import type { listSites, SiteListEntry } from "../../site-registry.js";
 import {
@@ -305,12 +307,60 @@ test("B229: permanent delete of an in-folder site removes only its folder, leavi
   assert.equal(fs.readFileSync(path.join(sibling, "content.db"), "utf8"), `content of ${OTHER_ID}`);
 });
 
-test("B229: an unconfirmed permanent delete leaves the app-data databases in place", (t) => {
-  const { base, options, databases } = appDataFixture(t);
+for (const [missing, flags] of [["checkbox", { checked: false, confirmed: true }], ["confirmation", { checked: true, confirmed: false }]] as const) {
+  test(`B229: a permanent delete missing its ${missing} deletes nothing: Trash folder and app-data databases stay`, (t) => {
+    const { base, options, databases } = appDataFixture(t);
+    const dir = writeAppDataTrashedSite({ base });
+    const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+    assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, ...flags }, options), { code: "SITE_CONFIRM_REQUIRED" });
+    assert.equal(fs.readFileSync(path.join(dbDir, "content.db"), "utf8"), `content of ${SITE_ID}`);
+    assert.equal(fs.readFileSync(path.join(dbDir, "chat.db"), "utf8"), `chat of ${SITE_ID}`);
+    assert.equal(fs.existsSync(path.join(dir, "config.json")), true);
+  });
+}
+
+test("B229: deleting one of two Trash entries that share a siteId keeps the shared app-data databases for the other's restore", (t) => {
+  const { base, options, databases, home } = appDataFixture(t);
   writeAppDataTrashedSite({ base });
-  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
-  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: false, confirmed: true }, options), { code: "SITE_CONFIRM_REQUIRED" });
-  assert.equal(fs.existsSync(path.join(dbDir, "content.db")), true);
+  const second = writeSite({ dir: trashFolder({ base, id: `beta--${OTHER_ID}` }), displayName: "Beta", siteId: SITE_ID });
+  fs.rmSync(path.join(second, "content.db"));
+  const dbDir = path.join(databases, SITE_ID);
+  fs.mkdirSync(dbDir, { recursive: true });
+  const seeded = new Database(path.join(dbDir, "content.db"));
+  seeded.exec("CREATE TABLE posts (title TEXT); INSERT INTO posts VALUES ('first'), ('second');");
+  seeded.close();
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options);
+  restoreSite({ base, id: `beta--${OTHER_ID}` }, options);
+  assert.equal(fs.existsSync(path.join(dbDir, "content.db")), true, "the remaining Trash entry's databases were deleted");
+  const restored = path.join(home, "beta");
+  const workspace = createSitesWorkspace({}, { ...options, cwd: base });
+  const { contentDbPath } = resolveSiteDatabasePaths({ dir: restored }, { workspace, reserveIdentity: false });
+  assert.equal(contentDbPath, path.join(dbDir, "content.db"));
+  const reopened = new Database(contentDbPath, { readonly: true, fileMustExist: true });
+  t.after(() => reopened.close());
+  assert.deepEqual(reopened.prepare("SELECT title FROM posts ORDER BY rowid").all(), [{ title: "first" }, { title: "second" }]);
+});
+
+test("B229: a redirected (symlinked) databases/ parent is refused before anything is deleted", (t) => {
+  const { base, options, appData } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  const elsewhere = path.join(base, "elsewhere");
+  writeAppDataDatabases({ databases: elsewhere, siteId: SITE_ID });
+  fs.mkdirSync(appData, { recursive: true });
+  fs.symlinkSync(elsewhere, path.join(appData, "databases"));
+  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, options), { code: "SITE_PATH_UNSAFE" });
+  assert.equal(fs.readFileSync(path.join(elsewhere, SITE_ID, "content.db"), "utf8"), `content of ${SITE_ID}`);
+  assert.equal(fs.existsSync(dir), true);
+});
+
+test("B229: an injected database path naming a sibling site's databases/<otherId> folder is refused", (t) => {
+  const { base, options, databases } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  const sibling = writeAppDataDatabases({ databases, siteId: OTHER_ID });
+  const databasePaths = () => ({ contentDbPath: path.join(sibling, "content.db"), chatDbPath: path.join(sibling, "chat.db") });
+  assert.throws(() => permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, databasePaths }), { code: "SITE_PATH_UNSAFE" });
+  assert.equal(fs.readFileSync(path.join(sibling, "content.db"), "utf8"), `content of ${OTHER_ID}`);
+  assert.equal(fs.existsSync(dir), true);
 });
 
 test("B229: app-data databases now owned by a live site with the same siteId are kept", (t) => {
@@ -376,4 +426,66 @@ test("B229: the database folder is removed through the injected filesystem port"
   permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, databaseFs });
   assert.deepEqual(removed, [dbDir]);
   assert.equal(fs.existsSync(dbDir), true);
+});
+
+// B229 serialization: permanent delete, restore and boot-time identity reservation all decide who owns
+// a `databases/<siteId>/` folder, so each does its whole check-and-act inside the shared identity lock.
+
+/** A lock that records whether `run` is executing, so the test can see what happened inside it. */
+function recordingLock() {
+  const seen: { appData: string }[] = [];
+  let held = false;
+  const lock = <T>({ appData, run }: { appData: string; run: () => T }): T => {
+    seen.push({ appData });
+    held = true;
+    try { return run(); } finally { held = false; }
+  };
+  return { lock, seen, isHeld: () => held };
+}
+
+/** A lock that is never granted: anything done outside `run` would still happen. */
+const neverGranted = <T>(_required: { appData: string; run: () => T }): T => undefined as T;
+
+test("B229: permanent delete does its ownership check and both removals inside the app-data identity lock", (t) => {
+  const { base, options, appData, databases } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  writeAppDataDatabases({ databases, siteId: SITE_ID });
+  const { lock, seen, isHeld } = recordingLock();
+  const heldDuringRemove: boolean[] = [];
+  const databaseFs = { lstatSync: fs.lstatSync, rmSync: () => { heldDuringRemove.push(isHeld()); } };
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, databaseFs, identityLock: lock });
+  assert.deepEqual(seen, [{ appData }]);
+  assert.deepEqual(heldDuringRemove, [true]);
+  assert.equal(fs.existsSync(dir), false);
+  // Withheld lock: nothing is checked or removed.
+  const again = writeAppDataTrashedSite({ base });
+  permanentlyDeleteTrashedSite({ base, id: `alpha--${SITE_ID}`, checked: true, confirmed: true }, { ...options, identityLock: neverGranted });
+  assert.equal(fs.existsSync(again), true);
+  assert.equal(fs.existsSync(path.join(databases, SITE_ID, "content.db")), true);
+});
+
+test("B229: restore moves the folder and records its siteId only inside the app-data identity lock", (t) => {
+  const { base, options, appData, home } = appDataFixture(t);
+  const dir = writeAppDataTrashedSite({ base });
+  restoreSite({ base, id: `alpha--${SITE_ID}` }, { ...options, identityLock: neverGranted });
+  assert.equal(fs.existsSync(dir), true);
+  const { lock, seen } = recordingLock();
+  restoreSite({ base, id: `alpha--${SITE_ID}` }, { ...options, identityLock: lock });
+  assert.deepEqual(seen, [{ appData }]);
+  const catalog = createSitesWorkspace({}, { ...options, cwd: base }).registry({}).list({});
+  assert.deepEqual(catalog.map((entry) => [entry.id, entry.path]), [[SITE_ID, path.join(home, "alpha")]]);
+});
+
+test("B229: boot-time identity reservation happens only inside the app-data identity lock", (t) => {
+  const { base, options, appData, home, databases } = appDataFixture(t);
+  const live = writeSite({ dir: path.join(home, "live"), siteId: SITE_ID });
+  fs.rmSync(path.join(live, "content.db"));
+  const dbDir = writeAppDataDatabases({ databases, siteId: SITE_ID });
+  const workspace = createSitesWorkspace({}, { ...options, cwd: base });
+  assert.equal(resolveSiteDatabasePaths({ dir: live }, { workspace, identityLock: neverGranted }).contentDbPath, path.join(dbDir, "content.db"));
+  assert.deepEqual(workspace.registry({}).list({}), []);
+  const { lock, seen } = recordingLock();
+  resolveSiteDatabasePaths({ dir: live }, { workspace, identityLock: lock });
+  assert.deepEqual(seen, [{ appData }]);
+  assert.deepEqual(workspace.registry({}).list({}).map((entry) => entry.id), [SITE_ID]);
 });
