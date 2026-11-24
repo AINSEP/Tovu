@@ -156,6 +156,9 @@ test("create: fully valid request succeeds (201) and echoes the created subscrip
   assert.equal(stored.targetUrl, "https://example.com/hooks/comment-created?source=tovu");
   assert.deepEqual(stored.topics, ["a", "b"]);
   assert.equal(stored.status, "active");
+  // B236: the owner and creator are the calling principal, not a fixed placeholder.
+  assert.equal(stored.ownerPrincipalId, "test-principal");
+  assert.equal(stored.createdByPrincipalId, "test-principal");
 });
 
 test("create: an undefined workspaceId param (impossible via real routing -- a matched `:workspaceId` segment is always a populated string) still 404s through the `?? \"\"` fallback", async (t) => {
