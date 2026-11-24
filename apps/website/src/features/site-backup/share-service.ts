@@ -126,7 +126,7 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
 /**
  * Acknowledge this immutable archive, then reuse its original delivery lifecycle. Public uploads
  * are deferred until this explicit action; replays return the acknowledged row without reuploading.
- * Acknowledging records the owner download; an export with credential warnings stays private.
+ * Acknowledge the owner download; warned exports stay private (an export with credential warnings is never made public).
  * Revocation tombstones remain authoritative across racing updates.
  * @throws SiteShareRefusal for a missing/revoked export or unavailable original storage.
  * @complexity O(archive bytes) for a pending remote delivery, O(1) for ZIP-only exports/retries.
