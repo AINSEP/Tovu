@@ -13,7 +13,7 @@ import { buildFetchInit } from "@jini-ai/admin/shell/lib/admin-http/request";
  */
 
 test("buildFetchInit keeps the Content-Type default when the caller passes an unrelated header, and still defaults credentials to same-origin", () => {
-  const init = buildFetchInit({ headers: { "If-Match": '"abc123"' } });
+  const init = buildFetchInit({ init: { headers: { "If-Match": '"abc123"' } } });
   expect(init.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
@@ -22,12 +22,12 @@ test("buildFetchInit keeps the Content-Type default when the caller passes an un
 });
 
 test("buildFetchInit lets a caller's explicit Content-Type override the default", () => {
-  const init = buildFetchInit({ headers: { "Content-Type": "text/plain" } });
+  const init = buildFetchInit({ init: { headers: { "Content-Type": "text/plain" } } });
   expect(init.headers).toEqual({ "Content-Type": "text/plain" });
 });
 
 test("buildFetchInit still defaults credentials to same-origin and lets the caller override method/body", () => {
-  const init = buildFetchInit({ method: "PUT", body: "x" });
+  const init = buildFetchInit({ init: { method: "PUT", body: "x" } });
   expect(init).toEqual({
     credentials: "same-origin",
     method: "PUT",
@@ -37,7 +37,7 @@ test("buildFetchInit still defaults credentials to same-origin and lets the call
 });
 
 test("buildFetchInit lets the caller override credentials itself", () => {
-  const init = buildFetchInit({ credentials: "omit" });
+  const init = buildFetchInit({ init: { credentials: "omit" } });
   expect(init.credentials).toBe("omit");
 });
 
@@ -45,6 +45,6 @@ test("buildFetchInit lets the caller override credentials itself", () => {
 // default "Content-Type" key, fetch joined them into "application/json, application/json", the
 // server's JSON check refused it, and "Reset owner password" never worked in any desktop site.
 test("buildFetchInit sends ONE content type when the caller spells the header in lowercase", () => {
-  const init = buildFetchInit({ headers: { "content-type": "application/json" } });
+  const init = buildFetchInit({ init: { headers: { "content-type": "application/json" } } });
   expect(new Headers(init.headers).get("content-type")).toBe("application/json");
 });

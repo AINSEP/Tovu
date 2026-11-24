@@ -3720,6 +3720,14 @@
     {
       "id": "b169dfcdd8bc",
       "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
+    },
+    {
+      "id": "3d4be6abd42e",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort loadLanguage doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
+    },
+    {
+      "id": "709316d2b551",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort subscribeToSettingsRefresh doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
     }
   ]
 }
