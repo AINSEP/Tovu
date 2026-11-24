@@ -18,7 +18,7 @@ import { Toast } from "@jini-ai/ui";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
-import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
+import { useDesktopViewRelease } from "@jini-ai/admin/shell/hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "@jini-ai/admin/shell/lib/addons-routes";
 import { resolveImportExportRoute } from "@jini-ai/admin/shell/lib/import-export-routes";
 import { ADDONS_ROUTE_POLICY, IMPORT_EXPORT_ROUTE_POLICY } from "./lib/addons-routes";

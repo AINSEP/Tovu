@@ -33,7 +33,7 @@ import {
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
-import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
+import { ViewTemplateButton } from "@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
 import {
   PAGE_EXTERNAL_CHANGE_MESSAGE,
@@ -613,7 +613,7 @@ function PageEditorNotices({
  * bare option is selected.
  *
  * "View Template" eye button (2026-09-24, parity with `PostEditor.tsx`'s identical control): left of
- * the `<select>`, same shared `ViewTemplateButton` (`components/TemplateSource/ViewTemplateButton.tsx`)
+ * the `<select>`, same shared `ViewTemplateButton` (`@jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton`)
  * Posts renders, disabled whenever nothing is chosen ({@link templateChoice} falsy — covers both
  * "Theme default" (`null`) and the explicit bare "No template" (`""`), neither of which names a real
  * file to show). Opens `TemplateSourceModal` (`PageEditor`'s own `PageEditorTemplateModalGate` below).
