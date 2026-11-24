@@ -61,8 +61,8 @@ import { catalog as credentialCopyCatalog } from "../../features/custom-credenti
 import { catalog as siteGuideCatalog } from "../../server/runtime/composition/site-guide-tools.js";
 import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
-import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
-import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
+import { domainDnsAgentToolCatalog } from "@jini-ai/devops/dns/site/tools";
+import { dnsChangeAgentToolCatalog } from "@jini-ai/devops/dns/site/dns-tools";
 import { mailDnsAgentToolCatalog } from "@jini-ai/devops/dns/site/mail-dns-tools";
 import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
@@ -74,7 +74,7 @@ import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tool
 import { catalog as pluginsInstallCatalog } from "../../features/plugin-runtime/install-tool.js";
 import { catalog as skillsInstallCatalog } from "../../features/skills/install-tool.js";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
-import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
+import { recoveryAgentToolCatalog } from "../../features/recovery/tool-registrations.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
 import { uiLocalesAgentToolCatalog } from "../../features/settings/ui-locales-tool.js";
 import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";

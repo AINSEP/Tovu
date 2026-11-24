@@ -3,7 +3,11 @@ import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createDnsProviderRegistry } from "@jini-ai/devops/dns";
-import { buildDnsChangeRegistrations, contributeDomainDnsAndChangeTools, dnsChangeDerivedRisk, readDnsChangeInput } from "../dns-tools.js";
+import { buildDnsChangeRegistrations, contributeDomainDnsAndChangeTools, dnsChangeDerivedRisk, readDnsChangeInput } from "@jini-ai/devops/dns/site/dns-tools";
+import { createDomainDnsChecks, readPublicDnsName, readPublicDomain } from "@jini-ai/diagnostics/domain-dns";
+
+/** The host binds the DNS diagnostics' validators; the tools wrap their refusals as ToolInputError. */
+const PUBLIC_NAMES = { readPublicDomain, readPublicDnsName };
 import type { DnsChangeToolDeps } from "@jini-ai/devops/dns/site/tool-deps";
 import { context, fakeAuthoritative, memoryBindings } from "./dns-fakes.js";
 
@@ -22,8 +26,9 @@ function harness(optional: { denied?: string; bindings?: boolean; zones?: Record
   const calls: string[] = [];
   const resolver = fakeAuthoritative({ zones: optional.zones ?? { "example.com": NS }, records: optional.records ?? {} });
   const bindings = memoryBindings();
-  const deps: DnsChangeToolDeps = {
+  const deps: DnsChangeToolDeps & { publicNames: typeof PUBLIC_NAMES } = {
     workspaceId: "ws",
+    publicNames: PUBLIC_NAMES,
     authorize: async ({ permission, workspaceId, principalId, entityType }) => {
       assert.deepEqual([workspaceId, principalId, entityType], ["ws", "p", "domain-dns"]);
       calls.push(`auth:${permission}`);
@@ -41,14 +46,14 @@ function harness(optional: { denied?: string; bindings?: boolean; zones?: Record
 
 test("input: a full requirement is normalized, defaults fill domain and providerId, and optional fields are kept", () => {
   const full = { purpose: "mail", domain: "Example.COM", providerId: "mailer", caa: { issuer: "letsencrypt.org" }, records: [{ type: "MX", name: "EXAMPLE.com.", value: "mx.test", ttl: 3600, priority: 10, note: "inbound" }] };
-  assert.deepEqual(readDnsChangeInput({ input: { hostname: "WWW.Example.com", requirements: [full, site] }, errorPrefix: "dns_plan" }), {
+  assert.deepEqual(readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "WWW.Example.com", requirements: [full, site] }, errorPrefix: "dns_plan" }), {
     hostname: "www.example.com",
     requirements: [
       { purpose: "mail", domain: "example.com", providerId: "mailer", caa: { issuer: "letsencrypt.org" }, records: [{ type: "MX", name: "example.com", value: "mx.test", ttl: 3600, priority: 10, note: "inbound" }] },
       { purpose: "site", domain: "www.example.com", providerId: "site", records: [{ type: "A", name: "www.example.com", value: "203.0.113.10" }] },
     ],
   });
-  assert.deepEqual(readDnsChangeInput({ input: { hostname: "example.com" }, errorPrefix: "dns_plan" }), { hostname: "example.com" });
+  assert.deepEqual(readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com" }, errorPrefix: "dns_plan" }), { hostname: "example.com" });
 });
 
 const REQUIREMENT_REFUSALS: Array<[string, unknown]> = [
@@ -61,7 +66,7 @@ const REQUIREMENT_REFUSALS: Array<[string, unknown]> = [
 ];
 for (const [label, requirements] of REQUIREMENT_REFUSALS) {
   test(`input: ${label} is refused with the requirement shape`, () => {
-    assert.throws(() => readDnsChangeInput({ input: { hostname: "example.com", requirements }, errorPrefix: "dns_plan" }), { name: "ToolInputError", message: /^dns_plan: requirements must be 1-10 objects/ });
+    assert.throws(() => readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com", requirements }, errorPrefix: "dns_plan" }), { name: "ToolInputError", message: /^dns_plan: requirements must be 1-10 objects/ });
   });
 }
 
@@ -74,16 +79,16 @@ const RECORD_REFUSALS: Array<[string, unknown]> = [
 ];
 for (const [label, bad] of RECORD_REFUSALS) {
   test(`input: ${label} is refused with the record shape`, () => {
-    assert.throws(() => readDnsChangeInput({ input: { hostname: "example.com", requirements: [{ ...site, records: [bad] }] }, errorPrefix: "dns_verify" }), { name: "ToolInputError", message: /^dns_verify: each requirement record needs type/ });
+    assert.throws(() => readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com", requirements: [{ ...site, records: [bad] }] }, errorPrefix: "dns_verify" }), { name: "ToolInputError", message: /^dns_verify: each requirement record needs type/ });
   });
 }
 
 test("input: hostnames, record names and requirement domains go through the public-name validators", () => {
-  const refuse = (input: unknown) => assert.throws(() => readDnsChangeInput({ input, errorPrefix: "dns_plan" }), { name: "ToolInputError", message: /^dns_plan: pass a public DNS hostname/ });
+  const refuse = (input: unknown) => assert.throws(() => readDnsChangeInput({ publicNames: PUBLIC_NAMES, input, errorPrefix: "dns_plan" }), { name: "ToolInputError", message: /^dns_plan: pass a public DNS hostname/ });
   refuse({ hostname: "https://example.com" });
   refuse({ hostname: "example.com", requirements: [{ ...site, domain: "localhost" }] });
   refuse({ hostname: "example.com", requirements: [{ ...site, records: [{ ...record, name: "10.0.0.1" }] }] });
-  assert.equal(readDnsChangeInput({ input: { hostname: "example.com", requirements: [{ ...site, records: [{ ...record, type: "TXT", name: "_dmarc.example.com" }] }] }, errorPrefix: "dns_plan" }).requirements?.[0]?.records[0]?.name, "_dmarc.example.com");
+  assert.equal(readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com", requirements: [{ ...site, records: [{ ...record, type: "TXT", name: "_dmarc.example.com" }] }] }, errorPrefix: "dns_plan" }).requirements?.[0]?.records[0]?.name, "_dmarc.example.com");
 });
 
 test("dns_plan authorizes with deployments.read after validation and returns the plan without saving anything", async () => {
@@ -161,7 +166,7 @@ test("only dns_verify is a durable write; plan and instructions are read-only", 
 test("one domain-dns contributor builds the diagnostics and the DNS change tools with a merged risk map", () => {
   const h = harness();
   const contributor = contributeDomainDnsAndChangeTools({
-    createDeps: () => ({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), resolver: { query: async ({ type }) => ({ type, status: "no-data", records: [] }) }, listExpectedHosts: async () => [], probeTls: async () => ({ status: "verified", httpStatus: 200 }) }),
+    createDeps: () => ({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), publicNames: PUBLIC_NAMES, createChecks: ({ authorize }) => createDomainDnsChecks({ authorize, resolver: { query: async ({ type }) => ({ type, status: "no-data", records: [] }) }, listExpectedHosts: async () => [], probeTls: async () => ({ status: "verified", httpStatus: 200 }) }) }),
     createDnsDeps: () => ({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), registry: createDnsProviderRegistry({ resolver: h.resolver }), resolver: h.resolver, context, now: () => T0 }),
   });
   assert.equal(contributor.domain, "domain-dns");
@@ -171,9 +176,9 @@ test("one domain-dns contributor builds the diagnostics and the DNS change tools
 });
 
 test("input: include must be exactly [\"mail\"]; requirements stay optional beside it", () => {
-  assert.deepEqual(readDnsChangeInput({ input: { hostname: "example.com", include: ["mail"] }, errorPrefix: "dns_plan" }), { hostname: "example.com", include: ["mail"] });
+  assert.deepEqual(readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com", include: ["mail"] }, errorPrefix: "dns_plan" }), { hostname: "example.com", include: ["mail"] });
   for (const include of ["mail", [], ["mail", "mail"], ["site"], [1]]) {
-    assert.throws(() => readDnsChangeInput({ input: { hostname: "example.com", include }, errorPrefix: "dns_verify" }), { name: "ToolInputError", message: 'dns_verify: include must be ["mail"].' });
+    assert.throws(() => readDnsChangeInput({ publicNames: PUBLIC_NAMES, input: { hostname: "example.com", include }, errorPrefix: "dns_verify" }), { name: "ToolInputError", message: 'dns_verify: include must be ["mail"].' });
   }
 });
 

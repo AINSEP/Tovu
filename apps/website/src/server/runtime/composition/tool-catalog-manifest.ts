@@ -62,7 +62,7 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
-import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/dns-tools";
+import { contributeDomainDnsAndChangeTools } from "@jini-ai/devops/dns/site/dns-tools";
 import { createDefaultHttpClient } from "#src/platform/http/index";
 import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
@@ -78,7 +78,7 @@ import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-p
 import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { DOMAIN_DNS_EGRESS_POLICY, DOMAIN_DNS_PUBLIC_NAMES, bindDomainDnsChecks, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -482,9 +482,8 @@ function installResourceTools(contributions: AssistantToolContributions, { deplo
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools<AssistantToolRegistryDeps>({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
-    resolver: publicDnsResolver,
-    probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
-    listExpectedHosts: () => listSavedHostingHosts(routeDeps),
+    publicNames: DOMAIN_DNS_PUBLIC_NAMES,
+    createChecks: bindDomainDnsChecks({ resolver: publicDnsResolver, probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics), listExpectedHosts: () => listSavedHostingHosts(routeDeps) }),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });

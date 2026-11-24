@@ -5744,6 +5744,34 @@
     {
       "id": "a3aecdae47c4",
       "reason": "Moved to Jini @jini-ai/cms/publish/content/type-registry.ts (K5-publish-content type-registry), reworded neutral: comment kept on the same code, now a method of createPublishContentTypeRegistry's instance (module-state wording -> instance wording, host function names dropped); the Tovu binding keeps one-line docs on its exports."
+    },
+    {
+      "id": "9593be2ac714",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: file header kept (no confirm tool, unwired backup_create_restore_point id collision, read-only status/deep-link sections); spec/ADR ids and host file paths dropped, host-wording injection note added."
+    },
+    {
+      "id": "3b74be48ceb0",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: inputSchema rationale kept; host file path replaced by 'the host's registration pass'."
+    },
+    {
+      "id": "77756425d32a",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: deep-link envelope schema rationale kept; INV/ADR ids dropped, package path made relative."
+    },
+    {
+      "id": "890e4396459d",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: catalog doc kept (reads under backup.read, one token-gated execute, unwrapped create); REQ/INV/AC ids dropped."
+    },
+    {
+      "id": "29ee3bb67ea4",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: unwired backup_create_restore_point rationale kept; SPEC/ADR ids and host path dropped."
+    },
+    {
+      "id": "1633263b4eb5",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: recovery_get_status read-only admin-UI section note kept; host route path and spec ids dropped."
+    },
+    {
+      "id": "a67858add023",
+      "reason": "Moved to Jini @jini-ai/db/recovery/agent-tools.ts (K5-recovery-1), reworded neutral: deep-link re-resolution never-trust note kept; host route path and ADR/INV ids dropped."
     }
   ]
 }
