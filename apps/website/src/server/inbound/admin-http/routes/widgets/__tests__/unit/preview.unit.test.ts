@@ -48,6 +48,9 @@ test('auth, workspace and widgets.read gates prevent the render port from being 
   const h = harness({ render });
   assert.deepEqual(await h.invoke({ authed: false }), { statusCode: 401, jsonBody: { error: 'authentication required' } });
   assert.deepEqual(await h.invoke({ workspaceId: 'other' }), { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
+  // The hand-written route checked the session BEFORE `rejectForeignWorkspace`: no session on a
+  // foreign workspace is the 401, never the 404 (mount option `authenticateBeforeWorkspace`).
+  assert.deepEqual(await h.invoke({ authed: false, workspaceId: 'other' }), { statusCode: 401, jsonBody: { error: 'authentication required' } });
   assert.equal(h.checks.length, 0);
   const denied = harness({ allowed: false, render });
   assert.deepEqual(await denied.invoke(), { statusCode: 403, jsonBody: {
