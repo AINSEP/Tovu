@@ -13,7 +13,7 @@ import { dockSettingsMenuSections, type DockRuntimeSwitches } from "@jini-ai/adm
 import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
 import { REPLY_LENGTH_OPTIONS } from "./assistant-runtime-preferences";
 import { renameActiveConversation } from "./assistant-dock-props";
-import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
+import type { ChatDisplayPreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 
 type SubagentsIndicatorProps = ComponentProps<typeof SubagentsIndicator>;

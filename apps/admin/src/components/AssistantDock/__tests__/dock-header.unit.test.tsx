@@ -10,7 +10,8 @@ import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
 import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
 import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
-import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import type { ChatDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**

@@ -11,10 +11,9 @@ import {
   loadChatDisplayPreferences,
   saveChatDisplayPreferences,
   type ChatDisplayLedgerPort,
-  sameChatDisplay,
   toChatToolCallDisplay,
-  type ChatDisplayPreferences,
 } from "../chat-display-preferences";
+import type { ChatDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 
 /**
  * @file The dock's Chat settings → Display rules (owner, 2026-10-11): stored ledger values →
@@ -62,13 +61,6 @@ describe("chat display preferences", () => {
     expect(chatDisplayCandidates({ next: DEFAULT_CHAT_DISPLAY, previous: DEFAULT_CHAT_DISPLAY }).filter((c) => c.changed)).toEqual([]);
     expect(chatDisplayCandidates({ next: ALL_ON, previous: { toolCalls: "hidden", showUsageLine: false, showThinking: false } }).map((c) => c.changed))
       .toEqual([true, true, true]);
-  });
-
-  it("compares every field", () => {
-    expect(sameChatDisplay({ a: DEFAULT_CHAT_DISPLAY, b: { ...DEFAULT_CHAT_DISPLAY } })).toBe(true);
-    expect(sameChatDisplay({ a: DEFAULT_CHAT_DISPLAY, b: { ...DEFAULT_CHAT_DISPLAY, toolCalls: "show" } })).toBe(false);
-    expect(sameChatDisplay({ a: DEFAULT_CHAT_DISPLAY, b: { ...DEFAULT_CHAT_DISPLAY, showUsageLine: false } })).toBe(false);
-    expect(sameChatDisplay({ a: DEFAULT_CHAT_DISPLAY, b: { ...DEFAULT_CHAT_DISPLAY, showThinking: true } })).toBe(false);
   });
 
   it("maps preferences onto ChatPane's prop names", () => {
