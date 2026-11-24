@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
@@ -10,7 +11,20 @@ import { adminPortsFor, createPublicJsonRoutePorts, type AdminJsonRouteMountOpti
  * route moved here keeps the workspace 404, the session and RBAC/grant decisions, the credential-kind
  * gate and the redacted 500 the hand-written route answered. http-kit's `mountRawRoute` registers with
  * `app[method](path, handler)`, never `app.use`, so the route-table pin keeps its shape.
+ *
+ * `origin` is the host's same-origin context (rv1123l T5): http-kit's guard needs it for a spec with
+ * `requireSameOrigin: true`, so both wrappers forward it, and a guarded spec mounted without it is
+ * refused here at registration — never a per-request 500 after the workspace and session gates ran.
  */
+
+/** Refuse a same-origin-guarded spec mounted without the host's origin context.
+ * @throws Error at registration when `spec.requireSameOrigin` is set and `origin` is absent.
+ * @complexity O(1).
+ */
+function adapterFor({ spec, origin }: { spec: { path: string; requireSameOrigin?: boolean }; origin: RouteHostContext | undefined }, _optional: Record<string, never> = {}): { adapter?: RouteHostContext } {
+  if (spec.requireSameOrigin && !origin) throw new Error(`raw route ${spec.path}: requireSameOrigin needs the host's origin context — pass \`origin\` to the mount`);
+  return origin ? { adapter: origin } : {};
+}
 
 /** Mount a raw admin spec behind the admin ports; takes every `mountAdminJsonRoute` option.
  * @returns Void; registers one endpoint.
@@ -18,11 +32,12 @@ import { adminPortsFor, createPublicJsonRoutePorts, type AdminJsonRouteMountOpti
  * @example mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps }, { failure: { operation: "routes/plugins/install" } });
  */
 export function mountAdminRawRoute<Deps>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps; origin?: RouteHostContext },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
+  const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const ports = adminPortsFor({ path: required.spec.path, options: optional });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter });
 }
 
 /** Mount a raw public spec behind the visitor ports (`createPublicJsonRoutePorts`); `workspaceId`
@@ -32,10 +47,11 @@ export function mountAdminRawRoute<Deps>(
  * @example mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError } });
  */
 export function mountPublicRawRoute<Deps extends object>(
-  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string },
+  required: { app: Express; spec: Omit<RawRouteSpec<Deps>, "ports">; deps: Deps; failure: PublicRouteFailure; workspaceId?: string; origin?: RouteHostContext },
   _optional: Record<string, never> = {},
 ): void {
+  const adapter = adapterFor({ spec: required.spec, origin: required.origin });
   const workspaceId = required.spec.path.includes(":workspaceId") ? required.workspaceId : undefined;
   const ports = createPublicJsonRoutePorts({ ...required.failure, workspaceId });
-  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps });
+  mountRawRoute<Deps>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, ...adapter });
 }
