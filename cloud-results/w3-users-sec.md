@@ -1,4 +1,4 @@
-__FIRSTLINE__
+PARTIAL 0651df762d 5629dff7b: SEC-T1a mount switch + SEC-T1b/T1c (37 Tovu security sources; OD-4 unanswered), K5-identity Kysely repos + repo.authentication + permission-list-tool + default-credential-exposure (new owner decisions), host API-client bindings (roles/users/auth-api, A-K2-shell-lib-4), RT-K1-adm-users/api-keys/owner route sheets (w3-rtfnd owns route registrations)
 
 # w3-users-sec — Users, Roles, Authentication + Security parity (wave 3, 2026-11-23/24)
 
@@ -79,4 +79,40 @@ All workers were Opus high (`opus-high`); the plain verbatim slices were small e
 68 Tovu files under `apps/` were deleted (sources + moved tests, 9,676 lines); the theme areas are unchanged (111).
 
 
-__GATES__
+## Gates (tip vs merge-15 base, same commands; base on clean worktrees)
+Code tips: Tovu `0651df762d`, Jini `5629dff7b` (the report commits follow). Both branches contain `origin/integ/merge-15-2026-11-23` at its latest head (merged again at the end).
+
+| gate | base | tip |
+|---|---|---|
+| Jini `build` (core/admin/user-management, full `-r build` at setup) | 0 | 0 |
+| Jini `typecheck` | 0 | 0 |
+| Jini `guard` | 1 (HW3 `shell-failure-log.ts`) | 1, the same (R13 freshness lines are informational, identical) |
+| Jini `api:check` | 0 | 0 (after `api:update`; core `./contracts/site/site-key` row present) |
+| Jini `check:size` / `check:complexity` | 1 / 1 | 1 / 1, violation lists identical |
+| Jini `check:hooks` | 0 | 0 (checker now also accepts required hook props; debt shrank) |
+| Jini `check:why-comments` (`--base` merge-15) | — | 0 (6 allow rows for comments whose behaviour this lane changed on purpose) |
+| Jini XP (`check-no-cross-package --base` merge-15) | 760 XP4 lines (core `contracts/vault` test) | 760, identical |
+| Jini admin vitest (security, roles, users, screens, shell/lib) | security 299 at start | 74 files, **913/913** |
+| Jini user-management vitest (all) | — | 1546/1548; the 2 reds (`core/__tests__/runtime-boundary.test.ts`) are base-red (2/4 at base) |
+| Jini hook-checker test | 13 | 14/14 |
+| Tovu admin `tsc` / `typecheck` / `typecheck:tests` | 0 / 0 / 0 | 0 / 0 / 0 |
+| Tovu `typecheck:scripts` | 2 (3 errors) | 2, the same 3 lines |
+| Tovu `check:hooks` / `check:complexity` / `check:boundaries` | 0 / 0 / 0 | 0 / 0 / 0 |
+| Tovu `check:size` | red | red, **one violation fewer** (`dev-auth.ts` max-lines gone) |
+| Tovu `check:why-comments` (`--base` merge-15, `--other-root` Jini) | — | 0 (rows name each block's new home) |
+| Tovu admin vitest (roles, users, auth, authentication, security, deployment, integrations/jini-admin, lib, `__tests__`, App + every changed test) | — | 270 files, 4,512 pass / 2 skipped; 2 reds base-red (`admin-literal-copy` collections placeholders; `credential-input-autocomplete` "Jini UI … linked checkout" `react/testing.tsx:10`) |
+| Tovu node (`node --test`, root flags) on the 31 changed website tests + route-table pin + api-keys route tests + site-key routes (36 files, one at a time) | — | 31 green; 5 base-red with identical counts: `serve-command-wiring` (2), `passkeys.real-postgres` (no PG), `pages-update-html-auth` (1), `owner-passkey-http.integration` (1), `create-app-route-table.pin` (7: `/internal/tool-*` fixture drift from another lane; the auth rows match) |
+
+## Self-check (the 11-22/11-23 Codex failure list)
+- **No re-export/forwarding files:** none added; reviewer R confirmed the 10 Tovu binding files construct (`index.tsx` bindings, `*-host-binding`, `owner-clients.ts`, `api-key-binding.ts`, `trash-user-binding.ts`, `boot-session-token-binding.ts`).
+- **Hooks reach Jini components as REQUIRED props:** Login, OwnerRecoverySignIn, Authentication, Roles, UsersPanel, RecoveryCodesCard, SecurityPage, AccessTokensTab, RootKeyTab, CredentialEditor, SharedKeysDialog — no `= useX` defaults in Jini; `check:hooks` 0.
+- **No server-framework types / host log formatters in Jini:** none; the boot-session store and trash lock are host-bound instances (no Jini module state; guard HW3 unchanged).
+- **`jini-*` classes only:** all moved markup renders `jini-*`; Tovu CSS gained `jini-*` selectors.
+- **No new size-exception entries:** none (dictionaries split into part files < 500 lines).
+- **Shared wire types in a neutral Core owner:** duplicate roles/auth DTO leaves deleted; publish/custom/Shared-Keys wire types in `@jini-ai/core/contracts/site/api-security-api-types`; `OtherCredentialSummary.tokenHint` typed from core `CredentialTokenHint`.
+- **Object args with `_optional = {}`:** typed `Record<string, never>` pads on the new/moved exports (`public-args` test green).
+- **Behaviour changes test-first + named mutation:** per batch above.
+- **Why-comments move with the code:** check:why-comments 0 in both repos; every allow row names the new home.
+- **`## Wiring`:** present in every touched feature folder (Jini roles, screens/auth, screens/authentication, users, security, shell/lib, user-management identity, admin-http/auth, react/auth, react/users; Tovu roles, users, auth, authentication, integrations/jini-admin, identity INFO.md, server INFO.md).
+- **Product copy stays in Tovu (K3):** product name, `tovu_ak_` key prefix, `TOVU_SITE_KEY` name, users href, plugins href, redaction options — all passed in through existing args/props; guard N1/N2 at base level.
+
