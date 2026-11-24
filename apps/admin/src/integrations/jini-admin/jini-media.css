@@ -598,11 +598,11 @@
 /* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
    bordered, muted), just scoped to a tab-bar button instead of a nav row so the app has one "Soon"
    look rather than two. */
-:is(.jini-page, .jini-dialog) .jini-tab-bar-tag {
+:is(.jini-page, .jini-dialog) .tab-bar-tag {
   margin-left: 0.4rem; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
-:is(.jini-page, .jini-dialog) .jini-tab-bar-item[aria-selected="true"] .jini-tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
+:is(.jini-page, .jini-dialog) :is(.tab-bar-item, .jini-tab-bar-item)[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
 /* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
    circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
    `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a
@@ -610,7 +610,7 @@
    on this tab (`.status-ok`, the credential row's own "Connected" pill) is what lets a reader learn
    the color once and reuse it, rather than this tab inventing a second meaning for a color already
    spoken for. `flex-shrink: 0` keeps it a circle even inside a tab whose label wraps the row tight. */
-:is(.jini-page, .jini-dialog) .jini-tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
+:is(.jini-page, .jini-dialog) .tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
 /* `TabBarTab.icon`'s own frame — `1em`-relative so it tracks this tab row's own type scale rather
    than a pinned px size (`deployment-visuals.tsx`'s own icon sizing note gives the identical
    reasoning), and `currentColor` inherits `.tab-bar-item`'s own text color so the icon dims/accents
@@ -778,7 +778,7 @@
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.jini-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
+.row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
 .jini-row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
