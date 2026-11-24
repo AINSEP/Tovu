@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThemePageDetailsModal } from "../ThemePageDetailsModal";
 import { useThemePageDetailsModal } from "@jini-ai/admin/pages/ThemePageDetailsModal.hooks";
-import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 
 const row: ThemePageRow = {
   pageId: "pricing", filePath: "render/pages/pricing.html", published: false,

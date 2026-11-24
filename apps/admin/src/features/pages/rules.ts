@@ -11,7 +11,7 @@ import type {
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
 import { t as translate } from "./pages-i18n";
-import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
