@@ -1,0 +1,413 @@
+From d9675b5a835022132886e9c866dcf0e1734e9074 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 24 Nov 2026 12:26:13 +0000
+Subject: [PATCH 1/2] feat(mail): assistant mail_clear_captured behind the
+ approval card with a stale-count guard (bt2-todos clear-all-tool)
+
+Previews the count on the card every time, deletes only this workspace's captured test
+emails after approval, and refuses when new test emails arrived after the preview.
+Batch opt-out pending in AVOID batch-tool-inputs.ts (WAIT-M19).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../fixtures/moved-tools.golden.json          |  4 +-
+ .../fixtures/tool-metadata.baseline.json      | 12 +++
+ .../__tests__/mcp-ui-tool-calls.test.ts       |  2 +
+ .../clear-captured-tool.dialects.test.ts      | 82 +++++++++++++++++++
+ .../delivery-tool-registrations.ts            | 42 +++++++++-
+ .../capture-clear-retention.dialects.test.ts  | 23 +-----
+ .../mail/__tests__/capture-fixtures.ts        | 37 +++++++++
+ 7 files changed, 177 insertions(+), 25 deletions(-)
+ create mode 100644 apps/website/src/features/mail-status/__tests__/clear-captured-tool.dialects.test.ts
+ create mode 100644 apps/website/src/features/mail/__tests__/capture-fixtures.ts
+
+diff --git a/apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json b/apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json
+index 2a6cbfe9a..6660638a1 100644
+--- a/apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json
++++ b/apps/website/src/assistant/__tests__/fixtures/moved-tools.golden.json
+@@ -531,8 +531,8 @@
+     }
+   },
+   "catalog": {
+-    "names": 328,
+-    "bytes": 757343
++    "names": 329,
++    "bytes": 759367
+   },
+   "staticDenied": {
+     "status": "failed",
+diff --git a/apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json b/apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
+index baef5215b..85dfec352 100644
+--- a/apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
++++ b/apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
+@@ -339,6 +339,7 @@
+     "mail_get_activity": "email send detail feedback timeline delivered bounced message id provider error",
+     "mail_list_suppressions": "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
+     "mail_remove_suppression": "email unblock remove suppression allow email again bounced complained do not send list",
++    "mail_clear_captured": "email clear delete captured test emails mail capture outbox test mode remove all",
+     "mail_get_feedback_setup": "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
+     "search_query": "search find site content posts pages full text query results lookup",
+     "search_status": "search index status health provider indexed pending failed backend builtin",
+@@ -2007,6 +2008,10 @@
+       "Let my site email this address again.",
+       "Remove this address from the do-not-send list."
+     ],
++    "mail_clear_captured": [
++      "Delete all the captured test emails.",
++      "Clear the test emails my site kept."
++    ],
+     "mail_get_feedback_setup": [
+       "Is bounce and complaint reporting set up for my email?",
+       "What webhook URL do I give my mail provider?"
+@@ -3612,6 +3617,10 @@
+       "class": "escalation",
+       "confirmation": "plan"
+     },
++    "mail_clear_captured": {
++      "class": "delete",
++      "confirmation": "plan"
++    },
+     "mail_get_feedback_setup": {
+       "class": "read",
+       "confirmation": "direct"
+@@ -3765,6 +3774,7 @@
+     "consent_publish_settings",
+     "mail_set_provider",
+     "mail_remove_suppression",
++    "mail_clear_captured",
+     "mail_send_test",
+     "search_reindex",
+     "search_set_provider",
+@@ -3866,6 +3876,7 @@
+     "consent_publish_settings",
+     "mail_set_provider",
+     "mail_remove_suppression",
++    "mail_clear_captured",
+     "mail_send_test",
+     "search_reindex",
+     "search_set_provider",
+@@ -3934,6 +3945,7 @@
+     "consent_publish_settings",
+     "mail_set_provider",
+     "mail_remove_suppression",
++    "mail_clear_captured",
+     "mail_send_test",
+     "search_reindex",
+     "search_set_provider",
+diff --git a/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts b/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts
+index fdd01411b..d6389d518 100644
+--- a/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts
++++ b/apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts
+@@ -149,6 +149,8 @@ const EXPECTED_ALLOWLIST = [
+   "mail_send_test",
+   // Suppression removal (email phase 5): owner-only, a fresh plan card every time.
+   "mail_remove_suppression",
++  // Clear all captured test emails (bt2-todos G7-7/848): owner-only, a fresh count card every time.
++  "mail_clear_captured",
+   // Provider switching uses the same principal-bound plan confirmation as mail provider changes.
+   "comments_set_provider",
+   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.
+diff --git a/apps/website/src/features/mail-status/__tests__/clear-captured-tool.dialects.test.ts b/apps/website/src/features/mail-status/__tests__/clear-captured-tool.dialects.test.ts
+new file mode 100644
+index 000000000..4419bdae3
+--- /dev/null
++++ b/apps/website/src/features/mail-status/__tests__/clear-captured-tool.dialects.test.ts
+@@ -0,0 +1,82 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
++import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
++import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
++import { createSystemClock } from "@jini-ai/platform/system";
++import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
++import { capture, DAY, keys, MAIL_TABLES, NOW, seed, workspaces, type Db } from "../../mail/__tests__/capture-fixtures";
++import { buildMailDeliveryRegistrations, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
++
++/**
++ * `mail_clear_captured` (owner decision 2026-11-23, bt2-todos G7-7/848): the assistant's "clear all
++ * captured test emails". It previews the count on the approval card every time and deletes only
++ * after the person confirms, only this workspace's captured test emails, and only if nothing new
++ * arrived between the card and the click.
++ */
++const ctx: ToolExecutionContext = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal };
++
++function tool(db: Db | undefined, granted = ["mail.capture.clear"]) {
++  let count = 0;
++  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++count}` }, defaultChannel: "mcp-ui" });
++  const cards: unknown[] = [];
++  const answer = (decision: "confirm" | "cancel", before?: () => Promise<void>): ToolExecutionOptions => ({ emitSurface: async (surface: unknown) => {
++    cards.push(surface);
++    await before?.();
++    store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision } }, { toolId: "mail_clear_captured" });
++  } });
++  const deps = { workspaceId: "w", ownerPrincipalId: Promise.resolve("owner"),
++    authorize: async ({ permission }: { permission: string }) => ({ allowed: granted.includes(permission), reason: "fixture" }),
++    ...(db ? { contentKernel: db } : {}) } as unknown as MailDeliveryToolDeps;
++  const registration = buildMailDeliveryRegistrations(deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "mail_clear_captured")!;
++  return { call: (options: ToolExecutionOptions) => registration.handler({ ...ctx, input: {} }, options), answer, cards };
++}
++
++const everything = async (db: Db) => Promise.all((["mail_capture", "mail_send_ledger", "mail_activity_attempts"] as const).map(t => keys(db, t)));
++
++describeEachDialect("mail_clear_captured", { tables: MAIL_TABLES, make: db => db }, make => {
++  async function seeded() {
++    const db = make(); await workspaces(db);
++    await seed(db, { workspaceId: "w", at: NOW - DAY, key: "one" }); await seed(db, { workspaceId: "w", at: NOW, key: "two" });
++    await seed(db, { workspaceId: "other", at: NOW, key: "kept" });
++    return db;
++  }
++
++  test("cancelling the card deletes nothing, and the card shows how many will be deleted", async () => {
++    const db = await seeded(); const before = await everything(db);
++    const t = tool(db);
++    assert.deepEqual(await t.call(t.answer("cancel")), { cleared: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
++    assert.deepEqual(await everything(db), before);
++    const card = JSON.stringify(t.cards[0]);
++    for (const text of ["Delete 2 captured test emails?", "Sent-email records", "Delete test emails"]) assert.ok(card.includes(text), text);
++    assert.equal(card.includes("remember"), false, "the card offers no remembered approval");
++    assert.equal(mailDeliveryDerivedRisk.get("mail_clear_captured"), "mutates-durable-state");
++  });
++
++  test("approved, it deletes only this workspace's captured test emails; sent-email records and attempts stay", async () => {
++    const db = await seeded();
++    const t = tool(db);
++    assert.deepEqual(await t.call(t.answer("confirm")), { cleared: true, deleted: 2 });
++    assert.deepEqual(await everything(db), [["other:kept"], ["other:kept", "w:one", "w:two"], ["other:kept", "w:one", "w:two"]]);
++  });
++
++  test("a test email that arrives after the preview makes the approval stale: nothing is deleted", async () => {
++    const db = await seeded();
++    const t = tool(db);
++    await assert.rejects(t.call(t.answer("confirm", () => capture(db, { workspaceId: "w", at: NOW + 1, key: "late" }))), /New test emails arrived/);
++    assert.deepEqual(await keys(db, "mail_capture"), ["other:kept", "w:late", "w:one", "w:two"]);
++  });
++
++  test("nothing to clear answers empty without a card; without the owner grant nothing is read or deleted", async () => {
++    const db = make(); await workspaces(db); await seed(db, { workspaceId: "other", at: NOW, key: "kept" });
++    const empty = tool(db);
++    assert.deepEqual(await empty.call(empty.answer("confirm")), { cleared: false, empty: true });
++    assert.equal(empty.cards.length, 0);
++    await seed(db, { workspaceId: "w", at: NOW, key: "one" });
++    const editor = tool(db, ["mail.activity.read"]);
++    await assert.rejects(editor.call(editor.answer("confirm")), /MAIL_DELIVERY_FORBIDDEN/);
++    assert.deepEqual(await keys(db, "mail_capture"), ["other:kept", "w:one"]);
++    const none = tool(undefined);
++    await assert.rejects(none.call(none.answer("confirm")), /MAIL_DELIVERY_UNAVAILABLE/);
++  });
++});
+diff --git a/apps/website/src/features/mail-status/delivery-tool-registrations.ts b/apps/website/src/features/mail-status/delivery-tool-registrations.ts
+index d6b42029e..a432fe5c4 100644
+--- a/apps/website/src/features/mail-status/delivery-tool-registrations.ts
++++ b/apps/website/src/features/mail-status/delivery-tool-registrations.ts
+@@ -14,6 +14,8 @@ import { mailDomainDepsFrom, type MailHostActivityDeps } from "@jini-ai/user-man
+ import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
+ import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
+ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "@jini-ai/platform/mail/use-readiness";
++import { createMailCaptureRepo, type MailRepoDeps } from "@jini-ai/platform/mail/sql";
++import { planMailCaptureClear } from "#src/features/mail/capture-clear";
+ 
+ /**
+  * @file Assistant adapters for the delivery visibility operations (`./use-readiness.ts`,
+@@ -22,7 +24,8 @@ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHo
+  * routes call. Kept apart from the status and provider slices so each evolves independently.
+  */
+ 
+-export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps;
++/** `contentKernel` holds `mail_capture` for `mail_clear_captured`; absent, that tool answers unavailable. */
++export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps & { contentKernel?: MailRepoDeps["db"] };
+ 
+ export const mailDeliveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+   // -> owner checks (sender read, launch gate, form list, gate probe that sends nothing) + one activity row per use.
+@@ -35,6 +38,8 @@ export const mailDeliveryDerivedRisk: DerivedRiskByToolId = new Map<string, Agen
+   ["mail_list_suppressions", "none"],
+   // -> one suppression delete plus its audit row, after a fresh confirmation.
+   ["mail_remove_suppression", "mutates-durable-state"],
++  // -> one delete of this workspace's captured test emails, after a fresh confirmation of the count.
++  ["mail_clear_captured", "mutates-durable-state"],
+   // -> provider describe, credential list (labels only, no decrypt), origin read, inbox probe.
+   ["mail_get_feedback_setup", "none"],
+ ]);
+@@ -47,16 +52,41 @@ function removalCard({ prepared }: { prepared: MailSuppressionRemovalPlan }) {
+     warning: prepared.warnings.join(" "), confirmLabel: "Remove from do-not-send list" };
+ }
+ 
++type CaptureClearPlan = Awaited<ReturnType<typeof planMailCaptureClear>>;
++
++/** The card: how many captured test emails go, and what is not touched. */
++function captureClearCard({ prepared }: { prepared: CaptureClearPlan }) {
++  const { count, newestAt } = prepared.plan;
++  return { toolId: "mail_clear_captured", errorCode: "MAIL", title: `Delete ${count} captured test email${count === 1 ? "" : "s"}?`,
++    details: [{ label: "Test emails", value: String(count) }, { label: "Newest", value: newestAt ?? "-" }],
++    warning: "This cannot be undone. Sent-email records, delivery history and the do-not-send list are not touched.", confirmLabel: "Delete test emails" };
++}
++
++/** Plans "clear all" for this workspace as the caller; re-run at the write to catch a stale card. */
++function planCaptureClear({ deps, ctx }: { deps: MailDeliveryToolDeps; ctx: ToolExecutionContext }): Promise<CaptureClearPlan> {
++  if (!deps.contentKernel) throw new MailActivityUnavailableError();
++  const checkPermission = ({ principalId, permission: name }: { principalId: string; permission: string }) => deps.authorize({ principalId, permission: name, workspaceId: deps.workspaceId, entityType: "mail" });
++  return planMailCaptureClear({ principalId: ctx.principal.id, workspaceId: deps.workspaceId }, { capture: createMailCaptureRepo({ db: deps.contentKernel }), checkPermission });
++}
++
++/** Deletes only when the count and newest capture still match the card the person approved. */
++async function runCaptureClear({ deps, ctx, prepared }: { deps: MailDeliveryToolDeps; ctx: ToolExecutionContext; prepared: CaptureClearPlan }) {
++  const fresh = await planCaptureClear({ deps, ctx });
++  if (fresh.revision !== prepared.revision) throw new ToolInputError({ message: "New test emails arrived after you were asked. Nothing was deleted; ask again to review the new count." });
++  if (fresh.plan.count === 0) return { cleared: false, empty: true };
++  return fresh.clear();
++}
++
+ function permission({ deps, ctx, name }: { deps: MailDeliveryToolDeps; ctx: ToolExecutionContext; name: string }, _optional = {}): Promise<unknown> {
+   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
+ }
+ 
+ /**
+  * `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`, `mail_list_suppressions`,
+- * `mail_remove_suppression` (approval-gated, never remembered), `mail_get_feedback_setup`.
++ * `mail_remove_suppression` and `mail_clear_captured` (approval-gated, never remembered), `mail_get_feedback_setup`.
+  * @param deps - Site scope, authorization, the mail repos and the readiness/feedback inputs.
+  * @param surfaces - The authenticated card transport for the removal card.
+- * @returns The six registrations.
++ * @returns The seven registrations.
+  * @throws {ToolInputError} For malformed input, a refusal or a missing activity record.
+  * @complexity One readiness pass or one activity read per call.
+  */
+@@ -85,6 +115,12 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
+       // The card may sit open for minutes: the run re-checks the grant at the moment of the write.
+       run: async ({ ctx, prepared }) => runMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, plan: prepared }, deps: mailDomainDepsFrom({ deps }) }),
+     }, { flag: "removed" }),
++    // No rememberKey: each clear permanently deletes test emails, so it always asks (unless there are none).
++    mail_clear_captured: approvalToolHandler({ surfaces,
++      prepare: async ({ ctx }) => { requireInputRecord({ input: ctx.input }); return planCaptureClear({ deps, ctx }); },
++      describe: captureClearCard,
++      run: async ({ ctx, prepared }) => runCaptureClear({ deps, ctx, prepared }),
++    }, { flag: "cleared", ask: ({ prepared }) => prepared.plan.count > 0 }),
+     mail_get_feedback_setup: async (ctx) => {
+       requireInputRecord({ input: ctx.input });
+       await permission({ deps, ctx, name: MAIL_STATUS_PERMISSION });
+diff --git a/apps/website/src/features/mail/__tests__/capture-clear-retention.dialects.test.ts b/apps/website/src/features/mail/__tests__/capture-clear-retention.dialects.test.ts
+index 3ded6b5bd..d90858fbc 100644
+--- a/apps/website/src/features/mail/__tests__/capture-clear-retention.dialects.test.ts
++++ b/apps/website/src/features/mail/__tests__/capture-clear-retention.dialects.test.ts
+@@ -2,35 +2,18 @@ import assert from "node:assert/strict";
+ import test from "node:test";
+ import { sql } from "kysely";
+ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+-import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
++import { createMailCaptureRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
+ import { mailCaptureClearRoute } from "@jini-ai/cms/admin-http/routes/system/mail-activity";
+ import { MAIL_CAPTURE_CLEAR_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
+ import { planMailCaptureClear } from "../capture-clear";
++import { DAY, iso, keys, MAIL_TABLES, msg, NOW, seed, workspaces } from "./capture-fixtures";
+ 
+ /**
+  * Owner decision 2026-11-23 (bt2-todos G7-6/847, G7-7/848): sent-email records are kept 30 days,
+  * captured test emails 7 days, and the owner can clear every captured test email after confirming.
+  * The windows are spelled as literals here on purpose: they pin the decision, not the constants.
+  */
+-const DAY = 24 * 60 * 60_000;
+-const NOW = Date.parse("2026-11-24T12:00:00Z");
+-const iso = (n: number) => new Date(n).toISOString();
+-const msg = (workspaceId: string) => ({ workspaceId, to: { email: "qa@example.com" }, from: { email: "s@example.com" }, subject: "Test", text: "body" });
+-
+-type Db = Parameters<typeof purgeExpiredMail>[0]["db"];
+-async function seed(db: Db, { workspaceId, at, key }: { workspaceId: string; at: number; key: string }) {
+-  await createMailCaptureRepo({ db }, { nowIso: () => iso(at) }).capture({ message: msg(workspaceId), lane: "transactional", idempotencyKey: key });
+-  const ledger = createMailSendLedgerRepo({ db }, { nowIso: () => iso(at) });
+-  const id = { workspaceId, idempotencyKey: key, recipient: "qa@example.com" };
+-  await ledger.reserve({ ...id, payloadHash: "h", lane: "transactional", providerId: "smtp" }); await ledger.mark({ ...id, outcome: "sent" });
+-  await createMailAttemptObserver({ db }, { nowIso: () => iso(at), newId: () => `a-${workspaceId}-${key}` })({ message: msg(workspaceId), providerId: "smtp", mode: { mode: "off" },
+-    options: { workspaceId, idempotencyKey: key, sourceContext: { module: "mail" }, purpose: "transactional", lane: "interactive" }, result: { ok: true, providerMessageId: `m-${key}`, acceptedAt: iso(at) } });
+-}
+-const keys = async (db: Db, table: "mail_capture" | "mail_send_ledger" | "mail_activity_attempts") =>
+-  (await db.query<{ k: string }>(sql`SELECT workspace_id || ':' || idempotency_key AS k FROM ${sql.table(table)} ORDER BY k`)).map(r => r.k);
+-const workspaces = async (db: Db) => { for (const w of ["w", "other"]) await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES (${w},${w},${w},${iso(NOW)})`); };
+-
+-describeEachDialect("mail retention windows and clear-all captured test emails", { tables: ["mail_activity_attempts", "mail_send_ledger", "mail_capture", "mail_suppression", "mail_feedback_inbox", "workspaces"], make: db => db }, make => {
++describeEachDialect("mail retention windows and clear-all captured test emails", { tables: MAIL_TABLES, make: db => db }, make => {
+   test("sent-email records: exactly 30 days old are kept, 30 days + 1 ms are deleted", async () => {
+     const db = make(); await workspaces(db);
+     await seed(db, { workspaceId: "w", at: NOW - 30 * DAY, key: "edge" });
+diff --git a/apps/website/src/features/mail/__tests__/capture-fixtures.ts b/apps/website/src/features/mail/__tests__/capture-fixtures.ts
+new file mode 100644
+index 000000000..6dcb71ebe
+--- /dev/null
++++ b/apps/website/src/features/mail/__tests__/capture-fixtures.ts
+@@ -0,0 +1,37 @@
++import { sql } from "kysely";
++import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
++
++/**
++ * @file Shared mail fixtures for the captured-test-email tests (`capture-clear-retention.dialects.test.ts`
++ * and the assistant `mail_clear_captured` test): one send seeds a captured test email, a send-ledger
++ * row and a delivery attempt, so a test can prove which of the three a clear touched.
++ */
++export const DAY = 24 * 60 * 60_000;
++export const NOW = Date.parse("2026-11-24T12:00:00Z");
++export const iso = (n: number) => new Date(n).toISOString();
++export const msg = (workspaceId: string) => ({ workspaceId, to: { email: "qa@example.com" }, from: { email: "s@example.com" }, subject: "Test", text: "body" });
++
++export type Db = Parameters<typeof purgeExpiredMail>[0]["db"];
++export const MAIL_TABLES = ["mail_activity_attempts", "mail_send_ledger", "mail_capture", "mail_suppression", "mail_feedback_inbox", "workspaces"];
++
++/** Captures one test email of `workspaceId` at `at` without the ledger rows. */
++export async function capture(db: Db, { workspaceId, at, key }: { workspaceId: string; at: number; key: string }) {
++  await createMailCaptureRepo({ db }, { nowIso: () => iso(at) }).capture({ message: msg(workspaceId), lane: "transactional", idempotencyKey: key });
++}
++
++/** One captured test email plus its send-ledger row and delivery attempt. */
++export async function seed(db: Db, { workspaceId, at, key }: { workspaceId: string; at: number; key: string }) {
++  await capture(db, { workspaceId, at, key });
++  const ledger = createMailSendLedgerRepo({ db }, { nowIso: () => iso(at) });
++  const id = { workspaceId, idempotencyKey: key, recipient: "qa@example.com" };
++  await ledger.reserve({ ...id, payloadHash: "h", lane: "transactional", providerId: "smtp" }); await ledger.mark({ ...id, outcome: "sent" });
++  await createMailAttemptObserver({ db }, { nowIso: () => iso(at), newId: () => `a-${workspaceId}-${key}` })({ message: msg(workspaceId), providerId: "smtp", mode: { mode: "off" },
++    options: { workspaceId, idempotencyKey: key, sourceContext: { module: "mail" }, purpose: "transactional", lane: "interactive" }, result: { ok: true, providerMessageId: `m-${key}`, acceptedAt: iso(at) } });
++}
++
++/** `workspace:key` of every row of `table`, sorted. */
++export const keys = async (db: Db, table: "mail_capture" | "mail_send_ledger" | "mail_activity_attempts") =>
++  (await db.query<{ k: string }>(sql`SELECT workspace_id || ':' || idempotency_key AS k FROM ${sql.table(table)} ORDER BY k`)).map(r => r.k);
++
++/** Creates the `w` and `other` workspaces the fixtures write into. */
++export const workspaces = async (db: Db) => { for (const w of ["w", "other"]) await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES (${w},${w},${w},${iso(NOW)})`); };
+-- 
+2.43.0
+
+
+From 2713abe9831e7b77d5d6d865f760995a584136f8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 24 Nov 2026 12:27:31 +0000
+Subject: [PATCH 2/2] fix(mail): type mail_clear_captured's contentKernel from
+ the route deps (bt2-todos clear-all-tool)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../src/features/mail-status/delivery-tool-registrations.ts  | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/apps/website/src/features/mail-status/delivery-tool-registrations.ts b/apps/website/src/features/mail-status/delivery-tool-registrations.ts
+index a432fe5c4..dee950058 100644
+--- a/apps/website/src/features/mail-status/delivery-tool-registrations.ts
++++ b/apps/website/src/features/mail-status/delivery-tool-registrations.ts
+@@ -14,7 +14,8 @@ import { mailDomainDepsFrom, type MailHostActivityDeps } from "@jini-ai/user-man
+ import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/platform/mail/feedback-setup";
+ import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
+ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "@jini-ai/platform/mail/use-readiness";
+-import { createMailCaptureRepo, type MailRepoDeps } from "@jini-ai/platform/mail/sql";
++import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
++import type { RouteDeps } from "#src/server/routes/types";
+ import { planMailCaptureClear } from "#src/features/mail/capture-clear";
+ 
+ /**
+@@ -25,7 +26,7 @@ import { planMailCaptureClear } from "#src/features/mail/capture-clear";
+  */
+ 
+ /** `contentKernel` holds `mail_capture` for `mail_clear_captured`; absent, that tool answers unavailable. */
+-export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps & { contentKernel?: MailRepoDeps["db"] };
++export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps & Partial<Pick<RouteDeps, "contentKernel">>;
+ 
+ export const mailDeliveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+   // -> owner checks (sender read, launch gate, form list, gate probe that sends nothing) + one activity row per use.
+-- 
+2.43.0
+
