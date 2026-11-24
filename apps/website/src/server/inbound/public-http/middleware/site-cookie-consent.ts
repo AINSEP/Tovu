@@ -29,7 +29,8 @@ import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
 import { asyncRoute } from "../../../../platform/express/async-route.js";
-import { browserDiagnosticsEnabled, siteBrowserDiagnosticsBridge, siteBrowserDiagnosticsModule } from '../../../runtime/composition/browser-diagnostics.js';
+import { browserDiagnosticsEnabled, siteBrowserDiagnosticsBridge, siteBrowserDiagnosticsModule } from '@jini-ai/diagnostics/browser-diagnostics';
+import { TELEMETRY_CONSENT } from '../../../runtime/composition/telemetry-consent.js';
 
 
 export const CONSENT_ENDPOINT = '/_consent';
@@ -442,7 +443,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   mountStaticThemeLoader({ app, deps });
   app.get('/_jini/browser-analytics/site/diagnostics.js', async (_req, res) => {
     res.set('Cache-Control', 'private, no-store');
-    if (!(await browserDiagnosticsEnabled({ observability: deps.observability }, deps))) { res.status(404).end(); return; }
+    if (!(await browserDiagnosticsEnabled({ observability: deps.observability, consentSetting: TELEMETRY_CONSENT }, deps))) { res.status(404).end(); return; }
     res.type('text/javascript').send(siteBrowserDiagnosticsModule);
   });
   mountContext({ app, consent });
@@ -452,7 +453,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
 
 async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; live: boolean }): Promise<readonly RawContribution[]> {
   if (!live) return [];
-  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? [], ...(await browserDiagnosticsEnabled({ observability: deps.observability }, deps) ? [siteBrowserDiagnosticsBridge] : [])];
+  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? [], ...(await browserDiagnosticsEnabled({ observability: deps.observability, consentSetting: TELEMETRY_CONSENT }, deps) ? [siteBrowserDiagnosticsBridge] : [])];
 }
 
 function requestPrivacy({ deps, req }: { deps: RouteDeps; req: Request }) {

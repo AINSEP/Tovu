@@ -8,7 +8,7 @@ import { createCommentsCapability } from '#src/features/comments/provider-select
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
-import type { MemoryClock, MemoryIdGen } from "../ports.js";
+import type { Clock, IdGenerator, IsoClock } from "@jini-ai/core/primitives";
 import type { composeIdentitySettings } from "./identity-settings.js";
 import type { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
@@ -22,8 +22,8 @@ export interface MemoryCommentsInput {
   entryRepo: TrashAwareInMemoryEntryRepo;
   postRepo: InMemoryPostRepo;
   outbox: InMemoryOutbox;
-  clock: MemoryClock;
-  idGen: MemoryIdGen;
+  clock: Clock & IsoClock;
+  idGen: IdGenerator;
   settingsRepo: InMemorySettingsRepo;
   workspaceId: string;
   trash: TrashPort;

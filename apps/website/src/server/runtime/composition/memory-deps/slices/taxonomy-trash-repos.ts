@@ -4,9 +4,9 @@ import { buildTrashRegistry } from "#src/features/trash/registry";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { SqliteTermRepo, SqliteTaxonomyRevisionRepo, SqliteTaxonomyRepo, SqliteEntryTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
-import type { MemoryClock, MemoryIdGen } from "../ports.js";
+import type { Clock, IdGenerator, IsoClock } from "@jini-ai/core/primitives";
 
-export function composeTaxonomyTrashRepos(required: { taxonomyDb: ContentDb; workspaceId: string; outbox: InMemoryOutbox; clock: MemoryClock; idGen: MemoryIdGen }, _optional = {}) {
+export function composeTaxonomyTrashRepos(required: { taxonomyDb: ContentDb; workspaceId: string; outbox: InMemoryOutbox; clock: Clock & IsoClock; idGen: IdGenerator }, _optional = {}) {
   const { taxonomyDb, workspaceId, outbox, clock, idGen } = required;
   // Mirror production permissions for the memory-backed forms, menus and widgets too: without
   // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
