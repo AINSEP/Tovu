@@ -26,7 +26,7 @@ test("registerPluginSdkResolver() with no options redirects a plugin's SDK impor
 });
 
 test("a second registration in the same process is refused as a boot-sequencing bug", async () => {
-  const { PluginSdkResolverAlreadyRegisteredError } = await import("../plugin-sdk-resolver.js");
+  const { PluginSdkResolverAlreadyRegisteredError } = await import("@jini-ai/plugins/runtime/sdk-resolver");
   assert.throws(() => registerPluginSdkResolver(), (error: unknown) => error instanceof PluginSdkResolverAlreadyRegisteredError
     && (error as Error).name === "PluginSdkResolverAlreadyRegisteredError");
 });

@@ -81,7 +81,8 @@ test("CIC U-002: calling registerPluginSdkResolver() a second time in the same p
   const moduleUrl = new URL("../../plugin-sdk-resolver.ts", import.meta.url).href;
   const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { registerPluginSdkResolver, PluginSdkResolverAlreadyRegisteredError } from ${JSON.stringify(moduleUrl)};
+    import { registerPluginSdkResolver } from ${JSON.stringify(moduleUrl)};
+    import { PluginSdkResolverAlreadyRegisteredError } from ${JSON.stringify(import.meta.resolve("@jini-ai/plugins/runtime/sdk-resolver"))};
     registerPluginSdkResolver({ sdkModulePath: ${JSON.stringify(new URL(import.meta.url).pathname)} });
     assert.throws(() => registerPluginSdkResolver(), PluginSdkResolverAlreadyRegisteredError);
   `], { encoding: "utf8", timeout: 20_000 });
