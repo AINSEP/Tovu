@@ -5206,6 +5206,10 @@
       "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts (w4-routes, RT-K1-adm-publish-content-2/4: export.ts publishing-credential 403 comment)"
     },
     {
+      "id": "fa97074e3e20",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/site/pages/render-context/collection-lists.ts collectionEntryFieldValue (verbatim) (w4-routes, RT-K1-pub-site-8: collection-lists.ts field-value comment)"
+    },
+    {
       "id": "f7f17534df39",
       "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/export.ts exportBundleStream pull catch (reworded: the stream closes instead of res.end()) (w4-routes, RT-K1-adm-publish-content-2/4: export.ts mid-stream catch comment)"
     }
