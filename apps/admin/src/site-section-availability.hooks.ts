@@ -1,7 +1,7 @@
 import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { sitesApi } from "./features/sites/api/sites-api";
-import type { AdminUser } from "./features/auth/api/auth-api.types";
+import type { AdminUser } from "@jini-ai/core/contracts/site/user-management-react";
 import { useSitesSnapshot } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
 import { SITES_LISTING } from "./features/sites/hooks/sites-dependencies.hooks";
 import { useEffect, useState } from "react";

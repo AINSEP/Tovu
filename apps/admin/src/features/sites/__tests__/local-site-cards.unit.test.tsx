@@ -5,7 +5,6 @@ import { resolveLocalSiteCard } from "../Sites.hooks";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
-import { SiteTrashTab } from "../SiteTrashTab";
 
 function localSnapshot(): AdminSitesSnapshot {
   return { switchingEnabled: true, localManagementEnabled: true, canSwitchNow: true,

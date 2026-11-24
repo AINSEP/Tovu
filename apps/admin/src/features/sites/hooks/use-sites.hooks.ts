@@ -4,7 +4,6 @@ import { useSiteConfirm, type SiteConfirmController } from "@jini-ai/admin/scree
 import { useCallback, useRef, useState } from "react";
 
 import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
-import type { SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { QueryStatus } from "@jini-ai/core/fetch";

@@ -2,7 +2,6 @@ import { expect, it, vi } from 'vitest';
 import type { PageDriver, WebMcpToolRegistration } from '@jini-ai/agentic';
 import { registerAdminPageWebMcpTools } from '@jini-ai/agentic/dom/admin-page-tools';
 import { directPageAction } from '@tovu/headless';
-import { adminPageToolCollaborators } from '../admin-page-tool-collaborators';
 
 it('ordinary field edits, navigation and reviewed install controls run directly; opaque clicks use chat', async () => {
   const tools: WebMcpToolRegistration[] = [];

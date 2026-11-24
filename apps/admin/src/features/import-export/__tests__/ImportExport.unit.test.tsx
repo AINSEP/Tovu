@@ -1,8 +1,8 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ImportExport } from "../ImportExport";
+import { ImportExport } from "@jini-ai/admin/screens/import-export/ImportExport";
 import { IMPORT_EXPORT_DICT, t } from "@jini-ai/admin/screens/import-export/import-export-i18n";
-import { resolveImportExportTabId, resolveImportExportTabs } from "../import-export-tabs";
+import { resolveImportExportTabId, resolveImportExportTabs } from "@jini-ai/admin/screens/import-export/import-export-tabs";
 import { createFakeGitBackupPort } from "@jini-ai/admin/screens/import-export/hooks/git-backup-port.hooks";
 import { useGitBackup } from "@jini-ai/admin/screens/import-export/hooks/use-git-backup.hooks";
 import { GIT_BACKUP_HOST } from "../hooks/git-backup-dependencies.hooks";
@@ -11,7 +11,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { SiteExportTab, SiteImportTab } from "@/features/sites";
 import { IMPORT_EXPORT_HANDLE_LABELS, ImportExportPanel } from "../ImportExportPanel";
-import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
+import { useSitesSectionAvailable } from "@jini-ai/admin/screens/import-export/hooks/use-import-export.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "@/features/sites/rules";
 

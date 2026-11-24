@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 
 import { ApiError } from "../../../lib/admin-http/request";
-import { isFolderPickerBusyError } from "../api/fs-files-api";
+import { nativeFolderPickerDeps } from "../api/fs-files-api";
 
 /**
  * @file The host binding `AssistantDock` passes to `@jini-ai/admin`'s `useNativeFolderPicker` as
@@ -10,8 +10,8 @@ import { isFolderPickerBusyError } from "../api/fs-files-api";
  */
 
 it("treats only an ApiError 409 as a dialog already open", () => {
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "busy", status: 409 }) })).toBe(true);
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "picker-failed", status: 500 }) })).toBe(false);
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "not found", status: 404 }) })).toBe(false);
-  expect(isFolderPickerBusyError({ error: Object.assign(new Error("busy"), { status: 409 }) })).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "busy", status: 409 }))).toBe(true);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "picker-failed", status: 500 }))).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "not found", status: 404 }))).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(Object.assign(new Error("busy"), { status: 409 }))).toBe(false);
 });

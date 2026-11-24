@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import type { LocalSitesController } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
-import { LocalSiteConfirmDialog } from "../LocalSiteConfirmDialog";
-import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
+import { LocalSiteConfirmDialog } from "@jini-ai/admin/screens/sites/LocalSiteConfirmDialog";
+import { useSiteConfirm } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 import {
   buildSiteCardMenuItems,
   resolveSiteCardMeta,

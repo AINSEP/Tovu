@@ -1,11 +1,11 @@
 import { partitionChatPackages } from "./chat-package-kind";
-import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
+import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { useCallback, useEffect, useMemo, type DragEvent } from "react";
 import { createDaemonAttachmentUploader, type ChatPaneAgent, type ChatPaneWorkingDirectoryAccess } from "@jini-ai/chat/react";
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
-import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
+import { createBrowserWorkingDirectoryAccess } from "@jini-ai/admin/shell/lib/browser-working-directory-access";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@jini-ai/admin/screens/fs-files/use-folder-drop.hooks";
 import { folderDropDeps } from "@/features/fs-files/api/fs-files-api";
 

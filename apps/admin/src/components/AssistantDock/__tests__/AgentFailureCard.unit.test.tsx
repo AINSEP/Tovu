@@ -11,7 +11,7 @@ import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useA
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 /** The host binding the dock registry passes the Jini card. */
-const cardBindings = { useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS };
+const cardBindings = { formatUserFacingError, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS };
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
@@ -21,6 +21,8 @@ import { FolderDropPathHint } from "../FolderDropPathHint";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
+import { formatUserFacingError } from "@jini-ai/core";
+import { isAbortError } from "@jini-ai/core/text";
 
 afterEach(cleanup);
 const reason = "IneligibleTierError: This client is no longer supported for Gemini Code Assist for individuals. To continue using Gemini, please migrate to the Antigravity suite of products: https://antigravity.google";
@@ -41,7 +43,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   const onExecutionModeChange = (mode: "local" | "api") => modes.push(mode);
   const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...cardBindings} {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
-    surface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
+    surface = useAgentFailureSurface({ transport, isAbortError, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
     return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ locale })}>
       <FailureSurfaceContext.Provider value={surface.actions}>
         <MessageRow message={surface.initialMessages![0]!} />
@@ -156,6 +158,7 @@ it("keeps the latest rescan inventory when an older list completes and switches 
   const selections: ChatPaneAgentSelection[] = [];
   const modes: string[] = [];
   const input: Parameters<typeof useAgentFailureSurface>[0] = {
+    isAbortError,
     transport: { async startRun() { return { runId: "run" }; }, async reattachRun() {},
       async stopRun() {}, async fetchRunStatus() { return null; } },
     runtimeAccess: { listAgents: () => listed, rescanAgents: async () => fresh, daemonOnline: async () => true },

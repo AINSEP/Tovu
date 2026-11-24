@@ -2,8 +2,8 @@ import { ImportExport, type ImportExportProps } from "@jini-ai/admin/screens/imp
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import { SiteExportTab, SiteImportTab } from "../sites";
-import { useImportExportTranslate, useSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/use-import-export.hooks";
-import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
+import { useSiteTransferTranslate, useWiredImportExportTranslate, useWiredSitesSectionAvailable } from "./hooks/import-export-dependencies.hooks";
+import { useWiredGitBackup } from "./hooks/git-backup-dependencies.hooks";
 
 /**
  * @file The Import & Export panel's mount: renders `@jini-ai/admin`'s `ImportExport` with this app's
@@ -22,10 +22,10 @@ export const IMPORT_EXPORT_HANDLE_LABELS: ImportExportProps["handleLabels"] = {
 export function ImportExportPanel(overrides: Partial<ImportExportProps> = {}) {
   return (
     <ImportExport
-      useTranslate={useImportExportTranslate}
+      useTranslate={useWiredImportExportTranslate}
       useGitBackup={useWiredGitBackup}
       useTransferTranslate={useSiteTransferTranslate}
-      useSitesAvailable={useSitesSectionAvailable}
+      useSitesAvailable={useWiredSitesSectionAvailable}
       SiteExportTab={SiteExportTab}
       SiteImportTab={SiteImportTab}
       handleLabels={IMPORT_EXPORT_HANDLE_LABELS}

@@ -16,7 +16,7 @@ import {
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
-import { type Translate, interpolate } from '@jini-ai/core/text';
+import { type Translate, interpolate, isAbortError } from '@jini-ai/core/text';
 import { trimChars } from "@jini-ai/core/primitives";
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
@@ -350,7 +350,7 @@ function RecentEntriesConfigFields({
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"] },
+    { isAbortError, fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"] },
     { errorFallback: t("failed to load collections") },
   );
   const c = useRecentEntriesConfigHook({ config: props.config, onChange: props.onChange });
@@ -437,7 +437,7 @@ function MenuConfigFields({
   ...props
 }: FetchedConfigFieldsProps) {
   const { items: menus, error } = useOptions<AdminMenu>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"] },
+    { isAbortError, fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"] },
     { errorFallback: t("failed to load menus") },
   );
 
@@ -478,7 +478,7 @@ function ContactFormConfigFields({
   ...props
 }: FetchedConfigFieldsProps) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
-    { fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"] },
+    { isAbortError, fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"] },
     { errorFallback: t("failed to load forms") },
   );
 

@@ -6,7 +6,11 @@ import * as navI18n from "@/lib/admin-nav-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
-import { useSitesSidebarNav } from "../use-sites-sidebar-nav.hooks";
+import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
+import { useSitesNavSnapshot } from "@/features/sites/hooks/sites-dependencies.hooks";
+
+/** The host collaborators the Jini hook takes as required args (App.tsx binds the same two). */
+const host = { useSitesSnapshot: useSitesNavSnapshot, translateNavLabel: (required: { locale: string; key: string }) => navI18n.translateAdminNavLabel(required) };
 
 const groups: readonly AdminNavGroup[] = [{ items: [
   { id: "sites", label: "Sites", href: "/sites", order: 1 },

@@ -5,17 +5,16 @@ import { Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
-import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
+import { createFakeSitesPort, useSitesNavSnapshot } from "@/features/sites/hooks/sites-dependencies.hooks";
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useCmsSidebarLabelTooltips } from "@jini-ai/admin/shell/hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "@jini-ai/admin/shell/components/SitesSidebarNav";
 import { useSitesSidebarNav } from "@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks";
-import { useSitesSnapshot } from "@/features/sites/hooks/use-sites-snapshot.hooks";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 
 /** The host collaborators the Jini nav takes as required props (App.tsx binds the same three). */
-const bindings = { useSitesSidebarNavHook: useSitesSidebarNav, useSitesSnapshot, translateNavLabel: translateAdminNavLabel, SidebarNav: Sidebar.Nav, useSidebar };
+const bindings = { useSitesSidebarNavHook: useSitesSidebarNav, useSitesSnapshot: useSitesNavSnapshot, translateNavLabel: translateAdminNavLabel, SidebarNav: Sidebar.Nav, useSidebar };
 
 const groups: AdminNavGroup[] = [{ items: [{ id: "sites", label: "Sites", href: "/sites", icon: "", order: 1 }] }];
 function snapshot(name = "plannie"): AdminSitesSnapshot {

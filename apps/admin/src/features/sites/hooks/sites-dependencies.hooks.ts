@@ -1,7 +1,7 @@
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
 import { sitesApi } from "@/features/sites/api/sites-api";
 import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
-import type { SitesListingScope } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
+import { useSitesSnapshot, type SitesListingScope } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
 import type { LocalSitesDeps } from "@jini-ai/admin/screens/sites/use-local-sites.hooks";
 import type { SiteConfirmPresentation } from "@jini-ai/admin/screens/sites/use-site-confirm.hooks";
 import { useSitesConfig, type SitesConfigController } from "@jini-ai/admin/screens/sites/use-sites-config.hooks";
@@ -87,4 +87,10 @@ export function createFakeSitesPort(
     activateSite: overrides.activateSite ?? (() => Promise.reject(new Error("activateSite was not expected"))),
     listTokenSignInPlugins: overrides.listTokenSignInPlugins ?? (() => Promise.resolve({ plugins: [] })),
   };
+}
+
+/** The sidebar's Sites label reads the same cached site list the Sites screen does (`SITES_LISTING`);
+ * Jini's nav takes this host binding as its `useSitesSnapshot` collaborator. */
+export function useSitesNavSnapshot({ port }: { port: Pick<SitesPort, "listSites"> }, { enabled }: { enabled?: boolean }) {
+  return useSitesSnapshot({ port, listing: SITES_LISTING }, { enabled });
 }

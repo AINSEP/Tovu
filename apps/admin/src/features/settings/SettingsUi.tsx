@@ -149,6 +149,7 @@ import { useAdminBrowserAgentSettings, webMcpT } from "../webmcp/browser-agent-s
 import "@jini-ai/admin/screens/settings/user-interface-settings.css";
 import { useUserInterfaceTab } from "./hooks/use-user-interface-tab.hooks";
 
+import { agentHandle } from '@jini-ai/core/agent-handles';
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -467,7 +468,7 @@ export function SettingsUi({
           <circle cx="12" cy="11.5" r="1.5" />
         </TabIcon>
       ),
-      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} useUserInterfaceTabHook={useUserInterfaceTab} />,
+      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />,
     },
     {
       id: "memory",

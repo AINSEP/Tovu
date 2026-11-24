@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/admin-sites";
-import type { SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
 import { AllSitesTab } from "../sites-list-tabs";
 import { staticListPrefs } from "./site-list-prefs.fixture";

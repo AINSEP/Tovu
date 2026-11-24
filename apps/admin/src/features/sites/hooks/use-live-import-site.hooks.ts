@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import type { AdminLocalSiteState } from "@jini-ai/core/contracts/site/admin-sites";
-import type { SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 
 import { siteWriteErrorKey } from "../rules";
