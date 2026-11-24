@@ -25,6 +25,11 @@ const SRC = path.resolve(__dirname, "../..");
  *  common dictionary through the same option (`@jini-ai/admin/source-control/source-control-i18n`). */
 const TRANSLATOR_FACTORIES = new Set(["createDictionaryTranslator", "createSourceControlTranslator"]);
 
+/** K4-i18n-common factories (`create<X>Dictionary({ commonDictionary, ... })`, coordinator decision 3) take
+ *  COMMON_I18N as the REQUIRED `commonDictionary` field of their FIRST argument; only that exact binding
+ *  is a sanctioned sink, so any other key or factory still reports. */
+const COMMON_FIRST_ARG_FACTORIES = new Set(["createMembersTranslator", "createPageEditorTranslator", "createPluginsDictionary"]);
+
 /** Indexed lookups that are allowed, each with its reason. Keep this list short. */
 const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
@@ -173,7 +178,11 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
             parent.initializer === node &&
             ((parent.name.getText(f.ast) === "featureDictionary" && call.arguments[0] === parent.parent) ||
              (node.text === "COMMON_I18N" && parent.name.getText(f.ast) === "commonDictionary" && call.arguments[1] === parent.parent))));
-        if (!declaration && !syntaxName && !translator && !isConstruction(node)) {
+        const commonFactory = ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+          COMMON_FIRST_ARG_FACTORIES.has(call.expression.text) && node.text === "COMMON_I18N" &&
+          ts.isPropertyAssignment(parent) && parent.initializer === node &&
+          parent.name.getText(f.ast) === "commonDictionary" && call.arguments[0] === parent.parent;
+        if (!declaration && !syntaxName && !translator && !commonFactory && !isConstruction(node)) {
           report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
         }
       }
@@ -329,6 +338,16 @@ describe("findInlineDictionaryLookups: the detector", () => {
     ]);
     const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; const DICT: Record<string, Record<string, string>> = {}; export const t = createDictionaryTranslator({ featureDictionary: DICT }, { commonDictionary: COMMON_I18N });" };
     expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+  });
+
+  it("permits COMMON_I18N as the required commonDictionary of a K4 feature dictionary factory, nowhere else", () => {
+    const common = { path: "lib/i18n-common.ts", source: "export const COMMON_I18N: Record<string, Record<string, string>> = {};" };
+    const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createMembersTranslator({ commonDictionary: COMMON_I18N }, { hostCopy: {} });" };
+    expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+    const wrongKey = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createMembersTranslator({ hostCopy: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, wrongKey])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
+    const unknownFactory = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createAnything({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, unknownFactory])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
   });
 });
 
