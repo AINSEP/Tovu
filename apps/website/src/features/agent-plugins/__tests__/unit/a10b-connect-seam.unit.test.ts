@@ -12,7 +12,7 @@ import { InMemoryKeyring } from '#src/features/webhooks/keyring.memory';
 import { AesGcmSecretSealer } from '#src/features/webhooks/secret-sealer.aesgcm';
 import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
-import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.js';
+import { mcpServerTrustClassifier } from '../../lifecycle.js';
 import { tovuEnableAccessMessages } from '../../enable-access.js';
 import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
 import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
@@ -62,7 +62,7 @@ function fixture({ decide }: { decide: 'approve' | 'expire' }) {
     },
     messages: acmeMessages,
     publicUrl: { redirectUri: ({ serverId }) => `https://acme.test/cb/${serverId}` },
-    federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
+    federation: { classifyTrust: mcpServerTrustClassifier, messages: tovuEnableAccessMessages },
     actors: { connectDeclined: 'acme:declined' },
     waitAtSignInCard: async (required) => {
       log.push('sign-in-card');

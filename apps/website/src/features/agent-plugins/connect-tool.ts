@@ -15,7 +15,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
-import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./capability-projection.js";
+import { readInstalledMcpServers, mcpServerTrustClassifier } from "./lifecycle.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
@@ -177,7 +177,7 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
   },
   messages: tovuAgentPluginConnectMessages,
   publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri({ serverId, derivedPublicOrigin }) },
-  federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
+  federation: { classifyTrust: mcpServerTrustClassifier, messages: tovuEnableAccessMessages },
   actors: { connectDeclined: CONNECT_DECLINED_ACTOR },
   waitAtSignInCard: (required, optional) => waitAtAgentPluginSignInCard(required, optional),
   chooseDestination: (required, optional) => chooseApiConnectionDestination(required, optional),

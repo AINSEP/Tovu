@@ -6,7 +6,7 @@
 import type { AgentPluginToolGrant, AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
 import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPluginToolGrant as validatedWithPorts, type AgentPluginEnableAccessMessages } from '@jini-ai/agent-plugins/connect';
 import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
-import { classifyAgentPluginMcpServerTrust } from './capability-projection.js';
+import { mcpServerTrustClassifier } from './lifecycle.js';
 import { tovuFederationMessages } from './federate-mcp.js';
 import type { AgentPluginMcpContext } from '@jini-ai/agent-plugins/site/service-ports';
 import type { AgentPluginMcpProjectionPorts } from '@jini-ai/agent-plugins/connect';
@@ -30,5 +30,5 @@ export function previewAgentPluginEnableAccess(
   input: Omit<Parameters<typeof previewWithPorts>[0], 'projections' | 'classifyError' | 'classifyTrust' | 'messages'> & AgentPluginMcpContext,
   _options = {},
 ): ReturnType<typeof previewWithPorts> {
-  return previewWithPorts(withOverrides({ target: withAgentPluginMcpPorts(input), overrides: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages } }));
+  return previewWithPorts(withOverrides({ target: withAgentPluginMcpPorts(input), overrides: { classifyTrust: mcpServerTrustClassifier, messages: tovuEnableAccessMessages } }));
 }

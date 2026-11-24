@@ -114,7 +114,8 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
         if (reportedIdentityWarnings.has(key)) return;
         reportedIdentityWarnings.add(key);
       }
-      console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message);
+      // Installed mcp.json metadata warnings keep this host's `[agent-plugins]` log prefix.
+      console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : event === "agent-plugin-metadata-warning" ? `[agent-plugins] ${message}` : message);
     },
     // Layout first, then preserve explicit Cloudflare rename decisions before seeding.
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
@@ -308,7 +309,8 @@ export const {
   recordBundledAgentPluginDigests, removeBundledAgentPluginDigest, rankInstalledAgentPlugins,
   packAgentPluginDirectory, createBundledSourceArchiveReader,
   readTrustedPluginFile, importContainedModule, loadPluginContributionsFromSource,
-  readInstalledSkillFile,
+  readInstalledSkillFile, readInstalledSkillMarkdown, readInstalledMcpServerIds, readInstalledMcpServers,
+  mcpServerTrustClassifier,
 } = explicitRootLifecycle;
 
 /** This boot's lifecycle owner; installed contributions always use its fixed site layout. */

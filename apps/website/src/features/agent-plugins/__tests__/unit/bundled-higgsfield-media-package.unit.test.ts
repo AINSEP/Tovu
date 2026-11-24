@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
+import { mcpServerTrustClassifier } from "../../lifecycle.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
@@ -112,7 +112,7 @@ test("mcp.json declares the real higgsfield connection, auto-admitted per classi
   // Remote + oauth carries no secret and no local execution, so it auto-admits — never requires the
   // stdio confirmation gate. This is the one classification `federate-mcp.ts`'s wiring depends on.
   assert.ok(server, "expected the server to have parsed");
-  if (server) assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
+  if (server) assert.equal(mcpServerTrustClassifier(server), "auto-admit");
 });
 
 test("the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name", async () => {

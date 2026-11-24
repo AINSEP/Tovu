@@ -13,7 +13,7 @@ import { agentPluginActivations } from '#src/features/agent-plugins/activation-e
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, tovuInstalledMcpReads } from '#src/features/agent-plugins/federate-mcp';
-import { classifyAgentPluginMcpServerTrust } from '#src/features/agent-plugins/capability-projection';
+import { mcpServerTrustClassifier } from '#src/features/agent-plugins/lifecycle';
 import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-access';
 import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
@@ -108,7 +108,7 @@ export function createTovuPluginHost(
     // without projections gets Tovu's canonical pair here, never inside the portable bodies.
     mcp: withAgentPluginMcpPorts(deps.mcp), mcpPorts: agentPluginMcpPortsOf(deps.mcp),
     grantSignedInDefaults: grantDeclaredToolsToSignedInRows,
-    installedMcp: tovuInstalledMcpReads, classifyTrust: classifyAgentPluginMcpServerTrust, declinedAccessActor: CONNECT_DECLINED_ACTOR,
+    installedMcp: tovuInstalledMcpReads, classifyTrust: mcpServerTrustClassifier, declinedAccessActor: CONNECT_DECLINED_ACTOR,
     warn, messages: tovuPluginHostMessages,
   } }, {
     ...(optional.resolveMcpServers ? { resolveMcpServers: optional.resolveMcpServers } : {}),

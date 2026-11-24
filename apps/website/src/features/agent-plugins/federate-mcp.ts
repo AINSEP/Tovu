@@ -10,7 +10,7 @@ import {
   type AgentPluginInstalledMcpReads, type AgentPluginMcpFederationMessages, type AgentPluginMcpFederationPlan, type AgentPluginMcpTrustClassifier,
   type ProvisionAgentPluginMcpServersInput as PortableProvisionInput, type ProvisionAgentPluginMcpServersResult,
 } from "@jini-ai/agent-plugins/connect";
-import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
+import { mcpServerTrustClassifier, readInstalledMcpServers } from "./lifecycle.js";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "@jini-ai/agent-plugins/site/service-ports";
@@ -32,7 +32,7 @@ export const tovuFederationMessages: AgentPluginMcpFederationMessages = {
 export type ProvisionAgentPluginMcpServersInput = Omit<PortableProvisionInput, "classifyTrust" | "messages"> & { readonly classifyTrust?: AgentPluginMcpTrustClassifier };
 
 export function planAgentPluginMcpFederation(input: { readonly servers: Readonly<Record<string, McpServerConfig>> }, options: { readonly classifyTrust?: AgentPluginMcpTrustClassifier } = {}): AgentPluginMcpFederationPlan {
-  return planWithTrust({ ...input, classifyTrust: options.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages });
+  return planWithTrust({ ...input, classifyTrust: options.classifyTrust ?? mcpServerTrustClassifier, messages: tovuFederationMessages });
 }
 
 export function resolveAgentPluginMcpServers(input: Omit<Parameters<typeof resolveWithReads>[0], "lifecycle">, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
@@ -48,5 +48,5 @@ export function provisionAgentPluginMcpServers(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
-  return provisionWithPorts(withOverrides({ target: input, overrides: { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages } }));
+  return provisionWithPorts(withOverrides({ target: input, overrides: { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? mcpServerTrustClassifier, messages: tovuFederationMessages } }));
 }

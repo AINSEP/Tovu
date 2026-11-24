@@ -7,7 +7,7 @@ import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginPathsPort } from "@jini-ai/agent-plugins/site/service-ports";
 
-import { readInstalledMcpServers } from "./capability-projection.js";
+import { readInstalledMcpServers } from "./lifecycle.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
 import type { InstalledAgentPluginServers } from "./import-access-token.js";
 import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./lifecycle.js";

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
+import { mcpServerTrustClassifier } from "../../lifecycle.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
@@ -46,7 +46,7 @@ test("mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, n
   assert.deepEqual(parsed.config.serverIds, ["composio"]);
   const server = parsed.config.servers.composio;
   assert.deepEqual(server, { type: "streamable-http", url: "https://connect.composio.dev/mcp", authMode: "oauth" });
-  if (server) assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
+  if (server) assert.equal(mcpServerTrustClassifier(server), "auto-admit");
 });
 
 test("the package packs through the real installer's packer, and carries no credential material", async () => {
