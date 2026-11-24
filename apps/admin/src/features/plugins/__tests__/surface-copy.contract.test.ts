@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { t as pluginCopy } from '../plugins-i18n';
 import { t as monitoringCopy } from '../../observability/observability-i18n';
-import { t as securityCopy } from '../../security/security-i18n';
+import { tSecurity as securityCopy } from '../../../lib/i18n-common';
 import { SHARED_COMPONENTS_DICT } from '../../../components/shared-components-i18n';
 
 it('category examples remain translated across every shipped locale', () => {
