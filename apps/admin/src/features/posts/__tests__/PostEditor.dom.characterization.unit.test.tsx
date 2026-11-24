@@ -366,9 +366,10 @@ describe("PostEditor — loading / error contract", () => {
 
   it("calls the injected hook once per render with the postId", () => {
     const spy = vi.fn((input: { postId: string }) => { void input; return stub({ post: null }); });
-    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="abc" usePostEditorHook={spy} />);
+    const routeKeys = createPostEditorRouteKeyStore();
+    render(<PostEditor routeKeys={routeKeys} postId="abc" usePostEditorHook={spy} />);
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith({ postId: "abc" });
+    expect(spy).toHaveBeenCalledWith({ postId: "abc", routeKeys }, {});
   });
 });
 

@@ -21,11 +21,16 @@ describe("PostEditor — usePostEditorScreenHook", () => {
     const usePostEditorHook = vi.fn() as unknown as typeof useWiredPostEditor;
     const usePostEditorScreenHook = vi.fn<typeof usePostEditorScreen>(() => ({ status: "loading", t: (key: string) => `fake:${key}` }));
 
-    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p-42" usePostEditorHook={usePostEditorHook} usePostEditorScreenHook={usePostEditorScreenHook} />);
+    const routeKeys = createPostEditorRouteKeyStore();
+    render(<PostEditor routeKeys={routeKeys} postId="p-42" usePostEditorHook={usePostEditorHook} usePostEditorScreenHook={usePostEditorScreenHook} />);
 
     expect(screen.getByText("fake:Loading editor…")).toHaveClass("notice");
     expect(usePostEditorScreenHook).toHaveBeenCalledTimes(1);
-    expect(usePostEditorScreenHook).toHaveBeenCalledWith({ postId: "p-42", usePostEditorHook });
+    expect(usePostEditorScreenHook).toHaveBeenCalledWith({ postId: "p-42", usePostEditorHook: expect.any(Function) });
+    // HW3: the forwarded controller hook is the injected one with the host's route-key store bound in.
+    const forwarded = usePostEditorScreenHook.mock.calls[0]![0].usePostEditorHook;
+    forwarded({ postId: "p-42" });
+    expect(usePostEditorHook).toHaveBeenCalledWith({ postId: "p-42", routeKeys }, {});
   });
 
   it("renders the error from the injected screen as an error notice", () => {
