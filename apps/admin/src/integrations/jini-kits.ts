@@ -11,7 +11,6 @@ import { InfoTip, Lightbox, Select as WidgetSelect, useInfoTip, usePanelPosition
   closeLightboxDialog } from '@jini-ai/ui/admin-widgets';
 import { TabBar, useTabBarKeyboard, resolveTabBarTabIndex } from '@jini-ai/ui/tab-strip';
 import { buildSandboxProxyDataUrl } from '@jini-ai/ui/mcp-ui/surfaces';
-import { findActiveTab, resolveInitialActiveTabId, useTabbedDialog, useCopyToClipboard } from '@jini-ai/ui';
 import { PreviewModalShell } from '@jini-ai/ui/preview-modal-shell';
 import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
