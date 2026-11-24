@@ -19,7 +19,8 @@ import { readBootIdentity, withFileLock } from "@jini-ai/platform/fs/file-lock";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
-import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
+import { restoreUnseededUpgrades, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
+import { upgradeTovuRenamedBundledPlugins } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
@@ -65,7 +66,6 @@ export type RetireBundledAgentPluginsRequired = Omit<JiniRetireRequired, "layout
 export type TovuSeedBundledAgentPluginsResult = import("@jini-ai/agent-plugins/lifecycle").SeedBundledAgentPluginsResult & {
   readonly idUpgrades?: readonly BundledIdUpgradeOutcome[] | undefined;
 };
-export type { BundledIdUpgradeOutcome } from "./bundled-id-upgrade.js";
 export type TrustedPluginPackagesQuery = Omit<JiniTrustedQuery, "onInactive"> & { readonly onInactive?: (plugin: TrustedPluginPackage) => Promise<void> };
 
 /** Adapt the host's validated workspace layout to the lifecycle owner's port. */
@@ -202,7 +202,7 @@ async function seedWithIdUpgrade({ owner, filesystem }: { owner: LifecycleOwner;
       readBundledSourceManifest: createBundledSourceManifestReader({ bundledSourceRoot: input.sourceRoot }),
       filesystem,
     };
-    upgrades = await upgradeRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
+    upgrades = await upgradeTovuRenamedBundledPlugins({ workspaceRoot: input.layout.forWorkspace({ workspaceId: input.workspaceId }).root, port });
   } catch {
     // Listing failed before anything moved: seeding below reports each affected plugin itself.
   }

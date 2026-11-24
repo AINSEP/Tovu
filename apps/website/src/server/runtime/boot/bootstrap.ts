@@ -2,7 +2,8 @@ import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
-import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins, type BundledIdUpgradeOutcome } from "../../../features/agent-plugins/lifecycle.js";
+import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import type { BundledIdUpgradeOutcome } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
 import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
