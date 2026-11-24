@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql } from 'kysely';
 import { eachDialect } from '#src/platform/db/kernel/__tests__/dialect-matrix';
-import { createPasskeyStore } from '../passkeys.repo.js';
+import { createPasskeyStore } from '../sql-stores.js';
 import { createMfaStore } from '../mfa.repo.js';
 import { createIdentityTransactions } from '../repo.js';
 import { CONTENT_MIGRATIONS, runMigrations } from '#src/platform/db/migrations/index';

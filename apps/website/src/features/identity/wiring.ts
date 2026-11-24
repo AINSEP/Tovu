@@ -1,4 +1,4 @@
-import { createPasskeyStore } from "./passkeys.repo.js";
+import { createPasskeyStore } from "./sql-stores.js";
 import { createMfaStore } from "./mfa.repo.js";
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
 import { createRecoveryCodeStore } from "./sql-stores.js";
