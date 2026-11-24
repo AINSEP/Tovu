@@ -4508,6 +4508,38 @@
     {
       "id": "11eb90984825",
       "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
+    },
+    {
+      "id": "2cd710a35c17",
+      "reason": "Header of the deleted shell-staleness test; the incident it reproduced is now the host's STALE_SHELL_CONSEQUENCE why-comment in stage-payload-run.ts and the predicate is tested in Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc)."
+    },
+    {
+      "id": "fb406745a037",
+      "reason": "Asserted the remedy text of the deleted host predicate; the remedy string is the caller's buildWith (unchanged in stage-payload-lib STAGED_SHELLS) and Jini policies.test asserts the caller remedy."
+    },
+    {
+      "id": "b21fa988f1ae",
+      "reason": "Section header for bundle-input cases of the deleted test; the cases live in Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc) policies.test ('tests and measurements do not make a shell stale')."
+    },
+    {
+      "id": "25ae91e2d5c3",
+      "reason": "Conservative-input note of the deleted test; Jini isBundleInput keeps the same conservative rule (Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc))."
+    },
+    {
+      "id": "d3de9708d232",
+      "reason": "@file of the deleted shell-staleness.ts; its incident history moved to the STALE_SHELL_CONSEQUENCE why-comment in stage-payload-run.ts, the predicate to Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc)."
+    },
+    {
+      "id": "6a9f9541348d",
+      "reason": "Doc of StalenessShell; the type is owned by Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc)."
+    },
+    {
+      "id": "1729b0b81809",
+      "reason": "Doc of the deleted duplicate isBundleInput; Jini's isBundleInput carries the conservative bundle-input policy (Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc))."
+    },
+    {
+      "id": "0e644f4b582f",
+      "reason": "Doc of the deleted duplicate shellStalenessFailure; Jini's doc keeps the 'missing timestamps defer to existence checks, no tolerance' rule (Jini @jini-ai/devops/packaging/electron policies.ts (w4-desktop B0, Jini 295423bc))."
     }
   ]
 }
