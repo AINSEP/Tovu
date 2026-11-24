@@ -1335,7 +1335,7 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
     await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "example-host.io", category: "ops", baseUrl: "https://api.example-host.io", connection: { token: "ExampleV1fake_test_token_value" } });
     const httpClient = new FakeHttpClient();
     const deps = makeDeps({ httpClient, loadAuthSchemes: async () => {
-      const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE }, { loadContributions: lifecycle.loadPluginContributions, parseCredentialSchemesFile });
+      const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE, loadContributions: lifecycle.loadPluginContributions, parseCredentialSchemesFile });
       assert.deepEqual(registry.refusals, []);
       return registry.rules;
     } }, writeDeps);

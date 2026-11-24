@@ -41,7 +41,7 @@ test("R: the root is its fixed points and the phase calls, in order", () => {
     "const chatDbPath = resolveChatDbPath({ dbPath }, { overrides });",
     "const chat = store.chat;",
     "await warnCompositionChatOrphans({ dbPath, store, kernel, chatDbPath });",
-    "const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContribution",
+    "const mediaProviders = await loadMediaProviderRegistry({ workspaceId, loadContribution",
     "const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo,",
     "await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock },",
     "const { siteAssistantCredentialRepo, externalMcpServerRepo, externalMcpOAuthDevices, siteR",

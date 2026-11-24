@@ -9,7 +9,7 @@ card identity, product copy and the bindings that hand them to the portable Jini
   injects `replacements` (`bundled-catalog.ts`'s `RETIRED_PLUGIN_REPLACEMENTS`) and `toToolId`
   (`bundled-catalog.ts`'s `toAgentPluginToolId`).
 - `@jini-ai/agent-plugins/site/deploy-split-activation`: `lifecycle.ts`'s `migrateBeforeSeed` injects
-  `activations` (the boot's lifecycle owner) into `carryCloudflareActivation`.
+  `activations` (the boot's lifecycle owner) into `carryPluginRenameActivation`.
 - `@jini-ai/agent-plugins/site/admin-surfaces/public-config`: bound by `admin-surfaces/public-config.ts`
   (Tovu's public-config name pattern).
 - `@jini-ai/agent-plugins/site/admin-surfaces/handlers`: `server/runtime/composition/agent-plugin-connections.ts`

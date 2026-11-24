@@ -18,7 +18,7 @@ import { writeJsonFileAtomicAsync } from "@jini-ai/platform/fs";
 import { readBootIdentity, withFileLock } from "@jini-ai/platform/fs/file-lock";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "@jini-ai/core/contracts/headless/plugin-host";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
-import { carryCloudflareActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
+import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
 import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
@@ -123,7 +123,7 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
       const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
         const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef(), fromPluginId: "cloudflare-pages", toPluginId: "cloudflare", actor: "migration:cloudflare-plugin" };
-        await carryCloudflareActivation(required);
+        await carryPluginRenameActivation(required);
       }
       return migration;
     },

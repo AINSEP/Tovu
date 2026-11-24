@@ -78,7 +78,7 @@ export function routeDepsPublishCredentials(required: RouteDepsPublishCredential
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
-    loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules,
+    loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules,
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
     // `index.ts`/`agent-daemon-server.ts`'s own call sites), same singleton lifetime

@@ -126,7 +126,7 @@ async function composeSiteRouteDeps(
   // `@jini-ai/cms/media/site-generation/media-provider-registry`. A refused plugin vendor is logged, never fatal.
   // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
   // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
-  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions,
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
     filename: "tovu-media-providers.json", contract: MEDIA_PROVIDER_CONTRACT, createRegistry: createMediaProviderRegistry,
     registryId: mediaProviderRegistryId, contributeProviders,
     defineProviderContribution: defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution> });

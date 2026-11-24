@@ -61,7 +61,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
     agentPluginLifecycle: { enumerable: true, configurable: true, get: () => createTovuAgentPluginLifecycle({ layout: context.agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() }) },
     loadDeployOps: { enumerable: true, configurable: true, get: () => (ctx: { workspaceId: string }) => loadDeployOpsRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
     loadSourceControlProviders: { enumerable: true, configurable: true, get: () => ({ workspaceId }: { workspaceId: string }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
-    loadAuthSchemes: { enumerable: true, configurable: true, get: () => async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules },
+    loadAuthSchemes: { enumerable: true, configurable: true, get: () => async (ctx: { workspaceId: string }) => (await loadCredentialSchemeRegistry({ ...ctx, loadContributions: context.agentPluginLifecycle.loadPluginContributions, parseCredentialSchemesFile })).rules },
     skillLayout: { enumerable: true, configurable: true, get: () => resolveSkillLayout() },
     siteBinding: { enumerable: true, configurable: true, get: () => describeSiteBinding() },
   };

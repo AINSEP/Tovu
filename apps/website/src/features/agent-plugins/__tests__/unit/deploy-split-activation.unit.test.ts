@@ -6,7 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { carryCloudflareActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
+import { carryPluginRenameActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
 
 /** @file Explicit Cloudflare rename decisions and unreadable activation state remain protected. */
 
@@ -33,7 +33,7 @@ test("unreadable activation state refuses carry and seeding without writing succ
     await mkdir(workspaceRoot, { recursive: true });
     const file = path.join(workspaceRoot, "activations.json");
     await writeFile(file, "{");
-    await assert.rejects(carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds }));
+    await assert.rejects(carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds }));
     assert.equal(await readFile(file, "utf8"), "{");
     const seeded = await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot: path.resolve("content/agent-plugins") });
     assert.ok(seeded.outcomes.length > 0);
@@ -44,41 +44,41 @@ test("unreadable activation state refuses carry and seeding without writing succ
 });
 
 for (const enabled of [true, false]) test(`Cloudflare rename carries the previous ${enabled ? 'enabled' : 'disabled'} decision before seeding`, async () => {
-  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
+  const { carryPluginRenameActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled, actor: 'operator' }, { origin: 'bundled' });
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare' }, { enabled: true });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, enabled);
     const before = await readAgentPluginActivations({ workspaceRoot });
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
   });
 });
 
 test('Cloudflare explicit successor decision wins; absent predecessor stays absent', async () => {
-  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
+  const { carryPluginRenameActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare, undefined);
     await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled: true, actor: 'operator' }, { origin: 'bundled' });
     await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare', enabled: false, actor: 'operator' }, { origin: 'bundled' });
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, false);
   });
 });
 
 test('Cloudflare untouched seed records yield to explicit predecessor decisions; corrupt verdict refuses', async () => {
-  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
+  const { carryPluginRenameActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare-pages' });
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare, undefined);
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare' }, { enabled: true });
     await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled: false, actor: 'operator' }, { origin: 'bundled' });
-    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
+    await carryPluginRenameActivation({ workspaceRoot, activations: agentPluginActivations, ...carryIds });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, false);
-    await assert.rejects(carryCloudflareActivation({ workspaceRoot, activations: {
+    await assert.rejects(carryPluginRenameActivation({ workspaceRoot, activations: {
       ...agentPluginActivations, resolveAgentPluginActivation: async () => ({ verdict: 'undetermined', reason: 'corrupt predecessor' }),
     }, ...carryIds }), /Cannot carry cloudflare-pages activation: corrupt predecessor/);
   });

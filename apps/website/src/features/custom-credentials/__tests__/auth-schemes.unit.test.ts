@@ -197,7 +197,7 @@ test("registry: a Tovu-bundled plugin's rules load", async () => {
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "fixture-deploy", archiveDigest: digest }] });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-deploy", enabled: true, actor: "test" }, { origin: "bundled" });
 
-    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
 
     assert.deepEqual(registry, { rules: [{ id: "fixture-scheme", prefix: "FixV1", scheme: "FixV1" }], refusals: [] });
   });
@@ -209,7 +209,7 @@ test("registry: a DISABLED bundled plugin's rules still load, so a saved credent
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "fixture-deploy", archiveDigest: digest }] });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-deploy", enabled: false, actor: "test" }, { origin: "bundled" });
 
-    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
 
     assert.deepEqual(registry.rules.map((rule) => rule.id), ["fixture-scheme"]);
   });
@@ -220,7 +220,7 @@ test("registry: an operator-installed plugin (digest not the bundled one) is ref
     const digest = await installPackage("fixture-deploy", { [CREDENTIAL_SCHEMES_FILENAME]: SCHEMES_FILE });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-deploy", enabled: true, actor: "test" }, { origin: "operator-installed" });
 
-    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
 
     assert.deepEqual(registry, {
       rules: [],
@@ -236,7 +236,7 @@ test("registry: a malformed file drops that plugin with the parse reason", async
     const digest = await installPackage("fixture-deploy", { [CREDENTIAL_SCHEMES_FILENAME]: JSON.stringify({ schemaVersion: 2, schemes: [] }) });
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "fixture-deploy", archiveDigest: digest }] });
 
-    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
 
     assert.deepEqual(registry, {
       rules: [],
@@ -247,7 +247,7 @@ test("registry: a malformed file drops that plugin with the parse reason", async
 
 test("registry: a workspace with nothing installed has no rules and no refusals", async () => {
   await withWorkspace(async () => {
-    assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile }), { rules: [], refusals: [] });
+    assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile }), { rules: [], refusals: [] });
   });
 });
 
@@ -258,7 +258,7 @@ test("registry: duplicate IDs across trusted plugins remove both ambiguous rules
       const digest = await installPackage(pluginId, { [CREDENTIAL_SCHEMES_FILENAME]: JSON.stringify({ schemaVersion: 1, schemes }) });
       await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] });
     }
-    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
+    const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile });
     assert.deepEqual([...registry.rules].sort((a, b) => a.id.localeCompare(b.id)), [
       { id: "first-scheme", prefix: "FirstUnique", scheme: "First" },
       { id: "second-scheme", prefix: "SecondUnique", scheme: "Second" },
@@ -273,7 +273,7 @@ test("registry: a malformed plugin does not discard a healthy plugin's rules", a
       const digest = await installPackage(pluginId, { [CREDENTIAL_SCHEMES_FILENAME]: raw });
       await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] });
     }
-    assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile }), {
+    assert.deepEqual(await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE_ID, loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions, parseCredentialSchemesFile }), {
       rules: [{ id: "fixture-scheme", prefix: "FixV1", scheme: "FixV1" }],
       refusals: [`credential schemes from 'bad-scheme' were not loaded: ${CREDENTIAL_SCHEMES_FILENAME} is invalid: not valid JSON`],
     });

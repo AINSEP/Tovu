@@ -54,7 +54,7 @@ export function buildAnalyticsProviders(
   // takes effect within the TTL; a failed lookup is not cached (the next beacon retries).
   const credentials = new Map<string, { at: number; value: Promise<AnalyticsForwarderCredential | null> }>();
   return {
-    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId }, { loadContributions, analytics: analyticsProviderPorts }), clock }),
+    load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId, loadContributions, analytics: analyticsProviderPorts }), clock }),
     resolveCredential: ({ label }) => {
       const now = clock.nowMs();
       const hit = credentials.get(label);
