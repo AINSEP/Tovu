@@ -15,7 +15,7 @@ SHOWS the answering model — it never offers a model picker (owner 11-23).
 | `SiteAssistantHeader.tsx`, `SiteAssistantHeader.hooks.ts` | Header slot adapter (OWNER-Q-4). |
 | `SiteToolConfirmation.hooks.ts`, `tool-confirmation.ts`, `vanilla-tool-confirmation.ts` | Human-only tool confirmation (BX-13, pending Jini contract). |
 | `site-assistant-transport.ts`, `site-assistant-errors.ts` | Visitor transport and error copy (pending `codex/visitor-chat-tovu`). |
-| `session-store.ts` | Visitor transcript persistence (key, 50-message / 200 KB caps, message allowlist, comparison key suffix). BX-4/5 dedupe onto Jini `createBrowserSessionStore` is pending: the Jini store clears over-cap legacy envelopes and drops failure notifications, both behaviour changes. |
+| `session-store.ts` | Visitor transcript persistence (key, 50-message / 200 KB caps, message allowlist, comparison key suffix), bound onto Jini `createBrowserSessionStore` (BX-4/5). Legacy over-cap envelopes still rehydrate; new writes stay capped. |
 | `site-chat-comparison.ts` | Comparison-frame variant reader plus the product event/message names. |
 | `site-chat-i18n.ts` | Visitor copy dictionary. |
 | `visitor-page-control.ts`, `visitor-site-path.ts` | Visitor page actions; strict visitor path grammar. |
@@ -38,3 +38,9 @@ Build: `vite.config.ts`, `vite.lazy.config.ts`, `vite.vanilla.config.ts`, `vite-
   no-query/fragment grammar stays in `visitor-site-path.ts`.
 - **Dialog lifecycle** — `@jini-ai/chat/react/embed` `useEmbedChatDialog`; lazy loader —
   `@jini-ai/chat/browser/lazy-loader` `installLazyChatLoader`.
+- **Visitor transcript** — `@jini-ai/chat/browser/session-store` `createBrowserSessionStore`.
+  `session-store.ts` injects `storage` (the `sessionStorage` wrapper that adds the comparison key
+  suffix), `transcriptKey`, the 50-message / 200 KB caps, `validateMessage` (message allowlist),
+  `overCapReads: "read"` (keeps reading envelopes stored before reads were capped) and an
+  `onFailure` that rethrows only `serialize` failures (circular data always threw here); load,
+  decode, save and clear failures stay silent.

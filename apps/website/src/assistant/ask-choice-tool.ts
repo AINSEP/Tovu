@@ -6,10 +6,10 @@ import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type
 import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
+import { addCustomAnswerFields, customAnswerExchanges, mergeCustomAnswer, type CustomAnswerCall, ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
-import { addCustomAnswerFields, customAnswerExchanges, mergeCustomAnswer, withCustomAnswerReveal, type CustomAnswerCall } from "./ask-choice-custom-answer.js";
+import { ASK_CHOICE_CUSTOM_ANSWER_COPY, withCustomAnswerReveal } from "./ask-choice-custom-answer.js";
 import { requireAccessApprover } from "../contracts/core/human-confirm.js";
 import type { ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { askOnce } from "@jini-ai/daemon/surface-exchanges";
@@ -182,7 +182,7 @@ function buildAskChoiceFields(parsed: AskChoiceQuestion, { customAnswer = false 
       ...(parsed.multiSelect.value ? { value: [...parsed.multiSelect.value] } : {}),
     });
   }
-  return customAnswer ? addCustomAnswerFields({ fields }) : fields;
+  return customAnswer ? addCustomAnswerFields({ fields, copy: ASK_CHOICE_CUSTOM_ANSWER_COPY }) : fields;
 }
 
 /** Builds the form with Tovu's resource identity, labels, radio/checklist layout and app metadata.
@@ -424,7 +424,7 @@ export function buildAskChoiceRegistrations(
         signal: ctx.signal,
         ...(emitSurface ? { emitSurface: ({ emission }) => emitSurface(emission) } : {}),
       } });
-      return call ? mergeCustomAnswer({ result, split: call.split }) : result;
+      return call ? mergeCustomAnswer({ result, split: call.split, note: ASK_CHOICE_CUSTOM_ANSWER_COPY.withPicksNote }) : result;
     },
   };
   return buildDomainRegistrations({ metadata: toolMetadata,

@@ -1,5 +1,5 @@
 /** Run/session contracts and intake policy for the server's assistant lifecycle routes. */
-export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
+export type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
 export type { ChatRunLedger } from "./persistence/run-ledger.js";
 export type { AgentSessionStore } from "./persistence/agent-session-store.js";
 export type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";

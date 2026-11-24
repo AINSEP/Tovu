@@ -4,19 +4,13 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
-import {
-  GUEST_CHAT_TTL_MS,
-  chatExpiryFor,
-  createTenantScopedChatStore,
-  hashSessionKey,
-  type AdminChatPrincipal,
-  type GuestChatPrincipal,
-} from "../tenant-scope.js";
+import { hashSessionKey, type AdminChatPrincipal, type GuestChatPrincipal } from "@jini-ai/chat/store/runtime";
+import { createTenantScopedChatStore } from "../tenant-scope.js";
 
 /**
  * @file `tenant-scope.ts` is the one place a request handler may obtain chat history — these tests
- * cover its three functions directly, none of which had any test anywhere in the repo before this
- * file (confirmed via `grep -rl` across all of `src`, not just this scoped test run).
+ * cover its store binding directly. `hashSessionKey`/`chatExpiryFor` moved to
+ * `@jini-ai/chat/store/runtime` with their unit tests (`chat-principal.test.ts` there).
  */
 
 function freshChatDb(): Database.Database {
@@ -25,21 +19,6 @@ function freshChatDb(): Database.Database {
   db.exec(CHAT_HISTORY_DDL);
   return db;
 }
-
-describe("hashSessionKey", () => {
-  it("returns the sha256 hex digest of the raw session key", () => {
-    const key = "raw-cookie-value";
-    assert.equal(hashSessionKey({ sessionKey: key }), "9d566b131ff2087e4202a460d96b2db8686f941fdbae1aea6cba83c1f030dc5b");
-  });
-
-  it("is deterministic for the same input", () => {
-    assert.equal(hashSessionKey({ sessionKey: "same-key" }), hashSessionKey({ sessionKey: "same-key" }));
-  });
-
-  it("produces different digests for different inputs", () => {
-    assert.notEqual(hashSessionKey({ sessionKey: "key-a" }), hashSessionKey({ sessionKey: "key-b" }));
-  });
-});
 
 describe("createTenantScopedChatStore", () => {
   it("scopes an admin principal's rows by workspaceId, owner_kind='user', and the raw userId", async () => {
@@ -87,27 +66,5 @@ describe("createTenantScopedChatStore", () => {
 
     assert.deepEqual(bobList, [], "bob's scoped store must not see alice's conversation");
     db.close();
-  });
-});
-
-describe("chatExpiryFor", () => {
-  it("returns undefined for an admin principal — retained indefinitely", () => {
-    const principal: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "u1" };
-    assert.equal(chatExpiryFor({ principal: principal }, { now: 1_000 }), undefined);
-  });
-
-  it("retains guest chats for exactly two days", () => {
-    const principal: GuestChatPrincipal = { kind: "guest", workspaceId: "ws-1", sessionKey: "k" };
-    assert.equal(chatExpiryFor({ principal: principal }, { now: 1_000 }), 172_801_000);
-  });
-
-  it("defaults `now` to Date.now() when omitted", () => {
-    const principal: GuestChatPrincipal = { kind: "guest", workspaceId: "ws-1", sessionKey: "k" };
-    const before = Date.now();
-    const result = chatExpiryFor({ principal: principal });
-    const after = Date.now();
-    assert.ok(result !== undefined);
-    assert.ok(result >= before + GUEST_CHAT_TTL_MS, "expiry must be computed from a `now` no earlier than the call");
-    assert.ok(result <= after + GUEST_CHAT_TTL_MS, "expiry must be computed from a `now` no later than the call");
   });
 });

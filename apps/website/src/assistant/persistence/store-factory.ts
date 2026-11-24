@@ -2,7 +2,8 @@ import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
-import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope.js";
+import type { ChatStoreFactory } from "@jini-ai/chat/store/runtime";
+import { createTenantScopedChatStore } from "./tenant-scope.js";
 
 /**
  * @file The two ways a composition root supplies chat history, kept together so the difference

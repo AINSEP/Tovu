@@ -2,7 +2,7 @@
 import type { Principal, ToolRegistration } from '@jini-ai/core';
 import type { CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
-import type { ChatStoreFactory } from './persistence/tenant-scope.js';
+import type { ChatStoreFactory } from '@jini-ai/chat/store/runtime';
 
 export type { ProviderConfigSource } from '@jini-ai/plugins/host';
 

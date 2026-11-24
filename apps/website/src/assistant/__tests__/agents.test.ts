@@ -7,7 +7,8 @@ import { delimiter, join } from "node:path";
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration } from "@jini-ai/agent-runtime";
 
 import { assistantAgentDiscoveryPending, listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
-import { createLiveModelDiscovery } from "../live-model-cache.js";
+import { createLiveModelDiscovery } from "@jini-ai/agent-runtime/model-catalog/live-discovery";
+import { resolveExecutionCredential } from "../execution-credential-store.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
@@ -302,6 +303,8 @@ function liveDiscoveryFixture() {
   return {
     repo,
     sealer,
+    resolveCredential: (input: { workspaceId: string; principalId: string }) => resolveExecutionCredential({ deps: { repo, sealer }, input }),
+    defaultBaseUrl: "https://default-provider.example",
     async save({ workspaceId = "workspace", principalId = "principal", apiKey = "key-a", protocol = "anthropic", baseUrl = "https://provider.example" } = {}) {
       await repo.upsert({
         workspaceId, principalId, protocol, baseUrl, providerId: "provider", model: null, maxTokens: null,

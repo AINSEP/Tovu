@@ -8,7 +8,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { ASK_CHOICE_TOOL_ID, askChoiceAgentToolCatalog, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
-import { CUSTOM_ANSWER_PARAM, CUSTOM_CHOICE_VALUE } from "../ask-choice-custom-answer.js";
+import { CUSTOM_ANSWER_PARAM, CUSTOM_CHOICE_VALUE } from "@jini-ai/mcp/tools/ask-choice";
 
 /**
  * @file The "Something else" choice on `assistant_ask_choice`'s card: an extra option plus a text
