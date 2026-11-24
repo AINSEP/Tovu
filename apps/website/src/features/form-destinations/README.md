@@ -79,3 +79,8 @@ over about a day). To stop those too, delete or revoke the binding's saved crede
   `additionalHosts`, exact origins), and never cache or persist what it returns. The site binds the
   plugin OAuth port (`features/api-connections/form-delivery-connection.ts`) ahead of the
   custom-credential port in `server/runtime/composition/form-delivery-deliverer.ts`.
+
+## Wiring
+
+- `assertSubmitUrl` / `rewriteFormActions` live in `@jini-ai/cms/forms/destinations/rewrite-actions`; `port.ts` and `deployments/static-publish/adapter.ts` import them directly (the static adapter passes its `DeployFile[]`, which satisfies Jini's structural `FormActionFile`).
+- `connection-port.ts` and `key-store.ts` bind Tovu's `custom-credentials` feature; `registry.ts` binds Tovu's `agent-plugins/lifecycle` loader to Jini's form-destination registry builders.

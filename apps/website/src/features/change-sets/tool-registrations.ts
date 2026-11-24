@@ -19,7 +19,7 @@ import {
   RevertNotPossibleError,
   revertChangeSet,
   type RevertRegistry,
-} from "#src/contracts/core/commands/index";
+} from "@jini-ai/cms/core/commands";
 
 import {
   CHANGE_SET_READ_PERMISSION,
