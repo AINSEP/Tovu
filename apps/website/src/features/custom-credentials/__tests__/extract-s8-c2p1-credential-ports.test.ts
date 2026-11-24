@@ -8,8 +8,6 @@ import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialValidationError, type CustomCredentialWriteDeps } from "../store.js";
 import {
-  CredentialedRequestTransportError,
-  CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
   probeCredentialConnection,
@@ -17,6 +15,7 @@ import {
   verifyCustomCredential,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
+import { CredentialedRequestTransportError, CredentialedRequestValidationError } from "@jini-ai/integrations/credentialed-http";
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 

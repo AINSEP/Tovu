@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import * as files from "../fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 
 /** t06: real filesystem boundary tests; only stream creation is tapped to control a growth race. */
 function fixture(t: test.TestContext) {
@@ -20,7 +21,7 @@ function read(input: { rootPath: string; relativePath: string; maxBytes: number 
 }
 function refused(message: string) {
   return (error: unknown) => {
-    assert.ok(error instanceof files.FsFilePathError, `expected FsFilePathError, received ${error instanceof Error ? error.name : typeof error}`);
+    assert.ok(error instanceof FsFilePathError, `expected FsFilePathError, received ${error instanceof Error ? error.name : typeof error}`);
     assert.equal(error.message, message);
     return true;
   };

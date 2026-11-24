@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { FsFilePathError } from "../../fs-files/fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { ThemePathError } from "../theme-files.js";
 import { importThemeFileFromLocalFile, importThemeFileFromUrl, sniffThemeImportType, THEME_IMPORT_MAX_BYTES } from "../theme-file-import.js";
 

@@ -41,7 +41,8 @@ import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
-import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
+import { buildMigrateForwardHooks } from "./gated-hooks.js";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
 import { executeMigrateForward } from "@jini-ai/db/recovery/migrate-forward-execute";

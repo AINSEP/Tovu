@@ -15,7 +15,8 @@ import { THEME_IMPORT_MAX_BYTES, THEME_IMPORT_POLICY, THEME_IMPORT_ACCEPT } from
 import { ASSET_SOURCE_SCHEMA, readAssetSource, readLocalFile, resolveAssetSource } from "./asset-sources.js";
 import { prepareAssetWrites, requireAssetDestination, writeAssetFiles, type AssetFile, type AssetToolDeps, type OverwritePolicy, type PreparedAssets } from "./asset-destinations.js";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
-import { FsFilePathError, listFsFiles } from "../fs-files/fs-files.js";
+import { listFsFiles } from "../fs-files/fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";

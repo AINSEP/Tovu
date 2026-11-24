@@ -116,7 +116,7 @@ import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRev
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
 import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {

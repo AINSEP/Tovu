@@ -32,3 +32,6 @@ Tovu's binding of the custom credential store, cards and credentialed requests t
   `buildCustomCredentialsAgentToolCatalog`; `agent-tools.ts` passes Tovu's tool `ids` (incl.
   `WRITE_FILES_TOOL_ID`), `permissions`, every description sentence (`copy`) and `WRITE_FILES_LIMITS`
   (`write-files-validation.ts`), so the catalog stays byte-identical.
+- Self-describing token scheme rules (`loadAuthSchemes`) come from `@jini-ai/agent-plugins/site/auth-schemes`; tests and
+  `__tests__/fixture-auth-schemes.fixture.ts` inject `parseCredentialSchemesFile` plus the lifecycle's contribution
+  loader (see `features/agent-plugins/README.md` `## Wiring`).

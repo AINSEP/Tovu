@@ -602,20 +602,6 @@ import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
 
-export {
-  CredentialedRequestValidationError,
-  CredentialedRequestTransportError,
-} from "@jini-ai/integrations/credentialed-http";
-export type {
-  AuthFailureDiagnostic,
-  CredentialedRequestAuditEntry,
-  CredentialedRequestDeclinedResult,
-  CredentialedRequestExecutedResult,
-  CredentialedRequestOutcome,
-  CustomCredentialCheckStatus,
-  CustomCredentialVerificationResult,
-} from "@jini-ai/integrations/credentialed-http";
-
 /** Existing host audit port; entries contain metadata and safe refusal diagnostics only. */
 export interface CredentialedRequestAuditPort {
   record(entry: CredentialedRequestAuditEntry): void;

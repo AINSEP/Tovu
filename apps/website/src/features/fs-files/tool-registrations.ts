@@ -19,7 +19,8 @@ import {
   getFsFilesAgentToolCatalog,
 } from "./agent-tools.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
-import { FsFilePathError, listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
+import { listFsFiles, readFsFile, resolveFsFilePath } from "./fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
 import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
 import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "@jini-ai/cms/fs-files/write-files";

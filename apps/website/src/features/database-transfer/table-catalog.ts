@@ -18,7 +18,6 @@ import { quoteIdent, type SourceColumn, type SourceTableLayout, type TransferSou
 
 // Transfer types and affinity/exclusion rationale now live in @jini-ai/db/transfer.
 // DDL and constraint rationale live there too; identifier quoting uses the shared owner directly.
-export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, TransferTable, SnapshotTablePlan } from "@jini-ai/db/transfer";
 import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
 
@@ -145,7 +144,6 @@ function coreTableNames(schema: CoreTableCatalogPorts["schema"]): Set<string> {
   return names;
 }
 
-export { LEFT_OUT_REASON } from "@jini-ai/db/transfer";
 /** Migration ledgers stay behind: the target's runner owns its applied history. */
 const MIGRATION_LEDGERS = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);
 /** The conversation tables chat.db owns ({@link planChatSnapshotTables} copies them, in this order). */

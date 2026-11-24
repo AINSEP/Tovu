@@ -37,7 +37,6 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhoo
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
-  CredentialedRequestValidationError,
   makeCredentialedRequest,
   probeCredentialConnection,
   resolveRequestTarget,
@@ -45,6 +44,7 @@ import {
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeps,
 } from "./credentialed-request.js";
+import { CredentialedRequestValidationError } from "@jini-ai/integrations/credentialed-http";
 
 import { bindCredentialedRequestPort } from "@jini-ai/integrations/custom-credentials/credential-ports";
 import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";

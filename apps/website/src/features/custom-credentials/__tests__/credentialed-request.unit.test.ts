@@ -10,14 +10,13 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { CustomCredentialNotFoundError } from "../store.js";
 import {
   ConsoleCredentialedRequestAuditLog,
-  CredentialedRequestTransportError,
-  CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
   resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
+import { CredentialedRequestTransportError, CredentialedRequestValidationError } from "@jini-ai/integrations/credentialed-http";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 

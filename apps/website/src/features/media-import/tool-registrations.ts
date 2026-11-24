@@ -25,7 +25,8 @@ import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media"
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
-import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
+import { openFsFileForRead } from "../fs-files/fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import type { FsRootId } from "../fs-files/layout.js";
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";

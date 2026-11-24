@@ -12,7 +12,6 @@ import {
   type GuardedListingResult,
   type GuardedReaderFilesystem,
 } from "@jini-ai/platform/fs/guarded-reader";
-export { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 
 // The owner widened repo/site/custom roots to default-allow; credential-bearing files are now
 // protected by FS_FILES_DENYLIST rather than a curated location allowlist. New credential shapes

@@ -38,11 +38,8 @@ import {
  * only through `./index.ts`, never by a deep import into this file directly.
  */
 
-/** The deployment descriptor, render options and result, the generator kit and the generator
- *  module port live in `@jini-ai/devops/deploy`; this file keeps the host-specific half. */
-export type {
-  DeploymentSecret, DeploymentDescriptor, RenderDeployConfigOptions, RenderedDeployConfig, DeployConfigKit, DeployConfigGeneratorModule,
-} from "@jini-ai/devops/deploy";
+// The deployment descriptor, render options and result, the generator kit and the generator
+// module port live in `@jini-ai/devops/deploy`; this file keeps the host-specific half.
 
 /**
  * Non-secret runtime values every Tovu deploy config carries. The generators are host-neutral

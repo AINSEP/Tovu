@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { constraintSql, createTableSql, fitIdentifier, indexSql, qualified, quoteIdent, quoteLiteral, reseedIdentitySql } from "@jini-ai/db/transfer";
-import type { TransferTable } from "../table-catalog.js";
+import { constraintSql, createTableSql, fitIdentifier, indexSql, qualified, quoteIdent, quoteLiteral, reseedIdentitySql, type TransferTable } from "@jini-ai/db/transfer";
 
 const table = (overrides: Partial<TransferTable> = {}): TransferTable => ({ name: "items", columns: [{ name: "parent_id", sqlType: "bigint", notNull: false }, { name: "code", sqlType: "text", notNull: false }], primaryKey: [], indexes: [], foreignKeys: [], checks: [], ...overrides });
 const parentColumns = [{ name: "id", sqlType: "bigint", notNull: true }, { name: "code", sqlType: "text", notNull: false }];

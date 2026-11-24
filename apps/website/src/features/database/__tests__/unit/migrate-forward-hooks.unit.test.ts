@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildMigrateForwardHooks, type MigrateForwardDbOpsPort } from "../../gated-hooks.js";
+import { buildMigrateForwardHooks } from "../../gated-hooks.js";
+import type { MigrateForwardDbOpsPort } from "@jini-ai/db/recovery/migrate-forward-hooks";
 
 /**
  * @file fix-plan-web-high-2026-09-24.md row 2: `buildMigrateForwardHooks`'s `executeMutation()`

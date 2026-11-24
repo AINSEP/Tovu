@@ -50,3 +50,12 @@ card identity, product copy and the bindings that hand them to the portable Jini
   Portable names (`buildAgentPluginConnectCardWithPorts`, `AgentPluginConnectCardSpec`,
   `findAgentPluginMcpServerDefaults`, `deriveAgentPluginConnectionId`, `isEmptyJsonList`, ...) are imported
   from `@jini-ai/agent-plugins/connect` directly, never re-exported here.
+- `@jini-ai/agent-plugins/site/bundled-contribution-sources`: `bundled-contribution-sources.ts` binds Tovu's
+  `RETIRED_BUNDLED_AGENT_PLUGINS` (`bundled-catalog.ts`) as `retired` into `listBundledContributionSources`; every
+  bundled reader keeps importing that bound `bundledContributionSources` (or receives it as `sources`).
+- `@jini-ai/agent-plugins/site/auth-schemes`: `server/runtime/composition/site-deps/route-deps-publish-credentials.ts`
+  (and the `__tests__/fixtures/site-layout-context.ts` double) inject the boot lifecycle's `loadPluginContributions` and
+  `@jini-ai/integrations/credentialed-http`'s `parseCredentialSchemesFile` into `loadCredentialSchemeRegistry`;
+  `server/runtime/composition/memory-deps/route-deps/publish-export.ts` injects `bundledContributionSources` as
+  `sources`, `lifecycle.ts`'s `loadPluginContributionsFromSource` as `loadFromSource`, and `parseCredentialSchemesFile`
+  into `loadBundledCredentialSchemeRegistry`.

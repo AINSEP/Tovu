@@ -5,10 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createNodeGuardedReaderFilesystem } from "@jini-ai/platform/fs/guarded-reader";
+import { createNodeGuardedReaderFilesystem, FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 
 import {
-  FsFilePathError,
   isDeniedFsFileName,
   isDeniedFsPathSegment,
   listFsFiles,
