@@ -1,3 +1,4 @@
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
 import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
