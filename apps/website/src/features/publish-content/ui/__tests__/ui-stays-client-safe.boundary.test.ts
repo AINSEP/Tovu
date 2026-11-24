@@ -37,11 +37,11 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
 
-/** The dialog semantics moved to `@jini-ai/cms/publish/content/dialog`; admin and the server tool both
- *  import them from there, so the browser-safety rules below now guard that package's SOURCE folder
- *  (resolved through the package, `dist/publish/content/dialog/index.js` -> `src/publish/content/dialog/`). The
+/** The dialog semantics live in `@jini-ai/cms/publish/content/ui`; admin and the server tool both
+ *  import them from there, so the browser-safety rules below guard that package's SOURCE folder
+ *  (resolved through the package, `dist/publish/content/ui/index.js` -> `src/publish/content/ui/`). The
  *  host-kept section table (`../sections.ts`, admin's `@tovu/publish-content-ui` alias) is checked too. */
-const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/publish/content/dialog"))), "../../../../src/publish/content/dialog");
+const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/publish/content/ui"))), "../../../../src/publish/content/ui");
 const HOST_SECTIONS_FILE = path.resolve(import.meta.dirname, "../sections.ts");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
 const REPORT_CONTRACT_SPECIFIER = "@jini-ai/core/contracts/site/cms-publish-content";
