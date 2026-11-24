@@ -4,11 +4,14 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_PANELS } from "../../../panels";
 import { parseRoute } from "../../../App";
 import { Placeholder } from "../../../components/Placeholder";
+import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 // Load the real lazy route before timing its redirect effects.
 import "../index";
 
 // Both AdminUi and the registry's Suspense fallback read locale without a fetch-query provider here.
 vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en", useWiredAdminLocale: () => "en" }));
+
+const useAdminLocaleHook: UseAdminLocaleHook = () => "en";
 
 const originalUrl = window.location.href;
 afterEach(() => window.history.replaceState(null, "", originalUrl));
@@ -24,7 +27,7 @@ it.each([
   const route = parseRoute({ routePath: `/${path}` });
   expect(route.panelId).toBe(path.split("?")[0]);
   const panel = ADMIN_PANELS.find((candidate) => candidate.id === route.panelId)!;
-  render(<StrictMode>{panel.render({ ...route, Placeholder })}</StrictMode>);
+  render(<StrictMode>{panel.render({ ...route, Placeholder, useAdminLocaleHook })}</StrictMode>);
   await waitFor(() => {
     expect(window.location.pathname).toBe("/admin/admin-ui");
     expect(window.location.search).toBe(`?tab=${tab}`);

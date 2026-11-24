@@ -71,7 +71,7 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
   it("concurrent reads share one request", async () => {
     const fetchMock = stubLocaleFetch(["es"]);
 
-    const reads = Array.from({ length: 100 }, () => defaultAdminLocalePort.loadLanguage());
+    const reads = Array.from({ length: 100 }, () => defaultAdminLocalePort.loadLanguage({}));
 
     await expect(Promise.all(reads)).resolves.toEqual(Array(100).fill("es"));
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -79,18 +79,18 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
 
   it("a read after the shared one settled asks the server again", async () => {
     const fetchMock = stubLocaleFetch(["es", "fr"]);
-    await defaultAdminLocalePort.loadLanguage();
+    await defaultAdminLocalePort.loadLanguage({});
 
-    await expect(defaultAdminLocalePort.loadLanguage()).resolves.toBe("fr");
+    await expect(defaultAdminLocalePort.loadLanguage({})).resolves.toBe("fr");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("a language refresh drops the in-flight read, and its listeners share one new request", async () => {
     const fetchMock = stubLocaleFetch(["en", "fr", "fr", "de"]);
-    const before = defaultAdminLocalePort.loadLanguage();
+    const before = defaultAdminLocalePort.loadLanguage({});
     const reads: Promise<string>[] = [];
     const unsubscribes = [1, 2, 3].map(() =>
-      defaultAdminLocalePort.subscribeToSettingsRefresh({ listener: () => reads.push(defaultAdminLocalePort.loadLanguage()) }),
+      defaultAdminLocalePort.subscribeToSettingsRefresh({ listener: () => reads.push(defaultAdminLocalePort.loadLanguage({})) }),
     );
 
     publishSettingsRefresh(["core.language"]);
@@ -100,7 +100,7 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     // The first dispatch has finished its microtask; a later switch must invalidate anew.
-    const beforeSecondRefresh = defaultAdminLocalePort.loadLanguage();
+    const beforeSecondRefresh = defaultAdminLocalePort.loadLanguage({});
     publishSettingsRefresh(["core.language"]);
     await expect(beforeSecondRefresh).resolves.toBe("fr");
     await expect(Promise.all(reads.slice(3))).resolves.toEqual(["de", "de", "de"]);
@@ -114,8 +114,8 @@ describe("defaultAdminLocalePort.loadLanguage — shared read", () => {
       .mockResolvedValue(new Response(JSON.stringify({ data: [{ key: "locale", value: "de" }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(defaultAdminLocalePort.loadLanguage()).rejects.toThrow("cannot reach the Tovu API — is the server running?");
-    await expect(defaultAdminLocalePort.loadLanguage()).resolves.toBe("de");
+    await expect(defaultAdminLocalePort.loadLanguage({})).rejects.toThrow("cannot reach the Tovu API — is the server running?");
+    await expect(defaultAdminLocalePort.loadLanguage({})).resolves.toBe("de");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file A URL naming an `Object.prototype` member must not be treated as a section.
@@ -79,7 +82,7 @@ describe("a prototype-chain key in the URL is not a section", () => {
 
       // Would throw during render before the fix, so the render call itself is the assertion for
       // the `constructor`/`valueOf`/`__proto__` cases.
-      const { container } = render(<App />);
+      const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
       await screen.findByText(/dashboard/i, {}, { timeout: 3000 });
       expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "dashboard");
 
@@ -94,7 +97,7 @@ describe("a prototype-chain key in the URL is not a section", () => {
     // the parser — has to be the thing doing the own-property check.
     window.history.replaceState(null, "", "/admin/section/constructor");
 
-    render(<App />);
+    render(<App useAdminLocaleHook={useAdminLocaleHook} />);
     await screen.findByText(/unknown section/i, {}, { timeout: 3000 });
     expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
   });

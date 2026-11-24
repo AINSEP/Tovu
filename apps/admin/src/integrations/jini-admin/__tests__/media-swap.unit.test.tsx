@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from "@/__tests__/fetch-query-render";
 import { useState } from 'react';
 import { KitProvider } from '@jini-ai/ui-kit/react';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { AdminModulesProvider } from '../AdminModulesProvider';
 import { ModulePanel } from '../ModulePanel';
 import { tovuKit } from '../kit';
@@ -10,8 +11,9 @@ import type { AdminMedia } from '../../../features/media/api/media-api.types';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 const item = { id: 'm1', slug: 'my-photo', workspaceId: 'workspace-local', title: 'Photo', alt: 'Original alt', caption: '', credit: '', sha256: 'hash', status: 'active', createdAt: '2026-10-03', updatedAt: '2026-10-03', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null, contentType: 'image/png', publicUrl: '/m/my-photo/public' } satisfies AdminMedia;
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
 function Fixture({ permissions = ['*'], children }: { permissions?: string[]; children?: React.ReactNode }) {
-  return <KitProvider kit={tovuKit}><AdminModulesProvider permissions={permissions}>{children ?? <ModulePanel moduleId="media" pageId="library" route={{ view: null, params: {}, query: new URLSearchParams() }} />}</AdminModulesProvider></KitProvider>;
+  return <KitProvider kit={tovuKit}><AdminModulesProvider permissions={permissions} useAdminLocaleHook={useAdminLocaleHook}>{children ?? <ModulePanel moduleId="media" pageId="library" route={{ view: null, params: {}, query: new URLSearchParams() }} />}</AdminModulesProvider></KitProvider>;
 }
 describe('Jini media host integration', () => {
   it('honors a direct tab link and keeps tab changes on /media/new with the other query values', async () => {

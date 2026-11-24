@@ -12,6 +12,9 @@ import { appShellApiBody } from "../app-shell-api.fixture";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 // Load the real lazy route before timing the preview-containment interaction.
 import "../../features/posts";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file `TOVU_ADMIN_ASSISTANT=off` is a real server-side disable (`admin-assistant-enabled.ts`) —
@@ -80,7 +83,7 @@ it.each([
 ])("mounts the assistant dock and chat FAB by default (%s)", async (_label, settingsBody) => {
   vi.stubGlobal("fetch", stubFetch(settingsBody));
   const settingsRead = vi.spyOn(aiAssistantApi, "getAssistantSettings");
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
   await waitFor(() => expect(settingsRead).toHaveBeenCalled());
@@ -157,7 +160,7 @@ function stubFetchWithPost(assistantSettingsBody: Record<string, unknown>): Retu
 it("keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded", async () => {
   vi.stubGlobal("fetch", stubFetchWithPost({ data: { publicEnabled: false }, adminAssistantEnabled: true }));
   window.history.replaceState(null, "", "/admin/posts/p1");
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
   await waitFor(() => expect(screen.getByRole("tab", { name: "Preview" })).toBeInTheDocument());
 
@@ -194,7 +197,7 @@ it("keeps the assistant dock mounted, outside the expanded post-preview's contai
 
 it("hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASSISTANT=off", async () => {
   vi.stubGlobal("fetch", stubFetch({ data: { publicEnabled: false }, adminAssistantEnabled: false }));
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
   await waitFor(() => expect(container.querySelector(".chat-fab")).toBeNull());

@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file The sidebar hides a section the signed-in operator cannot use, and a direct URL to one
@@ -52,7 +55,7 @@ afterEach(() => {
 
 function renderAt(path: string, effectivePermissions: readonly string[] | undefined) {
   window.history.replaceState(null, "", path);
-  return render(<App useSession={session(effectivePermissions)} />, { wrapper: FetchQueryProvider }).container;
+  return render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={session(effectivePermissions)} />, { wrapper: FetchQueryProvider }).container;
 }
 
 describe("the sidebar follows the operator's permissions", () => {
