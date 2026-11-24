@@ -9,10 +9,13 @@ import { ApiError, API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE 
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 
-import { admissionRestartHelps, describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
+import { admissionRestartHelps } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { describeAdmissionDrift } from "@jini-ai/admin/screens/settings/external-mcp-connection-drift";
+import { type AdmissionDriftConnection, type SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import { EXTERNAL_MCP_DRIFT_COPY } from "../external-mcp-drift-copy";
 /**
  * @file The transport behind Settings → External MCP's "what is the assistant actually running"
  * banner: three reads the app already had clients for, and never called together.
@@ -292,7 +295,7 @@ export function useExternalMcpAdmissions(deps: {
   const [outcome, setOutcome] = useState<RestartOutcome | null>(null);
 
   const connections = useMemo(
-    () => describeAdmissionDrift({ snapshot: admissions.data, savedById: savedAllowedToolNamesById }),
+    () => describeAdmissionDrift({ snapshot: admissions.data, savedById: savedAllowedToolNamesById, copy: EXTERNAL_MCP_DRIFT_COPY }),
     [admissions.data, savedAllowedToolNamesById],
   );
 

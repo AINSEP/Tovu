@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
-import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
+import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
 /**

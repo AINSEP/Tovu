@@ -3,7 +3,8 @@ import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type Source
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
+import { grantWriteFieldValue } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { type SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { t as tExternalMcp } from "./external-mcp-i18n";
 import {
   buildExternalMcpCardHandles,

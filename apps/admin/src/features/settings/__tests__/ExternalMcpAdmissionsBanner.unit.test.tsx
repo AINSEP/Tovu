@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ExternalMcpAdmissionsBanner } from "../ExternalMcpAdmissionsBanner";
-import { admissionRestartHelps, type AdmissionDriftConnection } from "../external-mcp-admissions-rules";
+import { admissionRestartHelps } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { type AdmissionDriftConnection } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import type { ExternalMcpAdmissionsController } from "../hooks/use-external-mcp-admissions.hooks";
 
 /**

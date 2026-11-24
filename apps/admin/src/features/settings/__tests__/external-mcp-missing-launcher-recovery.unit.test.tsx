@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
-import type { SavedConnectionIntent } from "../external-mcp-admissions-rules";
+import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import { useExternalMcpAdmissions, type ExternalMcpAdmissionsPort } from "../hooks/use-external-mcp-admissions.hooks";
 import { t } from "../external-mcp-i18n";
 

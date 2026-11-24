@@ -2,15 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { AdminFederatedAdmissionEntry } from "@jini-ai/core/contracts/site/cms-external-mcp";
 
-import {
-  admissionRestartHelps,
-  describeAdmissionDrift,
-  describeConnectionDrift,
-  describeDriftHeadline,
-  grantWriteFieldValue,
-  parseSavedToolNames,
-} from "../external-mcp-admissions-rules";
-import type { AdmissionDriftKind, SavedConnectionIntent } from "../external-mcp-admissions-rules";
+import { admissionRestartHelps, describeConnectionDrift, describeDriftHeadline, grantWriteFieldValue, parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { describeAdmissionDrift } from "@jini-ai/admin/screens/settings/external-mcp-connection-drift";
+import type { AdmissionDriftKind, SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
+import { EXTERNAL_MCP_DRIFT_COPY } from "../external-mcp-drift-copy";
 
 /**
  * @file The operator half of the refusal channel, as pure decisions.
@@ -35,7 +30,7 @@ function entry(overrides: Partial<AdminFederatedAdmissionEntry> = {}): AdminFede
 describe("describeConnectionDrift", () => {
   it("names the refused write tool AND the field that fixes it", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({
         admitted: [{ remoteName: "list_styles", writeAuthorized: false }],
         refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }],
       }),
@@ -53,7 +48,7 @@ describe("describeConnectionDrift", () => {
 
   it("states saved-vs-live, so 'I ticked it and nothing happened' has a visible answer", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
       savedAllowedToolNames: "list_styles, generate_image, edit_image" },
     );
 
@@ -64,7 +59,7 @@ describe("describeConnectionDrift", () => {
 
   it("returns null when the running assistant and the saved roster agree — the banner must not exist in the normal case", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
       savedAllowedToolNames: "list_styles" },
     );
 
@@ -73,7 +68,7 @@ describe("describeConnectionDrift", () => {
 
   it("never reports not-in-operator-allowlist — the routine default-deny that would bury everything else", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({
         admitted: [{ remoteName: "list_styles", writeAuthorized: false }],
         refused: [
           { remoteName: "execute_sql", reason: "not-in-operator-allowlist" },
@@ -89,7 +84,7 @@ describe("describeConnectionDrift", () => {
 
   it("reports a destructive refusal as having no fix rather than offering a tick that would do nothing", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({ refused: [{ remoteName: "wipe_account", reason: "remote-declares-destructive" }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ refused: [{ remoteName: "wipe_account", reason: "remote-declares-destructive" }] }),
       savedAllowedToolNames: "wipe_account" },
     );
 
@@ -99,7 +94,7 @@ describe("describeConnectionDrift", () => {
 
   it("reports an allowlisted name the server never advertised, and an inert write grant, as distinct rows", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({ allowlistedButAbsent: ["generate_vidoe"], writeAllowedButNotAllowlisted: ["edit_image"] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ allowlistedButAbsent: ["generate_vidoe"], writeAllowedButNotAllowlisted: ["edit_image"] }),
       savedAllowedToolNames: "generate_vidoe" },
     );
 
@@ -116,7 +111,7 @@ describe("describeConnectionDrift", () => {
       // Deliberately outside the union: a daemon one version ahead can send a reason this admin
       // build has no copy for, and silently dropping it is the exact defect this module closes.
       { entry: entry({ refused: [{ remoteName: "surprise", reason: "some-future-reason" as never }] }),
-      savedAllowedToolNames: "surprise" },
+      savedAllowedToolNames: "surprise", copy: EXTERNAL_MCP_DRIFT_COPY },
     );
 
     expect(drift?.entries).toHaveLength(1);
@@ -128,12 +123,12 @@ describe("describeConnectionDrift", () => {
 
 describe("describeAdmissionDrift", () => {
   it("returns nothing at all when the daemon could not be asked (undefined snapshot)", () => {
-    expect(describeAdmissionDrift({ snapshot: undefined, savedById: {} })).toEqual([]);
+    expect(describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: undefined, savedById: {} })).toEqual([]);
   });
 
   it("keeps only the connections with something to say", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         connections: [
           entry({ connectionId: "clean", admitted: [{ remoteName: "a", writeAuthorized: false }] }),
           entry({ connectionId: "higgsfield", refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] }),
@@ -147,7 +142,7 @@ describe("describeAdmissionDrift", () => {
 
   it("treats a connection with no matching roster card as having saved nothing rather than throwing", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         // `isPreset: true` — a genuine env preset, not the "operator deleted the card" case the
         // block below this `describe` exercises. Without it this fixture would now (correctly,
         // 2026-09-07) resolve as `removed-but-still-running` instead, which is a different property
@@ -203,7 +198,7 @@ describe("parseSavedToolNames", () => {
 describe("ADM-001 — the reverse direction", () => {
   it("reports a tool the daemon is still serving after the operator removed it from the allowlist", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({
         admitted: [
           { remoteName: "list_styles", writeAuthorized: false },
           { remoteName: "generate_image", writeAuthorized: true },
@@ -219,7 +214,7 @@ describe("ADM-001 — the reverse direction", () => {
 
   it("says nothing about a connection with no roster card — an env preset is not an empty allowlist", () => {
     const drift = describeConnectionDrift(
-      { entry: entry({ connectionId: "supabase-preset", admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ connectionId: "supabase-preset", admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
       savedAllowedToolNames: undefined },
     );
 
@@ -230,7 +225,7 @@ describe("ADM-001 — the reverse direction", () => {
     // The distinction the case above rests on: `undefined` is "no operator intent recorded here",
     // `""` is "the operator recorded an intent, and it was none".
     const drift = describeConnectionDrift(
-      { entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
       savedAllowedToolNames: "" },
     );
 
@@ -241,7 +236,7 @@ describe("ADM-001 — the reverse direction", () => {
 
   it("reports a saved, enabled connection the running daemon has never heard of", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [] },
       savedById: { higgsfield: { allowedToolNames: "generate_image, list_styles", enabled: true } } },
     );
 
@@ -256,14 +251,14 @@ describe("ADM-001 — the reverse direction", () => {
   it("says nothing about a saved connection the operator switched OFF and the daemon is not running", () => {
     // Intent and reality agree. A row here would be the banner crying wolf about the one thing the
     // operator most deliberately did.
-    const drifted = describeAdmissionDrift({ snapshot: { connections: [] }, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: false } } });
+    const drifted = describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [] }, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: false } } });
 
     expect(drifted).toEqual([]);
   });
 
   it("reports a connection the operator switched OFF that the daemon is STILL running", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: false } } },
     );
 
@@ -274,12 +269,12 @@ describe("ADM-001 — the reverse direction", () => {
   it("still returns nothing at all when the daemon could not be asked, however much is saved", () => {
     // `undefined` means "the daemon did not answer", which the hook renders as its own sentence.
     // Inventing "not running" rows from a failed read would put a wrong diagnosis under a right one.
-    expect(describeAdmissionDrift({ snapshot: undefined, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } })).toEqual([]);
+    expect(describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: undefined, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } })).toEqual([]);
   });
 
   it("does not report a live, agreeing connection twice — the two passes must not both claim it", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } },
     );
 
@@ -315,7 +310,7 @@ describe("ADM-001 — the reverse direction", () => {
 describe("decrypt-failed — a saved connection that never reached admission", () => {
   it("reports the site-key message, not the generic 'not running' guess, when the boot-time failure names a decrypt problem", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: Unsupported state or unable to authenticate data" }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: Unsupported state or unable to authenticate data" }] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } },
     );
 
@@ -332,7 +327,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
   it("never lets the raw error text — the part that could theoretically vary — reach the rendered message", () => {
     const rawReason = "stored credentials could not be decrypted: bad auth tag for key v3-9f8e7d6c5b4a";
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: rawReason }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: rawReason }] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } },
     );
 
@@ -349,7 +344,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
     const reason =
       "mcp-federation: session closed before the request completed (child process exited (code=1, signal=null): npm error code EUNSUPPORTEDPROTOCOL)";
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "namecom", reason }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "namecom", reason }] },
       savedById: { namecom: { allowedToolNames: "Hello, TldPriceList", enabled: true } } },
     );
 
@@ -363,18 +358,18 @@ describe("decrypt-failed — a saved connection that never reached admission", (
   // echoing the daemon's reason, which only ever said the same thing less usefully.
   it("points a not-signed-in OAuth connection at Connect, whatever the daemon reported", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "401 unauthorized" }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "401 unauthorized" }] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true, needsSignIn: true } } },
     );
 
     expect(drifted[0]?.entries[0]?.kind).toBe("needs-sign-in");
     expect(drifted[0]?.entries[0]?.messageKey).toBe("Not signed in. Use Connect on this server below.");
-    expect(describeDriftHeadline({ connections: drifted })).toBe("Some saved tools aren't loaded. The reasons are below.");
+    expect(describeDriftHeadline({ copy: EXTERNAL_MCP_DRIFT_COPY, connections: drifted })).toBe("Some saved tools aren't loaded. The reasons are below.");
   });
 
   it("ignores a config failure for a DIFFERENT connection id", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "some-other-server", reason: "stored credentials could not be decrypted: x" }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "some-other-server", reason: "stored credentials could not be decrypted: x" }] },
       savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } },
     );
 
@@ -382,7 +377,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
   });
 
   it("behaves exactly as before when configFailures is absent — an older daemon build, or nothing failed to resolve", () => {
-    const drifted = describeAdmissionDrift({ snapshot: { connections: [] }, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } });
+    const drifted = describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [] }, savedById: { higgsfield: { allowedToolNames: "generate_image", enabled: true } } });
 
     expect(drifted[0]?.entries[0]?.kind).toBe("not-running");
   });
@@ -391,7 +386,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
 describe("a deleted roster connection is not a preset", () => {
   it("reports a live connection with no roster card AND isPreset:false as removed-but-still-running", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         connections: [
           entry({ connectionId: "old-server", isPreset: false, admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
         ],
@@ -409,7 +404,7 @@ describe("a deleted roster connection is not a preset", () => {
 
   it("still says nothing for a REAL preset with no roster card and isPreset:true — ADM-001 must not regress", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         connections: [
           entry({ connectionId: "supabase-preset", isPreset: true, admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
         ],
@@ -425,7 +420,7 @@ describe("a deleted roster connection is not a preset", () => {
     // connection-level row once the whole card is gone, matching `describeLiveConnection`'s own
     // "a whole-connection disagreement supersedes the per-tool rows" rule for its other two kinds.
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         connections: [
           entry({
             connectionId: "old-server",
@@ -453,7 +448,7 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
 
   it("does not promise a restart fix when every row is something the server itself decides (the owner's 2026-09-29 screen)", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: {
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: {
         connections: [entry({ connectionId: "supabase", admitted: [{ remoteName: "list_projects", writeAuthorized: false }], allowlistedButAbsent: ["get_logs"] })],
         configFailures: [{ connectionId: "namecom", reason: "child process exited (code=1, signal=null)" }],
       },
@@ -464,29 +459,29 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
     );
 
     expect(drifted).toHaveLength(2);
-    expect(describeDriftHeadline({ connections: drifted })).toBe(NO_RESTART);
+    expect(describeDriftHeadline({ copy: EXTERNAL_MCP_DRIFT_COPY, connections: drifted })).toBe(NO_RESTART);
   });
 
   it("keeps the restart headline when at least one row is waiting on a restart", () => {
     const drifted = describeAdmissionDrift(
-      { snapshot: { connections: [entry({ connectionId: "supabase", allowlistedButAbsent: ["get_logs"] })] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [entry({ connectionId: "supabase", allowlistedButAbsent: ["get_logs"] })] },
       savedById: {
         supabase: { allowedToolNames: "get_logs", enabled: true },
         added_since_boot: { allowedToolNames: "a", enabled: true },
       } },
     );
 
-    expect(describeDriftHeadline({ connections: drifted })).toBe(RESTART);
+    expect(describeDriftHeadline({ copy: EXTERNAL_MCP_DRIFT_COPY, connections: drifted })).toBe(RESTART);
   });
 
   it("keeps the restart headline for a write-grant row, which takes effect at the next restart", () => {
     const drifted = describeConnectionDrift(
-      { entry: entry({ refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] }),
+      { copy: EXTERNAL_MCP_DRIFT_COPY, entry: entry({ refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] }),
       savedAllowedToolNames: "generate_image" },
     );
 
     expect(drifted).not.toBeNull();
-    expect(describeDriftHeadline({ connections: drifted ? [drifted] : [] })).toBe(RESTART);
+    expect(describeDriftHeadline({ copy: EXTERNAL_MCP_DRIFT_COPY, connections: drifted ? [drifted] : [] })).toBe(RESTART);
   });
 });
 
@@ -505,7 +500,7 @@ describe("admissionRestartHelps", () => {
   it("returns false for no rows and true for one fixable row among failures, regardless of order", () => {
     expect(admissionRestartHelps({ connections: [] })).toBe(false);
     const connections = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "broken", reason: "spawn /tmp/launcher ENOENT" }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "broken", reason: "spawn /tmp/launcher ENOENT" }] },
       savedById: {
         broken: { allowedToolNames: "a", enabled: true, transport: "stdio", command: "/tmp/launcher" },
         fresh: { allowedToolNames: "b", enabled: true },
@@ -521,7 +516,7 @@ describe("missing stdio launcher", () => {
 
   it.each(["/tmp/qa profile/launcher.sh", "C:\\QA profile\\launcher.exe", "\\\\host\\share\\launcher.exe"])("reports only 'Launcher missing' for %s", (command) => {
     const connections = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "desktop", reason: `child process error: spawn ${command} ENOENT` }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "desktop", reason: `child process error: spawn ${command} ENOENT` }] },
       savedById: { desktop: { ...saved, command } } },
     );
     expect(connections[0]?.entries).toEqual([{ connectionId: "desktop", remoteName: null, kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} }]);
@@ -539,7 +534,7 @@ describe("missing stdio launcher", () => {
     { transport: "stdio", command: "/tmp/launcher", reason: "ENOENT: no such file, open /tmp/config" },
   ])("does not offer launcher removal for $command / $reason", ({ reason, ...launch }) => {
     const connections = describeAdmissionDrift(
-      { snapshot: { connections: [], configFailures: [{ connectionId: "desktop", reason }] },
+      { copy: EXTERNAL_MCP_DRIFT_COPY, snapshot: { connections: [], configFailures: [{ connectionId: "desktop", reason }] },
       savedById: { desktop: { ...saved, ...launch } } },
     );
     expect(connections[0]?.entries[0]?.kind).toBe("failed-to-start");
@@ -548,7 +543,7 @@ describe("missing stdio launcher", () => {
 
   it("does not misattribute another server's failure, or report an intentionally disabled server", () => {
     const snapshot = { connections: [], configFailures: [{ connectionId: "other", reason: `spawn ${saved.command} ENOENT` }] };
-    expect(describeAdmissionDrift({ snapshot, savedById: { desktop: saved } })[0]?.entries[0]?.kind).toBe("not-running");
-    expect(describeAdmissionDrift({ snapshot, savedById: { other: { ...saved, enabled: false } } })).toEqual([]);
+    expect(describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot, savedById: { desktop: saved } })[0]?.entries[0]?.kind).toBe("not-running");
+    expect(describeAdmissionDrift({ copy: EXTERNAL_MCP_DRIFT_COPY, snapshot, savedById: { other: { ...saved, enabled: false } } })).toEqual([]);
   });
 });

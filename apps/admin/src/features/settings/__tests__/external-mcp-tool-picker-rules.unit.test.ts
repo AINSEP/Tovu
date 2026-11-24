@@ -4,23 +4,12 @@ import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/site/c
 import { ApiError } from "@/lib/admin-http/request";
 
 import { t as tExternalMcp } from "../external-mcp-i18n";
-import {
-  countEnabledToolRows,
-  describeProbeUnreachable,
-  displayToolDescription,
-  isRecommendedByDefault,
-  isToolPickerDirty,
-  isToolRowLocked,
-  refreshToolRowDeclarations,
-  seedToolPickerRows,
-  setToolRowEnabled,
-  setToolRowMayWrite,
-  toolPickerFieldValues,
-  toolPickerFooterLocks,
-  type ToolPickerRow,
-} from "../external-mcp-tool-picker-rules";
+import { countEnabledToolRows, describeProbeUnreachable, displayToolDescription, isRecommendedByDefault, isToolPickerDirty, isToolRowLocked, refreshToolRowDeclarations, seedToolPickerRows, setToolRowEnabled, setToolRowMayWrite, toolPickerFieldValues, toolPickerFooterLocks, type ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 
 import { type Translate } from '@jini-ai/core/text';
+import { describeApiError } from "@/lib/admin-http/request";
+
+const PROBE_ERRORS = { isApiError: (error: unknown): error is ApiError => error instanceof ApiError, describeApiError };
 /** Binds `external-mcp-i18n.ts`'s real dictionary to one locale, the same shape
  *  `useExternalMcpDriftCopy` hands the component at runtime — used below so the translation
  *  assertions exercise the actual shipped dictionary rather than a stand-in fake. */
@@ -372,18 +361,18 @@ describe("displayToolDescription — DISPLAY ONLY stripping of trust.ts's model-
 describe("describeProbeUnreachable — the local-command refusal points at where the fields actually are", () => {
   it("rewrites PROBE_UNSUPPORTED_TRANSPORT to name the Allowed tools field instead of 'directly'", () => {
     const error = new ApiError({ message: "probe is not available for local-command servers yet — type tool names directly instead", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" });
-    const message = describeProbeUnreachable({ error, t: driftCopyFor("en") });
+    const message = describeProbeUnreachable({ errors: PROBE_ERRORS, error, t: driftCopyFor("en") });
     expect(message).toContain("Allowed tools");
     expect(message).not.toContain("directly instead");
   });
 
   it("leaves every OTHER probe failure exactly as describeApiError already renders it", () => {
     const error = new ApiError({ message: "this server is disabled — enable it before probing", status: 400 }, { code: "MCP_SERVER_DISABLED" });
-    expect(describeProbeUnreachable({ error, t: driftCopyFor("en") })).toBe("this server is disabled — enable it before probing");
+    expect(describeProbeUnreachable({ errors: PROBE_ERRORS, error, t: driftCopyFor("en") })).toBe("this server is disabled — enable it before probing");
   });
 
   it("falls back to the translated generic message for a thrown non-Error value, same as describeApiError alone", () => {
-    expect(describeProbeUnreachable({ error: "not an Error instance", t: driftCopyFor("en") })).toBe(
+    expect(describeProbeUnreachable({ errors: PROBE_ERRORS, error: "not an Error instance", t: driftCopyFor("en") })).toBe(
       "Could not reach this server. You can still type tool names by hand.",
     );
   });
@@ -394,14 +383,14 @@ describe("describeProbeUnreachable — the local-command refusal points at where
   // dictionary text comes back, not just "not English".
   it("translates the local-command refusal for a non-English locale", () => {
     const error = new ApiError({ message: "probe is not available for local-command servers yet — type tool names directly instead", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" });
-    const message = describeProbeUnreachable({ error, t: driftCopyFor("es") });
+    const message = describeProbeUnreachable({ errors: PROBE_ERRORS, error, t: driftCopyFor("es") });
     expect(message).toBe(
       "Este servidor se ejecuta como un comando local y todavía no se puede sondear — escribe los nombres de las herramientas en 'Allowed tools', en la tarjeta del propio servidor.",
     );
   });
 
   it("translates the generic unreachable fallback for a non-English locale", () => {
-    const message = describeProbeUnreachable({ error: "not an Error instance", t: driftCopyFor("es") });
+    const message = describeProbeUnreachable({ errors: PROBE_ERRORS, error: "not an Error instance", t: driftCopyFor("es") });
     expect(message).toBe("No se pudo contactar con este servidor. Aún puedes escribir los nombres de las herramientas a mano.");
   });
 });

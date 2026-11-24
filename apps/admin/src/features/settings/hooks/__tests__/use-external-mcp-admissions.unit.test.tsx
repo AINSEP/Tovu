@@ -14,7 +14,7 @@ import {
   useWiredExternalMcpAdmissions,
   type ExternalMcpAdmissionsPort,
 } from "../use-external-mcp-admissions.hooks";
-import type { SavedConnectionIntent } from "../../external-mcp-admissions-rules";
+import type { SavedConnectionIntent } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 
 /**
  * @file ADM-002 (2026-09-07): the banner permanently reported the PREVIOUS daemon.
