@@ -12,7 +12,7 @@ import { resolveSameOriginPath, type PathnameVerdict } from "@jini-ai/diagnostic
  * already fails, but "a published page" is a claim about the public site and the page-fetching tools
  * must not become a second, unaudited door to the admin surface. Defense in depth, stated as a rule
  * rather than relied on as a side effect. The comparison is per SEGMENT and post-decode
- * (`platform/routing/reserved-paths.ts`), so `/%61dmin` is refused while `/administer-survey` —
+ * (`@jini-ai/cms/routing/site/reserved-paths`), so `/%61dmin` is refused while `/administer-survey` —
  * ordinary site content that merely starts with the same letters — is not.
  */
 

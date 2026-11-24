@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ui-ux-design",
+  "version": "0.7.1",
+  "description": "UI/UX design, interface-design-system, accessibility and web-compliance skills bundled as one portable Agent Plugin.",
+  "extensions": {
+    "jini": {
+      "displayName": "UI/UX Design",
+      "summary": "Helps the assistant design clean, accessible pages and components.",
+      "id": "jini/ui-ux-design",
+      "provides": [
+        "ui-design"
+      ]
+    }
+  },
+  "keywords": [
+    "design",
+    "ui",
+    "ux",
+    "ui-design",
+    "theme",
+    "page",
+    "website",
+    "layout",
+    "redesign",
+    "restyle",
+    "look and feel"
+  ]
+}
