@@ -6,7 +6,9 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
+import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
+import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
+import { tableExists } from "@jini-ai/db/kernel";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
@@ -39,7 +41,7 @@ function fixture(t: TestContext) {
   }) });
   const plan = (files: string[]) => dispatchJsonRequest(app, "POST", `${BASE}/backstop`, { action: "plan", peerId: "peer", reason: "Emergency file repair", files });
   const undo = () => dispatchJsonRequest(app, "POST", `${BASE}/runs/run/undo-backstop`);
-  const seedUndo = () => createBackstopAuditSqlitePort({ kernel }).save({ record: { id: "run", runId: "run", workspaceId: "ws", direction: "destination", actorId: "owner", destination: "live.example",
+  const seedUndo = () => createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).save({ record: { id: "run", runId: "run", workspaceId: "ws", direction: "destination", actorId: "owner", destination: "live.example",
     reason: "Emergency file repair", at: "2026-10-31T00:00:00.000Z", result: "success", details: {}, items: [], gapLabels: [], inverses: [{ kind: "raw-file",
       entity: { entityType: "raw-file", id: "large.txt", schemaVersion: 1, hashVersion: 1, contentHash: "after", requiredBlobs: [], state: {} }, afterHash: "after",
       before: { relPath: "large.txt", backupName: null, sha256: null, size: null, mode: 0o644 } }] } });

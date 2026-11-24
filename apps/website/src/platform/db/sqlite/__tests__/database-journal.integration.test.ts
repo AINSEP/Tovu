@@ -7,7 +7,7 @@ import { sql } from "kysely";
 import { ToolInputError } from "@jini-ai/core";
 
 import { openDatabaseJournalDb } from "../database-journal-db.js";
-import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "../database-journal-repo.js";
+import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 
 /**
  * @file ADR-041 §2/§4 — integration tests for the sidecar `ops/database-journal.db` schema +

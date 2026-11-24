@@ -20,7 +20,8 @@ import type { ContentDatabase } from '#src/platform/db/content-database.generate
 import type { JournalDatabase } from '@jini-ai/db/recovery/journal-kernel';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { SqliteDatabaseIntrospectionAdapter } from '#src/platform/db/sqlite/database-introspection-adapter.sqlite';
-import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '#src/platform/db/sqlite/database-journal-repo';
+import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '@jini-ai/db/recovery/journal-repo.sql';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { SqliteChangeSetRepo } from '#src/platform/db/sqlite/change-set-repo.sqlite';
 import { SqliteEntryRefsRepo } from '#src/platform/db/sqlite/entry-refs-repo.sqlite';
 import { SqliteOriginSettingRepo } from '#src/platform/db/sqlite/origin-repo.sqlite';
@@ -269,7 +270,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
       authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }), tokens: unavailable({ field: 'gatedMutations.tokens' }) }) },
     databaseLedgerRepo: new SqliteDatabaseLedgerRepo({ db: journal, siteId: workspaceId }),
     migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
-    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
+    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId, errorRedaction: TOVU_ERROR_REDACTION_OPTIONS }),
   };
   return bag;
 }

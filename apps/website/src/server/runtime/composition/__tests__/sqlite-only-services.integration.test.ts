@@ -5,10 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { readKernelWatermark } from "#src/platform/db/watermark-kernel";
+import { readKernelWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import { sqliteOnlyServices } from "../sqlite-only-services.js";
 
 /**
@@ -28,9 +29,9 @@ test("each SQLite-bound service works on the handle and file it was given", asyn
     await prepareContentStore({ kernel: contentKernel({ store: db }) });
     const services = sqliteOnlyServices({ db, dbPath });
 
-    const before = await readKernelWatermark({ kernel: contentKernel({ store: db }) });
+    const before = await readKernelWatermark({ kernel: schemaErasedKernel({ store: db }), tables: WRITE_WATERMARK_TABLES });
     await services.stampWatermark();
-    assert.equal(await readKernelWatermark({ kernel: contentKernel({ store: db }) }), before + 1);
+    assert.equal(await readKernelWatermark({ kernel: schemaErasedKernel({ store: db }), tables: WRITE_WATERMARK_TABLES }), before + 1);
 
     db.$client.exec("CREATE TABLE service_capture_probe (value TEXT NOT NULL); INSERT INTO service_capture_probe VALUES ('captured row')");
 

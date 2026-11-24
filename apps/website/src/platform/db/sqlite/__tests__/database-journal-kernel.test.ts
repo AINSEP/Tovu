@@ -9,7 +9,7 @@ import { sql } from "kysely";
 
 import { openSqliteFileKernel } from "../../kernel/index.js";
 import { journalKernel } from "../database-journal-db.js";
-import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from "../database-journal-repo.js";
+import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 
 /**
  * @file The journal on its kernel (SQLite by design, so no dialect matrix): files the former Drizzle

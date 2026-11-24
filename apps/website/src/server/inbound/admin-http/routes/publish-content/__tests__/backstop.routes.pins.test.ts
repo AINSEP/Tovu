@@ -11,7 +11,9 @@ import { createPublishContentPeer, InMemoryPublishContentPeerRepo, type PublishC
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
+import { createBackstopAuditSqlPort } from "@jini-ai/cms/publish/transfer/sql/backstop-audit-repo";
+import { PUBLISH_BACKSTOP_TABLES } from "#src/platform/db/publish-backstop-tables";
+import { tableExists } from "@jini-ai/db/kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -122,14 +124,14 @@ test("run summary is the 503 when audit storage is not installed", async (t) => 
 
 test("run summary hides a source-side log as not found", async (t) => {
   const kernel = backstopKernel(t);
-  await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord({ id: "run-1" }) });
+  await createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).save({ record: auditRecord({ id: "run-1" }) });
   const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: kernel }));
   assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/runs/run-1/backstop`), { status: 404, body: { error: "This send was not found on this site." } });
 });
 
 test("run summary offers undo for a failure only when it recorded inverses", async (t) => {
   const kernel = backstopKernel(t);
-  const audit = createBackstopAuditSqlitePort({ kernel });
+  const audit = createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists });
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: 1, contentHash: "after", requiredBlobs: [], state: {} };
   await audit.save({ record: auditRecord({ id: "bare", runId: "bare", direction: "destination", result: "failure" }) });
   await audit.save({ record: auditRecord({ id: "partial", runId: "partial", direction: "destination", result: "failure", inverses: [{ kind: "raw-row", entity, before: null, afterHash: "after" }] }) });
@@ -146,7 +148,7 @@ test("run summary answers its own 500 when the audit read fails", async (t) => {
 
 test("gaps: foreign workspace 404, denied 403, uninstalled [], installed list, failure 500", async (t) => {
   const kernel = backstopKernel(t);
-  await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord({ result: "success", gapLabels: ["table:p_banner"] }) });
+  await createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).save({ record: auditRecord({ result: "success", gapLabels: ["table:p_banner"] }) });
   const gaps = `${BASE}/backstop/gaps`;
   assert.deepEqual(await dispatchJsonRequest(routeApp(registerPublishBackstopRoutes, routeDeps()), "GET", gaps.replace("/ws/", "/other/")), { status: 404, body: { error: "workspace was not found" } });
   const denied = recordingAuthorize(false);
@@ -197,7 +199,7 @@ const SEND_MISMATCHES: ReadonlyArray<[string, Partial<BackstopAuditRecord> | nul
 for (const [name, record, body] of SEND_MISMATCHES) {
   test(`send refuses ${name} with 409 before dialing the peer`, async (t) => {
     const kernel = backstopKernel(t);
-    if (record) await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord(record) });
+    if (record) await createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).save({ record: auditRecord(record) });
     const peer = fakePeer();
     const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: kernel, publishContentPeerHttpClient: peer }));
     assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, { ...SEND_BODY, ...body }), { status: 409, body: { error: "Check what would change again before sending." } });
@@ -207,7 +209,7 @@ for (const [name, record, body] of SEND_MISMATCHES) {
 
 test("send confirms and executes the checked plan on the peer and records the run", async (t) => {
   const kernel = backstopKernel(t);
-  const audit = createBackstopAuditSqlitePort({ kernel });
+  const audit = createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists });
   await audit.save({ record: auditRecord({ details: { ...auditRecord().details, overwriteEntityKeys: ['raw-row:p_banner:{"id":"one"}'] } }) });
   const peer = fakePeer();
   const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: kernel, publishContentPeerHttpClient: peer }));
@@ -245,7 +247,7 @@ test("plan pushes the selected rows with their audit metadata and records the pl
   const body = result.body as { logId: string; peerId: string; bundleId: string; entities: Array<{ id: string }>; overwriteEntityKeys?: unknown };
   assert.deepEqual([body.peerId, body.bundleId, body.entities.map((e) => e.id), "overwriteEntityKeys" in body], ["peer-1", "remote-bundle", ['p_banner:{"id":"one"}'], false]);
   assert.deepEqual(peer.calls, ["/capabilities", "/bundles", "/import/plan"]);
-  const log = await createBackstopAuditSqlitePort({ kernel }).get({ workspaceId: "ws", id: body.logId });
+  const log = await createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).get({ workspaceId: "ws", id: body.logId });
   assert.deepEqual([log?.result, log?.direction, log?.reason, log?.gapLabels], ["planned", "source", REASON, ["table:p_banner"]]);
 });
 
@@ -291,7 +293,7 @@ test("plan with overwrite ticks to an older live site answers its update-live 50
 
 test("send whose saved live key can no longer be opened answers the secret-store 503", async (t) => {
   const kernel = backstopKernel(t);
-  await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord() });
+  await createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists }).save({ record: auditRecord() });
   const deps = await backstopDeps({ contentKernel: kernel });
   // The site key changed after the live key was saved: the sealed key no longer opens.
   const app = routeApp(registerPublishBackstopRoutes, { ...deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()) });
@@ -307,7 +309,7 @@ test("undo is the 503 when audit storage is not installed", async (t) => {
 
 test("undo refuses a run with no undo available: missing, source-side, undone, or a failure without inverses", async (t) => {
   const kernel = backstopKernel(t);
-  const audit = createBackstopAuditSqlitePort({ kernel });
+  const audit = createBackstopAuditSqlPort({ kernel, tables: PUBLISH_BACKSTOP_TABLES, tableExists });
   await audit.save({ record: auditRecord({ id: "source" }) });
   await audit.save({ record: auditRecord({ id: "undone", direction: "destination", result: "undone" }) });
   await audit.save({ record: auditRecord({ id: "bare", direction: "destination", result: "failure" }) });

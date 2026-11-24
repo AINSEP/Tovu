@@ -3,143 +3,143 @@
   "plugins": {
     "calendly": {
       "archiveDigest": "7a06006ff10af5b5cdb4d8b4cf980287731f4b6282c7b6dc485e30d97398c996",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "charts-recharts": {
       "archiveDigest": "b73f276fef92acfcb66cff6505d70777c4fd4dc19dadf3051fd5d58c2fab403f",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "cloudflare": {
       "archiveDigest": "676b068a2ed3a246d91b024170668cb010c91f47286d5412d57a22a44d76ea01",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "commerce": {
       "archiveDigest": "534c31d3fcfce5b70b2339855dafb6ead9bb3fde7aafdfc9d8d463e6aa335cc7",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "composio": {
       "archiveDigest": "8d7f86d21dfc2d9ba49228c62d3c771034cb9555c4594e5ecbf5b7d93af05531",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "fly": {
       "archiveDigest": "21601c1d7831a79046d4c28ef0902aca1dbfcb25f241e0bc04af49793849bbe6",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "github": {
       "archiveDigest": "1fd2f5aa179cd89a14e68fcb78206317f2a9c2cfefc6ddd9cba12f8a42f0863f",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "github-pages": {
       "archiveDigest": "0f9254cec778051f8dd61c3123d1c05eab17d2f2544c473e22d39d897048d6d4",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "google-forms": {
       "archiveDigest": "d56611fdf5ba1c9f2077423654ad158bcbba1eb07e185a16c60570a82e967cdf",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "google-login": {
       "archiveDigest": "60845f60a5f9fd1f78f79d65afac9765a303e0abb3b6d168ef166438c3c735cf",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "google-workspace": {
       "archiveDigest": "7001c63b97b00611c5b5500d732346bc5a6c3db44357507fb91c1d69007f9616",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "higgsfield-media": {
       "archiveDigest": "423aafed188790efe09a95cf218d512aa7a9f1e0c0f050f73c5eec7a71c7f674",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "how-tovu-works": {
       "archiveDigest": "4b81c19608556df9c7a00b00fba056d3eef54970365a5a24948198a261f6e74f",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "jev": {
       "archiveDigest": "a247dde4352a5ad06250b5474bd3eb0f436003c12d0b2b6f2a881cbf8d299e08",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "kuinetic": {
       "archiveDigest": "45dcfc8ff052a56a86c74a7ca4f9591522b6a6a07da0276b4ff06aff4658f992",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "meilisearch": {
       "archiveDigest": "63cb08b93a08da7ac81ea9a2dd6e46a4e70f2abb9e41e1704cb38c17a3b67474",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "netlify": {
       "archiveDigest": "a69d907d56ed27e78d516e3f269f11871459d2c6052fefad8f62e902afd0f5fb",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "opentelemetry": {
       "archiveDigest": "9625467fe64c3669b66cda3733ecb15803a84f085d362e81ac360c7cc607be2c",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "posthog": {
       "archiveDigest": "8be3f63827396873991f711aba2e4fbdc17b91dd7b35d810383286e1d88756e4",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "railway": {
       "archiveDigest": "39a1b8f58b40d89d35bea7394aca6ae0014e2cf9968e80d31b6f1a0a6705ae88",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "render": {
       "archiveDigest": "54de81120b5e488aee4c35a22f44dfdf65096ad5465286b923eaa6a622c0add8",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "resend": {
       "archiveDigest": "404d351d54c86cadab341e6b0ccf57592bffdcfad37e014e0d69fcaa1a2696e9",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "s3-compatible": {
       "archiveDigest": "23908ad1a7406b0a0ebb57bf6b60f61dd61336025b7d14dcca70ce17b3e98380",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "sentry": {
       "archiveDigest": "1e5b35a0a426b4d79c45038454c853a225d72c6fbbacc311f4d563e1ac5876b8",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "shadcn-ui": {
       "archiveDigest": "abd54595f06953c51769fb8ede1797e50c3c3e522261af9182a54150b6b101f8",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "site-compliance": {
       "archiveDigest": "5d1a7730ce0c875bc68f7f55aeba4d9a20e358af717fb2ee4c335392ddfd6602",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "site-import": {
       "archiveDigest": "6eb298a158a27dcdc99a021bdfc40357b711ab4b0a79ec1a24dae8502ca3c28a",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "slide-design": {
       "archiveDigest": "05cc0de0e3344e04b2329dfb2feb9d87f6d4d562ce66220e66d0d3293d07f6c4",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "software-engineering": {
       "archiveDigest": "ecbc08806ec7723f453d589a5b6e29da1c13dde19171dd26fd3c5c42a007d97b",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "stripe": {
       "archiveDigest": "baf902eed1ebd854f70e42d5174af09bfecd494feeb4e486c160306f13c4eef5",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "supabase": {
       "archiveDigest": "3486d141c18a17f5a4f04a4833f7c9ec21280684285a38f81e0e5c9ac302a357",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "tovu-theme": {
       "archiveDigest": "b9f9f17f58ac6f83b06ad691a2c7a6c83e02582adb1af9740867de892354592e",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "ui-ux-design": {
       "archiveDigest": "00c1c0be8ca5040347acecf486860d47b43241159055314fbbe9c64bc1f74b68",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "vercel": {
       "archiveDigest": "1b76c8ea4486783bca2dd611eba19438134d2975f755bf1809c938b258519563",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     },
     "wordpress": {
       "archiveDigest": "05e6162e4f9d1771970206947d518590bf281dca2692df9af0bcbcd70dcb478c",
-      "seededAt": "2026-11-24T02:44:47.700Z"
+      "seededAt": "2026-11-24T02:52:54.871Z"
     }
   }
 }
