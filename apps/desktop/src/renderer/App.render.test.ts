@@ -60,7 +60,7 @@ test('App: a stopped site\'s tab offers Start and shows the boot wait with the b
   assert.ok(panel, 'a stopped site shows the start panel');
   await app.click({ el: app.byText({ text: 'Start site' }) });
   assert.match(app.text(), /Starting the server\. This can take up to a minute\./);
-  assert.ok(app.container.querySelector('.workspace__idle .spinner'));
+  assert.ok(app.container.querySelector('.workspace__idle .jini-loading-spinner'));
 
   assert.equal(app.container.querySelector('.workspace__idle button')?.hasAttribute('disabled'), true, 'one start at a time');
 });

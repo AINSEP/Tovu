@@ -1,18 +1,13 @@
 /**
- * @file The pure halves of `use-create-site-plugin-tokens.hooks.ts`: what the create input carries
- * for the typed tokens, and the line the "is ready" notice adds for them. The hook itself is
+ * @file The pure half of `use-create-site-plugin-tokens.hooks.ts`: the line the "is ready" notice adds
+ * for the typed tokens (what the create input carries is `tokensForCreate`, tested in
+ * `@jini-ai/agent-plugins/connect`). The hook itself is
  * rendered from its real module in `site-create-hooks.jsdom.test.ts`.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createdTokensNote, tokensForCreate } from './use-create-site-plugin-tokens.hooks.js';
-
-test('tokensForCreate: trimmed, blanks dropped, undefined when nothing was typed', () => {
-  assert.deepEqual(tokensForCreate({ supabase: '  sbp_x  ', crm: '   ' }), { supabase: 'sbp_x' });
-  assert.equal(tokensForCreate({ supabase: '' }), undefined);
-  assert.equal(tokensForCreate({}), undefined);
-});
+import { createdTokensNote } from './use-create-site-plugin-tokens.hooks.js';
 
 test('createdTokensNote: saved says it connects on first start; failed says to ask the assistant; none is null', () => {
   assert.equal(

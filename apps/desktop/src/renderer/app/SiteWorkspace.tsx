@@ -10,7 +10,7 @@ import { type FindableGuest } from '@jini-ai/ui/find';
 import type { ZoomableGuest } from '@jini-ai/ui/zoom';
 import type { SiteRecord, SiteSurface } from '../../contracts/project.js';
 import { SiteStartPanel } from './SiteStartPanel.js';
-import { Spinner } from './Spinner.js';
+import { Spinner } from '@jini-ai/ui';
 
 // Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
@@ -308,7 +308,7 @@ function WorkspaceLoadingOverlay({ workspace, project }: {
         well within an ordinary load. */}
     {!workspace.loaded && !workspace.stalled && (
       <div className="workspace__overlay workspace__overlay--loading" role="status">
-        <Spinner />
+        <Spinner size={20} />
         <p>Loading {project.displayName}…</p>
       </div>
     )}

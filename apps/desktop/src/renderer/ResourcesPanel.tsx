@@ -1,4 +1,4 @@
-import { createResourceStop } from './ResourcesPanel.hooks.js';
+import { createResourceStop } from '@jini-ai/ui/resource-monitor';
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';

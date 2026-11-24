@@ -4,8 +4,8 @@
  * `use-live-views.hooks.ts` follows the same change event, so a save applies to the tabs at once.
  */
 import { useState } from 'react';
-import { clampLiveSiteViews } from '../contracts/site-view-preference.js';
-import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
+import { useSiteViewPreference } from '@jini-ai/ui/live-views';
+import { clampLiveSiteViews, LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 
 type LoadedSitesBridge = BridgeLookup<'getMaximumLiveSiteViews' | 'setMaximumLiveSiteViews' | 'onMaximumLiveSiteViewsChanged'>;
@@ -41,7 +41,7 @@ export function useLoadedSites(
   _input: Record<string, never> = {},
   { getBridge = runnerInventoryBridge }: { getBridge?: LoadedSitesBridge } = {},
 ): LoadedSitesSetting {
-  const { value, setValue } = useSiteViewPreference({ getBridge });
+  const { value, setValue } = useSiteViewPreference({ getBridge, bounds: LIVE_SITE_VIEWS });
   const [error, setError] = useState<string | null>(null);
   const write = getBridge()?.setMaximumLiveSiteViews;
   const save = ({ next }: { next: number }, _options: Record<string, never> = {}) => {
