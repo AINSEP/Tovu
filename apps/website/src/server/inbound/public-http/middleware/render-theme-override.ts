@@ -29,6 +29,11 @@ export function applyRenderThemeOverride({ app, themeId }: { app: Express; theme
   });
 }
 
+/** True when this request carries a render-theme override (preview switcher or `themeId` loopback app). */
+export function hasRequestRenderTheme({ response }: { response: Pick<Response, "locals"> | undefined }, _options = {}): boolean {
+  return Boolean(response?.locals?.[LOCAL_KEY]);
+}
+
 /**
  * The theme id this request renders with: the app's override when it has one, else the workspace's
  * stored active theme (with `resolveActiveThemeId`'s own "no settings row yet" fallback).

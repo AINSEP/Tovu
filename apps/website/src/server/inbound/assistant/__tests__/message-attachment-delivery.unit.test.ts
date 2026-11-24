@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { sniffContentType } from "#src/features/media/index";
-import { agentReceivesImageAttachments } from "../run-start-decisions.js";
+import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
 import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 // Attachments are staged inside the site folder before delivery (site agents are confined to the

@@ -11,7 +11,7 @@ import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, stageAttachmentClaim, detectAttachmentKind } from "@jini-ai/daemon/http";
-import { agentReceivesImageAttachments } from "../run-start-decisions.js";
+import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
 import { captureDaemonRun, daemonFunction, daemonInitializer } from "./helpers/daemon-source.js";
 
 /**
