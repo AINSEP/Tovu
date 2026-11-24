@@ -18,16 +18,21 @@ export type SiteAssistantErrorReporter = (
   options?: { exactSecrets?: readonly string[] },
 ) => SiteAssistantPublicError;
 
+/** A retried visitor turn whose first attempt the server already admitted (`visitor-turn-dedupe.ts`). */
+export const VISITOR_TURN_DUPLICATE_CODE = "DUPLICATE_TURN";
+
 const PUBLIC_MESSAGES: Readonly<Record<string, string>> = {
   RATE_LIMIT_EXCEEDED: "Too many messages. Please wait before trying again.",
   TOO_LARGE: "Your message is too long. Please shorten it and try again.",
   PAYLOAD_TOO_LARGE: "Your message and chat history are too long. Please shorten them and try again.",
   VALIDATION: "Please enter a message and try again.",
+  // The reply to the first attempt may have been lost on the way; nothing is stored to resend it.
+  [VISITOR_TURN_DUPLICATE_CODE]: "The site already received this message, but its reply did not reach you. Please send it again.",
 };
 const DEFAULT_PUBLIC_MESSAGE = "The assistant couldn't answer right now. Please try again.";
 
 /** Codes the visitor's own request causes (assistant off, bad or oversized input, rate limit). */
-const VISITOR_CAUSED_CODES: ReadonlySet<string> = new Set(["ASSISTANT_DISABLED", "VALIDATION", "TOO_LARGE", "PAYLOAD_TOO_LARGE", "RATE_LIMIT_EXCEEDED"]);
+const VISITOR_CAUSED_CODES: ReadonlySet<string> = new Set(["ASSISTANT_DISABLED", "VALIDATION", "TOO_LARGE", "PAYLOAD_TOO_LARGE", "RATE_LIMIT_EXCEEDED", VISITOR_TURN_DUPLICATE_CODE]);
 
 /**
  * The error a logged entry becomes for an error tracker, or undefined when the visitor caused it
