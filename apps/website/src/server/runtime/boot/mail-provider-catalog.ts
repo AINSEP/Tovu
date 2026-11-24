@@ -1,6 +1,6 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
 import { createProviderMailer as createEngineProviderMailer, defaultMailProviderSetup } from "@jini-ai/platform/mail";
-import type { UUID } from "@jini-ai/core/primitives";
+import type { HttpClientPort as EngineHttpClient, UUID } from "@jini-ai/core/primitives";
 import { createConsoleMailProvider, createMailProviderRegistry, createSmtpMailProvider, type MailProviderModule } from "@jini-ai/platform/mail";
 import type { MailAdapterCredential } from "@jini-ai/core/contracts/mail";
 
@@ -106,8 +106,13 @@ export function credentialFailureReason(required: { label: string; err: unknown 
     : `the "${label}" credential could not be read`;
 }
 
+/** The one place Tovu's positional guarded client (`send(request, opts)`) becomes Jini's `send({ request }, opts)` port. */
+export function toEngineHttpClient(required: { httpClient: HttpClientPort }, _optional: Record<string, never> = {}): EngineHttpClient {
+  return { send: ({ request }, optional) => required.httpClient.send(request, optional) };
+}
+
 /** Bind the guarded host HTTP port and preserve the existing positional mailer API. */
 export function createProviderMailer(required: { deps: MailProviderCatalogDeps; provider: MailProviderModule; credential: MailAdapterCredential }, _optional: Record<string, never> = {}): MailerPort {
   return toTovuMailer({ mailer: createEngineProviderMailer({ provider: required.provider, credential: required.credential,
-    httpClient: { send: ({ request }, optional) => required.deps.httpClient.send(request, optional) } }) });
+    httpClient: toEngineHttpClient({ httpClient: required.deps.httpClient }) }) });
 }
