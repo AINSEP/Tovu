@@ -19,7 +19,7 @@ type Deps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "authorize" | "
 
 const CREDENTIAL_COPY_MOUNT: AdminJsonRouteMountOptions = {
   sessionCredentialOnly: { message: "Use the owner's session to use saved keys.", permission: "system.write" },
-  authenticateBeforeWorkspace: false,
+  authenticateBeforeWorkspace: true,
   failure: {
     operation: "routes/system/credential-copy", code: "INTERNAL_ERROR", field: "message",
     message: "Using the saved key failed. Reopen Shared Keys and choose the key again.", details: { reasonCode: "copy-failed" },

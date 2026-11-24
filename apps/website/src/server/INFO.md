@@ -174,9 +174,13 @@ Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount th
 (create, delete) and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure`
 operations; store deps are bound once at registration as before and the heal scheduler is built once per
 registration and injected. Still hand-written in `inbound/admin-http/routes/system/`: custom list and update
-(they read `res.locals.authCredentialKind`), the publish GET list (a pinned direct-call rejection) and
-`credential-copy.ts` (socket/headers, `Cache-Control: no-store`). Their Jini specs for publish list and custom
-list/update exist but are not mounted until the admin ports carry the credential kind.
+(they read `res.locals.authCredentialKind`) and the publish GET list (a pinned direct-call rejection). Their Jini
+specs for publish list and custom list/update exist but are not mounted until the admin ports carry the credential kind.
+The Shared Keys picker (`runtime/composition/modules/system-credential-copy.ts`, w4-routes K) mounts
+`@jini-ai/cms/admin-http/routes/system/credential-copy`'s two JSON specs with `responseHeaders` (no-store),
+`sessionCredentialOnly` + `authenticateBeforeWorkspace` and its `copy-failed` failure copy, and injects the seeded
+owner, the instance admission, `projectKeys` and `isLocalRequest` (`adminRequestFactsFor(...).localAdmin`, a lazy,
+non-enumerable `isLocalAdminRequest` answer read from `res.req`). Pins: `credential-copy.wire.test.ts`.
 Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
 per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
 per-error failure copy from the admin ports (owner decisions).
