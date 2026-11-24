@@ -6,10 +6,10 @@
 
 import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
-import { CHAT_AGENT_PLUGIN_OPTIONS } from "./chat-agent-plugin-preferences";
-import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
+import { CHAT_AGENT_PLUGIN_OPTIONS } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
+import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 import { REPLY_LENGTH_OPTIONS, type AssistantRuntimePreferences } from "./assistant-runtime-preferences";
-import type { AssistantRuntimePreferencesController } from "./hooks/use-assistant-runtime-preferences.hooks";
+import type { AssistantRuntimePreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks";
 
 /**
  * Whether a hover/focus on `target` should open the header tooltip. Never while the control's own

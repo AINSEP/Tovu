@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockSettingsMenu } from "../DockSettingsMenu";
 import { dockSettingsMenuSections } from "../dock-header-rules";
-import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
-import type { ChatAgentPlugins } from "../chat-agent-plugin-preferences";
-import { useChatAgentPlugins, type ChatAgentPluginsPort } from "../hooks/use-chat-agent-plugins.hooks";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
+import { useChatAgentPlugins, type ChatAgentPluginsPort } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
 
 /**
@@ -128,14 +128,14 @@ function fakePort(stored: ChatAgentPlugins = "auto"): FakePort {
 describe("useChatAgentPlugins", () => {
   it("is Auto until the stored mode arrives, then follows it", async () => {
     const port = fakePort("off");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
     expect(result.current.mode).toBe("auto");
     await waitFor(() => expect(result.current.mode).toBe("off"));
   });
 
   it("applies a choice at once and saves the diff for this person", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
     await waitFor(() => expect(port.stored).toBe("auto"));
     act(() => result.current.update("off"));
     expect(result.current.mode).toBe("off");
@@ -148,7 +148,7 @@ describe("useChatAgentPlugins", () => {
   it("keeps the choice and reports a failed save", async () => {
     const port = fakePort("auto");
     port.failSaves = true;
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
     act(() => result.current.update("ask"));
     await waitFor(() => expect(result.current.saveFailed).toBe(true));
     expect(result.current.mode).toBe("ask");
@@ -156,7 +156,7 @@ describe("useChatAgentPlugins", () => {
 
   it("re-reads when another surface saves", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE }));
     await waitFor(() => expect(result.current.mode).toBe("auto"));
     port.stored = "ask";
     act(() => port.refresh());

@@ -10,7 +10,8 @@ import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hook
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
 import { useAssistantEmptyState } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-empty-state.hooks";
-import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
+import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks";
+import { selectedAgentWarning } from "../../features/settings/ai-agent-presentation";
 import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
@@ -22,7 +23,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { useAgentFailureSurface } from "./AgentFailureCard.hooks";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
-import { selectedLocalCliReasoning } from "../../lib/execution-settings";
+import { createExecutionPort, selectedLocalCliReasoning } from "../../lib/execution-settings";
 // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
 // `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
 import { useAssistantDockChrome, resolveAssistantConversationTitle, useChatsSeam } from "./hooks/dock-chrome.hooks";
@@ -160,7 +161,7 @@ function useDockAgent({ props, execution, locale, runtimePreferences }: { props:
   // D-21(b): the picker's inventory has no auth status, so the sign-in warning reads Settings'
   // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
   const pickerRuntimeAccess = useRuntimeAccessSeam({ override: useRuntimeAccessOverride });
-  const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
+  const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess, createPort: createExecutionPort, selectWarning: selectedAgentWarning });
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
   const agentsPlaceholder = executionPolicy.agents({ agents: useAgentsPlaceholderSeam({ runtimeAccessOverride: useRuntimeAccessOverride }) });

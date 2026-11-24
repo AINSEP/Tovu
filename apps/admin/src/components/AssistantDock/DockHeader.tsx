@@ -4,13 +4,14 @@ import { ConversationList, ConversationTitle, type I18nAdapter } from "@jini-ai/
 
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { SubagentsIndicator } from "./SubagentsIndicator";
+import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
+import { useWiredAssistantSubagentsSettings } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { DockHeaderTip } from "./DockHeaderTip";
 import { DockSettingsMenu } from "./DockSettingsMenu";
 import { dockSettingsMenuSections, type DockRuntimeSwitches } from "./dock-header-rules";
 import { renameActiveConversation } from "./assistant-dock-props";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
-import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
+import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
 
 type SubagentsIndicatorProps = ComponentProps<typeof SubagentsIndicator>;
 
@@ -78,7 +79,7 @@ export function DockHeader({
           </h2>
         </div>
         {/* Beside the conversation switcher, not under the title (owner, 2026-10-10). */}
-        <SubagentsIndicator mode={mode} agentId={agentId}
+        <SubagentsIndicator mode={mode} agentId={agentId} useSettings={useWiredAssistantSubagentsSettings}
           t={(key) => translateAiAssistant({ locale, key })} />
         {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
         <DockHeaderTip label={t({ key: "Chats" })}>
