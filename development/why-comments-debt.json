@@ -2,6 +2,22 @@
   "version": 1,
   "allow": [
     {
+      "id": "b33d06e42168",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-page-preview.ts @file (w4-routes, RT-K1-pub-middleware-3): route/srcDoc/ungated-static/gated-templated reasoning moved with the decisions (host path refs made neutral); the deps.themes live-array paragraph stays verbatim in the Tovu adapter's @file."
+    },
+    {
+      "id": "6dd058680873",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-page-preview.ts resolveStaticTheme doc (w4-routes, RT-K1-pub-middleware-3); reworded only where it now returns the refusal instead of writing the response."
+    },
+    {
+      "id": "5fdb34d37709",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-page-preview.ts resolveTemplatedPreviewTarget doc (w4-routes, RT-K1-pub-middleware-3); reworded only where it now returns the refusal instead of writing the response."
+    },
+    {
+      "id": "8d4479804027",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/theme-page-preview.ts staticThemePartialPreview doc (w4-routes, RT-K1-pub-middleware-3), same wording folded into the function's doc comment."
+    },
+    {
       "id": "0ca4248ba107",
       "reason": "Moved to Jini packages/cms/src/public-http/middleware/canonical-site-host.ts canonicalSiteHostRedirectLocation doc (w4-routes, R-public-http-1); the Tovu adapter's doc points there."
     },

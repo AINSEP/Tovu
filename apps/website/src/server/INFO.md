@@ -46,6 +46,10 @@ Public Express middleware stays host adapters over Jini decisions (w4-routes): `
 `themeAssetSecurityHeaderSet` (keeps the `themeAssetSecurityHeaders` name the route-table snapshot pins);
 `theme-static-assets.ts` injects `themeIdCandidates` (`contracts/core/theme-ids`) and `@jini-ai/platform/fs`'s
 `resolvePathWithin` into `resolveThemeDirs`, and uses the Jini preview-CSS / inherited-template decisions.
+`theme-page-preview.ts` keeps the three `/theme-explore/...` routes (`registerThemePagePreview`), the
+`requireAdminSession` + `authorizeThemeSetPermission` gate and `reportServerFailure` on the templated route, and
+binds `findTheme` (over the live `deps.themes`), `renderStaticPage`/`renderStaticPartial`, `listPublishedPosts`,
+the render-context resolvers and `renderSite` into `@jini-ai/cms/public-http/middleware/theme-page-preview`.
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
