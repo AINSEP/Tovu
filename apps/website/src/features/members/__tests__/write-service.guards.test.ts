@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryMagicLinkTokenRepo } from "@jini-ai/user-management/members/repo.memory";
 import { memberChallengeStore } from "@jini-ai/user-management/members/member-challenge";
 import { requestSignInLink } from "@jini-ai/user-management/members/member-challenge-request";
-import { MemberValidationError } from "@jini-ai/user-management/members/types";
+import { MagicLinkTokenRejectedError, MemberValidationError } from "@jini-ai/user-management/members/types";
 
 /**
  * @file F6 fix wave (L7 Stryker survivors in write-service.ts): the member challenge store refuses a
@@ -41,10 +41,10 @@ for (const email of ["x ada@example.test", "ada@example.test x", "ada@@example.t
   });
 }
 
-for (const reason of ["was not found", "has expired", "was already consumed"]) {
+for (const reason of ["not_found", "expired", "already_consumed"] as const) {
   test(`U2c-1: challenge consume maps only the known refusal ${reason} to false`, async () => {
     const repo = new InMemoryMagicLinkTokenRepo();
-    repo.consume = async () => { throw new Error(`magic link token 'c-1' ${reason}`); };
+    repo.consume = async () => { throw new MagicLinkTokenRejectedError({ id: "c-1", reason }); };
     const store = memberChallengeStore({ repo });
     assert.equal(await store.consume({ workspaceId: "ws", realm: "member", purpose: "signin", id: "c-1", nowIso: identity.createdAt }), false);
   });

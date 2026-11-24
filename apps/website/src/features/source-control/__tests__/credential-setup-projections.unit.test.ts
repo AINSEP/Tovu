@@ -106,3 +106,22 @@ test('L146 public label defaults and the maximum label are preserved in preparat
     assert.equal(prep.provider, 'github');
   }
 });
+
+// Stop in the chat must stop every write of a save already past its async seal, not only insert.
+test('an ended run cannot update, delete or relabel a credential, and a live run still can', async () => {
+  const calls: string[] = [];
+  const write = (name: string) => async () => { calls.push(name); return undefined; };
+  const store = { insert: write('insert'), update: write('update'), delete: write('delete'), updateAccountLabel: write('updateAccountLabel'),
+    findById: write('findById'), findDefaultByProvider: write('findDefault'), listByProvider: write('listByProvider'), listByWorkspace: write('listByWorkspace') } as never as SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'];
+  const controller = new AbortController();
+  const repo = setup.abortGuardedSourceControlRepo({ store, signal: controller.signal });
+  const writes = [() => repo.update({} as never), () => repo.delete({} as never), () => repo.updateAccountLabel!({} as never)];
+  for (const write of writes) await write();
+  assert.deepEqual(calls, ['update', 'delete', 'updateAccountLabel']);
+  calls.length = 0;
+  controller.abort();
+  for (const write of writes) assert.throws(write, { name: 'AbortError' });
+  await repo.findById({} as never);
+  await repo.listByWorkspace({} as never);
+  assert.deepEqual(calls, ['findById', 'listByWorkspace'], 'nothing was written after the run ended; reads still work');
+});

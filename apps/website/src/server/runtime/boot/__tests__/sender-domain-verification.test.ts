@@ -29,7 +29,21 @@ test("the provider's answer is passed through, for the lower-cased sender domain
   asked.length = 0;
   const fixed = deps();
   assert.deepEqual(await createSenderDomainVerification(fixed)(), { state: "pending", domain: "example.com", providerId: "mailer" });
-  assert.deepEqual(asked, [{ ctx: { workspaceId: "ws", mode: "live", credential: { token: "k" }, httpClient: fixed.httpClient }, domain: "example.com" }]);
+  const [{ ctx, domain }] = asked as Array<{ ctx: { httpClient: unknown } & Record<string, unknown>; domain: string }>;
+  assert.deepEqual({ ...ctx, httpClient: undefined }, { workspaceId: "ws", mode: "live", credential: { token: "k" }, httpClient: undefined });
+  assert.equal(domain, "example.com");
+});
+
+test("a provider calling ctx.httpClient.send({ request }) reaches the host's positional client with that request", async () => {
+  const seen: unknown[] = [];
+  const request = { method: "GET", url: "https://mail.example/domains", idleTimeoutMs: 1000 };
+  const calling = provider(async (ctx, { domain }) => {
+    await ctx.httpClient.send({ request: request as never }, { redirect: "manual" });
+    return providerOk({ value: { domain, state: "pending" as const } });
+  });
+  const httpClient = { send: async (req: unknown, opts: unknown) => { seen.push({ req, opts }); return { status: 200, headers: {}, bodyText: "{}" }; } };
+  await createSenderDomainVerification(deps({ findProvider: async () => calling, httpClient: httpClient as never }))();
+  assert.deepEqual(seen, [{ req: request, opts: { redirect: "manual" } }]);
 });
 
 test("no sender, no provider and an unsupported provider are named apart", async () => {

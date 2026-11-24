@@ -77,7 +77,8 @@ the plugin’s card: `credential_save {kind:"plugin-provider",target:"github"}`.
 
 Ownership is recorded at `<folder>/.jini/managed-files.json`. Changing folders creates an independent
 destination, preserving the previous root export and sibling folders. A folder commit never reads
-the root manifest as a fallback.
+the root manifest as a fallback. A repository first published before the rename keeps its old record at
+`<folder>/.tovu/managed-files.json`: it is read when the new file is missing, never written, and never deleted.
 
 
 ## Host operations for skills/github/SKILL.md

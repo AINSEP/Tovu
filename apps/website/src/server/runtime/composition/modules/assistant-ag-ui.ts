@@ -283,7 +283,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 
     const state = createAgUiTranslationState(AG_UI_TRANSLATION);
     const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state,
-      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE });
+      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) }, { interruptionMessage: AG_UI_INTERRUPTION_MESSAGE, failureMessage: AG_UI_FAILURE_MESSAGE });
     runFinished = true;
     res.end();
     runTracker.setOutcome(outcome);
@@ -293,6 +293,10 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 /** The owner-approved RUN_ERROR words for a daemon stream that drops mid-run (bugs1 T4). The
  *  transport's own message stays private: Jini's drain returns it to the run tracker only. */
 const AG_UI_INTERRUPTION_MESSAGE = "The assistant’s response was interrupted. Send your request again.";
+
+/** The plain sentence for a run the daemon reported as failed. The daemon's own wording (exit
+ *  codes, transport errors) is not shown here; it stays in the run's status line and the logs. */
+const AG_UI_FAILURE_MESSAGE = "The assistant could not finish that request. Send it again, or try a shorter request.";
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
   return {
@@ -304,7 +308,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
           console.error("[assistant-ag-ui] unhandled error", error);
           routeDeps.tracker.error({ error: error instanceof Error ? error : redactedTovuError({ error }) }, { context: { operation: "assistant.run" } });
           if (res.headersSent) {
-            writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
+            writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: AG_UI_FAILURE_MESSAGE });
             res.end();
           } else {
             next(error);

@@ -54,7 +54,7 @@ interface ComposeStoragePhaseRequired {
 
 export function composeStoragePhase(required: ComposeStoragePhaseRequired, _optional = {}) {
   const { dbPath, overrides, onStoreClose, store, lifecycleTracker, workspaceId, settingsRepo, observability, routeDeps } = required;
-  const { assistantAgentInventory, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir } = composeAgentPluginBootstrap({ onStoreClose, overrides, lifecycleTracker: () => lifecycleTracker(), routeDeps: () => routeDeps() });
+  const { assistantAgentInventory, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir } = composeAgentPluginBootstrap({ dbPath, onStoreClose, overrides, lifecycleTracker: () => lifecycleTracker(), routeDeps: () => routeDeps() });
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;

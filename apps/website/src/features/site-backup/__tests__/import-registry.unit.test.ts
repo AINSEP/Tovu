@@ -20,11 +20,11 @@ const ID_C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 const NOT_FOUND = { code: "NOT_FOUND", message: "Import not found." };
 const UPLOAD_GONE = { code: "NOT_FOUND", message: "Upload not found or expired. Upload the ZIP again." };
 
-function registryIn(t: TestContext, options: { clock?: boolean } = {}): SiteImportRegistry {
+function registryIn(t: TestContext, options: { clock?: boolean; log?: (line: string, error: unknown) => void } = {}): SiteImportRegistry {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "import-registry-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   if (options.clock !== false) t.mock.timers.enable({ apis: ["Date"], now: NOW });
-  return new SiteImportRegistry({ directory });
+  return new SiteImportRegistry({ directory }, options.log ? { log: options.log } : {});
 }
 function record(overrides: Partial<SiteImportRecord> = {}): SiteImportRecord {
   return { importId: ID_A, principalId: "owner", source: { uploadId: ID_B }, newSiteId: null, newSiteName: null, displayName: "Site", status: "verifying", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: NOW + HOUR, ...overrides };
@@ -190,6 +190,24 @@ test("expiry removes an upload older than one hour with its payload", t => {
   raw(registry, `${ID_B}.upload.zip`, "PK");
   registry.expire({});
   assert.deepEqual(fs.readdirSync(registry.directory), []);
+});
+
+test("expiry keeps sweeping when one entry cannot be removed, names it in the log, and deletes nothing extra", t => {
+  const logged: Array<{ line: string; error: unknown }> = [];
+  const registry = registryIn(t, { log: (line, error) => logged.push({ line, error }) });
+  const [A, B, C] = [ID_A, ID_B, ID_C];
+  for (const id of [A, B, C]) registry.saveUpload({ row: upload({ uploadId: id, createdAt: NOW - HOUR - 1 }) });
+  // A's payload path is a directory, so removing it throws; the sweep reaches A first.
+  fs.mkdirSync(path.join(registry.directory, `${A}.upload.zip`));
+  fs.writeFileSync(path.join(registry.directory, `${A}.upload.zip`, "keep"), "x");
+  raw(registry, `${B}.upload.zip`, "PK"); raw(registry, `${C}.upload.zip`, "PK");
+  const live = ID_B.replace(/b/g, "d");
+  registry.saveUpload({ row: upload({ uploadId: live, createdAt: NOW }) });
+  raw(registry, `${live}.upload.zip`, "PK");
+  registry.expire({});
+  assert.deepEqual(fs.readdirSync(registry.directory).sort(), [`${A}.upload.json`, `${A}.upload.zip`, `${live}.upload.json`, `${live}.upload.zip`].sort());
+  assert.equal(logged.length, 1);
+  assert.match(logged[0]!.line, /^\[site-backup\] import registry could not clear expired entry aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\.upload\.json/);
 });
 
 test("T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup", async t => {

@@ -1,6 +1,6 @@
 import { useConfirmRequest, type ConfirmDialogProps } from "@jini-ai/admin/react";
 import { interpolate, type Translate } from "@jini-ai/core/text";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { ChosenThemeHeldBack, HeldBackCheckResult, HeldBackTheme } from "../api/held-back-themes-api";
 import { ApiError } from "../../../lib/admin-http/request";
@@ -92,6 +92,50 @@ function useHeldBackList(
   return { list, load };
 }
 
+type SetRows = Dispatch<SetStateAction<Record<string, HeldBackRowState>>>;
+
+/**
+ * Per-row transitions (check, restore) over the shared row state. `restore` resolves `true` only when
+ * the server restored the theme; a refusal is recorded on the row and resolves `false`.
+ * @complexity O(1) per call, plus one list reload when a refusal says the theme is gone.
+ */
+function useHeldBackRowActions(
+  { port, tRef, setRows, reload }: { port: HeldBackThemesPort; tRef: { current: Translate }; setRows: SetRows; reload: () => Promise<void> },
+  _optional = {},
+) {
+  const patchRow = (themeId: string, patch: Partial<HeldBackRowState>) =>
+    setRows((previous) => ({ ...previous, [themeId]: { ...(previous[themeId] ?? IDLE_ROW), ...patch } }));
+
+  /** A refusal makes the stored check stale, so the row goes back to "Check" with the reason shown. */
+  function refuse({ themeId, error, fallbackKey }: { themeId: string; error: unknown; fallbackKey: string }) {
+    patchRow(themeId, { phase: "idle", check: null, failure: heldBackFailure({ error, fallbackKey, t: tRef.current }) });
+    if (isGone({ error })) void reload();
+  }
+
+  async function check({ themeId }: { themeId: string }) {
+    patchRow(themeId, { phase: "checking", failure: null });
+    try {
+      patchRow(themeId, { phase: "checked", check: await port.check({ themeId }), failure: null });
+    } catch (error) {
+      refuse({ themeId, error, fallbackKey: "failed to check theme" });
+    }
+  }
+
+  async function restore({ themeId, approvedDigest, plan }: { themeId: string; approvedDigest: string; plan: { planId: string; planHash: string } }): Promise<boolean> {
+    patchRow(themeId, { phase: "restoring", failure: null });
+    try {
+      const { confirmationToken } = await port.approveRestore({ themeId, ...plan });
+      await port.restore({ themeId, approvedDigest, confirmationToken: confirmationToken ?? "" });
+      return true;
+    } catch (error) {
+      refuse({ themeId, error, fallbackKey: "failed to restore theme" });
+      return false;
+    }
+  }
+
+  return { check, restore };
+}
+
 /**
  * @param required.port - The held-back-themes routes (see `held-back-themes-port.hooks.ts`).
  * @param required.t - Bound Themes translator.
@@ -113,38 +157,7 @@ export function useHeldBackThemes(
   const [restoredNotice, setRestoredNotice] = useState<string | null>(null);
   const onLoaded = useCallback((themes: HeldBackTheme[]) => setRows((previous) => pruneRows({ rows: previous, themes })), []);
   const { list, load } = useHeldBackList({ port, tRef, onLoaded });
-
-  const patchRow = (themeId: string, patch: Partial<HeldBackRowState>) =>
-    setRows((previous) => ({ ...previous, [themeId]: { ...(previous[themeId] ?? IDLE_ROW), ...patch } }));
-
-  /** A refusal makes the stored check stale, so the row goes back to "Check" with the reason shown. */
-  function refuse({ themeId, error, fallbackKey }: { themeId: string; error: unknown; fallbackKey: string }) {
-    patchRow(themeId, { phase: "idle", check: null, failure: heldBackFailure({ error, fallbackKey, t: tRef.current }) });
-    if (isGone({ error })) void load();
-  }
-
-  async function check({ themeId }: { themeId: string }) {
-    patchRow(themeId, { phase: "checking", failure: null });
-    try {
-      patchRow(themeId, { phase: "checked", check: await port.check({ themeId }), failure: null });
-    } catch (error) {
-      refuse({ themeId, error, fallbackKey: "failed to check theme" });
-    }
-  }
-
-  async function restore({ themeId, name, approvedDigest, plan }: { themeId: string; name: string; approvedDigest: string; plan: { planId: string; planHash: string } }) {
-    patchRow(themeId, { phase: "restoring", failure: null });
-    try {
-      const { confirmationToken } = await port.approveRestore({ themeId, ...plan });
-      await port.restore({ themeId, approvedDigest, confirmationToken: confirmationToken ?? "" });
-    } catch (error) {
-      refuse({ themeId, error, fallbackKey: "failed to restore theme" });
-      return;
-    }
-    setRestoredNotice(interpolate({ template: tRef.current("Restored \"{name}\". It is switched off until you activate it."), vars: { name } }));
-    await load();
-    onRestoredRef.current();
-  }
+  const actions = useHeldBackRowActions({ port, tRef, setRows, reload: load });
 
   async function requestRestore({ themeId }: { themeId: string }) {
     const checked = rows[themeId]?.check;
@@ -159,7 +172,10 @@ export function useHeldBackThemes(
         confirmLabel: t("Restore"),
       },
     });
-    if (accepted) await restore({ themeId, name, approvedDigest: checked.digest, plan: checked.approval });
+    if (!accepted || !(await actions.restore({ themeId, approvedDigest: checked.digest, plan: checked.approval }))) return;
+    setRestoredNotice(interpolate({ template: tRef.current("Restored \"{name}\". It is switched off until you activate it."), vars: { name } }));
+    await load();
+    onRestoredRef.current();
   }
 
   return {
@@ -168,7 +184,7 @@ export function useHeldBackThemes(
     restoredNotice,
     dialog: approval.dialog,
     retry: async () => { setRestoredNotice(null); await load(); },
-    check,
+    check: actions.check,
     requestRestore,
     dismissRestoredNotice: () => setRestoredNotice(null),
   };

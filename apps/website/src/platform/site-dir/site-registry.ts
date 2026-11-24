@@ -441,6 +441,20 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
 }
 
 /**
+ * The binding for a site whose folder is known from its database path rather than from the process's
+ * own site selection. The process's own site keeps {@link describeSiteBinding}'s answer unchanged;
+ * any other folder (a disposable test site, a database opened for another folder) gets a pinned,
+ * non-switchable binding of its own, so nothing it writes (themes, uploads, agent plugins) lands in
+ * the process's real site.
+ * @complexity O(1) path arithmetic.
+ */
+export function describeSiteBindingForDir({ dir }: { dir: string }, optional: ListSitesOptional = {}): SiteBinding {
+  const own = describeSiteBinding(optional);
+  if (path.resolve(own.dir) === path.resolve(dir)) return own;
+  return { dir, name: path.basename(dir), dirOverridden: false, switcherBase: path.dirname(dir), switcherCompatible: false };
+}
+
+/**
  * The base directory the Sites-switcher's `sites/` root and `.env` live under, read off the boot
  * binding — `null` when the binding is not switchable (an install-dir boot has no `sites/` tree).
  *

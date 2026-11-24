@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { createResolvedMailer as createJiniResolvedMailer, type MailCredentialFact, type MailProviderCallContext, type MailProviderModule, type ResolvedMailer as JiniResolvedMailer } from "@jini-ai/platform/mail";
+import { createResolvedMailer as createJiniResolvedMailer, type MailCredentialFact, type MailProviderModule, type ResolvedMailer as JiniResolvedMailer } from "@jini-ai/platform/mail";
 import type { MailDeliveryLane, MailProviderSetting } from "@jini-ai/core/contracts/mail";
 
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
@@ -9,6 +9,7 @@ import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
   createProviderMailer,
   credentialFailureReason,
+  toEngineHttpClient,
   loadMailProviderCatalog,
   MAIL_CREDENTIAL_CATEGORY,
   MAIL_SMTP_CREDENTIAL_LABEL,
@@ -160,8 +161,8 @@ function describeMailProvidersWithLegacyLabels(required: Parameters<typeof descr
  * @example const resolved = createResolvedMailer(deps); await resolved.ready;
  */
 export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
-  // Plugins still call httpClient.send(request). Jini only passes this client through to them.
-  const httpClient = deps.httpClient as unknown as MailProviderCallContext["httpClient"];
+  // Jini's port is send({ request }); Tovu's guarded client is positional, so wrap it once.
+  const httpClient = toEngineHttpClient({ httpClient: deps.httpClient });
   const wrap = deps.wrapProviderMailer;
   const resolved = createJiniResolvedMailer({
     workspaceId: deps.workspaceId,

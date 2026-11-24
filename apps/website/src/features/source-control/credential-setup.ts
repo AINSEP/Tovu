@@ -84,29 +84,7 @@ function sourceControlCredentialSaver(deps: SourceControlCredentialSetupDeps): P
       if (!prep.descriptor) throw new ToolInputError({ message: 'Source control credential save has no provider configuration.' });
       const connection = connectionFromForm({ descriptor: prep.descriptor, values });
       const store = deps.sourceControlCredentialSetRepo;
-      // The async seal can outlive the run; the existing store must not insert after abandonment.
-      // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
-      const vault = store.vault;
-      const canonical = store.canonical;
-      const updateAccountLabel = store.updateAccountLabel?.bind(store);
-      const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
-        ...(canonical ? { canonical: { ...canonical, create: async (input) => {
-          signal.throwIfAborted();
-          if (!canonical.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
-          return canonical.create(input, { signal });
-        } } } : {}),
-        ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
-        insert: record => { signal.throwIfAborted(); return store.insert(record); },
-        update: record => store.update(record),
-        findById: input => store.findById(input),
-        findDefaultByProvider: input => store.findDefaultByProvider(input),
-        listByProvider: input => store.listByProvider(input),
-        listByWorkspace: input => store.listByWorkspace(input),
-        delete: input => store.delete(input),
-        ...(updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => updateAccountLabel(input) } : {}),
-        // The project half writes too (project-first saves): guarded alike.
-        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
-      };
+      const repo = abortGuardedSourceControlRepo({ store, signal });
       // New project keys stay non-default while the shared save-result path attaches them to this site.
       return createSourceControlCredential({ deps: {
         repo, sealer: deps.siteAssistantSecretSealer,
@@ -190,6 +168,39 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+type SourceControlSetRepo = SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'];
+
+/**
+ * Guards every write of the store (insert, update, delete, account label, vault, project half) so a run
+ * that ended while the async seal was pending writes nothing more. Reads pass straight through.
+ * @complexity O(1) wiring; each call costs what the wrapped store's call costs.
+ */
+export function abortGuardedSourceControlRepo({ store, signal }: { store: SourceControlSetRepo; signal: AbortSignal }, _options = {}): SourceControlSetRepo {
+  // The async seal can outlive the run; the existing store must not write after abandonment.
+  // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
+  const vault = store.vault;
+  const canonical = store.canonical;
+  const updateAccountLabel = store.updateAccountLabel?.bind(store);
+  return {
+    ...(canonical ? { canonical: { ...canonical, create: async (input) => {
+      signal.throwIfAborted();
+      if (!canonical.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
+      return canonical.create(input, { signal });
+    } } } : {}),
+    ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
+    insert: record => { signal.throwIfAborted(); return store.insert(record); },
+    update: record => { signal.throwIfAborted(); return store.update(record); },
+    findById: input => store.findById(input),
+    findDefaultByProvider: input => store.findDefaultByProvider(input),
+    listByProvider: input => store.listByProvider(input),
+    listByWorkspace: input => store.listByWorkspace(input),
+    delete: input => { signal.throwIfAborted(); return store.delete(input); },
+    ...(updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => { signal.throwIfAborted(); return updateAccountLabel(input); } } : {}),
+    // The project half writes too (project-first saves): guarded alike.
+    ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
+  };
 }
 
 /** Preserve this adapter's vault ABI and its write guards, including optional batch writes. */

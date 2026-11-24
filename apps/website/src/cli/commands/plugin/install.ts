@@ -13,6 +13,13 @@ import { SqlPluginActivationRepo } from "@jini-ai/plugins/host/sql";
  *  the plugin on in a workspace still refuses a clash (the enable-time conflict gate). */
 const noWorkspaceConflicts: PluginInstallDeps["conflicts"] = async () => [];
 
+/** The built-in plugin ids an installed plugin may not shadow. Loaded on demand because the list is
+ *  the product's own and its recharts entry resolves an installed package at import time, which the
+ *  other CLI commands (and a failed install's error message) should not depend on. */
+export async function cliBuiltInPluginIds(_required: Record<string, never> = {}, _optional = {}): Promise<string[]> {
+  return (await import("#src/server/runtime/composition/built-in-plugin-sources")).builtInPluginIds();
+}
+
 /** Opens only the site store: never constructs the runtime or attaches enabled plugin code. */
 async function openInstaller(required: { site: string; env: NodeJS.ProcessEnv }, _optional = {}) {
   const { env } = required;
@@ -20,7 +27,7 @@ async function openInstaller(required: { site: string; env: NodeJS.ProcessEnv },
   const boot = await bootSiteDir({ dir: target });
   try {
     const repo = new SqlPluginActivationRepo({ kernel: (boot.store?.content ?? contentKernel({ store: boot.db! })) as unknown as import("@jini-ai/plugins/host/sql").PluginActivationSqlRequired["kernel"], tables: { activations: "plugin_activations" } });
-    return { deps: { ...pluginHostBinding, installDir: env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
+    return { deps: { ...pluginHostBinding, installDir: env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: await cliBuiltInPluginIds(), repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }
 

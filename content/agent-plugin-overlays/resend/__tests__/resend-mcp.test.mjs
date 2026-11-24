@@ -7,7 +7,7 @@ import test from "node:test";
 import "../../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts";
 import { federatedCallConfirmationForAction } from "@jini-ai/mcp/federation";
 
-import { classifyAgentPluginMcpServerTrust } from "../../../../apps/website/src/features/agent-plugins/capability-projection.ts";
+import { mcpServerTrustClassifier as classifyAgentPluginMcpServerTrust } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 import { planAgentPluginMcpFederation, provisionAgentPluginMcpServers } from "../../../../apps/website/src/features/agent-plugins/federate-mcp.ts";
 import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
@@ -22,7 +22,7 @@ import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
 import { resolveSiteRoot } from "../../../../apps/website/src/platform/site-dir/index.ts";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 

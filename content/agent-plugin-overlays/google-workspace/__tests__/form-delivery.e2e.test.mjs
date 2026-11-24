@@ -81,7 +81,7 @@ test('end to end: one submission becomes one RAW row; a replayed event and a red
   await site.drain();
   assert.deepEqual(ledger(site, 'sub-1'), [{ status: 'delivered', attempts: 1, lastError: undefined }]);
   assert.deepEqual(grid.rowsOf(TAB_ID), [
-    ['_tovu_submission_id', '_tovu_submitted_at', 'Email', 'Message'],
+    ['_jini_submission_id', '_jini_submitted_at', 'Email', 'Message'],
     ['sub-1', '2026-10-20T10:00:00.000Z', 'ada@example.test', '=1+1'],
   ]);
   assert.equal(appends()[0].query.get('valueInputOption'), 'RAW');

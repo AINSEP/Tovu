@@ -57,7 +57,10 @@ function recordIdOf({ name }: { name: string }, _optional: Record<string, never>
  */
 export class SiteImportRegistry {
   readonly directory: string;
-  constructor(required: { directory: string }, _options: Record<string, never> = {}) {
+  private readonly log: (line: string, error: unknown) => void;
+  /** @param options.log Reports an entry the expiry sweep could not clear; defaults to `console.error`. */
+  constructor(required: { directory: string }, options: { log?: (line: string, error: unknown) => void } = {}) {
+    this.log = options.log ?? ((line, error) => console.error(line, error));
     this.directory = path.resolve(required.directory);
     fs.mkdirSync(this.directory, { recursive: true, mode: 0o700 });
     fs.chmodSync(this.directory, 0o700);
@@ -149,14 +152,20 @@ export class SiteImportRegistry {
    */
   expire(_required: Record<string, never>, _options: Record<string, never> = {}): void {
     for (const filename of fs.readdirSync(this.directory)) {
-      const importId = recordIdOf({ name: filename });
-      if (filename.endsWith(UPLOAD_METADATA_SUFFIX)) this.expireUpload({ id: filename.slice(0, -12) });
-      else if (filename.endsWith(".upload.zip")) this.removeOrphanUpload({ id: filename.slice(0, -11) });
-      else if (filename.endsWith(".stage")) this.removeOrphanStage({ importId: filename.slice(0, -6) });
-      else if (importId !== undefined) this.expireOwnerSetup({ importId });
-      else {
-        // Unrecognized files are outside the import registry.
+      // One entry that cannot be removed (permissions, a busy file) must not stop the rest of the sweep.
+      try { this.expireEntry({ filename }); } catch (error) {
+        this.log(`[site-backup] import registry could not clear expired entry ${filename}; the rest of the sweep continues`, error);
       }
+    }
+  }
+  private expireEntry({ filename }: { filename: string }): void {
+    const importId = recordIdOf({ name: filename });
+    if (filename.endsWith(UPLOAD_METADATA_SUFFIX)) this.expireUpload({ id: filename.slice(0, -12) });
+    else if (filename.endsWith(".upload.zip")) this.removeOrphanUpload({ id: filename.slice(0, -11) });
+    else if (filename.endsWith(".stage")) this.removeOrphanStage({ importId: filename.slice(0, -6) });
+    else if (importId !== undefined) this.expireOwnerSetup({ importId });
+    else {
+      // Unrecognized files are outside the import registry.
     }
   }
 }

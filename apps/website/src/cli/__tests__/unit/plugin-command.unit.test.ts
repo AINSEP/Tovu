@@ -167,3 +167,10 @@ test("CLI install without --yes or an injected confirm refuses on a non-interact
   assert.ok(written.join("").includes("full access to this computer"));
   assert.deepEqual(await readdir(installDir).catch(() => []), []);
 });
+
+test("B159: the CLI installer refuses to shadow every shipped built-in plugin, not only word-count", async () => {
+  const { cliBuiltInPluginIds } = await import("../../commands/plugin/install.js");
+  const ids = await cliBuiltInPluginIds();
+  for (const id of ["word-count", "content-analyzer", "recharts"]) assert.ok(ids.some((builtIn) => builtIn.toLowerCase().includes(id)), `${id} must be protected`);
+  assert.ok(ids.length >= 3);
+});

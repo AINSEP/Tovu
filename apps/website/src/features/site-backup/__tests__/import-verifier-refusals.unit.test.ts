@@ -350,7 +350,7 @@ test("a data file whose declared size differs from the manifest is refused", { t
   await refuses(withFiles(records().map(row => row.path === "settings.json" ? { ...row, bytes: row.bytes + 1 } : row)), INVALID("ZIP size mismatch."));
 });
 test("data content whose SHA-256 differs from the manifest is refused", { timeout: 120000 }, async () => {
-  await refuses(withFiles(records().map(row => row.path === "settings.json" ? { ...row, sha256: "0".repeat(64) } : row)), INVALID("ZIP size or SHA-256 mismatch."));
+  await refuses(withFiles(records().map(row => row.path === "settings.json" ? { ...row, sha256: "0".repeat(64) } : row)), INVALID("That file looks damaged or changed since it was exported. No website was created. Export it again and import the fresh copy."));
 });
 test("a content stream longer than its declared size is refused as a possible ZIP bomb", { timeout: 120000 }, async () => {
   const items = entries().map(entry => entry.entryPath === "content.db" ? file("content.db", Buffer.concat([db, Buffer.from("!")]), db.length) : entry);
