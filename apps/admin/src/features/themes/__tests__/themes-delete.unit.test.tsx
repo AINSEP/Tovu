@@ -12,6 +12,21 @@ import { buildThemeCardMenuItems, themeDeleteBlock, themeDeleteBlockReasonKey } 
 import { THEMES_DICT } from "../themes-i18n";
 
 /**
+ * These tests drive the Themes screen through `useThemesHook` and never meant to touch the network, so
+ * the live "Held back on import" hook (which would fetch and add its own status/alert regions) is
+ * swapped for its "section unavailable" state. Its own behaviour is covered in `held-back-themes.unit.test.tsx`.
+ */
+vi.mock("../hooks/use-held-back-themes.hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../hooks/use-held-back-themes.hooks")>()),
+  useWiredHeldBackThemes: () => ({
+    status: "hidden", listFailure: null, themes: [], chosenThemeHeldBack: null, rows: {}, restoredNotice: null,
+    dialog: { open: false, title: "", body: "", confirmLabel: "", onConfirm: () => {}, onCancel: () => {} },
+    retry: async () => {}, check: async () => {}, requestRestore: async () => {}, dismissRestoredNotice: () => {},
+  }),
+}));
+
+
+/**
  * @file The theme card's ⋮ menu (owner 2026-10-10): Copy theme moved in from its icon button, and
  * Delete theme… sends a theme to the Trash after a confirmation. Covers the pure menu rules, the
  * `trash` round trip in `useThemes` against the fake port, the confirmation hook, the real port's
