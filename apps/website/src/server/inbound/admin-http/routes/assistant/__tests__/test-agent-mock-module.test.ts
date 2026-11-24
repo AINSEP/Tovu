@@ -71,7 +71,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   // The old module mock's `namedExports` REPLACED the whole export set, not just the key(s) given -- so a bare
   // `{ detectAgents }` there broke every OTHER consumer this process still needs
   // `@jini-ai/agent-runtime` for (`test-agent.ts`'s own import chain, through `#src/assistant/index`,
-  // reaches `byok-provider-turn.ts`, which needs the package's real `runAnthropicToolTurn`). Loading
+  // reaches `@jini-ai/agent-runtime/providers/tool-turn`, which needs the package's real `runAnthropicToolTurn`). Loading
   // the real module first and spreading it kept everything else real and overrode only the one
   // function this test cares about. DI now preserves those real exports without replacing a module
   // or depending on its first-load ordering -- see this file's header for the original failure.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ByokProtocol } from "../../assistant/index.js";
+import type { ProviderProtocol } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { siteAssistantEnvFallbacks } from "../runtime/composition/modules/site-assistant.js";
 
 /**
@@ -19,7 +19,7 @@ const ALL_ENV_SET: NodeJS.ProcessEnv = {
   TOVU_SITE_ASSISTANT_MODEL: "some-model",
 };
 
-for (const protocol of ["anthropic", "openai", "azure"] as const satisfies readonly ByokProtocol[]) {
+for (const protocol of ["anthropic", "openai", "azure"] as const satisfies readonly ProviderProtocol[]) {
   test(`site assistant env fallbacks: ${protocol} gets none of the three env values, even when all are set`, () => {
     assert.deepEqual(siteAssistantEnvFallbacks({ env: ALL_ENV_SET, protocol }), {
       apiKey: undefined,

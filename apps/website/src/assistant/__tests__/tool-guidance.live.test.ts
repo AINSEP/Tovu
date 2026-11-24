@@ -15,7 +15,7 @@ import { buildPluginsRegistrations } from '../../features/plugin-runtime/tool-re
 import { resolveSiteGuideEngine } from '../../server/runtime/composition/site-guide.js';
 import { catalog as guideCatalog } from '../../server/runtime/composition/site-guide-tools.js';
 import { buildBaseSystemOverlay } from '../../server/inbound/assistant/assistant-system-overlay.js';
-import { resolveByokProtocol, runByokProviderTurn, type ByokToolCall, type ByokToolExecutor } from '../byok-provider-turn.js';
+import { providerTurnAdapters, resolveProviderProtocol, runProviderToolTurn, type ProviderToolCall, type ProviderToolExecutor } from '@jini-ai/agent-runtime/providers/tool-turn';
 
 const live = { skip: process.env.TOVU_GUIDANCE_LIVE !== '1', timeout: 120_000 };
 const guideDefinition = guideCatalog.get('site_guide')!;
@@ -24,24 +24,25 @@ const guideDescriptor: ToolDescriptor = { id: 'site_guide', description: guideDe
 
 /** Use the shipping provider loop, without fabricating model text or tool selections. */
 async function modelTurn({ prompt, tools, executeTool }: {
-  prompt: string; tools: readonly ToolDescriptor[]; executeTool: ByokToolExecutor;
+  prompt: string; tools: readonly ToolDescriptor[]; executeTool: ProviderToolExecutor;
 }, _options: Record<string, never> = {}) {
-  const protocol = resolveByokProtocol({ provider: process.env.TOVU_GUIDANCE_PROTOCOL ?? '' });
+  const protocol = resolveProviderProtocol({ provider: process.env.TOVU_GUIDANCE_PROTOCOL ?? '' });
   const model = process.env.TOVU_GUIDANCE_MODEL;
   const apiKey = process.env.TOVU_GUIDANCE_API_KEY;
   assert.ok(protocol && model && apiKey, 'explicit model configuration is required for live guidance tests');
-  const calls: ByokToolCall[] = [];
+  const calls: ProviderToolCall[] = [];
   const errors: string[] = [];
   let answer = '';
-  const result = await runByokProviderTurn({ protocol, model, apiKey, tools,
-    ...(process.env.TOVU_GUIDANCE_BASE_URL ? { baseUrl: process.env.TOVU_GUIDANCE_BASE_URL } : {}),
+  const result = await runProviderToolTurn({ protocol, adapters: providerTurnAdapters, model, apiKey, tools,
     system: buildBaseSystemOverlay({ bashProhibitionEnabled: false }), messages: [{ role: 'user', content: prompt }],
-    maxToolTurns: 6, maxTokens: 2_000, signal: AbortSignal.timeout(110_000),
     executeTool: async call => { calls.push(call); return executeTool(call); },
     onEvent: event => {
       if (event.type === 'text_delta') answer += event.delta;
       if (event.type === 'error') errors.push(event.message);
     },
+  }, {
+    ...(process.env.TOVU_GUIDANCE_BASE_URL ? { baseUrl: process.env.TOVU_GUIDANCE_BASE_URL } : {}),
+    maxToolTurns: 6, maxTokens: 2_000, signal: AbortSignal.timeout(110_000),
   });
   assert.deepEqual(errors, []);
   assert.notEqual(result.stopReason, 'error');
@@ -58,7 +59,7 @@ function guideFixture({ topics }: { topics: readonly CapabilityCard[] }, _option
     facts: { read: async () => ({ widgets: { status: 'ok', data: { types: ['text'] } } }) },
     loadContributions: async () => ({ items: [], refusals: [] }),
   });
-  return async ({ input }: ByokToolCall) => ({ content: JSON.stringify(await guide.run({
+  return async ({ input }: ProviderToolCall) => ({ content: JSON.stringify(await guide.run({
     ...(input as { operation: 'overview' | 'explain'; topic?: string }), caller: { principalId: 'owner' },
   })) });
 }

@@ -31,7 +31,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
-import type { ByokToolResultBlock } from "../byok-provider-turn.js";
+import type { ProviderToolResultBlock } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { TOOL_ERROR_ID_PATTERN } from "../tool-recovery-preset.js";
@@ -110,7 +110,7 @@ function call(name: string, input: unknown) {
 
 /** Every meta-tool result these tests read is plain text; image blocks only come from a tool's own
  *  image output (`byok-image-tool-results.test.ts`), so a block array here is itself a failure. */
-function textOf(result: { readonly content: string | readonly ByokToolResultBlock[] }): string {
+function textOf(result: { readonly content: string | readonly ProviderToolResultBlock[] }): string {
   if (typeof result.content !== "string") assert.fail(`expected a text tool result, got ${JSON.stringify(result.content)}`);
   return result.content;
 }
@@ -1131,7 +1131,7 @@ function registerOutputTool(s: ReturnType<typeof surface>, id: string, output: u
   });
 }
 
-async function runOutputTool(output: unknown): Promise<{ readonly content: string | readonly ByokToolResultBlock[]; readonly isError?: boolean }> {
+async function runOutputTool(output: unknown): Promise<{ readonly content: string | readonly ProviderToolResultBlock[]; readonly isError?: boolean }> {
   const s = surface();
   registerOutputTool(s, "branch_pin_output_probe", output);
   return s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_output_probe" }) });
