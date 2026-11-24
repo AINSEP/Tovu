@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/admin-http/request";
 import type { MailCaptureClearAnswer } from "@jini-ai/core/contracts/mail";
-import { useEmailActivity, type CaptureClearState } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
+import { useCaptureClearFlow, useEmailActivity, type CaptureClearState } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
+import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
+
+/** The hooks `email-hooks-host.ts` injects. */
+const HOST_HOOKS = { useLoadHook: useLoad, useCaptureClearFlowHook: useCaptureClearFlow };
 import { EmailActivityTab } from "../EmailActivityTab";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { createEmailFake } from "./email.test-helpers";
@@ -74,7 +78,7 @@ describe("Clear test emails, rendered", () => {
     const clearCaptured = vi.fn<(options?: { confirm?: { revision: string } }) => Promise<MailCaptureClearAnswer>>(async () => PREVIEW);
     const api = { ...createEmailFake(), clearCaptured };
     function Harness({ permissions }: { permissions: string[] }) {
-      return <EmailActivityTab controller={useEmailActivity({ api, ApiError }, { debounceMs: 0, permissions })} locale="en" part="sends" />;
+      return <EmailActivityTab controller={useEmailActivity({ ...HOST_HOOKS, api, ApiError }, { debounceMs: 0, permissions })} locale="en" part="sends" />;
     }
     const view = render(<Harness permissions={["mail.capture.clear"]} />);
     await userEvent.click(await screen.findByRole("button", { name: BUTTON }));
