@@ -3,10 +3,11 @@ import { useNativeDialog } from '@jini-ai/ui-kit/react/native';
 import { SecretInput, useAgentHandle, useMediaProvidersTab, sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
   isProviderBaseUrlInvalid, invalidBaseUrlProviderIds, Icon, useT, SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES,
   RemixIcon, Toast, I18nProvider, SettingsDialogShell, CodeWithLines, CodeWrapToggle, useCodeWrap,
-  useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId } from '@jini-ai/ui';
+  useTabbedDialog, useCopyToClipboard, findActiveTab, resolveInitialActiveTabId, readableTextColor } from '@jini-ai/ui';
+import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 import { ErrorNotice, useAsyncAction, useDirtyGuard, useFocusTrap, useSettlementGeneration, UNREACHABLE_RETRY_DELAYS_MS,
   LOCAL_BACKUP_PRINCIPAL_ID, useSerialWrites, hasPermission, standingDraftRecoveryMessage, createStandingDraftLocalBackup,
-  createFailureChannel } from '@jini-ai/ui/panel-kit';
+  createFailureChannel, canAcceptRefresh, mergeSaveStates, SAVE_DEBOUNCE_MS } from '@jini-ai/ui/panel-kit';
 import { InfoTip, Lightbox, Select as WidgetSelect, useInfoTip, usePanelPosition, useSelectDropdown, openLightboxDialog,
   closeLightboxDialog } from '@jini-ai/ui/admin-widgets';
 import { TabBar, useTabBarKeyboard, resolveTabBarTabIndex } from '@jini-ai/ui/tab-strip';
@@ -16,8 +17,9 @@ import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { ConfirmDialog as AdminConfirmDialog, RowMenu } from '@jini-ai/admin/react';
-import { useT as useChatT, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection } from '@jini-ai/chat/react';
-import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from '@jini-ai/chat/core';
+import { useT as useChatT, createMidRunMessagePoster, createTypedAnswerPoster, useFabPosition, resolveChatPaneSelection,
+  mcpUiSurfaceSlotKey, midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME } from '@jini-ai/chat/react';
+import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE, conversationTitleForDisplay, deriveConversationTitle } from '@jini-ai/chat/core';
 import { createA2uiActionPoster } from '@jini-ai/chat/transports/http';
 import type { AdminKit } from '@jini-ai/admin/react/kit';
 import { useHostAdminLocale } from '../hooks/admin-locale-dependencies.hooks';
@@ -44,11 +46,13 @@ export const adminKit = {
   // (`app-i18n.ts`'s `CHAT_I18N_HOST_FIELDS`, passed to the Jini dock adapter) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID,
     buildSandboxProxyDataUrl, openLightboxDialog, closeLightboxDialog, resolveTabBarTabIndex, hasPermission, standingDraftRecoveryMessage,
-    createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab },
+    createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab,
+    readableTextColor, canAcceptRefresh, mergeSaveStates, SAVE_DEBOUNCE_MS, startVisibleInterval },
   // The chat library's own translator (its locale context, not ui's) and its run posters; callers keep
   // passing the host route, cookie fetch, tool id and redaction callback in the factories' two arg objects.
   chat: { useT: useChatT, createMidRunMessagePoster, createTypedAnswerPoster, createA2uiActionPoster,
-    useFabPosition, resolveChatPaneSelection, SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE },
+    useFabPosition, resolveChatPaneSelection, conversationTitleForDisplay, deriveConversationTitle, mcpUiSurfaceSlotKey,
+    midRunUserMessageSlotKey, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE },
 } satisfies AdminKit;
 
 /** ui's own kit (selects and secret inputs): ui-kit's real implementations. The alias keeps ui-kit's
