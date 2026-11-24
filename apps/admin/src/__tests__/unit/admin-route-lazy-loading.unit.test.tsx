@@ -87,7 +87,7 @@ beforeEach(() => {
   // The SEO screen adapter now lives in Jini and panels.tsx injects the host's module-panel hook and
   // loading view. Like the mocked eager bridges, those host modules (the whole admin module scope,
   // media picker, publish button) are stubbed at the same thin-adapter seam.
-  vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
+  vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }), bindModuleLoading: () => () => null }));
   vi.doMock("../../integrations/jini-admin/seo-module.hooks", () => ({ SeoModuleLoading: () => null }));
   vi.doMock("../../integrations/jini-admin/redirects-module.hooks", () => ({ RedirectsModuleLoading: () => null }));
 });
