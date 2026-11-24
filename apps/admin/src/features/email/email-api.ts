@@ -1,6 +1,7 @@
+import type { MailFeedbackSetupReport } from "@jini-ai/core/contracts/site/platform-mail";
 import type {
   EmailApi, EmailTemplateDetail, EmailTemplatePreview, EmailTemplateSummary, MailActivityDetail, MailActivityFilter,
-  MailActivityPage, MailDnsStatus, MailFeedbackSetupReport, MailProviderConfiguration, MailProviderConfigurationReport,
+  MailActivityPage, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
   MailProviderCredentialInput, MailSuppressionPage, MailSuppressionRemovalPlan, MailSuppressionScope, MailTestSendResult,
   MailUseRow,
 } from "@jini-ai/admin/screens/email/email-api.types";

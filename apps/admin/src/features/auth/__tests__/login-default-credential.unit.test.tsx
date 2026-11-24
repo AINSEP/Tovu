@@ -17,7 +17,7 @@ it("the anonymous Login render never contains the seeded default password, inclu
   expect(password.length).toBeGreaterThan(0);
 
   // SSR executes the real initial hooks without starting their effects or making HTTP requests.
-  const markup = renderToStaticMarkup(<FetchQueryProvider><UiKitProvider kit={uiKit}><Login onLogin={() => {}} /></UiKitProvider></FetchQueryProvider>);
+  const markup = renderToStaticMarkup(<FetchQueryProvider><UiKitProvider kit={uiKit}><Login onLogin={() => {}} useAdminLocaleHook={() => "en"} /></UiKitProvider></FetchQueryProvider>);
   expect(markup).toContain('class="jini-login-card"');
   expect(markup).toContain('type="password"');
   expect(markup).not.toContain(password);

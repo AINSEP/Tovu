@@ -70,7 +70,7 @@ describe("UserInterfaceSettingsPanel", () => {
   });
 
   it("translates its copy", () => {
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="es" useUserInterfaceTabHook={useUserInterfaceTab} />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="es" agentHandle={agentHandle} useUserInterfaceTabHook={useUserInterfaceTab} />);
     expect(screen.getByRole("switch", { name: "Ocultar el botón del chat mientras el chat está abierto" })).toBeTruthy();
     expect(screen.getByRole("switch", { name: "Ajustar las pestañas en varias filas en lugar de desplazarlas" })).toBeTruthy();
   });

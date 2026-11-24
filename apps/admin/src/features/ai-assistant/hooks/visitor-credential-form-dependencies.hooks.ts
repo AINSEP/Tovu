@@ -11,7 +11,7 @@ import type {
 } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-port";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { createExecutionPort } from "@/lib/execution-settings";
-import { describeProbeError, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
+import { describeProbeError, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { DEFAULT_VISITOR_PRESET_ID, describeApiError } from "../rules";
 
 /**

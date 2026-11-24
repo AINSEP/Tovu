@@ -288,7 +288,7 @@ describe("admin credential inputs", () => {
     // The Login markup moved to `@jini-ai/admin/screens/auth/Login` (w3-users-sec), so it is no longer
     // in this source scan: render the host-bound screen and read the attributes it actually emits.
     const useLoginHook = () => ({ username: "", setUsername: vi.fn(), password: "", setPassword: vi.fn(), error: null, busy: false, submit: vi.fn() });
-    const { container } = renderWithFetchQuery(createElement(Login, { onLogin: vi.fn(), useLoginHook }));
+    const { container } = renderWithFetchQuery(createElement(Login, { onLogin: vi.fn(), useLoginHook, useAdminLocaleHook: () => "en" }));
     // Only the sign-in form itself (the owner-recovery form beside it chooses a NEW password).
     const form = container.querySelector('input[autocomplete="username"]')?.closest("form");
     expect(form).toBeTruthy();

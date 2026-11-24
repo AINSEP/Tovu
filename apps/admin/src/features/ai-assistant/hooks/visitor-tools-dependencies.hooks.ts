@@ -6,7 +6,7 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import { useVisitorToolLimitsDraft, useVisitorTools, type VisitorToolsDependencies } from "@jini-ai/admin/screens/assistant-settings/use-visitor-tools.hooks";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
-import { VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, visitorToolsPort } from "@/lib/visitor-tools";
+import { VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, visitorToolsPort } from "@jini-ai/admin/shell/lib/visitor-tools";
 // The segmented pill's look lives with the chat settings it was built for; imported here too so this
 // tab never depends on the dock having loaded it first.
 import "../../../styles/assistant.css";

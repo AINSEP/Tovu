@@ -71,7 +71,7 @@ describe('Security host panel', () => {
     const overlays = createOverlayController({});
     disposers.push(() => { admin.dispose(); overlays.dispose(); });
     const runtime = { permissionKey: '[]', admin, overlays, picker: null as never, bindings: { security: feature.react } } as unknown as Runtime;
-    render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={[]} grantsReady useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} /></AdminModulesProvider></KitProvider>);
+    render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={[]} grantsReady useAdminLocaleHook={useAdminLocaleHook} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={null} /></AdminModulesProvider></KitProvider>);
     expect(await screen.findByText('Permission denied')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
   });

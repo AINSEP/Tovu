@@ -4,7 +4,7 @@ import "@jini-ai/admin/shell/components/ServerRestartingBanner/server-restarting
 import { AdminFailureNotice, type AdminFailureNoticeProps } from "@jini-ai/admin/shell/components/AdminFailureNotice/AdminFailureNotice";
 import { ServerRestartingBanner, type ServerRestartingBannerProps } from "@jini-ai/admin/shell/components/ServerRestartingBanner/ServerRestartingBanner";
 import { useServerConnectionBanner } from "@jini-ai/admin/shell/components/ServerRestartingBanner/hooks/use-server-connection-status.hooks";
-import { t } from "../components/shared-components-i18n";
+import { t } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { adminFailureChannel } from "./admin-failure-channel";
 import { serverReconnect, type ServerReconnect } from "./server-reconnect";
 
