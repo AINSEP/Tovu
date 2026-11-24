@@ -1,4 +1,4 @@
-PARTIAL 3779350b65 dab29b0103 475d32ce22 4a3da28854 4825bd02f0: left = fix 7 mount in site-assistant.ts, fix 12 desktop-path pin, fix 9 Tovu host column `created_by_kind`, fixes 15/16/17 (themes)
+PARTIAL 3779350b65 dab29b0103 2d19ff604 4a3da28854 4825bd02f0: left = fix 7 mount in site-assistant.ts, fix 12 desktop-path pin, fix 9 Tovu host column `created_by_kind`, fixes 15/17 (themes)
 
 # bt-fix — Codex review fixes for rv1123n/rv1123o (fixes 6–14)
 
@@ -23,7 +23,7 @@ commit), `codex/bt-dec-b-tovu`, `codex/bt-themes-quarantine-tovu`, `codex/bt-dec
 | 13 | codex/bt-dec-b-jini | FIXED | e9f853f6 | `caption-track.test.ts` "encoded and normalised traversal that a browser resolves out of /m/ is refused" (RED `/m/%2e%2e/admin/x.vtt true !== false`) + "a percent-encoded but non-traversing name stays accepted". 9/9. Mutation restore-raw-segment-check: red |
 | 14 | codex/bt-themes-quarantine-tovu | FIXED | 6f559c7c9 | `held-back-route.test.ts`: "restore refused with digest only after successful check" (RED 201≠400), "refused after the approval card is declined", "approval is bound to actor, theme and digest". Each asserts the quarantine tree and live themes are byte-identical. Route 8/8; admin themes 24 files / 843 tests. Mutations accept-digest-only: route red; client-restores-without-approval: 4 red |
 | 15 | codex/bt-themes-quarantine-tovu | LEFT | — | `defineJsonRoute` conversion + Core owner for payloads: not started (large) |
-| 16 | codex/bt-themes-quarantine-tovu | LEFT | — | bounded no-follow manifest read + canonical live-parent validation: not started |
+| 16 | codex/bt-themes-quarantine-tovu | FIXED | 2d19ff604 | `held-back-themes.unit.test.ts`: "list reads the manifest name without following a link and within a size bound" (RED actual 'Read Through A Link'), "restore refuses a live themes parent that is redirected by a link, and moves nothing" (new `LIVE_FOLDER_UNSAFE`, 409). Unit + route 15/15. Mutations skip-live-parent-check, follow-manifest-link, unbounded-manifest: each red. Admin copy for `LIVE_FOLDER_UNSAFE` not added; the server's plain-words message shows instead |
 | 17 | codex/bt-themes-quarantine-tovu | LEFT | — | split `use-held-back-themes.hooks.ts` controller (~76 lines now, under the 80 cap; still over the 50-line warning) |
 
 ## Gates (on the merged trees)
@@ -31,7 +31,7 @@ commit), `codex/bt-dec-b-tovu`, `codex/bt-themes-quarantine-tovu`, `codex/bt-dec
 - Jini dec-a: `@jini-ai/integrations` + `@jini-ai/devops` build and typecheck pass. webhooks 161/161, site-update 74/74.
 - Jini dec-b: `@jini-ai/cms` build and typecheck pass. widgets 58 files / 886 tests.
 - Jini `pnpm guard`: one violation on both branches, `HW3-module-state packages/admin/src/shell/lib/shell-failure-log.ts`. It comes from integ; neither lane touches that file. No new red.
-- Tovu typecheck (`tsc -p tsconfig.json --noEmit`) exits 0 on all three Tovu branches. Each was linked to its paired local Jini (dec-a/themes → merged Jini dec-a, dec-b → merged Jini dec-b), because the registry `@jini-ai/*@0.7.3-next.2` lacks the subpaths these branches import.
+- Tovu typecheck (`tsc -p tsconfig.json --noEmit`) exits 0 on all three Tovu branches (themes re-checked after fix 16). Each was linked to its paired local Jini (dec-a/themes → merged Jini dec-a, dec-b → merged Jini dec-b), because the registry `@jini-ai/*@0.7.3-next.2` lacks the subpaths these branches import.
 - Tovu changed tests: dec-a 63/63 (site-trash + dedupe); dec-b 32/32 (vary route, pre-consent unit, export preflight, product telemetry); themes route 8/8 and admin themes 843/843.
 
 ## Notes for the merge train
