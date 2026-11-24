@@ -6,12 +6,10 @@ import test from "node:test";
 
 import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
-import type { Express, Request, Response } from "express";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { describeInput, withToolAttemptAudit } from "#src/assistant/tool-audit-preset";
-import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
-import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
+import { startMcpUiToolCallsServer } from "#src/assistant/__tests__/support/mcp-ui-tool-calls-server";
 import { createInMemoryToolAttemptAuditSink } from "../../tool-audit/repo.memory.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
@@ -258,7 +256,7 @@ test("the durable audit trail records only the model-issued call's key NAMES, ne
   assert.equal(describeInput({ input: { label: "name.com" } }, {}), "keys: label");
 });
 
-test("a token submitted through the delivery route never enters the durable tool-attempt records", async () => {
+test("a token submitted through the delivery route never enters the durable tool-attempt records", async (t) => {
   const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -273,28 +271,10 @@ test("a token submitted through the delivery route never enters the durable tool
   const exchangeId = exchangeIdFromSurface(emitted[0]);
   assert.deepEqual(audit.events.map((event) => event.phase), ["requested"]);
 
-  // Invoke the registered HTTP handler directly: real route logic, no listening server or network.
-  let route!: (req: Request, res: Response) => Promise<void>;
-  const app = { post: (routePath: string, handler: typeof route) => {
-    assert.equal(routePath, MCP_UI_TOOL_CALLS_PATH);
-    route = handler;
-  } } as unknown as Express;
-  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges } });
+  // Drive the production route over real HTTP: the route mounts through the Jini route table, so there is no handler to capture.
+  const server = await startMcpUiToolCallsServer({ t, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges } });
   const sentinel = "sentinel-rotation-secret-do-not-audit-20260930";
-  const req = {
-    get: (name: string) => name === RUN_PRINCIPAL_HEADER ? PRINCIPAL_ID : undefined,
-    body: { toolName: TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, token: sentinel } },
-  } as unknown as Request;
-  let statusCode = 0;
-  let responseBody: unknown;
-  const res = {
-    on: () => res, off: () => res,
-    status: (code: number) => { statusCode = code; return res; },
-    json: (body: unknown) => { responseBody = body; return res; },
-  } as unknown as Response;
-  await route(req, res);
-  // The route's wrapper does not return the handler's promise, and the answer is now produced across a few awaits: let them run.
-  await new Promise((resolve) => setImmediate(resolve));
+  const { status: statusCode, body: responseBody } = await server.post({ principalId: PRINCIPAL_ID, body: { toolName: TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, token: sentinel } } });
   assert.equal(statusCode, 202);
   assert.deepEqual(responseBody, { delivered: true });
   const result = await pending;
