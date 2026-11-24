@@ -166,9 +166,11 @@ input[type="checkbox"], input[type="radio"] {
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field input, .field select, .field textarea { width: 100%; }
 /* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
-   Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
+   Scoped to the post field so other `.jini-field-label` forms keep their own styling. The widget
+   node's "Content for this spot" legend (`PlacementContentFields`) does the same. */
 .field-label,
-.jini-post-publishing__field > .jini-field-label {
+.jini-post-publishing__field > .jini-field-label,
+.jini-widget-embed-content-choice > .jini-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@/__tests__/fetch-query-render";
-import { PlacementContentFields } from "../PlacementContentFields";
+import { PlacementContentFields } from "@jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields";
+import { MediaContentEditor } from "../MediaContentEditor";
 
 /**
  * @file "Content for this spot": the radio pair picks between the widget's own content and a
@@ -28,6 +29,7 @@ function renderFields(custom: boolean, t?: (key: string) => string) {
       content={{ mode: "html", html: "<p>here</p>" }}
       setCustom={(next) => calls.push(["setCustom", next])}
       setContent={(next) => calls.push(["setContent", next])}
+      ContentEditor={MediaContentEditor}
       t={t}
     />,
   );
