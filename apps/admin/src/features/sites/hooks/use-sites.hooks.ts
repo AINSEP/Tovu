@@ -22,7 +22,7 @@ import { type Translate } from '@jini-ai/core/text';
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
  *
  * One list read plus two writes, in the `useX(port, t)` / `useWiredX()` shape
- * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`sites-port.hooks.ts`) so a test
+ * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`@jini-ai/admin/screens/sites/sites-port.hooks`) so a test
  * describes outcomes against `createFakeSitesPort` rather than stubbing global `fetch`.
  *
  * ## The one behavior worth stating up front: Activate does not switch anything

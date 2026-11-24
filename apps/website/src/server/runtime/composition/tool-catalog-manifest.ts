@@ -46,6 +46,7 @@ import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbou
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
+import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import {
   registerDuplicateResourceHandler,
@@ -566,7 +567,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
-  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability })) });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools({ httpClient: createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability }), selectConnectedDestination }) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });

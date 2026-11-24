@@ -4,8 +4,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import { readPageBodyOptions } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
-import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveEgressRefusal } from "@jini-ai/diagnostics/web-evidence/live-url";
-import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveEgressRefusal, type LiveOriginPolicy } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
@@ -206,13 +205,17 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * module. Same seam every other converted domain uses; this module never imports `server/`, and
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
+ *
+ * `live` carries the guarded client plus the host's publish-peer rule (which unkeyed peer row is the
+ * connected destination); the composition root binds that rule, so this feature does not import the
+ * publish-content feature. Omitted (tests, older compositions): `fetch_live_url` has no live deps.
  */
-export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor<SiteInspectionToolDeps, unknown> {
+export function contributeSiteInspectionTools(live?: { httpClient: HttpClientPort } & LiveOriginPolicy): ToolContributor<SiteInspectionToolDeps, unknown> {
   return {
     domain: "site-inspection",
-    build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {
-      httpClient,
-      listKnownOrigins: () => listKnownLiveOrigins({ ...deps, selectConnectedDestination }),
+    build: deps => buildSiteInspectionRegistrations(deps, live ? {
+      httpClient: live.httpClient,
+      listKnownOrigins: () => listKnownLiveOrigins({ ...deps, selectConnectedDestination: live.selectConnectedDestination }),
       observeFetch: event => console.info(JSON.stringify({
         timestamp: new Date().toISOString(), level: "info", service: "site-inspection",
         message: "fetch_live_url", context: event,

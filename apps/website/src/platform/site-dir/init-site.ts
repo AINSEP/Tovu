@@ -314,7 +314,7 @@ async function createSiteContents({ site, options, progress }: { site: NewSite; 
   // `timezone` (Bug D): post dates render in the site's zone; until the owner sets one, it is the
   // zone of the machine that created the site.
   const config: ConfigJson = { name: site.resolvedName, domain: null, port: null, timezone: (options.detectTimeZone ?? detectProcessTimeZone)() };
-  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config, fs: options.filesystem ?? createNodeAtomicFilesystem({}, {}) }, {});
+  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config, fs: siteFilesystem({ options }) }, {});
 
   // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
   // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
@@ -330,7 +330,12 @@ async function createSiteContents({ site, options, progress }: { site: NewSite; 
   // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
   // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
   options.verifiedRestore?.signal?.throwIfAborted();
-  writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: siteMeta(site), fs: options.filesystem ?? createNodeAtomicFilesystem({}, {}) }, {});
+  writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: siteMeta(site), fs: siteFilesystem({ options }) }, {});
+}
+
+/** The injected atomic filesystem port, else the Node one (see `InitSiteOptions.filesystem`). */
+function siteFilesystem({ options }: { options: Pick<InitSiteOptions, "filesystem"> }, _optional = {}): AtomicFilesystemPort {
+  return options.filesystem ?? createNodeAtomicFilesystem({}, {});
 }
 
 /** Step 4 (target + placeholder subdirectories) and step 4b (seeded themes). */

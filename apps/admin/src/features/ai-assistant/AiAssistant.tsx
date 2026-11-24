@@ -734,6 +734,27 @@ function AiAssistantLocaleSync({
   return null;
 }
 
+/** The "admin" tab's body: the three switches, then execution mode, then the daemon restart. */
+function AdminAssistantTabPanel({ t }: { t: Translate }) {
+  return (
+    <>
+      {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
+          deletes used to sit under the whole CLI grid, a long scroll from the top. */}
+      <div className="assistant-toggles">
+        <AdminAssistantSwitch t={t} InfoTip={InfoTip} useAdminAssistantSwitchHook={useAdminAssistantSwitch} />
+        <AdminSubagents t={t} {...adminSubagentsBindings} />
+        <AdminPermanentDeletes t={t} {...adminPermanentDeletesBindings} />
+      </div>
+      <AdminExecutionMode t={t} />
+      <AssistantDaemonRestart t={t} useAssistantDaemonRestartHook={useWiredAssistantDaemonRestart}
+        useRestartAllowedHook={useHostAssistantRestartAllowed}
+        description={t(
+          "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
+        )} />
+    </>
+  );
+}
+
 export interface AiAssistantProps {
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
@@ -821,23 +842,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
           <path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4" />
         </TabIcon>
       ),
-      panel: (
-        <>
-          {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
-              deletes used to sit under the whole CLI grid, a long scroll from the top. */}
-          <div className="assistant-toggles">
-            <AdminAssistantSwitch t={t} InfoTip={InfoTip} useAdminAssistantSwitchHook={useAdminAssistantSwitch} />
-            <AdminSubagents t={t} {...adminSubagentsBindings} />
-            <AdminPermanentDeletes t={t} {...adminPermanentDeletesBindings} />
-          </div>
-          <AdminExecutionMode t={t} />
-          <AssistantDaemonRestart t={t} useAssistantDaemonRestartHook={useWiredAssistantDaemonRestart}
-            useRestartAllowedHook={useHostAssistantRestartAllowed}
-            description={t(
-              "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
-            )} />
-        </>
-      ),
+      panel: <AdminAssistantTabPanel t={t} />,
     },
     {
       id: "roadmap",
