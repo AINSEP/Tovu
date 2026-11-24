@@ -15,7 +15,7 @@ import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "@jini-ai/plat
 import { MAIL_STATUS_PERMISSION } from "@jini-ai/user-management/mail/status/permissions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "@jini-ai/platform/mail/use-readiness";
 import { createMailCaptureRepo } from "@jini-ai/platform/mail/sql";
-import type { RouteDeps } from "#src/server/routes/types";
+import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { planMailCaptureClear } from "#src/features/mail/capture-clear";
 
 /**
@@ -26,7 +26,7 @@ import { planMailCaptureClear } from "#src/features/mail/capture-clear";
  */
 
 /** `contentKernel` holds `mail_capture` for `mail_clear_captured`; absent, that tool answers unavailable. */
-export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps & Partial<Pick<RouteDeps, "contentKernel">>;
+export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps & { contentKernel?: ContentKernel };
 
 export const mailDeliveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> owner checks (sender read, launch gate, form list, gate probe that sends nothing) + one activity row per use.
