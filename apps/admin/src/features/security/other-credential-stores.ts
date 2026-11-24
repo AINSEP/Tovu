@@ -1,6 +1,6 @@
 import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import { type Translate } from '@jini-ai/core/text';
-import { type AccessTokenRowCategoryId } from "./rules";
+import { type AccessTokenRowCategoryId } from "@jini-ai/admin/security/access-token-rows";
 /** A stable id for one of the four Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for
  *  the stores this page reads through a completely different set of endpoints (see
  *  `hooks/other-credentials-port.hooks.ts`). This id names the ROW this page renders, not the table. */
