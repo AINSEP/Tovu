@@ -31,7 +31,8 @@ import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { createRouteDeps } from "../app.js";
-import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
+import { createSiteRouteDeps } from "../deps.js";
+import { mediaUploadsDir } from "../site-paths.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 const contributions = {
