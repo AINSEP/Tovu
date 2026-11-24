@@ -209,6 +209,8 @@ export const posts = sqliteTable(
      * public read until the instant passes (render-time check, `@jini-ai/core/scheduled-publish`).
      */
     publishAt: text("publish_at"),
+    /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made scheduled posts pause while the assistant is off. */
+    createdByKind: text("created_by_kind").notNull().default("person"),
     /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a
      *  trashed/deleted asset simply resolves to "no image" at render time, like every other media ref. */
     featuredMediaId: text("featured_media_id"),
@@ -940,6 +942,8 @@ export const newsletterCampaigns = sqliteTable(
     countersJson: text("counters_json").notNull(),
     version: integer("version").notNull(),
     createdByPrincipal: text("created_by_principal").notNull(),
+    /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made sends pause while the assistant is off. */
+    createdByKind: text("created_by_kind").notNull().default("person"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

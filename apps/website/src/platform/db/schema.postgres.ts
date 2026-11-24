@@ -595,6 +595,8 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
   countersJson: jsonText("counters_json").notNull(),
   version: bigint("version", { mode: "number" }).notNull(),
   createdByPrincipal: text("created_by_principal").notNull(),
+  /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made sends pause while the assistant is off. */
+  createdByKind: text("created_by_kind").notNull().default("person"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -762,6 +764,8 @@ export const posts = pgTable("posts", {
   createdByPrincipalId: text("created_by_principal_id"),
   createdAt: text("created_at"),
   publishAt: text("publish_at"),
+  /** `person` or `agent` (migration 0044); pre-0044 rows default to `person`. Agent-made scheduled posts pause while the assistant is off. */
+  createdByKind: text("created_by_kind").notNull().default("person"),
   featuredMediaId: text("featured_media_id"),
   author: text("author"),
   showAuthor: boolean("show_author").notNull().default(false),
