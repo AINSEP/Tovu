@@ -1,4 +1,5 @@
 import { updatePost } from "../post/post-update.js";
+import { resolveMediaCaptionsTrack } from "@jini-ai/cms/media/site/public-path";
 import { restorePostForward } from "../post/post-trash.js";
 import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "@jini-ai/cms/posts/post-read";
 import { PostVersionConflictError, PostNotFoundError } from "@jini-ai/cms/posts/post";
@@ -111,7 +112,8 @@ export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _opt
         deps: { repo: required.postRepo ?? deps.repo as PostRepoPort }, input,
       }, optional),
     },
-    media: { findMediaByIdOrSlug, getLatestTransformDefinition, publicTransformName: CORE_PUBLIC_TRANSFORM_NAME },
+    // G7-9: binds the captions resolver stage so a captioned video/audio embed renders its `<track>`.
+    media: { findMediaByIdOrSlug, getLatestTransformDefinition, publicTransformName: CORE_PUBLIC_TRANSFORM_NAME, resolveMediaCaptionsTrack },
     entryRefs: { extract: extractEntryRefs },
     slugify: (text) => toSlug({ text }),
   };

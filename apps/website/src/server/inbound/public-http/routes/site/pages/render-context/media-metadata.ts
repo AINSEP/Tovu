@@ -3,6 +3,7 @@ import { collectCoverMediaRefs } from "@jini-ai/cms/media/cover-image";
 import type { StaticFeaturedImage } from "#src/features/theme/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
+import { resolveMediaCaptionsTrack } from "@jini-ai/cms/media/site/public-path";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { featuredImageView } from "../../../../http/site/render/template-render-data.js";
 import type { RenderContextResolutionDeps } from "./deps.js";
@@ -137,6 +138,8 @@ export async function resolveMediaAssetMetadataForRender({ deps, post }: { deps:
     Array.from(assetIds).map(async (assetId): Promise<readonly [string, PendingMediaAssetMeta] | undefined> => {
       const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: assetId } });
       if (!record || record.status === "trashed") return undefined;
+      // G7-9: the doc-node video/audio renderer reads this resolved WebVTT track off the meta.
+      const captionsTrack = await resolveMediaCaptionsTrack({ deps, input: { workspaceId: deps.workspaceId, captions: record.captions } });
       return [
         assetId,
         {
@@ -146,6 +149,7 @@ export async function resolveMediaAssetMetadataForRender({ deps, post }: { deps:
           htmlAttributes: record.htmlAttributes,
           slug: record.slug,
           sha256: record.source.sha256,
+          ...(captionsTrack ? { captionsTrack } : {}),
         },
       ] as const;
     })
@@ -169,6 +173,7 @@ export async function resolveMediaAssetMetadataForRender({ deps, post }: { deps:
         slug: meta.slug,
         sha256: meta.sha256,
         contentType: contentTypes.get(meta.sha256) ?? null,
+        ...(meta.captionsTrack ? { captionsTrack: meta.captionsTrack } : {}),
       },
     ])
   );
