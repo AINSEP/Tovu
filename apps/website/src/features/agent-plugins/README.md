@@ -34,3 +34,6 @@ lifecycle preview/uninstall owner (`lifecycle.ts`), approval owner and not-confi
 (product name from `plugin-runtime/plugin-host-copy.ts`, `PLUGINS_UNINSTALL_TOOL_ID`, the External MCP
 settings path). The composition root (`server/runtime/composition/plugin-host.ts`) adds it to the deps
 bag as `uninstallHost` at its one call site.
+`agentPluginUninstallHost.reportRefusal` writes the server-log line for a busy/locked/unreadable refusal
+(`console.warn` naming the plugin, `PLUGINS_UNINSTALL_TOOL_ID` and the raw error message), unchanged from
+before the engine stopped logging it itself.

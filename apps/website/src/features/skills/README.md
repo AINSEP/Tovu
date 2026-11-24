@@ -15,3 +15,6 @@ Live skill registration and the refresh middleware live in `@jini-ai/agentic/ski
   it as `host`: `server/runtime/composition/site-deps/agent-plugin-bootstrap.ts`,
   `server/runtime/composition/memory-deps/slices/agent-plugins.ts`, and the test fixture
   `src/__tests__/fixtures/site-layout-context.ts`.
+- `SKILL_SITE_HOST` also binds the engine's two log reporters to the same console lines as before the move:
+  `reportLifecycleEvent` -> `console.info("[skills] installed" | "[skills] enabled changed" | "[skills] removed", { workspaceId, toolId[, enabled] })`,
+  `reportSkippedFolder` -> `console.warn(message)`.
