@@ -1,4 +1,4 @@
-PARTIAL __TOVU__ 5b38059da: route plumbing done (Jini J1-J5 + Vary/protocol, Tovu T1-T8 + grant-only accessor); 19 STOPPED families converted fully or partly; left: owner-decision STOPs listed below (asyncRoute pin names, gate-order changes, visitor-analytics Request capture, owner-admission mount, analytics nested 500 body) + budget leftovers (media list/original, publish-content blob-get/blob-put/export/blobs-probe, external-mcp shared GET, admin-surfaces GET, posts/themes previews, public site, members sign-in family)
+PARTIAL 3ea9bab49e 5b38059da: route plumbing done (Jini J1-J5 + Vary/protocol, Tovu T1-T8 + grant-only accessor); 19 STOPPED families converted fully or partly; left: owner-decision STOPs listed below (asyncRoute pin names, gate-order changes, visitor-analytics Request capture, owner-admission mount, analytics nested 500 body) + budget leftovers (media list/original, publish-content blob-get/blob-put/export/blobs-probe, external-mcp shared GET, admin-surfaces GET, posts/themes previews, public site, members sign-in family)
 
 # w3-rtfnd — route plumbing + blocked route families (wave 3)
 
