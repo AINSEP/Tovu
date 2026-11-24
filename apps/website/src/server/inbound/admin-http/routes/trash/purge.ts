@@ -1,3 +1,4 @@
+import type { AdminTrashPurgeReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -55,7 +56,8 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ app, deps },
           })).allowed,
       });
 
-      res.json({ purged: report.purged, results: report.results });
+      const body: AdminTrashPurgeReportDto = { purged: report.purged, results: report.results };
+      res.json(body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/trash/purge", code: "INTERNAL_ERROR" });
     }

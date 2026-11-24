@@ -1,10 +1,10 @@
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
-import type { AdminPluginFiles } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 export const SKILLS_CHANGED_EVENT = "tovu-skills-changed";
 const base = `/workspaces/${WORKSPACE_ID}/skills`;
 export interface InstalledSkill { toolId: string; name: string; description: string; enabled: boolean; source: "uploaded" | { githubUrl: string; commit: string } }
-export type SkillFiles = Pick<AdminPluginFiles, "files" | "truncated" | "limits"> & { readonly toolId: string };
+export type SkillFiles = Pick<AdminPluginFilesEnvelope, "files" | "truncated" | "limits"> & { readonly toolId: string };
 export type SkillInstallPayload = { githubUrl: string } | { archiveBase64: string } | { files: { path: string; contentBase64: string }[] };
 async function request<T>(_required = {}, { suffix = "", method, body }: { suffix?: string; method?: string; body?: unknown } = {}): Promise<T> {
   return authenticatedAdminRequest<T>({ path: `${base}${suffix}`, method: method ?? "GET", body });

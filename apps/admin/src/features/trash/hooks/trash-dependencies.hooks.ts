@@ -1,6 +1,6 @@
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { usersApi } from "@/features/users/api/users-api";
-import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto, AdminTrashPurgeReportDto, AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { TrashPort } from "./trash-port.hooks";
 
@@ -20,14 +20,14 @@ export const defaultTrashPort: TrashPort = {
 
 /** Seed state for {@link createFakeTrashPort}. */
 export interface FakeTrashPortOptions {
-  items?: AdminTrashItem[];
+  items?: AdminTrashItemDto[];
   nextCursor?: string | null;
   listError?: Error;
   restoreError?: Error;
   purgeError?: Error;
   /** Overrides the default all-succeeded report, for the mixed-outcome cases that matter most. */
-  restoreReport?: AdminTrashRestoreReport;
-  purgeReport?: AdminTrashPurgeReport;
+  restoreReport?: AdminTrashRestoreReportDto;
+  purgeReport?: AdminTrashPurgeReportDto;
   /** The workspace's users, for `listUsers()`. Defaults to an empty roster rather than omitting the
    *  method — a test that wants "no client-side resolution available" instead uses a hand-rolled
    *  `TrashPort` literal without `listUsers` at all (see that field's own doc). */

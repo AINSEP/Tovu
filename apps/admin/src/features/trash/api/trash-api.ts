@@ -1,7 +1,7 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
 import { querySuffix } from "@jini-ai/core/admin-runtime";
-import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashPageDto, AdminTrashPurgeReportDto, AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 
 /** The admin API calls of the trash feature. */
 export const trashApi = {
@@ -19,12 +19,12 @@ export const trashApi = {
     if (options.limit) params.set("limit", String(options.limit));
     if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix({ query: qs })}` });
+    return authenticatedAdminRequest<AdminTrashPageDto>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix({ query: qs })}` });
   },
   restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
-    authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
+    authenticatedAdminRequest<AdminTrashRestoreReportDto>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
   purgeTrashItems: ({ ids }: { ids: string[] }) =>
-    authenticatedAdminRequest<AdminTrashPurgeReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/purge`, body: { ids } }),
+    authenticatedAdminRequest<AdminTrashPurgeReportDto>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/purge`, body: { ids } }),
   /** The generic single-item trash endpoint (`POST /trash/items`, `W/features/trash/`): the way
    *  every OTHER admin feature's delete button (forms, widgets, menus, terms, taxonomies) moves one
    *  row to the Trash, instead of each domain keeping its own bespoke delete call. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminTrashItem } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
 import { describeTrashLoadError } from "../rules";
@@ -62,7 +62,7 @@ describe("describePurgeReport", () => {
  * older server, must resolve the owner's own principal id client-side instead of giving up
  * (2026-09-21 follow-up: `knownUsernames`).
  */
-function baseItem(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
+function baseItem(overrides: Partial<AdminTrashItemDto> = {}): AdminTrashItemDto {
   return {
     id: "trash-1",
     entityType: "post",

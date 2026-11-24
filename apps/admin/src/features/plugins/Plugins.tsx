@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -96,7 +96,7 @@ function InstalledPluginRows({
   rowHandleById,
   focusPluginId,
 }: {
-  plugins: AdminPlugin[];
+  plugins: AdminPluginDto[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
   onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
@@ -156,12 +156,12 @@ function DownloadedPluginRows({
   rowHandleById,
   onRequestRemove,
 }: {
-  plugins: AdminPlugin[];
+  plugins: AdminPluginDto[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
   onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   rowHandleById: Map<string, string>;
-  onRequestRemove: (plugin: AdminPlugin) => void;
+  onRequestRemove: (plugin: AdminPluginDto) => void;
 }) {
   const { t, locale, rowSavingId, onToggleEnabled } = controller;
   return (
@@ -210,7 +210,7 @@ function DownloadedPluginRows({
 
 /** Every tab panel's inputs — one shape, so {@link PLUGINS_TAB_PANELS} can pick a panel by tab id. */
 interface PluginsTabPanelProps {
-  plugins: AdminPlugin[];
+  plugins: AdminPluginDto[];
   controller: PluginsController;
   rowHandleById: Map<string, string>;
   focusPluginId?: string | null;
@@ -344,7 +344,7 @@ export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins
  * whose settings or remove dialog is open (a dialog for a plugin with no row is a bug, so it throws).
  */
 function deriveRowHandles(
-  { plugins, settingsPlugin, pendingRemovePlugin }: { plugins: AdminPlugin[]; settingsPlugin: AdminPlugin | null; pendingRemovePlugin: AdminPlugin | null },
+  { plugins, settingsPlugin, pendingRemovePlugin }: { plugins: AdminPluginDto[]; settingsPlugin: AdminPluginDto | null; pendingRemovePlugin: AdminPluginDto | null },
   _options: Record<string, never> = {},
 ) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
@@ -399,7 +399,7 @@ function PluginsOverlays({ controller, settingsHandle, removeHandle }: { control
 
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
  *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
-function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
+function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPluginDto[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
   const { error, rowError, t, locale, pendingRemovePlugin, settingsPlugin } = controller;
 
   const { rowHandleById, settingsHandle, removeHandle } = deriveRowHandles({ plugins, settingsPlugin, pendingRemovePlugin });

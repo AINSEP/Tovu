@@ -1,4 +1,5 @@
-import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto, AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 import { pluginsApi } from "@/features/plugins/plugins-host-ports";
 import { providersApi } from "@/features/providers/providers-host-ports";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
@@ -26,9 +27,9 @@ export const defaultPluginsPort: PluginsPort = {
 /** Seed state for {@link createFakePluginsPort}. */
 export interface FakePluginsPortOptions {
   installSources?: string[];
-  plugins?: AdminPlugin[];
+  plugins?: AdminPluginDto[];
   /** `PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the real route's 404. */
-  packageFiles?: Record<string, AdminPluginFiles>;
+  packageFiles?: Record<string, AdminPluginFilesEnvelope>;
   /** Provider settings cards by plugin id; saves follow the real route's rules (blank secret = keep). */
   providerSettings?: Record<string, AdminPluginProviderSettings>;
 }
@@ -47,7 +48,7 @@ export interface FakePluginsPortOptions {
  */
 export function createFakePluginsPort(options: FakePluginsPortOptions = {}): PluginsPort & {
   /** Every plugin currently in the fake's store, in list order. */
-  readonly plugins: AdminPlugin[];
+  readonly plugins: AdminPluginDto[];
 } {
   return createFakePluginsStore({ options });
 }
@@ -129,7 +130,7 @@ function createFakePluginReads(
 function createFakePluginLifecycle(
   { options, plugins, trashedPluginIds }:
     Pick<Parameters<typeof createFakePluginsStore>[0], "options"> &
-    { plugins: AdminPlugin[]; trashedPluginIds: Set<string> }
+    { plugins: AdminPluginDto[]; trashedPluginIds: Set<string> }
 ): Pick<PluginsPort, "useProjectKey" | "listPlugins" | "setPluginEnabled" | "uninstallPlugin"> {
   return {
     async useProjectKey({ keyId, use }, _optional = {}) {

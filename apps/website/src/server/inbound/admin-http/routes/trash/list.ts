@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { filterVisibleTrashItems, trashDaysRemaining, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { TrashItem } from "@jini-ai/cms/trash";
+import type { AdminTrashItemDto, AdminTrashPageDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type TrashRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
@@ -39,13 +40,14 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, 
       // empty) rather than paying for a lookup with no rows to resolve.
       const usernameByPrincipalId = visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
       const postKindById = await loadPostDisplayKinds({ items: visible, deps });
-      res.json({
+      const body: AdminTrashPageDto = {
         items: visible.map((item) => {
           const displayKind = item.entityType === "post" ? postKindById.get(item.entityId) : undefined;
           return { ...toAdminTrashResponse({ item, now, usernameByPrincipalId }), ...(displayKind ? { displayKind } : {}) };
         }),
         nextCursor: page.nextCursor,
-      });
+      };
+      res.json(body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/trash/list", code: "INTERNAL_ERROR" });
     }
@@ -60,7 +62,7 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, 
 async function loadPostDisplayKinds(
   required: { items: readonly TrashItem[]; deps: TrashRouteDeps },
   _optional: Record<string, never> = {}
-): Promise<ReadonlyMap<string, string>> {
+): Promise<ReadonlyMap<string, "page" | "post">> {
   const ids = required.items.filter((item) => item.entityType === "post").map((item) => item.entityId);
   if (ids.length === 0) return new Map();
   // Only the two subtypes the admin contract names (`AdminTrashItem.displayKind`) are emitted.
@@ -70,7 +72,7 @@ async function loadPostDisplayKinds(
     .where("id", "in", ids)
     .where("kind", "in", ["page", "post"])
     .execute());
-  return new Map(posts.map((post) => [post.id, post.kind]));
+  return new Map(posts.flatMap((post) => (post.kind === "page" || post.kind === "post" ? [[post.id, post.kind] as const] : [])));
 }
 
 /**
@@ -105,7 +107,7 @@ const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
  *
  * @complexity O(1).
  */
-export function toAdminTrashResponse({ item, now, usernameByPrincipalId }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string> }, _optional = {}) {
+export function toAdminTrashResponse({ item, now, usernameByPrincipalId }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string> }, _optional = {}): AdminTrashItemDto {
   return {
     id: item.id,
     entityType: item.entityType,

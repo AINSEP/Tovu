@@ -1,6 +1,6 @@
 import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
-import type { AdminPluginFiles } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 
 /**
  * One configured external MCP server, as the admin tab sees it. Mirrors
@@ -355,5 +355,5 @@ export interface AdminAgentPlugin {
 
 /** `AGENT_PLUGIN_FILES`' response (`server/inbound/admin-http/routes/agent-plugins/files.ts`,
  *  2026-09-13): one installed Agent Plugin's own files — the same entries and caps as
- *  {@link AdminPluginFiles}, minus the `.tovu-plugin`-only `source`. */
-export type AdminAgentPluginFiles = Omit<AdminPluginFiles, "source">;
+ *  {@link AdminPluginFilesEnvelope}, minus the `.tovu-plugin`-only `source`. */
+export type AdminAgentPluginFiles = Omit<AdminPluginFilesEnvelope, "source">;

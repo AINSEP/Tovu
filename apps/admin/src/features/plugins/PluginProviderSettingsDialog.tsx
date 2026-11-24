@@ -3,7 +3,8 @@ import { Button, Dialog } from "@jini-ai/ui-kit/react";
 
 import { useEffect, useId } from "react";
 
-import type { AdminPlugin, AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 import { ProviderSettingField } from "./PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";
@@ -26,7 +27,7 @@ import "./provider-settings-dialog.css";
  */
 
 export interface PluginProviderSettingsDialogProps {
-  readonly plugin: Pick<AdminPlugin, "id" | "name">;
+  readonly plugin: Pick<AdminPluginDto, "id" | "name">;
   readonly agentHandleBase: string;
   readonly onClose: () => void;
   /** After the server accepted the values; the screen closes the card and confirms with a notice. */

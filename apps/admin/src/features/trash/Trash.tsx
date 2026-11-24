@@ -2,7 +2,7 @@ import { DataTable, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/r
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { AdminTrashItem } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";
@@ -53,7 +53,7 @@ function trashColumns(props: {
   onToggleAll: () => void;
   handleForRow: (id: string) => string;
   actorUsernames: ReadonlyMap<string, string>;
-}): DataTableColumn<AdminTrashItem>[] {
+}): DataTableColumn<AdminTrashItemDto>[] {
   return [
     {
       key: "select",

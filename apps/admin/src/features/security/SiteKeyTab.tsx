@@ -220,13 +220,20 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
   );
 }
 
+/** The browser clipboard and timers bound for `useRevealedKeyCopy`, which only sees these ports. */
+const browserClipboard = { writeText: (text: string) => navigator.clipboard.writeText(text) };
+const browserScheduler = {
+  setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
+  clearTimeout: (handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+};
+
 /** The revealed value itself, plus Copy/Hide — the ONLY place in this tab that ever renders a key
  *  VALUE rather than a fingerprint. The value is `data-agent-private`, so no published ancestor's
  *  text carries it to the agent, and neither it nor Copy has a handle. @complexity O(1). */
 function SiteKeyRevealedValue({ hex, onHide, t: translate,
   useRevealedKeyCopyHook = useRevealedKeyCopy }: { hex: string; onHide: () => void; t: Translate;
   useRevealedKeyCopyHook?: typeof useRevealedKeyCopy; }) {
-  const { copied, copy } = useRevealedKeyCopyHook({ hex });
+  const { copied, copy } = useRevealedKeyCopyHook({ hex, clipboard: browserClipboard, scheduler: browserScheduler });
   return (
     <div className="site-key-revealed-value" {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>
       <code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>{hex}</code>

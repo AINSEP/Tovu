@@ -1,7 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
@@ -58,20 +58,20 @@ export interface PluginsController {
   install?: PluginInstallController;
   canInstallFolder?: boolean;
   /** `null` until the initial load settles — the caller renders a loading state. */
-  plugins: AdminPlugin[] | null;
+  plugins: AdminPluginDto[] | null;
   error: string | null;
   rowError: string | null;
   /** In-flight enable/disable OR remove request, keyed by plugin id — one at a time, one row action
    *  at a time overall (a remove in flight on one row and a toggle in flight on another still share
    *  this single field). See `usePlugins`'s own `@tradeoffs` note for what that gives up. */
   rowSavingId: string | null;
-  onToggleEnabled: (plugin: AdminPlugin) => Promise<void>;
+  onToggleEnabled: (plugin: AdminPluginDto) => Promise<void>;
   /** Deletes a `"site"` plugin's on-disk artifact via `PLUGIN_UNINSTALL` and re-fetches the list —
    *  the Downloaded tab's Remove control, gated behind `PluginRemoveConfirmDialog` before this is
    *  ever called (see {@link PluginsController.onConfirmRemove}). Refused by the server for a
    *  `"built-in"` plugin or one still enabled somewhere; either refusal lands in `rowError` via the
    *  same `describeApiError` path `onToggleEnabled` already uses. */
-  onRemovePlugin: (plugin: AdminPlugin) => Promise<void>;
+  onRemovePlugin: (plugin: AdminPluginDto) => Promise<void>;
   /** Plugin ids whose row detail panel (quarantine/errors) is open. Same shape and home as the
    *  sibling `use-agent-plugins.hooks.ts`'s `AgentPluginsController.expandedIds` — moved here
    *  (2026-09-10) from a bare `useState` in `Plugins.tsx`. */
@@ -80,12 +80,12 @@ export interface PluginsController {
   onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   /** The plugin open in `PluginPackageFilesModal`, looked up fresh from `plugins` by id so a reload
    *  never shows a stale row; `null` while the viewer is closed. */
-  inspectedPlugin: AdminPlugin | null;
+  inspectedPlugin: AdminPluginDto | null;
   /** Opens the package-files viewer for one plugin (a row's eye button, on either list tab). */
   onInspectPlugin: (id: string) => void;
   onCloseInspector: () => void;
   /** The provider plugin open in `PluginProviderSettingsDialog` (looked up fresh, like `inspectedPlugin`). */
-  settingsPlugin: AdminPlugin | null;
+  settingsPlugin: AdminPluginDto | null;
   /** Opens a provider plugin's settings card (a row's Settings button, when it declares settings). */
   onOpenSettings: (id: string) => void;
   onCloseSettings: () => void;
@@ -96,11 +96,11 @@ export interface PluginsController {
   dismissSettingsNotice: () => void;
   /** The plugin waiting on `PluginRemoveConfirmDialog`, looked up fresh from `plugins` by id (same as
    *  `inspectedPlugin`), so the confirmed row is always the current one; `null` while it's closed. */
-  pendingRemovePlugin: AdminPlugin | null;
+  pendingRemovePlugin: AdminPluginDto | null;
   /** Opens the confirm dialog for one row (Downloaded's Remove button). Nothing is deleted yet. */
-  onRequestRemove: (plugin: AdminPlugin) => void;
+  onRequestRemove: (plugin: AdminPluginDto) => void;
   /** Closes the dialog, then runs {@link PluginsController.onRemovePlugin} for `plugin`. */
-  onConfirmRemove: (plugin: AdminPlugin) => void;
+  onConfirmRemove: (plugin: AdminPluginDto) => void;
   /** Closes the dialog without removing anything. */
   onCancelRemove: () => void;
   /** Bound translator — `Plugins.tsx`'s only source of UI copy; see this file's own header. */
@@ -122,9 +122,9 @@ function withId({ ids, id, present }: { ids: ReadonlySet<string>; id: string; pr
 }
 
 function findPluginById({ plugins, id }: {
-  plugins: AdminPlugin[] | null;
+  plugins: AdminPluginDto[] | null;
   id: string | null;
-}, _optional = {}): AdminPlugin | null {
+}, _optional = {}): AdminPluginDto | null {
   return plugins?.find((plugin) => plugin.id === id) ?? null;
 }
 
@@ -174,8 +174,8 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     settingsNotice,
     dismissSettingsNotice: () => setSettingsNotice(null),
     pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
-    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
-    onConfirmRemove: (plugin: AdminPlugin) => {
+    onRequestRemove: (plugin: AdminPluginDto) => setPendingRemoveId(plugin.id),
+    onConfirmRemove: (plugin: AdminPluginDto) => {
       setPendingRemoveId(null);
       void onRemovePlugin(plugin);
     },
@@ -190,7 +190,7 @@ function createPluginActions(
     Pick<ReturnType<typeof usePluginsState>, "rowSavingId" | "setRowSavingId" | "setRowError" | "write" | "loader"> &
     Pick<Parameters<typeof usePlugins>[0], "port" | "locale" | "t">
 ) {
-  async function onToggleEnabled(plugin: AdminPlugin) {
+  async function onToggleEnabled(plugin: AdminPluginDto) {
     // EC-11: a second activation of this row's own toggle while its request is outstanding is a
     // no-op — the client-side single-flight discipline is the guard, no `Idempotency-Key` is sent.
     if (rowSavingId === plugin.id) return;
@@ -211,7 +211,7 @@ function createPluginActions(
     }
   }
 
-  async function onRemovePlugin(plugin: AdminPlugin) {
+  async function onRemovePlugin(plugin: AdminPluginDto) {
     // Same single-flight discipline as `onToggleEnabled` — a second activation of this row's own
     // Remove (or of any other row's action) while a request is outstanding is a no-op.
     if (rowSavingId === plugin.id) return;

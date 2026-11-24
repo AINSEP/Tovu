@@ -322,7 +322,7 @@ describe("fake port saves like the real route", () => {
 
 describe("PluginRow settings button", () => {
   it("is shown only when the row passes onSettings", () => {
-    const plugin = { id: "x", name: "X", version: "1", source: "site" as const, tier: "tier-3" as const, status: "valid" as const, enabled: true, quarantine: null, errors: [] };
+    const plugin = { id: "x", name: "X", version: "1", source: "site" as const, tier: "tier-3" as const, status: "valid" as const, enabled: true, quarantine: null, errors: [], conflicts: [] };
     let opened = 0;
     const { rerender } = render(<ul><PluginRow plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} /></ul>);
     expect(screen.queryByRole("button", { name: "Settings — X" })).toBeNull();

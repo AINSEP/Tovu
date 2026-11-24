@@ -1,5 +1,5 @@
 import type { QueryKey } from "@jini-ai/core/fetch";
-import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@jini-ai/core/contracts/site/cms-trash";
 import { t } from "./trash-i18n";
 import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/admin-http/request";
 
@@ -55,7 +55,7 @@ export function coverageLine({ locale }: { locale: string }, _optional: Record<s
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
  *  the server already dropped the rows this operator may not see. @complexity O(1). */
-export function entityTypeLabel({ locale, entity }: { locale: string; entity: string | Pick<AdminTrashItem, "entityType" | "displayKind"> }, _optional: Record<string, never> = {}): string {
+export function entityTypeLabel({ locale, entity }: { locale: string; entity: string | Pick<AdminTrashItemDto, "entityType" | "displayKind"> }, _optional: Record<string, never> = {}): string {
   const entityType = typeof entity === "string" ? entity : entity.entityType;
   const displayKind = typeof entity === "string" ? undefined : entity.displayKind;
   const known: Record<string, string> = {
@@ -136,7 +136,7 @@ export interface ActorLabel {
  * @complexity O(1) — `knownUsernames` is looked up by key, not scanned.
  */
 export function actorLabel(
-  { locale, item }: { locale: string; item: AdminTrashItem },
+  { locale, item }: { locale: string; item: AdminTrashItemDto },
   { knownUsernames = NO_KNOWN_USERNAMES }: { knownUsernames?: ReadonlyMap<string, string> } = {}
 ): ActorLabel {
   const human = humanActorLabel(locale, item, knownUsernames);
@@ -147,7 +147,7 @@ export function actorLabel(
 }
 
 /** The human-facing part of {@link actorLabel}, before any AI-actor suffix. @complexity O(1). */
-function humanActorLabel(locale: string, item: AdminTrashItem, knownUsernames: ReadonlyMap<string, string>): string {
+function humanActorLabel(locale: string, item: AdminTrashItemDto, knownUsernames: ReadonlyMap<string, string>): string {
   if (item.actorUsername !== undefined) {
     if (item.actorUsername != null) return item.actorUsername;
     // Explicit null: the server checked and found no account. Still let a real "system" actor win
@@ -184,12 +184,12 @@ export function toggleSelection({ current, id }: { current: ReadonlySet<string>;
  *
  * @complexity O(n) in the row count.
  */
-export function selectionAfterSelectAll({ items, allSelected }: { items: readonly AdminTrashItem[]; allSelected: boolean }, _optional: Record<string, never> = {}): Set<string> {
+export function selectionAfterSelectAll({ items, allSelected }: { items: readonly AdminTrashItemDto[]; allSelected: boolean }, _optional: Record<string, never> = {}): Set<string> {
   return allSelected ? new Set<string>() : new Set(items.map((item) => item.id));
 }
 
 /** @complexity O(n). */
-export function allVisibleSelected({ items, selected }: { items: readonly AdminTrashItem[]; selected: ReadonlySet<string> }, _optional: Record<string, never> = {}): boolean {
+export function allVisibleSelected({ items, selected }: { items: readonly AdminTrashItemDto[]; selected: ReadonlySet<string> }, _optional: Record<string, never> = {}): boolean {
   return items.length > 0 && items.every((item) => selected.has(item.id));
 }
 
@@ -203,7 +203,7 @@ export function allVisibleSelected({ items, selected }: { items: readonly AdminT
  * @complexity O(n) in the result count.
  */
 export function describeRestoreReport(
-  { locale, report }: { locale: string; report: { restored: number; results: { outcome: AdminTrashRestoreOutcome }[] } },
+  { locale, report }: { locale: string; report: { restored: number; results: readonly { outcome: AdminTrashRestoreOutcome }[] } },
   _optional: Record<string, never> = {}
 ): string {
   return describeBatch(locale, report.restored, report.results.length, "restored");
@@ -211,7 +211,7 @@ export function describeRestoreReport(
 
 /** @complexity O(n) in the result count. */
 export function describePurgeReport(
-  { locale, report }: { locale: string; report: { purged: number; results: { outcome: AdminTrashPurgeOutcome }[] } },
+  { locale, report }: { locale: string; report: { purged: number; results: readonly { outcome: AdminTrashPurgeOutcome }[] } },
   _optional: Record<string, never> = {}
 ): string {
   const summary = describeBatch(locale, report.purged, report.results.length, "deleted");

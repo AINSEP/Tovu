@@ -65,6 +65,7 @@ Tests were written but not executed in the dispatched worker; validation belongs
   once to this app's `request` and `WORKSPACE_ID`; every caller imports `pluginsApi` from there.
 - `PluginRow.tsx` passes its summary button selector (`.plugin-row-summary`) as the required
   `summarySelector` of `@jini-ai/admin`'s `usePluginRowFocus`.
-- Port interfaces (`PluginsPort`, `PluginInstallPort`, `AgentPluginMemoryPort`) and the wire types
-  (`plugins-api.types`) come from `@jini-ai/admin/screens/plugins/…`; the `*-dependencies.hooks.ts`
+- Port interfaces (`PluginsPort`, `PluginInstallPort`, `AgentPluginMemoryPort`) and the provider-settings
+  wire types (`plugins-api.types`) come from `@jini-ai/admin/screens/plugins/…`; the plugin row and
+  package-files DTOs come from `@jini-ai/core/contracts/site/cms-plugins`; the `*-dependencies.hooks.ts`
   files here implement them over this app's API clients.

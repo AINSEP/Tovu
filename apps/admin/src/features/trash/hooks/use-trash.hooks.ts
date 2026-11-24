@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import type { AdminTrashItem } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -53,7 +53,7 @@ import type { TrashPort } from "./trash-port.hooks";
 
 export interface TrashController {
   /** `null` until the first page settles. */
-  items: AdminTrashItem[] | null;
+  items: AdminTrashItemDto[] | null;
   nextCursor: string | null;
   loadingMore: boolean;
   loadMore: () => void;
@@ -134,7 +134,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     return map;
   }, [usersQuery.data]);
 
-  const [morePages, setMorePages] = useState<AdminTrashItem[]>([]);
+  const [morePages, setMorePages] = useState<AdminTrashItemDto[]>([]);
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -231,7 +231,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   }
 
   /** The rows the current selection actually names, resolved from what is on screen. */
-  function selectedItems(): AdminTrashItem[] {
+  function selectedItems(): AdminTrashItemDto[] {
     return (items ?? []).filter((item) => selected.has(item.id));
   }
 

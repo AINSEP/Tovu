@@ -8,7 +8,7 @@ import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.
 
 afterEach(() => resetContentRefreshBus());
 const t = (key: string) => key;
-const siteRow = { id: "qa-fake-hello", name: "QA Hello", version: "1.0.0", source: "site" as const, tier: "tier-1" as const, status: "valid" as const, enabled: false, quarantine: null, errors: [] };
+const siteRow = { id: "qa-fake-hello", name: "QA Hello", version: "1.0.0", source: "site" as const, tier: "tier-1" as const, status: "valid" as const, enabled: false, quarantine: null, errors: [], conflicts: [] };
 const agentRow = { pluginId: "qa-fake-agent", version: "1.0.0", enabled: false, description: null, keywords: [], skills: [], mcpServerIds: [] };
 
 describe("plugin lists after assistant tool writes", () => {

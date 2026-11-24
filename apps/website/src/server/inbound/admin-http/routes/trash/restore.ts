@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
-import type { RestoreOutcome } from "@jini-ai/cms/trash";
+import type { AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
@@ -40,7 +40,7 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps 
       }
 
       const at = deps.clock.nowIso();
-      const results: { entityType: string; entityId: string; outcome: RestoreOutcome | "forbidden" }[] = [];
+      const results: AdminTrashRestoreReportDto["results"][number][] = [];
       for (const item of items) {
         const gate = await mayActOnEntityType(deps, {
           principalId: principal.id,
@@ -62,7 +62,8 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps 
         });
       }
 
-      res.json({ restored: results.filter((r) => r.outcome === "restored").length, results });
+      const body: AdminTrashRestoreReportDto = { restored: results.filter((r) => r.outcome === "restored").length, results };
+      res.json(body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/trash/restore", code: "INTERNAL_ERROR" });
     }

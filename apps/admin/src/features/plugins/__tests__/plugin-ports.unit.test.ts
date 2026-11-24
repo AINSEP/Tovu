@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
@@ -91,8 +91,8 @@ describe("createFakeAgentPluginsPort", () => {
 });
 
 describe("createFakePluginsPort refusals mirror the real routes", () => {
-  const userPlugin = { id: "user", source: "site", enabled: false } as AdminPlugin;
-  const builtIn = { id: "core", source: "built-in", enabled: false } as AdminPlugin;
+  const userPlugin = { id: "user", source: "site", enabled: false } as AdminPluginDto;
+  const builtIn = { id: "core", source: "built-in", enabled: false } as AdminPluginDto;
 
   it("refuses to toggle an unknown plugin", async () => {
     const port = createFakePluginsPort({ plugins: [userPlugin] });

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Plugins } from "../Plugins";
 import type { PluginsController } from "../hooks/use-plugins.hooks";
-import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 
 /**
  * @file `Plugins` screen — SPEC-005 REQ-12..18, AC-18..26, EC-11 (ui.spec.md), rebuilt onto the
@@ -48,7 +48,7 @@ import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api
 
 const AC11_PLUGINS_RESPONSE = {
   plugins: [
-    { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] },
+    { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] },
     {
       id: "invalid-site-plugin",
       name: "Invalid Site Plugin",
@@ -60,7 +60,7 @@ const AC11_PLUGINS_RESPONSE = {
       quarantine: null,
       errors: [{ code: "HOOK_UNKNOWN", file: "tovu.plugin.json", message: "attaches to an undeclared hook point" }],
     },
-    { id: "valid-site-plugin", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
+    { id: "valid-site-plugin", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] },
   ],
 };
 
@@ -189,7 +189,7 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
   it("Downloaded's row for an ENABLED plugin shows a disabled Remove that says to turn it off first, and no Enable", async () => {
     const response = {
       plugins: [
-        { id: "site-plugin-enabled", name: "Site Plugin Enabled", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+        { id: "site-plugin-enabled", name: "Site Plugin Enabled", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] },
       ],
     };
     fetchMock.mockResolvedValueOnce(jsonResponse(response));
@@ -425,9 +425,9 @@ describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not
   it("each row's subline reflects that record's own source/tier/status", async () => {
     const response = {
       plugins: [
-        { id: "tier-one-plugin", name: "Tier One Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
-        { id: "tier-two-plugin", name: "Tier Two Plugin", version: "1.0.0", source: "site", tier: "tier-2", status: "invalid", enabled: false, quarantine: null, errors: [] },
-        { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] },
+        { id: "tier-one-plugin", name: "Tier One Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] },
+        { id: "tier-two-plugin", name: "Tier Two Plugin", version: "1.0.0", source: "site", tier: "tier-2", status: "invalid", enabled: false, quarantine: null, errors: [], conflicts: [] },
+        { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] },
       ],
     };
     fetchMock.mockResolvedValueOnce(jsonResponse(response));
@@ -714,7 +714,7 @@ describe("Accessibility (React Component Testing Policy)", () => {
  * this is a component-rendering fact ("what does the screen show for THIS controller state"), not a
  * `usePlugins` load/toggle behavior, which stays in `use-plugins.hooks.unit.test.ts`.
  */
-const WORD_COUNT_PLUGIN: AdminPlugin = { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] };
+const WORD_COUNT_PLUGIN: AdminPluginDto = { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] };
 
 function fakePluginsController(overrides: Partial<PluginsController> = {}): PluginsController {
   return {

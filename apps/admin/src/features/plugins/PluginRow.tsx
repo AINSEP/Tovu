@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
-import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
@@ -15,7 +15,7 @@ import { type Translate } from '@jini-ai/core/text';
  * tabs render through. Structurally mirrors `AgentPluginRow.tsx` (icon, name + version chip, a
  * one-line subline, an expander, then right-aligned controls), the sibling screen's own
  * plain-table-to-row redesign from the same night, but is not byte-for-byte identical and imports
- * nothing from that file: `AdminPlugin` has no free-text description (its subline is
+ * nothing from that file: `AdminPluginDto` has no free-text description (its subline is
  * `source · tier · status` instead, via `pluginSubline`) and a `.tovu-plugin` row exposes exactly
  * ONE tab-specific control at a time (after the eye button every row carries, 2026-09-13) — the
  * Enabled toggle on Installed, or Remove on Downloaded —
@@ -41,7 +41,7 @@ import { type Translate } from '@jini-ai/core/text';
 
 export interface PluginRowProps {
   hooks?: { usePluginRowFocus: typeof usePluginRowFocus };
-  readonly plugin: AdminPlugin;
+  readonly plugin: AdminPluginDto;
   readonly t: Translate;
   readonly expanded: boolean;
   readonly onToggleExpanded: () => void;
@@ -61,7 +61,7 @@ export interface PluginRowProps {
 /** The facts every row has (`rules.ts`'s `pluginRowFacts`) — always rendered, so a healthy
  *  plugin's expander is never an empty box (mobile catalog PL-2, 2026-10-06). A labelled `group`,
  *  not a heading: the row's own summary button already names the plugin. */
-function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
+function PluginRowFacts({ plugin, t }: { plugin: AdminPluginDto; t: Translate }) {
   return (
     <dl className="plugin-row-facts" role="group" aria-label={t("Plugin details")}>
       {pluginRowFacts({ plugin, translate: t }).map((fact) => (
@@ -80,7 +80,7 @@ function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
  *  them, same "don't assert a question was asked and answered none" rule `AgentPluginRow`'s own
  *  `DetailChips` documents — that decision, and every string, comes from `rules.ts`'s
  *  `pluginRowDetailView`. */
-function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
+function PluginRowProblems({ plugin, t }: { plugin: AdminPluginDto; t: Translate }) {
   const view = pluginRowDetailView({ plugin, translate: t });
   if (!view) return null;
   return (

@@ -2,7 +2,7 @@ import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-libr
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
-import type { AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@jini-ai/admin/screens/trash/api/trash-api.types";
+import type { AdminTrashItemDto, AdminTrashPageDto, AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
@@ -25,7 +25,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <FetchQueryProvider>{children}</FetchQueryProvider>;
 }
 
-function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
+function item(overrides: Partial<AdminTrashItemDto> = {}): AdminTrashItemDto {
   return {
     id: "trash-1",
     entityType: "post",
@@ -65,7 +65,7 @@ afterEach(() => {
 describe("useTrash", () => {
   it("ignores selection and batch actions before the first page arrives", async () => {
     const port = createFakeTrashPort();
-    let resolvePage!: (page: AdminTrashPage) => void;
+    let resolvePage!: (page: AdminTrashPageDto) => void;
     port.listTrash = () => new Promise(resolve => { resolvePage = resolve; });
     const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     expect(result.current.items).toBeNull();
@@ -81,7 +81,7 @@ describe("useTrash", () => {
 
   it("ignores a purge while a selected restore is pending", async () => {
     const port = createFakeTrashPort({ items: [item()] });
-    let complete!: (report: AdminTrashRestoreReport) => void;
+    let complete!: (report: AdminTrashRestoreReportDto) => void;
     port.restoreTrashItems = () => new Promise(resolve => { complete = resolve; });
     const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([item()]));
@@ -168,8 +168,8 @@ describe("useTrash", () => {
 
   it("ignores another restore while busy and clears the selection after success", async () => {
     const port = createFakeTrashPort({ items: [item()] });
-    let release!: (report: AdminTrashRestoreReport) => void;
-    port.restoreTrashItems = vi.fn(() => new Promise<AdminTrashRestoreReport>((resolve) => { release = resolve; }));
+    let release!: (report: AdminTrashRestoreReportDto) => void;
+    port.restoreTrashItems = vi.fn(() => new Promise<AdminTrashRestoreReportDto>((resolve) => { release = resolve; }));
     const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual([item()]));
     act(() => result.current.toggle("trash-1"));
@@ -250,7 +250,7 @@ describe("useTrash", () => {
   });
 
   it("an out-of-band write refreshes the list — the screen does not keep saying the Trash is empty", async () => {
-    let page: AdminTrashItem[] = [];
+    let page: AdminTrashItemDto[] = [];
     const port = {
       listCalls: [] as Array<{ cursor?: string }>,
       async listTrash(options: { cursor?: string }) {
@@ -276,7 +276,7 @@ describe("useTrash", () => {
   });
 
   it("a row that disappears from the list drops out of the selection", async () => {
-    let page: AdminTrashItem[] = [item({ id: "a" }), item({ id: "b" })];
+    let page: AdminTrashItemDto[] = [item({ id: "a" }), item({ id: "b" })];
     const port = {
       async listTrash() {
         return { items: page, nextCursor: null };
@@ -374,7 +374,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
  */
 describe("useTrash — Refresh (2026-09-21)", () => {
   it("a remount within 10s shows freshly changed rows, not the stale cache (staleTime: 0)", async () => {
-    let rows: AdminTrashItem[] = [item({ id: "a" })];
+    let rows: AdminTrashItemDto[] = [item({ id: "a" })];
     const listTrash = vi.fn(async () => ({ items: rows, nextCursor: null }));
     const port: TrashPort = {
       listTrash,
@@ -419,13 +419,13 @@ describe("useTrash — Refresh (2026-09-21)", () => {
   });
 
   it("'refreshing' is true only while the refresh's own fetch is pending", async () => {
-    let resolveSecond!: (v: AdminTrashPage) => void;
+    let resolveSecond!: (v: AdminTrashPageDto) => void;
     let call = 0;
     const port: TrashPort = {
       listTrash: vi.fn(() => {
         call++;
         if (call === 1) return Promise.resolve({ items: [item()], nextCursor: null });
-        return new Promise<AdminTrashPage>((resolve) => {
+        return new Promise<AdminTrashPageDto>((resolve) => {
           resolveSecond = resolve;
         });
       }),
@@ -453,12 +453,12 @@ describe("useTrash — Refresh (2026-09-21)", () => {
   });
 
   it("refresh() drops accumulated 'more' pages, and a Load more still in flight when it lands does not append", async () => {
-    let firstPageResult: AdminTrashPage = { items: [item({ id: "p1" })], nextCursor: "c2" };
-    const cursorCalls: Array<{ resolve: (v: AdminTrashPage) => void }> = [];
+    let firstPageResult: AdminTrashPageDto = { items: [item({ id: "p1" })], nextCursor: "c2" };
+    const cursorCalls: Array<{ resolve: (v: AdminTrashPageDto) => void }> = [];
     const port: TrashPort = {
       listTrash: vi.fn((options: { cursor?: string }) => {
         if (options.cursor) {
-          return new Promise<AdminTrashPage>((resolve) => {
+          return new Promise<AdminTrashPageDto>((resolve) => {
             cursorCalls.push({ resolve });
           });
         }
@@ -531,17 +531,17 @@ describe("useTrash — Refresh (2026-09-21)", () => {
 describe("useTrash — Load more paging (2026-09-21)", () => {
   interface ControlledPort {
     port: TrashPort;
-    cursorCalls: Array<{ resolve: (v: AdminTrashPage) => void; reject: (e: Error) => void }>;
-    setFirstPage: (items: AdminTrashItem[], nextCursor: string | null) => void;
+    cursorCalls: Array<{ resolve: (v: AdminTrashPageDto) => void; reject: (e: Error) => void }>;
+    setFirstPage: (items: AdminTrashItemDto[], nextCursor: string | null) => void;
   }
 
   function createControlledPort(): ControlledPort {
-    let firstPageResult: AdminTrashPage = { items: [item()], nextCursor: "c2" };
+    let firstPageResult: AdminTrashPageDto = { items: [item()], nextCursor: "c2" };
     const cursorCalls: ControlledPort["cursorCalls"] = [];
     const port: TrashPort = {
       listTrash: vi.fn((options: { cursor?: string }) => {
         if (options.cursor) {
-          return new Promise<AdminTrashPage>((resolve, reject) => {
+          return new Promise<AdminTrashPageDto>((resolve, reject) => {
             cursorCalls.push({ resolve, reject });
           });
         }
