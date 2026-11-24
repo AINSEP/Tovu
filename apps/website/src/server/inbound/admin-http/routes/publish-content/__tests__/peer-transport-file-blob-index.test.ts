@@ -22,7 +22,7 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentPeerRoutes } from "#src/server/runtime/composition/modules/publish-content-transport";
-import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
+import { registerPublishContentPeerTransportRoutes } from "../../../../../runtime/composition/modules/publish-content-transport.js";
 
 /**
  * @file S18 (S-F3) route wiring — `publish-files-plan-2026-09-24.md` §3. Proves that `push/plan`

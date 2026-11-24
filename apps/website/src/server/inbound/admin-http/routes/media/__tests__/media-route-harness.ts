@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Express } from 'express';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, fixture, type Deps, type Register } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaUploadRoute } from '../upload.js';
+import { registerAdminMediaUploadRoute } from '#src/server/runtime/composition/modules/media';
 
 /** Shared seeding for the media route branch tests: real in-memory composition deps, with the
  *  upload route mounted next to the route under test so assets are stored the way production does. */

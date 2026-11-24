@@ -1,5 +1,4 @@
 import type { AssistantExecutionTabAgentDto } from "@jini-ai/core/contracts/site/cms-assistant";
-import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 
 /** One detect-agents row: the wire DTO Core declares (`@jini-ai/core/contracts/site/cms-assistant`'s
  *  `AssistantExecutionTabAgentDto`, produced by `@jini-ai/cms/admin-http/routes/assistant/detect-agents`'s

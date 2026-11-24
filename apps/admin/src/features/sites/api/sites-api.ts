@@ -1,9 +1,9 @@
 import { adminFailureChannel } from "../../../lib/admin-failure-channel";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
+import type { SitesHomeSetResponse } from "@jini-ai/core/contracts/site/cms-sites";
 import type { AdminGeneratedSiteKey, AdminImportedSiteKey, AdminRevealedSiteKey, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminStartedFreshSiteKey } from "@jini-ai/core/contracts/site/site-key";
 import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminLocalSiteAction, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin, SitesUserConfig, SitesUserConfigPatch } from "./sites-api.types";
-import type { SitesHomeSetResponse } from "@jini-ai/core/contracts/site/cms-sites";
 
 /** The admin API calls of the sites feature. */
 export const sitesApi = {

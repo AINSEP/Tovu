@@ -14,7 +14,7 @@ import { resolveHtmlEmbedsForRender, resolveWidgetsForRender } from "#src/server
 import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
 import { resolveSiteTitle } from "#src/features/settings/index";
 
-import type { ContentRouteDeps } from "../content/deps.js";
+import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
 
 /**
  * Never persisted — a shallow clone rendered once for this response and discarded.

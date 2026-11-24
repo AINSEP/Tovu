@@ -5,7 +5,7 @@
  * One class per error this module originates, mirroring the
  * `DefinitionNotFoundError`/`ForbiddenError` convention in `Jini packages/core/src/settings/errors.ts` and
  * `apps/website/src/features/members/types.ts`'s error-class pattern. Route handlers map these 1:1 to the HTTP codes in
- * errors.spec.md §2 (see `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s error-mapping helper).
+ * errors.spec.md §2 (see `features/newsletter/http-error-responses.ts`, the table the admin route specs receive injected).
  */
 
 export class NewsletterCampaignNotFoundError extends Error {}

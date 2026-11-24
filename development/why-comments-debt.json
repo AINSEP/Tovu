@@ -3606,130 +3606,6 @@
       "reason": "K1 pilot (RT-K1-adm-menus): rewritten in place: the file header now explains the K1 mount (per-route deps, injected host policy)."
     },
     {
-      "id": "153f32528336",
-      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
-    },
-    {
-      "id": "cecd3ebf4521",
-      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
-    },
-    {
-      "id": "09e11019f541",
-      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuTargetDto doc (combine-16, with the K1 menus DTO move); the host menus.ts is gone (routes now mount the Jini cms specs)."
-    },
-    {
-      "id": "c5d16d4d85d1",
-      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuDto doc ('mode'/'html' absent on a menu that never used HTML mode; K1 rv1123e); the host menus.ts is gone."
-    },
-    {
-      "id": "178e43d79674",
-      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
-    },
-    {
-      "id": "4038db5b2226",
-      "reason": "P12 #6.T F6.4 reverses the 2026-08-12 'deliberately not hook-injected' ruling this test header cited: Placeholder now takes the host locale hook as a REQUIRED prop (approval reviews/approve-P12-cutplan2.md F6.4), so the explanation describes code that no longer exists."
-    },
-    {
-      "id": "62ced0c1fed7",
-      "reason": "P12 #6.T F6.4 (approved): Placeholder's live-hook default is removed and the hook is a required prop; the 'deliberately NOT hook-injected' ruling is reversed by the approval, so this explanation is obsolete."
-    },
-    {
-      "id": "5165f24e1463",
-      "reason": "Moved with the stage to Jini (P12 #4.J, F4.1): the unparseable-vs-null sentinel reasoning lives at core/transport/http.ts UNPARSEABLE_BODY and parseJsonBody docs, which the factory reuses."
-    },
-    {
-      "id": "e6d974eb500e",
-      "reason": "Moved to Jini (P12 #4.J): the rejected-fetch translation (TypeError only, AbortError rethrown, cause kept) is documented at core/transport/http.ts throwTranslatedFetchFailure, shared by createAdminHttp; Tovu's 'Tovu API' copy stays in request.ts messages.unreachable."
-    },
-    {
-      "id": "be361ab64e90",
-      "reason": "Moved to Jini (P12 #4.J): the cross-realm DOMException name check lives at core/transport/http.ts errorName ('Timeout DOMExceptions can come from another realm')."
-    },
-    {
-      "id": "6ee99d63563c",
-      "reason": "Obsolete with the move (P12 #4.J): this explained an in-file complexity split of the catch block; the classification now lives once in core/transport/http.ts throwTranslatedFetchFailure."
-    },
-    {
-      "id": "4561bac89ec9",
-      "reason": "Moved to Jini (P12 #4.J): the pagehide-cancellation reason is at core/transport/http.ts throwTranslatedFetchFailure ('A navigation cancels in-flight fetches with this same TypeError after pagehide')."
-    },
-    {
-      "id": "45699d2b2e49",
-      "reason": "Moved to Jini (P12 #4.J): caller-signal precedence is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts fetchBounded ('A caller's signal owns cancellation and its own deadline')."
-    },
-    {
-      "id": "c83224534c56",
-      "reason": "Moved to Jini (P12 #4.J): buildFetchInit and its merge-order doc moved to Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit (same-origin + JSON default, headers merge onto the default, caller type wins); its test imports the Jini owner."
-    },
-    {
-      "id": "1f79daa9af52",
-      "reason": "Moved to Jini (P12 #4.J): the case-insensitive Content-Type reason is in Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit's doc ('in any letter case ... two values would be sent joined with a comma')."
-    },
-    {
-      "id": "e2e6fbe036cb",
-      "reason": "Moved to Jini (P12 #4.J): parse stage and its null-vs-unparseable reason live at core/transport/http.ts parseJsonBody."
-    },
-    {
-      "id": "9e6b2e7b08a3",
-      "reason": "Moved to Jini (P12 #4.J): the 401+UNAUTHENTICATED-only rule is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('a relayed vendor 401 does not'); host ordering (reset before notify) is documented at request.ts adminHttp composition."
-    },
-    {
-      "id": "536cc7622121",
-      "reason": "Moved (P12 #4.J/T): the three-failure-mode reasoning is split between Jini @jini-ai/admin shell/lib/admin-http/request.ts responseError doc and the request.ts composition doc (Vite proxy bare 500, 2026-08-06 debugging hour, redaction of the requestFailed copy)."
-    },
-    {
-      "id": "edff0256ccff",
-      "reason": "Moved to Jini (P12 #4.J): the single-seam/onOk-on-success-only contract is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('onOk runs just before resolve') and the factory file header."
-    },
-    {
-      "id": "133bc7cc0dfc",
-      "reason": "Reworded in place (P12 #4.T): requestOnce is now a bound export with its own doc in request.ts ('One send through the seam, no restart retry')."
-    },
-    {
-      "id": "73d663a2fee7",
-      "reason": "Moved to Jini (P12 #4.J): the upstream-refused mark is documented on the CreateAdminHttpPorts.isUpstreamRefused port in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
-    },
-    {
-      "id": "89e2703e5b79",
-      "reason": "Moved to Jini (P12 #4.J): the per-instance refused-error WeakSet is documented on Context.upstreamRefused in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
-    },
-    {
-      "id": "ef1d3c398c7e",
-      "reason": "Moved to Jini (P12 #4.J): retry policy doc lives at Jini @jini-ai/admin shell/lib/admin-http/request.ts rideOutRestart ('sends exactly once more. Reads always retry; writes only when provably undelivered or retryWrites')."
-    },
-    {
-      "id": "1f5e257eed8d",
-      "reason": "Moved to Jini (P12 #4.J): the generation-captured-before-send reason is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
-    },
-    {
-      "id": "b7b914d063db",
-      "reason": "Moved to Jini (P12 #4.J): 'only the FINAL failure is reported' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
-    },
-    {
-      "id": "dfaf4e4bc9f0",
-      "reason": "Moved in place (P12 #4.T): the 4xx-is-the-caller's reason is now on request.ts reportFailure port binding ('A 4xx is the caller's to explain')."
-    },
-    {
-      "id": "ebe41cb8bdf9",
-      "reason": "Moved to Jini (P12 #4.J): 'Notice effects must never replace the caller's original rejection' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported."
-    },
-    {
-      "id": "a8c92bf88454",
-      "reason": "Moved in place (P12 #4.T): the provider-URL cookie reason is now the AdminApiBasePath doc in request.ts."
-    },
-    {
-      "id": "b169dfcdd8bc",
-      "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
-    },
-    {
-      "id": "3d4be6abd42e",
-      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort loadLanguage doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
-    },
-    {
-      "id": "709316d2b551",
-      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort subscribeToSettingsRefresh doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
-    },
-    {
       "id": "09d8a8c08a7f",
       "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/settings/get-effective.ts (K1 L2), reworded neutral (self-read default above the principal choice; Tovu admin file paths replaced by \"the host admin app\")."
     },
@@ -3978,32 +3854,580 @@
       "reason": "Moved with the code to Jini @jini-ai/cms admin-http/routes/system/export-site.ts (K1 L2), reworded neutral (readTriggerOptions JSDoc: blank basePath collapses to omitted; every malformed shape is a flat 400)."
     },
     {
-      "id": "8dd47a012640",
-      "reason": "Header said the client types mirror the settings response contracts; the value/reset responses now alias the Core DTOs (@jini-ai/core/contracts/site/cms-settings, rv1123e §2.1), so 'mirroring' is no longer true."
+      "id": "153f32528336",
+      "reason": "rv1123e K1-tovu #2: rewritten in place in admin-json-route-ports.ts authenticate; deferral is now a per-mount opt-in (deferMissingPrincipal) and the new comment carries the same parse-first rationale plus the opt-in rule."
     },
     {
-      "id": "ec1df623d9d9",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): clear.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/clear.ts:65 (verbatim, shared.ts -> @jini-ai/core/settings)."
+      "id": "cecd3ebf4521",
+      "reason": "rv1123e K1-tovu #1: rewritten in place above mountOptions in modules/menus.ts; same operation/authorization rationale, extended with the per-permission raw-HTML override and the per-mount deferral list."
     },
     {
-      "id": "d0a8c4efc097",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-effective.ts @file block -> Jini @jini-ai/cms/admin-http/routes/settings/get-effective.ts spec doc; resolution rationale already lived in Jini core settings cms-adapter."
+      "id": "f5e9094370c4",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/http/newsletter.ts (file header), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:21-34."
     },
     {
-      "id": "12783307cacc",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-raw.ts layer-resolution doc -> Jini @jini-ai/cms/admin-http/routes/settings/get-raw.ts:34."
+      "id": "e6a79e7ea341",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/shared.ts (authorizeNewsletter / admitNewsletterRequest), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:38-43."
     },
     {
-      "id": "ccb49fc91f9c",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts partition-selection doc -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:51."
+      "id": "e6098dc71b55",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/shared.ts (rejectNewsletterError); the class table doc is in apps/website/src/features/newsletter/http-error-responses.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/newsletter.ts:144-144."
     },
     {
-      "id": "fc0f6811a69d",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:67 (verbatim)."
+      "id": "da1d314a5ed5",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/create-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/create-campaign.ts:43-51."
     },
     {
-      "id": "b1045df6b29d",
-      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): set.ts ambient-workspace note -> Jini @jini-ai/cms/admin-http/routes/settings/set.ts:76."
+      "id": "6c32e9308245",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/create-subscription.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts:9-13."
+    },
+    {
+      "id": "bef950d3f2b7",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/remove-subscription.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/remove-subscription.ts:8-18."
+    },
+    {
+      "id": "e62ae935b6a4",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/resend-confirmation.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/resend-confirmation.ts:8-18."
+    },
+    {
+      "id": "ea9bbabab57f",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/schedule-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/schedule-campaign.ts:15-17."
+    },
+    {
+      "id": "b4812604ae84",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/send-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts:21-41."
+    },
+    {
+      "id": "3ab4fd7fcfb0",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/update-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts:69-75."
+    },
+    {
+      "id": "8413023ead0f",
+      "reason": "rt-i1 (RT-K1-adm-newsletter): moved with the code to Jini packages/cms/src/admin-http/routes/newsletter/update-campaign.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts:91-118."
+    },
+    {
+      "id": "d391f3a59eb8",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create-policy.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create-policy.ts:11-12."
+    },
+    {
+      "id": "b9a6093ca3af",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:13-14."
+    },
+    {
+      "id": "d5477697986b",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:46-57."
+    },
+    {
+      "id": "383fc81ab1b8",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/create.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/create.ts:66-76."
+    },
+    {
+      "id": "83b5c2c020c9",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/delete.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/delete.ts:40-48."
+    },
+    {
+      "id": "545f2a2b8530",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/shared.ts (adminUserForPrincipal), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/disable.ts:12-19."
+    },
+    {
+      "id": "e7b022d606a1",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/disable.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/disable.ts:63-72."
+    },
+    {
+      "id": "98424681a16d",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/enable.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/enable.ts:44-49."
+    },
+    {
+      "id": "f6ff79ed9cfa",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/list.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/list.ts:8-23."
+    },
+    {
+      "id": "998961b16b3c",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/list.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/list.ts:64-68."
+    },
+    {
+      "id": "96d40118543a",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/reset-password.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts:12-16."
+    },
+    {
+      "id": "82fb115cae55",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/reset-password.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts:45-53."
+    },
+    {
+      "id": "cdff539d9f78",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/update.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/update.ts:12-13."
+    },
+    {
+      "id": "1093b546ac97",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/update.ts, reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/update.ts:22-29."
+    },
+    {
+      "id": "17085e5685cf",
+      "reason": "rt-i1 (RT-K1-adm-users): moved with the code to Jini packages/user-management/src/admin-http/routes/users/access-shared.ts (accessPermissionUnknown), reworded host-neutral where needed; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts:10-12."
+    },
+    {
+      "id": "f7537a5b2f57",
+      "reason": "rt-i1 (RT-K1-adm-users-1): moved with the code to Jini packages/user-management/src/admin-http/http/users.ts (file header), host path reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "8f6e268b33bd",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (file header), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0f850ced9a22",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (list envelope doc), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "3c411589e4bc",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/http/members.ts (toAdminMemberResponse doc), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4d280764260c",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/delete.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "310201198951",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/get-by-id.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e5ed0973dd76",
+      "reason": "RT-I2 (RT-K1-adm-members): moved with the code to Jini packages/cms/src/admin-http/routes/members/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "de2eac64487c",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Tovu apps/website/src/server/runtime/composition/modules/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "951a8a4e1069",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "de8d57491885",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ba16919da1e2",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e1409a7c52ca",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8413e892fa2f",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c843c3a8ee2f",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d5adcd5acb65",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e5676a2f7bac",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/items.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2dbb259277c7",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d78836330513",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e48ab568df01",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "82586eae0fcc",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1a008dd604be",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "421b36153160",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c25f86537ca6",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/http/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "007eda63f042",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/http/trash.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "88051f01afd1",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "45c84ed0a49b",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ed6ee3a0dd09",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/purge.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ad5a6381ab7d",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "06a98e8be102",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e50f8b6b22cf",
+      "reason": "RT-I2 (RT-K1-adm-trash): moved with the code to Jini packages/cms/src/admin-http/routes/trash/restore.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "11fe2dc9b659",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/http/integrations.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a0e1ec2e5662",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/http/integrations.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "64272498c62f",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/create.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "408c34f638d8",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/create.ts and shared.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "196086c11a90",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/delete.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ffd584f6eca2",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "64d2e6822812",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/list.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6d71f79f2d6b",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/pause.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0e1a42246f6c",
+      "reason": "RT-I2 (RT-K1-adm-integrations): moved with the code to Jini packages/cms/src/admin-http/routes/integrations/pause.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6773262ded2d",
+      "reason": "RT-I2 (RT-K1-adm-commerce): moved with the code to Jini packages/cms/src/admin-http/routes/commerce/status.ts (file header + handler comment) and the Tovu registrar doc, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "78a2d385271e",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "232967daf85d",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0ce25813ca15",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7e149ea203d9",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1efe97ec203d",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "64804bc1bce8",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1cc38dfc6029",
+      "reason": "RT-I2 (RT-K1-adm-site): moved with the code to Jini packages/cms/src/admin-http/routes/site/profile.ts, reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e617637da50f",
+      "reason": "RT-I2 (RT-K1-adm-redirects): moved with the code to Jini packages/cms/src/admin-http/routes/redirects/create.ts (assertCreateBody/createInputFrom docs), reworded host-neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "992a65145205",
+      "reason": "RT-I2 (RT-K1-adm-redirects): obsolete, not moved. It documented the Express writer `respondToRedirectError`, deleted with the hand-written create route; Jini `rejectRedirectError` in packages/cms/src/admin-http/routes/redirects/shared.ts carries its own comment."
+    },
+    {
+      "id": "ff2924c0fa3f",
+      "reason": "RT-I2 (RT-K1-adm-redirects): obsolete, not moved. It documented the Express writer `respondToRedirectError`, deleted with the hand-written create route; Jini `rejectRedirectError` in packages/cms/src/admin-http/routes/redirects/shared.ts carries its own comment."
+    },
+    {
+      "id": "453122ecf227",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:8-16."
+    },
+    {
+      "id": "909699d3674b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:18-19."
+    },
+    {
+      "id": "3edde817d307",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:30-38."
+    },
+    {
+      "id": "8d988aacb9e7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/http/plugin-hook-error.ts (envelope doc + createPluginHookErrorEnvelope), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts:44-50."
+    },
+    {
+      "id": "26bf4cef42c4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/change-sets/*, reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/change-sets/revert.ts:28-30."
+    },
+    {
+      "id": "fbaf7f6ad1e4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:27-40."
+    },
+    {
+      "id": "313a64196639",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:46-46."
+    },
+    {
+      "id": "961311a38872",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:74-74."
+    },
+    {
+      "id": "9c1e508e4c5b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/email-templates/* (and Tovu modules/email-templates.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts:91-100."
+    },
+    {
+      "id": "0f9b52cdf4f3",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts:31-49."
+    },
+    {
+      "id": "bb3c9e4c6df1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts:54-55."
+    },
+    {
+      "id": "58b8eb2baffb",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/list.ts:9-15."
+    },
+    {
+      "id": "4baa30d2dc24",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:23-30."
+    },
+    {
+      "id": "49818a3336c7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:33-43."
+    },
+    {
+      "id": "8f144f45253c",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:53-55."
+    },
+    {
+      "id": "d65a378f8d08",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:91-159."
+    },
+    {
+      "id": "ac21cced9f09",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:168-169."
+    },
+    {
+      "id": "fc5af9013bb2",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/pages/* (and Tovu modules/pages.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts:182-184."
+    },
+    {
+      "id": "fb3e30b7c21f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:14-27."
+    },
+    {
+      "id": "fc0a6ae74e03",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:30-37."
+    },
+    {
+      "id": "fd11ad940924",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:49-50."
+    },
+    {
+      "id": "e130a9657c41",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:78-83."
+    },
+    {
+      "id": "f2f908376903",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:93-94."
+    },
+    {
+      "id": "25ff9a0c007b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:107-112."
+    },
+    {
+      "id": "e59969d0b0b6",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/posts/autosave.ts (and Tovu modules/posts.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:128-148."
+    },
+    {
+      "id": "4aeb5f1d0cfa",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:27-32."
+    },
+    {
+      "id": "f6419739c9d2",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:48-56."
+    },
+    {
+      "id": "c7e592c9acb7",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:58-59."
+    },
+    {
+      "id": "6e494e9f8101",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:74-85."
+    },
+    {
+      "id": "2a338271d1a4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:94-95."
+    },
+    {
+      "id": "b53cb7bb5777",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/get.ts:97-100."
+    },
+    {
+      "id": "381f1228c8a6",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/presentation/* (and Tovu modules/presentation.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/presentation/rescan-themes.ts:8-25."
+    },
+    {
+      "id": "e6dd6ae2d81b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts:23-23."
+    },
+    {
+      "id": "5772faed1355",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts:33-45."
+    },
+    {
+      "id": "fad64242d51e",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:93-93."
+    },
+    {
+      "id": "65d3c969593b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:106-107."
+    },
+    {
+      "id": "8d35cd93d1c4",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:122-129."
+    },
+    {
+      "id": "2e02baed7cab",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:480-481."
+    },
+    {
+      "id": "cdd1b799f99f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:486-488."
+    },
+    {
+      "id": "a9768a216b28",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:534-535."
+    },
+    {
+      "id": "a3ed52e37b1d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:545-547."
+    },
+    {
+      "id": "7b1536c00ba8",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:585-590."
+    },
+    {
+      "id": "301b07649035",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:634-642."
+    },
+    {
+      "id": "232ba6209398",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:662-666."
+    },
+    {
+      "id": "f868d0e312ee",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:686-686."
+    },
+    {
+      "id": "83d8aca3e4cb",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:696-703."
+    },
+    {
+      "id": "a20f1f0fba47",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:722-731."
+    },
+    {
+      "id": "e4a2fdce8a14",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:755-763."
+    },
+    {
+      "id": "d7e01464082d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:777-810."
+    },
+    {
+      "id": "e493562f4d70",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:826-831."
+    },
+    {
+      "id": "169157e93726",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:840-841."
+    },
+    {
+      "id": "1e41197c9903",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:853-854."
+    },
+    {
+      "id": "1154ead4cdf1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:864-869."
+    },
+    {
+      "id": "2f859bddf091",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:890-903."
+    },
+    {
+      "id": "06b594f68b12",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:914-918."
+    },
+    {
+      "id": "86a940f60b24",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:924-929."
+    },
+    {
+      "id": "aa22a8413071",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:947-949."
+    },
+    {
+      "id": "3008a35c788b",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:972-978."
+    },
+    {
+      "id": "51688d56e571",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:980-986."
+    },
+    {
+      "id": "035f88b0ab87",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1048-1079."
+    },
+    {
+      "id": "b79a79052040",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1135-1147."
+    },
+    {
+      "id": "c8b7383c60e1",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1180-1182."
+    },
+    {
+      "id": "5f3e2ad4db1d",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/explore-*.ts (and Tovu modules/theme-explore.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/explore.ts:1192-1219."
+    },
+    {
+      "id": "0444c1e9b21f",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:19-25."
+    },
+    {
+      "id": "186a203cc975",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:34-56."
+    },
+    {
+      "id": "a80362d58b42",
+      "reason": "rt-l1-content (K1 content lane): moved with the code to Jini packages/cms/src/admin-http/routes/themes/{list,duplicate,shared}.ts (and Tovu modules/themes.ts), reworded host-neutral where it named Tovu types or paths; the Tovu file no longer holds the code it explained. Was apps/website/src/server/inbound/admin-http/routes/themes/list.ts:70-70."
     },
     {
       "id": "3488151f60ab",
@@ -4236,22 +4660,6 @@
     {
       "id": "869a187fdeaa",
       "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoSettingsDto header), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:1-1."
-    },
-    {
-      "id": "8dd34a9324f7",
-      "reason": "rv1123i K1 migration: the per-entry admin client types (SeoEntryMeta/SeoEntryAnalysis/SeoIssue) became aliases of the Core wire DTOs, so the 'mirrored from src/seo/types.ts per SPEC-037 REQ-06/07' provenance no longer describes a hand mirror; the replacement header in the same file says where the shapes are declared, and Jini packages/core/src/contracts/site/cms-seo.ts (file header) records why they moved. Was apps/admin/src/features/seo/api/seo-api.types.ts:35-38."
-    },
-    {
-      "id": "ade91cbff741",
-      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc (fully-resolved meta, overrides over site defaults over derived values, GET and PUT both answer it, not the raw override bag) moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoMetaDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:59-61."
-    },
-    {
-      "id": "0b639a8c9eaf",
-      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoAnalysisDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:120-120."
-    },
-    {
-      "id": "d223545f9421",
-      "reason": "Moved verbatim with the media update route to Jini @jini-ai/cms/admin-http/routes/media/update.ts:17 (rt-l3-pubsite, combine-16); the host update.ts is deleted."
     },
     {
       "id": "d7fe86e3a988",
@@ -4500,6 +4908,250 @@
     {
       "id": "5b7aef8c7f82",
       "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "41533e374e03",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "a7dd3548de12",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "968fe2d4fa1a",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "b469559db6ea",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "f93083e0b4e3",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "558604c691d5",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "7311c1599749",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "43ab01ee3688",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "b72b0076c5a4",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "4f1354abec7e",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "218d12d68a8b",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "d252449964d3",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "7c3ae29ce830",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "6b141d68ab59",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "21f1c363210c",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "f7af8e4eb07f",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "692405a5df83",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "806d22149d33",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "f90193af3d58",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "15b435ca6005",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "486452b0f1ad",
+      "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "09e11019f541",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuTargetDto doc (combine-16, with the K1 menus DTO move); the host menus.ts is gone (routes now mount the Jini cms specs)."
+    },
+    {
+      "id": "c5d16d4d85d1",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuDto doc ('mode'/'html' absent on a menu that never used HTML mode; K1 rv1123e); the host menus.ts is gone."
+    },
+    {
+      "id": "178e43d79674",
+      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
+    },
+    {
+      "id": "4038db5b2226",
+      "reason": "P12 #6.T F6.4 reverses the 2026-08-12 'deliberately not hook-injected' ruling this test header cited: Placeholder now takes the host locale hook as a REQUIRED prop (approval reviews/approve-P12-cutplan2.md F6.4), so the explanation describes code that no longer exists."
+    },
+    {
+      "id": "62ced0c1fed7",
+      "reason": "P12 #6.T F6.4 (approved): Placeholder's live-hook default is removed and the hook is a required prop; the 'deliberately NOT hook-injected' ruling is reversed by the approval, so this explanation is obsolete."
+    },
+    {
+      "id": "5165f24e1463",
+      "reason": "Moved with the stage to Jini (P12 #4.J, F4.1): the unparseable-vs-null sentinel reasoning lives at core/transport/http.ts UNPARSEABLE_BODY and parseJsonBody docs, which the factory reuses."
+    },
+    {
+      "id": "e6d974eb500e",
+      "reason": "Moved to Jini (P12 #4.J): the rejected-fetch translation (TypeError only, AbortError rethrown, cause kept) is documented at core/transport/http.ts throwTranslatedFetchFailure, shared by createAdminHttp; Tovu's 'Tovu API' copy stays in request.ts messages.unreachable."
+    },
+    {
+      "id": "be361ab64e90",
+      "reason": "Moved to Jini (P12 #4.J): the cross-realm DOMException name check lives at core/transport/http.ts errorName ('Timeout DOMExceptions can come from another realm')."
+    },
+    {
+      "id": "6ee99d63563c",
+      "reason": "Obsolete with the move (P12 #4.J): this explained an in-file complexity split of the catch block; the classification now lives once in core/transport/http.ts throwTranslatedFetchFailure."
+    },
+    {
+      "id": "4561bac89ec9",
+      "reason": "Moved to Jini (P12 #4.J): the pagehide-cancellation reason is at core/transport/http.ts throwTranslatedFetchFailure ('A navigation cancels in-flight fetches with this same TypeError after pagehide')."
+    },
+    {
+      "id": "45699d2b2e49",
+      "reason": "Moved to Jini (P12 #4.J): caller-signal precedence is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts fetchBounded ('A caller's signal owns cancellation and its own deadline')."
+    },
+    {
+      "id": "c83224534c56",
+      "reason": "Moved to Jini (P12 #4.J): buildFetchInit and its merge-order doc moved to Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit (same-origin + JSON default, headers merge onto the default, caller type wins); its test imports the Jini owner."
+    },
+    {
+      "id": "1f79daa9af52",
+      "reason": "Moved to Jini (P12 #4.J): the case-insensitive Content-Type reason is in Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit's doc ('in any letter case ... two values would be sent joined with a comma')."
+    },
+    {
+      "id": "e2e6fbe036cb",
+      "reason": "Moved to Jini (P12 #4.J): parse stage and its null-vs-unparseable reason live at core/transport/http.ts parseJsonBody."
+    },
+    {
+      "id": "9e6b2e7b08a3",
+      "reason": "Moved to Jini (P12 #4.J): the 401+UNAUTHENTICATED-only rule is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('a relayed vendor 401 does not'); host ordering (reset before notify) is documented at request.ts adminHttp composition."
+    },
+    {
+      "id": "536cc7622121",
+      "reason": "Moved (P12 #4.J/T): the three-failure-mode reasoning is split between Jini @jini-ai/admin shell/lib/admin-http/request.ts responseError doc and the request.ts composition doc (Vite proxy bare 500, 2026-08-06 debugging hour, redaction of the requestFailed copy)."
+    },
+    {
+      "id": "edff0256ccff",
+      "reason": "Moved to Jini (P12 #4.J): the single-seam/onOk-on-success-only contract is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('onOk runs just before resolve') and the factory file header."
+    },
+    {
+      "id": "133bc7cc0dfc",
+      "reason": "Reworded in place (P12 #4.T): requestOnce is now a bound export with its own doc in request.ts ('One send through the seam, no restart retry')."
+    },
+    {
+      "id": "73d663a2fee7",
+      "reason": "Moved to Jini (P12 #4.J): the upstream-refused mark is documented on the CreateAdminHttpPorts.isUpstreamRefused port in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "89e2703e5b79",
+      "reason": "Moved to Jini (P12 #4.J): the per-instance refused-error WeakSet is documented on Context.upstreamRefused in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "ef1d3c398c7e",
+      "reason": "Moved to Jini (P12 #4.J): retry policy doc lives at Jini @jini-ai/admin shell/lib/admin-http/request.ts rideOutRestart ('sends exactly once more. Reads always retry; writes only when provably undelivered or retryWrites')."
+    },
+    {
+      "id": "1f5e257eed8d",
+      "reason": "Moved to Jini (P12 #4.J): the generation-captured-before-send reason is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "b7b914d063db",
+      "reason": "Moved to Jini (P12 #4.J): 'only the FINAL failure is reported' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "dfaf4e4bc9f0",
+      "reason": "Moved in place (P12 #4.T): the 4xx-is-the-caller's reason is now on request.ts reportFailure port binding ('A 4xx is the caller's to explain')."
+    },
+    {
+      "id": "ebe41cb8bdf9",
+      "reason": "Moved to Jini (P12 #4.J): 'Notice effects must never replace the caller's original rejection' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported."
+    },
+    {
+      "id": "a8c92bf88454",
+      "reason": "Moved in place (P12 #4.T): the provider-URL cookie reason is now the AdminApiBasePath doc in request.ts."
+    },
+    {
+      "id": "b169dfcdd8bc",
+      "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
+    },
+    {
+      "id": "3d4be6abd42e",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort loadLanguage doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
+    },
+    {
+      "id": "709316d2b551",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort subscribeToSettingsRefresh doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
+    },
+    {
+      "id": "8dd47a012640",
+      "reason": "Header said the client types mirror the settings response contracts; the value/reset responses now alias the Core DTOs (@jini-ai/core/contracts/site/cms-settings, rv1123e §2.1), so 'mirroring' is no longer true."
+    },
+    {
+      "id": "ec1df623d9d9",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): clear.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/clear.ts:65 (verbatim, shared.ts -> @jini-ai/core/settings)."
+    },
+    {
+      "id": "d0a8c4efc097",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-effective.ts @file block -> Jini @jini-ai/cms/admin-http/routes/settings/get-effective.ts spec doc; resolution rationale already lived in Jini core settings cms-adapter."
+    },
+    {
+      "id": "12783307cacc",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-raw.ts layer-resolution doc -> Jini @jini-ai/cms/admin-http/routes/settings/get-raw.ts:34."
+    },
+    {
+      "id": "ccb49fc91f9c",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts partition-selection doc -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:51."
+    },
+    {
+      "id": "fc0f6811a69d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:67 (verbatim)."
+    },
+    {
+      "id": "b1045df6b29d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): set.ts ambient-workspace note -> Jini @jini-ai/cms/admin-http/routes/settings/set.ts:76."
+    },
+    {
+      "id": "8dd34a9324f7",
+      "reason": "rv1123i K1 migration: the per-entry admin client types (SeoEntryMeta/SeoEntryAnalysis/SeoIssue) became aliases of the Core wire DTOs, so the 'mirrored from src/seo/types.ts per SPEC-037 REQ-06/07' provenance no longer describes a hand mirror; the replacement header in the same file says where the shapes are declared, and Jini packages/core/src/contracts/site/cms-seo.ts (file header) records why they moved. Was apps/admin/src/features/seo/api/seo-api.types.ts:35-38."
+    },
+    {
+      "id": "ade91cbff741",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc (fully-resolved meta, overrides over site defaults over derived values, GET and PUT both answer it, not the raw override bag) moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoMetaDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:59-61."
+    },
+    {
+      "id": "0b639a8c9eaf",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoAnalysisDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:120-120."
+    },
+    {
+      "id": "d223545f9421",
+      "reason": "Moved verbatim with the media update route to Jini @jini-ai/cms/admin-http/routes/media/update.ts:17 (rt-l3-pubsite, combine-16); the host update.ts is deleted."
     },
     {
       "id": "2b6a73cf3219",

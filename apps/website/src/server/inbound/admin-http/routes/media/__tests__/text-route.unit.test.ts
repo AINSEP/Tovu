@@ -6,7 +6,7 @@ import { startTestServer } from '#src/server/__tests__/helpers/http-test-server'
 import { BASE, WS } from '#src/server/__tests__/helpers/admin-route-failures';
 import type { Deps } from '#src/server/__tests__/helpers/admin-route-failures';
 import type { Express } from 'express';
-import { registerAdminMediaTextRoute } from '../text.js';
+import { registerAdminMediaTextRoute } from '#src/server/runtime/composition/modules/media';
 import { mediaApp, seedPng } from './media-route-harness.js';
 
 const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaTextRoute({ app, deps });

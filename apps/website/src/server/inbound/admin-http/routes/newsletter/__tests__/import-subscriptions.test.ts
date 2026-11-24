@@ -11,7 +11,7 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminNewsletterImportSubscriptionsRoute } from "../import-subscriptions.js";
+import { registerAdminNewsletterImportSubscriptionsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "../deps.js";
 import type { NewsletterListRow } from "#src/features/newsletter/types";
 

@@ -8,7 +8,7 @@ import express from "express";
 import { sql } from "kysely";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-subscriptions";
+import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/runtime/composition/modules/newsletter";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 import { SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";

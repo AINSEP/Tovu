@@ -12,7 +12,7 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerPublishContentImportRoutes } from "../import.js";
+import { registerPublishContentImportRoutes } from "#src/server/runtime/composition/modules/publish-content-import";
 import type { PublishContentRouteDeps } from "../deps.js";
 
 const BASE = "/api/admin/v1/workspaces/ws/publish-content";

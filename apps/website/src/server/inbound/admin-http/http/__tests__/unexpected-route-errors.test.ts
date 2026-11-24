@@ -1,6 +1,6 @@
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
-import { registerSkillsListRoute } from "../../routes/skills/list.js";
+import { registerSkillsListRoute } from "#src/server/runtime/composition/modules/skills";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -11,7 +11,6 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteImportRoutes } from "../../routes/system/site-imports.js";
 import { registerAdminRecoveryRestoreRoutes } from "#src/server/runtime/composition/modules/recovery-restore";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { newsletterErrorToResponse } from "../newsletter.js";
 import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
@@ -138,7 +137,6 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse({ err }, options),
   widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
   peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),

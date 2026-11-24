@@ -1,5 +1,5 @@
 import { registerPluginExportFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files";
-import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
+import { registerAgentPluginMemoryRoutes } from "./agent-plugin-memory-routes.js";
 import { registerAgentPluginFilesRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
 import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";

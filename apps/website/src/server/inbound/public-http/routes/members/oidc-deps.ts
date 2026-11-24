@@ -51,10 +51,18 @@ export function memberOidcHeaders({ res }: { res: Response }, _options = {}): vo
   res.setHeader("Referrer-Policy", "no-referrer");
 }
 
-/** Fail closed with a fixed outcome; upstream errors may contain OAuth credentials. O(1). */
-export function sendMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+/** Fail closed with a fixed outcome; upstream errors may contain OAuth credentials. O(1).
+ * @returns The fixed refusal (status + flat body) for any error; nothing upstream is echoed.
+ */
+export function memberOidcRefusal({ error }: { error: unknown }, _options = {}): { status: number; body: { error: string; code: string } } {
   const code = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
-  res.status(code === "LOGIN_UNAVAILABLE" ? 503 : 401).json({ error: "member login failed", code });
+  return { status: code === "LOGIN_UNAVAILABLE" ? 503 : 401, body: { error: "member login failed", code } };
+}
+
+/** Write `memberOidcRefusal`'s answer. O(1). */
+export function sendMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+  const refusal = memberOidcRefusal({ error });
+  res.status(refusal.status).json(refusal.body);
 }
 
 /** The person pressed Cancel at the provider (`error=access_denied`): its own page message. */

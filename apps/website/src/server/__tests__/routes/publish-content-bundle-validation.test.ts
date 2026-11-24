@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
-import { validateBundleBody } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
+import { validateBundleBody } from "@jini-ai/cms/admin-http/routes/publish-content/bundle-create";
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {

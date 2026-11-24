@@ -15,7 +15,7 @@ import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createUserTrashAdapter, SqliteTrashRepo, createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createUser, assignRole } from "@jini-ai/user-management/server";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
-import { registerAdminTrashPurgeRoute } from "#src/server/inbound/admin-http/routes/trash/purge";
+import { registerAdminTrashPurgeRoute } from "#src/server/runtime/composition/modules/trash";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createAppPermissionGrants } from "../app-permission-grants.js";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";

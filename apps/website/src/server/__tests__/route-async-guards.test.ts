@@ -13,7 +13,7 @@ import type { CommentIngressPolicy, CommentWriteService } from "@jini-ai/cms/com
 import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
 import type { ResolvedEndpoint, WebhookReceiver } from "@jini-ai/commerce/payments/kernel";
 import { requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminCommerceStatusRoute } from "../inbound/admin-http/routes/commerce/status.js";
+import { registerAdminCommerceStatusRoute } from "#src/server/runtime/composition/modules/commerce";
 import { assertAnalyticsFailure } from "./helpers/assert-analytics-failure.js";
 
 /**

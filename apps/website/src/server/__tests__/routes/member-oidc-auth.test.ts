@@ -13,11 +13,11 @@ import { issueMemberSession } from "#src/features/members/member-credentials";
 import { cryptoFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
-import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from "../../inbound/public-http/routes/members/oidc-start.js";
+import { registerMemberOidcStartRoute } from "../../inbound/public-http/routes/members/oidc-start.js";
 import { registerMemberOidcCallbackRoute } from "../../inbound/public-http/routes/members/oidc-callback.js";
 import { registerMemberOidcVerifyEmailRoute } from "../../inbound/public-http/routes/members/oidc-verify-email.js";
 import { registerMemberUnlinkIdentityRoute } from "../../inbound/public-http/routes/members/unlink-identity.js";
-import { registerPublicMemberMeRoute } from "../../inbound/public-http/routes/members/me.js";
+import { registerMemberLoginProvidersRoute, registerPublicMemberMeRoute } from "#src/server/runtime/composition/modules/public-members";
 import { MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 

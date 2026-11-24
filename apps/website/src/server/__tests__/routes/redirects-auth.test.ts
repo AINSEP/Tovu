@@ -8,7 +8,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminRedirectCreateRoute } from "../../inbound/admin-http/routes/redirects/create.js";
+import { registerAdminRedirectCreateRoute } from "../../runtime/composition/modules/redirects.js";
 import { registerAdminRedirectGetRoute } from "../../runtime/composition/modules/redirects.js";
 import { registerAdminRedirectHitsRoute } from "../../runtime/composition/modules/redirects.js";
 import { registerAdminRedirectImportRoute } from "../../runtime/composition/modules/redirects.js";
