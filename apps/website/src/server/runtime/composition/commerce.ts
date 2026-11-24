@@ -1,4 +1,4 @@
-import { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
+import { type ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import type { ToolRegistration } from "@jini-ai/core";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";

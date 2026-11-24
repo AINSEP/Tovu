@@ -1,4 +1,4 @@
-import { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
+import { type DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/database-transfer";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from "./destination-exchange.js";

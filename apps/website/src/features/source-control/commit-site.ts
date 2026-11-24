@@ -1,4 +1,4 @@
-import { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
+import { type KeyringPort, type SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { ExportReport } from "@tovu/contracts/export-report";
 import { rmSync } from "node:fs";
 import { join } from "node:path";

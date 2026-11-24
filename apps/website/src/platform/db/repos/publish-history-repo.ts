@@ -1,4 +1,4 @@
-import { StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
+import { type StaticPublishTargetId } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { resolvePublishHistoryListLimit } from "@tovu/contracts/publish-history-list-limit";
 import type { Insertable, Selectable } from "kysely";
 

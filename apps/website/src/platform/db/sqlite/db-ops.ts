@@ -1,4 +1,4 @@
-import { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
+import { type DbOpsPort, type RestoreCapability } from "@jini-ai/core/contracts/site/gated-mutations-ports";
 import { SqliteDbOpsAdapter as JiniSqliteDbOpsAdapter } from "@jini-ai/db/sqlite";
 
 

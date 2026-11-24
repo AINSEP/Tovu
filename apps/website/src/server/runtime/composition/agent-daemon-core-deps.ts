@@ -1,4 +1,4 @@
-import { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
+import { type AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** ADR-070 retained daemon composition. No site routes, migrations, plugin lifecycle or outbox.
  * The server owns durable attempts and provider plugins; a client opens only already-migrated

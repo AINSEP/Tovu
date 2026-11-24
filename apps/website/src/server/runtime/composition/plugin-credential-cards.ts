@@ -1,4 +1,4 @@
-import { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+import { type PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import { bundledAgentPluginsDir } from "./site-paths.js";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
