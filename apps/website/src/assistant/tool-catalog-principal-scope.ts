@@ -37,7 +37,7 @@ export function discoveryPrincipalResolver(
   _optional: Record<string, never> = {},
 ): (required: { request: Request }) => Principal {
   return ({ request }) => {
-    const token = bearerTokenFromHeader({ header: request.headers.get("authorization") });
+    const token = bearerTokenFromHeader({ header: request.headers.get("authorization") ?? undefined });
     const caller = token ? runCredentials.resolveCaller({ token }) : undefined;
     const principal = caller ? principalByRunId.get(caller.runId) : undefined;
     if (!principal) throw new Error("tool discovery needs a live run; no principal could be resolved for this request");
