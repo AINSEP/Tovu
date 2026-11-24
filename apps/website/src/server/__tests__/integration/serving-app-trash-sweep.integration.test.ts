@@ -25,7 +25,7 @@ import type { TrashSweepReport } from "#src/features/trash/index";
  * row is purged for real and the outcome is `purged`.
  */
 
-/** Trashed far enough in the past that `purge_after` (trash time + the 30-day host window) is long expired. */
+/** Trashed far enough in the past that `purge_after` (trash time + 60 days) is long expired. */
 const LONG_EXPIRED = "2020-01-01T00:00:00.000Z";
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {

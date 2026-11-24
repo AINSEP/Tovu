@@ -1,0 +1,279 @@
+diff -ru a/apps/admin/src/features/trash/Trash.tsx b/apps/admin/src/features/trash/Trash.tsx
+--- a/apps/admin/src/features/trash/Trash.tsx	2026-11-24 01:15:05.423415571 +0000
++++ b/apps/admin/src/features/trash/Trash.tsx	2026-11-24 01:15:05.450992390 +0000
+@@ -270,7 +270,7 @@
+             <InfoTip label={coverageLine({ locale })} agentHandle="trash-coverage-info" />
+           </h1>
+           <p className="page-description">
+-            {t({ locale: locale, key: "Deleted items are kept for 60 days." })}
++            {t({ locale: locale, key: "Deleted items are kept for 30 days." })}
+           </p>
+         </div>
+       </div>
+diff -ru a/apps/admin/src/features/trash/__tests__/Trash.unit.test.tsx b/apps/admin/src/features/trash/__tests__/Trash.unit.test.tsx
+--- a/apps/admin/src/features/trash/__tests__/Trash.unit.test.tsx	2026-11-24 01:15:05.436491205 +0000
++++ b/apps/admin/src/features/trash/__tests__/Trash.unit.test.tsx	2026-11-24 01:15:05.455423101 +0000
+@@ -135,7 +135,7 @@
+ 
+     const descriptions = container.querySelectorAll(".page-header .page-description");
+     expect(descriptions).toHaveLength(1);
+-    expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 60 days.");
++    expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 30 days.");
+     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
+       "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
+     );
+@@ -169,7 +169,7 @@
+     const user = userEvent.setup();
+     render(<Trash useTrashHook={() => controller({ locale: "es", items: [] })} />);
+ 
+-    expect(screen.getByText("Los elementos eliminados se conservan durante 60 días.")).toBeInTheDocument();
++    expect(screen.getByText("Los elementos eliminados se conservan durante 30 días.")).toBeInTheDocument();
+     await user.click(screen.getByLabelText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure."));
+     expect(screen.getByText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.")).toBeInTheDocument();
+   });
+diff -ru a/apps/admin/src/features/trash/__tests__/trash-i18n.unit.test.ts b/apps/admin/src/features/trash/__tests__/trash-i18n.unit.test.ts
+--- a/apps/admin/src/features/trash/__tests__/trash-i18n.unit.test.ts	2026-11-24 01:15:05.442453496 +0000
++++ b/apps/admin/src/features/trash/__tests__/trash-i18n.unit.test.ts	2026-11-24 01:15:05.451308206 +0000
+@@ -76,7 +76,7 @@
+     "The Trash is empty.",
+     "Load more",
+     "Loading…",
+-    "Deleted items are kept for 60 days.",
++    "Deleted items are kept for 30 days.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
+     "Post",
+     "Page",
+diff -ru a/apps/admin/src/features/trash/trash-i18n.ts b/apps/admin/src/features/trash/trash-i18n.ts
+--- a/apps/admin/src/features/trash/trash-i18n.ts	2026-11-24 01:15:05.429558973 +0000
++++ b/apps/admin/src/features/trash/trash-i18n.ts	2026-11-24 01:15:16.719208655 +0000
+@@ -58,8 +58,8 @@
+     "The Trash is empty.": "La papelera está vacía.",
+     "Load more": "Cargar más",
+     "Loading…": "Cargando…",
+-    "Deleted items are kept for 60 days.":
+-      "Los elementos eliminados se conservan durante 60 días.",
++    "Deleted items are kept for 30 days.":
++      "Los elementos eliminados se conservan durante 30 días.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.",
+     Post: "Entrada",
+@@ -115,8 +115,8 @@
+     "The Trash is empty.": "Sampah kosong.",
+     "Load more": "Muat lagi",
+     "Loading…": "Memuat…",
+-    "Deleted items are kept for 60 days.":
+-      "Item yang dihapus disimpan selama 60 hari.",
++    "Deleted items are kept for 30 days.":
++      "Item yang dihapus disimpan selama 30 hari.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Entri koleksi tidak disimpan di Sampah. File tema yang dihapus masuk ke sampah tema itu sendiri — minta asisten untuk memulihkannya.",
+     Post: "Pos",
+@@ -172,8 +172,8 @@
+     "The Trash is empty.": "Der Papierkorb ist leer.",
+     "Load more": "Mehr laden",
+     "Loading…": "Wird geladen…",
+-    "Deleted items are kept for 60 days.":
+-      "Gelöschte Elemente werden 60 Tage aufbewahrt.",
++    "Deleted items are kept for 30 days.":
++      "Gelöschte Elemente werden 30 Tage aufbewahrt.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Sammlungseinträge werden nicht im Papierkorb aufbewahrt. Gelöschte Theme-Dateien landen im eigenen Papierkorb des Themes — bitte den Assistenten, sie wiederherzustellen.",
+     Post: "Beitrag",
+@@ -229,8 +229,8 @@
+     "The Trash is empty.": "回收站是空的。",
+     "Load more": "加载更多",
+     "Loading…": "加载中…",
+-    "Deleted items are kept for 60 days.":
+-      "已删除的项目保留60天。",
++    "Deleted items are kept for 30 days.":
++      "已删除的项目保留30天。",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "集合条目不会保留在回收站中。删除的主题文件会进入主题自己的回收站，请让助手恢复它们。",
+     Post: "文章",
+@@ -286,8 +286,8 @@
+     "The Trash is empty.": "資源回收筒是空的。",
+     "Load more": "載入更多",
+     "Loading…": "載入中…",
+-    "Deleted items are kept for 60 days.":
+-      "已刪除的項目保留60天。",
++    "Deleted items are kept for 30 days.":
++      "已刪除的項目保留30天。",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "集合項目不會保留在垃圾桶中。刪除的佈景主題檔案會進入該主題自己的垃圾桶，請讓助理還原。",
+     Post: "文章",
+@@ -343,8 +343,8 @@
+     "The Trash is empty.": "A Lixeira está vazia.",
+     "Load more": "Carregar mais",
+     "Loading…": "Carregando…",
+-    "Deleted items are kept for 60 days.":
+-      "Os itens excluídos são mantidos por 60 dias.",
++    "Deleted items are kept for 30 days.":
++      "Os itens excluídos são mantidos por 30 dias.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "As entradas de coleções não são mantidas na Lixeira. Os arquivos de tema excluídos vão para a lixeira do próprio tema — peça ao assistente para restaurá-los.",
+     Post: "Publicação",
+@@ -400,8 +400,8 @@
+     "The Trash is empty.": "Корзина пуста.",
+     "Load more": "Загрузить ещё",
+     "Loading…": "Загрузка…",
+-    "Deleted items are kept for 60 days.":
+-      "Удалённые элементы хранятся 60 дней.",
++    "Deleted items are kept for 30 days.":
++      "Удалённые элементы хранятся 30 дней.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Записи коллекций не сохраняются в Корзине. Удалённые файлы темы попадают в собственную корзину темы — попросите ассистента восстановить их.",
+     Post: "Запись",
+@@ -457,8 +457,8 @@
+     "The Trash is empty.": "زباله‌دان خالی است.",
+     "Load more": "بارگذاری بیشتر",
+     "Loading…": "در حال بارگذاری…",
+-    "Deleted items are kept for 60 days.":
+-      "موارد حذف‌شده به مدت ۶۰ روز نگه داشته می‌شوند.",
++    "Deleted items are kept for 30 days.":
++      "موارد حذف‌شده به مدت ۳۰ روز نگه داشته می‌شوند.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "مدخل‌های مجموعه در سطل زباله نگه‌داری نمی‌شوند. فایل‌های حذف‌شدهٔ پوسته به سطل زبالهٔ خود پوسته می‌روند — از دستیار بخواهید آن‌ها را بازیابی کند.",
+     Post: "نوشته",
+@@ -514,8 +514,8 @@
+     "The Trash is empty.": "سلة المهملات فارغة.",
+     "Load more": "تحميل المزيد",
+     "Loading…": "جارٍ التحميل…",
+-    "Deleted items are kept for 60 days.":
+-      "تُحفظ العناصر المحذوفة لمدة 60 يومًا.",
++    "Deleted items are kept for 30 days.":
++      "تُحفظ العناصر المحذوفة لمدة 30 يومًا.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "لا تُحفظ عناصر المجموعات في سلة المهملات. تنتقل ملفات القالب المحذوفة إلى سلة مهملات القالب نفسه — اطلب من المساعد استعادتها.",
+     // "Widgets" deliberately does not reuse `admin-nav-i18n.ts`'s own choice ("العناصر", literally
+@@ -576,8 +576,8 @@
+     "The Trash is empty.": "ゴミ箱は空です。",
+     "Load more": "さらに読み込む",
+     "Loading…": "読み込み中…",
+-    "Deleted items are kept for 60 days.":
+-      "削除された項目は60日間保持されます。",
++    "Deleted items are kept for 30 days.":
++      "削除された項目は30日間保持されます。",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "コレクションの項目はゴミ箱に保存されません。削除したテーマファイルはテーマ専用のゴミ箱に移動します。復元はアシスタントに依頼してください。",
+     Post: "投稿",
+@@ -633,8 +633,8 @@
+     "The Trash is empty.": "휴지통이 비어 있습니다.",
+     "Load more": "더 보기",
+     "Loading…": "로딩 중…",
+-    "Deleted items are kept for 60 days.":
+-      "삭제된 항목은 60일 동안 보관됩니다.",
++    "Deleted items are kept for 30 days.":
++      "삭제된 항목은 30일 동안 보관됩니다.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "컬렉션 항목은 휴지통에 보관되지 않습니다. 삭제한 테마 파일은 해당 테마의 휴지통으로 이동합니다. 복원하려면 어시스턴트에게 요청하세요.",
+     Post: "게시물",
+@@ -690,8 +690,8 @@
+     "The Trash is empty.": "Kosz jest pusty.",
+     "Load more": "Wczytaj więcej",
+     "Loading…": "Wczytywanie…",
+-    "Deleted items are kept for 60 days.":
+-      "Usunięte elementy są przechowywane przez 60 dni.",
++    "Deleted items are kept for 30 days.":
++      "Usunięte elementy są przechowywane przez 30 dni.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Wpisy kolekcji nie są przechowywane w Koszu. Usunięte pliki motywu trafiają do kosza danego motywu — poproś asystenta o ich przywrócenie.",
+     Post: "Wpis",
+@@ -747,8 +747,8 @@
+     "The Trash is empty.": "A Kuka üres.",
+     "Load more": "Továbbiak betöltése",
+     "Loading…": "Betöltés…",
+-    "Deleted items are kept for 60 days.":
+-      "A törölt elemeket 60 napig őrizzük meg.",
++    "Deleted items are kept for 30 days.":
++      "A törölt elemeket 30 napig őrizzük meg.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "A gyűjtemények bejegyzései nem kerülnek a Kukába. A törölt témafájlok a téma saját kukájába kerülnek — kérd meg az asszisztenst a visszaállításukra.",
+     Post: "Bejegyzés",
+@@ -804,8 +804,8 @@
+     "The Trash is empty.": "La corbeille est vide.",
+     "Load more": "Charger plus",
+     "Loading…": "Chargement…",
+-    "Deleted items are kept for 60 days.":
+-      "Les éléments supprimés sont conservés pendant 60 jours.",
++    "Deleted items are kept for 30 days.":
++      "Les éléments supprimés sont conservés pendant 30 jours.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Les entrées de collection ne sont pas conservées dans la corbeille. Les fichiers de thème supprimés vont dans la corbeille du thème — demandez à l’assistant de les restaurer.",
+     Post: "Article",
+@@ -861,8 +861,8 @@
+     "The Trash is empty.": "Кошик порожній.",
+     "Load more": "Завантажити ще",
+     "Loading…": "Завантаження…",
+-    "Deleted items are kept for 60 days.":
+-      "Видалені елементи зберігаються 60 днів.",
++    "Deleted items are kept for 30 days.":
++      "Видалені елементи зберігаються 30 днів.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Записи колекцій не зберігаються в Кошику. Видалені файли теми потрапляють до власного кошика теми — попросіть асистента відновити їх.",
+     Post: "Запис",
+@@ -918,8 +918,8 @@
+     "The Trash is empty.": "Çöp kutusu boş.",
+     "Load more": "Daha fazla yükle",
+     "Loading…": "Yükleniyor…",
+-    "Deleted items are kept for 60 days.":
+-      "Silinen öğeler 60 gün saklanır.",
++    "Deleted items are kept for 30 days.":
++      "Silinen öğeler 30 gün saklanır.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Koleksiyon kayıtları Çöp Kutusu’nda saklanmaz. Silinen tema dosyaları temanın kendi çöp kutusuna gider — geri yüklemek için asistandan yardım isteyin.",
+     Post: "Yazı",
+@@ -975,8 +975,8 @@
+     "The Trash is empty.": "ถังขยะว่างเปล่า",
+     "Load more": "โหลดเพิ่มเติม",
+     "Loading…": "กำลังโหลด…",
+-    "Deleted items are kept for 60 days.":
+-      "รายการที่ลบจะถูกเก็บไว้เป็นเวลา 60 วัน",
++    "Deleted items are kept for 30 days.":
++      "รายการที่ลบจะถูกเก็บไว้เป็นเวลา 30 วัน",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "รายการในคอลเลกชันจะไม่ถูกเก็บไว้ในถังขยะ ไฟล์ธีมที่ลบจะไปอยู่ในถังขยะของธีมนั้น — ขอให้ผู้ช่วยกู้คืนไฟล์ได้",
+     Post: "โพสต์",
+@@ -1032,8 +1032,8 @@
+     "The Trash is empty.": "Il Cestino è vuoto.",
+     "Load more": "Carica altro",
+     "Loading…": "Caricamento…",
+-    "Deleted items are kept for 60 days.":
+-      "Gli elementi eliminati vengono conservati per 60 giorni.",
++    "Deleted items are kept for 30 days.":
++      "Gli elementi eliminati vengono conservati per 30 giorni.",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "Le voci delle raccolte non vengono conservate nel Cestino. I file del tema eliminati vanno nel cestino del tema stesso — chiedi all’assistente di ripristinarli.",
+     Post: "Articolo",
+@@ -1089,8 +1089,8 @@
+     "The Trash is empty.": "ट्रैश खाली है।",
+     "Load more": "अधिक लोड करें",
+     "Loading…": "लोड हो रहा है…",
+-    "Deleted items are kept for 60 days.":
+-      "हटाए गए आइटम 60 दिनों तक रखे जाते हैं।",
++    "Deleted items are kept for 30 days.":
++      "हटाए गए आइटम 30 दिनों तक रखे जाते हैं।",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "कलेक्शन की प्रविष्टियाँ ट्रैश में नहीं रखी जातीं। हटाई गई थीम फ़ाइलें थीम के अपने ट्रैश में जाती हैं — उन्हें बहाल करने के लिए असिस्टेंट से कहें।",
+     Post: "पोस्ट",
+@@ -1146,8 +1146,8 @@
+     "The Trash is empty.": "ردی کی ٹوکری خالی ہے۔",
+     "Load more": "مزید لوڈ کریں",
+     "Loading…": "لوڈ ہو رہا ہے…",
+-    "Deleted items are kept for 60 days.":
+-      "حذف شدہ آئٹمز 60 دن تک رکھے جاتے ہیں۔",
++    "Deleted items are kept for 30 days.":
++      "حذف شدہ آئٹمز 30 دن تک رکھے جاتے ہیں۔",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "کلیکشن کے اندراجات کوڑے دان میں محفوظ نہیں رہتے۔ حذف شدہ تھیم فائلیں تھیم کے اپنے کوڑے دان میں جاتی ہیں — انہیں بحال کرنے کے لیے اسسٹنٹ سے کہیں۔",
+     Post: "پوسٹ",
+@@ -1203,8 +1203,8 @@
+     "The Trash is empty.": "ট্র্যাশ খালি।",
+     "Load more": "আরও লোড করুন",
+     "Loading…": "লোড হচ্ছে…",
+-    "Deleted items are kept for 60 days.":
+-      "মুছে ফেলা আইটেম 60 দিন রাখা হয়।",
++    "Deleted items are kept for 30 days.":
++      "মুছে ফেলা আইটেম 30 দিন রাখা হয়।",
+     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+       "কালেকশনের এন্ট্রিগুলো ট্র্যাশে রাখা হয় না। মুছে ফেলা থিম ফাইলগুলো থিমের নিজস্ব ট্র্যাশে যায় — সেগুলো পুনরুদ্ধার করতে সহকারীকে বলুন।",
+     Post: "পোস্ট",
