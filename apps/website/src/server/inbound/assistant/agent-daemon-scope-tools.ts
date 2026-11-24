@@ -13,7 +13,8 @@ import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from 
 import { withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { ADMIN_TAB_LOST_FRONTEND_MESSAGES } from "#src/assistant/lost-frontend-binding";
-import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
+import { withPageNavigateErrorRewrap } from "@jini-ai/agentic";
+import { describeAdminScreenRefusal } from "#src/assistant/rewrap-page-navigate-error";
 
 export function createScopeToolRegistry({ env, siteToolToken, routeDeps, surfaceExchanges, readSnapshot, contextFor, execute }: {
   env: NodeJS.ProcessEnv; siteToolToken: string; routeDeps: Pick<AgentDaemonCoreDeps, 'toolAttemptAuditSink' | 'workspaceId'>;
@@ -98,14 +99,14 @@ const frontendControl = createFrontendControl({
     lostFrontendBindings.noteBindError(context);
   },
 });
-// `withPageNavigateErrorRewrap` (Tovu-side, `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
+// `withPageNavigateErrorRewrap` (`@jini-ai/agentic`, worded by `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
 // `page.navigate`'s registration so its "not a published page" refusal (`@jini-ai/agentic`'s
 // `page-executor.ts:414`) cannot be misread as this codebase's own, unrelated
 // `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
 // full rationale. Every other registration passes through unchanged.
 // `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
 // so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
-for (const registration of withPageNavigateErrorRewrap({ registrations: withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations }) })) {
+for (const registration of withPageNavigateErrorRewrap({ registrations: withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations }), describeRefusal: describeAdminScreenRefusal })) {
   // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
   // Every frontend registration needs a classification, including local chat operations.
   // The server's human chat-card exchange owns page approval for every transport. The browser

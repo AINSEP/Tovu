@@ -21,11 +21,16 @@ import test, { describe } from "node:test";
 
 const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope-tools.ts"), "utf8");
 
-test("imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf", () => {
+test("imports withPageNavigateErrorRewrap from @jini-ai/agentic and the admin wording from its Tovu copy leaf", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /import\s*\{[^}]*\bwithPageNavigateErrorRewrap\b[^}]*\}\s*from\s*["']#src\/assistant\/rewrap-page-navigate-error["']/,
-    "expected the Tovu-side navigation error wrapper's direct top-level import",
+    /import\s*\{[^}]*\bwithPageNavigateErrorRewrap\b[^}]*\}\s*from\s*["']@jini-ai\/agentic["']/,
+    "expected the navigation error wrapper's direct top-level import from @jini-ai/agentic",
+  );
+  assert.match(
+    DAEMON_ENTRY_SOURCE,
+    /import\s*\{[^}]*\bdescribeAdminScreenRefusal\b[^}]*\}\s*from\s*["']#src\/assistant\/rewrap-page-navigate-error["']/,
+    "expected the admin-screen refusal wording from its Tovu copy leaf",
   );
 
 });
@@ -72,7 +77,7 @@ describe("the toolRegistrations registration loop", () => {
   });
 
   test("a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped", () => {
-    assert.match(DAEMON_ENTRY_SOURCE, /const lostFrontendBindings = createLostFrontendBindings\(\)/);
+    assert.match(DAEMON_ENTRY_SOURCE, /const lostFrontendBindings = createLostFrontendBindings\(\{ messages: ADMIN_TAB_LOST_FRONTEND_MESSAGES \}\)/);
     assert.match(DAEMON_ENTRY_SOURCE, /onBindError: \(context\) => \{\n[^\n]*\n\s*lostFrontendBindings\.noteBindError\(context\)/);
   });
 });
@@ -83,9 +88,11 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { daemonSource, evaluateDaemonStatements } = await import("./helpers/daemon-source.js");
   const { createToolRegistry } = await import("@jini-ai/core");
   const { createToolExecutor } = await import("@jini-ai/daemon");
-  const { withPageNavigateErrorRewrap } = await import("#src/assistant/rewrap-page-navigate-error");
+  const { withPageNavigateErrorRewrap } = await import("@jini-ai/agentic");
+  const { describeAdminScreenRefusal } = await import("#src/assistant/rewrap-page-navigate-error");
   const { withReadOnlyFrontendCapabilities } = await import("#src/assistant/frontend-control-capabilities");
-  const { createLostFrontendBindings } = await import("#src/assistant/lost-frontend-binding");
+  const { createLostFrontendBindings } = await import("@jini-ai/daemon/http");
+  const { ADMIN_TAB_LOST_FRONTEND_MESSAGES } = await import("#src/assistant/lost-frontend-binding");
   const { applyToolApprovalPolicy } = await import("#src/assistant/tool-approval-policy");
   const { pageApprovalOptions } = await import("@jini-ai/daemon");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
@@ -95,7 +102,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const loop = statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry").find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(statement.getSourceFile()).includes("frontendControl.toolRegistrations"));
   assert.ok(loop, "the module-level frontend registration loop must exist");
   const registry = createToolRegistry({});
-  const lostFrontendBindings = createLostFrontendBindings();
+  const lostFrontendBindings = createLostFrontendBindings({ messages: ADMIN_TAB_LOST_FRONTEND_MESSAGES });
   lostFrontendBindings.noteBindError({ runId: "lost-run", error: new Error("unknown or expired bind token") });
   const registrations: import("@jini-ai/core").ToolRegistration[] = [
     { descriptor: { id: "page.navigate" }, policy: { authorize: () => "allow" }, handler: async (ctx) => {
@@ -106,7 +113,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
     { descriptor: { id: "chat.send_message" }, policy: { authorize: () => "allow" }, handler: async () => ({ sent: true }) },
     { descriptor: { id: "admin.capture_screenshot" }, policy: { authorize: () => "allow" }, handler: async (ctx) => { throw new Error(`no frontend is bound to run "${ctx.run.id}"`); } },
   ];
-  await evaluateDaemonStatements([loop], { execute: () => { throw new Error("unexpected approval execution"); }, registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, pageApprovalOptions, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
+  await evaluateDaemonStatements([loop], { execute: () => { throw new Error("unexpected approval execution"); }, registry, lostFrontendBindings, withPageNavigateErrorRewrap, describeAdminScreenRefusal, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, pageApprovalOptions, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
   assert.deepEqual(registry.list({}).map(({ id }) => id).sort(), ["admin.capture_screenshot", "chat.send_message", "page.navigate"]);
   const executor = createToolExecutor({ registry });
   const request = { principal: { id: "principal" }, run: { id: "bound-run" }, toolId: "page.navigate", input: { page: "posts" } };

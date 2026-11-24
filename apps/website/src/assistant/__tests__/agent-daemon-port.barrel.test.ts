@@ -10,8 +10,7 @@ import * as sessions from "../agent-session-preset.js";
 import * as permanentDeletes from "../permanent-delete-settings.js";
 import * as deleteGate from "../permanent-delete-tool-gate.js";
 import * as subagentSettings from "../subagent-settings.js";
-import * as lostFrontend from "../lost-frontend-binding.js";
-import * as navigateErrors from "../rewrap-page-navigate-error.js";
+import * as agentic from "@jini-ai/agentic";
 import * as activeContexts from "../run-active-context.js";
 import * as daemonHttp from "@jini-ai/daemon/http";
 
@@ -112,8 +111,8 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   createChatDeleteScope: deleteGate,
   ALL_CHAT_DELETE_TOOLS: deleteGate,
   readAssistantCliPermissions: subagentSettings,
-  createLostFrontendBindings: lostFrontend,
-  withPageNavigateErrorRewrap: navigateErrors,
+  createLostFrontendBindings: daemonHttp,
+  withPageNavigateErrorRewrap: agentic,
   delegatedToolErrorDisclosure: toolRecoveryPreset,
   createRunActiveContextStore: daemonHttp,
   registerRunActiveContextRoute: activeContexts,

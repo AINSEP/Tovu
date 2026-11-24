@@ -1,44 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executePageCapability, type PageDriver } from "@jini-ai/agentic";
+import { executePageCapability, rewrapPageNavigateError, type PageDriver } from "@jini-ai/agentic";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-
-import { PAGE_NAVIGATE_TOOL_ID, rewrapPageNavigateError, withPageNavigateErrorRewrap } from "../rewrap-page-navigate-error.js";
-
-function fakeCtx(): ToolExecutionContext {
-  return {
-    executionId: "exec-1",
-    principal: { id: "principal-1" },
-    run: { id: "run-1" },
-    input: {},
-    signal: new AbortController().signal,
-  };
-}
-
-function fakeRegistration(id: string, handler: ToolRegistration["handler"]): ToolRegistration {
-  return {
-    descriptor: { id, description: "fake" },
-    policy: { authorize: () => "allow" },
-    handler,
-  } as ToolRegistration;
-}
+import { describeAdminScreenRefusal } from "../rewrap-page-navigate-error.js";
 
 /**
- * @file Certifies `rewrapPageNavigateError` in isolation — the Tovu-side fix for the misleading
- * `page.navigate` refusal (`ADS-memory/reports/2026-09-07-page-tool-gap.md` §4). The real error text
- * comes verbatim from `@jini-ai/agentic`'s `page-executor.ts:414`
- * (`` `"${safePage}" is not a published page. Available: ${...}` ``) — genuinely correct for its real
- * job (refusing an unregistered ADMIN SCREEN id) but worded to collide with this codebase's OWN,
- * unrelated `PostRecord.status === "published"` CMS-content concept. Asserted against the EXACT
- * upstream wording (not a paraphrase) so a future change to that message's shape is caught here
- * rather than silently failing to match.
+ * @file Certifies Tovu's wording for the misleading `page.navigate` refusal
+ * (`ADS-memory/reports/2026-09-07-page-tool-gap.md` §4). The real error text comes verbatim from
+ * `@jini-ai/agentic`'s `page-executor.ts` (`` `"${safePage}" is not a published page. Available: ${...}` ``)
+ * — genuinely correct for its real job (refusing an unregistered ADMIN SCREEN id) but worded to
+ * collide with this codebase's OWN, unrelated `PostRecord.status === "published"` CMS-content
+ * concept. Detection, pass-through and registration wrapping are certified in Jini's
+ * `packages/agentic/src/core/__tests__/page-navigate-error.test.ts`; this file pins the copy.
  */
 
 test("rewraps the exact 'not a published page' refusal into a disambiguated message naming both the real cause and the fix", () => {
   const upstream = new Error(`"pricing" is not a published page. Available: posts, pages, settings`);
 
-  const rewrapped = rewrapPageNavigateError({ err: upstream });
+  const rewrapped = rewrapPageNavigateError({ err: upstream, describeRefusal: describeAdminScreenRefusal });
 
   assert.ok(rewrapped instanceof Error);
   assert.notEqual((rewrapped as Error).message, upstream.message, "the message must actually change");
@@ -66,64 +45,6 @@ test("rewraps the exact 'not a published page' refusal into a disambiguated mess
   );
 });
 
-test("an error with unrelated text is passed through completely unchanged", () => {
-  const other = new Error("some other failure entirely");
-  const result = rewrapPageNavigateError({ err: other });
-  assert.equal(result, other, "must be the SAME error object, not a rebuilt copy — no rewriting of errors this function does not own");
-});
-
-test("a non-Error rejection value is passed through unchanged", () => {
-  const notAnError = { weird: "rejection shape" };
-  assert.equal(rewrapPageNavigateError({ err: notAnError }), notAnError);
-});
-
-test("the 'Available:' list can legitimately be empty — '(none)' is still handled", () => {
-  const upstream = new Error(`"anything" is not a published page. Available: (none)`);
-  const rewrapped = rewrapPageNavigateError({ err: upstream }) as Error;
-  assert.match(rewrapped.message, /\(none\)/);
-});
-
-/**
- * `withPageNavigateErrorRewrap` is the wiring half — the pure, directly-testable function
- * `agent-daemon-server.ts`'s registration loop actually calls (see that file's own registration
- * loop, and `agent-daemon-server.page-navigate-error-rewrap.unit.test.ts` next to it for the proof
- * that the loop really calls this). Tested here against fake `ToolRegistration`s so this file's
- * assertions do not need a daemon boot.
- */
-test("withPageNavigateErrorRewrap: a rejecting page.navigate registration's handler is rewrapped", async () => {
-  const upstream = new Error(`"pricing" is not a published page. Available: posts, pages`);
-  const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => { throw upstream; })];
-
-  const wrapped = withPageNavigateErrorRewrap({ registrations });
-  assert.equal(wrapped.length, 1, "must not add or drop registrations");
-
-  await assert.rejects(wrapped[0]!.handler(fakeCtx()), (err: unknown) => {
-    assert.ok(err instanceof Error);
-    assert.match((err as Error).message, /admin screen/i);
-    return true;
-  });
-});
-
-test("withPageNavigateErrorRewrap: a SUCCESSFUL page.navigate call is untouched", async () => {
-  const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => ({ navigatedTo: "posts" }))];
-  const wrapped = withPageNavigateErrorRewrap({ registrations });
-  assert.deepEqual(await wrapped[0]!.handler(fakeCtx()), { navigatedTo: "posts" });
-});
-
-test("withPageNavigateErrorRewrap: every OTHER tool's registration is passed through completely untouched", async () => {
-  const original = fakeRegistration("chat.send_message", async () => ({ sent: true }));
-  const wrapped = withPageNavigateErrorRewrap({ registrations: [original] });
-  assert.equal(wrapped[0], original, "a non-page.navigate registration must be the SAME object, not rebuilt");
-});
-
-test("withPageNavigateErrorRewrap: an unrelated page.navigate failure is rewrapped unchanged (rewrapPageNavigateError's own pass-through)", async () => {
-  const other = new Error("some unrelated internal failure");
-  const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => { throw other; })];
-  const wrapped = withPageNavigateErrorRewrap({ registrations });
-
-  await assert.rejects(wrapped[0]!.handler(fakeCtx()), (err: unknown) => err === other);
-});
-
 // F3.1: get the wording from the installed upstream executor rather than a copied message.
 test("the real page.navigate refusal is rewrapped into CMS guidance", async () => {
   let navigations = 0;
@@ -133,7 +54,7 @@ test("the real page.navigate refusal is rewrapped into CMS guidance", async () =
   } as unknown as PageDriver;
   await assert.rejects(executePageCapability({ driver, capabilityId: "page.navigate", input: { page: "missing-cms-page" } }), (error: unknown) => {
     assert.ok(error instanceof Error);
-    const rewrapped = rewrapPageNavigateError({ err: error }) as Error;
+    const rewrapped = rewrapPageNavigateError({ err: error, describeRefusal: describeAdminScreenRefusal }) as Error;
     assert.notEqual(rewrapped, error);
     assert.match(rewrapped.message, /admin screen/i);
     assert.match(rewrapped.message, /"missing-cms-page"/);

@@ -83,8 +83,8 @@ export {
 export { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 export { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
 export { readAssistantCliPermissions } from "./subagent-settings.js";
-export { createLostFrontendBindings } from "./lost-frontend-binding.js";
-export { withPageNavigateErrorRewrap } from "./rewrap-page-navigate-error.js";
+export { createLostFrontendBindings } from "@jini-ai/daemon/http";
+export { withPageNavigateErrorRewrap } from "@jini-ai/agentic";
 export { delegatedToolErrorDisclosure } from "./tool-recovery-preset.js";
 export { registerRunActiveContextRoute } from "./run-active-context.js";
 export { createRunActiveContextStore } from "@jini-ai/daemon/http";
