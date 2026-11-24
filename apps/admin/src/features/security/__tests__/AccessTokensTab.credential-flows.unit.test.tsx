@@ -5,11 +5,12 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "../access-token-forms";
-import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "../access-token-providers";
+import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "@jini-ai/admin/security/access-token-providers";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
-import type { AccessTokenKind } from "../rules";
-import type { AccessTokenRow } from "../access-token-rows";
+import type { AccessTokenKind } from "@jini-ai/admin/security/access-token-rows";
+import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import type {
   AccessTokenAddFormState,
   AccessTokenExistingRowState,
@@ -144,8 +145,8 @@ function groupFor(
 ): AccessTokenProviderGroupState {
   const info =
     kind === "custom" && rows[0]
-      ? accessTokenRowProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, row: rows[0].row })
-      : accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } });
+      ? accessTokenRowProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: ACCESS_TOKEN_TEST_PROVIDERS, row: rows[0].row })
+      : accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } });
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,

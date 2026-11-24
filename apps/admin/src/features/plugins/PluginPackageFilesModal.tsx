@@ -1,4 +1,4 @@
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { PackageFilesModal } from "./PackageFilesModal";
 import { useWiredPluginPackageFiles } from "./hooks/use-plugin-package-files.hooks";
 
@@ -10,7 +10,7 @@ import { useWiredPluginPackageFiles } from "./hooks/use-plugin-package-files.hoo
  */
 
 export interface PluginPackageFilesModalProps {
-  readonly plugin: Pick<AdminPlugin, "id" | "name">;
+  readonly plugin: Pick<AdminPluginDto, "id" | "name">;
   readonly onClose: () => void;
   /** Injectable seam for the listing. Defaults to the real {@link useWiredPluginPackageFiles}. */
   readonly useFiles?: typeof useWiredPluginPackageFiles;

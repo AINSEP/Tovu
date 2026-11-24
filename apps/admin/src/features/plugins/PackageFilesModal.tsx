@@ -4,9 +4,9 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { useId, type ReactNode } from "react";
 
 
-import type { PackageFilesStatus, PackageFileView } from "./rules";
-import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
-import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
+import { packageFileIconKind, type PackageFileIconKind } from "@jini-ai/admin/agent-plugins";
+import { useAgentPluginFileTree } from "@jini-ai/admin/agent-plugins/react";
+import { PACKAGE_FILE_TREE_LOCALE, type PackageFilesStatus, type PackageFileView } from "./rules";
 import { CODE_PREVIEW_MODAL_ICONS } from "@jini-ai/admin/shell/components/CodeView/preview-modal-icons";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -70,7 +70,7 @@ function PackageFilePath({ path }: { path: string }) {
   );
 }
 
-/** RemixIcon glyph per file family (`package-file-tree.ts`'s {@link packageFileIconKind}). The
+/** RemixIcon glyph per file family (Jini's {@link packageFileIconKind}). The
  *  `is-<kind>` class on the icon carries its tint (styles.css). */
 const FILE_ICON_GLYPH: Readonly<Record<PackageFileIconKind, string>> = {
   json: "braces-line",
@@ -101,7 +101,7 @@ function PackageTreeIcon({ folder, expanded, name }: { folder: boolean; expanded
 /**
  * The file list as a WAI-ARIA tree, one flat row per visible node (`aria-level` carries the
  * nesting), so the selected row's highlight spans the pane's full width the way VS Code's does.
- * Expansion, focus and keys are `usePackageFileTree`; a row's full path is its tooltip, since long
+ * Expansion, focus and keys are Jini's `useAgentPluginFileTree`; a row's full path is its tooltip, since long
  * names truncate rather than wrap. File rows keep the `…-select` agent handles the flat list had.
  */
 function PackageFileTree({
@@ -111,7 +111,7 @@ function PackageFileTree({
   fileHandleByPath,
   handlePrefix,
   label,
-  hooks = { usePackageFileTree },
+  hooks = { useAgentPluginFileTree },
 }: {
   files: readonly PackageFileView[];
   selectedPath: string | null;
@@ -119,43 +119,46 @@ function PackageFileTree({
   fileHandleByPath: ReadonlyMap<string, string>;
   handlePrefix: string;
   label: string;
-  hooks?: { usePackageFileTree: typeof usePackageFileTree };
+  hooks?: { useAgentPluginFileTree: typeof useAgentPluginFileTree };
 }) {
-  const tree = hooks.usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
-  const folderPaths = tree.rows.filter((row) => row.node.kind === "folder").map((row) => row.node.path);
+  const tree = hooks.useAgentPluginFileTree(
+    { files: files.map((file) => ({ relativePath: file.relativePath, sizeBytes: 0, content: file.content, omitted: null })), selectedPath, onOpen: ({ path }) => onSelectFile(path) },
+    { locale: PACKAGE_FILE_TREE_LOCALE },
+  );
+  // Jini's rows carry `expanded` only on folders, so it doubles as the folder test.
+  const folderPaths = tree.rows.filter((row) => row.expanded !== undefined).map((row) => row.path);
   const folderHandles = buildAgentListHandles({ prefix: `${handlePrefix}-folder`, ids: folderPaths });
   const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]]));
 
   return (
-    <div ref={tree.treeRef} role="tree" aria-label={label} className="agent-plugin-source-tree" onKeyDown={tree.onKeyDown}>
+    <div role="tree" aria-label={label} className="agent-plugin-source-tree" onKeyDown={tree.onKeyDown}>
       {tree.rows.map((row) => {
-        const { node } = row;
-        const folder = node.kind === "folder";
-        const expanded = folder && tree.isExpanded({ folderPath: node.path });
+        const folder = row.expanded !== undefined;
+        const expanded = row.expanded === true;
         const handle = folder
-          ? agentHandle({ handle: `${folderHandleByPath.get(node.path)}-toggle` }, { role: "button", label: `Expand or collapse the "${node.path}" folder` })
-          : agentHandle({ handle: `${fileHandleByPath.get(node.path)}-select` }, { role: "button", label: `Select the "${node.path}" file` });
+          ? agentHandle({ handle: `${folderHandleByPath.get(row.path)}-toggle` }, { role: "button", label: `Expand or collapse the "${row.path}" folder` })
+          : agentHandle({ handle: `${fileHandleByPath.get(row.path)}-select` }, { role: "button", label: `Select the "${row.path}" file` });
         return (
           <div
-            key={`${node.kind}:${node.path}`}
+            key={row.key}
             role="treeitem"
-            aria-label={node.name}
-            aria-level={row.depth + 1}
+            aria-label={row.name}
+            aria-level={row.depth}
             aria-setsize={row.setSize}
             aria-posinset={row.posInSet}
-            aria-expanded={folder ? expanded : undefined}
-            aria-selected={folder ? undefined : node.path === selectedPath}
-            tabIndex={node.path === tree.activePath ? 0 : -1}
-            title={node.path}
-            data-tree-path={node.path}
+            aria-expanded={row.expanded}
+            aria-selected={row.selected}
+            tabIndex={row.tabIndex}
+            title={row.path}
+            data-tree-path={row.path}
             className="agent-plugin-source-tree-row"
-            onClick={() => tree.onRowClick(row)}
-            onFocus={() => tree.onRowFocus(node.path)}
+            onClick={row.onClick}
+            onFocus={row.onFocus}
             {...handle}
           >
-            <span className="agent-plugin-source-tree-indent" style={{ width: `calc(${row.depth} * var(--tree-indent))` }} aria-hidden />
-            <PackageTreeIcon folder={folder} expanded={expanded} name={node.name} />
-            <span className="agent-plugin-source-tree-label">{node.name}</span>
+            <span className="agent-plugin-source-tree-indent" style={{ width: `calc(${row.depth - 1} * var(--tree-indent))` }} aria-hidden />
+            <PackageTreeIcon folder={folder} expanded={expanded} name={row.name} />
+            <span className="agent-plugin-source-tree-label">{row.name}</span>
           </div>
         );
       })}

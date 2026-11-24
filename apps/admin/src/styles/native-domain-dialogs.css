@@ -6,7 +6,8 @@
 .jini-domain-dialog > .jini-dialog-close { display: none; }
 .settings-dialog.jini-domain-dialog,
 .jini-post-dialog.jini-domain-dialog,
-.jini-collections-dialog.jini-domain-dialog {
+.jini-collections-dialog.jini-domain-dialog,
+.jini-settings-dialog.jini-domain-dialog {
   border: 0; color: var(--fg); margin: auto;
   /* CustomSelect portals into this native dialog with viewport-fixed coordinates. Keep its
      shell unfiltered; the independently filtered ::backdrop supplies the frosted background. */

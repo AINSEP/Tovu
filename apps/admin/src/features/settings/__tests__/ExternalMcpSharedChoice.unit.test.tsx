@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { integrationsApi } from '@/features/integrations/api/integrations-api';
-import { ExternalMcpSharedChoice } from '@jini-ai/admin/screens/settings/ExternalMcpSharedChoice';
-import { useHostExternalMcpSharedChoice } from '@/integrations/jini-admin/settings-external-mcp-shared-choice.hooks';
-import { t as translate } from '@jini-ai/admin/screens/settings/external-mcp-i18n';
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import { ExternalMcpSharedChoice } from "@jini-ai/admin/screens/settings/ExternalMcpSharedChoice";
+import { useHostExternalMcpSharedChoice } from "@/integrations/jini-admin/settings-external-mcp-shared-choice.hooks";
+import { t as translate } from "@jini-ai/admin/screens/settings/external-mcp-i18n";
 
 const language = vi.hoisted(() => ({ locale: 'en' }));
 const t = (key: string) => translate({ locale: language.locale, key });

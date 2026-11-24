@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { type Translate, interpolate } from "@jini-ai/core/text";
 import { readFileAsDataUrl } from "../rules";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**
@@ -125,7 +125,7 @@ export function handleFileDrop({ port, editor, files, pos, onError }: { port: Po
   for (const file of files) {
     uploadDroppedFile({ port, file }, { ...(onError ? { onError } : {}) }).then((result) => {
       // The upload can outlive the editor (the screen closed, or TipTap replaced the instance).
-      if (!result || !isLiveEditor(editor)) return;
+      if (!result || !isLiveEditor({ editor })) return;
       editor
         .chain()
         .insertContentAt(pos, { type: "media", attrs: { assetId: result.assetId, transformName: "public", alt: result.alt } })
@@ -148,7 +148,7 @@ export function handleFileDrop({ port, editor, files, pos, onError }: { port: Po
 export function handleFilePaste({ port, editor, files, onError }: { port: PostEditorPort; editor: Editor; files: File[]; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
   for (const file of files) {
     uploadDroppedFile({ port, file }, { ...(onError ? { onError } : {}) }).then((result) => {
-      if (!result || !isLiveEditor(editor)) return;
+      if (!result || !isLiveEditor({ editor })) return;
       editor.commands.insertMediaEmbed({ assetId: result.assetId, transformName: "public", alt: result.alt });
     });
   }

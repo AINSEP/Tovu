@@ -3,7 +3,7 @@ import { createHttpCommentsApi, createHttpCommentsSession, type CommentsTranspor
 import { COMMENTS_QUEUE_RESOURCE, type AdminCommentsPort, type CommentsEventsPort, type CommentsSessionPort, type CommentsTranslator } from '@jini-ai/admin/comments';
 import type { CommentQueueScope } from '@jini-ai/admin/comments/react';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
-import { t as translateComments } from '../../features/comments/comments-i18n';
+import { t as translateComments } from "../../features/comments/comments-i18n";
 import { translateAdminNavLabel } from '../../lib/admin-nav-i18n';
 import { serverLabel } from '../../components/status-labels';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';

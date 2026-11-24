@@ -1,11 +1,11 @@
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { integrationsApi } from "@/features/integrations/api/integrations-api";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
+import type { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { vi } from "vitest";
 
 import type { EmailApi, EmailTemplateDetail, EmailTemplatePreview, MailActivityItem, MailDnsStatus, MailProviderConfiguration, MailSuppressionEntry, MailSuppressionRemovalPlan } from "@jini-ai/admin/screens/email/email-api.types";
 
 /** @file Email fixtures and typed fake API ports. No fake ever delegates to the network. */
-export const MAIL_PLUGIN: AdminAgentPlugin = { pluginId: "mail-plugin", displayName: "Example Mail", summary: "Send site email.", provides: ["outbound-mail"], origin: "bundled", enabled: false, version: "1", description: null, keywords: [], skills: [], mcpServerIds: [] };
+export const MAIL_PLUGIN: AgentPluginListRow = { pluginId: "mail-plugin", displayName: "Example Mail", summary: "Send site email.", provides: ["outbound-mail"], origin: "bundled", enabled: false, version: "1", description: null, keywords: [], skills: [], mcpServerIds: [] };
 export const AT = "2026-10-22T12:00:00Z";
 export const PROVIDER: MailProviderConfiguration = {
   id: "hosted", label: "Hosted Mail", origin: "plugin", hosted: true, lanes: [],

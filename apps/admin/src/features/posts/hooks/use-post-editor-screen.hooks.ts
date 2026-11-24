@@ -15,12 +15,12 @@ import type { PostPreview } from "../editor/preview/PostPreview";
 import type { PostEditorTemplateModalGateProps } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
 import { TemplateSourceModal } from "@/components/TemplateSource/TemplateSourceModal";
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
-import { VIEW_TABS } from "../editor/view-bar/view-tabs";
+import { VIEW_TABS, type PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
 import type { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
 import { usePostSettingsDialog, type PostSettingsDialogController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
-import type { PostEditorController, PostEditorView, useWiredPostEditor } from "./use-post-editor.hooks";
+import type { PostEditorController, useWiredPostEditor } from "./use-post-editor.hooks";
 
 /**
  * @file The wiring half of the post/page editor screen: every hook `PostEditor` calls, in the order

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
-import { COMMON_I18N, translatePlugins } from "../i18n-common";
+import { COMMON_I18N, tPlugins as translatePlugins } from "../i18n-common";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**

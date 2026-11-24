@@ -1,5 +1,9 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
 import { createPluginsDictionary } from "@jini-ai/admin/screens/plugins/plugins-i18n";
+import { createSecurityDictionary } from "@jini-ai/admin/security/security-i18n";
+import { createIntegrationsDictionary } from "@jini-ai/admin/screens/integrations/integrations-i18n";
+import { createProvidersDictionary } from "@jini-ai/admin/screens/providers/providers-i18n";
+import { createSettingsCapabilitiesDictionary } from "@jini-ai/admin/screens/settings/settings-capabilities-i18n";
 
 /**
  * @file Cross-feature UI-chrome words shared by every `*-i18n.ts` dictionary in this app.
@@ -71,7 +75,35 @@ export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEn
   }),
 );
 
-/** The plugins screens' translator, bound once here: Jini's plugins copy keeps a `{product}` slot
- *  where the brand name goes (K3), so this is where Tovu names itself, over this app's own common
- *  dictionary. Every plugins hook, rule and test imports this binding rather than building its own. */
-export const translatePlugins = createPluginsDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });
+/** The Settings dialog's "no backend yet" capability notes. They name this product (and the product
+ *  its Skills note contrasts with), so Jini keeps the words with placeholders and this app binds
+ *  its names once; the bound translator rides on the same common fallback as every other dictionary. */
+export const { t: tSettingsCapabilities } = createSettingsCapabilitiesDictionary({
+  commonDictionary: COMMON_I18N,
+  productName: "Tovu",
+  referenceProductName: "Open Design",
+});
+
+/** The Integrations page chrome. Its "restart Tovu to connect" copy names this product, so Jini
+ *  keeps a placeholder and this app binds the name once. */
+export const { t: tProviders } = createProvidersDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });
+
+/** The Integrations (webhooks) list, delivery log and row menus. Product-neutral copy, bound here
+ *  once so it rides on this app's common fallback like every other dictionary. */
+export const { t: tIntegrations } = createIntegrationsDictionary({ commonDictionary: COMMON_I18N });
+
+
+
+
+
+/** The security dictionary, bound once to this app's common fallback and product name. The three helpers beside `t`
+ *  are the remove-dialog copy that names the product inside a template. */
+export const {
+  t: tSecurity,
+  removeDialogTitle,
+  removeDialogBody,
+  otherCredentialRemoveDialogBody,
+} = createSecurityDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });
+
+/** The plugins dictionary, bound once to this app's common fallback and product name. */
+export const { t: tPlugins } = createPluginsDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });

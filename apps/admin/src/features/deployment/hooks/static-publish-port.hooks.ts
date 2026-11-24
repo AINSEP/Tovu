@@ -1,4 +1,4 @@
-import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
 /**
  * @file What `useStaticPublish` needs from the outside world, as an interface rather than a direct

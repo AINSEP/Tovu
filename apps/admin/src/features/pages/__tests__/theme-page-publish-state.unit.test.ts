@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 import {
   homeFallbackPublishReason,
   lockedPublishReason,

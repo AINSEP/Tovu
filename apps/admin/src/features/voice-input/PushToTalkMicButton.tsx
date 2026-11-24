@@ -15,7 +15,7 @@ import "./push-to-talk-mic-button.css";
  *
  * Two ways to talk, one controller behind both:
  * - Press and hold this button (`startHold`/`endHold`).
- * - Hold the spacebar in an EMPTY composer (`useSpaceHoldToTalk`) — see `space-hold-rules.ts` for
+ * - Hold the spacebar in an EMPTY composer (`useSpaceHoldToTalk`) — see `@jini-ai/chat/react/features/voice-input/space-hold-rules` for
  *   why the gesture is gated on emptiness and what happens to the space itself.
  *
  * Rendering states are resolved in `mic-button-view.hooks.ts`, including why an unavailable runtime

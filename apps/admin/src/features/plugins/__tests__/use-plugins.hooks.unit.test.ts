@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
-import { pluginsApi } from "@/features/plugins/api/plugins-api";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
+import { pluginsApi } from "@/features/plugins/plugins-host-ports";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
@@ -23,7 +23,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(pluginsApi, "listPlugins");
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
 
@@ -35,7 +35,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("routes onToggleEnabled through the injected port and never touches the real api client", async () => {
     const setEnabledSpy = vi.spyOn(pluginsApi, "setPluginEnabled");
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -96,7 +96,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
    */
   it("still correctly enables a disabled plugin via the injected port, even though no tab in the rebuilt UI can trigger this direction anymore", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -112,7 +112,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
 describe("usePlugins — the Remove confirm dialog's target", () => {
   it("onRequestRemove opens it for that row; onCancelRemove closes it without removing anything", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -129,7 +129,7 @@ describe("usePlugins — the Remove confirm dialog's target", () => {
   it("onConfirmRemove closes it, then removes the plugin and re-fetches", async () => {
     // `enabled: false`: the fake port enforces the real route's PLUGIN_ENABLED refusal.
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -145,7 +145,7 @@ describe("usePlugins — the Remove confirm dialog's target", () => {
 describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
   it("removes the plugin via the injected port and re-fetches the list", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -160,7 +160,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
 
   it("surfaces a built-in plugin's refusal as rowError and leaves the list unchanged", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
@@ -175,7 +175,7 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
 
   it("EC-11-style single-flight: a second removal request for the same row while one is outstanding is a no-op", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] }],
     });
     let resolveUninstall!: () => void;
     const uninstallCalls: string[] = [];
@@ -219,8 +219,8 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
   it("an unrelated row's action settling does not unlock a DIFFERENT row's still-outstanding action", async () => {
     const port = createFakePluginsPort({
       plugins: [
-        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
-        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] },
+        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] },
       ],
     });
     let resolveUninstall!: () => void;
@@ -266,8 +266,8 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
   it("a toggle settling first does not unlock a different row's still-outstanding removal", async () => {
     const port = createFakePluginsPort({
       plugins: [
-        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
-        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] },
+        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] },
       ],
     });
     let resolveToggle!: () => void;
@@ -317,12 +317,12 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
  */
 describe("X1: reload() generation guard", () => {
   it("a later successful reload clears a failed reload's error", async () => {
-    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] };
-    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] };
+    const pluginA: AdminPluginDto = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] };
+    const pluginB: AdminPluginDto = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
 
     let listCall = 0;
-    const listResponses: Array<() => Promise<{ plugins: AdminPlugin[] }>> = [
+    const listResponses: Array<() => Promise<{ plugins: AdminPluginDto[] }>> = [
       () => Promise.resolve({ plugins: [pluginA, pluginB] }), // initial mount load
       () => Promise.reject(new Error("reload failed")), // after toggling A
       () => Promise.resolve({ plugins: [pluginA, pluginB] }), // after toggling B
@@ -346,15 +346,15 @@ describe("X1: reload() generation guard", () => {
   });
 
   it("an older reload that settles last does not overwrite a newer one", async () => {
-    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
-    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const pluginA: AdminPluginDto = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] };
+    const pluginB: AdminPluginDto = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
 
     let listCall = 0;
-    let resolveD1!: (v: { plugins: AdminPlugin[] }) => void;
-    let resolveD2!: (v: { plugins: AdminPlugin[] }) => void;
-    const d1 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD1 = resolve));
-    const d2 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD2 = resolve));
+    let resolveD1!: (v: { plugins: AdminPluginDto[] }) => void;
+    let resolveD2!: (v: { plugins: AdminPluginDto[] }) => void;
+    const d1 = new Promise<{ plugins: AdminPluginDto[] }>((resolve) => (resolveD1 = resolve));
+    const d2 = new Promise<{ plugins: AdminPluginDto[] }>((resolve) => (resolveD2 = resolve));
     port.listPlugins = () => {
       listCall += 1;
       if (listCall === 1) return Promise.resolve({ plugins: [pluginA, pluginB] }); // initial mount load
@@ -398,15 +398,15 @@ describe("X1: reload() generation guard", () => {
   // with the `.catch` guard removed, every test in this file still passed, and an older reload that
   // FAILED after a newer one had already succeeded put its error banner over a list that is current.
   it("an older reload that fails after a newer one succeeded does not raise its error", async () => {
-    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
-    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const pluginA: AdminPluginDto = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] };
+    const pluginB: AdminPluginDto = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
 
     let listCall = 0;
     let rejectD1!: (reason: Error) => void;
-    let resolveD2!: (v: { plugins: AdminPlugin[] }) => void;
-    const d1 = new Promise<{ plugins: AdminPlugin[] }>((_resolve, reject) => (rejectD1 = reject));
-    const d2 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD2 = resolve));
+    let resolveD2!: (v: { plugins: AdminPluginDto[] }) => void;
+    const d1 = new Promise<{ plugins: AdminPluginDto[] }>((_resolve, reject) => (rejectD1 = reject));
+    const d2 = new Promise<{ plugins: AdminPluginDto[] }>((resolve) => (resolveD2 = resolve));
     port.listPlugins = () => {
       listCall += 1;
       if (listCall === 1) return Promise.resolve({ plugins: [pluginA, pluginB] }); // initial mount load
@@ -449,10 +449,10 @@ describe("X1: reload() generation guard", () => {
 });
 
 it("resolves inspector and removal targets from the current list, including missing ids", async () => {
-  const plugin: AdminPlugin = { id: "target", name: "Target", version: "1", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+  const plugin: AdminPluginDto = { id: "target", name: "Target", version: "1", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] };
   const port = createFakePluginsPort({ plugins: [plugin] });
-  let finish!: (value: { plugins: AdminPlugin[] }) => void;
-  const pending = new Promise<{ plugins: AdminPlugin[] }>(resolve => { finish = resolve; });
+  let finish!: (value: { plugins: AdminPluginDto[] }) => void;
+  const pending = new Promise<{ plugins: AdminPluginDto[] }>(resolve => { finish = resolve; });
   port.listPlugins = () => pending;
   const { result } = renderHook(() => usePlugins({ port, locale: "en", t: key => key }));
   act(() => {
@@ -479,7 +479,7 @@ it("resolves inspector and removal targets from the current list, including miss
 });
 
 describe("usePlugins — expanders, single-flight toggles and failed refreshes", () => {
-  const PLUGIN: AdminPlugin = { id: "p1", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] } as AdminPlugin;
+  const PLUGIN: AdminPluginDto = { id: "p1", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [], conflicts: [] } as AdminPluginDto;
 
   it("toggles a row open and closed again", async () => {
     const port = createFakePluginsPort({ plugins: [PLUGIN] });
@@ -539,7 +539,7 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
 describe("usePlugins — provider settings card", () => {
   it("a saved card closes and leaves a '<Name> settings saved' notice until dismissed", async () => {
     const port = createFakePluginsPort({
-      plugins: [{ id: "analytics-posthog", name: "PostHog", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], providerSettings: true }],
+      plugins: [{ id: "analytics-posthog", name: "PostHog", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], conflicts: [], providerSettings: true }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));

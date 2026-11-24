@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { sitesApi } from "../../features/sites/api/sites-api";
-import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
 import { observabilityApi } from "../../features/observability/api/observability-api";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { postsApi } from "../../features/posts/posts-host-ports";
 import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
 import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
 

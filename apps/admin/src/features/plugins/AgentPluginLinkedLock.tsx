@@ -1,6 +1,6 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { LockIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
 import { linkedLockTip } from "@jini-ai/admin/screens/plugins/hooks/use-linked-lock-tip.hooks";
@@ -21,7 +21,7 @@ export function linkedPluginHref({ providerPlugin }: { providerPlugin: string },
   return `/addons/plugins?tab=installed&plugin=${encodeURIComponent(providerPlugin)}`;
 }
 
-export function AgentPluginLinkedLock({ plugin, providerPlugin, t, agentHandleBase }: { plugin: AdminAgentPlugin; providerPlugin: string; t: Translate; agentHandleBase: string }) {
+export function AgentPluginLinkedLock({ plugin, providerPlugin, t, agentHandleBase }: { plugin: AgentPluginListRow; providerPlugin: string; t: Translate; agentHandleBase: string }) {
   return (
     <>
       {/* The word stays beside the padlock — see `AgentPluginRow`'s header (never colour or icon alone). */}

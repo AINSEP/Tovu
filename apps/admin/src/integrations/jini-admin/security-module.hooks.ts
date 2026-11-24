@@ -8,7 +8,7 @@ import { TotpSettings, PasskeySettings, RecoveryCodesCard, useOwnerRecoveryKit, 
 import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { ownerMfaPort, ownerPasskeySettingsPort, ownerRecoveryPort, ownerRecoveryFailure } from '../../lib/owner-clients';
 import { createSecurityTranslator, describeSecurityError, onSecurityCredentialsChanged, securityRefreshSignal } from './security-ports';
-import { t as translateSecurity } from './security-i18n';
+import { tSecurity as translateSecurity } from "../../lib/i18n-common";
 import { AccessTokensIcon, SiteKeyIcon } from './security-visuals';
 import { useModulePanel } from './modules.hooks';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/features/security/api/security-api.types";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@jini-ai/admin/security/api/security-api.types";
 
 /**
  * @file Coverage for `publish-credentials-dependencies.hooks.ts` (3/14 funcs) —
@@ -17,8 +17,8 @@ const { listPublishCredentials, createPublishCredential, updatePublishCredential
   verifyPublishCredential: vi.fn(),
 }));
 
-vi.mock("../../../security/api/security-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../security/api/security-api")>();
+vi.mock("@/features/security/security-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/security/security-host-ports")>();
   return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, verifyPublishCredential } };
 });
 

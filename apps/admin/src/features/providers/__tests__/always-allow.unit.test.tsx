@@ -2,14 +2,14 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
+import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
-import { formatGrantedAt, groupAlwaysAllow } from "../always-allow-rules";
+import { formatGrantedAt, groupAlwaysAllow } from "@jini-ai/admin/screens/providers/always-allow-rules";
 import { createFakeAlwaysAllowPort, defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
-import type { AlwaysAllowPort } from "../hooks/always-allow-port.hooks";
+import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
 import { useAlwaysAllow } from "../hooks/use-always-allow.hooks";
 
 /**
@@ -22,7 +22,7 @@ const fakeT = (key: string): string => key;
 beforeAll(() => vi.stubEnv("TZ", "UTC"));
 afterAll(() => vi.unstubAllEnvs());
 
-function approval(serverId: string, toolName: string): AdminExternalMcpToolApproval {
+function approval(serverId: string, toolName: string): ExternalMcpToolApprovalDto {
   return { serverId, toolName, grantedByPrincipalId: "owner", grantedAt: "2026-09-28T10:00:00.000Z" };
 }
 

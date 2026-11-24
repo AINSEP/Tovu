@@ -23,13 +23,12 @@ export const PostEditor = lazy(() => import("./features/posts").then(module => (
 export const Posts = lazy(() => import("./features/posts").then(module => ({ default: module.Posts })));
 export const PageEditor = lazy(() => import("./features/pages").then(module => ({ default: module.PageEditor })));
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
-export const Members = lazy(() => import("./features/members").then(module => ({ default: module.Members })));
 export { Comments } from "@jini-ai/admin/screens/comments";
 export const Analytics = lazy(() => import("./integrations/jini-admin/analytics-page").then(module => ({ default: module.Analytics })));
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
 export const MenuEditor = lazy(() => import("./features/menus").then(module => ({ default: module.MenuEditor })));
-export { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
+export { IntegrationDeliveries } from "./features/integrations";
 export const Providers = lazy(() => import("./features/providers").then(module => ({ default: module.Providers })));
 export const Users = lazy(() => import("./features/users").then(module => ({ default: module.Users })));
 export const Authentication = lazy(() => import("./features/authentication").then(module => ({ default: module.Authentication })));

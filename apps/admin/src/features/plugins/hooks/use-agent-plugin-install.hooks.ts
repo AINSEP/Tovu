@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { ApiError } from "@/lib/admin-http/request";
 
 import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
@@ -8,7 +8,7 @@ import { useFolderUpload } from "@jini-ai/admin/shell/components/InstallTabCard/
 import * as folderZip from "@jini-ai/agent-plugins/folder-zip";
 import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
-import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
+import type { AgentPluginInstallPort } from "@jini-ai/admin/screens/integrations/agent-plugin-ports";
 
 import { type Translate } from '@jini-ai/core/text';
 /** The server's own cap (`install.ts`'s `maxArchiveBytes`), checked here first so an oversized file
@@ -95,7 +95,7 @@ function fileProblem(file: File): string | null {
  * Installed tab shows it without a reload.
  */
 export function useAgentPluginInstall(
-  required: { port: AgentPluginInstallPort; t: Translate; onInstalled: (row: AdminAgentPlugin) => void },
+  required: { port: AgentPluginInstallPort; t: Translate; onInstalled: (row: AgentPluginListRow) => void },
   options: { update?: { pluginId: string; expectedOldDigest: string } } = {},
 ) {
   const {

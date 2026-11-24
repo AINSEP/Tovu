@@ -9,13 +9,13 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t } from "../../integrations/jini-admin/security-i18n";
+import { tSecurity as t } from "../../lib/i18n-common";
 import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "./SiteKeyTab";
 import { AccessTokensIcon, SiteKeyIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
-import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
+import { useWiredSecurityPermissions } from "./hooks/security-permissions-dependencies.hooks";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';
 const ACCESS_TOKENS_TAB = "access-tokens";

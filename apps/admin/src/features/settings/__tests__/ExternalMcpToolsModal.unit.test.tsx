@@ -7,7 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { ExternalMcpToolPicker } from "../ExternalMcpToolPicker";
 import { useToolPickerFilter, useToolRowHandles } from "../ExternalMcpToolPicker.hooks";
 import { ExternalMcpToolsModal } from "../ExternalMcpToolsModal";
-import type { ToolPickerRow } from "../external-mcp-tool-picker-rules";
+import type { ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
 const pickerProps = { serverId: "atlas", active: true, connectionEnabled: true, allowedToolNames: "read, write", writeAllowedToolNames: "write", saving: false, onSave: vi.fn(), onCancel: vi.fn(), cardHandle: "atlas" };

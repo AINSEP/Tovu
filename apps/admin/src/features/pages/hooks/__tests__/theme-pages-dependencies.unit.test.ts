@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ThemePagesFileEntry } from "../theme-pages-port.hooks";
+import type { ThemePagesFileEntry } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 /**
  * @file Coverage for `theme-pages-dependencies.hooks.ts`'s remaining gaps:
@@ -9,10 +9,6 @@ import type { ThemePagesFileEntry } from "../theme-pages-port.hooks";
  *   `createFakeThemePagesPort`; nothing renders the zero-arg `useWiredThemePages()` that wires the
  *   real port's `getThemeDetail`/`setPagePublished` in (only `getPresentation` is exercised, via a
  *   route elsewhere in this feature).
- * - `createFakeThemePagesPort(...).setPagePublished`'s "page not found" guard — unreachable through
- *   `useThemePages` itself (the hook only ever calls `setPagePublished` with a page id it already
- *   resolved from `pageFiles`), so it's exercised here by direct invocation with a page id absent
- *   from the seed.
  */
 
 const { getThemeDetail, setThemePagePublished } = vi.hoisted(() => ({
@@ -25,7 +21,7 @@ vi.mock("../../../themes/api/themes-api", async (importOriginal) => {
   return { ...actual, themesApi: { ...actual.themesApi, getThemeDetail, setThemePagePublished } };
 });
 
-const { createFakeThemePagesPort, defaultThemePagesPort } = await import("../theme-pages-dependencies.hooks");
+const { defaultThemePagesPort } = await import("../theme-pages-dependencies.hooks");
 
 const ABOUT: ThemePagesFileEntry = { path: "render/pages/about.html", group: "page", published: false, resettable: true };
 
@@ -42,14 +38,5 @@ describe("defaultThemePagesPort", () => {
     setThemePagePublished.mockResolvedValue(response);
     await expect(defaultThemePagesPort.setPagePublished({ themeId: "basic", page: "about", published: true })).resolves.toEqual(response);
     expect(setThemePagePublished).toHaveBeenCalledWith({ themeId: "basic", page: "about", published: true });
-  });
-});
-
-describe("createFakeThemePagesPort — setPagePublished not-found guard", () => {
-  it("throws 'fake theme page not found' for a page absent from pageFiles", async () => {
-    const port = createFakeThemePagesPort({ pageFiles: [ABOUT] });
-    await expect(port.setPagePublished({ themeId: "basic", page: "missing-page", published: true })).rejects.toThrow(
-      "fake theme page not found: missing-page",
-    );
   });
 });

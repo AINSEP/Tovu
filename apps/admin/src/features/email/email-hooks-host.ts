@@ -11,7 +11,7 @@ import { useEmailTemplates, type EmailTemplatesController } from "@jini-ai/admin
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import { mailStatusApi } from "./api/mail-status-api";
-import { integrationsApi } from "../integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { emailApi } from "./email-api";
 
 /**

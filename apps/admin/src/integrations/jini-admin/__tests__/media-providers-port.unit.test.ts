@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMediaProvidersPort, mediaSessionGrants } from '../media-ports';
-import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-catalog';
-import type { AdminMediaProviderMap } from '../../../features/media/api/media-api';
+import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
+import type { AdminMediaProviderMap } from "../../../features/media/api/media-api";
 
 /**
  * Boundary pins for the provider credential port (security-sensitive: it writes API keys).

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { PLAIN_TARGET } from "../../../deployment/__tests__/publish-targets.fixture";
 
 /**
@@ -47,16 +47,16 @@ const {
   deleteCustomCredential: vi.fn(),
 }));
 
-vi.mock("../../api/security-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/security-api")>();
+vi.mock("@/features/security/security-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/security/security-host-ports")>();
   return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential } };
 });
-vi.mock("../../../deployment/api/deployment-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../deployment/api/deployment-api")>();
+vi.mock("@/features/deployment/deployment-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/deployment/deployment-host-ports")>();
   return { ...actual, deploymentApi: { ...actual.deploymentApi, getPublishTargets } };
 });
-vi.mock("../../../source-control/api/source-control-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../source-control/api/source-control-api")>();
+vi.mock("@/features/source-control/source-control-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/source-control/source-control-host-ports")>();
   return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlCredentials, listSourceControlProviders, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } };
 });
 

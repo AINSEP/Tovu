@@ -5,7 +5,7 @@ import { credentialDraftError, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
 import { buildCredentialConnectionInput } from '../../features/deployment/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
-import type { AdminExternalMcpServer } from '../../features/integrations/api/integrations-api.types';
+import type { AdminExternalMcpServer } from '@jini-ai/core/contracts/site/cms-external-mcp';
 
 describe('credential byte preservation and safe admin hints', () => {
   it('uses server hints for both BYOK placeholders and separates a literal dot from the ellipsis', () => {

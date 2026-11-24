@@ -3,11 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { defaultChatDisplayPreferencesPort, useChatDisplayPreferences as useDefaultChatDisplayPreferences } from "../chat-display-preferences.adapter";
-import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
 import {
-  useChatDisplayPreferences,
+  useChatDisplayPreferences as useJiniChatDisplayPreferences,
+  type ChatDisplayPreferences,
   type ChatDisplayPreferencesPort,
-} from "../hooks/use-chat-display-preferences.hooks";
+} from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
+
+/** The hook as the dock wires it: the host's namespace, defaults and kit query hooks over a given port. */
+function useChatDisplayPreferences(port: ChatDisplayPreferencesPort) {
+  return useJiniChatDisplayPreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_CHAT_DISPLAY, useFetchQuery, useInvalidate });
+}
 
 /**
  * @file `useChatDisplayPreferences` over a fake port (the hook's own DI seam): defaults until the
@@ -67,6 +74,17 @@ describe("useChatDisplayPreferences", () => {
     expect(result.current.preferences).toEqual(DEFAULT_CHAT_DISPLAY);
     await waitFor(() => expect(result.current.preferences).toEqual({ toolCalls: "show", showUsageLine: false, showThinking: true }));
     expect(result.current.saveFailed).toBe(false);
+  });
+
+  it("uses the defaults the host injects, not a built-in set, until the stored values arrive", async () => {
+    const port = fakePort({ toolCalls: "show", showUsageLine: false, showThinking: true });
+    const injected: ChatDisplayPreferences = { toolCalls: "hidden", showUsageLine: false, showThinking: false };
+    const { result } = renderHook(() => useJiniChatDisplayPreferences({
+      port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: injected, useFetchQuery, useInvalidate,
+    }));
+
+    expect(result.current.preferences).toEqual(injected);
+    await waitFor(() => expect(result.current.preferences).toEqual({ toolCalls: "show", showUsageLine: false, showThinking: true }));
   });
 
   it("keeps the defaults when the stored values cannot be read", async () => {

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
-import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
+import type { ThemeCanvasPort, ThemeTokens } from "@jini-ai/admin/pages/hooks/theme-canvas-port.hooks";
 import { ThemeServerResponseError } from "./theme-canvas-dependencies.hooks";
-import { deriveContentWrapperChain } from "./theme-canvas-wrapper";
+import { deriveContentWrapperChain } from "@jini-ai/admin/pages/hooks/theme-canvas-wrapper";
 
 /**
  * @file Resolves the CSS the Pages editor's Interactive tab renders its canvas against, so the

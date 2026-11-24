@@ -2,7 +2,7 @@ import type { ComposerDiscoveryOutcome, ComposerDiscoverySelection } from "@jini
 
 import { resolveTovuComposerDiscoveryRoute } from "@/features/plugins/composer-capabilities";
 import type { ComposerCapabilityProjection, ComposerHostBinding } from "@jini-ai/admin/screens/plugins/composer-capabilities";
-import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
+import { draftAfterSkillSelection, type SelectedComposerSkill } from "@jini-ai/admin/screens/plugins/selected-skills";
 import { loadSkillDraft } from "@/features/skills/api";
 
 export interface ResolveComposerDiscoveryOutcomeDeps {

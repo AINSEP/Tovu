@@ -403,8 +403,8 @@
 .media-order-row { justify-content: space-between; }
 .media-order-controls { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 /* The upload and import entry points are square icon buttons (owner, 2026-11-01). */
-.media-icon-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
-.media-icon-btn svg { width: 18px; height: 18px; }
+.media-icon-btn, .jini-media-icon-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+.media-icon-btn svg, .jini-media-icon-btn svg { width: 18px; height: 18px; }
 .media-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-left: auto; }
 
 /* The Media page tab bar used to live here as its own pill row (`.media-tabs`/`.media-tab`,
@@ -416,7 +416,7 @@
 /* Upload image / Import from URL (owner item #9, 2026-10-13): two buttons side by side; the
    fields live in their dialogs (`Media.tsx`'s `MediaToolbar`, `RemoteImageImport.tsx`). Closed
    dialogs are `display: none` and an open one sits in the top layer, so neither takes a slot here. */
-.media-upload-dialog, .media-import-dialog { --admin-dialog-width: 30rem; }
+.media-upload-dialog, .media-import-dialog, .jini-media-import-dialog { --admin-dialog-width: 30rem; }
 .media-file-field { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .media-file-name { color: var(--fg-2); font-size: var(--text-sm); overflow-wrap: anywhere; min-width: 0; }
 /* Phones (and a desktop pane squeezed by the nav + dock): the buttons keep the natural width they
@@ -430,7 +430,7 @@
 @container admin-content (max-width: 620px) {
   .media-actions { margin-left: 0; }
   .media-actions > button { min-height: 44px; max-width: 100%; white-space: normal; }
-  .media-actions > .media-icon-btn { width: 44px; }
+  .media-actions > .media-icon-btn, .media-actions > .jini-media-icon-btn { width: 44px; }
 }
 /* Phones: one card per row, full filename (owner, 2026-10-07). The two-column grid below 480px
    (ME-3, 2026-10-06, chosen to shorten the scroll) left ~160px cards: filenames cut to

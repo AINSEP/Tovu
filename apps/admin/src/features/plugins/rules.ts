@@ -1,17 +1,22 @@
-import type { AdminAgentPlugin } from "../integrations/api/integrations-api.types";
-import type { AdminPlugin, AdminPluginConflict, AdminPluginFiles, AdminPluginPackageFile, AdminPluginProviderSettingField } from "./api/plugins-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
+import type { AdminPluginProviderSettingField } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import type { AdminPluginDto, AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
+import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
+import type { PluginPackageFile } from "@jini-ai/core/contracts/site/host-node";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
-import { translatePlugins as t } from "../../lib/i18n-common";
+import { tPlugins as t } from "../../lib/i18n-common";
 
 import type { AgentPluginGlyphKind } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
-import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
-import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
+import { buildPackageFileTree, firstPackageFilePath } from "@jini-ai/admin/agent-plugins";
+import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Resource names on the existing assistant content-refresh bus. Unknown scope refreshes both. */
 export const PLUGINS_RESOURCE = "plugins";
 export const AGENT_PLUGINS_RESOURCE = "agent-plugins";
+/** The viewer's own locale, so the package-file tree orders siblings the way the rest of the host sorts. */
+export const PACKAGE_FILE_TREE_LOCALE = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).resolvedOptions().locale;
 
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
@@ -93,7 +98,7 @@ const CORE_CONFLICT_HOLDER = "core";
  *
  * @complexity O(c) in the row's conflict count.
  */
-export function pluginConflictLines({ plugin, translate }: { plugin: { readonly conflicts?: readonly AdminPluginConflict[] }; translate: Translate }, _optional: Record<string, never> = {}): string[] {
+export function pluginConflictLines({ plugin, translate }: { plugin: { readonly conflicts?: readonly PluginConflict[] }; translate: Translate }, _optional: Record<string, never> = {}): string[] {
   const lines = (plugin.conflicts ?? []).map((conflict) => {
     const kindLabel = CONFLICT_KIND_LABELS.get(conflict.kind);
     const values = { kind: kindLabel === undefined ? conflict.kind : translate(kindLabel), key: conflict.key };
@@ -114,7 +119,7 @@ export function pluginConflictLines({ plugin, translate }: { plugin: { readonly 
  *
  * @complexity O(1).
  */
-export function pluginQuarantineHeadline({ quarantine, translate }: { quarantine: NonNullable<AdminPlugin["quarantine"]>; translate: Translate }, _optional: Record<string, never> = {}): string {
+export function pluginQuarantineHeadline({ quarantine, translate }: { quarantine: NonNullable<AdminPluginDto["quarantine"]>; translate: Translate }, _optional: Record<string, never> = {}): string {
   if (quarantine.consecutiveFailures === 0) return translate("Turned off automatically");
   return fillTemplate({ template: translate("Quarantined after {count} consecutive failures"), values: { count: String(quarantine.consecutiveFailures) } });
 }
@@ -123,7 +128,7 @@ export function pluginQuarantineHeadline({ quarantine, translate }: { quarantine
 export interface PluginRowDetailView {
   readonly quarantine: { readonly headline: string; readonly reason: string } | null;
   readonly conflicts: { readonly heading: string; readonly lines: readonly string[] } | null;
-  readonly errors: AdminPlugin["errors"];
+  readonly errors: AdminPluginDto["errors"];
 }
 
 /**
@@ -133,7 +138,7 @@ export interface PluginRowDetailView {
  *
  * @complexity O(c) in the row's conflict count.
  */
-export function pluginRowDetailView({ plugin, translate }: { plugin: AdminPlugin; translate: Translate }, _optional: Record<string, never> = {}): PluginRowDetailView | null {
+export function pluginRowDetailView({ plugin, translate }: { plugin: AdminPluginDto; translate: Translate }, _optional: Record<string, never> = {}): PluginRowDetailView | null {
   const lines = pluginConflictLines({ plugin, translate });
   if (!plugin.quarantine && lines.length === 0 && plugin.errors.length === 0) return null;
   return {
@@ -151,7 +156,7 @@ export interface PluginRowFact {
   readonly value: string;
 }
 
-const PLUGIN_SOURCE_COPY: Record<AdminPlugin["source"], string> = {
+const PLUGIN_SOURCE_COPY: Record<AdminPluginDto["source"], string> = {
   "built-in": "Built in — ships with Tovu",
   site: "Installed on this site",
 };
@@ -159,13 +164,13 @@ const PLUGIN_SOURCE_COPY: Record<AdminPlugin["source"], string> = {
 /** tier-1/tier-3 reuse the install preview's trust sentences; tier-2 (built-ins only — a sideloaded
  *  package cannot claim it) runs in a separate worker over the capability-scoped SDK
  *  (`Jini packages/plugins/src/host/worker/run-call.ts`). */
-const PLUGIN_TIER_COPY: Record<AdminPlugin["tier"], string> = {
+const PLUGIN_TIER_COPY: Record<AdminPluginDto["tier"], string> = {
   "tier-1": "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.",
   "tier-2": "This plugin runs code in a separate worker, limited to the capabilities it declares.",
   "tier-3": "This plugin runs code with full access to this computer and every site on it.",
 };
 
-const PLUGIN_STATUS_COPY: Record<AdminPlugin["status"], string> = {
+const PLUGIN_STATUS_COPY: Record<AdminPluginDto["status"], string> = {
   valid: "No problems found",
   invalid: "Invalid — see the errors below",
   incompatible: "Not compatible with this version of Tovu",
@@ -174,14 +179,14 @@ const PLUGIN_STATUS_COPY: Record<AdminPlugin["status"], string> = {
 /**
  * The detail panel's always-present facts (mobile catalog PL-2, 2026-10-06). Before this, the
  * panel held only {@link pluginRowDetailView}'s problems, so expanding a HEALTHY plugin — most of
- * them — rotated the chevron over an empty box. `AdminPlugin` still carries no description (the
+ * them — rotated the chevron over an empty box. `AdminPluginDto` still carries no description (the
  * server envelope has none), so these are the facts the row already has, spelled out: id, where it
  * came from, what it can touch (the same trust sentences the install preview uses), health, and
  * this workspace's on/off state.
  *
  * @complexity O(1).
  */
-export function pluginRowFacts({ plugin, translate }: { plugin: AdminPlugin; translate: Translate }, _optional: Record<string, never> = {}): PluginRowFact[] {
+export function pluginRowFacts({ plugin, translate }: { plugin: AdminPluginDto; translate: Translate }, _optional: Record<string, never> = {}): PluginRowFact[] {
   return [
     { label: translate("ID"), value: plugin.id },
     { label: translate("Source"), value: translate(PLUGIN_SOURCE_COPY[plugin.source]) },
@@ -241,7 +246,7 @@ export interface PluginToggleControl {
   label: string;
 }
 
-export function pluginToggleControl({ plugin, rowSavingId, locale }: { plugin: AdminPlugin; rowSavingId: string | null; locale: string }, _optional = {}): PluginToggleControl {
+export function pluginToggleControl({ plugin, rowSavingId, locale }: { plugin: AdminPluginDto; rowSavingId: string | null; locale: string }, _optional = {}): PluginToggleControl {
   if (!(plugin.enabled || plugin.status === "valid")) {
     return { visible: false, disabled: false, label: "" };
   }
@@ -270,14 +275,14 @@ export function pluginToggleControl({ plugin, rowSavingId, locale }: { plugin: A
  *
  * @complexity O(1).
  */
-export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPlugin; locale: string }, _optional = {}): string {
+export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPluginDto; locale: string }, _optional = {}): string {
   return `${plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" })} ${plugin.name}`;
 }
 
 /**
  * The row's one-line subline, shown under its name/version heading and repeated inside its
  * expander's own quarantine/errors context: `source · tier · status` (e.g. `"site · tier-3 ·
- * valid"`). `AdminPlugin` has no free-text description field (unlike `AdminAgentPlugin`), so this
+ * valid"`). `AdminPluginDto` has no free-text description field (unlike `AgentPluginListRow`), so this
  * is built from the trust/health signal the type already carries rather than inventing prose.
  * Values are rendered verbatim, not translated — `plugin.source`/`tier`/`status` are domain
  * enum values, not copy, matching how the pre-split table rendered them (no `t()` wrapping there
@@ -285,7 +290,7 @@ export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPlugin;
  *
  * @complexity O(1).
  */
-export function pluginSubline(plugin: AdminPlugin, _optional: Record<string, never> = {}): string {
+export function pluginSubline(plugin: AdminPluginDto, _optional: Record<string, never> = {}): string {
   return `${plugin.source} · ${plugin.tier} · ${plugin.status}`;
 }
 
@@ -301,7 +306,7 @@ export function pluginSubline(plugin: AdminPlugin, _optional: Record<string, nev
  *
  * @complexity O(1).
  */
-export function pluginRemoveBlocker(plugin: AdminPlugin, _optional: Record<string, never> = {}): "built-in" | "enabled" | null {
+export function pluginRemoveBlocker(plugin: AdminPluginDto, _optional: Record<string, never> = {}): "built-in" | "enabled" | null {
   if (plugin.source === "built-in") return "built-in";
   return plugin.enabled ? "enabled" : null;
 }
@@ -316,7 +321,7 @@ export function pluginRemoveBlocker(plugin: AdminPlugin, _optional: Record<strin
  *
  * @complexity O(1).
  */
-export function pluginRemoveAriaLabel({ plugin, locale }: { plugin: AdminPlugin; locale: string }, _optional = {}): string {
+export function pluginRemoveAriaLabel({ plugin, locale }: { plugin: AdminPluginDto; locale: string }, _optional = {}): string {
   return pluginRemoveBlocker(plugin) === null
     ? `${t({ locale: locale, key: "Remove" })} ${plugin.name}`
     : `${t({ locale: locale, key: "Remove" })} ${plugin.name} — ${t({ locale: locale, key: "unavailable" })}`;
@@ -566,7 +571,7 @@ export function agentPluginWarningText(required: { warning: string; translate: T
  * (advisory: the plugin still turns on). Absent fields, from an older server, show nothing.
  * @complexity O(r) in missing requirements.
  */
-export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgentPlugin, "hostOk" | "missingRequires">; translate: Translate }, _optional: Record<string, never> = {}): string[] {
+export function agentPluginCompatibilityLines(required: { plugin: Pick<AgentPluginListRow, "hostOk" | "missingRequires">; translate: Translate }, _optional: Record<string, never> = {}): string[] {
   const { plugin, translate } = required;
   const lines: string[] = [];
   if (plugin.hostOk === false) lines.push(translate("Not for this Tovu version"));
@@ -582,7 +587,7 @@ export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgen
  * @returns The installed revision the update must replace, or `undefined` when the row offers no Update.
  * @complexity O(1).
  */
-export function updatableAgentPluginDigest(required: { plugin: Pick<AdminAgentPlugin, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
+export function updatableAgentPluginDigest(required: { plugin: Pick<AgentPluginListRow, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
   const { origin, archiveDigest } = required.plugin;
   return origin === "operator-installed" && typeof archiveDigest === "string" && archiveDigest.length > 0 ? archiveDigest : undefined;
 }
@@ -642,7 +647,7 @@ export interface PackageFilesStatus {
 }
 
 /** English source strings (the i18n keys) for each `PLUGIN_FILES` omission reason. */
-const PACKAGE_FILE_OMISSION_NOTICES: Record<NonNullable<AdminPluginPackageFile["omitted"]>, string> = {
+const PACKAGE_FILE_OMISSION_NOTICES: Record<NonNullable<PluginPackageFile["omitted"]>, string> = {
   binary: "Binary file — not shown.",
   "too-large": "Too large to show here.",
   symlink: "Symbolic link — not followed.",
@@ -655,7 +660,7 @@ const PACKAGE_FILE_OMISSION_NOTICES: Record<NonNullable<AdminPluginPackageFile["
  * `null` content) reads as unreadable instead of rendering blank.
  * @complexity O(1).
  */
-export function toPackageFileView({ file, translate }: { file: AdminPluginPackageFile; translate: Translate }, _optional: Record<string, never> = {}): PackageFileView {
+export function toPackageFileView({ file, translate }: { file: PluginPackageFile; translate: Translate }, _optional: Record<string, never> = {}): PackageFileView {
   if (file.omitted === null && file.content !== null) return { relativePath: file.relativePath, content: file.content };
   const notice = (file.omitted && PACKAGE_FILE_OMISSION_NOTICES[file.omitted]) || PACKAGE_FILE_OMISSION_NOTICES.unreadable;
   return { relativePath: file.relativePath, content: null, unavailableReason: translate(notice) };
@@ -677,13 +682,13 @@ export function packageFilesStatus(
 
 /** Set only when `PLUGIN_FILES` reports its caps cut the listing short.
  *  @complexity O(1). */
-export function packageFilesListNotice({ listing, translate }: { listing: Pick<AdminPluginFiles, "truncated"> | null; translate: Translate }, _optional = {}): string | null {
+export function packageFilesListNotice({ listing, translate }: { listing: Pick<AdminPluginFilesEnvelope, "truncated"> | null; translate: Translate }, _optional = {}): string | null {
   return listing?.truncated ? translate("Some files are not listed: this package is larger than the viewer's limits.") : null;
 }
 
 /** The part of a files listing the viewer reads — shared by `PLUGIN_FILES` and
  *  `AGENT_PLUGIN_FILES`, whose responses differ only outside it. */
-export type PackageFilesListing = Pick<AdminPluginFiles, "files" | "truncated">;
+export type PackageFilesListing = Pick<AdminPluginFilesEnvelope, "files" | "truncated">;
 
 /** One settled package-files read: the listing, or the failure text in its place. */
 export interface PackageFilesRead {
@@ -715,7 +720,7 @@ export interface PackageFilesViewState {
 export function selectPackageFile({ files, selectedPath }: { files: readonly PackageFileView[]; selectedPath: string }, _optional = {}): PackageFileView | null {
   const selected = files.find((file) => file.relativePath === selectedPath);
   if (selected) return selected;
-  const topPath = firstPackageFilePath({ nodes: buildPackageFileTree({ paths: files.map((file) => file.relativePath) }) });
+  const topPath = firstPackageFilePath({ nodes: buildPackageFileTree({ paths: files.map((file) => file.relativePath) }, { locale: PACKAGE_FILE_TREE_LOCALE }) });
   return files.find((file) => file.relativePath === topPath) ?? files[0] ?? null;
 }
 

@@ -3,7 +3,10 @@ import { expect, it } from "vitest";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields";
 import { useMenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks";
-import { MENUS_DICT } from "../menus-i18n";
+
+import { t as tMenus } from "../menus-i18n";
+
+const MENUS_DICT = tMenus.dictionary as Record<string, Record<string, string>>;
 
 it("selects pages by id and retains unpublished/missing references with an admin hint", () => {
   let item: AdminMenuItem = { id: "footer-about", label: "About", target: { kind: "entryRef", entryId: "about" } };

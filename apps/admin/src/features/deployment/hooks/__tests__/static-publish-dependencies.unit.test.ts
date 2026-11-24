@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { PLAIN_TARGET } from "../../__tests__/publish-targets.fixture";
 
 /**
@@ -22,8 +22,8 @@ const { getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus }
   getPublishStatus: vi.fn(),
 }));
 
-vi.mock("../../api/deployment-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/deployment-api")>();
+vi.mock("@/features/deployment/deployment-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/deployment/deployment-host-ports")>();
   return { ...actual, deploymentApi: { ...actual.deploymentApi, getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus } };
 });
 

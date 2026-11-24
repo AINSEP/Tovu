@@ -1,6 +1,6 @@
 import { act, render, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { defaultGitBackupPort, useWiredGitBackup } from "../hooks/git-backup-dependencies.hooks";
 
 /**

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useIntegrationDeliveries } from "../hooks/use-integration-deliveries.hooks";
 import { createFakeIntegrationDeliveriesPort } from "../hooks/integration-deliveries-dependencies.hooks";
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * @file `useIntegrationDeliveries` — the delivery-log screen's load effect.
@@ -29,7 +29,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 /** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
 const fakeT = ({ key }: { key: string }): string => key;
 
-function deliveryFixture(overrides: Partial<AdminWebhookDelivery> = {}): AdminWebhookDelivery {
+function deliveryFixture(overrides: Partial<AdminWebhookDeliveryResponse> = {}): AdminWebhookDeliveryResponse {
   return {
     id: "del1",
     subscriptionId: "sub1",

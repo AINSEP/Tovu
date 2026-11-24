@@ -26,6 +26,7 @@ import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
+import type { PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import { navigate as realNavigate } from "@jini-ai/admin/shell/lib/router";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
@@ -53,7 +54,7 @@ import {
 import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
-import { isLiveEditor } from "@/lib/live-tiptap-editor";
+import { isLiveEditor } from "@jini-ai/admin/shell/lib/live-tiptap-editor";
 import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, POST_NOT_LOADED_SAVE_REFUSED, reportPostLoadFailure, type SaveStatusOverride } from "./post-editor-messages";
 import { useLoadedPostApply, type LoadedPostRow } from "./use-loaded-post-apply.hooks";
 import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
@@ -113,12 +114,6 @@ export type { PostFormState } from './post-editor-state.rules';
 import type { PostFormState } from './post-editor-state.rules';
 
 import { type Translate } from '@jini-ai/core/text';
-/** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
- *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
- *  in the UI) — mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s `PageEditorView`, minus
- *  the HTML/Interactive tabs a `bodyJson`-based post has no equivalent of. */
-export type PostEditorView = "edit" | "preview";
-
 /**
  * The data/state controller `PostEditor.tsx` mounts, extended with {@link PostEditorUiController}'s
  * bound interaction handlers (2026-08-20, UI-subhook pass — see `use-post-editor-ui.hooks.ts`'s file
@@ -1137,8 +1132,9 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function restoreRecoveredDraft(): void {
     const draft: (NonNullable<typeof autosave.recoverableDraft> & { author?: string | null; showAuthor?: boolean }) | null = autosave.recoverableDraft;
-    if (!draft || draft.bodyJson === undefined || !isLiveEditor(editor)) return;
-    editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
+    const target = { editor };
+    if (!draft || draft.bodyJson === undefined || !isLiveEditor(target)) return;
+    target.editor.commands.setContent(withTitleNode({ bodyJson: draft.bodyJson, title: draft.title }) as never);
     setTitle(draft.title);
     setSlug({ value: draft.slug });
     if (draft.author !== undefined) setAuthor(draft.author ?? "");
@@ -1167,7 +1163,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function setTitleAndSyncEditor({ next }: { next: string }, _options: Record<string, never> = {}): void {
     setTitle(next);
-    if (isLiveEditor(editor)) editor.commands.setPostTitleText({ text: next });
+    const target = { editor };
+    if (isLiveEditor(target)) target.editor.commands.setPostTitleText({ text: next });
   }
 
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads

@@ -5,11 +5,11 @@ import { render, screen, waitFor, cleanup, fireEvent } from "@/__tests__/fetch-q
 import userEvent from "@testing-library/user-event";
 import { afterEach, it, expect, vi } from "vitest";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
-import type { PluginInstallPort } from "../hooks/plugin-install-port.hooks";
+import type { PluginInstallPort } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { Plugins } from "../Plugins";
-import { translatePlugins as t } from "../../../lib/i18n-common";
+import { tPlugins as t } from "../../../lib/i18n-common";
 
 afterEach(cleanup);
 const preview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: ["content.read"], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };

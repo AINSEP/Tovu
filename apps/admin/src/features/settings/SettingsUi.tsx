@@ -1,6 +1,6 @@
 import { createSettingsTabChange, createSettingsUiTranslators } from "@jini-ai/admin/screens/settings/SettingsUi.hooks";
 import { t as tApp } from "../../app-i18n";
-import { t as tCapability } from "./settings-capabilities-i18n";
+import { tSettingsCapabilities as tCapability } from "../../lib/i18n-common";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';

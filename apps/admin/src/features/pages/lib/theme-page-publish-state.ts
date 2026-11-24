@@ -1,7 +1,7 @@
 import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
-import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
-import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
+import type { ThemePageSlugCollision } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

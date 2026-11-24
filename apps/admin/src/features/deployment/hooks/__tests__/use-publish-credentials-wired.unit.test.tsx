@@ -13,8 +13,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 
 const { listPublishCredentials } = vi.hoisted(() => ({ listPublishCredentials: vi.fn() }));
 
-vi.mock("@/features/security/api/security-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/security/api/security-api")>();
+vi.mock("@/features/security/security-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/security/security-host-ports")>();
   return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials } };
 });
 

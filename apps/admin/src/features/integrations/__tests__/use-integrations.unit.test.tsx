@@ -6,7 +6,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/sh
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { WEBHOOKS_RESOURCE } from "../rules";
-import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * @file `useIntegrations` — the Integrations LIST screen's load/create/pause/delete state.
@@ -33,7 +33,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 const fakeT = ({ key }: { key: string }): string => key;
 const fakeLocale = "en";
 
-function subscriptionFixture(overrides: Partial<AdminWebhookSubscription> = {}): AdminWebhookSubscription {
+function subscriptionFixture(overrides: Partial<AdminWebhookSubscriptionResponse> = {}): AdminWebhookSubscriptionResponse {
   return {
     id: "sub1",
     label: "My webhook",

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mediaApi, createMediaProvidersPort, mediaSessionGrants, mediaEvents } from '../media-ports';
 import { publishContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
-import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-catalog';
+import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
 import { ApiError } from '../../../lib/admin-http/request';
 afterEach(() => vi.unstubAllGlobals());
 describe('host media ports', () => {

@@ -2,16 +2,18 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
+import type { AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targets.fixture";
 import { AccessTokensTab } from "../AccessTokensTab";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";
-import type { AccessTokensPort } from "../hooks/access-tokens-port.hooks";
+import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
 import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 import { useCopyKeys } from "../hooks/use-copy-keys.hooks";
-import { accessTokenProviderInfo, accessTokenProviders } from "../access-token-providers";
+import { accessTokenProviderInfo, accessTokenProviders } from "@jini-ai/admin/security/access-token-providers";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
+import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself
@@ -130,7 +132,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     { descriptor: { ...CLOUDFLARE_PAGES_TARGET, credential: { tokenField: "token", fields: [] } }, label: "Access token" },
     { descriptor: CLOUDFLARE_PAGES_TARGET, label: "API token" },
   ])("labels the secret input exactly '$label'", ({ descriptor, label }) => {
-    const info = accessTokenProviderInfo({ providers: accessTokenProviders({ publishTargets: [descriptor] }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
+    const info = accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: accessTokenProviders({ publishTargets: [descriptor], copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: sourceControlProviderInfoFromDescriptor }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
     render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens({
         groups: [{

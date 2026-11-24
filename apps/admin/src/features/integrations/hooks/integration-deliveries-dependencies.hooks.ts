@@ -1,6 +1,6 @@
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
-import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import type { IntegrationDeliveriesPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file The only place under `features/integrations/hooks` that reaches `lib/api` for the
@@ -15,7 +15,7 @@ export const defaultIntegrationDeliveriesPort: IntegrationDeliveriesPort = {
 
 /** Seed state for {@link createFakeIntegrationDeliveriesPort}. */
 export interface FakeIntegrationDeliveriesPortOptions {
-  deliveries?: AdminWebhookDelivery[];
+  deliveries?: AdminWebhookDeliveryResponse[];
 }
 
 /**

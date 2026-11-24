@@ -1,41 +1,29 @@
-# AssistantDock
+# AssistantDock (host side)
 
-## Wiring (host-owned storage keys)
+The dock's generic pieces live in `@jini-ai/admin/shell/components/AssistantDock/*`. This folder keeps
+the host composition: `AssistantDock.tsx`, `DockHeader.tsx`, `DockChatPane.tsx`, the `*.adapter.ts`
+preference bindings, `FolderDropNotice.tsx`, the `useWired*` hooks and every Tovu product string.
 
-- Moved to `@jini-ai/admin/shell/components/AssistantDock/`: `agent-failure`, `MessageOverflowModal`,
-  `SelectedAgentPluginTray`, `SlowRunNoticeCard` and `hooks/use-routed-a2ui-surface-card.hooks`
-  (plus `shell/components/shared-components-i18n` and `AdminByokKeyPanel.hooks` one level up). The
-  host injects `@jini-ai/chat/react`'s `useT` as each component's required `useTHook`
-  (`DockLeadingAccessory.tsx`, `OverflowAwareMcpUiSurfaceCard.tsx`, `use-dock-renderer-registry.hooks.ts`)
-  and `useMessageOverflowModal` as the modal's required `useModal`. `styles.css` styles the modal's
-  `jini-message-overflow-modal*` classes. `hooks/composer-skills.hooks.ts` stays here: it ranks with
-  the host's `rankComposerDiscoveryGroups`.
+## Wiring
 
-- Recent working-directory names: Jini owns `createBrowserWorkingDirectoryAccess`
-  (`@jini-ai/admin/shell/lib/browser-working-directory-access`); `hooks/composer-files.hooks.ts`'s
-  `useWorkingDirectoryAccess` injects `recentDirectoryNamesStorageKey`
-  (`"tovu.assistant.recentWorkingDirectoryNames"`, the pre-move key).
-- Last-seen agent inventory: Jini owns `createAssistantAgentsSnapshot`
-  (`@jini-ai/admin/shell/lib/assistant-agents-snapshot`); `lib/shell-collaborators.ts` binds it once
-  with `@jini-ai/chat/browser/agent-inventory`'s `createAgentInventorySnapshot` and the key
-  `"tovu.admin.assistant-agents.v1"`, and exports `readAgentsSnapshot` / `writeAgentsSnapshot`.
-
-## Wiring: components-4 moves (`@jini-ai/admin/shell/components/...`)
-
-Jini now owns `agent-failure-hints`, `WidgetConfigFields/WidgetConfigFields.hooks`,
-`AdminFailureNotice`, `MailStatusBanner` and `SitesSidebarNav`. The host injects:
-- `main.tsx` passes `channel={adminFailureChannel}` and imports `AdminFailureNotice/admin-failure-notice.css`.
-- `App.tsx` passes `port={defaultSitesPort}`, `useSitesSnapshot`, `translateNavLabel={translateAdminNavLabel}`
-  `useSitesSidebarNavHook={useSitesSidebarNav}`, `SidebarNav={Sidebar.Nav}` and `useSidebar` to `SitesSidebarNav`.
-- `MailStatusBanner` callers pass `useMailStatusBannerHook={useMailStatusBanner}` (host hook file stays).
-- Host stylesheets style the Jini classes: `.jini-admin-failure-notice*`, `.jini-mail-status-banner*`
-  (`mail-status-banner.css`) and `.jini-sites-*` (`styles.css`).
-
-## Wiring: components-5 moves (`@jini-ai/admin/shell/components/AssistantDock/...`)
-
-Jini now owns `AgentFailureCard` and `AgentFailureCard.hooks`. The host injects:
-- `hooks/use-dock-renderer-registry.hooks.ts` registers the card with `useTHook={useT}` (chat),
-  `useAgentFailureCardHook={useAgentFailureCard}` and `redactionOptions={TOVU_ERROR_REDACTION_OPTIONS}`.
-- `assistant.css` styles the Jini class `.jini-agent-failure` (was `.admin-agent-failure`).
-- `hooks/agents-inventory.hooks.ts` and `hooks/runtime-access.hooks.ts` stay host-side for now: they
-  call the host request client, its `ApiError`, the agents snapshot and the `/api/agents` route.
+- **Copy.** `assistant-dock-i18n` (Jini) holds the neutral dock and chat-pane dictionaries. Tovu's
+  product copy ("Tovu assistant", the folder-window note) lives in `app-i18n.ts` and reaches the
+  package as `ASSISTANT_DOCK_HOST_FIELDS` (dock `t`) and `CHAT_I18N_HOST_FIELDS`
+  (`createChatI18nAdapter`, with the settings-dialog dictionaries and the chat package's
+  secret/credential keys passed by identity).
+- **Gear menu.** `DockHeader` mounts the Jini `DockSettingsMenu` and passes `useTaxonomyRowMenuHook`
+  (`@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks`) and `ChatSettingsSegmented`
+  (`@jini-ai/chat/react`). `DockChatPane`/`DockHeader` pass `CHAT_TOOL_CALL_OPTIONS` and
+  `REPLY_LENGTH_OPTIONS` to `dockSettingsMenuSections`. `DockHeaderTip` passes `useInfoTip` to
+  `useDockHeaderTip`.
+- **Preferences.** The adapters pass `CHAT_DISPLAY_NAMESPACE` (and `DEFAULT_ASSISTANT_RUNTIME_PREFERENCES`)
+  to the Jini preference hooks. `AssistantDock.state.hooks` passes `createExecutionPort` /
+  `selectedAgentWarning` to `useSelectedAgentAuthWarning` and `defaultAssistantChatsPort` to
+  `useConversationRefreshSignal`. `DockHeader` passes `useWiredAssistantSubagentsSettings` to
+  `SubagentsIndicator`.
+- **Folder drop.** `FolderDropNotice` and `assistant-dock-props` pass `useTHook={useT}` to the Jini
+  notices and `FolderPathButton`. `composer-files.hooks` passes `legacyManifestNames:
+  ["tovu.plugin.json"]` to `partitionChatPackages`.
+- **Styles.** The Jini components render `jini-*` classes; `styles/assistant.css` styles
+  `jini-folder-drop-notice*`, `jini-composer-folder-path`, `jini-dock-settings-menu*` and
+  `jini-assistant-dock-icon-button`. Tests that render them use `@/__tests__/render-with-jini-kits`.

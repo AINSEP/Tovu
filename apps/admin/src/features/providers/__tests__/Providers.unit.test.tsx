@@ -10,7 +10,7 @@ import { useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
 import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import { defaultAdminLocalePort } from "../../../hooks/admin-locale-dependencies.hooks";
-import type { ProvidersController } from "../hooks/use-providers.hooks";
+import type { ProvidersController } from "../Providers";
 
 /**
  * @file `Providers.tsx` — MCP Server and Webhooks tabs, "Soon" and greyed-inert (owner call,

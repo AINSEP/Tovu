@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePushToTalk } from "../use-push-to-talk.hooks";
 import type { PushToTalkCapture } from "../mic-capture";
-import type { VoiceInputAvailability, VoiceInputPort } from "../../voice-input-port";
+import type { TranscriptionAvailability } from "@jini-ai/core/contracts/speech-transcription";
+import type { VoiceInputPort } from "../../voice-input-port";
 
 let originalVoiceBridge: PropertyDescriptor | undefined;
 beforeEach(() => { originalVoiceBridge = Object.getOwnPropertyDescriptor(window, "tovuVoice"); });
@@ -47,9 +48,9 @@ describe("usePushToTalk — availability", () => {
   });
 
   it.each(["resolve", "reject"] as const)("ignores a replaced port's late probe %s", async outcome => {
-    let resolve!: (value: VoiceInputAvailability) => void;
+    let resolve!: (value: TranscriptionAvailability) => void;
     let reject!: (error: Error) => void;
-    const pending = new Promise<VoiceInputAvailability>((done, fail) => { resolve = done; reject = fail; });
+    const pending = new Promise<TranscriptionAvailability>((done, fail) => { resolve = done; reject = fail; });
     const oldPort = fakePort({ isAvailable: () => pending });
     const { result, rerender } = renderHook(({ port }) => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: port } }), {
       initialProps: { port: oldPort },

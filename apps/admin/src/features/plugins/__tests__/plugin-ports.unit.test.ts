@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
+import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 /**
  * @file The plugin screens' ports: the live bindings' request shapes (method, path, body) through
@@ -85,14 +85,14 @@ describe("createFakePluginInstallPort", () => {
 
 describe("createFakeAgentPluginsPort", () => {
   it("refuses to toggle a plugin that is not installed", async () => {
-    const port = createFakeAgentPluginsPort({ agentPlugins: [{ pluginId: "a", enabled: false } as AdminAgentPlugin] });
+    const port = createFakeAgentPluginsPort({ agentPlugins: [{ pluginId: "a", enabled: false } as AgentPluginListRow] });
     await expect(port.setAgentPluginEnabled({ pluginId: "missing", input: { enabled: true } })).rejects.toThrow("fake port: 'missing' is not installed");
   });
 });
 
 describe("createFakePluginsPort refusals mirror the real routes", () => {
-  const userPlugin = { id: "user", source: "site", enabled: false } as AdminPlugin;
-  const builtIn = { id: "core", source: "built-in", enabled: false } as AdminPlugin;
+  const userPlugin = { id: "user", source: "site", enabled: false } as AdminPluginDto;
+  const builtIn = { id: "core", source: "built-in", enabled: false } as AdminPluginDto;
 
   it("refuses to toggle an unknown plugin", async () => {
     const port = createFakePluginsPort({ plugins: [userPlugin] });

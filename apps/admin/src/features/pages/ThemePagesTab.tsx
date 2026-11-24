@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { siteUrl } from "../../lib/site-url";
-import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";
 import { ThemePageDetailsModal } from "./ThemePageDetailsModal";
 import {

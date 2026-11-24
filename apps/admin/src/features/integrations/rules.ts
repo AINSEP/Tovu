@@ -1,10 +1,10 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import type { AdminWebhookDelivery, AdminWebhookSubscription } from "./api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse, AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { t } from "./integrations-i18n";
+import { tIntegrations as t } from "../../lib/i18n-common";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "@jini-ai/admin/shell/lib/viewer-time-zone";
@@ -56,8 +56,8 @@ export function parseTopics({ raw }: { raw: string }, _optional = {}): string[] 
  *  module stays free of state and navigation, and so a test can assert exactly which one a given
  *  row wires up — same shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
 export interface IntegrationRowMenuHandlers {
-  onTogglePause: (subscription: AdminWebhookSubscription) => void;
-  onDelete: (subscription: AdminWebhookSubscription) => void;
+  onTogglePause: (subscription: AdminWebhookSubscriptionResponse) => void;
+  onDelete: (subscription: AdminWebhookSubscriptionResponse) => void;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface IntegrationRowMenuHandlers {
  * @overallScore 100
  */
 export function integrationRowMenuItems(
-  { subscription, handlers, locale }: { subscription: AdminWebhookSubscription; handlers: IntegrationRowMenuHandlers; locale: string },
+  { subscription, handlers, locale }: { subscription: AdminWebhookSubscriptionResponse; handlers: IntegrationRowMenuHandlers; locale: string },
   _optional = {},
 ): RowMenuItem[] {
   return [
@@ -99,7 +99,7 @@ export function integrationRowMenuItems(
  * @complexity Time/space: O(1).
  * @overallScore 100
  */
-export function displayTimestamp(delivery: AdminWebhookDelivery): string {
+export function displayTimestamp(delivery: AdminWebhookDeliveryResponse): string {
   return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE });
 }
 

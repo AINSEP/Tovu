@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
 /**
  * @file Regression coverage for `api.getExternalMcpAdmissions()` (ADM-003) — the crash reported live

@@ -21,7 +21,7 @@ import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hoo
 import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
-import { parseSavedToolNames } from "./external-mcp-admissions-rules";
+import { parseSavedToolNames } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
 import {
   buildAllowWritePatch,
   resolveExternalMcpCardHandles,

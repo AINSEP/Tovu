@@ -35,9 +35,11 @@ const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
   "lib/i18n-common.ts:DRAFT_RECOVERY_I18N": "common dictionary initialization",
   "lib/i18n-common.ts:CODE_WRAP_I18N": "common dictionary initialization",
-  // `createChatI18nAdapter` feeds `@jini-ai/chat/react`'s own I18nAdapter contract (`t(key, vars)`
-  // with `{token}` interpolation), keyed by that package's strings, not by admin copy.
-  "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
+  // The dock dictionaries moved to `@jini-ai/admin`; these are the product-naming entries this app
+  // keeps and hands to the package's dock `t` / `createChatI18nAdapter` as `hostDictionary`. The
+  // package translator does the lookup (and the common-dictionary fallback), not this app.
+  "app-i18n.ts:ASSISTANT_DOCK_HOST_I18N": "host overlay for the Jini dock translator",
+  "app-i18n.ts:CHAT_PANE_HOST_I18N": "host overlay for the Jini chat adapter",
 };
 
 /** Each registered owner assembles its translator; fragments are initialization inputs only. */
@@ -370,6 +372,10 @@ describe("findInlineDictionaryLookups: the detector", () => {
     expect(findInlineDictionaryLookups([common, wrongKey])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
     const unknownFactory = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createAnything({ commonDictionary: COMMON_I18N });" };
     expect(findInlineDictionaryLookups([common, unknownFactory])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
+    const factory = { path: "lib/i18n-common.ts", source: "export const COMMON_I18N: Record<string, Record<string, string>> = {}; export const { t } = createPluginsDictionary({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([factory])).toEqual([]);
+    const strayFactory = { path: HOOK_FILE.path, source: "import { COMMON_I18N } from '../../../lib/i18n-common'; const x = lookupWords({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, strayFactory])).toEqual([`${HOOK_FILE.path}: references COMMON_I18N`]);
   });
 });
 

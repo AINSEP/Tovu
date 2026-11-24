@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { AdminAgentPlugin } from "../../features/integrations/api/integrations-api.types";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
 import * as router from "@jini-ai/admin/shell/lib/router";
@@ -9,7 +9,7 @@ import * as router from "@jini-ai/admin/shell/lib/router";
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState({}, "", "/admin"); });
 
 it("resolves the real plugin id, correct tab and a discovery query without clicking a made-up details handle", async () => {
-  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: false } as AdminAgentPlugin] });
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: false } as AgentPluginListRow] });
   const navigate = vi.spyOn(router, "navigate");
   const result = await buildAdminAgentPages()["agent-plugins"]!.navigate({ entity: { type: "agent-plugin", id: "ui-ux-design" } });
   expect(navigate).toHaveBeenCalledExactlyOnceWith({ routePath: "/addons/agent-plugins?tab=downloaded" });
@@ -33,7 +33,7 @@ it("uses the kind-guarded page read and the actual encoded slug", async () => {
 
 
 it("opens an enabled package on Installed using the current server state", async () => {
-  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: true } as AdminAgentPlugin] });
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: true } as AgentPluginListRow] });
   const navigate = vi.spyOn(router, "navigate");
   await buildAdminAgentPages()["agent-plugins"]!.navigate({ entity: { type: "agent-plugin", id: "ui-ux-design" } });
   expect(navigate).toHaveBeenCalledExactlyOnceWith({ routePath: "/addons/agent-plugins?tab=installed" });

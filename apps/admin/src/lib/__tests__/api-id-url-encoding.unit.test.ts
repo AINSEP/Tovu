@@ -1,15 +1,15 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { securityApi } from "../../features/security/api/security-api";
-import { sourceControlApi } from "../../features/source-control/api/source-control-api";
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { securityApi } from "@/features/security/security-host-ports";
+import { sourceControlApi } from "@/features/source-control/source-control-host-ports";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { postsApi } from "../../features/posts/posts-host-ports";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/collections-host-ports";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";

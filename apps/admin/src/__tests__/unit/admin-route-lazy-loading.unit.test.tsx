@@ -10,7 +10,9 @@ import type { PanelRenderContext } from "../../panel-contracts";
 const loaded = new Set<string>();
 const loadedPages: string[] = [];
 const EAGER_BRIDGES = ["comments", "redirects", "seo", "widgets"];
-const EAGER_MODULES = [...EAGER_BRIDGES, "forms"];
+// Members is Jini's screen rendered directly by panels.tsx with the host's wired hook, so the
+// package's react entry loads with the panel registry rather than behind a lazy host wrapper.
+const EAGER_MODULES = [...EAGER_BRIDGES, "forms", "members"];
 const ROUTE_FEATURES = [
   { modulePath: "../../features/skills/SkillsPage", moduleId: "skills", exports: ["Skills"] },
   { modulePath: "../../features/themes", moduleId: "themes", exports: ["Themes", "ThemeExplore"] },
@@ -20,7 +22,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../integrations/jini-admin/consent-screen", moduleId: "consent", exports: ["CookieConsent"] },
   { modulePath: "../../features/posts", moduleId: "posts", exports: ["PostEditor", "Posts"] },
   { modulePath: "../../features/pages", moduleId: "pages", exports: ["PageEditor", "Pages"] },
-  { modulePath: "../../features/members", moduleId: "members", exports: ["Members"] },
+  { modulePath: "@jini-ai/user-management/react", moduleId: "members", exports: ["Members"] },
   { modulePath: "@jini-ai/admin/screens/comments", moduleId: "comments", exports: ["Comments"] },
   { modulePath: "../../integrations/jini-admin/analytics-page", moduleId: "analytics", exports: ["Analytics"] },
   { modulePath: "../../features/library", moduleId: "library", exports: ["Library"] },

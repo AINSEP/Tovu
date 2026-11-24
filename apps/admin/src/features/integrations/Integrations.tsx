@@ -4,7 +4,8 @@ import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles"
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
 import { ServerLabel } from "@/components/status-labels";
-import { t, deleteWebhookBody, actionsForWebhookLabel } from "./integrations-i18n";
+import { tIntegrations as t } from "../../lib/i18n-common";
+import { deleteWebhookBody, actionsForWebhookLabel } from "@jini-ai/admin/screens/integrations/integrations-i18n";
 
 /**
  * @file The Integrations list screen — markup only.

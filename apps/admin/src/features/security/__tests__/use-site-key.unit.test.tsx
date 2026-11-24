@@ -5,7 +5,6 @@ import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError } from "@/lib/admin-http/request";
 import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "../hooks/site-key-port.hooks";
-import { useRevealedKeyCopy } from "../SiteKeyTab.hooks";
 
 const t = (key: string) => key;
 const HEX = "ab".repeat(32);
@@ -182,20 +181,5 @@ describe("useSiteKey", () => {
     expect(port.status).toHaveBeenCalledTimes(2);
     expect(result.current.status).toEqual(MISSING);
     expect(result.current.revealedHex).toBeNull();
-  });
-});
-
-describe("useRevealedKeyCopy", () => {
-  it("writes the exact revealed hex and resets Copied after the display interval", async () => {
-    vi.useFakeTimers();
-    const writeText = vi.fn(async () => {});
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const { result } = renderHook(() => useRevealedKeyCopy({ hex: HEX }));
-    await act(async () => result.current.copy());
-    expect(writeText).toHaveBeenCalledWith(HEX);
-    expect(result.current.copied).toBe(true);
-    act(() => vi.advanceTimersByTime(1500));
-    expect(result.current.copied).toBe(false);
-
   });
 });

@@ -1,6 +1,6 @@
-import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
-import type { AlwaysAllowPort } from "./always-allow-port.hooks";
+import type { AdminExternalMcpServer, ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
+import type { AlwaysAllowPort } from "@jini-ai/admin/screens/providers/always-allow-ports";
 
 /**
  * @file The only place under `features/providers/hooks` that reaches `lib/api` for the "Always
@@ -15,7 +15,7 @@ export const defaultAlwaysAllowPort: AlwaysAllowPort = {
 
 /** Seed state for {@link createFakeAlwaysAllowPort}. */
 export interface FakeAlwaysAllowPortOptions {
-  approvals?: AdminExternalMcpToolApproval[];
+  approvals?: ExternalMcpToolApprovalDto[];
   servers?: Pick<AdminExternalMcpServer, "serverId" | "label">[];
   /** When set, every revoke rejects with this error and removes nothing. */
   revokeError?: Error;

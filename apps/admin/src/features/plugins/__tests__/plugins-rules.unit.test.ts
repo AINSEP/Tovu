@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { ApiError } from "@/lib/admin-http/request";
 import {
   pluginRowFacts,
@@ -27,7 +27,7 @@ import {
  * test proves the branch still behaves correctly, without pretending the current UI can reach it.
  */
 
-function makePlugin(overrides: Partial<AdminPlugin> = {}): AdminPlugin {
+function makePlugin(overrides: Partial<AdminPluginDto> = {}): AdminPluginDto {
   return {
     id: "p1",
     name: "Word Count",
@@ -38,6 +38,7 @@ function makePlugin(overrides: Partial<AdminPlugin> = {}): AdminPlugin {
     enabled: false,
     quarantine: null,
     errors: [],
+    conflicts: [],
     ...overrides,
   };
 }

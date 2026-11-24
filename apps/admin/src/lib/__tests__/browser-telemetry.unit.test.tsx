@@ -4,7 +4,8 @@ import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useAdminTelemetry } from "../../hooks/use-admin-telemetry.hooks";
+import { useBrowserTelemetryFeed } from "@jini-ai/admin/react";
+import { ADMIN_BASE } from "@jini-ai/admin/shell/lib/router";
 import {
   createBrowserTelemetry,
   installBrowserErrorListeners,
@@ -38,7 +39,7 @@ describe("route templates", () => {
     const calls: string[] = [];
     const telemetry = { setSignedIn: (v: boolean) => { calls.push(`signedIn:${v}`); }, setRoute: (r: string) => { calls.push(r); } };
     const params = { postId: "p1" };
-    const { rerender } = renderHook((props: { signedIn: boolean }) => useAdminTelemetry({ signedIn: props.signedIn, routePath: "/posts/p1", params }, { telemetry }), { initialProps: { signedIn: false } });
+    const { rerender } = renderHook((props: { signedIn: boolean }) => useBrowserTelemetryFeed({ signedIn: props.signedIn, routePath: "/posts/p1", params, base: ADMIN_BASE, telemetry }), { initialProps: { signedIn: false } });
     rerender({ signedIn: true });
     expect(calls).toEqual(["signedIn:false", "/admin/posts/:postId", "signedIn:true", "/admin/posts/:postId"]);
   });

@@ -1,7 +1,7 @@
 import { renderHook } from "@/__tests__/fetch-query-render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";

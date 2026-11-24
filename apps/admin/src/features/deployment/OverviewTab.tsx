@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "./api/deployment-api.types";
+import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
 import {
   daemonStatusLabelKey,

@@ -5,7 +5,9 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { MENUS_DICT, t } from "../menus-i18n";
+import { t as t } from "../menus-i18n";
+
+const MENUS_DICT = t.dictionary as Record<string, Record<string, string>>;
 
 // F4.2/F5.6: read actual call sites, including conditional keys; comments are not calls.
 function translationKeys(source: string): string[] {

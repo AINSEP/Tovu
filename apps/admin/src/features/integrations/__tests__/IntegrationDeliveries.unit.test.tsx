@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { displayTimestamp } from "../rules";
 import { IntegrationDeliveries } from "../IntegrationDeliveries";
 import type { IntegrationDeliveriesController } from "../hooks/use-integration-deliveries.hooks";
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 
 /**
  * @file `IntegrationDeliveries` — the webhook delivery-log screen, driven through the
@@ -12,7 +12,7 @@ import type { AdminWebhookDelivery } from "@/features/integrations/api/integrati
  * component at all before this pass (0.0% covered).
  */
 
-const DELIVERY: AdminWebhookDelivery = {
+const DELIVERY: AdminWebhookDeliveryResponse = {
   id: "d1",
   subscriptionId: "sub1",
   eventId: "evt1",

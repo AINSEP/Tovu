@@ -1,23 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AdminRemoteToolSurfaceEntry } from "@jini-ai/core/contracts/hosted-mcp";
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import {
-  countEnabledToolRows,
-  describeProbeUnreachable,
-  isToolPickerDirty,
-  refreshToolRowDeclarations,
-  seedToolPickerRows,
-  setToolRowEnabled,
-  setToolRowMayWrite,
-  toolPickerFieldValues,
-  type ToolPickerRow,
-} from "../external-mcp-tool-picker-rules";
+import { countEnabledToolRows, describeProbeUnreachable, isToolPickerDirty, refreshToolRowDeclarations, seedToolPickerRows, setToolRowEnabled, setToolRowMayWrite, toolPickerFieldValues, type ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 
 import { type Translate } from '@jini-ai/core/text';
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+import type { ExternalMcpProbeErrors } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
+
+/** The host's request-error vocabulary handed to the generic probe-failure wording. */
+const EXTERNAL_MCP_PROBE_ERRORS: ExternalMcpProbeErrors = { isApiError: (error): error is ApiError => error instanceof ApiError, describeApiError };
 /**
  * @file The transport and draft state behind `ExternalMcpToolPicker` — the `useX(deps)` /
  * `useWiredX()` pair this app uses everywhere, so the component composes the real port and a test
@@ -182,7 +177,7 @@ export function useExternalMcpToolPicker(deps: {
   return {
     loading: active && probe.status === "loading",
     refreshing: probe.isFetching,
-    unreachable: probe.error ? describeProbeUnreachable({ error: probe.error, t }) : null,
+    unreachable: probe.error ? describeProbeUnreachable({ error: probe.error, t, errors: EXTERNAL_MCP_PROBE_ERRORS }) : null,
     rows,
     advertisedCount: tools.length,
     enabledCount: countEnabledToolRows({ rows }),

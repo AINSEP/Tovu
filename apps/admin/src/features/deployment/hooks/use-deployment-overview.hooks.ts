@@ -1,4 +1,4 @@
-import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
+import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -6,7 +6,7 @@ import { t as defaultT } from "../deployment-host-i18n";
 import { deploymentOverviewLoadErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
-import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
+import type { DeploymentOverviewPort } from "@jini-ai/admin/deployment/host/hooks/deployment-overview-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

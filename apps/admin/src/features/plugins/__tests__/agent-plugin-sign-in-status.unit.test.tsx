@@ -4,8 +4,8 @@ import { AdminKitProvider } from '@jini-ai/admin/react/kit';
 import { adminKit } from '@/integrations/jini-kits';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
-import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
-import { translatePlugins as t } from "../../../lib/i18n-common";
+import type { AgentPluginListRow } from '@jini-ai/admin/agent-plugins/models';
+import { tPlugins as t } from '../../../lib/i18n-common';
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */
@@ -16,7 +16,7 @@ function render(ui: ReactElement) {
 it.each([
   ['connected', 'Signed in'], ['disconnected', 'Not signed in'], ['pending', 'Waiting for sign-in'], ['needs_reauth', 'Sign in again'],
 ] as const)('Agent Plugins displays %s separately from Enabled', (connectionStatus, label) => {
-  const plugin: AdminAgentPlugin = { pluginId: 'example-media', enabled: true, version: null, description: null,
+  const plugin: AgentPluginListRow = { pluginId: 'example-media', enabled: true, version: null, description: null,
     keywords: [], skills: [], mcpServerIds: ['example'], connectionStatus };
   render(<ul><AgentPluginRow plugin={plugin} t={key => key} locale="en" expanded={false} busy={false}
     onToggleExpanded={vi.fn()} stateControl={{ kind: 'toggle', onToggleEnabled: vi.fn() }}

@@ -2,8 +2,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 import type { ExecutionCardAgent } from "@jini-ai/core/contracts/execution";
-import { useSelectedAgentAuthWarning } from "../hooks/use-selected-agent-auth-warning.hooks";
-import { resetLocalAgentDetectionCache } from "@/lib/execution-settings";
+import { useSelectedAgentAuthWarning } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks";
+import { resetLocalAgentDetectionCache, createExecutionPort } from "@/lib/execution-settings";
+import { selectedAgentWarning } from "@/features/settings/ai-agent-presentation";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -34,7 +35,7 @@ type Props = { mode: string; agentId: string | undefined; locale: string };
 
 function render(port: ReturnType<typeof fakePort>, initialProps: Props, calls: string[] = []) {
   const runtimeAccess = fakeRuntimeAccess(calls);
-  return renderHook((props: Props) => useSelectedAgentAuthWarning({ ...props, runtimeAccess }, { port }), { initialProps });
+  return renderHook((props: Props) => useSelectedAgentAuthWarning({ ...props, runtimeAccess, createPort: createExecutionPort, selectWarning: selectedAgentWarning }, { port }), { initialProps });
 }
 
 test("D-21b: warns before send when the selected Local CLI agent confirms a missing sign-in", async () => {
@@ -105,7 +106,7 @@ test("D-21b: rescan falls back to detection when the port has no forced-rescan c
   const calls: string[] = [];
   const runtimeAccess = fakeRuntimeAccess(calls);
   const { result } = renderHook(() => useSelectedAgentAuthWarning({
-    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess,
+    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess, createPort: createExecutionPort, selectWarning: selectedAgentWarning,
   }, { port }));
   await waitFor(() => expect(result.current.warning).toBe(WARNING));
 
@@ -141,7 +142,7 @@ test("D-21b: the default port reads authentication status through the real execu
   });
   const runtimeAccess = fakeRuntimeAccess([]);
   const { result } = renderHook(() => useSelectedAgentAuthWarning({
-    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess,
+    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess, createPort: createExecutionPort, selectWarning: selectedAgentWarning,
   }));
 
   await waitFor(() => expect(result.current.warning).toBe(WARNING));

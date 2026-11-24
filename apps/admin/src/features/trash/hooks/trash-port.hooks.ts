@@ -1,5 +1,5 @@
 import type { AdminIdentityUser } from "@jini-ai/core/contracts/site/user-management-react";
-import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
+import type { AdminTrashPageDto, AdminTrashPurgeReportDto, AdminTrashRestoreReportDto } from "@jini-ai/core/contracts/site/cms-trash";
 
 /**
  * @file What `use-trash.hooks.ts` needs from the outside world, as an interface rather than a
@@ -7,9 +7,9 @@ import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } f
  * `development/docs/architecture/wired-hooks-convention.md`.
  */
 export interface TrashPort {
-  listTrash(options: { cursor?: string }): Promise<AdminTrashPage>;
-  restoreTrashItems(input: { items: { entityType: string; entityId: string }[] }): Promise<AdminTrashRestoreReport>;
-  purgeTrashItems(input: { ids: string[] }): Promise<AdminTrashPurgeReport>;
+  listTrash(options: { cursor?: string }): Promise<AdminTrashPageDto>;
+  restoreTrashItems(input: { items: { entityType: string; entityId: string }[] }): Promise<AdminTrashRestoreReportDto>;
+  purgeTrashItems(input: { ids: string[] }): Promise<AdminTrashPurgeReportDto>;
   /**
    * The workspace's user roster, for `rules.ts`'s `actorLabel` to resolve `actorPrincipalId` against
    * client-side when a row's `actorUsername` is absent (an older server — see `actorLabel`'s doc).

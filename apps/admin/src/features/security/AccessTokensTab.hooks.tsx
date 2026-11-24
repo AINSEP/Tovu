@@ -1,9 +1,10 @@
 import { useMemo, type ForwardedRef, type RefObject } from "react";
 
-import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "./access-token-rows";
-import { customCredentialReadyToSave, isValidHttpUrl } from "./custom-credential-forms";
+import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
+import { customCredentialReadyToSave, isValidHttpUrl } from "@jini-ai/admin/security/custom-credential-forms";
 import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./other-credential-stores";
-import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "./rules";
+import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "@jini-ai/admin/security/access-token-categories";
+import { ACCESS_TOKEN_CATEGORIES } from "./rules";
 import type { AccessTokensController, AccessTokenProviderGroupState } from "./hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 
@@ -192,6 +193,6 @@ export function useMergedSecretsOrder(
       rows: group.rows,
     }));
     const otherEntries: MergedSecretsEntry[] = visibleOther.flatMap(otherCredentialGroupEntries);
-    return sortAccessTokenGroups({ groups: [...providerEntries, ...otherEntries] });
+    return sortAccessTokenGroups({ groups: [...providerEntries, ...otherEntries], categories: ACCESS_TOKEN_CATEGORIES });
   }, [providerGroups, otherGroups, query]);
 }

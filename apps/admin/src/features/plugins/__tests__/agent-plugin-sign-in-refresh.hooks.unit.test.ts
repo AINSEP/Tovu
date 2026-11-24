@@ -2,10 +2,10 @@ import { act, renderHook, waitFor } from '@/__tests__/fetch-query-render';
 import { expect, it } from 'vitest';
 import { createFakeAgentPluginsPort } from '../hooks/agent-plugins-dependencies.hooks';
 import { useAgentPlugins } from '../hooks/use-agent-plugins.hooks';
-import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
+import type { AgentPluginListRow } from '@jini-ai/admin/agent-plugins/models';
 
 it('returning from a plugin sign-in tab refreshes its signed-in badge', async () => {
-  const plugin: AdminAgentPlugin = { pluginId: 'example-media', enabled: true, version: null, description: null,
+  const plugin: AgentPluginListRow = { pluginId: 'example-media', enabled: true, version: null, description: null,
     keywords: [], skills: [], mcpServerIds: ['example'], connectionStatus: 'disconnected' };
   const port = createFakeAgentPluginsPort();
   port.listAgentPlugins = async () => ({ agentPlugins: [{ ...plugin }] });

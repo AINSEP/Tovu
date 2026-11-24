@@ -3,7 +3,7 @@
  *  passes as the chooser's required `useExternalMcpSharedChoiceHook` prop. */
 import { useExternalMcpSharedChoice, type ExternalMcpSharedChoiceController, type ExternalMcpSharedChoicePort } from '@jini-ai/admin/screens/settings/ExternalMcpSharedChoice.hooks';
 import { AdminApiError } from '@jini-ai/core/admin-runtime';
-import { integrationsApi } from '../../features/integrations/api/integrations-api';
+import { integrationsApi } from '@/features/integrations/integrations-host-ports';
 import { ApiError } from '../../lib/admin-http/request';
 
 /** Jini shows only its own typed error's words, so the host's `ApiError` identity is translated at

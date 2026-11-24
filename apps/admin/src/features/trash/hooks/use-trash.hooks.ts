@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
+import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -10,12 +10,12 @@ import {
   allVisibleSelected,
   describePurgeReport,
   describeRestoreReport,
-  describeTrashLoadError,
   KEYS,
   selectionAfterSelectAll,
   toggleSelection,
   TRASH_RESOURCE,
-} from "../rules";
+} from "@jini-ai/admin/screens/trash/rules";
+import { describeTrashLoadError, trashTranslator } from "../rules";
 import { t } from "../trash-i18n";
 import { defaultTrashPort } from "./trash-dependencies.hooks";
 import type { TrashPort } from "./trash-port.hooks";
@@ -53,7 +53,7 @@ import type { TrashPort } from "./trash-port.hooks";
 
 export interface TrashController {
   /** `null` until the first page settles. */
-  items: AdminTrashItem[] | null;
+  items: AdminTrashItemDto[] | null;
   nextCursor: string | null;
   loadingMore: boolean;
   loadMore: () => void;
@@ -134,7 +134,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     return map;
   }, [usersQuery.data]);
 
-  const [morePages, setMorePages] = useState<AdminTrashItem[]>([]);
+  const [morePages, setMorePages] = useState<AdminTrashItemDto[]>([]);
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -231,7 +231,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   }
 
   /** The rows the current selection actually names, resolved from what is on screen. */
-  function selectedItems(): AdminTrashItem[] {
+  function selectedItems(): AdminTrashItemDto[] {
     return (items ?? []).filter((item) => selected.has(item.id));
   }
 
@@ -244,7 +244,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       const report = await port.restoreTrashItems({
         items: chosen.map((item) => ({ entityType: item.entityType, entityId: item.entityId })),
       });
-      setNotice(describeRestoreReport({ locale, report }));
+      setNotice(describeRestoreReport({ translate: trashTranslator({ locale }), report }));
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
@@ -261,7 +261,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     setActionError(null);
     try {
       const report = await port.purgeTrashItems({ ids: chosen.map((item) => item.id) });
-      setNotice(describePurgeReport({ locale, report }));
+      setNotice(describePurgeReport({ translate: trashTranslator({ locale }), report }));
       setSelected(new Set<string>());
       setPurgeConfirmOpen(false);
       reloadAfterAction();

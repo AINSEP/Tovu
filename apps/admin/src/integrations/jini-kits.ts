@@ -41,7 +41,7 @@ export const adminKit = {
     isProviderBaseUrlInvalid, invalidBaseUrlProviderIds } },
   theme: { applyAdminTheme, resolveColorScheme, defaultAdminTheme },
   // Passed through by identity, never copied: the dock's dictionary lookup
-  // (`assistant-dock-i18n.ts`) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
+  // (`app-i18n.ts`'s `CHAT_I18N_HOST_FIELDS`, passed to the Jini dock adapter) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID,
     buildSandboxProxyDataUrl, openLightboxDialog, closeLightboxDialog, resolveTabBarTabIndex, hasPermission, standingDraftRecoveryMessage,
     createStandingDraftLocalBackup, createFailureChannel, resolveInitialActiveTabId, findActiveTab },

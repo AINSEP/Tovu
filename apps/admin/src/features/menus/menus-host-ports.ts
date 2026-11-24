@@ -10,7 +10,8 @@ import { trashApi } from "@/features/trash/api/trash-api";
 import { pagePublicPath } from "../pages/rules";
 import { isVersionConflict } from "@/lib/shell-collaborators";
 import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
-import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
+import { isClipboardRefusal } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";
 import { toSlug } from "@jini-ai/cms/html/site/slug";
 

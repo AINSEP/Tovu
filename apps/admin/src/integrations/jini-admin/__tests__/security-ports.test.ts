@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSecurityHostPorts, createSecurityTranslator, securityApi, securitySessionGrants, describeSecurityError, securityRefreshSignal } from '../security-ports';
-import { t as translateSecurity } from '../security-i18n';
+import { tSecurity as translateSecurity } from "../../../lib/i18n-common";
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 /** A transport that records the wire (method, path, JSON body) and answers with a fixed reply. */

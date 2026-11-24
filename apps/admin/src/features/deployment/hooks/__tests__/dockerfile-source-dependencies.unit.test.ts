@@ -13,8 +13,8 @@ const { getDockerfileSource, setDockerfileSource } = vi.hoisted(() => ({
   setDockerfileSource: vi.fn(),
 }));
 
-vi.mock("../../api/deployment-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/deployment-api")>();
+vi.mock("@/features/deployment/deployment-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/deployment/deployment-host-ports")>();
   return { ...actual, deploymentApi: { ...actual.deploymentApi, getDockerfileSource, setDockerfileSource } };
 });
 

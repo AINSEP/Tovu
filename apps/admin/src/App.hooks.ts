@@ -18,9 +18,9 @@ import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
   ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID,
   captureAdminScreenshotToolResult,
-  renderAdminScreenshotCanvas,
   type RenderElementToCanvas,
-} from "./lib/agent-screenshot";
+} from "@jini-ai/admin/shell/lib/agent-screenshot";
+import { renderAdminScreenshotCanvas } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
@@ -42,7 +42,8 @@ import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
-import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
+import { t as translateAssistantDockDictLabel } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "./app-i18n";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { adminBrowserStreamPorts } from "./lib/shell-collaborators";
@@ -425,13 +426,13 @@ export function useInternalLinkInterceptor(): void {
  * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
  * `createAdminShellTranslators` binds this label to the shell locale (`({ key }) => translateAssistantDockLabel({ locale,
  * key })`) so every existing call site keeps calling `dockT({ key })` with no `locale` argument to
- * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
+ * thread through by hand. Delegates to the Jini dock `t` (ADMIN_COMMON_I18N-falling-back,
  * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
  * key` inline — same fix as `AssistantDock.hooks.tsx`'s `useAssistantDockChrome`, which had an
  * independent copy of the same no-fallback lookup.
  */
 export function translateAssistantDockLabel({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string {
-  return translateAssistantDockDictLabel({ locale, key });
+  return translateAssistantDockDictLabel({ locale, key, ...ASSISTANT_DOCK_HOST_FIELDS });
 }
 
 /**
@@ -719,7 +720,7 @@ function withFirstPlanTimeout({ publishing }: { publishing: Promise<PublishReque
  * Builds the `executors` map `createFrontendSessionBridge` claims under the `"admin."` prefix — the
  * host-extension seam `frontend-session-bridge.ts`'s own module doc describes ("Product capabilities,
  * keyed by id prefix... This is how a consumer exposes verbs the engine has never heard of"), used
- * here for the first time by a Tovu-native verb rather than a Jini one. See `lib/agent-screenshot.ts`'s
+ * here for the first time by a Tovu-native verb rather than a Jini one. See `@jini-ai/admin/shell/lib/agent-screenshot`'s
  * module doc for why `admin.capture_screenshot` lives outside `page.*`/`chat.*`.
  *
  * A plain function, not inlined into {@link useAgentPageBridge}'s effect, so it is directly

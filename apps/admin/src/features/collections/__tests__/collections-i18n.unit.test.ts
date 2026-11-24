@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { COLLECTIONS_DICT, t } from "../collections-i18n";
+import { t as t } from "../collections-i18n";
+
+const COLLECTIONS_DICT = t.dictionary as Record<string, Record<string, string>>;
 
 /**
  * @file `COLLECTIONS_DICT` cross-locale coverage — same idiom and same two deliberate differences

@@ -1,15 +1,18 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { useInfoTip } from "@jini-ai/ui/admin-widgets";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockHeaderTip } from "../DockHeaderTip";
-import { useDockHeaderTip } from "../DockHeaderTip.hooks";
-import { DockSettingsMenu } from "../DockSettingsMenu";
-import { activateDockMenuItem, dockSettingsMenuSections, shouldShowHeaderTip } from "../dock-header-rules";
-import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
-import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { useDockHeaderTip } from "@jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
+import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import type { ChatDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
+import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**
  * @file The dock header's gear menu and white icon tooltips (owner, 2026-10-11). Real hooks, real
@@ -27,7 +30,7 @@ function bubble() {
 describe("dock header rules", () => {
   it("offers all reply lengths for every runtime, with Normal selected and only the selected preference patched", () => {
     const update = vi.fn();
-    const sections = dockSettingsMenuSections({ t: identity }, {
+    const sections = dockSettingsMenuSections({ t: identity, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
       runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update, visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
     });
@@ -43,37 +46,9 @@ describe("dock header rules", () => {
     expect(update.mock.calls).toEqual([[{ replyLength: "short" }], [{ replyLength: "normal" }], [{ replyLength: "detailed" }]]);
   });
 
-  it("shows the tip for a closed control, never for an open one or anything inside its menu", () => {
-    const root = document.createElement("div");
-    root.innerHTML = `<button id="closed" aria-expanded="false"></button>
-      <button id="open" aria-expanded="true"><i id="glyph"></i></button>
-      <div role="menu"><input id="search" /></div>`;
-    expect(shouldShowHeaderTip({ target: root.querySelector("#closed") })).toBe(true);
-    expect(shouldShowHeaderTip({ target: root.querySelector("#glyph") })).toBe(false);
-    expect(shouldShowHeaderTip({ target: root.querySelector("#search") })).toBe(false);
-    expect(shouldShowHeaderTip({ target: null })).toBe(false);
-  });
-
-  it("does nothing for a disabled row, closes-then-runs an action row, and applies a setting row in place", () => {
-    const selectItem = vi.fn();
-    expect(activateDockMenuItem({ item: { key: "x", label: "X", disabled: true, onSelect: vi.fn() }, selectItem })).toBe(false);
-    expect(selectItem).not.toHaveBeenCalled();
-
-    const onSelect = vi.fn();
-    expect(activateDockMenuItem({ item: { key: "x", label: "X", onSelect }, selectItem })).toBe(true);
-    expect(selectItem).toHaveBeenCalledWith({ onSelect });
-
-    selectItem.mockClear();
-    const onToggle = vi.fn();
-    expect(activateDockMenuItem({ item: { key: "y", label: "Y", role: "menuitemcheckbox", onSelect: onToggle }, selectItem })).toBe(true);
-    expect(activateDockMenuItem({ item: { key: "z", label: "Z", role: "menuitemradio", onSelect: onToggle }, selectItem })).toBe(true);
-    expect(onToggle).toHaveBeenCalledTimes(2);
-    expect(selectItem).not.toHaveBeenCalled();
-  });
-
   it("puts Tool calls, Done line and Thinking in the menu, checked from the current choices", () => {
     const update = vi.fn();
-    const sections = dockSettingsMenuSections({ t: identity }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
+    const sections = dockSettingsMenuSections({ t: identity, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
     expect(sections.map((section) => section.label)).toEqual(["Tool calls", undefined]);
     expect(sections.flatMap((section) => section.items.map(({ label, role, checked }) => ({ label, role, checked })))).toEqual([
       { label: "Show", role: "menuitemradio", checked: false },
@@ -93,7 +68,8 @@ describe("dock header rules", () => {
 function SettingsMenuHarness({ notice }: { notice?: string }) {
   const [preferences, setPreferences] = useState(DEFAULT_CHAT_DISPLAY);
   const update = (patch: Partial<ChatDisplayPreferences>) => setPreferences((current) => ({ ...current, ...patch }));
-  return <DockSettingsMenu label="Settings" sections={dockSettingsMenuSections({ t: identity }, { display: { preferences, update } })} notice={notice} />;
+  return <DockSettingsMenu label="Settings" sections={dockSettingsMenuSections({ t: identity, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences, update } })} notice={notice}
+    useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />;
 }
 
 describe("DockSettingsMenu", () => {
@@ -198,7 +174,7 @@ describe("DockSettingsMenu", () => {
 describe("DockHeaderTip", () => {
   it("uses the injected tooltip controller with bottom placement", async () => {
     const useTip = vi.fn(useInfoTip);
-    render(<DockHeaderTip label="Chats" useTip={() => useDockHeaderTip({}, { useTip })}>
+    render(<DockHeaderTip label="Chats" useTip={() => useDockHeaderTip({ useTip })}>
       <button type="button" aria-label="Chats">c</button>
     </DockHeaderTip>);
 

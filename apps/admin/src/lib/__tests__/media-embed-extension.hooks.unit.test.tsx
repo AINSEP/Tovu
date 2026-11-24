@@ -3,7 +3,8 @@ import type { NodeViewProps } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { mediaApi } from "../../features/media/api/media-api";
-import { mediaPreviewKind, readMediaEmbedAttrs, useMediaEmbedNodeView } from "../media-embed-extension.hooks";
+import { mediaPreviewKind, readMediaEmbedAttrs, useMediaEmbedNodeView } from "@jini-ai/admin/shell/lib/media-embed-extension.hooks";
+import { t as mediaT } from "../../features/media/media-i18n";
 
 /**
  * @file `useMediaEmbedNodeView` — the `media` node view's attr reads, dialog toggles, video-probe
@@ -20,7 +21,7 @@ function fakeProps(attrs: Record<string, unknown>) {
 
 const imageType = vi.fn(async (_required: { id: string }) => "image/png");
 function deps(locale: string, contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string> = imageType) {
-  return { locale, contentTypeOf };
+  return { locale, contentTypeOf, translate: mediaT, mediaOriginalUrl: mediaApi.mediaOriginalUrl };
 }
 
 describe("mediaPreviewKind", () => {

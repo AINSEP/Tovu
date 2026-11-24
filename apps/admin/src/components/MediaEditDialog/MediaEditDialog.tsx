@@ -2,7 +2,8 @@ import { useId, type ReactNode } from "react";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 
-import { useWiredMediaEditDialog, type MediaEditDialogValue } from "./MediaEditDialog.hooks";
+import { useWiredMediaEditDialog } from "./MediaEditDialog.hooks";
+import type { MediaEditDialogValue } from "@jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks";
 
 /**
  * @file `MediaEditDialog` — the `media` doc node's `Edit` action (2026-09-11, owner-directed

@@ -17,11 +17,13 @@ const cardBindings = { useTHook: useT, useAgentFailureCardHook: useAgentFailureC
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
-import { FolderDropConfirmation } from "../FolderDropConfirmation";
-import { FolderDropError } from "../FolderDropError";
-import { FolderDropPathHint } from "../FolderDropPathHint";
+import { FolderDropConfirmation } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropConfirmation";
+import { FolderDropError } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropError";
+import { FolderDropPathHint } from "@jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
-import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
+import { createChatI18nAdapter, t as translateDock } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { render as renderWithKits } from "@/__tests__/render-with-jini-kits";
+import { ASSISTANT_DOCK_HOST_FIELDS, CHAT_I18N_HOST_FIELDS } from "@/app-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
 afterEach(cleanup);
@@ -44,7 +46,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...cardBindings} {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
     surface = useAgentFailureSurface({ transport, isAbortError, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
-    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ locale })}>
+    return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale })}>
       <FailureSurfaceContext.Provider value={surface.actions}>
         <MessageRow message={surface.initialMessages![0]!} />
       </FailureSurfaceContext.Provider>
@@ -212,7 +214,7 @@ it.each([
     const onRemove = vi.fn();
     const onSend = vi.fn();
     const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-    renderWithJiniKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+    renderWithJiniKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: copy.locale })}>
       <SelectedAgentPluginTray useTHook={useT} chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
     </JiniChatProvider>);
     const remove = screen.getByRole("button", { name: copy.remove });
@@ -231,10 +233,10 @@ it.each([
   const onDismiss = vi.fn();
   const onRetry = vi.fn();
   const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-  render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
-    <FolderDropConfirmation path="/work" onDismiss={onDismiss} />
-    <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} />
-    <FolderDropPathHint onDismiss={onDismiss} />
+  renderWithJiniKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: copy.locale })}>
+    <FolderDropConfirmation path="/work" onDismiss={onDismiss} useTHook={useT} />
+    <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} useTHook={useT} />
+    <FolderDropPathHint onDismiss={onDismiss} useTHook={useT} />
     <SlowRunNoticeCard useTHook={useT} name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
   </JiniChatProvider>);
   expect(screen.getByText(copy.confirmation)).toBeInTheDocument();
@@ -261,13 +263,13 @@ it("covers required dock keys through their actual translator in every admin loc
   ];
   const missing: string[] = [];
   for (const { code } of ADMIN_LOCALES.filter(({ code }) => code !== "en")) {
-    const adapter = createChatI18nAdapter({ locale: code });
+    const adapter = createChatI18nAdapter({ ...CHAT_I18N_HOST_FIELDS, locale: code });
     for (const key of keys) {
       const translated = adapter.t(key);
       if (!translated.trim() || translated === key) missing.push(`${code}: ${key}`);
       expect(translated.match(/\{\w+\}/g) ?? []).toEqual(key.match(/\{\w+\}/g) ?? []);
     }
-    if (translateDock({ locale: code, key: "More settings…" }) === "More settings…") missing.push(`${code}: More settings…`);
+    if (translateDock({ ...ASSISTANT_DOCK_HOST_FIELDS, locale: code, key: "More settings…" }) === "More settings…") missing.push(`${code}: More settings…`);
     expect(adapter.t("Switch to {name}", { name: "Antigravity" })).toContain("Antigravity");
   }
   expect(missing).toEqual([]);

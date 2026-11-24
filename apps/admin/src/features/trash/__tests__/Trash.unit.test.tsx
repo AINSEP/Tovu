@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-ki
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
+import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
 import { Trash } from "../Trash";
 import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
@@ -20,7 +20,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
  * shared InfoTip. Keep the exceptions discoverable even on empty Trash without a second subtitle.
  */
 
-function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
+function item(overrides: Partial<AdminTrashItemDto> = {}): AdminTrashItemDto {
   return {
     id: "trash-1",
     entityType: "post",

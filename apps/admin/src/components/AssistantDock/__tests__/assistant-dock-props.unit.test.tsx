@@ -6,7 +6,7 @@ import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
-import { FolderPathButton } from "../FolderPathButton";
+import { FolderPathButton } from "@jini-ai/admin/shell/components/AssistantDock/FolderPathButton";
 
 /**
  * @file The pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header, on every

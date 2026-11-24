@@ -4,9 +4,9 @@ import { resolveTabBarTabIndex, type useTabBarKeyboard } from "@jini-ai/ui/tab-s
 
 import { type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewToggle } from "../../../../components/DevicePreview/DevicePreviewToggle";
-import type { PostEditorView } from "../../hooks/use-post-editor.hooks";
+import type { PostEditorView } from "@jini-ai/admin/posts/view-tabs";
 import { PostEditorToolbarEnd } from "../header/PostEditorToolbarEnd";
-import { VIEW_TABS } from "./view-tabs";
+import { VIEW_TABS } from "@jini-ai/admin/posts/view-tabs";
 
 /* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows
     either tiptap so they can edit, or how it looks when it's rendered" + "Keeping the template

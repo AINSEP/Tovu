@@ -1,7 +1,7 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 import { SiteKeyTab } from "../SiteKeyTab";
-import { t } from "../../../integrations/jini-admin/security-i18n";
+import { tSecurity as t } from "../../../lib/i18n-common";
 import { siteKeyStatusBadgeLabel } from "../hooks/site-key-status.rules";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";

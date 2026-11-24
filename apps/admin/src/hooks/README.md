@@ -1,14 +1,9 @@
-# Admin shell hooks (host)
+# Admin hooks (host side)
 
 ## Wiring
 
-- `@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks` owns the
-  `AdminExecutionCredentialPort` type, `UNSET_ADMIN_EXECUTION_CREDENTIAL` and
-  `createFakeAdminExecutionCredentialPort`. This folder keeps
-  `admin-execution-credential-dependencies.hooks.ts`, the live binding to `lib/execution-settings`.
-- `@jini-ai/admin/shell/hooks/use-sites-sidebar-nav.hooks` owns the Sites label hook. The host
-  (`components/SitesSidebarNav.tsx`) injects `port` (`defaultSitesPort`), `useSitesSnapshot` and
-  `translateNavLabel` (`lib/admin-nav-i18n`).
-- Host composition that stays here: `admin-locale-dependencies`, `assistant-chats-dependencies`,
-  `assistant-chats-port`, `use-admin-telemetry`, `use-settings-slice` and
-  `use-standing-draft-autosave`. They bind host libs, or use names the admin kit does not offer yet.
+- `assistant-chats-dependencies.hooks.ts` binds Tovu's chats client to the Jini
+  `AssistantChatsPort` (`@jini-ai/admin/shell/hooks/assistant-chats-port.hooks`) as
+  `defaultAssistantChatsPort`; `use-assistant-chats.hooks.ts` stays host-side.
+- `App.tsx` calls `useBrowserTelemetryFeed` (`@jini-ai/admin/react`) with `base: ADMIN_BASE` and
+  `telemetry: adminTelemetry`, and the Jini `useDesktopViewRelease` with `{ routePath, signedIn }`.

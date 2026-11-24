@@ -3,8 +3,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { AgentPluginRow } from "../AgentPluginRow";
 import { PluginRow } from "../PluginRow";
 
@@ -20,7 +20,7 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
   });
 
   if (kind === "agent") {
-    const plugins: AdminAgentPlugin[] = [
+    const plugins: AgentPluginListRow[] = [
       {
         pluginId: "ledger-export", version: "7.4.2", description: "Exports ledger entries.", enabled: true,
         skills: [{ name: "ledger-csv", summary: "CSV export" }], keywords: ["accounting"], mcpServerIds: ["ledger-api"],
@@ -36,10 +36,11 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
       onInspect={unexpectedAction} uninstallNoteId="uninstall-note" agentHandleBase={`agent-${plugin.pluginId}`} />)}</ul></>;
   }
 
-  const plugins: AdminPlugin[] = [
+  const plugins: AdminPluginDto[] = [
     {
       id: "ledger-export", name: "Ledger Export", version: "7.4.2", source: "site", tier: "tier-2", status: "invalid", enabled: false,
       quarantine: { at: "2026-10-01T09:00:00.000Z", consecutiveFailures: 7, reason: "Ledger export timed out." },
+      conflicts: [],
       errors: [
         { code: "LEDGER_SCHEMA", message: "Ledger schema is missing.", file: "server/export.mjs" },
         { code: "LEDGER_ENDPOINT", message: "Ledger endpoint is invalid.", file: "server/client.mjs" },
@@ -47,7 +48,7 @@ function Rows({ kind }: { kind: "agent" | "plugin" }) {
     },
     {
       id: "image-tools", name: "Image Tools", version: "2.8.6", source: "built-in", tier: "tier-3", status: "invalid", enabled: false,
-      quarantine: null, errors: [{ code: "IMAGE_FORMAT", message: "Image format is unsupported.", file: "server/image.mjs" }],
+      conflicts: [], quarantine: null, errors: [{ code: "IMAGE_FORMAT", message: "Image format is unsupported.", file: "server/image.mjs" }],
     },
   ];
   return <ul>{plugins.map((plugin) => <PluginRow key={plugin.id} plugin={plugin} t={(key) => key}

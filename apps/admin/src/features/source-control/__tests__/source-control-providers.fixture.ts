@@ -1,4 +1,4 @@
-import type { AdminSourceControlProviderDescriptor, AdminSourceControlProvidersSnapshot } from "@/features/source-control/api/source-control-api.types";
+import type { AdminSourceControlProviderDescriptor, AdminSourceControlProvidersSnapshot } from "@jini-ai/admin/source-control/api/source-control-api.types";
 
 /**
  * @file Source-control hosts as `GET .../system/source-control/providers` lists them, for tests: GitHub

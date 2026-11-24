@@ -10,6 +10,7 @@ import * as skillsI18n from "@jini-ai/admin/screens/skills/skills-i18n";
 import * as webmcpI18n from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
 import * as sharedComponentsI18n from "@jini-ai/admin/shell/components/shared-components-i18n";
 import * as pageEditorI18n from "@jini-ai/admin/pages/page-editor-i18n";
+import * as assistantDockI18n from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -49,6 +50,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   // The Page editor's dictionaries moved to @jini-ai/admin/pages; the host module now only binds its
   // translator, so the copy the admin still ships is checked here under the host module's path.
   "../../features/pages/page-editor-i18n.ts": pageEditorI18n,
+  "../../components/AssistantDock/assistant-dock-i18n.ts": assistantDockI18n,
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */

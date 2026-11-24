@@ -18,7 +18,7 @@ import { describeApiError as describeWorkspaceError } from '@/features/workspace
 import { t as workspaceT } from '@/features/workspace/workspace-i18n';
 import { createFakeWorkspacePort } from '@/features/workspace/hooks/workspace-dependencies.hooks';
 import { useAgentPluginMemory } from '@/features/plugins/hooks/use-agent-plugin-memory.hooks';
-import type { AgentPluginMemoryPort, PluginMemoryListing } from '@/features/plugins/hooks/agent-plugin-memory-port.hooks';
+import type { AgentPluginMemoryPort, PluginMemoryListing } from '@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks';
 
 // fq: reopen in the SAME provider, with a controlled read pending. Cold-cache tests miss this bug.
 beforeEach(() => vi.stubGlobal('fetch', async () => Response.json({ data: [] })));

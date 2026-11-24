@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { AdminDockerfileSource } from "@/features/deployment/api/deployment-api.types";
+import type { AdminDockerfileSource } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -8,7 +8,7 @@ import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../deployment-host-i18n";
 import { dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "@jini-ai/admin/deployment/deployment-i18n";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
-import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
+import type { DockerfileSourcePort } from "@jini-ai/admin/deployment/host/hooks/dockerfile-source-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -19,7 +19,7 @@ import { type Translate } from '@jini-ai/core/text';
  *
  * The backend (`PUT .../system/dockerfile`, `api.setDockerfileSource`,
  * `features/deployments/dockerfile.ts`'s `writeDockerfileSource`) landed the same day as this
- * change and was already wired through `dockerfile-source-port.hooks.ts`/
+ * change and was already wired through `dockerfile-source-port.hooks.ts` (in `@jini-ai/admin`)/
  * `dockerfile-source-dependencies.hooks.ts` before this hook touched it — see those files' own
  * headers. `DockerfileTab.tsx`'s OWN header used to claim "there is no write route" as the reason
  * this tab was read-only; that had gone stale (the write route existed, the frontend just hadn't

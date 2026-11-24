@@ -68,7 +68,7 @@ import {
   loadExecutionConfig,
   saveExecutionConfig,
 } from "../../lib/execution-settings";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 import { useByokRuntime, type UseByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
 import { useExecutionConfig, type UseExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";

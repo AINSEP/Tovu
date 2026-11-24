@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getVoiceInputPort, type VoiceInputAvailability, type VoiceInputPort } from "../voice-input-port";
+import type { TranscriptionAvailability } from "@jini-ai/core/contracts/speech-transcription";
+import { getVoiceInputPort, type VoiceInputPort } from "../voice-input-port";
 import { NO_DESKTOP_SHELL_REASON, describeVoiceUnavailability } from "../voice-unavailability";
 import { createMicPushToTalkCapture, type PushToTalkCapture } from "./mic-capture";
 import {
@@ -74,7 +75,7 @@ export interface PushToTalkController {
  * @param required.availability - `null` while the probe is still in flight.
  * @complexity Time/space: O(1).
  */
-export function describeAvailability({ availability }: { availability: VoiceInputAvailability | null }, _options = {}): {
+export function describeAvailability({ availability }: { availability: TranscriptionAvailability | null }, _options = {}): {
   available: boolean | null;
   unavailableReason: string | undefined;
 } {
@@ -203,7 +204,7 @@ function usePushToTalkState(
   /** `null` until the probe settles. The whole availability record is held (not just its boolean)
    *  so the port's `reason` reaches the UI: an affordance that says WHY voice input is off is very
    *  different from one that silently vanishes, which just reads as a missing feature. */
-  const [availability, setAvailability] = useState<VoiceInputAvailability | null>(null);
+  const [availability, setAvailability] = useState<TranscriptionAvailability | null>(null);
   const captureRef = useRef<PushToTalkCapture | null>(null);
   /** The capture whose microphone is open right now — set once permission is granted into a
    *  recording, cleared when a hold stops it. What unmount has to release. */

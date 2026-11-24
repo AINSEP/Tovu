@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Pages } from "../Pages";
 import { buildPageRowMenuHandleMap } from "@jini-ai/admin/pages/pages-list-rules";
 import type { PagesController as JiniPagesController } from "@jini-ai/admin/pages/hooks/use-pages.hooks";
-import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageRow, ThemePagesController } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";

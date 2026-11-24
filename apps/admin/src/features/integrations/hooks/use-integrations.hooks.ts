@@ -1,14 +1,14 @@
 import { useCallback, useState } from "react";
 
-import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookSubscriptionResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
-import { t as defaultT } from "../integrations-i18n";
+import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { KEYS, WEBHOOKS_RESOURCE, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";
-import type { IntegrationsPort } from "./integrations-port.hooks";
+import type { IntegrationsPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file Everything the Integrations LIST screen does, so `Integrations.tsx` is only markup.
@@ -52,7 +52,7 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  */
 
 export interface IntegrationsController {
-  subscriptions: AdminWebhookSubscription[] | null;
+  subscriptions: AdminWebhookSubscriptionResponse[] | null;
   error: string | null;
   formOpen: boolean;
   setFormOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
@@ -66,11 +66,11 @@ export interface IntegrationsController {
   formError: string | null;
   /** The subscription a `RowMenu` "Delete" selection is asking to confirm; `null` when the dialog
    *  is shut. */
-  pendingDelete: AdminWebhookSubscription | null;
-  setPendingDelete: (subscription: AdminWebhookSubscription | null) => void;
+  pendingDelete: AdminWebhookSubscriptionResponse | null;
+  setPendingDelete: (subscription: AdminWebhookSubscriptionResponse | null) => void;
   deleting: boolean;
   onCreate: (e: React.FormEvent) => Promise<void>;
-  onTogglePause: (subscription: AdminWebhookSubscription) => Promise<void>;
+  onTogglePause: (subscription: AdminWebhookSubscriptionResponse) => Promise<void>;
   onDelete: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `Integrations.tsx`
    *  never imports `useAdminLocale`/`integrations-i18n` itself. See this file's header. */
@@ -148,7 +148,7 @@ function createIntegrationActions(
     }
   }
 
-  async function onTogglePause(subscription: AdminWebhookSubscription) {
+  async function onTogglePause(subscription: AdminWebhookSubscriptionResponse) {
     clearOtherPageErrors(toggleMutation);
     try {
       await toggleMutation.mutate({ input: subscription });
@@ -196,7 +196,7 @@ function useIntegrationsState(
   // The subscription a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog
   // is closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment
   // on why); this is what drives its `open` prop.
-  const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscription | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscriptionResponse | null>(null);
 
   const createMutation = useFetchMutation({
     run: ({ input }: { input: { label: string; targetUrl: string; topics: string[] } }) => port.createIntegrationSubscription(input),
@@ -204,7 +204,7 @@ function useIntegrationsState(
     invalidates: [KEYS.list],
   });
   const toggleMutation = useFetchMutation({
-    run: ({ input: subscription }: { input: AdminWebhookSubscription }) =>
+    run: ({ input: subscription }: { input: AdminWebhookSubscriptionResponse }) =>
       port.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" }),
   }, {
     invalidates: [KEYS.list],

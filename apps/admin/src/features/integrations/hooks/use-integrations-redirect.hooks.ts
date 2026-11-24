@@ -34,10 +34,9 @@ import { ADDONS_PANEL_PATHS } from "../../../lib/addons-routes";
  * @complexity O(1) — one fixed navigation call.
  */
 export function useIntegrationsRedirect(
-  { routePath = ADDONS_PANEL_PATHS.integrations }: { routePath?: string } = {},
+  { routePath = ADDONS_PANEL_PATHS.integrations }: { routePath?: string | undefined } = {},
   _options = {},
 ): void {
-  if (routePath === undefined) throw new Error("integrations redirect has no destination");
   if (routePath === undefined) throw new Error("integrations redirect has no destination");
   useEffect(() => {
     navigate({ routePath }, { replace: true });

@@ -7,7 +7,9 @@ import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
-import { PlacementContentFields } from "../components/WidgetConfigFields/PlacementContentFields";
+import { PlacementContentFields } from "@jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields";
+import { MediaContentEditor } from "../components/WidgetConfigFields/MediaContentEditor";
+import "../styles/media-content-editor.css";
 import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttributeRows";
 import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
@@ -115,7 +117,7 @@ export function WidgetEmbedNodeView({
         <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false}
           renderHtmlAttributes={(field) => <HtmlAttributeRows {...field} t={(key) => sharedComponentsT({ locale, key })} />}>
           {placementContent ? (
-            <PlacementContentFields {...placementContent}
+            <PlacementContentFields {...placementContent} ContentEditor={MediaContentEditor}
               setCustom={(custom) => placementContent.setCustom({ custom })}
               setContent={(content) => placementContent.setContent({ content })}
               t={(key) => sharedComponentsT({ locale, key })} />

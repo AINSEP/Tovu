@@ -267,11 +267,11 @@
      right/bottom edges), never `left`, regardless of where on screen the FAB was dropped. */
   transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
 }
-/* While a row ⋮ menu is open (portaled to <body>, `.row-menu-popup` at 70 in styles.css), the FAB
+/* While a row ⋮ menu is open (portaled to <body>, `.row-menu-popup`/`.jini-row-menu-popup` at 70 in styles.css/jini-media.css), the FAB
    drops just under it: a menu opened near the bottom-right corner (the Themes card menu on a 390px
    phone) had its "Delete theme…" item under the FAB (Chrome check, 2026-10-11). The menu is
    transient and the operator just opened it; the FAB is back on top the moment it closes. */
-body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
+body:has(> .row-menu-popup, > .jini-row-menu-popup) .chat-fab { z-index: 69; }
 
 /* Desktop open state: the composer is pinned to the dock's bottom edge, which is exactly where the
    FAB rests, so the FAB covered Send. Reserving an 84px strip under the composer for it left the
@@ -503,43 +503,45 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
 
 /* A "coming soon" row in a portaled row menu (the dock gear's): visibly inert, no hover fill. */
 .row-menu-item[aria-disabled="true"],
-.row-menu-item[aria-disabled="true"]:hover {
+.row-menu-item[aria-disabled="true"]:hover,
+.jini-row-menu-item[aria-disabled="true"],
+.jini-row-menu-item[aria-disabled="true"]:hover {
   background: transparent;
   color: var(--muted);
   cursor: default;
 }
-.row-menu-item[aria-disabled="true"]:focus-visible { background: var(--surface-2); }
+.row-menu-item[aria-disabled="true"]:focus-visible, .jini-row-menu-item[aria-disabled="true"]:focus-visible { background: var(--surface-2); }
 
 /* The dock gear's settings menu (`DockSettingsMenu`, owner 2026-10-11): a muted heading per group,
    a divider between groups, and a check-mark column that is always laid out (hidden when off) so a
    toggle never shifts the rows. The row's own fill stays the hover cue; keyboard focus also gets the
    admin's focus ring, inset so the popup's edge never clips it. */
-.dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
+.jini-dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
 /* The popup is a flex column; once it is height-capped and scrolls, rows must not shrink (the 1px
    separators would collapse to nothing). */
-.dock-settings-menu > * { flex-shrink: 0; }
-.dock-settings-menu-row { display: flex; align-items: center; }
-.dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
-.dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
+.jini-dock-settings-menu > * { flex-shrink: 0; }
+.jini-dock-settings-menu-row { display: flex; align-items: center; }
+.jini-dock-settings-menu-row > .jini-row-menu-item { flex: 1; min-width: 0; }
+.jini-dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
 /* A radio group's one ⓘ (`groupOptionTooltips`) follows its heading's text. */
-.dock-settings-menu-heading-row { display: flex; align-items: center; }
-.dock-settings-menu-heading-row > .dock-settings-menu-heading { padding-right: 0; }
-.dock-settings-menu-heading-row > .info-tip { flex: none; margin: 0.075rem 0 0 0.3rem; }
-.dock-settings-menu-heading {
+.jini-dock-settings-menu-heading-row { display: flex; align-items: center; }
+.jini-dock-settings-menu-heading-row > .jini-dock-settings-menu-heading { padding-right: 0; }
+.jini-dock-settings-menu-heading-row > .info-tip { flex: none; margin: 0.075rem 0 0 0.3rem; }
+.jini-dock-settings-menu-heading {
   padding: 0.35rem 0.65rem 0.2rem;
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--muted);
 }
 /* Tool calls / Agent plugins: the Chat settings dialog's segmented pill, inset to the rows' text. */
-.dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
-.dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
-.dock-settings-menu .row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
-.dock-settings-menu .row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.dock-settings-menu-check { flex: 0 0 14px; display: inline-flex; visibility: hidden; color: var(--fg); }
-.dock-settings-menu .row-menu-item[aria-checked="true"] .dock-settings-menu-check { visibility: visible; }
-.dock-settings-menu .row-menu-item[aria-checked="true"] { color: var(--fg); }
-.dock-settings-menu-notice {
+.jini-dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
+.jini-dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
+.jini-dock-settings-menu .jini-row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.jini-dock-settings-menu .jini-row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.jini-dock-settings-menu-check { flex: 0 0 14px; display: inline-flex; visibility: hidden; color: var(--fg); }
+.jini-dock-settings-menu .jini-row-menu-item[aria-checked="true"] .jini-dock-settings-menu-check { visibility: visible; }
+.jini-dock-settings-menu .jini-row-menu-item[aria-checked="true"] { color: var(--fg); }
+.jini-dock-settings-menu-notice {
   max-width: 14rem;
   margin: var(--space-1) 0 0;
   padding: 0.35rem 0.65rem;
@@ -989,7 +991,7 @@ button.jini-composer-leading,
   padding: 0;
 }
 
-.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-composer-folder-path {
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .jini-composer-folder-path {
   margin-left: -2px;
 }
 
@@ -1171,7 +1173,7 @@ button.jini-composer-leading,
  * the fragment that keeps the host flex selector reaching ChatPane's root. Keep a consistent
  * row/pill/token shape for the folder controls in the composer.
  */
-.tovu-folder-drop-notice {
+.jini-folder-drop-notice {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1184,32 +1186,32 @@ button.jini-composer-leading,
 /* "Folder window opened on the computer running Tovu" (DockLeadingAccessory, browser tab only): a
    one-line status, so no padding or seam of its own — the composer's leading zone already draws both
    (checked in Chrome 11-01: the notice's own 6px 16px 10px + border read as a doubled rule). */
-.tovu-folder-drop-notice.tovu-folder-window-note {
+.jini-folder-drop-notice.tovu-folder-window-note {
   padding: 0;
   border-bottom: 0;
   color: var(--jini-chat-muted);
 }
 
-.tovu-folder-drop-notice--error {
+.jini-folder-drop-notice--error {
   color: var(--danger);
 }
 
-.tovu-folder-drop-notice__icon {
+.jini-folder-drop-notice__icon {
   display: inline-flex;
   color: var(--faint);
 }
 
-.tovu-folder-drop-notice--error .tovu-folder-drop-notice__icon {
+.jini-folder-drop-notice--error .jini-folder-drop-notice__icon {
   color: var(--danger);
 }
 
-.tovu-folder-drop-notice__label {
+.jini-folder-drop-notice__label {
   flex: 1;
   min-width: 140px;
   overflow-wrap: anywhere;
 }
 
-.tovu-folder-drop-notice__action {
+.jini-folder-drop-notice__action {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1222,7 +1224,7 @@ button.jini-composer-leading,
   cursor: pointer;
 }
 
-.tovu-folder-drop-notice__dismiss {
+.jini-folder-drop-notice__dismiss {
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;
@@ -1413,7 +1415,7 @@ button.jini-composer-leading,
 /* The dock header's gear (`DockSettingsMenu.tsx`) shares the switcher trigger's look, so the two
    read as one button row (owner, 2026-10-11). */
 .jini-conv-trigger,
-.assistant-dock-icon-button {
+.jini-assistant-dock-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1429,13 +1431,13 @@ button.jini-composer-leading,
 }
 
 .jini-conv-trigger:hover,
-.assistant-dock-icon-button:hover {
+.jini-assistant-dock-icon-button:hover {
   background: var(--surface-2);
   color: var(--fg);
 }
 
 .jini-conv-trigger-open,
-.assistant-dock-icon-button[aria-expanded="true"] {
+.jini-assistant-dock-icon-button[aria-expanded="true"] {
   border-color: var(--accent-text);
   color: var(--accent-text);
 }
@@ -1807,10 +1809,10 @@ button.jini-composer-leading,
 }
 /* Quick settings help targets stay host-owned; dialog targets live in the shared stylesheet. */
 @media (pointer: coarse), (max-width: 640px) {
-  .dock-settings-menu-row .info-tip-icon,
-  .dock-settings-menu-heading-row .info-tip-icon { position: relative; }
-  .dock-settings-menu-row .info-tip-icon::before,
-  .dock-settings-menu-heading-row .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
+  .jini-dock-settings-menu-row .info-tip-icon,
+  .jini-dock-settings-menu-heading-row .info-tip-icon { position: relative; }
+  .jini-dock-settings-menu-row .info-tip-icon::before,
+  .jini-dock-settings-menu-heading-row .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
 }
 
 /* ---- Chat UI batch (2026-10-23, `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`) ----

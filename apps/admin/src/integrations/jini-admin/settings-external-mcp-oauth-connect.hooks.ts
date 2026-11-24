@@ -6,7 +6,7 @@ import {
   type ExternalMcpOAuthConnectPort,
   type ExternalMcpOAuthConnectWindow,
 } from '@jini-ai/admin/screens/settings/hooks/use-external-mcp-oauth-connect.hooks';
-import { integrationsApi } from '../../features/integrations/api/integrations-api';
+import { integrationsApi } from '@/features/integrations/integrations-host-ports';
 import { toAdminApiError } from './settings-external-mcp-shared-choice.hooks';
 
 /** Must match `EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE` in the website's `routes/oauth/callback-page.ts`. */

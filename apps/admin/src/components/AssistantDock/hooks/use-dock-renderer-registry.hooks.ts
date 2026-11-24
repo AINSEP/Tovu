@@ -20,7 +20,8 @@ import { AGENT_FAILURE_EVENT } from "@jini-ai/admin/shell/components/AssistantDo
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
-import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./assistant-mcp-ui";
+import { buildAssistantMcpUiSandboxProxyUrl } from "./assistant-mcp-ui";
+import { openMcpUiLink } from "@jini-ai/admin/shell/components/AssistantDock/hooks/open-mcp-ui-link";
 
 /**
  * Wires the MCP-UI dialog's confirmed click back to Tovu's own redemption endpoint (ADR-053
@@ -115,7 +116,9 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
       // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
       // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
       // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
-      onOpenLink: (url) => openMcpUiLink({ url }),
+      onOpenLink: (url) => openMcpUiLink({
+        url, origin: globalThis.location.origin, openWindow: ({ url: href, target, features }) => { window.open(href, target, features); },
+      }),
       // A same-document `data:` URL, not a route on this admin app's own origin — see
       // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
       // same-origin route would hand any third-party MCP server's HTML this admin origin's full

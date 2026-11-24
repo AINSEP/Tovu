@@ -1,5 +1,6 @@
 import { readBoolean, readString, type LedgerCandidate } from "@jini-ai/admin/core";
 import { INTERFACE_NAMESPACE } from "@/lib/settings-tabs";
+import type { ChatDisplayPreferences, ChatToolCallDisplay } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 
 /**
  * @file The assistant dock's Chat settings → Display choices (owner, 2026-10-11), stored per operator
@@ -9,21 +10,8 @@ import { INTERFACE_NAMESPACE } from "@/lib/settings-tabs";
  * fall back to the defaults below and a save is reported as failed (the choice still applies for
  * the session).
  *
- * Pure mapping plus the two ledger calls; the live state is `use-chat-display-preferences.hooks.ts`.
+ * Pure mapping plus the two ledger calls; the live state is `@jini-ai/admin`'s `use-chat-display-preferences.hooks`.
  */
-
-/** Mirrors `@jini-ai/chat/react`'s `ToolCallDisplay` (declared here so this compiles against a chat
- *  build that predates it). */
-export type ChatToolCallDisplay = "show" | "collapsed" | "hidden";
-
-export interface ChatDisplayPreferences {
-  /** Every tool card, one fold-up line per turn, or only failed calls. */
-  toolCalls: ChatToolCallDisplay;
-  /** The "Done · time · cost · total" line under each reply. */
-  showUsageLine: boolean;
-  /** The model's reasoning, folded where it happened. */
-  showThinking: boolean;
-}
 
 /** Collapsed tools (the owner's chosen default), Done line on, thinking hidden as it always was. */
 export const DEFAULT_CHAT_DISPLAY: ChatDisplayPreferences = { toolCalls: "collapsed", showUsageLine: true, showThinking: false };
@@ -61,11 +49,6 @@ export function chatDisplayCandidates({ next, previous }: { next: ChatDisplayPre
     { key: CHAT_DISPLAY_KEYS.showUsageLine, valueJson: next.showUsageLine, changed: next.showUsageLine !== previous.showUsageLine },
     { key: CHAT_DISPLAY_KEYS.showThinking, valueJson: next.showThinking, changed: next.showThinking !== previous.showThinking },
   ];
-}
-
-/** Whether two preference sets say the same thing (lets the hook drop its optimistic copy). */
-export function sameChatDisplay({ a, b }: { a: ChatDisplayPreferences; b: ChatDisplayPreferences }): boolean {
-  return a.toolCalls === b.toolCalls && a.showUsageLine === b.showUsageLine && a.showThinking === b.showThinking;
 }
 
 /**

@@ -5,8 +5,8 @@ import { AgentPluginLinkedLock } from "./AgentPluginLinkedLock";
 import { AgentPluginMaturity, SOON_PLUGIN_TIP } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
-import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "@jini-ai/admin/screens/plugins/agent-plugins-visuals";
+import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -70,7 +70,7 @@ export type AgentPluginRowStateControl =
   | { readonly kind: "remove-or-enable"; readonly onRemove: () => void; readonly onEnable: () => void };
 
 export interface AgentPluginRowProps {
-  readonly plugin: AdminAgentPlugin;
+  readonly plugin: AgentPluginListRow;
   readonly t: Translate;
   readonly locale: string;
   readonly expanded: boolean;
@@ -101,7 +101,7 @@ function AgentPluginRowStateArea({
   agentHandleBase,
   displayName,
 }: {
-  plugin: AdminAgentPlugin;
+  plugin: AgentPluginListRow;
   t: Translate;
   locale: string;
   busy: boolean;

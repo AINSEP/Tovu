@@ -3,14 +3,11 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 
-import {
-  themePageCollisionAdminPath,
-  themePagePublishSummary,
-  type ThemePageRow,
-  type ThemePageSlugCollision,
-} from "./hooks/use-theme-pages.hooks";
+import { themePageCollisionAdminPath, themePagePublishSummary } from "./hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
+import type { ThemePageSlugCollision } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 import { themePageCollisionMessage, themePagePublishState } from "./lib/theme-page-publish-state";
-import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
+import { useThemePageDetailsModal } from "@jini-ai/admin/pages/ThemePageDetailsModal.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError, pluginConflictLines, pluginQuarantineHeadline, pluginRowDetailView } from "../rules";
-import { translatePlugins } from "../../../lib/i18n-common";
+import { tPlugins as translatePlugins } from "../../../lib/i18n-common";
 
 /**
  * @file The Plugins row's conflict and quarantine copy (2026-10-04, plugin conflict detection —
@@ -15,7 +15,7 @@ import { translatePlugins } from "../../../lib/i18n-common";
 
 const identity = (key: string) => key;
 
-function makePlugin(overrides: Partial<AdminPlugin> = {}): AdminPlugin {
+function makePlugin(overrides: Partial<AdminPluginDto> = {}): AdminPluginDto {
   return {
     id: "seo-boost",
     name: "SEO Boost",
@@ -26,6 +26,7 @@ function makePlugin(overrides: Partial<AdminPlugin> = {}): AdminPlugin {
     enabled: false,
     quarantine: null,
     errors: [],
+    conflicts: [],
     ...overrides,
   };
 }

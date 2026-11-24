@@ -10,7 +10,7 @@ import {
   themePageRowMenuItems,
 } from "../rules";
 import { pageVersionConflictMessage, THEME_DEFAULT_SENTINEL } from "@jini-ai/admin/pages/page-editor-rules";
-import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageRow } from "@jini-ai/admin/pages/hooks/use-theme-pages.hooks";
 
 /**
  * @file Pure logic for `features/pages/rules.ts`.

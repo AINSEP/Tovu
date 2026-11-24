@@ -1,13 +1,15 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
-import { ChatSettingsDialog } from "@jini-ai/chat/react";
+import { ChatSettingsDialog, ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockSettingsMenu } from "../DockSettingsMenu";
-import { dockSettingsMenuSections, groupOptionTooltips, type DockSettingsMenuItem } from "../dock-header-rules";
-import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
-import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
-import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
+import { dockSettingsMenuSections, groupOptionTooltips, type DockSettingsMenuItem } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "@/app-i18n";
+import { REPLY_LENGTH_OPTIONS, DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 afterEach(cleanup);
 
@@ -31,9 +33,9 @@ const replyLengthTip = "How much the assistant writes back. Short: just the resu
 
 async function openSurface(surface: "gear" | "dialog") {
   const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
-  const sections = dockSettingsMenuSections({ t: key => key }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
+  const sections = dockSettingsMenuSections({ t: key => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
   if (surface === "gear") {
-    render(<DockSettingsMenu label="Settings" sections={sections} />);
+    render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
     await user.click(screen.getByRole("button", { name: "Settings" }));
   } else {
     render(<ChatSettingsDialog open onClose={onClose} displaySections={sections}
@@ -111,18 +113,18 @@ describe("chat setting tooltip translations", () => {
   it.each(Object.keys(ASSISTANT_DOCK_DICT))("%s translates Reply length, every option and its tooltip", locale => {
     for (const key of ["Reply length", "Short", "Normal", "Detailed", replyLengthTip]) {
       expect(ASSISTANT_DOCK_DICT[locale][key]?.trim()).toBeTruthy();
-      expect(t({ locale, key })).toBe(ASSISTANT_DOCK_DICT[locale][key]);
+      expect(t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key })).toBe(ASSISTANT_DOCK_DICT[locale][key]);
     }
-    expect(t({ locale, key: replyLengthTip })).not.toBe(replyLengthTip);
-    const sections = dockSettingsMenuSections({ t: key => t({ locale, key }) }, {
+    expect(t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: replyLengthTip })).not.toBe(replyLengthTip);
+    const sections = dockSettingsMenuSections({ t: key => t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
       runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update: vi.fn(), visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
     });
-    expect(sections.find(section => section.key === "reply-length")?.tooltip).toBe(t({ locale, key: replyLengthTip }));
+    expect(sections.find(section => section.key === "reply-length")?.tooltip).toBe(t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: replyLengthTip }));
   });
 
   it.each(["ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it", "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW"])("%s provides all five translated tooltips through the shared builder, Tool calls as one grouped tip", locale => {
-    const sections = dockSettingsMenuSections({ t: key => t({ locale, key }) }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
+    const sections = dockSettingsMenuSections({ t: key => t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key }), toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
     expect(Object.keys(ASSISTANT_DOCK_DICT)).toHaveLength(21);
     const items = sections.flatMap(section => section.items);
     items.forEach(item => expect(item).not.toHaveProperty("hint"));
@@ -139,7 +141,7 @@ describe("chat setting tooltip translations", () => {
       return translation;
     });
     // The three Tool calls lines sit in the group's one tip, each under its translated option name.
-    expect(sections[0].tooltip).toBe(toolCallOptions.map(({ label }, index) => `• ${t({ locale, key: label })}: ${translated[index]}`).join("\n"));
+    expect(sections[0].tooltip).toBe(toolCallOptions.map(({ label }, index) => `• ${t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: label })}: ${translated[index]}`).join("\n"));
     expect(items.slice(0, 3).map(item => item.tooltip)).toEqual([undefined, undefined, undefined]);
     expect(items.slice(3, 5).map(item => item.tooltip)).toEqual(translated.slice(3));
   });
@@ -147,11 +149,11 @@ describe("chat setting tooltip translations", () => {
 
 it("Reply length has one info tooltip beside its heading; tapping it leaves the selection and menu unchanged", async () => {
   const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
-  const sections = dockSettingsMenuSections({ t: key => key }, {
+  const sections = dockSettingsMenuSections({ t: key => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, {
     display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
     runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update, visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
   });
-  render(<DockSettingsMenu label="Settings" sections={sections} />);
+  render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
   await user.click(screen.getByRole("button", { name: "Settings" }));
   const panel = screen.getByRole("menu");
   const group = within(panel).getByRole("group", { name: "Reply length" });

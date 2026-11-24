@@ -10,7 +10,7 @@ import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "
 import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 import { FakeEventSource } from "@/lib/__tests__/assistant-transport.test-helpers";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
-import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
+import { promptWithSelectedSkills } from "@jini-ai/admin/screens/plugins/selected-skills";
 
 const guidance = 'Use and follow the "ui-ux-design" skill for this task.\n\nKeep focus visible.\n\nRead bundled files with fs_read_file as needed:\n[{"kind":"references","root":"site","path":"skills/ws/workspace-local/ui-ux-design/references/check.md"}]\n\nTask: ';
 const makeProjection = () => projectComposerCapabilities({ sources: [{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }] });

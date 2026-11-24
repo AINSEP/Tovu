@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import userEvent from "@testing-library/user-event";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@jini-ai/chat/react", () => ({
+// Partial mock: the kit render helper still needs the real chat providers; only `useT` is identity.
+vi.mock("@jini-ai/chat/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@jini-ai/chat/react")>()),
   useT: () => (key: string, vars?: Record<string, string | number>) =>
     vars ? key.replace(/\{(\w+)\}/g, (_m, name: string) => String(vars[name] ?? `{${name}}`)) : key,
 }));
@@ -68,7 +70,7 @@ describe("FolderDropNotice", () => {
       const dismiss = screen.getByRole("button", { name: "Dismiss" });
       expect(getComputedStyle(dismiss).minWidth).toBe("44px");
       expect(getComputedStyle(dismiss).minHeight).toBe("44px");
-      expect(getComputedStyle(notice.querySelector(".tovu-folder-drop-notice__label")!).overflowWrap).toBe("anywhere");
+      expect(getComputedStyle(notice.querySelector(".jini-folder-drop-notice__label")!).overflowWrap).toBe("anywhere");
     } finally { style.remove(); }
   });
 

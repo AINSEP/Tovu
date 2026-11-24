@@ -1,6 +1,6 @@
 /**
  * @file Binds the hold-space-to-talk gesture to the composer's own textarea. All of the "should
- * this fire" reasoning lives in `space-hold-rules.ts` and is tested there directly; this hook owns
+ * this fire" reasoning lives in Jini's `space-hold-rules` and is tested there directly; this hook owns
  * only the listeners, the timer, and the mic-must-never-stay-live cleanup.
  *
  * **How it reaches the textarea.** `@jini-ai/chat`'s `Composer` renders host content into
@@ -19,11 +19,12 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import {
-  SPACE_HOLD_TO_TALK_MS,
   resolveSpaceHoldKeyDown,
   resolveSpaceHoldKeyUp,
   type SpaceHoldPhase,
-} from "./space-hold-rules";
+} from "@jini-ai/chat/react/features/voice-input/space-hold-rules";
+
+import { SPACE_HOLD_TO_TALK_MS, SPACE_KEY } from "./space-hold-config";
 
 /** The class `@jini-ai/chat`'s `Composer` puts on its root element. */
 const COMPOSER_ROOT_SELECTOR = ".jini-composer";
@@ -95,6 +96,7 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
       if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
       const action = resolveSpaceHoldKeyDown({
         key: event.key,
+        holdKey: SPACE_KEY,
         isComposing: event.isComposing,
         phase: phaseRef.current,
         draft: textarea.value,
@@ -113,7 +115,7 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
     }
 
     function handleKeyUp(event: KeyboardEvent) {
-      const action = resolveSpaceHoldKeyUp({ key: event.key, phase: phaseRef.current });
+      const action = resolveSpaceHoldKeyUp({ key: event.key, holdKey: SPACE_KEY, phase: phaseRef.current });
       if (action === "ignore") return;
       clearHoldTimer();
       phaseRef.current = "released";

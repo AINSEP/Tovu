@@ -14,7 +14,7 @@ import {
   type ToolPickerFilter,
   type VisibleToolRow,
 } from "./ExternalMcpToolPicker.hooks";
-import { displayToolDescription, isToolRowLocked, toolPickerFooterLocks, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
+import { displayToolDescription, isToolRowLocked, toolPickerFooterLocks, type ToolPickerRow } from "@jini-ai/admin/screens/settings/external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

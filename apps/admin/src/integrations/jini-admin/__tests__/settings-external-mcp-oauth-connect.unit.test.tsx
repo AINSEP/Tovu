@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import type { ExternalMcpOAuthConnectWindow } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-oauth-connect.hooks";
 
 import { useHostExternalMcpOAuthConnect } from "../settings-external-mcp-oauth-connect.hooks";

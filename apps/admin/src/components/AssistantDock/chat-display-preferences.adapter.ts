@@ -1,8 +1,11 @@
 /** Host composition for the dock's preferences: shared ledger rules, real API adapter and settings feed. */
 import { loadNamespaceValues, saveChangedEntries } from "@/lib/ledger-slice";
 import { subscribeToSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import { CHAT_DISPLAY_NAMESPACE, loadChatDisplayPreferences, saveChatDisplayPreferences, type ChatDisplayLedgerPort } from "./chat-display-preferences";
-import { useChatDisplayPreferences as usePreferences, type ChatDisplayPreferencesController, type ChatDisplayPreferencesPort } from "./hooks/use-chat-display-preferences.hooks";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY, loadChatDisplayPreferences, saveChatDisplayPreferences, type ChatDisplayLedgerPort } from "./chat-display-preferences";
+import {
+  useChatDisplayPreferences as usePreferences, type ChatDisplayPreferencesController, type ChatDisplayPreferencesPort,
+} from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 
 const ledger: ChatDisplayLedgerPort = {
   load: ({ namespace }) => loadNamespaceValues({ namespace }),
@@ -20,5 +23,7 @@ export const defaultChatDisplayPreferencesPort: ChatDisplayPreferencesPort = {
 
 /** Composition hook used by the dock; the controller itself only receives an injected port. */
 export function useChatDisplayPreferences(): ChatDisplayPreferencesController {
-  return usePreferences(defaultChatDisplayPreferencesPort);
+  return usePreferences({
+    port: defaultChatDisplayPreferencesPort, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_CHAT_DISPLAY, useFetchQuery, useInvalidate,
+  });
 }

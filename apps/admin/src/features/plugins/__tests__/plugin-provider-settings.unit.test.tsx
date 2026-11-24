@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
 import { PluginRow } from "../PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import { usePluginProviderSettings } from "../hooks/use-plugin-provider-settings.hooks";
+import { usePluginProviderSettings } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-provider-settings.hooks";
+import { describeApiError } from "../rules";
 
 /**
  * @file The provider plugin settings card (2026-10-26) over the fake port: declared fields render,
@@ -27,7 +28,7 @@ function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPlugin
 }
 
 function dialogWith(port: ReturnType<typeof createFakePluginsPort>, { onClose = () => {}, onSaved = () => {} }: { onClose?: () => void; onSaved?: () => void } = {}) {
-  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
+  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
   return render(<PluginProviderSettingsDialog plugin={{ id: "observability-opentelemetry", name: "OpenTelemetry" }} agentHandleBase="row-otel" onClose={onClose} onSaved={onSaved} useSettings={useSettings} />);
 }
 
@@ -45,7 +46,7 @@ function posthogCard(overrides: Partial<AdminPluginProviderSettings["fields"][nu
 
 function posthogDialog(providerSettings: Record<string, AdminPluginProviderSettings>, onSaved = () => {}) {
   const port = createFakePluginsPort({ providerSettings });
-  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
+  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
   render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="row-posthog" onClose={() => {}} onSaved={onSaved} useSettings={useSettings} />);
   return port;
 }
@@ -177,7 +178,7 @@ describe("PluginProviderSettingsDialog", () => {
       { name: "apiKey", label: "Project API key", secret: true, required: true, saved: false },
     ] });
     const port = createFakePluginsPort({ providerSettings: { "analytics-posthog": posthog } });
-    const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
+    const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t, describeApiError });
     render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} onSaved={() => {}} useSettings={useSettings} />);
     const apiKey = await findControl(/Project API key/);
     expect(control(/PostHog host/).getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-host");
@@ -322,7 +323,7 @@ describe("fake port saves like the real route", () => {
 
 describe("PluginRow settings button", () => {
   it("is shown only when the row passes onSettings", () => {
-    const plugin = { id: "x", name: "X", version: "1", source: "site" as const, tier: "tier-3" as const, status: "valid" as const, enabled: true, quarantine: null, errors: [] };
+    const plugin = { id: "x", name: "X", version: "1", source: "site" as const, tier: "tier-3" as const, status: "valid" as const, enabled: true, quarantine: null, errors: [], conflicts: [] };
     let opened = 0;
     const { rerender } = render(<ul><PluginRow plugin={plugin} t={t} expanded={false} onToggleExpanded={() => {}} agentHandleBase="row-x" action={null} onInspect={() => {}} /></ul>);
     expect(screen.queryByRole("button", { name: "Settings — X" })).toBeNull();

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import type { AdminPluginFiles } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginFilesEnvelope } from "@jini-ai/core/contracts/site/cms-plugins";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginPackageFiles } from "../hooks/use-plugin-package-files.hooks";
@@ -16,7 +16,7 @@ import { toPackageFileView } from "../rules";
 const LIMITS = { maxFiles: 200, maxEntries: 2000, maxFileBytes: 524288, maxTotalBytes: 4194304 };
 const identity = (key: string) => key;
 
-function listing(pluginId: string, overrides: Partial<AdminPluginFiles> = {}): AdminPluginFiles {
+function listing(pluginId: string, overrides: Partial<AdminPluginFilesEnvelope> = {}): AdminPluginFilesEnvelope {
   return {
     pluginId,
     source: "site",
@@ -81,7 +81,7 @@ describe("usePluginPackageFiles", () => {
   });
 
   it("never shows a late response for the previously inspected plugin under the current one", async () => {
-    let resolveFirst!: (value: AdminPluginFiles) => void;
+    let resolveFirst!: (value: AdminPluginFilesEnvelope) => void;
     const port = createFakePluginsPort({ packageFiles: { second: listing("second", { files: [] }) } });
     const realGet = port.getPluginFiles.bind(port);
     port.getPluginFiles = ({ id }) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet({ id }));

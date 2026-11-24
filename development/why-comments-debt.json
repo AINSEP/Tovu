@@ -12112,6 +12112,726 @@
     {
       "id": "91c377a40a74",
       "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts."
+    },
+    {
+      "id": "719e56a377bc",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the file header of the hook; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b0a31d5ab320",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the ThemePageRow doc; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "08b8e571cefd",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715): the pageCount doc; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4e5d78d3fe86",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715), reworded for the injected noThemeId: the no-theme short-circuit comment; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e8c2ed351b50",
+      "reason": "Moved to Jini @jini-ai/admin pages/hooks/use-theme-pages.hooks.ts (Jini d33b6715), reworded for the injected noThemeId: the read-lifecycle rationale; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8b3b55629110",
+      "reason": "Moved to Jini @jini-ai/admin posts/view-tabs.ts (Jini 10def5b5), where the PostEditorView type now lives: the PostEditorView type doc; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ea8ba7afc7c7",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-port.hooks.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "daac20c24768",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-wrapper.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "3bd9f34017f9",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "e06d297a3490",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "710678703eb3",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "33bab939de61",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/api/plugins-api.types.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "f5c6a1659b54",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugin-install-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "619acd86f384",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugins-port.hooks.ts @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "278527a6b9e8",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/plugins-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "7a13a7513eb1",
+      "reason": "Moved with the code to Jini @jini-ai/admin screens/plugins/hooks/use-plugin-row-focus.hooks.ts @file (plus the required summarySelector note) (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "c0ae45de982e",
+      "reason": "Moved with the code to Jini @jini-ai/admin security/host/SiteKeyTab.hooks.tsx @file (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "e4fb808a50bb",
+      "reason": "Dead file deleted (w4-admin-feat): features/redirects/api/redirects-api.types.ts had 0 importers; the redirect shapes are owned by Jini @jini-ai/admin core/ports/redirects.ts."
+    },
+    {
+      "id": "e225835a150a",
+      "reason": "Dead file deleted (w4-admin-feat): redirects-api.types.ts had 0 importers; Jini core/ports/redirects.ts owns the import-item shape."
+    },
+    {
+      "id": "284524e1d126",
+      "reason": "Dead file deleted (w4-admin-feat): redirects-api.types.ts had 0 importers; Jini core/ports/redirects.ts owns the import-result shape."
+    },
+    {
+      "id": "26381110d7ef",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-canvas-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "3c010118bdb5",
+      "reason": "Moved with the code to Jini @jini-ai/admin pages/hooks/theme-pages-port.hooks.ts (w4-admin-feat); host source paths reworded to \"the host's …\" per Jini guard N2 (no consumer paths in Jini), reasoning kept."
+    },
+    {
+      "id": "5ad7ac065e8c",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "6c40d8d311a1",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "a2893b848a06",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "8a61f8a8898d",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "344ba8ada123",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "faedfcbfea6e",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "31bfdcf15b66",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/dock-header-rules (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "f7ca9a4c84fa",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/DockHeaderTip.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "286aae0432a7",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropConfirmation (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "3a1b25097ae2",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropError (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "65cb968662f6",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/FolderDropPathHint (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "ce75f4486c31",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/chat-package-kind (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "11bb03a29676",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "aaef8209d97b",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "701711ad8bdb",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "369517802fb6",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "572ffcbc5bd4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "41d41123d496",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "2e0c44267c5d",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/TemplateSource/ViewTemplateButton (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "5dc673872273",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/HtmlAttributeRows.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e2ae7f66dec5",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/hooks/assistant-chats-port.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "27e8c5cc87d4",
+      "reason": "Deleted as a duplicate of @jini-ai/admin/react useBrowserTelemetryFeed (w4-admin-shell); that hook's header carries the same why (signing in on the same route counts as arriving), and the debounce note stays with the host telemetry module."
+    },
+    {
+      "id": "61a8bcca3eb3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/__tests__/agent-screenshot.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "f89f0af6e3d5",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/__tests__/agent-screenshot.unit.test (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e85fb298544d",
+      "reason": "The allow-list row it explained (assistant-dock-i18n CHAT_PANE_I18N_DICT) is gone with the move to Jini (w4-admin-shell); the replacement rows for the app-i18n host overlays carry a new why-comment in place."
+    },
+    {
+      "id": "f98f7f3382b4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "b492c78ee384",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "24705d91a0c3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "3062a8d3d8e3",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "75e2db755691",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "5179a7a6abcd",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/agent-screenshot (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "6d2966c282f8",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "1431ddb9bbe4",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "897742a9e109",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/lib/media-embed-extension.hooks (w4-admin-shell); product names and host paths reworded to \"the host\" per N1/N2, every why-sentence kept."
+    },
+    {
+      "id": "e6c411d1bdf6",
+      "reason": "The popup-position half of this test file moved to Jini @jini-ai/admin/shell/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx (w4-admin-shell batch J) with this header; the Tovu half keeps a rewritten header naming where the popup tests went."
+    },
+    {
+      "id": "78e2e1ebdb48",
+      "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields (w4-admin-shell batch I); host file names reworded to the host in words, every why-sentence kept."
+    },
+    {
+      "id": "fe084a2972f6",
+      "reason": "Moved with its tests to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (src/local-dev/__tests__/dev-proxy-upstream.test.ts), header reworded neutral."
+    },
+    {
+      "id": "595721325d33",
+      "reason": "Moved with its test fixture to Jini @jini-ai/devops/local-dev/dev-proxy-upstream tests (src/local-dev/__tests__/dev-proxy-upstream.test.ts)."
+    },
+    {
+      "id": "3f92571e6702",
+      "reason": "Dropped-upstream rationale moved with the code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (module header); the Tovu file keeps a header naming the Vite registration and refusal copy."
+    },
+    {
+      "id": "9475cabe2b4b",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (installUpstreamCloseHandling docs)."
+    },
+    {
+      "id": "50d31e589931",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (EventSource reconnect rationale in installUpstreamCloseHandling docs)."
+    },
+    {
+      "id": "858cf8239e55",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (isClientResponse doc comment)."
+    },
+    {
+      "id": "b39d8a145860",
+      "reason": "Refused-upstream 503 rationale: the lifecycle half moved to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (ECONNREFUSED bullet); the Tovu header keeps the 2026-10-05 marker-header rationale."
+    },
+    {
+      "id": "8f15da13aa40",
+      "reason": "Moved to Jini @jini-ai/admin sites/transfer/use-export-password.hooks.ts (Jini 6eb7ec36), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "a8047d2e191e",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "3d676371d82d",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "e60a575327c0",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "2b3d1d691582",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "5ef6a7c84708",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "07e215ecdc89",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "c1e29ad66827",
+      "reason": "Moved to Jini @jini-ai/chat react/features/voice-input/space-hold-rules.ts (Jini bfc7c2f5), reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "26dd06ce7b5f",
+      "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (RawAdmissionConnection; only the `{@link}` reworded)."
+    },
+    {
+      "id": "55eee86f08fe",
+      "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (flattenAdmissionConnection doc)."
+    },
+    {
+      "id": "a332f2e70c86",
+      "reason": "Moved to Jini `packages/admin/src/screens/integrations/api/integrations-api.ts` (agent-plugins list comment; type name reworded to AgentPluginListRow)."
+    },
+    {
+      "id": "833b08eaaaaa",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\"). Orphan duplicate of the AdminExternalMcpServer doc, merged into it."
+    },
+    {
+      "id": "00f86120d991",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "fab39c338330",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "f63d07533a33",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "9680b6ff20db",
+      "reason": "Alias `AdminExternalMcpToolApproval` removed; importers use core `ExternalMcpToolApprovalDto` (documented in `packages/core/src/contracts/site/cms-external-mcp.ts`)."
+    },
+    {
+      "id": "0f042dfad336",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "319a1a22de45",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "59482f38027f",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "f789208077cd",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "d3f65fe18dce",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "7ac873c199a2",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "0887dc78835f",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "6566d2066082",
+      "reason": "Moved to Jini core `packages/core/src/contracts/site/cms-external-mcp.ts` (host paths reworded to \"the host's ...\")."
+    },
+    {
+      "id": "92cf6b79a19b",
+      "reason": "Moved to Jini `packages/admin/src/agent-plugins/models.ts` (AgentPluginListRow doc, trimmed of host paths)."
+    },
+    {
+      "id": "d2eb862b603c",
+      "reason": "AdminAgentPluginFiles removed; the identical shape is `AgentPluginFiles` in Jini `packages/admin/src/agent-plugins/models.ts`, which documents it (\"existing read-only route's bounded listing\")."
+    },
+    {
+      "id": "7c05d1598292",
+      "reason": "Moved to Jini `packages/admin/src/screens/integrations/IntegrationsRedirect.tsx` (host-neutral reword: the hook is now a required prop)."
+    },
+    {
+      "id": "50b5bb539e5c",
+      "reason": "Moved to Jini `packages/admin/src/agent-plugins/react/hooks/AgentPluginInspector.hooks.ts` (`useAgentPluginFileTree`: \"Move DOM focus only after keyboard navigation, never when opening the inspector\")."
+    },
+    {
+      "id": "03ae15fc0b11",
+      "reason": "Header of the deleted retry-unreachable abort-classifier wrapper (w5-admin); importers now call Jini `isAbortError` from `@jini-ai/core/text` (`packages/core/src/text/is-abort-error.ts`) directly, so there is no host classifier left to preserve."
+    },
+    {
+      "id": "d460322d4b53",
+      "reason": "Header of the deleted host `package-file-tree.ts` signature adapter (w5-admin); duplicate of Jini `packages/admin/src/agent-plugins/package-file-tree.ts`, which owns tree construction, keyboard behavior and icon rules."
+    },
+    {
+      "id": "eca3b9aeb4c5",
+      "reason": "Documented a type of the deleted host `use-package-file-tree.hooks.ts` (w5-admin); duplicate of Jini `useAgentPluginFileTree` in `packages/admin/src/agent-plugins/react/hooks/AgentPluginInspector.hooks.ts`, which owns the key-action effects."
+    },
+    {
+      "id": "669936ef0d4d",
+      "reason": "Documented the effects port of the deleted host `use-package-file-tree.hooks.ts` (w5-admin); duplicate of Jini `useAgentPluginFileTree` in `packages/admin/src/agent-plugins/react/hooks/AgentPluginInspector.hooks.ts` (keyboard-navigation focus handling lives there)."
+    },
+    {
+      "id": "f281d0f25301",
+      "reason": "Header of the deleted host `package-file-tree.unit.test.ts` (w5-admin); the duplicated code was removed, and Jini `packages/admin/src/agent-plugins/__tests__/package-file-tree.test.ts` covers the same pure helpers."
+    },
+    {
+      "id": "4974a1b51946",
+      "reason": "Helper comment in the deleted host `package-file-tree.unit.test.ts` (w5-admin); the duplicated code was removed, and Jini `packages/admin/src/agent-plugins/__tests__/package-file-tree.test.ts` covers the same helpers."
+    },
+    {
+      "id": "f636cb84ea2b",
+      "reason": "Header of the deleted host `use-package-file-tree.hooks.unit.test.ts` (w5-admin); the duplicated hook was removed, and Jini `packages/admin/src/agent-plugins/react/__tests__/agent-plugins-hooks.test.tsx` covers the hook's keyboard handling (e.g. \"ignores keys on an empty tree\")."
+    },
+    {
+      "id": "615f963ab0ca",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-plugins.ts` (w5-admin): `AdminPluginDto.conflicts` (\"Names this plugin claims that core or an earlier-enabled plugin already holds\")."
+    },
+    {
+      "id": "fe41361b4dcf",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-plugins.ts` (w5-admin): `AdminPluginDto.providerSettings` and its doc (\"absent ... for a plugin whose manifest declares no provider settings\")."
+    },
+    {
+      "id": "140dc541c5ee",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-plugins.ts` (w5-admin): the plugin-files response doc (\"the server's caps cut the listing short, and those caps\")."
+    },
+    {
+      "id": "a82386725739",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto` doc (\"Every field is a SNAPSHOT captured when the thing was deleted\")."
+    },
+    {
+      "id": "ea539f89db54",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto.actorUsername` doc."
+    },
+    {
+      "id": "f68143699a57",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): `AdminTrashItemDto.actorIsSystem` doc."
+    },
+    {
+      "id": "b026b2a8b2c6",
+      "reason": "Moved with the code to Jini `packages/core/src/contracts/site/cms-trash.ts` (w5-admin): restore/purge outcome docs (\"`forbidden` means the operator lacks THAT ROW'S kind's permission\")."
+    },
+    {
+      "id": "f1dc27b41d18",
+      "reason": "Header of the `openMcpUiLink` tests, moved with the function to Jini `packages/admin/src/shell/components/AssistantDock/hooks/__tests__/open-mcp-ui-link.unit.test.ts` (w5-admin)."
+    },
+    {
+      "id": "4dad39d28648",
+      "reason": "Moved with the type to Jini `packages/admin/src/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (`ChatToolCallDisplay` doc, w5-admin)."
+    },
+    {
+      "id": "681f1f558a88",
+      "reason": "Moved with the function to Jini `packages/admin/src/shell/components/AssistantDock/hooks/open-mcp-ui-link.ts` (`openMcpUiLink` doc, w5-admin)."
+    },
+    {
+      "id": "9997fb58724e",
+      "reason": "Moved with the hook to Jini `packages/admin/src/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks.ts` (`useChatDisplayPreferences` doc, w5-admin)."
+    },
+    {
+      "id": "117d8cecfcaf",
+      "reason": "Moved with `sharedPort` to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (w5-admin)."
+    },
+    {
+      "id": "dd1ac8c6c4ba",
+      "reason": "Moved with the action wrapper to Jini `packages/admin/src/shell/hooks/use-assistant-chats.hooks.ts` (`useAssistantChats`, w5-admin)."
+    },
+    {
+      "id": "272200c69b07",
+      "reason": "Moved to Jini `packages/admin/src/security/access-token-categories.ts` (`sortAccessTokenGroups`: the category rank now derives from the injected category table; w5-admin)."
+    },
+    {
+      "id": "7db92d7ff4f9",
+      "reason": "Moved to Jini `packages/admin/src/security/access-token-categories.ts` (`accessTokenCategoryLabel`, w5-admin)."
+    },
+    {
+      "id": "25d2ad89cdb9",
+      "reason": "Moved to Jini `packages/admin/src/security/custom-credential-forms.ts` (`CustomCredentialFormFields.additionalHosts`, w5-admin)."
+    },
+    {
+      "id": "3cec53f4ba5d",
+      "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort test helper, w5-admin)."
+    },
+    {
+      "id": "19f9f65f4319",
+      "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."
+    },
+    {
+      "id": "fb17c84314b8",
+      "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."
+    },
+    {
+      "id": "9f08114a8563",
+      "reason": "Moved to Jini `packages/admin/src/security/__tests__/access-token-categories.test.ts` (sort tests, w5-admin)."
+    },
+    {
+      "id": "69bb95bef4df",
+      "reason": "Moved to Jini `packages/admin/src/screens/plugins/AgentPlugins.hooks.ts` (`useAgentPluginConfirmation` why-comment, host file names reworded, w5-admin)."
+    },
+    {
+      "id": "8fcb0e73f30a",
+      "reason": "Moved to Jini `packages/admin/src/screens/plugins/hooks/use-plugin-provider-settings.hooks.ts` (file header; the wired-hook sentence stays with the host binding, w5-admin)."
+    },
+    {
+      "id": "da8c186d2910",
+      "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (why-not-the-settings-controller header, host names reworded, w5-admin)."
+    },
+    {
+      "id": "50879856327e",
+      "reason": "Moved to Jini `packages/admin/src/screens/providers/hooks/use-providers.hooks.ts` (`ProvidersController` doc, product wording removed, w5-admin)."
+    },
+    {
+      "id": "c02e57c53b1c",
+      "reason": "Moved to Jini `packages/admin/src/screens/trash/rules.ts` (`TRASH_RESOURCE` doc, host bus path reworded, w5-admin)."
+    },
+    {
+      "id": "9e5e100778dd",
+      "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-drift.ts` (`parseSavedToolNames`, w5-admin)."
+    },
+    {
+      "id": "c71376fbaabc",
+      "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-drift.ts` (`grantWriteFieldValue`, w5-admin)."
+    },
+    {
+      "id": "2143703d57c0",
+      "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (file header, w5-admin)."
+    },
+    {
+      "id": "242cb65e02c4",
+      "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (external-tool wrapper prefix, w5-admin)."
+    },
+    {
+      "id": "234ad901a954",
+      "reason": "Moved to Jini `packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts` (`toolPickerFieldValues`, w5-admin)."
+    },
+    {
+      "id": "04a5efc8835b",
+      "reason": "Deleted with its code: `MembersPanel.tsx` was a wrapper removed because the host renders the Jini `Members` directly (w5-admin); the replacing owner is the Jini `Members` screen (`@jini-ai/user-management/react`) with the reasoning kept in the host binding `apps/admin/src/features/members/members-screen-props.tsx`."
+    },
+    {
+      "id": "0825ce9700c1",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "148c13a59a8b",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "157f1dd1b538",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/host/hooks/deployment-overview-port.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "1c1daf13f09a",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/host/hooks/dockerfile-source-port.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "1eb1e899d64e",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "34854c4c5286",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "375fc993695f",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/providers/providers-i18n.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "38f86e394c28",
+      "reason": "Moved with the code to Jini packages/admin/src/pages/__tests__/theme-pages-fake-port.unit.test.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept. (the first coverage bullet stays in the Tovu test header)"
+    },
+    {
+      "id": "3b46046e5315",
+      "reason": "Moved with the code to Jini packages/admin/src/source-control/api/source-control-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "4c19067e96fd",
+      "reason": "Moved with the code to Jini packages/integrations/src/media-providers/configurable-catalog.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "4f80a0747376",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "50e0f8064872",
+      "reason": "Moved with the code to Jini packages/admin/src/security/__tests__/access-token-rows.test.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "547dd4231d32",
+      "reason": "Moved with the code to Jini packages/admin/src/security/security-i18n.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "558b52eab570",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "58599b4add9a",
+      "reason": "Moved with the code to Jini packages/admin/src/security/host/hooks/use-security-permissions.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "590253d6a89c",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "591d16d5dc5b",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "5f0aa31ae375",
+      "reason": "Moved with the code to Jini packages/admin/src/security/access-token-rows.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "6a3875f426ff",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/host/hooks/publish-credentials-port.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "6eabc411c242",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "6f34abc84f73",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "7ad0b2e20f6e",
+      "reason": "Moved with the code to Jini packages/integrations/src/media-providers/__tests__/configurable-catalog.test.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "7e23f1daf631",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "81686e175206",
+      "reason": "Moved with the code to Jini packages/admin/src/security/security-i18n.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "83405d829fed",
+      "reason": "Moved with the code to Jini packages/integrations/src/media-providers/configurable-catalog.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "8896fafb7edb",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "90facfd47b70",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "9204f1e72467",
+      "reason": "Moved with the code to Jini packages/integrations/src/media-providers/__tests__/configurable-catalog.test.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "9e492a57143d",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "aa8b4be7dff2",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "ac52ae89dcc9",
+      "reason": "Moved with the code to Jini packages/admin/src/source-control/api/source-control-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "adcbf53461dc",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "ae5f6c81357b",
+      "reason": "Moved with the code to Jini packages/integrations/src/media-providers/configurable-catalog.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "aec89de6e5e8",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "af779ff3d189",
+      "reason": "Moved with the code to Jini packages/admin/src/security/host/hooks/use-security-permissions.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "bb7f01121d35",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/host/hooks/publish-credentials-port.hooks.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "c5bb91452774",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/external-mcp-tool-picker-rules.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "c658e6cebc90",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "cc84d50c66dc",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "d1e0e6ac5014",
+      "reason": "Moved with the code to Jini packages/admin/src/posts/post-editor-route-keys.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "d2d4f7daafb2",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "dae606079434",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "dca403a44757",
+      "reason": "Deleted with its code: `MembersPanel.tsx` was a wrapper removed because the host renders the Jini `Members` directly (w5-admin); the replacing owner is the Jini `Members` screen (`@jini-ai/user-management/react`) with the reasoning kept in the host binding `apps/admin/src/features/members/members-screen-props.tsx`."
+    },
+    {
+      "id": "e4c36086c105",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/settings/settings-capabilities-i18n.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "eb0a40b91f57",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "f55e0dad7f84",
+      "reason": "Moved with the code to Jini packages/admin/src/posts/__tests__/post-editor-route-keys.test.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "f83b13ee8bf2",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "f941a1604b20",
+      "reason": "Moved with the code to Jini packages/admin/src/security/api/security-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "ffdd87f6e304",
+      "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
     }
   ]
 }

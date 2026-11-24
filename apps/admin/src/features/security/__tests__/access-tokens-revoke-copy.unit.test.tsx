@@ -2,7 +2,8 @@ import { render } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { AccessTokensTab } from "../AccessTokensTab";
-import { accessTokenProviderInfo } from "../access-token-providers";
+import { accessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokensController, AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
@@ -52,7 +53,7 @@ function githubPagesRow(): AccessTokenExistingRowState {
 
 function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): AccessTokensController {
   const group: AccessTokenProviderGroupState = {
-    info: accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind: "publish", providerId: "github-pages" } }),
+    info: accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind: "publish", providerId: "github-pages" } }),
     rows: [githubPagesRow()],
     addForm: { visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null },
   };

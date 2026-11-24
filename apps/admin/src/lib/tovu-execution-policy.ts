@@ -1,5 +1,5 @@
-import type { ExecutionConfig } from '@jini-ai/core/contracts/execution';
-import type { AdminDeploymentOverview } from '../features/deployment/api/deployment-api.types';
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
+import type { AdminDeploymentOverview } from "@jini-ai/admin/deployment/api/deployment-api.types";
 
 /** Local CLI is hidden on deployed sites for now (owner 2026-10-07); later an agent could
  * install a CLI (e.g. Claude Code) on the server and this gate can open. The server's existing

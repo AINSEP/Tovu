@@ -7,8 +7,8 @@ import { contentRefreshApplies, publishContentRefresh, subscribeToContentRefresh
 import { translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { describeApiError } from '../../lib/admin-http/request';
-import { MEDIA_PROVIDER_CATALOG } from '../../features/media/media-provider-catalog';
-import { t as translateSecurity } from './security-i18n';
+import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
+import { tSecurity as translateSecurity } from "../../lib/i18n-common";
 import { mediaTransport } from './media-ports';
 
 export interface SecurityHostPorts { securityApi: SecurityApiPort; otherCredentials?: OtherCredentialsPort; rootKey?: RootKeyPort }

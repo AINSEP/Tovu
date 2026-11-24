@@ -11,6 +11,7 @@ import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-
  * route identity, so two new posts shared the panel key "". Navigating A→B then reused A's hook, whose
  * last saved slug was B, so it skipped loading B and kept A on screen under B's URL. The route here is
  * keyed exactly as `panels.tsx` keys `<PostEditor>`: `routeKeys.routeKey({ segment })`.
+ * keyed exactly as `panels.tsx` keys `<PostEditor>`: `routeKeys.keyFor({ segment })`.
  */
 
 type Editor = ReturnType<typeof usePostEditor>;

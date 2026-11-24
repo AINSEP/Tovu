@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { siteKeyStatusBadgeLabel } from "../hooks/site-key-status.rules";
-import { t } from "../../../integrations/jini-admin/security-i18n";
+import { tSecurity as t } from "../../../lib/i18n-common";
 
 describe("site key env provenance", () => {
   it.each(["none", "file", "env"] as const)("labels an inactive %s key as None", (source) => {

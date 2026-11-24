@@ -1,11 +1,11 @@
-import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import type { AdminWebhookDeliveryResponse } from "@jini-ai/core/contracts/site/cms-integrations";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t as defaultT } from "../integrations-i18n";
+import { tIntegrations as defaultT } from "../../../lib/i18n-common";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
-import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
+import type { IntegrationDeliveriesPort } from "@jini-ai/admin/screens/integrations/integrations-ports";
 
 /**
  * @file Everything the delivery-log screen does, so `IntegrationDeliveries.tsx` is only markup.
@@ -34,7 +34,7 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  */
 
 export interface IntegrationDeliveriesController {
-  deliveries: AdminWebhookDelivery[] | null;
+  deliveries: AdminWebhookDeliveryResponse[] | null;
   error: string | null;
   /** Bound translator — `key` already resolved against the caller's locale, so
    *  `IntegrationDeliveries.tsx` never imports `useAdminLocale`/`integrations-i18n` itself. See

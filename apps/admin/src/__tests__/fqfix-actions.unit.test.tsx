@@ -43,7 +43,7 @@ describe('fq action completion', () => {
 
   it.each(['toggle', 'remove'] as const)('keeps a plugin row locked through its %s refetch', async kind => {
     const plugin = { id: 'p1', name: 'Example', version: '1.0.0', source: 'site' as const, tier: 'tier-1' as const,
-      status: 'valid' as const, enabled: false, quarantine: null, errors: [] };
+      status: 'valid' as const, enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [plugin] });
     const { result } = renderHook(() => usePlugins({ port, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([plugin]));
@@ -163,7 +163,7 @@ describe('accepted writes with failed refreshes', () => {
 
   it.each(['toggle', 'remove'] as const)('reports a failed plugin %s refresh separately from the accepted write', async kind => {
     const plugin = { id: 'p-refresh', name: 'Example', version: '1.0.0', source: 'site' as const, tier: 'tier-1' as const,
-      status: 'valid' as const, enabled: false, quarantine: null, errors: [] };
+      status: 'valid' as const, enabled: false, quarantine: null, errors: [], conflicts: [] };
     const port = createFakePluginsPort({ plugins: [plugin] });
     const { result } = renderHook(() => usePlugins({ port, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([plugin]));

@@ -168,10 +168,12 @@ input[type="checkbox"], input[type="radio"] {
 .field input, .field select, .field textarea,
 .jini-collections-dialog .jini-field input, .jini-collections-dialog .jini-field select, .jini-collections-dialog .jini-field textarea { width: 100%; }
 /* The post editor's labels render from @jini-ai/admin with the `jini-*` class; they keep this face.
-   Scoped to the post field so other `.jini-field-label` forms keep their own styling. */
+   Scoped to the post field so other `.jini-field-label` forms keep their own styling. The widget
+   node's "Content for this spot" legend (`PlacementContentFields`) does the same. */
 .field-label,
 .jini-post-publishing__field > .jini-field-label,
 .jini-content-analysis-field-label,
+.jini-widget-embed-content-choice > .jini-field-label,
 .jini-collections-dialog .jini-field-label, .jini-field-label {
   font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
@@ -2360,14 +2362,14 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    the select's own edge instead of a couple pixels short. Colors are `.btn-secondary`'s own
    (`--surface`/`--fg-2`/`--border-strong`), since this button carried that class before and the
    owner's ask was icon-vs-word, not a restyle. */
-.view-template-btn {
+.view-template-btn, .jini-view-template-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 37px; height: 37px; padding: 0; flex-shrink: 0;
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
 }
-.view-template-btn svg { width: 16px; height: 16px; }
-.view-template-btn:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
-.view-template-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.view-template-btn svg, .jini-view-template-btn svg { width: 16px; height: 16px; }
+.view-template-btn:hover, .jini-view-template-btn:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
+.view-template-btn:disabled, .jini-view-template-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Small screens (2026-08-09 live feedback): the slug row was overflowing — the template picker got
    clipped off the right edge instead of wrapping to its own line, and the id block (no visible
    divider, see the JSX comment on `.editor-id`'s markup for why) sat crowded against "view". Stack
@@ -3125,11 +3127,11 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
 .settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
-.settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
+.settings-dialog, .jini-settings-dialog { background: var(--tovu-admin-elevated-bg); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--tovu-admin-elevated-shadow); display: flex; flex-direction: column; gap: 0.9rem;
   background-image: var(--jini-panel-texture, none);
 }
-.settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
-.settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
+.settings-dialog h2, .jini-settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.settings-dialog p, .jini-settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 /* Twin of the three rules above for the Jini post dialogs (`PostSettingsDialog`, `PostUrlDialog`),
    and the Jini collections dialogs (`LifecycleConfirmDialog`), which emit only `jini-*` classes.
    Own blocks so `.settings-dialog` stays the shared modal rule. */

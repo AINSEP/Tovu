@@ -4,8 +4,8 @@ import { expect, test } from 'vitest';
 import { ApiError } from '@/lib/admin-http/request';
 import { adminFailureChannel } from '@/lib/admin-failure-channel';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
-import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';
-import { PLUGIN_MEMORY_DICT } from '@jini-ai/admin/screens/plugins/plugins-memory-i18n';
+import type { AgentPluginMemoryPort, PluginMemoryListing } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks";
+import { PLUGIN_MEMORY_DICT } from "@jini-ai/admin/screens/plugins/plugins-memory-i18n";
 
 const listing = (pluginId: string, text: string): PluginMemoryListing => ({ pluginId,
   learned: [{ relativePath: 'account.json', text: 'Discovered account facts' }],

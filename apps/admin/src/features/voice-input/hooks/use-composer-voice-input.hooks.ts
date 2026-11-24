@@ -11,7 +11,7 @@
  * The joining rule is `@jini-ai/chat`'s own `appendComposerDiscovery`: a whitespace-only draft is
  * REPLACED by the inserted text, anything else gets `" "` + the text appended to its trimmed end.
  * That is what quietly disposes of the single space the hold-space gesture's first keydown types —
- * see `space-hold-rules.ts`.
+ * see `@jini-ai/chat/react/features/voice-input/space-hold-rules`.
  */
 
 import { useCallback, useRef } from "react";

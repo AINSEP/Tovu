@@ -1,4 +1,4 @@
-import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
+import type { ThemeCanvasPort, ThemeTokens } from "@jini-ai/admin/pages/hooks/theme-canvas-port.hooks";
 
 /**
  * @file The only place `use-theme-canvas-styling.hooks.ts` reaches the real network — see

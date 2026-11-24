@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpServer } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { AdminExecutionCredential, SiteAssistantCredential } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api";
 
@@ -39,8 +39,8 @@ const {
   deleteExternalMcpServer: vi.fn(),
 }));
 
-vi.mock("../../../integrations/api/integrations-api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../integrations/api/integrations-api")>();
+vi.mock("@/features/integrations/integrations-host-ports", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/integrations/integrations-host-ports")>();
   return { ...actual, integrationsApi: { ...actual.integrationsApi, listExternalMcpServers, deleteExternalMcpServer } };
 });
 vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {

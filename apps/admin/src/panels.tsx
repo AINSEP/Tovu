@@ -1,8 +1,12 @@
 import { Suspense, type ReactNode } from "react";
+import { IntegrationsRedirect } from "@jini-ai/admin/screens/integrations/IntegrationsRedirect";
+import { useIntegrationsRedirect } from "./features/integrations/hooks/use-integrations-redirect.hooks";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
+import { Members } from "@jini-ai/user-management/react";
+import { membersScreenProps } from "./features/members";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
@@ -16,14 +20,12 @@ import {
   Posts,
   PageEditor,
   Pages,
-  Members,
   Comments,
   Analytics,
   Library,
   Menus,
   MenuEditor,
   IntegrationDeliveries,
-  IntegrationsRedirect,
   Providers,
   Users,
   Authentication,
@@ -527,7 +529,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "members",
     description: "Manage site members and their access.",
     anyOfPermissions: ["member.manage"],
-    render: () => <Members />,
+    render: () => <Members {...membersScreenProps} />,
     nav: {
       label: "Members",
       group: "People",
@@ -621,19 +623,19 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "admin-themes",
     description: "Open admin interface appearance settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
   },
   {
     id: "admin-appearance",
     description: "Open admin interface appearance settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
   },
   {
     id: "design-system",
     description: "Open admin interface design settings.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
   },
   {
     id: "playground",
@@ -824,7 +826,7 @@ const PANELS: readonly TovuAdminPanel[] = [
         // `providers`/`integrations` tab merge.
         return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
       }
-      return <IntegrationsRedirect />;
+      return <IntegrationsRedirect useIntegrationsRedirectHook={useIntegrationsRedirect} />;
     },
     routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
@@ -1204,7 +1206,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "notifications",
     description: "Review site notifications.",
     agentReachable: false,
-    render: () => <IntegrationsRedirect routePath="/email" />,
+    render: () => <IntegrationsRedirect routePath="/email" useIntegrationsRedirectHook={useIntegrationsRedirect} />,
   },
   {
     id: "trash",

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { AdminSubagents } from "@jini-ai/admin/screens/assistant-settings/AdminSubagents";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ADMIN_SUBAGENTS_COPY } from "../owner-grant-bindings";
-import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
+import { SubagentsIndicator } from "@jini-ai/admin/shell/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
 import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@jini-ai/admin/shell/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

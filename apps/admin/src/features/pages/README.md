@@ -10,6 +10,11 @@ The Pages list — the screen behind the sidebar's **Content → Pages** entry.
 
 ## Wiring
 
+- `ThemeCanvasPort`/`ThemePagesPort` and `theme-canvas-wrapper` come from `@jini-ai/admin/pages/…`;
+  this folder keeps the implementations (`theme-canvas-dependencies.hooks.ts` over the browser's
+  `fetch`, `theme-pages-dependencies.hooks.ts` over `themesApi`).
+- `@jini-ai/admin/pages/ThemePageDetailsModal.hooks` reads `openLightboxDialog`/`closeLightboxDialog`
+  from the admin kit, so it needs the `AdminKitProvider` mounted in `main.tsx`.
 - `hooks/use-page-editor.hooks.ts` hands `@jini-ai/ui/panel-kit`'s `useSettlementGeneration` to
   `@jini-ai/admin`'s `useExternalEntryRefresh` as a required input (its own counter instance,
   separate from the editor's save settlement).

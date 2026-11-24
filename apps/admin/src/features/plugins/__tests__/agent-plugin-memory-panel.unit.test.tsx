@@ -5,7 +5,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { AgentPluginMemoryPanel } from '../AgentPluginMemoryPanel';
 import { AgentPluginDetailsModal } from '../AgentPluginDetailsModal';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
-import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';
+import type { AgentPluginMemoryPort, PluginMemoryListing } from '@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks';
 
 const memoryPort = vi.hoisted(() => ({ read: vi.fn(), saveNote: vi.fn() }));
 vi.mock('../hooks/agent-plugin-memory-dependencies.hooks', () => ({ defaultAgentPluginMemoryPort: memoryPort }));

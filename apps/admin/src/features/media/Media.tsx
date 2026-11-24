@@ -36,16 +36,23 @@ import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "@jini-ai/admin/screens/media/hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
-import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
+import { CONFIGURABLE_MEDIA_PROVIDER_CATALOG as MEDIA_PROVIDER_CATALOG } from "@jini-ai/integrations/media-providers/catalog";
+import { PINNED_MEDIA_PROVIDER_IDS } from "./pinned-media-providers";
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
 import { mediaFileName } from "@jini-ai/admin/media";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import { RemoteImageImport } from "./RemoteImageImport";
+import { RemoteImageImport, useRemoteImageImport, type ImportDialogKit } from "@jini-ai/cms/react/media";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+import { describeApiError } from "@/lib/admin-http/request";
+import { defaultMediaImportPort } from "./hooks/media-import-dependencies.hooks";
 import { Button, Dialog, TextField } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
+
+/** The kit components the cms import dialog renders with; `satisfies` fails here if a kit prop drifts. */
+const IMPORT_DIALOG_KIT = { Button, Dialog, TextField } satisfies ImportDialogKit;
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -1252,7 +1259,8 @@ function MediaLibraryPanel(
             activeTab={activeTab}
             t={t}
           />
-          <RemoteImageImport t={t} />
+          <RemoteImageImport useRemoteImageImportHook={useRemoteImageImport} t={t} kit={IMPORT_DIALOG_KIT} HeaderTip={DockHeaderTip} port={defaultMediaImportPort}
+            describeError={describeApiError} useFetchMutation={useFetchMutation} />
         </div>
       </div>
 

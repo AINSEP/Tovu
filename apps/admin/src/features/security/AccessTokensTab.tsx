@@ -8,15 +8,19 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
-import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
+import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
-import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "../../integrations/jini-admin/security-i18n";
-import { ACCESS_TOKEN_CATEGORIES, type AccessTokenCategoryId, type AccessTokenRowCategoryId } from "./rules";
+import { removeDialogBody, removeDialogTitle } from "@/lib/i18n-common";
+import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin/security/security-i18n";
+import { ACCESS_TOKEN_CATEGORIES } from "./rules";
+import type { AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
+import type { AccessTokenRowCategoryId } from "@jini-ai/admin/security/access-token-rows";
 import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
-import { invalidAdditionalHostsEntries } from "./custom-credential-forms";
+import { invalidAdditionalHostsEntries } from "@jini-ai/admin/security/custom-credential-forms";
 import { accessTokensCountText } from "./other-credential-stores";
-import { extraFieldsAroundToken, providerGroupHandleLabel, providerGroupSubtitleKeys, tokenRowHandleLabel, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "./access-token-providers";
-import { type AccessTokenRow } from "./access-token-rows";
+import { extraFieldsAroundToken, providerGroupSubtitleKeys, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
+import { providerGroupHandleLabel, tokenRowHandleLabel, ACCESS_TOKEN_PROVIDER_COPY } from "./access-token-copy";
+import type { AccessTokenProviderRef, AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "../../integrations/jini-admin/security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import type {
@@ -300,7 +304,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
     >
       <h3 className="access-tokens-provider-heading">
         <span translate="no">{group.info.label}</span>
-        <span className="access-tokens-provider-purpose"> · {providerGroupSubtitleKeys(group.info).map(controller.t).join(" · ")}</span>
+        <span className="access-tokens-provider-purpose"> · {providerGroupSubtitleKeys({ info: group.info, copy: ACCESS_TOKEN_PROVIDER_COPY }).map(controller.t).join(" · ")}</span>
       </h3>
       {group.info.unlisted ? <p className="field-hint">{controller.t("Its plugin is off or missing. You can still remove saved tokens.")}</p> : null}
       {group.rows.map((row) => (
@@ -512,7 +516,7 @@ function TokenInputFields({
 }) {
   // Only a custom row shows Username, always optional (`rules.ts`'s `AccessTokenProviderInfo` doc).
   const needsUsername = info.username !== undefined;
-  const extraFields = extraFieldsAroundToken(info);
+  const extraFields = extraFieldsAroundToken({ info });
   return (
     <div className="access-tokens-row-fields">
       <div className="field">

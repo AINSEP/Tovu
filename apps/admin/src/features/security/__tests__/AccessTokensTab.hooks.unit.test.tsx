@@ -2,11 +2,12 @@ import { renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { useMergedSecretsOrder } from "../AccessTokensTab.hooks";
-import { accessTokenProviderInfo } from "../access-token-providers";
+import { accessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
 import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
-import type { AccessTokenKind } from "../rules";
-import type { AccessTokenRow } from "../access-token-rows";
+import type { AccessTokenKind } from "@jini-ai/admin/security/access-token-rows";
+import type { AccessTokenRow } from "@jini-ai/admin/security/access-token-rows";
 import type { AccessTokenAddFormState, AccessTokenExistingRowState, AccessTokenProviderGroupState, AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 
@@ -87,7 +88,7 @@ const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", toke
 
 /** One Tier-1 provider group — `rows` empty means "Not connected". */
 function providerGroup(kind: AccessTokenKind, providerId: string, rows: AccessTokenExistingRowState[] = []): AccessTokenProviderGroupState {
-  return { info: accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } }), rows, addForm: BLANK_ADD_FORM };
+  return { info: accessTokenProviderInfo({ copy: ACCESS_TOKEN_PROVIDER_COPY, providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } }), rows, addForm: BLANK_ADD_FORM };
 }
 
 function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: Partial<OtherCredentialRowState> = {}): OtherCredentialRowState {

@@ -1,6 +1,6 @@
-import type { AdminDockerfileSource } from "@/features/deployment/api/deployment-api.types";
-import { deploymentApi } from "@/features/deployment/api/deployment-api";
-import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
+import type { AdminDockerfileSource } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/deployment-host-ports";
+import type { DockerfileSourcePort } from "@jini-ai/admin/deployment/host/hooks/dockerfile-source-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */

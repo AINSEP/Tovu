@@ -185,3 +185,14 @@ describe("MEDIA_DICT: t() falls back to COMMON_I18N", () => {
     expect(t({ locale: "de", key: "Kind" })).toBe(COMMON_I18N.de.Kind);
   });
 });
+
+describe("MEDIA_DICT: remote image import copy", () => {
+  // The dialog itself lives in `@jini-ai/cms/react/media`; the host owns the locale data it is handed as `t`.
+  it("ships import copy in every feature locale", () => {
+    for (const dictionary of Object.values(MEDIA_DICT)) {
+      for (const key of ["Remote image URL", "Imported image alt text (optional)", "Import from URL", "Importing…", "Could not import media.", "Import", "Enter an https:// image URL."]) {
+        expect(dictionary[key]).toBeTruthy();
+      }
+    }
+  });
+});

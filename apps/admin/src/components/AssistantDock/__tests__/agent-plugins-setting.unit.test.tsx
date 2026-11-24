@@ -1,15 +1,19 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { ChatSettingsDialog } from "@jini-ai/chat/react";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { ChatSettingsDialog, ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DockSettingsMenu } from "../DockSettingsMenu";
-import { dockSettingsMenuSections } from "../dock-header-rules";
-import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
-import type { ChatAgentPlugins } from "../chat-agent-plugin-preferences";
-import { useChatAgentPlugins, type ChatAgentPluginsPort } from "../hooks/use-chat-agent-plugins.hooks";
-import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
+import { DockSettingsMenu } from "@jini-ai/admin/shell/components/AssistantDock/DockSettingsMenu";
+import { useTaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu.hooks";
+import { dockSettingsMenuSections } from "@jini-ai/admin/shell/components/AssistantDock/dock-header-rules";
+import { CHAT_TOOL_CALL_OPTIONS, CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { REPLY_LENGTH_OPTIONS } from "../assistant-runtime-preferences";
+import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
+import { useChatAgentPlugins, type ChatAgentPluginsPort } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
+import { ASSISTANT_DOCK_DICT, t } from "@jini-ai/admin/shell/components/AssistantDock/assistant-dock-i18n";
+import { ASSISTANT_DOCK_HOST_FIELDS } from "@/app-i18n";
 
 /**
  * @file The per-person "Agent plugins" chat setting (owner, 2026-10-18): Auto (default), Ask first or
@@ -29,7 +33,7 @@ const TIP = OPTIONS.map(({ label, tooltip }) => `• ${label}: ${tooltip}`).join
 function sectionsFor({ mode = "auto", update = vi.fn(), translate = (key: string) => key }: {
   mode?: ChatAgentPlugins; update?: (mode: ChatAgentPlugins) => void; translate?: (key: string) => string;
 } = {}) {
-  return dockSettingsMenuSections({ t: translate }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() }, agentPlugins: { mode, update } });
+  return dockSettingsMenuSections({ t: translate, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() }, agentPlugins: { mode, update } });
 }
 
 describe("Agent plugins section", () => {
@@ -51,7 +55,7 @@ describe("Agent plugins section", () => {
   });
 
   it("is left out when the host binds no plugin preference", () => {
-    const sections = dockSettingsMenuSections({ t: (key) => key }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
+    const sections = dockSettingsMenuSections({ t: (key) => key, toolCallOptions: CHAT_TOOL_CALL_OPTIONS, replyLengthOptions: REPLY_LENGTH_OPTIONS }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
     expect(sections.map((entry) => entry.key)).not.toContain("agent-plugins");
   });
 
@@ -59,7 +63,7 @@ describe("Agent plugins section", () => {
     const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
     const sections = sectionsFor({ update });
     if (surface === "gear") {
-      render(<DockSettingsMenu label="Settings" sections={sections} />);
+      render(<DockSettingsMenu label="Settings" sections={sections} useTaxonomyRowMenuHook={useTaxonomyRowMenu} ChatSettingsSegmented={ChatSettingsSegmented} />);
       await user.click(screen.getByRole("button", { name: "Settings" }));
     } else {
       render(<ChatSettingsDialog open onClose={onClose} displaySections={sections}
@@ -95,8 +99,8 @@ describe("Agent plugins section", () => {
       expect(translation.trim()).not.toBe("");
       expect(translation, key).not.toBe(key);
     }
-    const section = sectionsFor({ translate: (key) => t({ locale, key }) }).find((entry) => entry.key === "agent-plugins")!;
-    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t({ locale, key: label })}: ${t({ locale, key: tooltip })}`).join("\n"));
+    const section = sectionsFor({ translate: (key) => t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key }) }).find((entry) => entry.key === "agent-plugins")!;
+    expect(section.tooltip).toBe(OPTIONS.map(({ label, tooltip }) => `• ${t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: label })}: ${t({ ...ASSISTANT_DOCK_HOST_FIELDS, locale, key: tooltip })}`).join("\n"));
   });
 });
 
@@ -128,14 +132,14 @@ function fakePort(stored: ChatAgentPlugins = "auto"): FakePort {
 describe("useChatAgentPlugins", () => {
   it("is Auto until the stored mode arrives, then follows it", async () => {
     const port = fakePort("off");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     expect(result.current.mode).toBe("auto");
     await waitFor(() => expect(result.current.mode).toBe("off"));
   });
 
   it("applies a choice at once and saves the diff for this person", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     await waitFor(() => expect(port.stored).toBe("auto"));
     act(() => result.current.update("off"));
     expect(result.current.mode).toBe("off");
@@ -148,7 +152,7 @@ describe("useChatAgentPlugins", () => {
   it("keeps the choice and reports a failed save", async () => {
     const port = fakePort("auto");
     port.failSaves = true;
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     act(() => result.current.update("ask"));
     await waitFor(() => expect(result.current.saveFailed).toBe(true));
     expect(result.current.mode).toBe("ask");
@@ -156,7 +160,7 @@ describe("useChatAgentPlugins", () => {
 
   it("re-reads when another surface saves", async () => {
     const port = fakePort("auto");
-    const { result } = renderHook(() => useChatAgentPlugins({ port }));
+    const { result } = renderHook(() => useChatAgentPlugins({ port, namespace: CHAT_DISPLAY_NAMESPACE, useFetchQuery, useInvalidate }));
     await waitFor(() => expect(result.current.mode).toBe("auto"));
     port.stored = "ask";
     act(() => port.refresh());

@@ -3,8 +3,8 @@ import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 
-import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
-import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -12,21 +12,23 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
-import {
-  t as defaultT,
-  accessTokenDuplicateNameMessage,
-  accessTokenMakeDefaultErrorMessage,
-  accessTokenRemoveErrorMessage,
-  accessTokenSaveErrorMessage,
-  accessTokensLoadErrorMessage,
-} from "../../../integrations/jini-admin/security-i18n";
-import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId, type AccessTokenKind, type AccessTokenRowCategoryId } from "../rules";
-import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, type AccessTokenFormFields as CredentialAccessTokenFormFields } from "../access-token-forms";
-import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "../custom-credential-forms";
-import { accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow } from "../access-token-rows";
-import { accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "../access-token-providers";
+import { tSecurity as defaultT } from "../../../lib/i18n-common";
+import { accessTokenDuplicateNameMessage, accessTokenMakeDefaultErrorMessage, accessTokenRemoveErrorMessage, accessTokenSaveErrorMessage, accessTokensLoadErrorMessage } from "@jini-ai/admin/security/security-i18n";
+import { ACCESS_TOKENS_RESOURCE, ACCESS_TOKEN_CATEGORIES } from "../rules";
+import { accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId } from "@jini-ai/admin/security/access-token-categories";
+import { type AccessTokenKind, type AccessTokenRowCategoryId, accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow, type AccessTokenProviderRef } from "@jini-ai/admin/security/access-token-rows";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError } from "../access-token-forms";
+import { type AccessTokenFormFields as CredentialAccessTokenFormFields, accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo } from "@jini-ai/admin/security/access-token-providers";
+import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "@jini-ai/admin/security/custom-credential-forms";
+import { sourceControlProviderInfoFromDescriptor } from "../../source-control/rules";
+import { ACCESS_TOKEN_PROVIDER_COPY } from "../access-token-copy";
+import { PUBLISH_CREDENTIAL_ROW_LABEL } from "@/features/deployment/rules";
+import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "@/features/source-control/rules";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
-import type { AccessTokensPort } from "./access-tokens-port.hooks";
+import type { AccessTokensPort } from "@jini-ai/admin/security/host/hooks/access-tokens-port.hooks";
+
+/** The two stores' legacy sentinel row labels, each read from its own store's constant. */
+const LEGACY_SENTINEL_LABELS = { publish: PUBLISH_CREDENTIAL_ROW_LABEL, "source-control": SOURCE_CONTROL_CREDENTIAL_ROW_LABEL };
 
 import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "unknown error";
@@ -391,7 +393,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
     () =>
       accessTokenProviders(
-        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }) },
+        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }), copy: ACCESS_TOKEN_PROVIDER_COPY, sourceControlProviderInfo: sourceControlProviderInfoFromDescriptor },
         { sourceControlProviders: sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data, locale }) }
       ),
     [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
@@ -516,8 +518,8 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
     return [
-      ...buildAccessTokenRows({ kind: "publish", raws: publishCredentials, providers }),
-      ...buildAccessTokenRows({ kind: "source-control", raws: sourceControlCredentials, providers }),
+      ...buildAccessTokenRows({ kind: "publish", raws: publishCredentials, providerLabel: ({ ref }) => accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref }).label, sentinelLabels: LEGACY_SENTINEL_LABELS }),
+      ...buildAccessTokenRows({ kind: "source-control", raws: sourceControlCredentials, providerLabel: ({ ref }) => accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref }).label, sentinelLabels: LEGACY_SENTINEL_LABELS }),
       ...buildCustomCredentialRows({ raws: customCredentials }),
     ];
   }, [publishCredentials, sourceControlCredentials, customCredentials, publishTargetsSettled, providers]);
@@ -598,7 +600,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const fields: CredentialAccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave({ fields, row, info: accessTokenRowProviderInfo({ providers, row }) })) return;
+    if (!accessTokenExistingRowReadyToSave({ fields, row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }) })) return;
     if (customCredentialNameTaken({ rows: (rows ?? []).filter(candidate => candidate.scope === row.scope), name: fields.name }, { excludeId: row.id })) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: t("this workspace") }) } }));
       return;
@@ -638,7 +640,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // blank the same way custom rows used to.
     const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
     const fields: CredentialAccessTokenFormFields = { ref, ...draft };
-    const info = accessTokenProviderInfo({ providers, ref });
+    const info = accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
     if (!accessTokenExistingRowReadyToSave({ fields, row, info })) return;
@@ -751,7 +753,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     const key = addFormKey(ref);
     const entry = addForms[key] ?? blankAddFormEntry();
     const fields: CredentialAccessTokenFormFields = { ref, ...entry.draft };
-    const info = accessTokenProviderInfo({ providers, ref });
+    const info = accessTokenProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, ref });
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setAddForms(prev => ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
     if (!accessTokenRowReadyToSave({ fields, info })) return;
@@ -782,9 +784,9 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
   const customGroups = useMemo<readonly AccessTokenProviderGroupState[]>(() => {
     if (rows === undefined) return [];
     return rows
-      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches({ rowCategory: row.category ?? "general", activeCategory: category }) && accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, row }), query }))
+      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches({ rowCategory: row.category ?? "general", activeCategory: category }) && accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }), query }))
       .map((row) => {
-        const info = accessTokenRowProviderInfo({ providers, row });
+        const info = accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row });
         return { info, rows: [existingRowState({ row, draft: existingDrafts[row.id], busy: existingBusy[row.id], info })], addForm: addFormState({ entry: undefined, info }) };
       });
   }, [rows, existingDrafts, existingBusy, query, category, providers]);
@@ -794,7 +796,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // A provider outside the active category is dropped here, before the query filter ever runs —
     // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
     // A saved row whose provider is not listed still gets its group, so it can be removed.
-    const catalogGroups = accessTokenProvidersWithSavedRows({ providers, rows }).filter((info) => accessTokenCategoryMatches({ rowCategory: info.category, activeCategory: category })).map((info) => {
+    const catalogGroups = accessTokenProvidersWithSavedRows({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, rows }).filter((info) => accessTokenCategoryMatches({ rowCategory: info.category, activeCategory: category })).map((info) => {
       const providerRows = accessTokenRowsForProvider({ rows, ref: info }).filter((row) => accessTokenRowMatchesQuery({ row, info, query }));
       return {
         info,
@@ -806,11 +808,11 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // 2026-09-21 ordering ruling (`rules.ts`'s `sortAccessTokenGroups` doc). Applied to the
     // already-category-and-query-filtered list above, so it holds for the "All" chip, any single
     // category chip, and an active search query alike.
-    return sortAccessTokenGroups({ groups: [...catalogGroups, ...customGroups] });
+    return sortAccessTokenGroups({ groups: [...catalogGroups, ...customGroups], categories: ACCESS_TOKEN_CATEGORIES });
   }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups, providers]);
 
   const totalCount = rows?.length ?? 0;
-  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, row }), query })).length;
+  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, copy: ACCESS_TOKEN_PROVIDER_COPY, row }), query })).length;
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
     const token = patch.token;

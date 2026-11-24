@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishTargetDescriptor } from "../../features/deployment/api/deployment-api.types";
-import type { AdminSourceControlProviderDescriptor } from "../../features/source-control/api/source-control-api.types";
+import type { AdminPublishTargetDescriptor } from "@jini-ai/admin/deployment/api/deployment-api.types";
+import type { AdminSourceControlProviderDescriptor } from "@jini-ai/admin/source-control/api/source-control-api.types";
 import { descriptorText, localizePublishTargets, localizeSourceControlProviders } from "../descriptor-i18n";
 
 /**

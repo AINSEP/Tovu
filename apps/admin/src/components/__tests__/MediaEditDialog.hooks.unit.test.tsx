@@ -2,7 +2,14 @@ import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useMediaEditDialog, useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
+import { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
+import { useMediaEditDialog } from "@jini-ai/admin/shell/components/MediaEditDialog/MediaEditDialog.hooks";
+import { t as mediaT } from "../../features/media/media-i18n";
+import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
+import { describeMediaHtmlAttributeError } from "../../features/media/rules";
+
+/** The host collaborators `useWiredMediaEditDialog` injects; these tests pin the same ones with a fixed locale. */
+const hostDeps = { translate: mediaT, describeHtmlAttributeError: describeMediaHtmlAttributeError, htmlAttributePolicy: embedPolicy };
 import { defaultAdminLocalePort } from "../../hooks/admin-locale-dependencies.hooks";
 
 /**
@@ -35,7 +42,7 @@ afterEach(() => {
 describe("useMediaEditDialog — seeding from the current node value", () => {
   it("seeds all three fields from a non-null initial value", () => {
     const { result } = renderHook(() =>
-      useMediaEditDialog({ initial: { alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "en" } })
+      useMediaEditDialog({ initial: { alt: "A cat", cssClass: "hero", htmlAttributes: 'data-kui="x"' }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } })
     );
     expect(result.current.alt).toBe("A cat");
     expect(result.current.cssClass).toBe("hero");
@@ -45,7 +52,7 @@ describe("useMediaEditDialog — seeding from the current node value", () => {
 
   it("seeds all three fields to an empty string when the node's current value is null (nothing set yet)", () => {
     const { result } = renderHook(() =>
-      useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "en" } })
+      useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } })
     );
     expect(result.current.alt).toBe("");
     expect(result.current.cssClass).toBe("");
@@ -55,7 +62,7 @@ describe("useMediaEditDialog — seeding from the current node value", () => {
 
 describe("useMediaEditDialog — editing", () => {
   it("setAlt/setCssClass/setHtmlAttributes update the draft", () => {
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "en" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } }));
     act(() => result.current.setAlt("A cat"));
     act(() => result.current.setCssClass("float-right"));
     act(() => result.current.setHtmlAttributes("muted"));
@@ -65,7 +72,7 @@ describe("useMediaEditDialog — editing", () => {
   });
 
   it("htmlAttributesError reflects the SAME allowlist rejection the asset-level field uses (event-handler), naming the attribute — alt carries no such gate", () => {
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "en" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } }));
     act(() => result.current.setHtmlAttributes('onerror="alert(1)"'));
     expect(result.current.htmlAttributesError).toBe("Event handler attributes like 'onerror' are not allowed.");
     act(() => result.current.setAlt('<script>alert(1)</script>'));
@@ -76,7 +83,7 @@ describe("useMediaEditDialog — editing", () => {
 describe("useMediaEditDialog — save", () => {
   it("calls onSave with all three values as typed — same 'raw value, blank-trims-to-null' contract cssClass/htmlAttributes already use", () => {
     const onSave = vi.fn();
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave, _onCancel: vi.fn(), deps: { locale: "en" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave, _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } }));
     act(() => result.current.setAlt("A cat"));
     act(() => result.current.setCssClass("hero"));
     act(() => result.current.setHtmlAttributes('data-kui="x"'));
@@ -87,7 +94,7 @@ describe("useMediaEditDialog — save", () => {
   it.each(["", "   "])("blank fields (%j) save as null (clearing a previously-set value), not an empty string — alt included", (blank) => {
     const onSave = vi.fn();
     const { result } = renderHook(() =>
-      useMediaEditDialog({ initial: { alt: "was-set", cssClass: "was-set", htmlAttributes: "was-set" }, onSave, _onCancel: vi.fn(), deps: { locale: "en" } })
+      useMediaEditDialog({ initial: { alt: "was-set", cssClass: "was-set", htmlAttributes: "was-set" }, onSave, _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } })
     );
     act(() => result.current.setAlt(blank));
     act(() => result.current.setCssClass(blank));
@@ -98,7 +105,7 @@ describe("useMediaEditDialog — save", () => {
 
   it("save proceeds even while htmlAttributesError is set — the hint is a UX convenience, never a save gate (a7cce060's lesson)", () => {
     const onSave = vi.fn();
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave, _onCancel: vi.fn(), deps: { locale: "en" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave, _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } }));
     act(() => result.current.setHtmlAttributes('onerror="alert(1)"'));
     expect(result.current.htmlAttributesError).not.toBeNull();
     act(() => result.current.save());
@@ -110,7 +117,7 @@ describe("useMediaEditDialog — Escape", () => {
   it("native cancel calls onCancel through the rendered dialog", () => {
     const onCancel = vi.fn();
     render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
-      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { locale: "en" } })} />);
+      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -118,7 +125,7 @@ describe("useMediaEditDialog — Escape", () => {
   it("ignores non-Escape keys", () => {
     const onCancel = vi.fn();
     render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
-      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { locale: "en" } })} />);
+      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
     expect(onCancel).not.toHaveBeenCalled();
   });
@@ -126,7 +133,7 @@ describe("useMediaEditDialog — Escape", () => {
   it("removes native cancellation on unmount", () => {
     const onCancel = vi.fn();
     const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
-      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { locale: "en" } })} />);
+      useDialog={({ initial, onSave, onCancel }) => useMediaEditDialog({ initial, onSave, _onCancel: onCancel, deps: { ...hostDeps, locale: "en" } })} />);
     const dialog = screen.getByRole("dialog");
     unmount();
     fireEvent(dialog, new Event("cancel", { cancelable: true }));
@@ -136,13 +143,13 @@ describe("useMediaEditDialog — Escape", () => {
 
 describe("useMediaEditDialog — t", () => {
   it("translates the dialog's copy through media-i18n for deps.locale", () => {
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "es" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "es" } }));
     expect(result.current.t({ key: "Edit this instance" })).toBe("Editar esta instancia");
     expect(result.current.t({ key: "Save" })).toBe("Guardar");
   });
 
   it("falls back to the English key for the default locale", () => {
-    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { locale: "en" } }));
+    const { result } = renderHook(() => useMediaEditDialog({ initial: { alt: null, cssClass: null, htmlAttributes: null }, onSave: vi.fn(), _onCancel: vi.fn(), deps: { ...hostDeps, locale: "en" } }));
     expect(result.current.t({ key: "Edit this instance" })).toBe("Edit this instance");
   });
 });

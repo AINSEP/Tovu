@@ -1,9 +1,11 @@
 
 
-import { describeDriftHeadline, type AdmissionDriftConnection, type AdmissionDriftEntry } from "./external-mcp-admissions-rules";
+import { describeDriftHeadline } from "@jini-ai/admin/screens/settings/external-mcp-tool-drift";
+import { type AdmissionDriftConnection, type AdmissionDriftEntry } from "@jini-ai/admin/screens/settings/external-mcp-drift-types";
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
+import { EXTERNAL_MCP_DRIFT_COPY } from "./external-mcp-drift-copy";
 /**
  * @file "What the assistant is actually running" — the operator half of the refusal channel.
  *
@@ -173,7 +175,7 @@ export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite, onReq
     // `alert` and its `status`) would make a screen reader announce the whole banner again on every
     // inner change.
     <div className="external-mcp-banner external-mcp-drift">
-      <p>{t(describeDriftHeadline({ connections: controller.connections }))}</p>
+      <p>{t(describeDriftHeadline({ connections: controller.connections, copy: EXTERNAL_MCP_DRIFT_COPY }))}</p>
       {controller.connections.map((connection) => (
         <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} onRequestRemove={onRequestRemove} />
       ))}

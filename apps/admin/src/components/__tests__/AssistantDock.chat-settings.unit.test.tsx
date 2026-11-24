@@ -6,14 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AssistantDock as RealAssistantDock } from "../AssistantDock/AssistantDock";
-import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../AssistantDock/chat-display-preferences";
-import type { ChatDisplayPreferencesController } from "../AssistantDock/hooks/use-chat-display-preferences.hooks";
-import type { ChatAgentPlugins } from "../AssistantDock/chat-agent-plugin-preferences";
-import type { ChatAgentPluginsController } from "../AssistantDock/hooks/use-chat-agent-plugins.hooks";
-import { useChatDisplayPreferences as useStoredDisplayPreferences } from "../AssistantDock/hooks/use-chat-display-preferences.hooks";
+import { CHAT_DISPLAY_NAMESPACE, DEFAULT_CHAT_DISPLAY } from "../AssistantDock/chat-display-preferences";
+import type { ChatDisplayPreferences, ChatDisplayPreferencesController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import type { ChatAgentPlugins } from "@jini-ai/admin/shell/components/AssistantDock/chat-agent-plugin-preferences";
+import type { ChatAgentPluginsController } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-agent-plugins.hooks";
+import { useChatDisplayPreferences as useStoredDisplayPreferences } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-chat-display-preferences.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
-import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import type { UseAssistantChats } from "@jini-ai/admin/shell/hooks/use-assistant-chats.hooks";
 
 /**
  * @file The dock's chat display settings wiring (owner, 2026-10-11): the header gear's menu holds
@@ -138,7 +139,7 @@ describe("AssistantDock Chat settings", () => {
       save: async ({ next }: { next: ChatDisplayPreferences }) => { stored = { ...next }; },
       subscribeToSettingsRefresh: () => () => {},
     };
-    const useStoredDisplay = () => useStoredDisplayPreferences(port);
+    const useStoredDisplay = () => useStoredDisplayPreferences({ port, namespace: CHAT_DISPLAY_NAMESPACE, defaults: DEFAULT_CHAT_DISPLAY, useFetchQuery, useInvalidate });
     const user = userEvent.setup();
     const view = render(<AssistantDock useChats={fakeChats} useChatDisplayPreferences={useStoredDisplay} />);
     await waitFor(() => expect(latestPaneProps().toolCallDisplay).toBe("show"));

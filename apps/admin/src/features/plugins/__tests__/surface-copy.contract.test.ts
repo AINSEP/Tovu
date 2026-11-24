@@ -1,8 +1,7 @@
 import { expect, it } from 'vitest';
-import { translatePlugins as pluginCopy } from "../../../lib/i18n-common";
-import { t as monitoringCopy } from '@jini-ai/admin/screens/observability/observability-i18n';
-import { t as securityCopy } from '../../../integrations/jini-admin/security-i18n';
-import { SHARED_COMPONENTS_DICT } from '@jini-ai/admin/shell/components/shared-components-i18n';
+import { tPlugins as pluginCopy, tSecurity as securityCopy } from "../../../lib/i18n-common";
+import { t as monitoringCopy } from "@jini-ai/admin/screens/observability/observability-i18n";
+import { SHARED_COMPONENTS_DICT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 
 it('category examples remain translated across every shipped locale', () => {
   const keys = [

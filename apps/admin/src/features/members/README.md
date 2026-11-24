@@ -9,12 +9,7 @@ The screen, its controller hook, row rules and dictionary live in `@jini-ai/user
 
 | file | what it is |
 |---|---|
-| `MembersPanel.tsx` | Jini's `Members` bound to this app's port, copy and server-label rendering. |
-| `MembersPanel.hooks.ts` | Adapts this app's controller (`useWiredMembers`) to Jini's `useMembersHook` seam. |
-| `hooks/members-controller.hooks.ts` | `useMembers`/`useWiredMembers` — binds workspace scope, admin locale, translator and content-refresh. |
-| `hooks/members-dependencies.hooks.ts` | `defaultMembersPort` (this app's HTTP client as a `MembersPort`) and `MEMBERS_RESOURCE`. |
-| `api/members-api.ts` | The admin HTTP calls. |
-| `members-i18n.ts` | The package dictionary bound to `COMMON_I18N`, plus translations of this app's description copy. |
+| `members-screen-props.tsx` | Host collaborators (wired hook, port, `ServerLabel`, copy) passed to Jini's `Members`. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
 ## Wiring
@@ -37,4 +32,4 @@ What Tovu binds into `@jini-ai/user-management`'s `Members`:
 
 ## Notes for anyone editing here
 
-`MembersPanel.tsx` has a unit test (`__tests__/Members.unit.test.tsx`).
+The screen is Jini's `Members` (`@jini-ai/user-management/react`); it has a host-wired unit test (`__tests__/Members.unit.test.tsx`).

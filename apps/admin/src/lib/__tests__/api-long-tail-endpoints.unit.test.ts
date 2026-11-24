@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { themesApi } from "../../features/themes/api/themes-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
@@ -9,7 +9,7 @@ import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { databaseApi } from "../../features/database/api/database-api";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { ApiError } from "../admin-http/request";

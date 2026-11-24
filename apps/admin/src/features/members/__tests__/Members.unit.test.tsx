@@ -2,7 +2,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Members } from "../MembersPanel";
+import { Members } from "@jini-ai/user-management/react";
+import { membersScreenProps } from "../members-screen-props";
 import { createFakeMembersPort } from "@jini-ai/user-management/react/testing";
 
 /**
@@ -75,7 +76,7 @@ describe("an active member's menu", () => {
   it("offers both Resend sign-in link and Disable", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER] }));
-    render(<Members />);
+    render(<Members {...membersScreenProps} />);
 
     await screen.findByText("alice@example.com");
     const menu = await openMenu(user, "alice@example.com");
@@ -88,7 +89,7 @@ describe("an already-disabled member's menu", () => {
   it("omits Disable entirely rather than showing it as a no-op", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ members: [DISABLED_MEMBER] }));
-    render(<Members />);
+    render(<Members {...membersScreenProps} />);
 
     await screen.findByText("bob@example.com");
     const menu = await openMenu(user, "bob@example.com");
@@ -113,7 +114,7 @@ describe("Disable — via RowMenu, confirm-gated", () => {
       }
       throw new Error(`Unexpected request: ${url}`);
     });
-    render(<Members />);
+    render(<Members {...membersScreenProps} />);
 
     await screen.findByText("alice@example.com");
     const menu = await openMenu(user, "alice@example.com");
@@ -139,7 +140,7 @@ describe("Disable — via RowMenu, confirm-gated", () => {
   it("cancelling leaves the member untouched", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER] }));
-    render(<Members />);
+    render(<Members {...membersScreenProps} />);
 
     await screen.findByText("alice@example.com");
     const menu = await openMenu(user, "alice@example.com");
@@ -160,7 +161,7 @@ describe("Resend sign-in link — via RowMenu, immediate", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER, { ...DISABLED_MEMBER, status: "active" }] }))
       .mockResolvedValueOnce(jsonResponse({ delivered: true }));
-    render(<Members />);
+    render(<Members {...membersScreenProps} />);
 
     await screen.findByText("alice@example.com");
     const menu = await openMenu(user, "alice@example.com");
