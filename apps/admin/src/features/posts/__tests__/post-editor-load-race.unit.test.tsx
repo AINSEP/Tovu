@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +43,7 @@ function gatedPort() {
 }
 
 function mount(port: ReturnType<typeof createFakePostEditorPort>) {
-  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { port, navigate: vi.fn(), t: (key: string) => key } }));
+  return renderHook(() => usePostEditor({ postId: "hello-world", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: (key: string) => key } }));
 }
 
 afterEach(() => {

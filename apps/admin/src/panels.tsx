@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
-import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
@@ -127,6 +127,9 @@ export type TovuAdminPanel = AdminPanel<PanelRenderer>;
  * derives the nav model from this array via `buildNav` — group and item order both come from
  * here, not a second list).
  */
+/** The one route-key store of this admin composition; `<PostEditor>` receives the same instance it is keyed with. */
+const postEditorRouteKeys = createPostEditorRouteKeyStore();
+
 const PANELS: readonly TovuAdminPanel[] = [
   // --- Ungrouped top row ---
   {
@@ -239,7 +242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["content.read"],
     render: (ctx, _options = {}) => {
       // Query mode avoids reserving a real post slug such as "new".
-      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey({ segment: "" })} postId="" />;
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKeys.routeKey({ segment: "" })} routeKeys={postEditorRouteKeys} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
@@ -249,9 +252,9 @@ const PANELS: readonly TovuAdminPanel[] = [
         // and writes to the wrong record. Remounting per id closes the whole class at the routing
         // layer instead of one hand-rolled staleness ref per hook. `Jini packages/admin/src/seo/react/pages/SeoPage.tsx:443` already does this
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
-        // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
-        // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-        return <PostEditor key={postEditorRouteKey({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
+        // `postEditorRouteKeys.routeKey`: the editor's own save can rename the slug in the URL; that is the same
+        // record, so it keeps its key instead of remounting (see `@jini-ai/admin/posts/post-editor-route-key`).
+        return <PostEditor key={postEditorRouteKeys.routeKey({ segment: ctx.params.postId })} routeKeys={postEditorRouteKeys} postId={ctx.params.postId} />;
       }
       return <Posts />;
     },

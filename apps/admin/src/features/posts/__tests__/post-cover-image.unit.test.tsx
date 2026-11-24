@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -140,10 +141,10 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
     featuredMediaId: "m1",
   };
   const mediaPort = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-  const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { port: mediaPort } });
+  const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port: mediaPort } });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {
-    const controller = usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } });
+    const controller = usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } });
     onController(controller);
     return (
       <PostCoverImage

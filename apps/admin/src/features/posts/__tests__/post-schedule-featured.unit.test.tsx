@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -66,7 +67,7 @@ describe("usePostEditor — publishAt / featured image", () => {
   it("loads both fields, reports scheduled, and a save that did not touch them sends neither key", async () => {
     const stored = { ...POST, status: "published" as const, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" };
     const port = createFakePostEditorPort({ post: stored });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -85,7 +86,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("changing either field marks the editor dirty and saves the UTC time and the media id", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -105,7 +106,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("publishing with a future time reports it as scheduled for that local time, not published", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
@@ -119,7 +120,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("publishing with no time, or a past one, still says Published", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2001-01-01T00:00:00.000Z" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await act(async () => {
@@ -130,7 +131,7 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("clearing a stored schedule and image sends explicit nulls", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" } });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.featuredMediaId).toBe("m1"));
 
@@ -149,7 +150,7 @@ describe("usePostFeaturedImage", () => {
   it("closing the picker cancels without changing the current image", () => {
     const onChange = vi.fn();
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage({ value: "m7", onChange: onChange, deps: { port } }));
+    const { result } = renderHook(() => usePostFeaturedImage({ value: "m7", onChange: onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port } }));
 
     act(() => result.current.openPicker());
     expect(result.current.pickerOpen).toBe(true);
@@ -163,7 +164,7 @@ describe("usePostFeaturedImage", () => {
   it("selecting stores the asset id and closes; clear sends null; preview uses the media URL", () => {
     const onChange = vi.fn();
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: onChange, deps: { port } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: onChange, deps: { routeKeys: createPostEditorRouteKeyStore(), port } }), {
       initialProps: { value: null as string | null },
     });
     expect(result.current.previewUrl).toBeNull();
@@ -180,13 +181,13 @@ describe("usePostFeaturedImage", () => {
 
   it("asks the picker for images only", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage({ value: null, onChange: vi.fn(), deps: { port } }));
+    const { result } = renderHook(() => usePostFeaturedImage({ value: null, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port } }));
     expect(result.current.accept).toEqual(["image/*"]);
   });
 
   it("a preview that fails to load is reported until the value changes", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port } }), {
       initialProps: { value: "m-video" as string | null },
     });
     expect(result.current.previewFailed).toBe(false);
@@ -199,7 +200,7 @@ describe("usePostFeaturedImage", () => {
   it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
     const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
     const renditionUrl = ({ id }: { id: string }) => `/m/${id}/og.v1/image.jpg`;
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port, renditionUrl } }), {
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { routeKeys: createPostEditorRouteKeyStore(), port, renditionUrl } }), {
       initialProps: { value: "m1" as string | null },
     });
     expect(result.current.previewUrl).toBe("/m/m1/og.v1/image.jpg");

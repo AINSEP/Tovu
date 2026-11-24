@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { useState } from "react";
 import { act, fireEvent, render, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
@@ -136,7 +137,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
 
 function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
   const ctrl = controller(overrides);
-  const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => ctrl} />);
+  const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => ctrl} />);
   return { ctrl, container };
 }
 
@@ -144,7 +145,7 @@ function renderStatefulPostEditor(initialView: "edit" | "preview") {
   const ctrl = controller();
   function Harness() {
     const [view, setView] = useState(initialView);
-    return <PostEditor postId="p1" usePostEditorHook={() => ({
+    return <PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => ({
       ...ctrl,
       view,
       setView: (next) => { ctrl.setView(next); setView(next); },

@@ -10,6 +10,8 @@ import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
  * controller hook, the `@jini-ai/ui` tab-strip helpers, the screen's own row hooks and the
  * `/admin/menus` list route. The tree-editor markup lives in `@jini-ai/admin`; the host owns only
  * this composition.
+ *
+ * STAYS-HOST (host composition): binds the host's wired hook, `@jini-ai/ui` tab strip and routes.
  */
 export interface MenuEditorProps {
   menuId: string | null;

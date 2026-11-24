@@ -1,4 +1,6 @@
+import { useCallback } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
@@ -32,6 +34,8 @@ import "../../styles/native-domain-dialogs.css";
  */
 
 export interface PostEditorProps {
+  /** The host composition's route-key store, the same instance `panels.tsx` keys `<PostEditor>` with. */
+  routeKeys: PostEditorRouteKeyStore;
   /** Persisted id/slug, or an empty string for the local working copy before first Save. */
   postId: string;
   /**
@@ -51,8 +55,9 @@ export interface PostEditorProps {
   usePostEditorScreenHook?: typeof usePostEditorScreen;
 }
 
-export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor, usePostEditorScreenHook = usePostEditorScreen }: PostEditorProps) {
-  const screen = usePostEditorScreenHook({ postId, usePostEditorHook });
+export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPostEditor, usePostEditorScreenHook = usePostEditorScreen }: PostEditorProps) {
+  const boundEditorHook = useCallback((input: { postId: string }, options: Record<string, never> = {}) => usePostEditorHook({ ...input, routeKeys }, options), [usePostEditorHook, routeKeys]);
+  const screen = usePostEditorScreenHook({ postId, usePostEditorHook: boundEditorHook });
   if (screen.status === "error") return <div className="notice error">{screen.error}</div>;
   if (screen.status === "loading") return <div className="notice">{screen.t("Loading editor…")}</div>;
   const { view, t } = screen;

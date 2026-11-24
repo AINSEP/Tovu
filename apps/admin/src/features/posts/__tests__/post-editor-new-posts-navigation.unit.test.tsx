@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { postEditorRouteKey } from "../post-editor-route-key";
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 
 /**
  * Review 2026-11-02 (r1-tovu #4): every new post's first Save recorded its slug against the one empty
  * route identity, so two new posts shared the panel key "". Navigating A→B then reused A's hook, whose
  * last saved slug was B, so it skipped loading B and kept A on screen under B's URL. The route here is
- * keyed exactly as `panels.tsx` keys `<PostEditor>`: `postEditorRouteKey({ segment })`.
+ * keyed exactly as `panels.tsx` keys `<PostEditor>`: `routeKeys.routeKey({ segment })`.
  */
 
 type Editor = ReturnType<typeof usePostEditor>;
@@ -44,12 +44,13 @@ describe("PostEditor route key — two newly created posts", () => {
   it("navigating between two new posts shows each post under its own URL", async () => {
     const port = multiPostPort();
     const navigate = vi.fn<(path: string, options?: { replace?: boolean }) => void>();
+    const routeKeys = createPostEditorRouteKeyStore();
     const view: { current: Editor | null } = { current: null };
     function Probe({ postId }: { postId: string }) {
-      view.current = usePostEditor({ postId: postId, deps: { port, navigate, t: (k: string) => k } });
+      view.current = usePostEditor({ postId: postId, deps: { routeKeys, port, navigate, t: (k: string) => k } });
       return null;
     }
-    const routeTo = (segment: string) => <Probe key={postEditorRouteKey({ segment: segment })} postId={segment} />;
+    const routeTo = (segment: string) => <Probe key={routeKeys.routeKey({ segment: segment })} postId={segment} />;
 
     async function createPost(title: string): Promise<void> {
       await waitFor(() => expect(view.current?.post?.title).toBe("Untitled"));

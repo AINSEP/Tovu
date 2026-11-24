@@ -31,7 +31,7 @@ import type { PostEditorController, PostEditorView, useWiredPostEditor } from ".
 /** What the screen needs: the post to edit and the controller hook (injectable for tests). */
 export interface PostEditorScreenInput {
   postId: string;
-  usePostEditorHook: typeof useWiredPostEditor;
+  usePostEditorHook: (input: { postId: string }, options?: Record<string, never>) => ReturnType<typeof useWiredPostEditor>;
 }
 
 /** The props the root hands each region, one bundle per region, named after the region. */

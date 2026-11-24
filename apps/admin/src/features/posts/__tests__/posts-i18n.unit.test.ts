@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement as h } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
@@ -158,7 +159,7 @@ for (const copy of LOCALIZED) {
       language.locale = copy.locale;
       const port = createFakePostEditorPort();
       function useEditor({ postId }: { postId: string }) {
-        return usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
+        return usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
       await screen.findByTitle(copy.drag);
@@ -175,7 +176,7 @@ for (const copy of LOCALIZED) {
       const port = createFakePostEditorPort();
       let controller!: PostEditorController;
       function useEditor({ postId }: { postId: string }) {
-        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
+        controller = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -194,7 +195,7 @@ for (const copy of LOCALIZED) {
       const create = vi.spyOn(port, "createPost").mockRejectedValue(null);
       let controller!: PostEditorController;
       function useEditor({ postId }: { postId: string }) {
-        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
+        controller = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       // New Post now opens an unsaved local editor; creation happens on its first Save.
@@ -239,7 +240,7 @@ for (const copy of LOCALIZED) {
       vi.spyOn(port, "deletePost").mockRejectedValue(null);
       let controller!: PostEditorController;
       function useEditor({ postId }: { postId: string }) {
-        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
+        controller = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));

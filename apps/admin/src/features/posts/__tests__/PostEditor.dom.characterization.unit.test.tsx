@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -130,7 +131,7 @@ function harness(
   });
   const ctrl: Harness["ctrl"] = { current: null };
   const hook = ({ postId }: { postId: string }): PostEditorController => {
-    const real = usePostEditor({ postId, deps: { port, navigate, t } });
+    const real = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t } });
     ctrl.current = real;
     return { ...real, ...options.overrides };
   };
@@ -138,7 +139,7 @@ function harness(
 }
 
 async function renderScreen(h: Harness, postId = "p1") {
-  const utils = render(<PostEditor postId={postId} usePostEditorHook={h.hook} />);
+  const utils = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId={postId} usePostEditorHook={h.hook} />);
   if (h.preview) await screen.findByTitle("Post settings");
   else await screen.findByTitle("Bold (⌘B)");
   return utils;
@@ -334,17 +335,17 @@ describe("PostEditor DOM — preview tab", () => {
 
 describe("PostEditor — loading / error contract", () => {
   it("renders the error notice, with nothing else, when there is an error and no post", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: null, error: "Failed to load" })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: null, error: "Failed to load" })} />);
     expect(normalizedHtml(container)).toBe('<div class="notice error">Failed to load</div>');
   });
 
   it("renders the loading notice when there is no post and no error", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: null })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: null })} />);
     expect(normalizedHtml(container)).toBe('<div class="notice">Loading editor…</div>');
   });
 
   it("an error while a post is on screen does not replace the editor", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: SAVED_POST, error: "Could not save" })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: SAVED_POST, error: "Could not save" })} />);
     expect(container.querySelector(".content-editor-header")).not.toBeNull();
     expect(container.querySelector(".save-error")).toHaveTextContent("Could not save");
   });
@@ -352,20 +353,20 @@ describe("PostEditor — loading / error contract", () => {
   it("goes loading → ready without changing the hook order (no 'rendered more hooks')", () => {
     let current: Partial<PostEditorController> = { post: null };
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { rerender, container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    const { rerender, container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.textContent).toBe("Loading editor…");
     current = { post: SAVED_POST };
-    rerender(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.querySelector(".content-editor-header")).not.toBeNull();
     current = { post: null, error: "gone" };
-    rerender(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.textContent).toBe("gone");
     expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("calls the injected hook once per render with the postId", () => {
     const spy = vi.fn((input: { postId: string }) => { void input; return stub({ post: null }); });
-    render(<PostEditor postId="abc" usePostEditorHook={spy} />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="abc" usePostEditorHook={spy} />);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith({ postId: "abc" });
   });
@@ -496,7 +497,7 @@ describe("PostEditor — URL dialog mount lifetime", () => {
     let view: "edit" | "preview" = "edit";
     const h = harness({ post: SAVED_POST });
     const useHook = ({ postId }: { postId: string }): PostEditorController => ({ ...h.hook({ postId }), view, setView: (next) => { view = next; } });
-    const { rerender } = render(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    const { rerender } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await screen.findByTitle("Bold (⌘B)");
 
     await user.click(screen.getByRole("button", { name: "Img by URL" }));
@@ -505,12 +506,12 @@ describe("PostEditor — URL dialog mount lifetime", () => {
     expect(input).toHaveValue("https://example.com/pic.png");
 
     view = "preview";
-    rerender(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await waitFor(() => expect(document.querySelector(".post-preview-surface")).not.toBeNull());
     expect(screen.queryByLabelText("URL")).toBeNull();
 
     view = "edit";
-    rerender(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await screen.findByTitle("Bold (⌘B)");
     expect(screen.queryByLabelText("URL")).toBeNull();
 

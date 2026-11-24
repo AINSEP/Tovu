@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
@@ -20,7 +21,7 @@ describe("PostEditor — usePostEditorScreenHook", () => {
     const usePostEditorHook = vi.fn() as unknown as typeof useWiredPostEditor;
     const usePostEditorScreenHook = vi.fn<typeof usePostEditorScreen>(() => ({ status: "loading", t: (key: string) => `fake:${key}` }));
 
-    render(<PostEditor postId="p-42" usePostEditorHook={usePostEditorHook} usePostEditorScreenHook={usePostEditorScreenHook} />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p-42" usePostEditorHook={usePostEditorHook} usePostEditorScreenHook={usePostEditorScreenHook} />);
 
     expect(screen.getByText("fake:Loading editor…")).toHaveClass("notice");
     expect(usePostEditorScreenHook).toHaveBeenCalledTimes(1);
@@ -30,7 +31,7 @@ describe("PostEditor — usePostEditorScreenHook", () => {
   it("renders the error from the injected screen as an error notice", () => {
     const usePostEditorScreenHook = vi.fn<typeof usePostEditorScreen>(() => ({ status: "error", error: "The post could not be loaded." }));
 
-    render(<PostEditor postId="p-1" usePostEditorScreenHook={usePostEditorScreenHook} />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p-1" usePostEditorScreenHook={usePostEditorScreenHook} />);
 
     expect(screen.getByText("The post could not be loaded.")).toHaveClass("notice", "error");
   });
