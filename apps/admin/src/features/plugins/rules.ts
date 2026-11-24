@@ -8,13 +8,15 @@ import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";
 
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
-import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
+import { buildPackageFileTree, firstPackageFilePath } from "@jini-ai/admin/agent-plugins";
 import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Resource names on the existing assistant content-refresh bus. Unknown scope refreshes both. */
 export const PLUGINS_RESOURCE = "plugins";
 export const AGENT_PLUGINS_RESOURCE = "agent-plugins";
+/** The viewer's own locale, so the package-file tree orders siblings the way the rest of the host sorts. */
+export const PACKAGE_FILE_TREE_LOCALE = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).resolvedOptions().locale;
 
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
@@ -718,7 +720,7 @@ export interface PackageFilesViewState {
 export function selectPackageFile({ files, selectedPath }: { files: readonly PackageFileView[]; selectedPath: string }, _optional = {}): PackageFileView | null {
   const selected = files.find((file) => file.relativePath === selectedPath);
   if (selected) return selected;
-  const topPath = firstPackageFilePath({ nodes: buildPackageFileTree({ paths: files.map((file) => file.relativePath) }) });
+  const topPath = firstPackageFilePath({ nodes: buildPackageFileTree({ paths: files.map((file) => file.relativePath) }, { locale: PACKAGE_FILE_TREE_LOCALE }) });
   return files.find((file) => file.relativePath === topPath) ?? files[0] ?? null;
 }
 
