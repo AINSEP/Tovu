@@ -60,6 +60,7 @@
     "media_view_image": "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
     "media_update_metadata": "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
     "media_generate_asset": "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
+    "media_convert_video": "video videos convert conversion transcode mov quicktime iphone hevc h265 mp4 h264 web safe browser chrome play playing plays playback compress smaller",
     "media_promote_chat_attachment": "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
     "media_view_video": "video videos clip clips movie movies watch see view look describe cat content frames stills screenshot timestamps duration audio attachment attached media library motion movement sequence interval intervals spacing gap gaps every seconds start count sampling sheet sheets grid tiles contact skim overview zoom",
     "media_import_local_file": "upload import add local file files computer disk downloads desktop folder folders video videos image images photo photos to media library my mac hero mp4 logo theme",
@@ -1222,6 +1223,11 @@
       "Generate a hero banner image for the homepage.",
       "Draw me an illustration of a mountain landscape.",
       "Can you make an AI image and add it to the media library?"
+    ],
+    "media_convert_video": [
+      "This iPhone .mov video will not play on the site. Can you convert it?",
+      "Make a version of this video that plays in every browser.",
+      "Can you turn this QuickTime movie into an MP4?"
     ],
     "media_import_local_file": [
       "Add the video in my Downloads folder to the media library.",
@@ -3603,6 +3609,10 @@
     "mail_set_provider": {
       "class": "escalation",
       "confirmation": "plan"
+    },
+    "media_convert_video": {
+      "class": "edit",
+      "confirmation": "direct"
     },
     "mail_send_test": {
       "class": "publish",

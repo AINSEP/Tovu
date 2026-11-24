@@ -1,8 +1,10 @@
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withLargeUploadRouting } from "./large-upload-routing.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
-import type { ImageCodecPort } from "@jini-ai/cms/media";
-import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
+import { CONVERT_VIDEO_TOOL_ID, type ImageCodecPort, type MediaTranscoderPort } from "@jini-ai/cms/media";
+import { createDerivedMediaLink } from "./derived-media-link.js";
+import { toolMetadata as jiniMediaMetadata } from '@jini-ai/core/tool-metadata/media';
+import { toolMetadata as videoConversionMetadata } from '../../contracts/core/tool-metadata/media-video-conversion.js';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 
@@ -62,7 +64,22 @@ function buildRecordUploadContentType(
   };
 }
 
+/** Host-injected video converter (an ffmpeg adapter built at the composition root). Absent means this
+ * host cannot convert video, so `media_convert_video` is not offered. Never vendored into core. */
+export interface MediaConversionPorts { transcoder?: MediaTranscoderPort }
+
 const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
+
+const toolMetadata = { ...jiniMediaMetadata, ...videoConversionMetadata };
+
+/** Jini's conversion tool ships its own card text; this host re-declares it (with search words) in
+ * `contracts/core/tool-metadata`, and the declaration there must be the only one, so the copy that
+ * came with the tool is dropped before `withToolMetadata` applies the host's. */
+function withHostDeclaredMetadata(registration: ToolRegistration): ToolRegistration {
+  if (registration.descriptor.id !== CONVERT_VIDEO_TOOL_ID) return registration;
+  const { metadata: _shipped, ...descriptor } = registration.descriptor;
+  return { ...registration, descriptor };
+}
 
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
  *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
@@ -150,18 +167,23 @@ function buildMediaTrashHandler(
  */
 export function buildMediaRegistrationsForTovu(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort },
-  surfaces: AssistantSurfaceDeps
+  surfaces: AssistantSurfaceDeps,
+  { transcoder }: MediaConversionPorts = {}
 ): ToolRegistration[] {
   // Jini binds creation attribution to each invocation's authenticated principal, so parallel
   // agent/user uploads and chat promotions never share mutable actor state.
+  // `videoConversion` is passed only when the host injected a converter: with none, the assistant
+  // is never shown `media_convert_video` (Jini leaves the tool out), rather than shown a tool that
+  // can only refuse.
   const registrations = buildMediaRegistrations(routeDeps, {
     listContentTypes: routeDeps.mediaContentTypeStore,
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls({ deps: routeDeps, assets }),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
+    ...(transcoder ? { videoConversion: { transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: routeDeps.mediaRepo, clock: routeDeps.clock }) } } : {}),
   });
 
-  return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration): ToolRegistration => {
+  return withToolMetadata({ registrations: registrations.map(withHostDeclaredMetadata), metadata: toolMetadata }).map((registration): ToolRegistration => {
     if (registration.descriptor.id === "media_upload_asset") {
       return { ...registration, handler: async (ctx, optional = {}) => {
         const result = await registration.handler(ctx, optional) as { media: { title: string; publicUrl: string | null } };
@@ -187,8 +209,8 @@ export function buildMediaRegistrationsForTovu(
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why
  * this retry does not.
  */
-export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort }, AssistantSurfaceDeps> {
-  return { domain: "media", build: buildMediaRegistrationsForTovu, risk: mediaDerivedRisk };
+export function contributeMediaTools(ports: MediaConversionPorts = {}): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort }, AssistantSurfaceDeps> {
+  return { domain: "media", build: (routeDeps, surfaces) => buildMediaRegistrationsForTovu(routeDeps, surfaces, ports), risk: mediaDerivedRisk };
 }
 
 export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

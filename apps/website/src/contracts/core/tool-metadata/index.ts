@@ -29,6 +29,7 @@ import { toolMetadata as email_templates } from '@jini-ai/core/tool-metadata/ema
 import { toolMetadata as mail_status } from '@jini-ai/core/tool-metadata/mail-status';
 import { toolMetadata as media } from '@jini-ai/core/tool-metadata/media';
 import { toolMetadata as media_generation } from './media-generation.js';
+import { toolMetadata as media_video_conversion } from './media-video-conversion.js';
 import { toolMetadata as media_import } from '@jini-ai/core/tool-metadata/media-import';
 import { toolMetadata as members } from '@jini-ai/core/tool-metadata/members';
 import { toolMetadata as navigation } from '@jini-ai/core/tool-metadata/navigation';
@@ -118,6 +119,7 @@ export const nativeToolMetadata = projectToolMetadata<HostToolApprovalPolicy>({ 
   { domain: 'media', tools: media },
   { domain: 'media-generation', tools: media_generation },
   { domain: 'media-import', tools: media_import },
+  { domain: 'media-video-conversion', tools: media_video_conversion },
   { domain: 'members', tools: members },
   { domain: 'navigation', tools: navigation },
   { domain: 'newsletter', tools: newsletter },
