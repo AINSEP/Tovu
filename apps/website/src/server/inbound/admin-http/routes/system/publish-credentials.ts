@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
+
 import {
   createPublishCredential,
   invalidatePublishCredentialCompatibility,
@@ -22,8 +23,6 @@ import {
   verifyPublishCredentialById,
   type PublishCredentialVerificationResult,
 } from "#src/features/deployments/static-publish/index";
-  type PublishCredentialSummary,
-} from "#src/features/deployments/publish-credentials/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
@@ -31,14 +30,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
- * @file The Deployment panel's publish-credential LIST route, still hand-written (K1 STOP,
- * RT-K1-adm-system-11). The other four verbs (create, update, verify, delete) are Jini route specs
- * (`@jini-ai/cms/admin-http/routes/system/publish-credentials/*`) mounted by
- * `runtime/composition/modules/system-credentials.ts`, which also calls this registrar first so the
- * registration order is unchanged. It stays because `publish-credentials-route.test.ts` pins that a
- * direct handler call with no principal REJECTS (the admin JSON ports answer a redacted 500 instead);
- * moving it needs that test changed, which a K1 move may not do. Jini ships no list spec until
- * that pin is revisited (review rv1123i held the unmounted one out of the published API).
+ * @file Admin Deployment panel → Static Site tab's credential CRUD backend.
  *
  * Registers `GET`/`POST` on the collection and `PUT`/`DELETE` on a single credential set, all under
  * `/api/admin/v1/workspaces/:workspaceId/system/publish/credentials`. This is deliberately a THIN
@@ -99,38 +91,73 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  *
  * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
  */
+export type AdminPublishCredentialsDeps = Pick<
+  RouteDeps,
+  | "projectKeys"
+  | "workspaceId"
+  | "authorize"
+  | "clock"
+  | "idGen"
+  | "vendorCredentialSetRepo"
 
-type ListDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "publishExecutionMode">;
+  | "contentKernel"
+  | "siteAssistantSecretSealer"
+  | "siteAssistantSecretKeyring"
+  | "publishExecutionMode"
+  | "publishCredentialVerificationCache"
+  | "loadDeployTargets"
+  | "observability"
+>;
+
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
-/**
- * The list's store-error answers — the same ladder the four spec routes map in Jini. History carried
- * over from when this ladder served all five verbs:
+/** Only a project-bound create starts non-default (attached next); a site row, including every
+ * create where no project store is open, keeps Jini's first-row auto-default. */
+function initialPublishDefault({ body, deps }: { body: Record<string, unknown>; deps: AdminPublishCredentialsDeps }, _optional = {}): unknown {
+  return body.isDefault ?? (body.scope !== "site" && deps.vendorCredentialSetRepo.project ? false : undefined);
+}
+
+function credentialUpdateFields({ body }: { body: Record<string, unknown> }, _optional = {}): Omit<UpdatePublishCredentialInput, "workspaceId" | "id"> {
+  return {
+    ...(body.label !== undefined ? { label: body.label } : {}),
+    ...(body.connection !== undefined ? { connection: body.connection } : {}),
+    ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
+    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+  };
+}
+
+/** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
+ *  Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
+ *  permission failure; the four typed store-error branches are new to this route and have no
+ *  precedent to match.
  *
- * Every error this route can produce, shaped once so each handler below stays a thin dispatch.
- * Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
- * permission failure; the four typed store-error branches are new to this route and have no
- * precedent to match.
- *
- * 2026-08-16 — the untyped fallback used to be `throw err`, re-throwing out of the caller's own
- * `catch` block instead of responding. That is not a guard, it just moves the same unhandled
- * rejection one frame up: found live when `GET`/`DELETE` below had no `try`/`catch` at all (an
- * AST scan over every `app.<verb>()` handler in `src/server/routes/**` caught it), and the SAME
- * scan showed `POST`/`PUT`/`POST .../:id/verify` already had a `try { ... } catch (err) {
- * sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
- * typed ones above still escaped every one of those handlers too. Every caller below now gets a
- * real response for an error this function does not recognize, instead of a hung request.
- */
-function sendStoreError({ res, err }: { res: import("express").Response; err: unknown }, _options = {}): void {
+ *  2026-08-16 — the untyped fallback used to be `throw err`, re-throwing out of the caller's own
+ *  `catch` block instead of responding. That is not a guard, it just moves the same unhandled
+ *  rejection one frame up: found live when `GET`/`DELETE` below had no `try`/`catch` at all (an
+ *  AST scan over every `app.<verb>()` handler in `src/server/routes/**` caught it), and the SAME
+ *  scan showed `POST`/`PUT`/`POST .../:id/verify` already had a `try { ... } catch (err) {
+ *  sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
+ *  typed ones above still escaped every one of those handlers too. Every caller below now gets a
+ *  real response for an error this function does not recognize, instead of a hung request. */
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _options = {}): void {
   if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
-  const rows: [new (...args: never[]) => Error, number, string][] = [
-    [PublishCredentialValidationError, 400, "VALIDATION"],
-    [PublishCredentialDuplicateLabelError, 409, "DUPLICATE_LABEL"],
-    [PublishCredentialNotFoundError, 404, "NOT_FOUND"],
-    [PublishCredentialSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
-  ];
-  const row = rows.find(([type]) => err instanceof type);
-  if (row) { res.status(row[1]).json({ error: row[2], detail: (err as Error).message }); return; }
+  if (err instanceof PublishCredentialValidationError) {
+    res.status(400).json({ error: "VALIDATION", detail: err.message });
+    return;
+  }
+  if (err instanceof PublishCredentialDuplicateLabelError) {
+    res.status(409).json({ error: "DUPLICATE_LABEL", detail: err.message });
+    return;
+  }
+  if (err instanceof PublishCredentialNotFoundError) {
+    res.status(404).json({ error: "NOT_FOUND", detail: err.message });
+    return;
+  }
+  if (err instanceof PublishCredentialSecretStoreUnconfiguredError) {
+    res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
+    return;
+  }
+
   sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-credentials", code: "INTERNAL_ERROR" });
 }
 
@@ -230,7 +257,15 @@ function buildRejectUnlessAuthorized({ deps }: { deps: AdminPublishCredentialsDe
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
     const principal = getAuthedPrincipal(res);
     const params = { principalId: principal.id, permission: "system.publish", workspaceId: deps.workspaceId, entityType: "site-publish" };
-    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
+    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
+    return false;
+  };
+}
+
+function listCredentialsRoute(context: CredentialsContext) {
+  const { readDeps, triggerAccountLabelHeal, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
       res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
@@ -244,5 +279,131 @@ function buildRejectUnlessAuthorized({ deps }: { deps: AdminPublishCredentialsDe
     } catch (err) {
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
+
+function createCredentialRoute(context: CredentialsContext) {
+  const { writeDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    try {
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
+      const credential = await createPublishCredential(writeDeps, {
+        workspaceId: deps.workspaceId,
+        label: body.label,
+        connection: body.connection,
+        isDefault: initialPublishDefault({ body, deps }),
+        worksFor: body.worksFor,
+        // "site" = only for this site; omitted = the project store when one is attached.
+        scope: body.scope,
+      });
+      if (credential.scope === "project") await deps.projectKeys?.use({ keyId: credential.id, use: true });
+      invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
+      // Only when `connection` was actually supplied — matches `updatePublishCredential`'s own
+      // "connection omitted => nothing changed to verify" reasoning below. `createPublishCredential`
+      // always requires a connection, so this is always true here; kept as an explicit check (rather
+      // than an unconditional call) so both handlers read the same way.
+      const verification = body.connection !== undefined ? await verifyAfterSave({ id: credential.id }) : undefined;
+      res.status(201).json({ credential, ...(verification ? { verification } : {}) });
+    } catch (err) {
+      sendStoreError({ res, err });
+    }
+  } });
+}
+
+function updateCredentialRoute(context: CredentialsContext) {
+  const { readDeps, writeDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    try {
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      const credential = await updatePublishCredential(writeDeps, {
+        workspaceId: deps.workspaceId,
+        id: req.params.id,
+        ...credentialUpdateFields({ body }),
+      });
+      if (before && body.worksFor !== undefined) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
+      // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
+      // whatever a previous verification already found) is unchanged, so re-checking here would
+      // just repeat the same network call for no new information.
+      const verification = body.connection !== undefined ? await verifyAfterSave({ id: credential.id }) : undefined;
+      res.status(200).json({ credential, ...(verification ? { verification } : {}) });
+    } catch (err) {
+      sendStoreError({ res, err });
+    }
+  } });
+}
+
+function verifyCredentialRoute(context: CredentialsContext) {
+  const { readDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    try {
+      const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (!existing) {
+        res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
+        return;
+      }
+      const verification = await verifyAfterSave({ id: existing.id });
+      res.status(200).json({ verification });
+    } catch (err) {
+      // `describeCredential` itself never decrypts (this file's own header) and cannot land here —
+      // this catch exists for `verifyAfterSave`'s decrypt step (see that function's own doc above:
+      // it is NOT covered by the provider-probe layer's "never throws" guarantee). Mirrors the
+      // `POST`/`PUT` handlers' identical `try { ... } catch (err) { sendStoreError(res, err); }`
+      // shape just below/above — this route was the one place that pattern was missing.
+      sendStoreError({ res, err });
+    }
+  } });
+}
+
+function deleteCredentialRoute(context: CredentialsContext) {
+  const { readDeps, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    try {
+      // Idempotent — `deletePublishCredential`/`VendorCredentialSetRepoPort.delete` are both no-ops
+      // (not errors) for a missing row, matching this route's own documented 204-always contract.
+      // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
+      // idempotent-missing-row path above, so it still needs a response, not a silent no-op.
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      await deletePublishCredential({ ...readDeps, transaction: deps.contentKernel }, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (before) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
+      res.status(204).end();
+    } catch (err) {
+      sendStoreError({ res, err });
+    }
+  } });
+}
+
+function buildCredentialsContext({ deps }: { deps: AdminPublishCredentialsDeps }): CredentialsContext {
+  const verifyAfterSave = buildVerifyAfterSave({ deps });
+  return {
+    deps,
+    readDeps: { sealer: deps.siteAssistantSecretSealer, repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets },
+    writeDeps: {
+      repo: deps.vendorCredentialSetRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock,
+      idGen: deps.idGen,
+      loadDeployTargets: deps.loadDeployTargets,
+    },
+    verifyAfterSave,
+    triggerAccountLabelHeal: buildTriggerAccountLabelHeal({ deps, verifyAfterSave }),
+    rejectUnlessAuthorized: buildRejectUnlessAuthorized({ deps }),
+  };
+}
+
+export function registerAdminPublishCredentialsRoutes({ app, deps }: { app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
+  const context = buildCredentialsContext({ deps });
+  app.get(BASE_PATH, listCredentialsRoute(context));
+  app.post(BASE_PATH, createCredentialRoute(context));
+  app.put(`${BASE_PATH}/:id`, updateCredentialRoute(context));
+  app.post(`${BASE_PATH}/:id/verify`, verifyCredentialRoute(context));
+  app.delete(`${BASE_PATH}/:id`, deleteCredentialRoute(context));
 }
