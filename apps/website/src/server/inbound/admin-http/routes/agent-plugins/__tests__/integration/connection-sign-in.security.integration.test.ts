@@ -96,3 +96,62 @@ test("F1: authenticated hosted start binds only its actor's browser; wrong brows
   assert.deepEqual(differentBrowser.headers.getSetCookie(), completed.headers.getSetCookie(), "refusal clears the cookie too");
   assert.equal(harness.provider.tokenCalls, 1);
 });
+
+/** The hand-written route's own success write, as an oracle: Express negotiates the 302 body by `Accept`. */
+function legacyRedirect({ location, cookie }: { location: string; cookie: string }) {
+  const app = express();
+  app.get("/legacy", (_req, res) => {
+    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
+    res.append("Set-Cookie", cookie);
+    res.redirect(302, location);
+  });
+  return app;
+}
+
+// Review rv1123i (rt-l4-oauth) FIX 2: the hand-written start answered with Express's `res.redirect`,
+// whose body, Content-Type, Content-Length and `Vary: Accept` follow the request's `Accept`. A
+// browser (Accept: text/html) got the HTML body; the converted route wrote plain text for everyone.
+// Also pins that an earlier middleware's cookie survives and the route-table row stays `<anonymous>`.
+test("F2: the hosted start's 302 is byte-identical to the hand-written res.redirect for every Accept", async (t) => {
+  const harness = await startAcmeHarness();
+  t.after(() => harness.close());
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps });
+  app.use("/api/admin", requireAdminSession(deps));
+  app.use("/api/admin", (_req, res, next) => { res.append("Set-Cookie", "upstream=1; Path=/"); next(); });
+  app.get("/api/admin/test-principal", (_req, res) => { res.json({ id: getAuthedPrincipal(res).id }); });
+  const { baseUrl, cookie: session } = await bootAuthenticated(app, t);
+  const host = harness.makeHost({ workspaceId: deps.workspaceId, publicOrigin: () => baseUrl, env: { ...harness.env, TOVU_API_CONNECTION_CALLBACK_ORIGINS: baseUrl } });
+  registerApiConnectionSignInRoute({ app, deps: { workspaceId: deps.workspaceId, host } });
+  const principal = await (await fetch(`${baseUrl}/api/admin/test-principal`, { headers: { cookie: session } })).json() as { id: string };
+  const layer = (app as unknown as { _router: { stack: Array<{ route?: { path: string; stack: Array<{ name: string }> } }> } })._router.stack.find((entry) => entry.route?.path.includes(":handoffId"));
+  assert.deepEqual(layer?.route?.stack.map((handler) => handler.name), ["<anonymous>"]);
+
+  const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });
+  assert.ok(connection);
+  const service = host.serviceFor({ connection });
+  const callbackUrl = `${baseUrl}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
+  const authorizationUrl = "https://provider.example/authorize?state=a&scope=x%20y&next=<b>";
+  for (const accept of ["text/html,application/xhtml+xml,*/*;q=0.8", "text/plain", "application/json", undefined]) {
+    const start = await service.start({ workspaceId: deps.workspaceId, actorId: principal.id, intent: "connect", scopeSetIds: [], redirectUri: callbackUrl });
+    // The provider URL is swapped for one with characters `res.redirect` encodes and HTML-escapes.
+    const handoffId = host.signInHandoffs.issue({ authorizationUrl, browserBinding: start.browserBinding, actorId: principal.id, expiresAt: start.expiresAt });
+    const link = hostedSignInLink({ callbackUrl, workspaceId: deps.workspaceId, handoffId });
+    const headers = { cookie: session, ...(accept ? { accept } : {}) };
+    const opened = await fetch(link, { redirect: "manual", headers });
+    const cookies = opened.headers.getSetCookie();
+    assert.equal(cookies[0], "upstream=1; Path=/", "an earlier middleware's cookie is kept, not replaced");
+    const oracleServer = legacyRedirect({ location: authorizationUrl, cookie: cookies[1]! }).listen(0);
+    t.after(() => { oracleServer.close(); });
+    await new Promise((resolve) => oracleServer.once("listening", resolve));
+    const { port } = oracleServer.address() as { port: number };
+    const expected = await fetch(`http://127.0.0.1:${port}/legacy`, { redirect: "manual", ...(accept ? { headers: { accept } } : {}) });
+    assert.equal(opened.status, 302, String(accept));
+    for (const name of ["location", "content-type", "content-length", "vary", "cache-control", "referrer-policy"]) {
+      assert.equal(opened.headers.get(name), expected.headers.get(name), `${name} for Accept ${String(accept)}`);
+    }
+    assert.equal(await opened.text(), await expected.text(), `body for Accept ${String(accept)}`);
+  }
+});

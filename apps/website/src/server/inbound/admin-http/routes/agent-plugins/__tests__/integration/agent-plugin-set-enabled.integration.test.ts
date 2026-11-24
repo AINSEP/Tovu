@@ -276,9 +276,17 @@ test("AGENT_PLUGIN_SET_ENABLED: a corrupt activations file is 409 AGENT_PLUGIN_A
     await writeFile(activationsPath, "{ not json", "utf8");
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const warnings = t.mock.method(console, "warn", () => {});
     const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
 
     assert.equal(response.status, 409);
+    // The host path goes to the server log only, in the hand-written route's exact line (rv1123i FIX 1:
+    // Jini now reports the facts; this host's formatter writes the label and wording).
+    const logged = warnings.mock.calls.map((call) => call.arguments);
+    assert.equal(logged.length, 1);
+    assert.equal(logged[0]?.length, 1);
+    assert.match(String(logged[0]?.[0]), /^\[agent-plugins\] 'site-compliance': enable\/disable refused — \S/);
+    assert.ok(String(logged[0]?.[0]).includes(activationsPath), "the log line names the file");
     const body = (await response.json()) as { error: string; code: string };
     assert.equal(body.code, "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE");
     assert.equal(
