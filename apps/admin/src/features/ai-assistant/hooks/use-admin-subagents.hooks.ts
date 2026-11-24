@@ -1,6 +1,6 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
-import { assistantSubagentsPort, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@jini-ai/admin/shell/lib/assistant-subagents";
+import { assistantSubagentsPort, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "@jini-ai/admin/screens/assistant-settings/use-assistant-owner-grant.hooks";
 import { assistantOwnerGrantDependencies } from "./assistant-owner-grant-dependencies.hooks";
 import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";

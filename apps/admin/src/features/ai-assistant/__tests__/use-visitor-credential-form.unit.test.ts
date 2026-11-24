@@ -6,7 +6,7 @@ import { createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@j
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { ApiError } from "@/lib/admin-http/request";
-import { storedKeyIsForOtherEndpoint } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
 import { saveVisitorKey, saveVisitorSettings } from "@jini-ai/admin/screens/assistant-settings/visitor-credential-form-actions";
 import {
   createFakeVisitorCredentialFormPort,

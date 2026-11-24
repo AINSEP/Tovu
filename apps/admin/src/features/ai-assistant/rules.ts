@@ -3,7 +3,7 @@ import type { VisitorCredentialFormController } from "@jini-ai/admin/screens/ass
 import { type Translate } from "@jini-ai/core/text";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { storedCredentialHint } from "../../lib/credential-copy";
-import { STORED_KEY_OTHER_PROVIDER_COPY } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { STORED_KEY_OTHER_PROVIDER_COPY } from "@/lib/stored-credential-endpoint";
 
 /**
  * @file Pure logic for the `ai-assistant` feature — everything that computes a value rather than
