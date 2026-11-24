@@ -279,7 +279,7 @@ it('keeps history failures polite with host chrome and masks Tovu API keys', () 
   const h = mount({ agents: [], events: [{ kind: 'raw', line: `failed tovu_ak_012345abcdef.${secret}` }] as AgentEvent[] });
   try {
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('status')).toHaveClass('notice', 'error');
+    expect(screen.getByRole('status')).toHaveClass('jini-notice', 'jini-notice-error');
     expect(screen.getByRole('status').closest('.jini-message-error')).toBeTruthy();
     expect(document.body.textContent).toContain('[REDACTED:tovu_api_key]');
     expect(document.body.textContent).not.toContain(secret);
