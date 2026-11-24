@@ -97,6 +97,50 @@ export interface AdminJsonRouteMountOptions {
    *  (Express's status text as `text/plain`, site-backups); with `body`, `res.status(status).json(body)`
    *  (the `{ code: "NOT_FOUND", message }` routes). Given the mounted and the requested workspace ids. */
   workspaceRefusal?: (args: AdminWorkspaceRefusalArgs) => AdminWorkspaceRefusalReply;
+  /** Opt-in (w4-routes P): a check answered FIRST — in the workspace port, ahead of the workspace 404,
+   *  the credential-kind gate and `authenticateBeforeWorkspace`'s order — for a hand-written route that
+   *  refused before any of them (the admin-surface writes' own cross-origin 403). It sees only the
+   *  request headers it declares (added to the spec's `readHeaders`, so the spec's `raw.headers` also
+   *  carries them); a returned reply is written as-is, `undefined` admits the request. */
+  preflight?: AdminMountPreflight;
+}
+
+/** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
+ *  header has no key) and the mount's port deps. */
+export interface AdminPreflightArgs { headers: Readonly<Record<string, string>>; deps: AdminJsonRoutePortDeps }
+
+/** A mount-level check evaluated before every other admin gate ({@link AdminJsonRouteMountOptions.preflight}). */
+export interface AdminMountPreflight {
+  /** The only request headers the check reads (readHeaders-style). */
+  readonly readHeaders: readonly string[];
+  readonly check: (args: AdminPreflightArgs) => { status: number; body: unknown } | undefined;
+}
+
+/** Runs the mount's preflight on its declared headers; a reply is thrown as a refusal `onError` writes as-is.
+ * @complexity O(h) in the declared header count. */
+function runPreflight(
+  { raw, deps, preflight }: { raw: RouteInputContext; deps: AdminJsonRoutePortDeps; preflight: AdminMountPreflight },
+  _optional: Record<string, never> = {},
+): void {
+  const headers: Record<string, string> = {};
+  for (const name of preflight.readHeaders) {
+    const key = name.toLowerCase();
+    const value = raw.headers?.[key];
+    if (value !== undefined) headers[key] = value;
+  }
+  const reply = preflight.check({ headers, deps });
+  if (reply) throw new RouteRefusalError(reply);
+}
+
+/** The spec's `readHeaders` plus the preflight's, so the adapter hands them over; nothing without a preflight.
+ * Shared by `mountAdminJsonRoute` and `admin-raw-route-ports.ts`'s `mountAdminRawRoute`.
+ * @complexity O(h). */
+export function preflightReadHeaders(
+  { spec, preflight }: { spec: { readHeaders?: readonly string[] }; preflight: AdminMountPreflight | undefined },
+  _optional: Record<string, never> = {},
+): { readHeaders?: readonly string[] } {
+  if (!preflight) return {};
+  return { readHeaders: [...new Set([...(spec.readHeaders ?? []), ...preflight.readHeaders.map((name) => name.toLowerCase())])] };
 }
 
 /** What a {@link AdminJsonRouteMountOptions.workspaceRefusal} override is given. */
@@ -211,6 +255,8 @@ export function createAdminJsonRoutePorts(
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
     // Deployment-level paths (`/api/admin/v1/database/*`, `/recovery/*`) never ran that guard.
     workspace: ({ raw, deps }) => {
+      // `preflight`: the mount's own first refusal, before the workspace 404 and every later gate.
+      if (required.preflight) runPreflight({ raw, deps, preflight: required.preflight });
       if (workspaceFirst) refuseForeignWorkspace({ raw, deps, options: required });
     },
     // A missing session is deferred only on an opted-in mount (`deferMissingPrincipal`): those
@@ -299,7 +345,8 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   const { forwardRejection, ...portOptions } = optional;
   const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ports }, deps: required.deps });
+  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps });
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.

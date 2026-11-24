@@ -3,7 +3,7 @@ import type { OriginContext } from "@jini-ai/core/contracts/server";
 import { mountRawRoute, type RawRouteSpec } from "@jini-ai/http-kit";
 
 import type { OperatorPrincipalRecord } from "./dev-auth.js";
-import { adminPortsFor, createPublicJsonRoutePorts, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure } from "./admin-json-route-ports.js";
+import { adminPortsFor, createPublicJsonRoutePorts, preflightReadHeaders, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type PublicRouteFailure } from "./admin-json-route-ports.js";
 
 /**
  * @file Raw (non-JSON) Jini route specs — HTML, XML/text, streams, downloads, `express.raw` uploads,
@@ -35,7 +35,8 @@ export function mountAdminRawRoute<Deps>(
 ): void {
   assertOriginContext({ spec: required.spec, origin: required.origin });
   const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
-  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, adapter: required.origin });
+  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: optional.preflight });
+  mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps, adapter: required.origin });
 }
 
 /** Mount a raw public spec behind the visitor ports (`createPublicJsonRoutePorts`); `workspaceId`

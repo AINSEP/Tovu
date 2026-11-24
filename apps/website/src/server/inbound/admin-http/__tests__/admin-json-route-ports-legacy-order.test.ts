@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defineJsonRoute, ok } from "@jini-ai/core/contracts/server";
 import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
+import { defineRawRoute } from "@jini-ai/http-kit";
 
-import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "../admin-json-route-ports.js";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminMountPreflight } from "../admin-json-route-ports.js";
+import { mountAdminRawRoute } from "../admin-raw-route-ports.js";
 import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
 
 /**
@@ -11,6 +13,8 @@ import { fakeAdminApp, listen } from "./fixtures/port-harness.js";
  * gate ORDER (`authenticateBeforeWorkspace`: the session / credential gates before the workspace 404)
  * and its legacy workspace refusal WORDING (`workspaceRefusal`: `res.sendStatus(404)`'s text, or a
  * route's own JSON body). Every existing mount sets neither and keeps workspace 404 → authenticate.
+ * w4-routes batch P adds `preflight`: a mount-declared check answered BEFORE every other gate (the
+ * admin-surface writes' own cross-origin 403 came ahead of the credential gate and the workspace 404).
  */
 const path = "/api/admin/v1/workspaces/:workspaceId/probe";
 const gate = { message: "Use the owner's session.", permission: "system.write" };
@@ -97,4 +101,61 @@ test("authenticateBeforeWorkspace on a same-origin spec is refused at registrati
     assert.fail("the mount accepted authenticateBeforeWorkspace on a same-origin spec");
   }
   assert.match(mounted.message, /authenticateBeforeWorkspace.*same-origin/);
+});
+
+/** A preflight that admits only `x-probe-origin: ok` and records what it was given. */
+function probePreflight(seen: unknown[]): AdminMountPreflight {
+  return {
+    readHeaders: ["x-probe-origin"],
+    check: ({ headers, deps }) => {
+      seen.push({ headers, workspaceId: deps.workspaceId });
+      return headers["x-probe-origin"] === "ok" ? undefined : { status: 403, body: { error: "refused first", code: "CROSS_ORIGIN_REFUSED" } };
+    },
+  };
+}
+
+const refusedFirst = { status: 403, body: { error: "refused first", code: "CROSS_ORIGIN_REFUSED" } };
+
+// Mutation `preflight-after-credential-gate`: evaluating the preflight inside `authenticate` after the
+// credential gate (or after the workspace check) answers the credential 403 / workspace 404 instead of
+// the preflight's own refusal — RED on the first assertion of each mount.
+test("preflight answers first: before the session-credential gate and the workspace 404, seeing only its declared headers", async (t) => {
+  const seen: unknown[] = [];
+  const gated = await serve({ preflight: probePreflight(seen), sessionCredentialOnly: gate, authenticateBeforeWorkspace: true });
+  t.after(gated.close);
+  const refused = await gated.post("other", { "x-kind": "api_key", "x-probe-origin": "evil", "x-unrelated": "1" });
+  assert.deepEqual({ status: refused.status, body: JSON.parse(refused.text) }, refusedFirst);
+  assert.deepEqual(seen, [{ headers: { "x-probe-origin": "evil" }, workspaceId: "local" }]);
+  // Admitted by the preflight, the request meets the existing gates in their configured order.
+  const machine = await gated.post("other", { "x-kind": "api_key", "x-probe-origin": "ok" });
+  assert.equal(JSON.parse(machine.text).details.reason, "credential_kind_not_permitted");
+  const foreign = await gated.post("other", { "x-kind": "session", "x-probe-origin": "ok" });
+  assert.deepEqual({ status: foreign.status, body: JSON.parse(foreign.text) }, { status: 404, body: { error: "workspace was not found" } });
+  assert.deepEqual(gated.calls, []);
+  assert.equal((await gated.post("local", { "x-kind": "session", "x-probe-origin": "ok" })).status, 200);
+  assert.deepEqual(gated.calls, ["parse", "handle"]);
+
+  // The default order (workspace 404 → authenticate) is preceded by the preflight too; an absent header has no key.
+  const plainSeen: unknown[] = [];
+  const plain = await serve({ preflight: probePreflight(plainSeen) });
+  t.after(plain.close);
+  const anonymous = await plain.post("other");
+  assert.deepEqual({ status: anonymous.status, body: JSON.parse(anonymous.text) }, refusedFirst);
+  assert.deepEqual(plainSeen, [{ headers: {}, workspaceId: "local" }]);
+});
+
+test("mountAdminRawRoute takes the same preflight, ahead of the workspace 404", async (t) => {
+  const seen: unknown[] = [];
+  const app = fakeAdminApp();
+  const spec = defineRawRoute<object, { id: string }>({ method: "get", path, handle: async () => new Response("raw") });
+  mountAdminRawRoute({ app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } as never }, { preflight: probePreflight(seen) });
+  const server = await listen({ app });
+  t.after(server.close);
+  const get = (workspaceId: string, origin: string) => fetch(`${server.base}/api/admin/v1/workspaces/${workspaceId}/probe`, { headers: { "x-probe-origin": origin } });
+  const refused = await get("other", "evil");
+  assert.deepEqual({ status: refused.status, body: await refused.json() }, refusedFirst);
+  assert.equal((await get("other", "ok")).status, 404);
+  const admitted = await get("local", "ok");
+  assert.deepEqual({ status: admitted.status, text: await admitted.text() }, { status: 200, text: "raw" });
+  assert.deepEqual(seen.length, 3);
 });

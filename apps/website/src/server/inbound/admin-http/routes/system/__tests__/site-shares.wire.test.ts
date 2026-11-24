@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import http from "node:http";
+import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -112,12 +112,22 @@ test("site-shares wire: RBAC denial, then the missing backend, then a missing se
     assert.deepEqual(await call(method, suffix, method === "PUT" ? uploadInit : {}), wire(503, { code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }), step);
   }
   state.available = true; state.principal = false;
+  // A missing session discloses no details: the copy is sendAdminFailure's method/route-derived line.
+  const missing: Record<string, unknown> = {};
   for (const [method, suffix, step] of ROUTES) {
-    assert.deepEqual(await call(method, suffix, method === "PUT" ? uploadInit : {}), wire(500, {
-      code: "SHARE_FAILED", errorId: "<id>", message: `${step} could not finish. Report this error ID. (error <id>)`,
-    }), step);
+    const got = await call(method, suffix, method === "PUT" ? uploadInit : {});
+    assert.deepEqual({ ...got, body: undefined }, { ...wire(500, undefined) }, step);
+    missing[step] = got.body;
   }
+  assert.deepEqual(missing, MISSING_SESSION_BODIES);
 });
+
+const MISSING_SESSION_BODIES: Record<string, unknown> = {
+  "Export history": { code: "SHARE_FAILED", errorId: "<id>", message: "The site shares could not be loaded. Try loading them again. If it still fails, Report this error ID. (error <id>)" }, "Static export options": { code: "SHARE_FAILED", errorId: "<id>", message: "The site shares could not be loaded. Try loading them again. If it still fails, Report this error ID. (error <id>)" }, "Export download": { code: "SHARE_FAILED", errorId: "<id>", message: "The site shares could not be loaded. Try loading them again. If it still fails, Report this error ID. (error <id>)" },
+  "Export creation": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share operation could not be completed. Check the result before repeating this operation. Report this error ID. (error <id>)" }, "Static export creation": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share operation could not be completed. Check the result before repeating this operation. Report this error ID. (error <id>)" }, "Export acknowledgement": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share operation could not be completed. Check the result before repeating this operation. Report this error ID. (error <id>)" },
+  "Export revocation": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share removal could not be confirmed. Check the list before repeating the removal. Report this error ID. (error <id>)" }, "Share artifact deletion": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share removal could not be confirmed. Check the list before repeating the removal. Report this error ID. (error <id>)" },
+  "Share artifact upload": { code: "SHARE_FAILED", errorId: "<id>", message: "The site share save could not be completed. Check whether your changes were saved before repeating the save. Report this error ID. (error <id>)" },
+};
 
 test("site-shares wire: input refusals and successes of the admin operations", async (t) => {
   const { state, call } = await serve(t);
@@ -165,17 +175,38 @@ test("site-shares wire: download refusals, acknowledgement and the ZIP itself", 
   assert.match(String(got.body), /zip body/);
 });
 
-/** An upload whose `Content-Length` is over the cap: the parser refuses it from the header alone. */
+/** Streams `bytes` bytes (a ZIP signature, then zeros), stopping once the server closes or answers. */
+async function sendAll({ socket, bytes }: { socket: net.Socket; bytes: number }): Promise<void> {
+  const chunk = Buffer.alloc(1 << 20);
+  ZIP.copy(chunk);
+  for (let sent = 0; sent < bytes && !socket.destroyed;) {
+    const size = Math.min(chunk.length, bytes - sent);
+    sent += size;
+    if (!socket.write(size === chunk.length ? chunk : chunk.subarray(0, size))) await new Promise((resolve) => { socket.once("drain", resolve); socket.once("close", resolve); });
+  }
+}
+
+/** An upload whose `Content-Length` is over the cap, on a raw socket. The gates answer without reading
+ *  it; past them the parser refuses it from the header, but body-parser drains the request before it
+ *  hands on its 413, so the whole declared body is streamed. */
 function oversize({ base, workspace }: { base: string; workspace: string }): Promise<Wire> {
+  const { port } = new URL(base);
   return new Promise((resolve, reject) => {
-    const req = http.request(`${base}${ROOT.replace("/ws/", `/${workspace}/`)}/artifacts/${TOKEN}/site.tovu.zip`, {
-      method: "PUT", headers: { "content-type": "application/zip", "content-length": String(SHARE_LIMITS.maxArchiveBytes + 1) },
-    }, (res) => {
-      const chunks: Buffer[] = []; res.on("data", (chunk: Buffer) => chunks.push(chunk));
-      res.on("end", () => { resolve({ status: res.statusCode ?? 0, type: res.headers["content-type"] ?? null, cache: res.headers["cache-control"] ?? null, body: normalize(Buffer.concat(chunks).toString()) }); req.destroy(); });
+    const socket = net.connect(Number(port), "127.0.0.1");
+    let text = "";
+    socket.on("data", (chunk: Buffer) => {
+      text += chunk.toString("latin1");
+      const split = text.indexOf("\r\n\r\n");
+      if (split < 0) return;
+      const head = text.slice(0, split), length = Number(/content-length: (\d+)/i.exec(head)?.[1] ?? 0), body = text.slice(split + 4);
+      if (body.length < length) return;
+      socket.destroy();
+      const header = (name: string) => new RegExp(`^${name}: (.*)$`, "im").exec(head)?.[1] ?? null;
+      resolve({ status: Number(head.split(" ")[1]), type: header("content-type"), cache: header("cache-control"), body: normalize(body) });
     });
-    req.on("error", reject);
-    req.write(ZIP);
+    socket.on("error", reject);
+    socket.write(`PUT ${ROOT.replace("/ws/", `/${workspace}/`)}/artifacts/${TOKEN}/site.tovu.zip HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/zip\r\nContent-Length: ${SHARE_LIMITS.maxArchiveBytes + 1}\r\n\r\n`);
+    void sendAll({ socket, bytes: SHARE_LIMITS.maxArchiveBytes + 1 });
   });
 }
 
@@ -193,10 +224,14 @@ test("site-shares wire: artifact upload reads its body only after the gates, the
   assert.equal(created.status, 201); assert.equal(created.cache, "no-store");
   assert.deepEqual(Object.keys(created.body as object), ["shareId", "bytes", "sha256"]);
   assert.equal((created.body as { bytes: number }).bytes, ZIP.length);
-  assert.equal((await call("PUT", `/artifacts/${TOKEN}/site.tovu.zip`, uploadInit)).status, 409 === 409 ? (await call("PUT", `/artifacts/${TOKEN}/other.tovu.zip`, uploadInit)).status : 0);
+  const replay = await call("PUT", `/artifacts/${TOKEN}/site.tovu.zip`, uploadInit);
+  assert.deepEqual(replay, REPLAY);
   state.trusted = true;
   assert.equal((await call("PUT", `/artifacts/${"Z".repeat(16)}/site.tovu.zip`, uploadInit)).status, 201, "a connected computer may upload");
 });
+
+/** Tokens are never reused: a replayed upload is the registry's own refusal, with the step label. */
+const REPLAY: Wire = wire(400, { code: "TOKEN_EXISTS", message: "Share artifact upload failed: This share token has already been used. Create a new export." });
 
 test("site-shares wire: artifact deletion answers 404 for an unknown artifact and a bodiless 204 after disabling it", async (t) => {
   const { call } = await serve(t);
