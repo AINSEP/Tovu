@@ -18,7 +18,6 @@ import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/i
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "#src/platform/db/migrations/0011_drop_empty_core_commerce_tables";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { FIRST_PARTY_DATA_MODULES } from "../data-modules.js";
-import { STORE_MANIFEST } from "@jini-ai/plugins/site/store/manifest";
 import { buildBootModules } from "../../boot/bootstrap.js";
 import { runBootLifecycle } from "../../lifecycle/boot-lifecycle.js";
 import { createSiteRouteDeps } from "../deps.js";
