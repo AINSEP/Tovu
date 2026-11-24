@@ -271,7 +271,7 @@ export function Trash(props: { useTrashHook?: () => TrashController } = {}) {
             <InfoTip label={coverageLine({ translate: trashTranslator({ locale }) })} agentHandle="trash-coverage-info" />
           </h1>
           <p className="page-description">
-            {t({ locale: locale, key: "Deleted items are kept for 60 days." })}
+            {t({ locale: locale, key: "Deleted items are kept for 30 days." })}
           </p>
         </div>
       </div>

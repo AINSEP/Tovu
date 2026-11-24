@@ -54,6 +54,7 @@ import { createIdentityTransactions } from "./repo.js";
  */
 
 import { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/index";
+import { resolveFirstOwnerPassword } from "./first-owner-password.js";
 export { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/index";
 
 /** The first-boot owner login `seedIdentity` creates when no owner exists yet. */
@@ -96,6 +97,25 @@ function assertOwnerCredentials(value: unknown): asserts value is OwnerCredentia
   if (typeof candidate?.username !== "string" || typeof candidate.password !== "string") {
     throw new TypeError("identity wiring requires ownerCredentials { username, password } from its composition root (see resolveOwnerCredentials)");
   }
+}
+
+/** The environment a composition root read its owner credentials from (see `ownerEnv` below). */
+export type OwnerEnv = Readonly<Record<string, string | undefined>>;
+
+/**
+ * The first owner's password, resolved ONLY when this boot is about to seed a new owner (G7-1).
+ * With no `ownerEnv` (init, tests, desktop-style callers) the injected credentials stand unchanged.
+ * With one, an existing owner keeps the injected value (never refused: an already set-up site may
+ * leave `TOVU_ADMIN_PASSWORD` unset), while a new owner on a server site gets the operator's own
+ * password or a fail-closed `FirstOwnerPasswordRequiredError`.
+ */
+async function resolveSeedPassword(
+  { users, workspaceId, credentials, ownerEnv }: { users: IdentityRepos["users"]; workspaceId: UUID; credentials: OwnerCredentials; ownerEnv: OwnerEnv | undefined },
+  _optional: Record<string, never> = {},
+): Promise<string> {
+  if (ownerEnv === undefined) return credentials.password;
+  const existing = await users.findByUsername({ workspaceId, username: credentials.username.trim().toLowerCase() });
+  return existing ? credentials.password : resolveFirstOwnerPassword({ env: ownerEnv });
 }
 
 /** The identity-owned slice of `RouteDeps` (see that file's fields of the same names). */
@@ -235,7 +255,7 @@ function buildIdentityRouteDeps(
   { repos, apiKeyRepo, required }: {
     repos: IdentityRepos;
     apiKeyRepo: ApiKeyRepoPort;
-    required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID };
+    required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID; ownerEnv?: OwnerEnv };
   },
   _options = {},
 ): IdentityRouteDepsSlice {
@@ -252,13 +272,13 @@ function buildIdentityRouteDeps(
   }
   const seedResult = required.readOnlyOwnerPrincipalId !== undefined
     ? Promise.resolve({ ownerPrincipalId: required.readOnlyOwnerPrincipalId })
-    : seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
+    : resolveSeedPassword({ users: repos.users, workspaceId: required.workspaceId, credentials: required.ownerCredentials, ownerEnv: required.ownerEnv }).then((ownerPassword) => seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
       // with no default: a library fallback would mean every host that forgot to pass one shipped
       // the same owner credential. The env mapping (with its unchanged defaults) now lives in
       // `resolveOwnerCredentials`, called only by composition roots — see its doc.
       // Init supplies BOTH explicitly. Only this server's own first-boot seed retains the env
       // contract (including the host's secret); a new site cannot inherit that deployment credential.
-      ownerUsername: required.ownerCredentials.username, ownerPassword: required.ownerCredentials.password } });
+      ownerUsername: required.ownerCredentials.username, ownerPassword } }));
 
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
   // await just the owner id without waiting on the permission-migration fan-out below.
@@ -315,6 +335,9 @@ export function createInMemoryIdentityRouteDeps(required: {
    *  write, so no in-memory caller needs this — kept here only for signature parity with the
    *  SQLite constructor below. */
   reconcileGrantsOnBoot?: boolean;
+    /** When given, a NEW owner on a server site must use the operator's own `TOVU_ADMIN_PASSWORD`
+     *  (G7-1, `first-owner-password.ts`); omit to seed exactly `ownerCredentials`. */
+    ownerEnv?: OwnerEnv;
 }, _optional: Record<string, never> = {}): IdentityRouteDepsSlice {
   const repos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
@@ -363,6 +386,9 @@ export function createSqliteIdentityRouteDeps(
      * @example { reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }
      */
     readOnlyOwnerPrincipalId?: UUID;
+    /** When given, a NEW owner on a server site must use the operator's own `TOVU_ADMIN_PASSWORD`
+     *  (G7-1, `first-owner-password.ts`); omit to seed exactly `ownerCredentials`. */
+    ownerEnv?: OwnerEnv;
   },
   { apiKeyRepo = new SqliteApiKeyRepo(required.db) }: {
     /** Peer hosts inject a refusal port instead of constructing a credential repository. */

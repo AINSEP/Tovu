@@ -39,6 +39,7 @@ import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assista
 import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant/run-page-context";
+import { subagentDispatchPrefix } from "./subagent-dispatch-marker.js";
 import { createRunActiveContextStore } from "#src/assistant/run-active-context";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
@@ -359,13 +360,15 @@ await launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: pluginPre
 }
 
 function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginPreparation: { refusalPrefix: string }; pluginPromptPrefix: string }, _optional = {}) {
-  const { sessionBinding, attachmentRunFields, pluginPreparation, pluginPromptPrefix, coldStartContext, pageContext, env, agentCarriesOwnMemory, buildPageContextPromptBlock } = ports;
+  const { sessionBinding, attachmentRunFields, pluginPreparation, pluginPromptPrefix, coldStartContext, pageContext, env, agentCarriesOwnMemory, buildPageContextPromptBlock, existsSync, routeDeps } = ports;
   let { prompt } = ports.runState;
   // The browser cannot know whether the daemon still has a native session to resume.
   prompt = selectRunHistoryPrompt({ prompt, coldStartContext, resumeSessionId: sessionBinding.sessionFields.resumeSessionId,
   carriesOwnMemory: agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {}) }, {});
   // Select history before decorating it, so cold starts retain the same page, attachment and
   // plugin instructions as resumes.
+  // Owner decision P10 G7-11: the marker below is only added when the site folder holds an AGENTS.md
+  // that asks for the startup ceremony — see `subagent-dispatch-marker.ts`. Otherwise it is noise.
   // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
   // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
   // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
@@ -376,7 +379,7 @@ function assembleRunPrompt(ports: RunPorts & { sessionBinding: RunSessionBinding
   // The admin screen this message was sent from goes AFTER the marker (the marker only works as
   // the prompt's first line) and directly before the operator's words, so "this page" has
   // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-  prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
+  prompt = `${subagentDispatchPrefix({ siteDir: routeDeps.siteBinding.dir, fileExists: existsSync })}${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
   prompt += attachmentRunFields.attachmentNotice ?? "";
   // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
   // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets

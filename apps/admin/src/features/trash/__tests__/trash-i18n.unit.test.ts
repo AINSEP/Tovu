@@ -76,7 +76,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "The Trash is empty.",
     "Load more",
     "Loading…",
-    "Deleted items are kept for 60 days.",
+    "Deleted items are kept for 30 days.",
     "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     "Post",
     "Page",
