@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
-import { t as translateSecurity } from "../security-i18n";
+import { tSecurity as translateSecurity } from "../../../lib/i18n-common";
 import { accessTokenProvidersWithSavedRows, accessTokenProviderInfo, accessTokenProviders, accessTokenRowProviderInfo, extraFieldsAroundToken, providerGroupSubtitleKeys, providerGroupHandleLabel, tokenRowHandleLabel } from "../access-token-providers";
 import { ACCESS_TOKEN_CATEGORIES, accessTokenCategoryLabel, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenGroupSortInput, type AccessTokenRowCategoryId } from "../rules";
 import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";

@@ -10,7 +10,9 @@ import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "@jini-ai/admin/deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
-import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
+
+import { removeDialogLastRowNote, sharedKeyReplaceWarning } from "@jini-ai/admin/security/security-i18n";
+import { removeDialogBody, removeDialogTitle } from "@/lib/i18n-common";
 import { ACCESS_TOKEN_CATEGORIES, type AccessTokenCategoryId, type AccessTokenRowCategoryId } from "./rules";
 import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
 import { invalidAdditionalHostsEntries } from "./custom-credential-forms";

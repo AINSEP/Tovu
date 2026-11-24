@@ -5,7 +5,8 @@ import type { AdminSiteKeyStatus } from "@jini-ai/core/contracts/site/site-key";
 import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as defaultT, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
+import { tSecurity as defaultT } from "../../../lib/i18n-common";
+import { siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
 

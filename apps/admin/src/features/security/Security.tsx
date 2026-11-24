@@ -9,7 +9,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { t } from "./security-i18n";
+import { tSecurity as t } from "../../lib/i18n-common";
 import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "./SiteKeyTab";
 import { AccessTokensIcon, SiteKeyIcon } from "./security-visuals";

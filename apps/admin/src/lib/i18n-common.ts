@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createSecurityDictionary } from "@jini-ai/admin/security/security-i18n";
 import { createCollectionsDictionary } from "@jini-ai/admin/screens/collections/collections-i18n";
 import { createTaxonomyDictionary } from "@jini-ai/admin/screens/taxonomy/taxonomy-i18n";
 import { createMenusDictionary } from "@jini-ai/admin/screens/menus/menus-i18n";
@@ -105,3 +106,12 @@ export const { t: tTaxonomy } = createTaxonomyDictionary({ commonDictionary: COM
 
 /** The collections dictionary, bound once to this app's common fallback. */
 export const { t: tCollections } = createCollectionsDictionary({ commonDictionary: COMMON_I18N });
+
+/** The security dictionary, bound once to this app's common fallback and product name. The three helpers beside `t`
+ *  are the remove-dialog copy that names the product inside a template. */
+export const {
+  t: tSecurity,
+  removeDialogTitle,
+  removeDialogBody,
+  otherCredentialRemoveDialogBody,
+} = createSecurityDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });

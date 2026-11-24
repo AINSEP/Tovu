@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { t as mediaT } from "../../media/media-i18n";
-import {
-  accessTokenDuplicateNameMessage,
-  accessTokensLoadErrorMessage,
-  copyKeysResultText,
-  otherCredentialRemoveDialogBody,
-  removeDialogTitle,
-  sharedKeyReplaceWarning,
-  siteKeyGenerateErrorMessage,
-  siteKeyRevealErrorMessage,
-  t,
-} from "../security-i18n";
+import { tSecurity as t, otherCredentialRemoveDialogBody, removeDialogTitle } from "../../../lib/i18n-common";
+import { accessTokenDuplicateNameMessage, accessTokensLoadErrorMessage, copyKeysResultText, sharedKeyReplaceWarning, siteKeyGenerateErrorMessage, siteKeyRevealErrorMessage } from "@jini-ai/admin/security/security-i18n";
 
 /**
  * @file `security-i18n.ts` — scoped copy regressions including the SiteKeyTab "no key yet" note

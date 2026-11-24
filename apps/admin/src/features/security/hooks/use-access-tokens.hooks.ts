@@ -12,14 +12,8 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
-import {
-  t as defaultT,
-  accessTokenDuplicateNameMessage,
-  accessTokenMakeDefaultErrorMessage,
-  accessTokenRemoveErrorMessage,
-  accessTokenSaveErrorMessage,
-  accessTokensLoadErrorMessage,
-} from "../security-i18n";
+import { tSecurity as defaultT } from "../../../lib/i18n-common";
+import { accessTokenDuplicateNameMessage, accessTokenMakeDefaultErrorMessage, accessTokenRemoveErrorMessage, accessTokenSaveErrorMessage, accessTokensLoadErrorMessage } from "@jini-ai/admin/security/security-i18n";
 import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId, type AccessTokenKind, type AccessTokenRowCategoryId } from "../rules";
 import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, type AccessTokenFormFields as CredentialAccessTokenFormFields } from "../access-token-forms";
 import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "../custom-credential-forms";
