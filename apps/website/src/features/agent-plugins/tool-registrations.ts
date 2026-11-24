@@ -3,7 +3,7 @@
  * plugin memory tools and the note tool live in `@jini-ai/agent-plugins/lifecycle/host-tools`, and
  * that file carries their design notes. This file keeps the host names, binds the
  * host-tools ports to this product (`host-tool-ports.ts`), adds this product's guidance overlays
- * (`host-plugin-guidance.ts`), and wires the static connect domain.
+ * (`@jini-ai/agent-plugins/site/host-plugin-guidance`), and wires the static connect domain.
  */
 import {
   agentPluginSearchDerivedRisk, agentPluginSearchToolCatalog, agentPluginToolDerivedRisk as hostAgentPluginToolDerivedRisk,
@@ -17,7 +17,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.j
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { pluginNoteCatalog, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps, AgentPluginLayout } from "@jini-ai/core/contracts/headless/plugin-host";
-import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional } from "./host-plugin-guidance.js";
+import { deliverHostPluginGuidance, isHostPluginFileRequest } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
+import { agentPluginOverlaysDir } from "./host-overlays-dir.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import {
@@ -63,18 +64,18 @@ export function buildAgentPluginToolRegistrations(
 
 /**
  * Registers every installed plugin of one workspace on `registry`, with the real gate. Each guidance
- * answer carries this product's overlay for that plugin (`host-plugin-guidance.ts`): its `GUIDANCE.md`
+ * answer carries this product's overlay for that plugin (`@jini-ai/agent-plugins/site/host-plugin-guidance`): its `GUIDANCE.md`
  * after any maturity notice, and its `host/` files. `optional.overlaysDir` defaults to the shipped
  * overlays.
  */
 export async function registerInstalledAgentPluginTools(
   { registry, ctx }: { registry: { register: (registration: ToolRegistration) => void }; ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy } },
-  optional: HostPluginOverlayOptional = {},
+  optional: { overlaysDir?: string | undefined } = {},
 ): Promise<void> {
   await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),
     withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy }, { hostGuidance: {
     isFileRequest: ({ file }) => isHostPluginFileRequest({ file }),
-    deliver: (required, notice) => deliverHostPluginGuidance(required, { ...optional, ...notice }),
+    deliver: (required, notice) => deliverHostPluginGuidance({ ...required, overlaysDir: optional.overlaysDir ?? agentPluginOverlaysDir() }, notice),
   } });
 }
 

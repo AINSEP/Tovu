@@ -3,18 +3,18 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { RETIRED_READ_TOOL_TO_CARD } from '../../../../apps/website/src/assistant/content-read-tool.ts';
-import { readHostPluginFile, readHostPluginGuidance } from '../../../../apps/website/src/features/agent-plugins/host-plugin-guidance.ts';
+import { readHostPluginFile, readHostPluginGuidance } from '@jini-ai/agent-plugins/site/host-plugin-guidance';
 
 const root = path.resolve(import.meta.dirname, '..');
-const options = { overlaysDir: path.dirname(root) };
+const overlaysDir = path.dirname(root);
 
 test('the host loader exposes every Shopify overlay reference named by its guidance', async () => {
-  const result = await readHostPluginGuidance({ pluginId: 'shopify' }, options);
+  const result = await readHostPluginGuidance({ pluginId: 'shopify', overlaysDir });
   assert.deepEqual(result.files, ['host/content-mapping.md', 'host/site-integration.md', 'host/storefront-snippets.md']);
   assert.match(result.guidance, /`agent_plugin_shopify`[^]*file: "references\/<file>"/);
   for (const file of result.files) {
     assert.ok(result.guidance.includes(`file: "${file}"`), file);
-    assert.deepEqual(await readHostPluginFile({ pluginId: 'shopify', file }, options), {
+    assert.deepEqual(await readHostPluginFile({ pluginId: 'shopify', file, overlaysDir }), {
       text: await readFile(path.join(root, file), 'utf8'),
     });
   }

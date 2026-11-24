@@ -1,4 +1,5 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, writeFile, symlink } from "node:fs/promises";
@@ -61,6 +62,7 @@ test("lists an installed disabled skill's files using the plugin response shape 
 test("hides the internal install record while retaining skill files and other dotfiles", () => harness(async (call, directory) => {
   await writeFile(path.join(directory, ".skill-config.json"), '{"mode":"review"}');
   await writeFile(path.join(directory, "references/.tovu-install.json"), "INTERNAL INSTALL RECORD");
+  await writeFile(path.join(directory, "references", SKILL_STATE_FILE_NAME), "INTERNAL INSTALL RECORD");
   const res = await call();
   assert.equal(res.code, 200);
   assert.deepEqual(res.body.files.map((file: any) => file.relativePath), [".skill-config.json", "SKILL.md", "references/check.md"]);

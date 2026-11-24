@@ -13,7 +13,7 @@ import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-appro
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { installSkill, listManagedSkills, setSkillEnabled, uninstallSkill } from "@jini-ai/agentic/skills/site/install-service";
 import { SkillInputError } from "@jini-ai/agentic/skills/install";
-import { SKILL_STATE_FILE } from "#src/features/skills/state";
+import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import { buildSkillToolRegistrations, loadInstalledSkillToolSources } from "@jini-ai/agentic/skills/site/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -89,9 +89,12 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _op
     // containment under the workspace's skill container and the Plugins caps.
     readSkillFiles: async ({ directory }) => {
       const containerDir = deps.skillLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
-      return readPluginPackageFiles({ input: { rootDir: path.join(containerDir, directory), containerDir } });
+      const { files, truncated } = await readPluginPackageFiles({ input: { rootDir: path.join(containerDir, directory), containerDir } });
+      // The route hides the engine's install record; this host also hides every legacy name it still reads.
+      const legacyRecords = new Set(deps.skillLayout.host.legacyStateFileNames);
+      return { files: files.filter(file => !legacyRecords.has(path.posix.basename(file.relativePath))), truncated };
     },
-    fileLimits: PLUGIN_PACKAGE_FILE_LIMITS, installRecordFileName: SKILL_STATE_FILE,
+    fileLimits: PLUGIN_PACKAGE_FILE_LIMITS, installRecordFileName: SKILL_STATE_FILE_NAME,
   } },
   // Path errors can contain private server paths; match the plugin files refusal.
   mountOptions("routes/skills/files"));

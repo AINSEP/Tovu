@@ -17,7 +17,7 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
   const foundations = await readFile(require.resolve("@jini-ai/agent-plugins/ui-ux-design/skills/ui-ux-design/references/foundations.md"), "utf8");
   const distinctiveLine = "Give Programmer a constrained, reusable system instead of one-off styling decisions.";
   assert.ok(foundations.includes(distinctiveLine));
-  // Tovu's ui-ux-design overlay rules lead production guidance (`host-plugin-guidance.ts`).
+  // Tovu's ui-ux-design overlay rules lead production guidance (`@jini-ai/agent-plugins/site/host-plugin-guidance`).
   // This portable fixture deliberately disables host overlays; their behavior has dedicated tests.
   const delivered = foundations;
   const fixture = await installSupportingFilesFixture({}, { files: { "skills/ui-ux-design/references/foundations.md": foundations } });

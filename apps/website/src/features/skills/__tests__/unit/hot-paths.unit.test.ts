@@ -1,4 +1,5 @@
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
+import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -42,7 +43,7 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
   await upload(); await request();
   const result = await executor.execute({ principal, run, toolId: "skill_incident_response", input: {} });
   assert.equal(result.status, "completed");
-  assert.deepEqual(result.output, { skillName: "incident-response", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
+  assert.deepEqual(result.output, { skillName: "incident-response", guidance: MD, files: [SKILL_STATE_FILE_NAME], bundledFiles: [] });
 }));
 
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
@@ -56,7 +57,7 @@ test("BYOK meta-tools discover and execute a post-boot installation, then drop a
   assert.equal(describe.isError, undefined);
   assert.equal(JSON.parse(String(describe.content)).id, "skill_incident_response");
   const execute = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } } });
-  assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
+  assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, files: [SKILL_STATE_FILE_NAME], bundledFiles: [] });
   await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: false }));
   const disabled = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "skill_incident_response" } } });
   assert.equal(disabled.isError, true);

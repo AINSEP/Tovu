@@ -23,7 +23,8 @@ import { carryCloudflareActivation } from "./deploy-split-activation.js";
 import { restoreUnseededUpgrades, upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort } from "./bundled-id-upgrade.js";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
-import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
+import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "@jini-ai/agent-plugins/site/host-plugin-guidance";
+import { agentPluginOverlaysDir } from "./host-overlays-dir.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
@@ -133,7 +134,7 @@ function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleO
 }
 
 /** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
- * Order: maturity notices, each plugin's overlay `GUIDANCE.md` (`host-plugin-guidance.ts`; not in
+ * Order: maturity notices, each plugin's overlay `GUIDANCE.md` (`@jini-ai/agent-plugins/site/host-plugin-guidance`; not in
  * pointer delivery, whose tool call carries it), the owner's sections, then a requested `host/`
  * file — the owner is asked without that file, which is Tovu's, not the plugin's.
  * @throws A manifest read failure; never deliver guidance while hiding its maturity.
@@ -143,7 +144,7 @@ async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwne
   const request = splitHostPluginRefRequest({ options, defaultDeliveryMode: resolveAgentPluginDeliveryMode() });
   const result = await owner.resolveAgentPluginRefs(input, request.ownerOptions);
   if (!result.ok || input.pluginRefIds.length === 0) return result;
-  const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay }, { overlaysDir: optional.hostOverlaysDir });
+  const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay, overlaysDir: optional.hostOverlaysDir ?? agentPluginOverlaysDir() });
   if (!overlays.ok) return overlays;
   const installed = owner.preferBundledAgentPluginDigests({
     installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
