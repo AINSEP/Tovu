@@ -271,7 +271,7 @@ describe("upload and import dialogs (owner item #9, 2026-10-13)", () => {
     expect(screen.getByRole("button", { name: "Upload image or video" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import from URL" })).toBeInTheDocument();
     expect(document.querySelector(".media-upload-dialog")).not.toHaveAttribute("open");
-    expect(document.querySelector(".media-import-dialog")).not.toHaveAttribute("open");
+    expect(document.querySelector(".jini-media-import-dialog")).not.toHaveAttribute("open");
   });
 
   it("opens Upload image focused on the file chooser, with Upload disabled until a file is chosen", async () => {
