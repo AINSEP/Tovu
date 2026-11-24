@@ -230,7 +230,7 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
 
   test("a site folder with an AGENTS.md startup ceremony gets the dispatch marker as the prompt's first line", async () => {
     const input = await captureDaemonRun({ prompt: "go" }, { agentsMdPresent: true });
-    assert.equal(input.prompt, "go");
+    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
   });
 
   test("a site folder with no AGENTS.md gets the owner's words with no developer marker", async () => {
