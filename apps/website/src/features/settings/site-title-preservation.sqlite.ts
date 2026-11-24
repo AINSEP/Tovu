@@ -1,9 +1,0 @@
-import { SqlSiteTitlePreservationStore } from "./site-title-preservation.js";
-
-/**
- * @file The site-title preservation store on a site's SQLite `content.db`:
- * {@link SqlSiteTitlePreservationStore} (the one Kysely query body, `site-title-preservation.ts`),
- * kept as a named class so the composition root that builds it from the composed kernel stays as
- * it is.
- */
-export class SqliteSiteTitlePreservationStore extends SqlSiteTitlePreservationStore {}

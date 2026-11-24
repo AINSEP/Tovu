@@ -6,7 +6,7 @@ import type { SiteTitlePreservationStorePort } from "./site-title.js";
  * `site_title_preexisting_workspaces`, one Kysely query body for every dialect (storage plan §4).
  * The marker migration inserts one row per workspace that existed when it ran, with `preserved_at`
  * NULL. Nothing else inserts. A row is pending until the pin sets `preserved_at`.
- * `site-title-preservation.sqlite.ts` is the thin subclass built from the content db handle.
+ * Composition builds it directly from the composed content kernel.
  */
 export class SqlSiteTitlePreservationStore implements SiteTitlePreservationStorePort {
   constructor(protected readonly kernel: ContentKernel) {}
