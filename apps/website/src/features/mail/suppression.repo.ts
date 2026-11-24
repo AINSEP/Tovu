@@ -1,7 +1,7 @@
 /** @file SQL adapter for Jini's `MailSuppressionRepoPort` (migration 0023), one body for SQLite and Postgres. */
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
-import type { MailDeliveryLane, MailSuppressionRepoPort, MailSuppressionScope } from "@jini-ai/platform/mail";
+import type { MailDeliveryLane, MailSuppressionRepoPort, MailSuppressionScope } from "@jini-ai/core/contracts/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
 
 /** `transactional` is blocked only by `all` (a complainer still gets sign-in links); `bulk` by both. */

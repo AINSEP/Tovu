@@ -2,7 +2,7 @@ import { toolMetadata } from '@jini-ai/core/tool-metadata/mail-status';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveChatPaneSelection, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import { type ExecutionConfig } from "@jini-ai/ui";
 
-import { readAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
+import { readAgentsSnapshot } from "@/lib/shell-collaborators";
 import { isSelectionNormalizationEcho } from "@jini-ai/admin/shell/components/AssistantDock/local-cli-selection-echo";
 import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection, localCliSelectionFromConfig } from "../execution-config-write";
 

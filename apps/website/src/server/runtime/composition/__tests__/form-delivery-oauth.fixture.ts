@@ -9,7 +9,8 @@ import {
 } from "@jini-ai/cms/forms";
 import type { FormDeliveryBinding } from "@jini-ai/core/contracts/site/cms-forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
-import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution, type AdminSurfaceActionOutcome } from "@jini-ai/agent-plugins/admin-surfaces";
+import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceActionOutcome } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";

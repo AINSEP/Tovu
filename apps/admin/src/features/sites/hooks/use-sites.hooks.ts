@@ -3,7 +3,7 @@ import { useLocalSites, type LocalSitesController } from "./use-local-sites.hook
 import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
 
-import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { QueryStatus } from "@jini-ai/core/fetch";
@@ -13,7 +13,6 @@ import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit"
 import { t as defaultT } from "../sites-i18n";
 import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
-import type { SitesPort } from "./sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
 import { resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
 
@@ -22,7 +21,7 @@ import { type Translate } from '@jini-ai/core/text';
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
  *
  * One list read plus two writes, in the `useX(port, t)` / `useWiredX()` shape
- * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`sites-port.hooks.ts`) so a test
+ * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`SitesPort`, `@jini-ai/core/contracts/site/hooks-sites-port-hooks`) so a test
  * describes outcomes against `createFakeSitesPort` rather than stubbing global `fetch`.
  *
  * ## The one behavior worth stating up front: Activate does not switch anything

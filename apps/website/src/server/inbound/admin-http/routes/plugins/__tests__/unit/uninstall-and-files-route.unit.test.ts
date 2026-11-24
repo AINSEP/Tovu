@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { PluginsRouteDeps } from "#src/server/runtime/composition/modules/plugins";
 import { registerPluginFilesRoute } from "#src/server/runtime/composition/modules/plugins";

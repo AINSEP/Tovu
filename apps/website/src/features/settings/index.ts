@@ -6,7 +6,7 @@
  * as do the title write policy and active-principal lookup below.
  * This barrel omits SQLite so consumers cannot accidentally depend on the host's persistence choice.
  */
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { SettingsPrincipalLookupPort } from "@jini-ai/core/settings";
 
 /** Bind Tovu's membership/status policy to the CMS lookup port.

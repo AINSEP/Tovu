@@ -1,10 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import type { AdminLocalSiteState } from "@/features/sites/api/sites-api.types";
+import type { AdminLocalSiteState, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 
 import { siteWriteErrorKey } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
-import type { SitesPort } from "./sites-port.hooks";
 import { validWebsiteAddress } from "./site-transfer-rules";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';

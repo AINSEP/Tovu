@@ -13,13 +13,8 @@ import {
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { createExecutionPort } from "@/lib/execution-settings";
-import {
-  STORED_KEY_OTHER_PROVIDER_COPY,
-  describeProbeError,
-  hasUsableKey,
-  storedKeyBlocksProbe,
-  storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
-} from "@/lib/stored-credential-endpoint";
+import { STORED_KEY_OTHER_PROVIDER_COPY, hasUsableKey, storedKeyBlocksProbe, storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
+import { describeProbeError } from "@/lib/shell-collaborators";
 import {
   configuredPresetIds as configuredPresetIdsRule,
   describeApiError,

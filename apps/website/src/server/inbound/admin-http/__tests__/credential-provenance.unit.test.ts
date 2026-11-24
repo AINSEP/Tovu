@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { confirm, execute, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
+import { confirm, execute, ForbiddenError, type GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { InMemoryTokenStore } from "#src/contracts/core/gated-mutations/token";
 import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/core/gated-mutations/token";
 import { buildConfirmOnlyHooks, resolveActorClassIdentity } from "#src/contracts/core/gated-mutations/composition";

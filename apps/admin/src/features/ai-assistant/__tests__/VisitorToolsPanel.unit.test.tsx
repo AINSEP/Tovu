@@ -6,10 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
-import {
-  VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE,
-  type VisitorToolConfigureInput, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView,
-} from "@/lib/visitor-tools";
+import { VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE, type VisitorToolConfigureInput, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView } from "@jini-ai/admin/shell/lib/visitor-tools";
 import { VisitorToolsPanel, visitorToolDefaultLimitsText } from "../VisitorToolsPanel";
 import { useVisitorTools } from "../hooks/use-visitor-tools.hooks";
 import { t as translate } from "../ai-assistant-i18n";

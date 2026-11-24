@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { useQueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";

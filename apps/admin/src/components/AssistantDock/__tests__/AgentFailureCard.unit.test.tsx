@@ -1,18 +1,24 @@
-import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, renderHook, screen } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
+// The Jini card reads its notice through the admin kit, so every mount goes through the kit scope.
+import { render, render as renderWithJiniKits } from "@/__tests__/render-with-jini-kits";
+import { JiniChatProvider, MessageRow, useT, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
-import { AgentFailureCard } from "../AgentFailureCard";
-import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
-import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "../agent-failure";
+import { AgentFailureCard } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard";
+import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+
+/** The host binding the dock registry passes the Jini card. */
+const cardBindings = { useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS };
+import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "@jini-ai/admin/shell/components/AssistantDock/agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
-import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
+import { SelectedAgentPluginTray } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 import { FolderDropConfirmation } from "../FolderDropConfirmation";
 import { FolderDropError } from "../FolderDropError";
 import { FolderDropPathHint } from "../FolderDropPathHint";
-import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
+import { SlowRunNoticeCard } from "@jini-ai/admin/shell/components/AssistantDock/SlowRunNoticeCard";
 import { createChatI18nAdapter, t as translateDock } from "../assistant-dock-i18n";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
 
@@ -33,7 +39,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   let surface: ReturnType<typeof useAgentFailureSurface>;
   const onSelectionChange = (selection: ChatPaneAgentSelection) => selections.push(selection);
   const onExecutionModeChange = (mode: "local" | "api") => modes.push(mode);
-  const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...props} /> }, { terminalNotice: hasAgentFailureNotice });
+  const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...cardBindings} {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
     surface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
     return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter({ locale })}>
@@ -94,19 +100,19 @@ it("shows a failure card with a safe next action and copyable disclosure when st
     expect(screen.getByRole("status").textContent).toContain("Review the saved work above before sending another message.");
     fireEvent.click(screen.getByText("Show details"));
     expect(screen.getByRole("button", { name: "Copy details" })).toBeTruthy();
-    expect(document.querySelector(".admin-agent-failure pre")?.textContent).toContain("Cause: The assistant stopped without reporting a cause.");
+    expect(document.querySelector(".jini-agent-failure pre")?.textContent).toContain("Cause: The assistant stopped without reporting a cause.");
   } finally { h.unregister(); }
 });
 
 it.each([undefined, null, false, "failed", {}, { reason: 1, details: "Error: failed" }, { reason: "Error: failed", details: 1 }])(
   "ignores malformed persisted failure data (%j)", data => {
-    const { result } = renderHook(() => useAgentFailureCard({ events: [data], runStreaming: false, runSucceeded: false }));
+    const { result } = renderHook(() => useAgentFailureCard({ useTHook: useT, events: [data], runStreaming: false, runSucceeded: false }));
     expect(result.current).toBeNull();
   },
 );
 
 it("uses the persisted reason when details are empty and no agent id or hint exists", () => {
-  const { result } = renderHook(() => useAgentFailureCard({
+  const { result } = renderHook(() => useAgentFailureCard({ useTHook: useT,
     events: [{ reason: "Error: backend refused the request", details: "", agentId: 42 }],
     runStreaming: false, runSucceeded: false,
   }));
@@ -116,7 +122,7 @@ it("uses the persisted reason when details are empty and no agent id or hint exi
 
 it.each([{ runStreaming: true, runSucceeded: false }, { runStreaming: false, runSucceeded: true }])(
   "hides a valid failure while streaming or after success (%j)", flags => {
-    const { result } = renderHook(() => useAgentFailureCard({
+    const { result } = renderHook(() => useAgentFailureCard({ useTHook: useT,
       events: [{ reason: "Error: refused", details: "Error: refused" }], ...flags,
     }));
     expect(result.current).toBeNull();
@@ -131,7 +137,7 @@ it("the default failure context accepts a switch without requiring a provider", 
 
 it("uses local guidance when the source agent has no declared hints", () => {
   const actions = { agents: [{ id: "gemini", name: "Gemini", available: true }], switchAgent: () => {} };
-  const { result } = renderHook(() => useAgentFailureCard({
+  const { result } = renderHook(() => useAgentFailureCard({ useTHook: useT,
     events: [{ reason, details: reason, agentId: "gemini" }], runStreaming: false, runSucceeded: false,
   }), { wrapper: ({ children }) => <FailureSurfaceContext.Provider value={actions}>{children}</FailureSurfaceContext.Provider> });
   expect(result.current).toEqual({ reason, details: reason, agentId: "gemini",
@@ -181,10 +187,10 @@ it.each([
   ["the run succeeded after all", { runStreaming: false, runSucceeded: true }],
 ])("renders nothing while %s", (_label, run) => {
   const failure = { reason: "Agent exited", details: "Agent exited with code 1", agentId: "codex" };
-  const { container, rerender } = render(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} {...run} />);
+  const { container, rerender } = render(<AgentFailureCard {...cardBindings} name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} {...run} />);
   expect(container.innerHTML).toBe("");
   // Control: the same failure event, once the run has stopped without succeeding, does render.
-  rerender(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} runStreaming={false} runSucceeded={false} />);
+  rerender(<AgentFailureCard {...cardBindings} name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} runStreaming={false} runSucceeded={false} />);
   expect(screen.getByRole("status")).toBeInTheDocument();
 });
 
@@ -203,8 +209,8 @@ it.each([
     const onRemove = vi.fn();
     const onSend = vi.fn();
     const transport: ChatTransport = { async startRun() { return { runId: "test" }; }, async reattachRun() {}, async stopRun() {}, async fetchRunStatus() { return null; } };
-    render(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
-      <SelectedAgentPluginTray chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
+    renderWithJiniKits(<JiniChatProvider transport={transport} i18n={createChatI18nAdapter({ locale: copy.locale })}>
+      <SelectedAgentPluginTray useTHook={useT} chips={[{ pluginRefId: "design", label: "Design" }]} onRemove={onRemove} onSendSkills={onSend} />
     </JiniChatProvider>);
     const remove = screen.getByRole("button", { name: copy.remove });
     expect(remove).toHaveAttribute("title", copy.remove);
@@ -226,7 +232,7 @@ it.each([
     <FolderDropConfirmation path="/work" onDismiss={onDismiss} />
     <FolderDropError path="/work" reason="endpoint-unreachable" onDismiss={onDismiss} onRetry={onRetry} />
     <FolderDropPathHint onDismiss={onDismiss} />
-    <SlowRunNoticeCard name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
+    <SlowRunNoticeCard useTHook={useT} name="slow_running" runId="slow" events={[]} runStreaming={true} runSucceeded={false} />
   </JiniChatProvider>);
   expect(screen.getByText(copy.confirmation)).toBeInTheDocument();
   expect(screen.getByText(copy.retry)).toBeInTheDocument();

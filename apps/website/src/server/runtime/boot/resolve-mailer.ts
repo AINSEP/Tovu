@@ -1,13 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import {
-  createResolvedMailer as createJiniResolvedMailer,
-  type MailCredentialFact,
-  type MailDeliveryLane,
-  type MailProviderCallContext,
-  type MailProviderModule,
-  type MailProviderSetting,
-  type ResolvedMailer as JiniResolvedMailer,
-} from "@jini-ai/platform/mail";
+import { createResolvedMailer as createJiniResolvedMailer, type MailCredentialFact, type MailProviderCallContext, type MailProviderModule, type ResolvedMailer as JiniResolvedMailer } from "@jini-ai/platform/mail";
+import type { MailDeliveryLane, MailProviderSetting } from "@jini-ai/core/contracts/mail";
 
 import type { RuntimeMode } from "@jini-ai/core/contracts/site/core-runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";

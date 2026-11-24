@@ -2,11 +2,10 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/re
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot, AdminTokenSignInPlugin, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { CreateSiteOnboarding, type CreateSiteOnboardingProps } from "../CreateSiteOnboarding";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
-import type { SitesPort } from "../hooks/sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "../hooks/use-create-site-plugin-tokens.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 import { createdTokensNoteKey, tokensForCreate } from "../rules";

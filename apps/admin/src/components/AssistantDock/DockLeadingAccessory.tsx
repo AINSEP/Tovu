@@ -2,7 +2,7 @@ import { useT } from "@jini-ai/chat/react";
 import { Icon } from "@jini-ai/ui";
 
 import { FolderDropNotice, type FolderDropNoticeProps } from "./FolderDropNotice";
-import { SelectedAgentPluginTray, type SelectedAgentPluginTrayProps } from "./SelectedAgentPluginTray";
+import { SelectedAgentPluginTray, type SelectedAgentPluginTrayProps } from "@jini-ai/admin/shell/components/AssistantDock/SelectedAgentPluginTray";
 
 export interface DockLeadingAccessoryProps {
   /** The execution policy's deployed-site note (`executionPolicy.note`); null when none applies. */
@@ -54,8 +54,8 @@ export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder 
           text area (owner bug 11-01). Cleared when a folder is picked or the dialog is cancelled. */}
       {folderWindowOpenElsewhere ? <FolderWindowNote /> : null}
       <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} canPickFolder={canPickFolder} />
-      <SelectedAgentPluginTray chips={pluginChips} onRemove={onRemovePlugin} />
-      <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
+      <SelectedAgentPluginTray useTHook={useT} chips={pluginChips} onRemove={onRemovePlugin} />
+      <SelectedAgentPluginTray useTHook={useT} chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
     </>
   );
 }

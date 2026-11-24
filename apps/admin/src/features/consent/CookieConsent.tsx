@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, CONSENT_PREVIEW_DESKTOP_WIDTH, type ConsentFieldProblem } from "@jini-ai/cookie-consent/react";
+import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, CONSENT_PREVIEW_DESKTOP_WIDTH } from "@jini-ai/cookie-consent/react";
+import type { ConsentFieldProblem } from "@jini-ai/core/contracts/site/cookie-consent-react";
 
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";

@@ -20,7 +20,7 @@ import {
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { useAgentFailureSurface } from "./AgentFailureCard.hooks";
+import { useAgentFailureSurface } from "@jini-ai/admin/shell/components/AssistantDock/AgentFailureCard.hooks";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { selectedLocalCliReasoning } from "../../lib/execution-settings";
 // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see

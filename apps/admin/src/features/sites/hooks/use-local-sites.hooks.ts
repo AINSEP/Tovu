@@ -2,11 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@jini-ai/ui/visible-interval";
-import type { AdminLocalSiteAction, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminLocalSiteAction, AdminSitesSnapshot, SitesPort } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 
 import { KEYS, SERVING_CHAT_WARNING_KEY, siteWriteErrorKey } from "../rules";
-import type { SitesPort } from "./sites-port.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 const nativeConfirm = ({ message }: { message: string }, _optional = {}) => window.confirm(message);

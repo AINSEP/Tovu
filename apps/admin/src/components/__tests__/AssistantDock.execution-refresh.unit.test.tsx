@@ -11,7 +11,7 @@ import type { ExecutionConfigWrite } from "../AssistantDock/execution-config-wri
 import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "../../lib/execution-settings";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { SAVE_DEBOUNCE_MS, useSettingsSlice } from "../../hooks/use-settings-slice.hooks";
-import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+import { writeAgentsSnapshot } from "../../lib/shell-collaborators";
 
 // Extends the dock hook contracts using IO fakes and the real settings bus; no module mocks.
 function savedAgent(agentId: string, model?: string): ExecutionConfig {

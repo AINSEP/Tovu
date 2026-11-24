@@ -2,7 +2,7 @@ import { captureVisitorEvent } from "../../visitor-analytics.js";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
-import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/capability-providers-comments';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

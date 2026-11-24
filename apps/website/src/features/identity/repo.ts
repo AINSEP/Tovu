@@ -3,8 +3,9 @@ import type { Insertable, Selectable } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { IdentityUsersTable, PrincipalsTable } from "../../platform/db/content-database.generated.js";
 
-import type { PrincipalRepoPort, UserRepoPort, IdentityTransactionPort } from "@jini-ai/user-management";
-import type { PrincipalKind, PrincipalRecord, PrincipalStatus, UserRecord } from "@jini-ai/user-management";
+import type { IdentityTransactionPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort, UserRepoPort, PrincipalRecord, UserRecord } from "@jini-ai/core/contracts/site/user-management";
+import type { PrincipalKind, PrincipalStatus } from "@jini-ai/user-management";
 
 /**
  * @file THE adapters for the `identity` repo ports (ADR-021 / SPEC-006): one Kysely query body for

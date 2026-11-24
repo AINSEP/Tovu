@@ -1,4 +1,4 @@
-import type { MailActivityDeps, MailSuppressionDeps } from "@jini-ai/platform/mail";
+import type { MailActivityDeps, MailSuppressionDeps } from "@jini-ai/core/contracts/site/platform-mail";
 import { MAIL_PERMISSION_IDS } from "./permissions.js";
 
 /**

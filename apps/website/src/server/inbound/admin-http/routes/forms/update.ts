@@ -3,14 +3,8 @@ import type { FormAuthoring } from "@jini-ai/cms/forms";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { toAdminFormDefinitionResponse } from "@jini-ai/cms/admin-http/http/forms";
 import { mapFormsWriteError } from "./forms-write-error.js";
-import {
-  FormDefinitionNotFoundError,
-  type FieldDescriptor,
-  type HtmlFormDefinitionRecord as FormDefinitionRecord,
-  type FormDefinitionRepoPort,
-  type FormDefinitionStatus,
-  type NotifyConfig,
-} from "@jini-ai/cms/forms";
+import { FormDefinitionNotFoundError, type FieldDescriptor, type HtmlFormDefinitionRecord as FormDefinitionRecord, type FormDefinitionStatus, type NotifyConfig } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import {
   setFormDefinitionStatus,
   updateFormDefinition,

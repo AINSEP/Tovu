@@ -1,7 +1,7 @@
 /** @file SQL adapter for Jini's `MailSendLedgerPort` (migration 0023), one body for SQLite and Postgres. */
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
-import type { MailDeliveryLane, MailLedgerOutcome, MailSendLedgerPort } from "@jini-ai/platform/mail";
+import type { MailDeliveryLane, MailLedgerOutcome, MailSendLedgerPort } from "@jini-ai/core/contracts/mail";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** The content database kernel. Generic so a typed `ContentKernel` fits: these tables are raw SQL,

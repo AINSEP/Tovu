@@ -3,7 +3,8 @@ import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { buildDomainDnsRegistrations, domainDnsDerivedRisk, type DomainDnsToolDeps } from "../tools.js";
-import type { DnsQuery, TlsStatus } from "@jini-ai/diagnostics/domain-dns";
+import type { DnsQuery } from "@jini-ai/diagnostics/domain-dns";
+import type { TlsStatus } from "@jini-ai/core/contracts/site/diagnostics-domain-dns";
 
 const context = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "p" }, run: { id: "r" }, input, signal: new AbortController().signal });
 function harness(options: { denied?: string; hosts?: string[]; answers?: Record<string, DnsQuery>; tlsStatus?: TlsStatus } = {}) {

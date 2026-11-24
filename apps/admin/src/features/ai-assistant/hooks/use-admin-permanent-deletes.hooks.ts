@@ -1,5 +1,7 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { assistantPermanentDeletesPort, ASSISTANT_PERMANENT_DELETES_NAMESPACE, PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS, type AssistantPermanentDeletesPort } from "@/lib/assistant-permanent-deletes";
+import { type AssistantPermanentDeletesPort } from "@jini-ai/admin/shell/lib/assistant-permanent-deletes";
+import { assistantPermanentDeletesPort } from "@/lib/shell-collaborators";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@tovu/headless";
 import { useAssistantOwnerGrant } from "./use-assistant-owner-grant.hooks";
 const settingsKey = ["admin-assistant", "permanent-deletes"] as const;
 /** Checkbox changes autosave one complete selection through the same owner-grant ceremony.

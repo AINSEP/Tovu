@@ -1,8 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import {
-  defaultAdminExecutionCredentialPort,
-  UNSET_ADMIN_EXECUTION_CREDENTIAL,
-} from "../admin-execution-credential-dependencies.hooks";
+import { defaultAdminExecutionCredentialPort } from "../admin-execution-credential-dependencies.hooks";
+import { UNSET_ADMIN_EXECUTION_CREDENTIAL } from "@jini-ai/admin/shell/hooks/admin-execution-credential-port.hooks";
 
 afterEach(() => vi.unstubAllGlobals());
 

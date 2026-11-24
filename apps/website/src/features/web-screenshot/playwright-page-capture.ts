@@ -1,6 +1,7 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { observed } from "@jini-ai/core/errors/idioms";
-import { captureBudget, type CaptureBudget, type CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
+import { captureBudget, type CaptureBudget } from "@jini-ai/diagnostics/web-evidence/capture-budget";
+import type { CaptureBudgetLimits } from "@jini-ai/core/contracts/site/web-evidence-capture-budget";
 import { REAL_CAPTURE_CLOCK, type CaptureClock } from "@jini-ai/diagnostics/web-evidence/capture-clock";
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease, type RenderSession } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";

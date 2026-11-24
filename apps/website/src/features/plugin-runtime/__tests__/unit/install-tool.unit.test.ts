@@ -7,7 +7,8 @@ import test from "node:test";
 
 import { ToolInputError, ToolPermissionDeniedError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
-import { PluginInstallError, type PluginInstallInput, type PluginInstallerPort, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
+import { PluginInstallError, type PluginInstallInput, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
+import type { PluginInstallerPort } from "@jini-ai/core/contracts/site/host-node";
 import { buildRegistrations, catalog, contributePluginsInstallTools, derivedRisk, type PluginsInstallToolDeps } from "../../install-tool.js";
 
 const PRINCIPAL = "principal-1";

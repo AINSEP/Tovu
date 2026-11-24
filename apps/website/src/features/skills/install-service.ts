@@ -1,6 +1,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createSkillInstaller, prepareSkillInstall as prepare, createSkillFetchAdapter, type SkillInstaller, type SkillInstallInput as JiniSkillInstallInput, type PreparedSkillInstall, type SkillInstallDeps } from "@jini-ai/agentic/skills/install";
+import { createSkillInstaller, prepareSkillInstall as prepare, createSkillFetchAdapter, type SkillInstaller, type PreparedSkillInstall, type SkillInstallDeps } from "@jini-ai/agentic/skills/install";
+import type { SkillInstallInput as JiniSkillInstallInput } from "@jini-ai/core/contracts/site/skills-install";
 import type { SkillLayout } from "./layout.js";
 import { loadInstalledSkillToolSources } from "./tool-registrations.js";
 import { SKILL_STATE_FILE } from "./state.js";

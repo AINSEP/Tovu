@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { VisitorToolMode, VisitorToolView } from "@/lib/visitor-tools";
+import type { VisitorToolMode, VisitorToolView } from "@jini-ai/admin/shell/lib/visitor-tools";
 import {
   groupVisitorTools, modeDisabled, useVisitorToolLimitsDraft, useWiredVisitorTools,
   type VisitorToolsController,

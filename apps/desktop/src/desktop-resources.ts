@@ -1,9 +1,11 @@
 /** Tovu policy over Jini's bounded OS sampler and process-tree owner. Monitor only. */
-import { sampleProcessPrivateMemory, type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import { sampleProcessPrivateMemory } from '@jini-ai/platform/process';
+import type { ProcessUsage, ProcessPrivateMemory } from '@jini-ai/core/contracts/site/platform-process';
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
-import type { ResourcesRequest, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from './contracts/resources.ts';
+import type { ResourcesRequest, ResourceMetrics, ResourcesSnapshot } from './contracts/resources.ts';
+import type { ResourceProcess } from "@jini-ai/core/contracts/site/contracts-resources";
 import { groupMemoryMetric, readDesktopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
 
 type ResourceGroup = ResourcesSnapshot['app'];

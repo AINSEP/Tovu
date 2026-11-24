@@ -1,5 +1,5 @@
 import { exportUrlLocations } from "@jini-ai/devops/static-export";
-import type { MediaRepoPort } from "@jini-ai/cms/media";
+import type { MediaRepoPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import { mediaPublicPath } from "@jini-ai/cms/media/site/public-path";

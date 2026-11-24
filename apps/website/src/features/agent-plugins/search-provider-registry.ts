@@ -1,4 +1,4 @@
-import type { SearchProvider } from "@jini-ai/search";
+import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { defineSearchProviderContribution } from "@jini-ai/search/contribution";
 import { defineProviderContribution, type LoadedProviderContribution, type PluginContributionResult } from "@jini-ai/agent-plugins/lifecycle";
 

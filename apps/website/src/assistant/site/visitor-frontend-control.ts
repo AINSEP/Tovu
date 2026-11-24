@@ -1,5 +1,6 @@
 /** Separate visitor façade; no admin daemon, registry or proxy enters this composition. */
-import { createFrontendControl, createFrontendGuestScope, type DaemonRouteHost, type FrontendHookInput, type FrontendSessionTimer } from '@jini-ai/daemon/http';
+import { createFrontendControl, createFrontendGuestScope, type DaemonRouteHost, type FrontendSessionTimer } from '@jini-ai/daemon/http';
+import type { FrontendHookInput } from "@jini-ai/core/contracts/site/daemon-http";
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
 import { createLocalSameOriginPolicy, type RouteHostContext, type ServerRoute } from '@jini-ai/core/contracts/server';
 import {

@@ -1,5 +1,6 @@
 import { sql } from "kysely";
-import { AesGcmSecretSealer, type SealedSecret } from "@jini-ai/platform/secrets";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import type { VaultKind } from "@jini-ai/core/contracts/vault";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";

@@ -1,4 +1,4 @@
-import type { ImageCodecPort } from "@jini-ai/cms/media";
+import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
 import type { EncodeTiles } from "./web-screenshot.js";
 
 /**

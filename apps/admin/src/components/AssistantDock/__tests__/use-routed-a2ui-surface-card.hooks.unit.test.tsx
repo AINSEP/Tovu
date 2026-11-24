@@ -7,7 +7,7 @@ import {
   latestSurfaceIdIn,
   surfaceIdOf,
   useRoutedA2uiSurfaceCard,
-} from "../hooks/use-routed-a2ui-surface-card.hooks";
+} from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-routed-a2ui-surface-card.hooks";
 import { resetPlaygroundRenderTargetBus } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 /**

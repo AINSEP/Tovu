@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import type { AdminSitesSnapshot } from "@jini-ai/core/contracts/site/hooks-sites-port-hooks";
 import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
 import { AllSitesTab, type AllSitesTabProps } from "../AllSitesTab";
 import { staticListPrefs } from "./site-list-prefs.fixture";

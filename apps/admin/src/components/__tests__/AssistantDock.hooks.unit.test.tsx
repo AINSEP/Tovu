@@ -120,7 +120,7 @@ import {
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { localCliSelectionFromConfig } from "../AssistantDock/execution-config-write";
-import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+import { writeAgentsSnapshot } from "../../lib/shell-collaborators";
 import {
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
@@ -2235,6 +2235,8 @@ describe("useWorkingDirectoryAccess", () => {
     expect(result.current).toBe(first);
     await expect(result.current!.pickWorkingDirectory()).resolves.toBe("picked-project");
     expect(picker).toHaveBeenCalledTimes(1);
+    // The host's pre-move key, so recent-folder lists already saved in browsers keep loading.
+    expect(localStorage.getItem("tovu.assistant.recentWorkingDirectoryNames")).toBe(JSON.stringify(["picked-project"]));
     localStorage.clear();
   });
 

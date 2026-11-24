@@ -15,7 +15,7 @@ import test from "node:test";
 
 import { PlanStaleError } from "@jini-ai/core/gated-mutations";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";

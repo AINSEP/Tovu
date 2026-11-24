@@ -2,7 +2,8 @@ import { createResourceStop } from './ResourcesPanel.hooks.js';
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';
-import type { MemoryMetric, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from '../contracts/resources.js';
+import type { ResourceMetrics, ResourcesSnapshot } from '../contracts/resources.js';
+import type { MemoryMetric, ResourceProcess } from "@jini-ai/core/contracts/site/contracts-resources";
 import type { SiteRecord } from '../contracts/project.js';
 import { useResources } from './use-resources.hooks.js';
 import { useSitePower } from './use-site-power.hooks.js';

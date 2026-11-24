@@ -4,7 +4,8 @@ import test from "node:test";
 
 import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
 import type { ProviderResult } from "@jini-ai/core/provider-registry";
-import { encodeSearchKey, type SearchDocument, type SearchDocumentKey, type SearchProvider, type SearchProviderContext } from "@jini-ai/search";
+import { encodeSearchKey, type SearchDocument, type SearchDocumentKey, type SearchProviderContext } from "@jini-ai/search";
+import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { createFakeHttpClient, type FakeHttpClient } from "@jini-ai/search/testkit";
 
 import { createMeilisearchEmulator } from "../fixtures/meilisearch-emulator.js";

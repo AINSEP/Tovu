@@ -8,7 +8,7 @@ import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/inde
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
 import { InMemoryPluginActivationRepo, type PluginContributionRegistry } from "@jini-ai/plugins/host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { requiredPostReader } from "../fixtures/plugin-post-read.js";
 import { PostNotFoundError, type PostRepoPort } from "#src/features/post/index";

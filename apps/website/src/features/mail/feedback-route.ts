@@ -6,14 +6,9 @@
  * Hardening lives in the Jini ingest: body cap (413), unverified-request rate limit (429), unknown
  * provider (404), no secret configured (503), bad signature (401), replay dedup.
  */
-import {
-  createMailFeedbackIngest,
-  type MailFeedbackInboxPort,
-  type MailFeedbackIngestOptions,
-  type MailFeedbackParser,
-  type MailFeedbackResponse,
-  type MailSuppressionRepoPort,
-} from "@jini-ai/platform/mail";
+import { createMailFeedbackIngest, type MailFeedbackIngestOptions, type MailFeedbackResponse } from "@jini-ai/platform/mail";
+import type { MailFeedbackInboxPort } from "@jini-ai/core/contracts/site/platform-mail";
+import type { MailFeedbackParser, MailSuppressionRepoPort } from "@jini-ai/core/contracts/mail";
 
 /** Default body cap; the server's raw parser uses the same number so both refuse alike. */
 export const MAIL_FEEDBACK_MAX_BODY_BYTES = 256 * 1024;

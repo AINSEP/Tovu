@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/agent-plugins/admin-surfaces";
+import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/core/contracts/site/agent-plugins-admin-surfaces";
 import { useAdminSurfaceFrame } from "../hooks/use-admin-surface-frame.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "../hooks/agent-plugin-surfaces-port.hooks";
 
