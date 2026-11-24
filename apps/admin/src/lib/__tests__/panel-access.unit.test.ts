@@ -125,42 +125,48 @@ const ROUTES = "../../../../website/src/server/inbound/admin-http/routes";
 /** Route specs that moved into `@jini-ai/cms` (ex5-fnd-routes): their permission literal now lives in
  *  the package's built route module, which ships in `dist/` for both linked and registry installs. */
 const CMS_ROUTES = "../../../node_modules/@jini-ai/cms/dist/admin-http/routes";
+/** Users/roles route specs that moved into `@jini-ai/user-management` (w3-rtfnd T7, rv1123l). */
+const USER_ROUTES = "../../../node_modules/@jini-ai/user-management/dist/admin-http/routes";
 const SERVER_EVIDENCE: Record<string, string> = {
   sites: `${ROUTES}/system/sites.ts`,
-  pages: `${ROUTES}/pages/list.ts`,
+  // `pages/list` authorizes through `authorizePageRead`; the literal lives in its shared module.
+  pages: `${CMS_ROUTES}/pages/shared.js`,
   posts: `${ROUTES}/posts/list.ts`,
   media: `${ROUTES}/media/list.ts`,
   // Library lists `media?kind=document` through the same route and permission.
   library: `${ROUTES}/media/list.ts`,
   collections: `${ROUTES}/content-types/list.ts`,
-  menus: `${ROUTES}/menus/list.ts`,
+  menus: `${CMS_ROUTES}/menus/list.js`,
   taxonomy: `${ROUTES}/taxonomy/list.ts`,
   forms: `${ROUTES}/forms/list.ts`,
-  users: `${ROUTES}/users/list.ts`,
-  roles: `${ROUTES}/users/list-roles.ts`,
-  members: `${ROUTES}/members/list.ts`,
+  users: `${USER_ROUTES}/users/list.js`,
+  // `users/list-roles` authorizes through `authorizeRoleManage`; the literal lives in its shared module.
+  roles: `${USER_ROUTES}/users/access-shared.js`,
+  // `members/list` authorizes through the members shared module, which holds the literal.
+  members: `${CMS_ROUTES}/members/shared.js`,
   comments: `${ROUTES}/comments/moderation-queue.ts`,
-  themes: `${ROUTES}/themes/list.ts`,
-  appearance: `${ROUTES}/themes/list.ts`,
-  plugins: `${ROUTES}/plugins/list.ts`,
-  "agent-plugins": `${ROUTES}/agent-plugins/list.ts`,
+  themes: `${CMS_ROUTES}/themes/list.js`,
+  appearance: `${CMS_ROUTES}/themes/list.js`,
+  plugins: `${CMS_ROUTES}/plugins/list.js`,
+  "agent-plugins": `${CMS_ROUTES}/agent-plugins/list.js`,
   skills: `${CMS_ROUTES}/skills/list.js`,
   database: `${CMS_ROUTES}/database/timeline.js`,
-  recovery: `${ROUTES}/recovery/status.ts`,
-  deployment: `${ROUTES}/system/deployment-overview.ts`,
+  recovery: `${CMS_ROUTES}/recovery/status.js`,
+  deployment: `${CMS_ROUTES}/system/deployment-overview.js`,
   observability: `${ROUTES}/system/observability-status.ts`,
-  email: `${ROUTES}/system/mail-status.ts`,
-  settings: `${ROUTES}/settings/get-effective.ts`,
-  consent: `${ROUTES}/consent/routes.ts`,
+  email: `${CMS_ROUTES}/system/mail-status.js`,
+  settings: `${CMS_ROUTES}/settings/get-effective.js`,
+  consent: `${CMS_ROUTES}/consent/routes.js`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
-  seo: `${ROUTES}/seo/get-settings.ts`,
+  // `seo/get-settings` authorizes through the seo shared module, which holds the literal.
+  seo: `${CMS_ROUTES}/seo/shared.js`,
   redirects: `${CMS_ROUTES}/redirects/shared.js`,
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
   // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
   providers: `${ROUTES}/external-mcp/guard.ts`,
   // The routable-only webhook deliveries drill-down (`/admin/integrations/:subscriptionId`).
-  integrations: `${ROUTES}/integrations/deliveries.ts`,
+  integrations: `${CMS_ROUTES}/integrations/shared.js`,
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
