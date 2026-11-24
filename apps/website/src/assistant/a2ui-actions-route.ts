@@ -5,7 +5,7 @@ import { a2uiActionsRoutes } from "@jini-ai/daemon/http";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { surfaceRouteHost } from "./surface-route-host.js";
-import { mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
+import { mountJiniPostRoutesInPlace } from "#src/server/runtime/composition/jini-routes";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 /**
@@ -82,7 +82,9 @@ export interface A2uiActionsRouteDeps {
 // schema, the surfaceId/exchangeId cross-check), a2ui-channel delivery and the 202/400/401/409
 // answers — is Jini's (`@jini-ai/daemon/http`'s `a2uiActionsRoutes`), shared with the admin
 // server's BYOK-first hop so both refuse the same malformed posts. This file only injects what Jini
-// does not own (the principal header name and the protocol's parser) and mounts the route on Express.
+// does not own (the principal header name and the protocol's parser) and mounts the route on Express as
+// a method-scoped `app.post`, as it was registered before it moved to Jini, so Express's own route table,
+// OPTIONS answer and `res.json` writer (Content-Length, weak ETag) stay in force.
 
 /**
  * Mounts `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`, at this position in its middleware order.
@@ -92,9 +94,9 @@ export interface A2uiActionsRouteDeps {
  * @overallScore 100
  */
 export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
-  mountJiniRoutes({ app, routes: a2uiActionsRoutes({
+  mountJiniPostRoutesInPlace({ app, routes: a2uiActionsRoutes({
     path: A2UI_ACTIONS_PATH,
     host: surfaceRouteHost(),
     deps: { surfaceExchanges: deps.surfaceExchanges, principalHeader: RUN_PRINCIPAL_HEADER, parseRendererMessage: parseRendererToAgentMessage },
-  }) });
+  }) }, { anonymous: true });
 }
