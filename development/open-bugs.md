@@ -179,6 +179,8 @@ Found while merging combine-9 against Jini `integ/merge-10-2026-11-21` `de4e555b
 (none blocks build or typecheck). Details: `cloud-results/combine-9-tovu.md`.
 
 ### `C9-share-zip-refusal-vs-acknowledgement` — confirmed (tv-sharezip T5 vs the existing acknowledgement flow)
+
+**combine-20: matches the owner decision 11-24, no code change** — `share-backend.ts:190` hard-refuses only when a public delivery is configured; owner-only exports acknowledge and continue. Pinned by `share-backend.unit.test.ts` + `credential-warnings.integration.test.ts` (mutations `if (true)` / drop-refusal each red).
 - tv-sharezip T5 (`apps/website/src/features/site-backup/share-backend.ts`, `requireNoShareCredentialWarnings`,
   called right after both ZIP builds) now throws `SiteShareRefusal` `UNSAFE_FILE` whenever the ZIP collector
   records any credential warning. Before it, the same warnings produced a share with
@@ -427,7 +429,7 @@ Report: `cloud-results/bt-dec-b.md`. AFTER-MERGE = the remaining change touches 
   take host `extraPatterns`; Tovu passes its shapes through `@tovu/contracts/diagnostics-redaction`. AFTER-MERGE: 4 desktop
   files + `product-telemetry.ts` import swap; `pnpm api:update` (diagnostics).
 - `A287` staged-destination map — **FIXED** (J `a07c31c9`): optional `rootDestinations`; still throws without one.
-- `B224` slug-only widget marker — **Jini FIXED** (J `a07c31c9`, `normalizeWidgetSlugMarkers`), **Tovu wiring AFTER-MERGE**
+- `B224` slug-only widget marker — **Jini FIXED** (J `a07c31c9`, `normalizeWidgetSlugMarkers`), **Tovu wiring FIXED combine-20** (T `a578ee4d8`, `route-deps-content-chat.widget-slug.test.ts`)
   (`pages/html-document-store*.ts`, 3 `pagesHtmlStore` factory sites). Not protective until wired.
 - `B230` /products skips finalize — **FIXED** (T `4d8fb09e6`, `7aef177db`): both handlers use `sendPublicPage`.
 - `A212` agent video > 10 MB — helper **FIXED** (T `4d8fb09e6`), one-line wiring in `media/tool-registrations.ts` AFTER-MERGE.
@@ -467,5 +469,6 @@ WAIT-M19 = the fix needs a file that the in-flight w5-content/admin/runtime-assi
 - `C026` — still **OPEN**: guard no longer crashes on a renamed seam (T `ffe8c6fc1`), real count 25 hits; the manifest move needs a Jini descriptor field (after merge-19).
 - `B258` desktop import swap — **STALE** (done; `redactor-bindings.test.ts` 5/5). `A310` gate comment — **FIXED** (T `2556075fe`).
 - `B229` — still pinned by `site-trash.integration.test.ts` ("B229: …").
-- **NEW `sheet-header-legacy-names`** — RELEASE BLOCKER until wired: the Google Sheets destination matched its two plugin columns by header text, so a sheet already receiving rows under `_tovu_submission_id`/`_tovu_submitted_at` was refused after the `_jini_*` rename. Jini half **FIXED** (J `2d5441259`, `legacyHeaders` + `adapterOptions`); Tovu wiring **WAIT-M19** in `server/runtime/composition/form-delivery-deliverer.ts:50`.
+- **FIXED combine-20 (T `5e2e7cc16`, e2e `form-delivery.e2e.test.mjs` legacy-headers pin)** ~~RELEASE BLOCKER~~ **NEW `sheet-header-legacy-names`** — was a release blocker until wired: the Google Sheets destination matched its two plugin columns by header text, so a sheet already receiving rows under `_tovu_submission_id`/`_tovu_submitted_at` was refused after the `_jini_*` rename. Jini half **FIXED** (J `2d5441259`, `legacyHeaders` + `adapterOptions`); Tovu wiring **WAIT-M19** in `server/runtime/composition/form-delivery-deliverer.ts:50`.
 - Also fixed (triage rows, no entry above): C130, A196, B257, B174, B015 (J); B159, B189, B236, B120, B284, B033, A448, A007, C025, B233, B109, C028 (share-service half), bt FIX 17. See the report.
+- **combine-20 FIXED (11-24):** A007 lock-wait no longer disables a plugin + unref'd retry wait (J `60ef174a5`, `d991584eb`); B176 consent guard only when configured (T `2808113f5`); B159 tail single source (T `bad432585`); bt FIX 7 visitor turn dedupe mounted (T `b070c97d3`); C8 class pair (J `21bf0096f`, T `4eec99ccf`); C131 AG-UI status sanitised (J `b18d08d77`); C025 safe boot-log copy (J `0afe5e25e`); B262 recordLogin (J `6ee4d2083`, `c478347a3`, T `78b0be2af`); H5 fail-closed + mount (J `884df9707`, T `335cb1c1b`); captured-mail clear bound to reviewed IDs (J `d302782e5`, T `dce495f12`). Still open from rv1124c: bugs-tovu FIX 4 (held-back specs to Jini CMS), FIX 7 (B120/B033 evidence); todos-tovu FIX 4 (C026), FIX 5 (H4 approval resume + created_by_kind migration).

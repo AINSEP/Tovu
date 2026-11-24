@@ -112,7 +112,7 @@ Found on Sienna's site (zoran-new): the in-app assistant could not add "GRV Reca
 - The in-app assistant can't run ffmpeg (tools-first, no shell), so it had no way to convert.
 
 Fix:
-- [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports. **bt2-todos 11-24:** Jini cms sniff/upload + backup archive `.mov`/`.m4v` DONE (Jini `848323076`, `584899361`). WAIT-M19: assistant URL import allow-list (`media-import/fetch-image.ts`, re-apply Tovu `363a8df97` together with the message pinned in `import-local-file.test.ts:292`), admin 50 MB/.mov picker (todos-a `cf77668a7`, never merged).
+- [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports. **bt2-todos 11-24:** Jini cms sniff/upload + backup archive `.mov`/`.m4v` DONE (Jini `848323076`, `584899361`). WAIT-M19: assistant URL import allow-list (`media-import/fetch-image.ts`, re-apply Tovu `363a8df97` together with the message pinned in `import-local-file.test.ts:292`), admin 50 MB/.mov picker (todos-a `cf77668a7`, never merged). **combine-20:** assistant URL import allow-list DONE (T `dbb0c6d3b`).
 - **Owner 2026-10-31:** accept the .MOV as-is when it is ≤ 50 MB; transcode only when it is over 50 MB (no automatic conversion of small files). Small kept files whose codec most browsers can't play (e.g. HEVC) show a "may not play in Chrome" note on the media card with a **Convert for web** button (owner chose option A).
 - [ ] Convert to a web-safe MP4 (H.264/AAC, faststart) on import, because HEVC .mov doesn't play in most browsers. **bt2-todos 11-24:** Jini port + ffmpeg adapter + `shouldTranscodeOnImport` DONE (Jini `9881dfeef`). WAIT-M19: Tovu import hook (`routes/media/upload.ts`, `features/media/*` are merge-19 files).
   - Keep the original.
@@ -122,7 +122,7 @@ Fix:
 
 ## ⭐ NEEDED (owner 2026-10-29 ~5:45 PM): update a deployed site to a new Tovu version from the production site itself
 Today a site can (re)deploy through its hosting platform with the `deployment_ops` tools (`apps/website/src/features/deployments/deploy-ops/agent-tools.ts`), using a saved credential and the repo's deploy workflow. But nothing lets the owner open the PRODUCTION admin and say "update this site to the latest Tovu".
-- [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release. **bt2-todos 11-24:** `site_update_check` tool DONE (`features/site-update/tools.ts`, Tovu `2be36f1f5`). Left: admin notice (UI pass) + tool wiring WAIT-M19 (`contracts/core/tool-metadata/index.ts`, `composition/tool-catalog-manifest.ts`) + NEEDS-OWNER: release feed URL per host kind.
+- [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release. **bt2-todos 11-24:** `site_update_check` tool DONE (`features/site-update/tools.ts`, Tovu `2be36f1f5`). Left: admin notice (UI pass) + tool wiring WAIT-M19 (`contracts/core/tool-metadata/index.ts`, `composition/tool-catalog-manifest.ts`) + NEEDS-OWNER: release feed URL per host kind. **combine-20:** apply revalidates the running version under the update lock (T `cfca1a40d`); GitHub release feed adapter + config-only runtime (`1edcdb87c`); host adapters + RouteDeps slot still open.
 - [x] One-click (or chat) update. **bt2-todos 11-24:** `site_update_apply` behind the owner approval card, approval bound to the shown version (Tovu `c326f1779`); wiring WAIT-M19 (see above).
   - It bumps the site's Tovu version and triggers the platform deploy.
   - It waits for the deploy, then checks the live site.
@@ -1214,7 +1214,7 @@ Backed by a source-level survey of ten shipped products; full reports in
 `development/tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29 (both verified present).
 Build in this order.
 
-- [ ] **Make the entity discriminator a per-principal enum** (**bt2-todos 11-24:** Jini daemon `catalogFor` per-request principal view, fails closed: `bfbe821c2`; Tovu wiring: see cloud-results/bt2-todos.md), not a free string. Kills the extra
+- [ ] **Make the entity discriminator a per-principal enum** (**bt2-todos 11-24:** Jini daemon `catalogFor` per-request principal view, fails closed: `bfbe821c2`; Tovu wiring: see cloud-results/bt2-todos.md), not a free string. Kills the extra **combine-20:** Tovu mount DONE (T `335cb1c1b`, J fail-closed `884df9707`).
       discovery round trip and puts least privilege in the contract. Neither Payload nor Strapi
       shipped this combination — it's ours to get right. Cache keys must include principal +
       permission version; execution-time authorization stays mandatory regardless.
@@ -2311,7 +2311,7 @@ Email nav stays SOON until these land.
 - [ ] Senders phase 1 (Jini, jini-int codex/email-senders-p1 57fbd0d2): committed, untested, unreleased → Jini cloud test + release.
 - [x] Decide: delete sent-email records after 30 days — owner YES 11-23; already on base (`MAIL_ACTIVITY_RETENTION_MS`, features/mail/retention.ts).
 - [x] Decide: auto-delete captured test emails — owner YES 11-23: after **7 days** + "clear all" (approval card).
-- [x] Implement: captured test emails 24h → 7 days + "clear all" behind an approval card. **bt2-todos 11-24:** retention 30 d sent / 7 d captured with injected windows + exact boundaries (Jini `f4d1d64e9`, Tovu `a5b8b0d1c`); admin Clear test emails confirm card (Jini `fc5d5108f`/`a793d532a`/`82a7af668`, Tovu `de047ccb0`). WAIT-M19: assistant tool `mail_clear_captured` held as `cloud-results/bt2-todos/clear-captured-tool-*.patch` (needs `assistant/batch-tool-inputs.ts`). AFTER-MERGE: retention moves to Jini `packages/platform/src/mail/sql/` on w3-addons (`cloud-results/bt-dec-a.md`).
+- [x] Implement: captured test emails 24h → 7 days + "clear all" behind an approval card. **bt2-todos 11-24:** retention 30 d sent / 7 d captured with injected windows + exact boundaries (Jini `f4d1d64e9`, Tovu `a5b8b0d1c`); admin Clear test emails confirm card (Jini `fc5d5108f`/`a793d532a`/`82a7af668`, Tovu `de047ccb0`). WAIT-M19: assistant tool `mail_clear_captured` held as `cloud-results/bt2-todos/clear-captured-tool-*.patch` (needs `assistant/batch-tool-inputs.ts`). AFTER-MERGE: retention moves to Jini `packages/platform/src/mail/sql/` on w3-addons (`cloud-results/bt-dec-a.md`). **combine-20:** clear now deletes only the reviewed capture IDs atomically (J `d302782e5`, T `dce495f12`) + `mail_clear_captured` (T `fd9a6835f`).
 - [ ] Guided "Connect email" flow (SMTP under advanced) — Q18/25 suggestion.
 - [ ] tovu.dev: save the Resend key ON tovu.dev itself (no localhost→prod key transfer), set a sender address, check Resend domain verification (needs full-access Resend connect or the Resend dashboard).
 - [ ] LATER idea: encrypted key transfer localhost → production (owner: "not right now").
@@ -2353,22 +2353,22 @@ Plans ready: ADS-memory/.local-artifacts/handoffs/2026-10-26-monitoring-plan-tri
 Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu as a paid hosting service. Pick one for the Tovu app (apps/, desktop): **FSL-1.1-Apache-2.0** (Sentry model: no competing hosted service; each version turns Apache after 2 yrs) or **AGPL-3.0** (hosted forks must publish their changes; doesn't stop resale). Keep @jini-ai npm packages Apache so other devs adopt the engine. Owner is sole author (no outside contributors), so relicensing is allowed; already-published versions stay Apache forever. Keep Jini NOTICE (Open Design, Apache-2.0) attribution. Update LICENSE, package.json "license", README badge. Ship before any public launch.
 
 ## LATER (owner 10-31): media descriptions for semantic search
-- [ ] Whenever an agent creates, imports or sees an image, it also writes a plain-language **description** of what the image shows, so search (incl. semantic search) can find it. Media has `alt` + `caption` today but no description field — add one (ADR-066 TS migration) or decide caption is enough; agent tools (media import/generate/view_image) fill it; search indexes it; owner can edit it in Media.
+- [ ] Whenever an agent creates, imports or sees an image, it also writes a plain-language **description** of what the image shows, so search (incl. semantic search) can find it. Media has `alt` + `caption` today but no description field — add one (ADR-066 TS migration) or decide caption is enough; agent tools (media import/generate/view_image) fill it; search indexes it; owner can edit it in Media. **combine-20:** `description` field + Library search haystack DONE (J `120139942`, T `78b0be2af`); agent-written descriptions still open.
 - [ ] Videos: same idea, harder — describe from stills/key frames (and transcript if any). Later.
 
 - 11-01 owner: REDO the demo reel later — the reel itself is good, but the sites/website UI shown in it looks awful; re-record once the site UI is better. (Blur of client names: owner says not needed.)
 
 ## P10 G7 owner decisions — bt-dec-b (2026-11-24, owner 11-23 "approve all recs")
-- [x] G7-1 new-site password: desktop unchanged; server sites refuse the default (`identity/first-owner-password.ts`, ERR-OWNER-PASSWORD-REQUIRED). Boot wiring in `identity/wiring.ts` + `identity-settings.ts` AFTER-MERGE.
+- [x] G7-1 new-site password: desktop unchanged; server sites refuse the default (`identity/first-owner-password.ts`, ERR-OWNER-PASSWORD-REQUIRED). Boot wiring in `identity/wiring.ts` + `identity-settings.ts` AFTER-MERGE. **combine-20:** server boot wiring DONE (T `cedc2fec6`; seed-failure handled `a3489fd33`).
 - [x] G7-2 dev CORS: off outside dev, admin Vite origins allow-list only (`inbound/shared/dev-cors.ts`).
 - [x] G7-3 menu HTML mode needs `pages.edit_html`: already enforced (`modules/menus.ts:82`, `menu-html-mode.test.ts`).
-- [ ] G7-4 trash retention 30 days (bt2-todos: WAIT-M19, `apps/admin/src/features/trash/Trash.tsx` is a merge-19 file): held as patches `cloud-results/bt-dec-b/g7-4-*.patch` (Jini constant + Tovu UI copy/21 locales + `member-adapter.test.ts`) — apply together after the w3 merge.
+- [x] G7-4 trash retention 30 days (bt2-todos: WAIT-M19, `apps/admin/src/features/trash/Trash.tsx` is a merge-19 file): held as patches `cloud-results/bt-dec-b/g7-4-*.patch` (Jini constant + Tovu UI copy/21 locales + `member-adapter.test.ts`) — apply together after the w3 merge. **combine-20 DONE:** both patches applied (J `cfae4835f`, T `fc2f82f62`), pinned by `cms/src/trash/site/__tests__/retention-days.test.ts`.
 - [x] G7-5 Q-M2: decided together with the media single-limit step (P10-M2). Plan only.
 - [x] G7-6/G7-7 sent-email 30 d / test-email 7 d (bt2-todos: done, see the Email section): same as the owner's YES item "sent-email records 30d + captured test emails 7d + clear all" — done in that lane, not here.
 - [x] G7-8 pre-consent pages with gated tracking scripts are `private, no-store` (`pages/pre-consent-cache.ts`).
 - [ ] G7-9 captions (bt2-todos: WAIT-M19, needs `schema.sqlite.ts` + `features/media/publish-content.ts`): Jini `renderVideoTag` emits a safe `<track kind="captions">` (`cms/widgets/caption-track.ts`); Tovu column + migration, `.vtt` upload/serving and renderer wiring AFTER-MERGE.
 - [x] G7-10 four catch-await handlers: fix in the P4-T4 sheet. Plan only.
-- [ ] G7-11 (bt2-todos: WAIT-M19, `agent-daemon-run-start.ts` is a merge-19 file) `<<SUBAGENT_DISPATCH>>` only when the site folder has `AGENTS.md`: helper `assistant/subagent-dispatch-marker.ts`; call site `agent-daemon-run-start.ts:378` + 2 pinned tests AFTER-MERGE.
+- [x] G7-11 (bt2-todos: WAIT-M19, `agent-daemon-run-start.ts` is a merge-19 file) `<<SUBAGENT_DISPATCH>>` only when the site folder has `AGENTS.md`: helper `assistant/subagent-dispatch-marker.ts`; call site `agent-daemon-run-start.ts:378` + 2 pinned tests AFTER-MERGE. **combine-20 DONE:** marker only when the site folder has an AGENTS.md (T `a70f2cabd`).
 - [x] G7-12 theme `/` layout: parked until the owner designs it.
 - [x] G7-13 page tagging: only on owner request (see WebMCP section).
 - [x] G7-14 browser observability adapter and ffmpeg: off / not bundled by default (no change).
