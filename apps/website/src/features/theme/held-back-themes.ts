@@ -34,22 +34,46 @@ interface HeldBackTree { files: TreeFile[]; bytes: number; links: string[]; tooL
  */
 function walkHeldBackTree(required: { dir: string }): HeldBackTree {
   const tree: HeldBackTree = { files: [], bytes: 0, links: [], tooLarge: false };
-  const pending = [{ abs: required.dir, rel: "", depth: 0 }];
-  while (pending.length && !tree.tooLarge) {
-    const { abs, rel, depth } = pending.pop()!;
-    if (depth > MAX_WALK_DEPTH) { tree.tooLarge = true; break; }
-    for (const entry of fs.readdirSync(abs).sort().reverse()) {
-      const childRel = rel ? rel + "/" + entry : entry;
-      const stat = fs.lstatSync(path.join(abs, entry));
-      if (stat.isSymbolicLink()) tree.links.push(childRel);
-      else if (stat.isDirectory()) pending.push({ abs: path.join(abs, entry), rel: childRel, depth: depth + 1 });
-      else if (stat.isFile()) { tree.files.push({ relativePath: childRel, size: stat.size }); tree.bytes += stat.size; }
-    }
-    tree.tooLarge ||= tree.files.length > MAX_LISTED_FILES || tree.bytes > MAX_DUPLICATE_THEME_BYTES;
-  }
-  tree.files.sort((a, b) => (a.relativePath < b.relativePath ? -1 : a.relativePath > b.relativePath ? 1 : 0));
+  const pending: WalkFolder[] = [{ abs: required.dir, rel: "", depth: 0 }];
+  while (pending.length && !tree.tooLarge) walkFolder({ tree, folder: pending.pop()!, pending });
+  tree.files.sort((a, b) => compareText(a.relativePath, b.relativePath));
   tree.links.sort();
   return tree;
+}
+
+interface WalkFolder { abs: string; rel: string; depth: number }
+
+/** Code-unit order, so the digest never depends on the host's locale. */
+function compareText(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+/**
+ * One folder of {@link walkHeldBackTree}: past the depth cap it only marks `tooLarge`; otherwise it
+ * files every entry and queues sub-folders, then applies the file-count and byte caps.
+ * @complexity O(entries in the folder), one `lstat` each.
+ */
+function walkFolder(required: { tree: HeldBackTree; folder: WalkFolder; pending: WalkFolder[] }): void {
+  const { tree, folder, pending } = required;
+  if (folder.depth > MAX_WALK_DEPTH) { tree.tooLarge = true; return; }
+  for (const entry of fs.readdirSync(folder.abs).sort().reverse()) {
+    const child = { abs: path.join(folder.abs, entry), rel: folder.rel ? folder.rel + "/" + entry : entry, depth: folder.depth + 1 };
+    if (recordEntry({ tree, child })) pending.push(child);
+  }
+  tree.tooLarge ||= tree.files.length > MAX_LISTED_FILES || tree.bytes > MAX_DUPLICATE_THEME_BYTES;
+}
+
+/**
+ * File one walked entry into the tree: a link is recorded (never followed), a file adds its size.
+ * @returns true when the entry is a folder the walk must descend into. @complexity O(1), one `lstat`.
+ */
+function recordEntry(required: { tree: HeldBackTree; child: { abs: string; rel: string } }): boolean {
+  const { tree, child } = required;
+  const stat = fs.lstatSync(child.abs);
+  if (stat.isSymbolicLink()) tree.links.push(child.rel);
+  else if (stat.isFile()) { tree.files.push({ relativePath: child.rel, size: stat.size }); tree.bytes += stat.size; }
+  return !stat.isSymbolicLink() && stat.isDirectory();
 }
 
 /** Read without following a link swapped in after the walk's `lstat`. */

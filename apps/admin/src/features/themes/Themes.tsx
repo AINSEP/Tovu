@@ -14,7 +14,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
-import { useWiredHeldBackThemes, type HeldBackThemesController, type UseHeldBackThemesHook } from "./hooks/use-held-back-themes.hooks";
+import { useWiredHeldBackThemes, type UseHeldBackThemesHook } from "./hooks/use-held-back-themes.hooks";
 import { HeldBackChosenThemeNotice, HeldBackThemes } from "./HeldBackThemes";
 import { buildThemeCardMenuItems, themeDeleteBlock, type ThemeDeleteBlock, type ThemeDeleteRequest } from "./theme-card-menu";
 import {
@@ -157,17 +157,6 @@ export interface ThemesProps {
   useHeldBackThemesHook?: UseHeldBackThemesHook;
 }
 
-/**
- * The held-back-themes controller, bound to this screen: a restore asks the Themes controller to
- * rescan so the restored theme's card appears. Its own function so the injected-hook default does not
- * cost `Themes` a complexity point.
- */
-function useHeldBackForThemes(
-  { hook, t, rescan }: { hook: UseHeldBackThemesHook | undefined; t: Translate; rescan: ThemesController["rescan"] },
-  _optional = {},
-): HeldBackThemesController {
-  return (hook ?? useWiredHeldBackThemes)({ t, onRestored: () => void rescan?.() });
-}
 
 /**
  * Falls back to the active theme's own tab group for an absent or unrecognized `?tab=` value.
@@ -587,7 +576,7 @@ function useFirstActiveTheme({ settings }: { settings: PresentationSettings | nu
 // screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
 // (`undefined`) the same as an explicit `null` (its `tabId && ...` check is falsy either way), so a
 // third default here would cost a complexity point for zero behavioral benefit.
-export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes", useFirstActiveThemeHook = useFirstActiveTheme, useHeldBackThemesHook }: ThemesProps) {
+export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes", useFirstActiveThemeHook = useFirstActiveTheme, useHeldBackThemesHook = useWiredHeldBackThemes }: ThemesProps) {
   const {
     settings,
     themes,
@@ -614,7 +603,8 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   } = withThemeDefaults(useThemesHook());
   const firstActiveThemeId = useFirstActiveThemeHook({ settings: settings });
   // Called before the early return below: hooks cannot be skipped by it.
-  const heldBack = useHeldBackForThemes({ hook: useHeldBackThemesHook, t, rescan });
+  // A restore asks the Themes controller to rescan so the restored theme's card appears.
+  const heldBack = useHeldBackThemesHook({ t, onRestored: () => void rescan?.() });
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
