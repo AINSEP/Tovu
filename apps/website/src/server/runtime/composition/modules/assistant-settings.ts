@@ -11,7 +11,8 @@ import { assistantPutSettingsRoute } from "@jini-ai/cms/admin-http/routes/assist
 import { assistantPutSiteCredentialRoute, SITE_CREDENTIAL_VALIDATION_CODE } from "@jini-ai/cms/admin-http/routes/assistant/put-site-credential";
 import type { AssistantErrorMapping } from "@jini-ai/cms/admin-http/routes/assistant/shared";
 import {
-  assistantVisitorToolsConfigureRoute, assistantVisitorToolsListRoute,
+  assistantVisitorToolsConfigureRoute, assistantVisitorToolsListRoute, type VisitorToolsConfigureRouteDeps, type VisitorToolsConfigureRoutePort,
+  type VisitorToolsListRouteDeps, type VisitorToolsListRoutePort,
 } from "@jini-ai/cms/admin-http/routes/assistant/visitor-tools";
 import {
   ADMIN_ASSISTANT_PERMISSION, ExecutionCredentialSecretStoreUnconfiguredError, ExecutionCredentialValidationError,
@@ -188,12 +189,20 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
  */
 export function registerAdminVisitorToolsRoutes({ app, deps }: { app: Express; deps: VisitorToolsRouteDeps }, _options = {}): void {
   // No RBAC port is consulted (the service authorizes); `authorize` is present only to satisfy the port shape.
-  const routeDeps = {
+  const portDeps = {
     workspaceId: deps.workspaceId, authorize: async () => ({ allowed: false, reason: "visitor-tools routes authorize in the service" }),
-    visitorToolsManagement: () => deps.visitorToolsManagement, errorMappings: VISITOR_TOOLS_ERRORS,
+    errorMappings: VISITOR_TOOLS_ERRORS,
   } satisfies AdminJsonRoutePortDeps & Record<string, unknown>;
-  mountAdminJsonRoute({ app, spec: assistantVisitorToolsListRoute, deps: routeDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
-  mountAdminJsonRoute({ app, spec: assistantVisitorToolsConfigureRoute, deps: routeDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+  // Each route sees only the half of the service it calls (GET: `list`; PUT: `prepare` then `apply`,
+  // whose fresh-revision check stays in the service). The service is still read per request.
+  const listDeps = {
+    ...portDeps, visitorToolsManagement: (): VisitorToolsListRoutePort | undefined => deps.visitorToolsManagement,
+  } satisfies VisitorToolsListRouteDeps & AdminJsonRoutePortDeps;
+  const configureDeps = {
+    ...portDeps, visitorToolsManagement: (): VisitorToolsConfigureRoutePort | undefined => deps.visitorToolsManagement,
+  } satisfies VisitorToolsConfigureRouteDeps & AdminJsonRoutePortDeps;
+  mountAdminJsonRoute({ app, spec: assistantVisitorToolsListRoute, deps: listDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
+  mountAdminJsonRoute({ app, spec: assistantVisitorToolsConfigureRoute, deps: configureDeps }, mountOptions({ operation: "routes/assistant/visitor-tools", authorization: "direct" }));
 }
 
 export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {

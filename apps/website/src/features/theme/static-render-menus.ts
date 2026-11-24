@@ -5,7 +5,7 @@ import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { renderHtmlMenu } from "#src/platform/html/menu-render";
 import { menuLinkRelAttr } from "@jini-ai/cms/navigation/menu-render";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import type { DiscoveredTheme } from "./theme.js";
 
 

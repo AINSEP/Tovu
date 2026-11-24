@@ -46,13 +46,21 @@ import type { RouteDeps } from "#src/server/routes/types";
 /** The unexpected-failure copy key and authorization of each mount, exactly as each hand-written
  *  route had them: every sites route called `authorizeOrRespond` once (`"guarded"`, one check each,
  *  so no `authorizationByPermission`); the settings routes chose their own 500 copy (`message`).
- *  No mount sets `deferMissingPrincipal`: no hand-written sites route refused a bad body or param
- *  before reading the session (the name/path/confirmation 400s all came after `authorizeOrRespond`). */
+ *
+ *  `gateFirst` (config read, home, Create, Activate): those hand-written routes answered the
+ *  deployment gate (switcher flag / boot binding) BEFORE `getAuthedPrincipal`, so a closed gate's
+ *  403/409 won even with no session. The ports authenticate before `handle`, where each spec checks
+ *  its gate, so these mounts defer the missing principal (`deferMissingPrincipal`). That stays fail
+ *  closed: none of the four specs refuses in `parse`, each answers its gate and then calls
+ *  `authorize` before any side effect, and the port's `authorize` throws `getAuthedPrincipal`'s
+ *  error on a missing principal — the same redacted 500 (`sites-route-gate-precedence.test.ts`).
+ *  The token-plugin list read the session first (no gate), so it keeps the default. */
 function sitesMountOptions(
   { operation }: { operation: string },
-  optional: { message?: string } = {},
+  { message, gateFirst = false }: { message?: string; gateFirst?: boolean } = {},
 ): AdminJsonRouteMountOptions {
-  return { authorization: "guarded", failure: { operation, code: "INTERNAL_ERROR", ...optional } };
+  const failure = { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) };
+  return { authorization: "guarded", failure, ...(gateFirst ? { deferMissingPrincipal: true } : {}) };
 }
 
 /** The two port fields; `authorize` is read per request, as the hand-written routes read it. */
@@ -69,10 +77,10 @@ export function registerSitesHomeRoutes(
 ): void {
   const switcherEnabled = () => (deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal)();
   mountAdminJsonRoute({ app, spec: sitesConfigReadRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace } },
-    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not read sites settings." }));
+    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not read sites settings.", gateFirst: true }));
   registerSitesConfigSaveRoute({ app, deps: { ...deps, isSiteSwitcherEnabled: switcherEnabled }, workspace });
   mountAdminJsonRoute({ app, spec: sitesHomeSetRoute, deps: { ...sitesPortDeps({ deps }), switcherEnabled, workspace, directories: nodeSitesDirectoryProbe } },
-    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not save sites home." }));
+    sitesMountOptions({ operation: "routes/sites/sites-home" }, { message: "Could not save sites home.", gateFirst: true }));
 }
 
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "createSite"> & {
@@ -181,14 +189,14 @@ function registerSiteAdminSpecs({ app, ports }: { app: Express; ports: SitesPort
   const listTokenSignInPlugins = deps.listTokenSignInPlugins
     ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() }));
   mountAdminJsonRoute({ app, spec: siteTokenSignInPluginsRoute, deps: { ...sitesPortDeps({ deps }), listTokenSignInPlugins } }, sitesMountOptions({ operation: "routes/system/sites" }));
-  mountAdminJsonRoute({ app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions({ operation: "routes/system/sites" }));
+  mountAdminJsonRoute({ app, spec: siteCreateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase, createSite: createSiteCollaborator({ deps }) } }, sitesMountOptions({ operation: "routes/system/sites" }, { gateFirst: true }));
   mountAdminJsonRoute({ app, spec: siteActivateRoute, deps: { ...sitesPortDeps({ deps }), siteSwitchBase,
     // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
     // new site; without it, Activate behaves exactly as before (persist + instructions).
     activateSite: ({ switcherBase, name, restartNow }) => activateSiteWithWarmServer(
       { switcherBase, name, currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
       { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace, warmServer },
-    ) } }, sitesMountOptions({ operation: "routes/system/sites" }));
+    ) } }, sitesMountOptions({ operation: "routes/system/sites" }, { gateFirst: true }));
 }
 
 export function registerAdminSitesRoutes({ app, deps }: { app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {

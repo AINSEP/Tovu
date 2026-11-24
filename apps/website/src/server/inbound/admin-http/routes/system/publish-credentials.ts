@@ -22,8 +22,8 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * `runtime/composition/modules/system-credentials.ts`, which also calls this registrar first so the
  * registration order is unchanged. It stays because `publish-credentials-route.test.ts` pins that a
  * direct handler call with no principal REJECTS (the admin JSON ports answer a redacted 500 instead);
- * moving it needs that test changed, which a K1 move may not do. A Jini spec
- * (`publish-credentials/list`) is ready for when that pin is revisited.
+ * moving it needs that test changed, which a K1 move may not do. Jini ships no list spec until
+ * that pin is revisited (review rv1123i held the unmounted one out of the published API).
  *
  * `system.publish`-gated (entity type `site-publish`, no `entityId`), `authorizeDirectOrRespond`.
  */

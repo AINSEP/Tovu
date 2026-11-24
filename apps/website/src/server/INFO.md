@@ -171,7 +171,7 @@ delete,get-providers,put-providers}` (delete `"guarded"`, the rest `"direct"`) a
 DTO lookups (recorded content type, public URL, blob size), the transactional `removeMedia` trash flip,
 the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
 `MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
-`@jini-ai/cms/admin-http/http/media`. list and original
+`@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
 remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).
 Assistant settings, credentials and visitor tools (`runtime/composition/modules/assistant-settings.ts`)
 mount `@jini-ai/cms/admin-http/routes/assistant/*` `"direct"` and inject `ADMIN_ASSISTANT_PERMISSION`, the

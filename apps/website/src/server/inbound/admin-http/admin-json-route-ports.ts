@@ -5,6 +5,8 @@ import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refus
 
 import type { RouteDeps } from "#src/server/routes/types";
 import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
+import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
+import { reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
@@ -73,6 +75,11 @@ export interface AdminJsonRouteMountOptions {
   /** `"route"` (default) is `sendAdminFailure`'s method/route-derived copy; `"operation"` is the
    *  operation-only `adminFailureResponse` body the presentation PATCH writes. */
   failureCopy?: "route" | "operation";
+  /** Opt-in: register the handler through `asyncRoute` (named `forwardRejection`), as the
+   *  hand-written route was. A rejection that escapes the spec adapter (its own error answer
+   *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
+   *  request open; the route-table pin sees the same registration as before the move. */
+  forwardRejection?: boolean;
 }
 
 /** The denied decision a {@link AdminJsonRouteMountOptions.forbidden} override answers. */
@@ -234,8 +241,22 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   required: { app: Express; spec: Omit<JsonRouteSpec<Input, Output, Deps, OperatorPrincipalRecord>, "ports">; deps: Deps & AdminJsonRoutePortDeps },
   optional: AdminJsonRouteMountOptions = {},
 ): void {
-  const ports = adminPortsFor({ path: required.spec.path, options: optional });
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps });
+  const { forwardRejection, ...portOptions } = optional;
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions });
+  const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ports }, deps: required.deps });
+}
+
+/** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.
+ *  `mountJsonRoute` only calls `app[spec.method](path, handler)`; a new use of `app` there fails
+ *  loudly here (not a silent bypass), and `admin-json-route-ports.test.ts` pins the wrapped name.
+ * @complexity O(1). */
+function registeringThroughAsyncRoute(
+  { app, method }: { app: Express; method: JsonRouteSpec<unknown, unknown, unknown>["method"] },
+  _optional: Record<string, never> = {},
+): Express {
+  const register = (path: string, handler: AsyncRouteHandler) => app[method](path, asyncRoute({ handler }));
+  return { [method]: register } as unknown as Express;
 }
 
 /** Mount a Jini public route spec behind the visitor ports (see `createPublicJsonRoutePorts`).

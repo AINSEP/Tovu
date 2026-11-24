@@ -77,12 +77,14 @@ function portDeps({ deps }: { deps: Pick<RouteDeps, "workspaceId" | "authorize">
 
 /** Every credential verb kept `authorizeDirectOrRespond` (no publishing-credential override): each
  *  mount passes `"direct"`. No hand-written credential route refused a body before reading the
- *  session (each verb authorized first), so none opts into `deferMissingPrincipal`. */
+ *  session (each verb authorized first), so none opts into `deferMissingPrincipal`. Every
+ *  hand-written credential verb was registered through `asyncRoute`, so each spec mount here keeps
+ *  `forwardRejection` (the route-table pin holds those eleven registrations). */
 function mountOptions(
   { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
   optional: Pick<AdminJsonRouteMountOptions, "authorizationByPermission" | "deferMissingPrincipal"> = {},
 ): AdminJsonRouteMountOptions {
-  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, forwardRejection: true, ...optional };
 }
 
 // ── source-control ──────────────────────────────────────────────────────────────────────────────
@@ -112,6 +114,23 @@ function sourceControlWriteDeps({ deps }: { deps: AdminSourceControlCredentialsD
     // why: the save-time account probe carries the token, so it goes through the guarded client (never native fetch).
     httpClient: deps.customCredentialsHttpClient,
     loadSourceControlProviders: deps.loadSourceControlProviders,
+  };
+}
+
+type SourceControlProvidersLoader = AdminSourceControlCredentialsDeps["loadSourceControlProviders"];
+
+/** The provider loader the providers spec calls, reporting each plugin load refusal through the
+ *  required `reportRefusal` port first. Plugin load refusals go to the server log, never the
+ *  response (the Jini spec copies only named provider fields). `load` is read per request.
+ * @complexity O(r) per load for r refusals. */
+function providerLoaderReportingRefusals(
+  { load, reportRefusal }: { load: () => SourceControlProvidersLoader; reportRefusal: (refusal: string) => void },
+  _optional: Record<string, never> = {},
+): SourceControlProvidersLoader {
+  return async (args) => {
+    const registry = await load()(args);
+    for (const refusal of registry.refusals) reportRefusal(refusal);
+    return registry;
   };
 }
 
@@ -149,7 +168,11 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
   const writeDeps = sourceControlWriteDeps({ deps });
   const base = { ...portDeps({ deps }), storeErrors: SOURCE_CONTROL_ERRORS };
   const options = mountOptions({ operation: "routes/system/source-control-credentials", authorization: "direct" });
-  mountAdminJsonRoute({ app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders: (args) => deps.loadSourceControlProviders(args) } }, options);
+  const loadSourceControlProviders = providerLoaderReportingRefusals({
+    load: () => deps.loadSourceControlProviders,
+    reportRefusal: (refusal) => console.warn(`[source-control-providers] ${refusal}`),
+  });
+  mountAdminJsonRoute({ app, spec: sourceControlProvidersRoute, deps: { ...base, loadSourceControlProviders } }, options);
   mountAdminJsonRoute({ app, spec: sourceControlListRoute, deps: { ...base, listCredentials: ({ workspaceId }) => listSourceControlCredentials(readDeps, { workspaceId }) } }, options);
   mountAdminJsonRoute({ app, spec: sourceControlCreateRoute, deps: {
     ...base,

@@ -13,6 +13,11 @@ import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
+
+/** Fixed-locale fake for tests that only exercise the permission gate. */
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
+
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {
   cleanup();
@@ -29,9 +34,9 @@ function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset>
   const api = createMemorySeoApi({ sitemapText });
   const load = vi.spyOn(api, 'getSeoSettings');
   const subscribe = vi.fn(seoEvents.subscribe);
-  const runtime = createHostAdminScope({ permissions: ['*'] }, { seoPorts: { seoApi: api, seoEvents: { subscribe } }, useSeoLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { seoPorts: { seoApi: api, seoEvents: { subscribe } } });
   scopes.push(runtime);
-  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
+  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} useAdminLocaleHook={useLocale} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
   return { api, load, subscribe, runtime, node };
 }
 
@@ -51,7 +56,7 @@ describe('Jini SEO host switch', () => {
   it.each([
     [[], false], [['media.read'], false], [['admin.seo.manage'], true], [['*'], true],
   ] as const)('retains the SEO route gate for grants %j', (permissions, visible) => {
-    const runtime = createHostAdminScope({ permissions });
+    const runtime = createHostAdminScope({ permissions, useAdminLocaleHook });
     scopes.push(runtime);
     expect(runtime.admin.describe().pages.find(page => page.id === 'seo.settings')).toMatchObject({ path: '/seo', visible, permissions: ['admin.seo.manage'] });
   });

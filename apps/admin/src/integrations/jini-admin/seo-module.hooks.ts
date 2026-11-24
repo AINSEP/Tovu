@@ -3,7 +3,7 @@ import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement } from 'react';
 import { seo, type SeoReactOptions, type SeoMediaPickerSlotProps } from '@jini-ai/admin/seo/react';
 import { formDateDisplay } from '@jini-ai/admin/forms';
-import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { MediaPickerDialog } from '../../components/MediaPickerDialog/MediaPickerDialog';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
 import { siteUrl } from '../../lib/site-url';
@@ -21,7 +21,7 @@ export function SeoMediaPickerSlot({ agentHandle, ...props }: SeoMediaPickerSlot
  * @returns Stable Provider/page bindings; locale changes retain drafts and open dialog state.
  * @example createHostSeoModule({});
  */
-export function createHostSeoModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof seo<HostModulePage, LazyTabView>> & { react: { loadingContent: ReactElement } } {
+export function createHostSeoModule({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}): ReturnType<typeof seo<HostModulePage, LazyTabView>> & { react: { loadingContent: ReactElement } } {
   // One site-URL reader for the factory default and the live options the Provider always passes.
   const hostSiteUrl = () => siteUrl({ path: '' });
   const feature = seo({ ui: reactModuleUi, siteUrl: hostSiteUrl });
@@ -29,7 +29,7 @@ export function createHostSeoModule(_required: Record<string, never>, { useAdmin
   // Keep this component's identity for the scope lifetime; changing locale must not remount
   // the uncontrolled defaults form or discard an unsaved entry override.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
-    const locale = useAdminLocaleHook();
+    const locale = useAdminLocaleHook({}, {});
     const options = useMemo<SeoReactOptions>(() => ({
       siteUrl: hostSiteUrl,
       t: createSeoTranslator({ locale }),
@@ -46,7 +46,7 @@ export function createHostSeoModule(_required: Record<string, never>, { useAdmin
 }
 
 /** Preserve the original translated notice before the host scope or lazy page is available. */
-export function SeoModuleLoading({ useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string }): ReactElement {
-  const locale = useAdminLocaleHook();
+export function SeoModuleLoading({ useAdminLocaleHook }: { useAdminLocaleHook: UseAdminLocaleHook }): ReactElement {
+  const locale = useAdminLocaleHook({}, {});
   return createElement('div', { className: 'notice' }, createSeoTranslator({ locale })('Loading SEO settings…'));
 }

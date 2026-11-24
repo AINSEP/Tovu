@@ -95,13 +95,17 @@ function withRequestTimePorts<T extends object>(
   }) as T & AdminJsonRoutePortDeps;
 }
 
-const recoveryMountOptions = (operation: string) => ({ failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const });
+/** Each recovery mount's 500 copy key; every one is `"direct"` and none opts into
+ *  `deferMissingPrincipal`: each hand-written recovery route read the session before validating input. */
+function recoveryMountOptions({ operation }: { operation: string }, _optional: Record<string, never> = {}) {
+  return { failure: { operation, code: "INTERNAL_ERROR" }, authorization: "direct" as const };
+}
 
 /** `GET /api/admin/v1/recovery/restore-points` (Jini spec), gated by `backup.read`. */
 export function registerAdminRecoveryRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   mountAdminJsonRoute({ app, spec: recoveryRestorePointsListRoute, deps: withRequestTimePorts({ deps, own: {
     listRestorePoints: () => listRestorePoints({ repo: deps.restorePointsRepo }),
-  } }) }, recoveryMountOptions("routes/recovery/restore-points"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/restore-points" }));
 }
 
 /** `POST /api/admin/v1/recovery/disclosure` (Jini spec), gated by `backup.read`. */
@@ -109,7 +113,7 @@ export function registerAdminRecoveryDisclosureRoute({ app, deps }: { app: Expre
   mountAdminJsonRoute({ app, spec: recoveryDisclosureRoute, deps: withRequestTimePorts({ deps, own: {
     computeDisclosure: ({ restorePointId, coveredCategories }: { restorePointId: string; coveredCategories: readonly string[] }) =>
       computeDisclosure({ deps: { watermarkSource: deps.disclosureWatermarkSource, coveredCategories }, input: { restorePointId } }),
-  } }) }, recoveryMountOptions("routes/recovery/disclosure"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/disclosure" }));
 }
 
 /** `POST /api/admin/v1/recovery/deep-link` (Jini spec), gated by `backup.read`. The spec has
@@ -118,7 +122,7 @@ export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express
   mountAdminJsonRoute({ app, spec: recoveryDeepLinkRoute, deps: withRequestTimePorts({ deps, own: {
     resolveDeepLinkContext: (input: { principalId: string; principalKind: "user"; envelope: object }) =>
       resolveDeepLinkContext({ deps: { lookup: deps.deepLinkRestorePointLookup }, input: { ...input, envelope: input.envelope as DatabaseContextEnvelope } }),
-  } }) }, recoveryMountOptions("routes/recovery/deep-link"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/deep-link" }));
 }
 
 /** The Timeline's 400 classification: the ledger's undecodable-cursor `ToolInputError`, or
@@ -135,7 +139,7 @@ export function registerAdminRecoveryStatusRoute({ app, deps }: { app: Express; 
   mountAdminJsonRoute({ app, spec: recoveryStatusRoute, deps: withRequestTimePorts({ deps, own: {
     get dbOps() { return deps.dbOps; }, get siteStatusRepo() { return deps.siteStatusRepo; },
     isOperationInFlight, resolveDegradedBanner,
-  } }) }, recoveryMountOptions("routes/recovery/status"));
+  } }) }, recoveryMountOptions({ operation: "routes/recovery/status" }));
 }
 
 const RESTORE_POINTS_FAILURE: FailureOptions = { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" };

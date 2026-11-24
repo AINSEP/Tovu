@@ -37,7 +37,7 @@ function probeRoute(calls: string[]) {
 }
 
 type ServeOptions = {
-  allowed?: boolean; publishTrust?: boolean; direct?: boolean; noPrincipal?: boolean; deferMissingPrincipal?: boolean;
+  allowed?: boolean; publishTrust?: boolean; direct?: boolean; noPrincipal?: boolean; deferMissingPrincipal?: boolean; forwardRejection?: boolean;
   authorizationByPermission?: Record<string, "guarded" | "direct">;
 };
 
@@ -56,6 +56,7 @@ async function serve(options: ServeOptions = {}) {
   const mountOptions = {
     ...(options.direct ? { authorization: "direct" as const } : {}),
     ...(options.deferMissingPrincipal ? { deferMissingPrincipal: true } : {}),
+    ...(options.forwardRejection ? { forwardRejection: true } : {}),
     ...(options.authorizationByPermission ? { authorizationByPermission: options.authorizationByPermission } : {}),
   };
   mountAdminJsonRoute({ app, spec: probeRoute(calls), deps: { probe: true, workspaceId: "local", authorize } as never }, mountOptions);
@@ -69,7 +70,12 @@ async function serve(options: ServeOptions = {}) {
     const response = await fetch(`${base}/api/admin/v1/workspaces/${workspace}/probe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     return { status: response.status, body: await response.json() };
   };
-  return { calls, authorizeCalls, base, send, close: () => new Promise((resolve) => server.close(resolve)) };
+  /** The probe route's own handler name (the last layer on its path; the 413 cap is registered first). */
+  const probeHandlerName = () => {
+    const layers = (app as unknown as { _router: { stack: { route?: { path: string; stack: { name: string }[] } }[] } })._router.stack;
+    return layers.filter((layer) => layer.route?.path === path).at(-1)!.route!.stack.map((entry) => entry.name);
+  };
+  return { calls, authorizeCalls, base, send, probeHandlerName, close: () => new Promise((resolve) => server.close(resolve)) };
 }
 
 test("returned parse, returned handler and thrown refusal all answer in the flat envelope", async (t) => {
@@ -154,6 +160,20 @@ test("a per-permission override selects grant or RBAC for that permission, in bo
 
 // rv1123e K1-tovu #2: missing-principal deferral is a per-mount opt-in, for routes whose hand-written
 // version refused a bad body before reading the session. Every other mount keeps the old order.
+test("the forwardRejection opt-in registers through asyncRoute, as the hand-written routes did, and answers as before", async (t) => {
+  const plain = await serve();
+  t.after(plain.close);
+  const forwarded = await serve({ forwardRejection: true });
+  t.after(forwarded.close);
+  assert.deepEqual(plain.probeHandlerName(), ["<anonymous>"]);
+  assert.deepEqual(forwarded.probeHandlerName(), ["forwardRejection"]);
+  assert.deepEqual(await forwarded.send({ mode: "ok" }), { status: 201, body: { done: true } });
+  const crashed = await forwarded.send({ mode: "crash" });
+  assert.equal(crashed.status, 500);
+  assert.equal(crashed.body.code, "INTERNAL_ERROR");
+  assert.deepEqual(forwarded.calls, ["ok", "crash"]);
+});
+
 test("without the deferral opt-in a missing session fails before parse, as before", async (t) => {
   const s = await serve({ noPrincipal: true });
   t.after(s.close);

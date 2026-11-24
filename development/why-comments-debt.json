@@ -4992,6 +4992,174 @@
     {
       "id": "486452b0f1ad",
       "reason": "Moved with its code when w3 C2c deleted public-http/routes/publish-trust/handshake.ts: route logic and its comments to Jini packages/cms/src/public-http/routes/publish-trust/handshake.ts (verbatim, or reworded neutral where it named Express/Tovu), host policy (per-IP ceiling, refusal copy, keyless/identity-derivation log) verbatim to Tovu runtime/composition/modules/publish-trust.ts."
+    },
+    {
+      "id": "09e11019f541",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuTargetDto doc (combine-16, with the K1 menus DTO move); the host menus.ts is gone (routes now mount the Jini cms specs)."
+    },
+    {
+      "id": "c5d16d4d85d1",
+      "reason": "Moved to Jini core contracts/site/cms-menus.ts AdminMenuDto doc ('mode'/'html' absent on a menu that never used HTML mode; K1 rv1123e); the host menus.ts is gone."
+    },
+    {
+      "id": "178e43d79674",
+      "reason": "Explained the host call-shape forwarder platform/html/escape.ts, deleted in P12 cut #7 (F7.2: delete, do not shim); callers now import Jini @jini-ai/core/text directly. The why it carried (a leaf module with no imports cannot close a renderer import cycle) lives on in Jini packages/core/src/text/escape.ts @file doc."
+    },
+    {
+      "id": "4038db5b2226",
+      "reason": "P12 #6.T F6.4 reverses the 2026-08-12 'deliberately not hook-injected' ruling this test header cited: Placeholder now takes the host locale hook as a REQUIRED prop (approval reviews/approve-P12-cutplan2.md F6.4), so the explanation describes code that no longer exists."
+    },
+    {
+      "id": "62ced0c1fed7",
+      "reason": "P12 #6.T F6.4 (approved): Placeholder's live-hook default is removed and the hook is a required prop; the 'deliberately NOT hook-injected' ruling is reversed by the approval, so this explanation is obsolete."
+    },
+    {
+      "id": "5165f24e1463",
+      "reason": "Moved with the stage to Jini (P12 #4.J, F4.1): the unparseable-vs-null sentinel reasoning lives at core/transport/http.ts UNPARSEABLE_BODY and parseJsonBody docs, which the factory reuses."
+    },
+    {
+      "id": "e6d974eb500e",
+      "reason": "Moved to Jini (P12 #4.J): the rejected-fetch translation (TypeError only, AbortError rethrown, cause kept) is documented at core/transport/http.ts throwTranslatedFetchFailure, shared by createAdminHttp; Tovu's 'Tovu API' copy stays in request.ts messages.unreachable."
+    },
+    {
+      "id": "be361ab64e90",
+      "reason": "Moved to Jini (P12 #4.J): the cross-realm DOMException name check lives at core/transport/http.ts errorName ('Timeout DOMExceptions can come from another realm')."
+    },
+    {
+      "id": "6ee99d63563c",
+      "reason": "Obsolete with the move (P12 #4.J): this explained an in-file complexity split of the catch block; the classification now lives once in core/transport/http.ts throwTranslatedFetchFailure."
+    },
+    {
+      "id": "4561bac89ec9",
+      "reason": "Moved to Jini (P12 #4.J): the pagehide-cancellation reason is at core/transport/http.ts throwTranslatedFetchFailure ('A navigation cancels in-flight fetches with this same TypeError after pagehide')."
+    },
+    {
+      "id": "45699d2b2e49",
+      "reason": "Moved to Jini (P12 #4.J): caller-signal precedence is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts fetchBounded ('A caller's signal owns cancellation and its own deadline')."
+    },
+    {
+      "id": "c83224534c56",
+      "reason": "Moved to Jini (P12 #4.J): buildFetchInit and its merge-order doc moved to Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit (same-origin + JSON default, headers merge onto the default, caller type wins); its test imports the Jini owner."
+    },
+    {
+      "id": "1f79daa9af52",
+      "reason": "Moved to Jini (P12 #4.J): the case-insensitive Content-Type reason is in Jini @jini-ai/admin shell/lib/admin-http/request.ts buildFetchInit's doc ('in any letter case ... two values would be sent joined with a comma')."
+    },
+    {
+      "id": "e2e6fbe036cb",
+      "reason": "Moved to Jini (P12 #4.J): parse stage and its null-vs-unparseable reason live at core/transport/http.ts parseJsonBody."
+    },
+    {
+      "id": "9e6b2e7b08a3",
+      "reason": "Moved to Jini (P12 #4.J): the 401+UNAUTHENTICATED-only rule is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('a relayed vendor 401 does not'); host ordering (reset before notify) is documented at request.ts adminHttp composition."
+    },
+    {
+      "id": "536cc7622121",
+      "reason": "Moved (P12 #4.J/T): the three-failure-mode reasoning is split between Jini @jini-ai/admin shell/lib/admin-http/request.ts responseError doc and the request.ts composition doc (Vite proxy bare 500, 2026-08-06 debugging hour, redaction of the requestFailed copy)."
+    },
+    {
+      "id": "edff0256ccff",
+      "reason": "Moved to Jini (P12 #4.J): the single-seam/onOk-on-success-only contract is documented at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendOnce ('onOk runs just before resolve') and the factory file header."
+    },
+    {
+      "id": "133bc7cc0dfc",
+      "reason": "Reworded in place (P12 #4.T): requestOnce is now a bound export with its own doc in request.ts ('One send through the seam, no restart retry')."
+    },
+    {
+      "id": "73d663a2fee7",
+      "reason": "Moved to Jini (P12 #4.J): the upstream-refused mark is documented on the CreateAdminHttpPorts.isUpstreamRefused port in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "89e2703e5b79",
+      "reason": "Moved to Jini (P12 #4.J): the per-instance refused-error WeakSet is documented on Context.upstreamRefused in Jini @jini-ai/admin shell/lib/admin-http/request.ts."
+    },
+    {
+      "id": "ef1d3c398c7e",
+      "reason": "Moved to Jini (P12 #4.J): retry policy doc lives at Jini @jini-ai/admin shell/lib/admin-http/request.ts rideOutRestart ('sends exactly once more. Reads always retry; writes only when provably undelivered or retryWrites')."
+    },
+    {
+      "id": "1f5e257eed8d",
+      "reason": "Moved to Jini (P12 #4.J): the generation-captured-before-send reason is at Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "b7b914d063db",
+      "reason": "Moved to Jini (P12 #4.J): 'only the FINAL failure is reported' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported doc."
+    },
+    {
+      "id": "dfaf4e4bc9f0",
+      "reason": "Moved in place (P12 #4.T): the 4xx-is-the-caller's reason is now on request.ts reportFailure port binding ('A 4xx is the caller's to explain')."
+    },
+    {
+      "id": "ebe41cb8bdf9",
+      "reason": "Moved to Jini (P12 #4.J): 'Notice effects must never replace the caller's original rejection' is in Jini @jini-ai/admin shell/lib/admin-http/request.ts sendReported."
+    },
+    {
+      "id": "a8c92bf88454",
+      "reason": "Moved in place (P12 #4.T): the provider-URL cookie reason is now the AdminApiBasePath doc in request.ts."
+    },
+    {
+      "id": "b169dfcdd8bc",
+      "reason": "P12 #4.T: AuthenticatedAdminRequestOptions is now AdminHttpOptions<ApiError, AdminApiBasePath, 'page'>; failureEntry's field doc lives on the core AdminHttpOptions type and the 'page' vocabulary is the host's F parameter."
+    },
+    {
+      "id": "3d4be6abd42e",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort loadLanguage doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
+    },
+    {
+      "id": "709316d2b551",
+      "reason": "Moved to Jini @jini-ai/admin/src/shell/hooks/admin-locale-port.hooks.ts AdminLocalePort subscribeToSettingsRefresh doc (p12-cut46 #6, one host locale hook); host file path reworded to the injected fallbackLocale."
+    },
+    {
+      "id": "8dd47a012640",
+      "reason": "Header said the client types mirror the settings response contracts; the value/reset responses now alias the Core DTOs (@jini-ai/core/contracts/site/cms-settings, rv1123e §2.1), so 'mirroring' is no longer true."
+    },
+    {
+      "id": "ec1df623d9d9",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): clear.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/clear.ts:65 (verbatim, shared.ts -> @jini-ai/core/settings)."
+    },
+    {
+      "id": "d0a8c4efc097",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-effective.ts @file block -> Jini @jini-ai/cms/admin-http/routes/settings/get-effective.ts spec doc; resolution rationale already lived in Jini core settings cms-adapter."
+    },
+    {
+      "id": "12783307cacc",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): get-raw.ts layer-resolution doc -> Jini @jini-ai/cms/admin-http/routes/settings/get-raw.ts:34."
+    },
+    {
+      "id": "ccb49fc91f9c",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts partition-selection doc -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:51."
+    },
+    {
+      "id": "fc0f6811a69d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): reset.ts write-target note -> Jini @jini-ai/cms/admin-http/routes/settings/reset.ts:67 (verbatim)."
+    },
+    {
+      "id": "b1045df6b29d",
+      "reason": "Moved with the settings routes to Jini (rt-l2-system, combine-16): set.ts ambient-workspace note -> Jini @jini-ai/cms/admin-http/routes/settings/set.ts:76."
+    },
+    {
+      "id": "8dd34a9324f7",
+      "reason": "rv1123i K1 migration: the per-entry admin client types (SeoEntryMeta/SeoEntryAnalysis/SeoIssue) became aliases of the Core wire DTOs, so the 'mirrored from src/seo/types.ts per SPEC-037 REQ-06/07' provenance no longer describes a hand mirror; the replacement header in the same file says where the shapes are declared, and Jini packages/core/src/contracts/site/cms-seo.ts (file header) records why they moved. Was apps/admin/src/features/seo/api/seo-api.types.ts:35-38."
+    },
+    {
+      "id": "ade91cbff741",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc (fully-resolved meta, overrides over site defaults over derived values, GET and PUT both answer it, not the raw override bag) moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoMetaDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:59-61."
+    },
+    {
+      "id": "0b639a8c9eaf",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoAnalysisDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:120-120."
+    },
+    {
+      "id": "d223545f9421",
+      "reason": "Moved verbatim with the media update route to Jini @jini-ai/cms/admin-http/routes/media/update.ts:17 (rt-l3-pubsite, combine-16); the host update.ts is deleted."
+    },
+    {
+      "id": "2b6a73cf3219",
+      "reason": "Moved (via Jini cms publish/content/report-contract.ts) to Jini core contracts/site/cms-publish-content.ts @file doc:8 ('deliberately neutral...'), rv1123j rt-l5 FIX 1 (combine-16)."
+    },
+    {
+      "id": "11eb90984825",
+      "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
     }
   ]
 }

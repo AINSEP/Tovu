@@ -16,7 +16,9 @@ import {
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "#src/contracts/core/tool-access-change";
 import { lowerPluginToolAccess } from "#src/features/plugin-runtime/lower-tool-access";
-import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
+import {
+  mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,
+} from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { registerChartProviderRoutes } from "#src/server/inbound/admin-http/routes/plugins/chart-providers";
 import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";
@@ -27,6 +29,8 @@ import type { ServerModuleHandle } from "./types.js";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/core/contracts/site/plugins-host";
+import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
+import type { AdminPluginEnvelope } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
 import type { PluginConflict } from "@jini-ai/core/contracts/site/plugins-host";
@@ -78,6 +82,15 @@ export type PluginsListRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "autho
   LocalInstallerDeps & { pluginActivationRepo: Pick<PluginsRouteDeps["pluginActivationRepo"], "getActivation"> };
 
 /**
+ * Core restates the engine's admin row as `AdminPluginDto` (it cannot import the engine) and the
+ * plugins specs answer that type, while this module binds the engine's `toAdminPluginResponse` to
+ * them. Binding only proves engine -> Core; this pin fails the typecheck when either side gains,
+ * loses or retypes a field. Type-only: no runtime cost.
+ */
+type IsTrue<T extends true> = T;
+export type PluginRowMatchesCoreDto = IsTrue<[AdminPluginEnvelope] extends [AdminPluginDto] ? ([AdminPluginDto] extends [AdminPluginEnvelope] ? true : false) : false>;
+
+/**
  * The two port fields every plugins mount passes. `authorize` is read per request (tests reassign
  * it). The hand-written plugin routes asked `authorizeOrRespond` with principal, permission and
  * workspace only — never an entity — so the port's `entityType`/`entityId` are dropped here and the
@@ -87,9 +100,16 @@ function pluginPortDeps({ deps }: { deps: Pick<PluginsRouteDeps, "workspaceId" |
   return { workspaceId: deps.workspaceId, authorize: ({ entityType: _entityType, entityId: _entityId, ...params }) => deps.authorize(params) };
 }
 
-/** Every converted plugins route used `authorizeOrRespond` (`"guarded"`); the operation picks its 500 copy. */
-function mountOptions(operation: string) {
-  return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR" } };
+/** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization of each mount.
+ *  Every converted plugins route but set-enabled used `authorizeOrRespond` (`"guarded"`).
+ *  - `deferMissingPrincipal`: only set-enabled refused a malformed `enabled` (400) before
+ *    `getAuthedPrincipal(res)`; list, files, uninstall and preview read the session first, so they
+ *    keep the principal-first order. */
+function mountOptions(
+  { operation, authorization }: { operation: string; authorization: AdminRouteAuthorization },
+  optional: Pick<AdminJsonRouteMountOptions, "deferMissingPrincipal"> = {},
+): AdminJsonRouteMountOptions {
+  return { authorization, failure: { operation, code: "INTERNAL_ERROR" }, ...optional };
 }
 
 /** Discovery and activation lookups, read per request from the host bag. */
@@ -107,7 +127,7 @@ export const registerPluginsListRoute = ({ app, deps }: { app: Express; deps: Pl
     listPluginConflicts: async () => (await deps.listPluginConflicts?.()) ?? new Map(),
     localInstallAvailable: () => Boolean(localPluginInstaller(deps)),
   };
-  mountAdminJsonRoute({ app, spec: pluginListRoute, deps: listDeps }, mountOptions("routes/plugins/list"));
+  mountAdminJsonRoute({ app, spec: pluginListRoute, deps: listDeps }, mountOptions({ operation: "routes/plugins/list", authorization: "guarded" }));
 };
 
 export const registerPluginFilesRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -116,7 +136,7 @@ export const registerPluginFilesRoute: PluginsRouteRegistrar = ({ app, deps }, _
     readPluginPackageFiles: (record: PluginDiscoveryRecord) => deps.readPluginPackageFiles(record),
     packageFileLimits: PLUGIN_PACKAGE_FILE_LIMITS, unsafePathError: PluginPackagePathError,
   };
-  mountAdminJsonRoute({ app, spec: pluginFilesRoute, deps: filesDeps }, mountOptions("routes/plugins/files"));
+  mountAdminJsonRoute({ app, spec: pluginFilesRoute, deps: filesDeps }, mountOptions({ operation: "routes/plugins/files", authorization: "guarded" }));
 };
 
 export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
@@ -129,7 +149,7 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps 
       alreadyInTrash: PluginAlreadyInTrashError, unsafePath: PluginUninstallPathError,
     },
   };
-  mountAdminJsonRoute({ app, spec: pluginUninstallRoute, deps: uninstallDeps }, mountOptions("routes/plugins/uninstall"));
+  mountAdminJsonRoute({ app, spec: pluginUninstallRoute, deps: uninstallDeps }, mountOptions({ operation: "routes/plugins/uninstall", authorization: "guarded" }));
 };
 
 /** The owner's enable of a site plugin is its approved capability set; a host without a plugin
@@ -143,6 +163,9 @@ async function recordSiteApproval({ deps, record }: { deps: Pick<PluginsRouteDep
  * activation entity and answers its own 403, so `authorizeCommand` is `deps.authorize` read per
  * request — not the port's entity-dropping wrapper. The port authorizer is never asked, so the mount
  * is `"direct"` (the hand-written route never consulted a publishing credential's grant either).
+ * It defers a missing session (`deferMissingPrincipal`): the hand-written route answered a malformed
+ * `enabled` with its 400 before reading the principal, and a valid body still fails closed in the
+ * spec's `pluginActorId` before discovery or the gateway runs.
  */
 export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   const setEnabledDeps = {
@@ -153,8 +176,8 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
       deps: { clock: deps.clock, repo: deps.pluginActivationRepo, discovery, onEnabled: deps.onPluginEnabled, onDisabled: deps.onPluginDisabled },
       input,
     }),
-    onPluginEnabled: (pluginId: string) => deps.onPluginEnabled(pluginId),
-    onPluginDisabled: (pluginId: string) => deps.onPluginDisabled(pluginId),
+    onPluginEnabled: ({ pluginId }: { pluginId: string }) => deps.onPluginEnabled(pluginId),
+    onPluginDisabled: ({ pluginId }: { pluginId: string }) => deps.onPluginDisabled(pluginId),
     recordApproval: ({ record }: { record: PluginDiscoveryRecord }) => recordSiteApproval({ deps, record }),
     lowerToolAccess: ({ pluginId }: { pluginId: string }) =>
       lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {}),
@@ -164,7 +187,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
       invalid: PluginInvalidError, conflict: PluginConflictError, load: PluginLoadError,
     },
   };
-  mountAdminJsonRoute({ app, spec: pluginSetEnabledRoute, deps: setEnabledDeps }, { ...mountOptions("routes/plugins/set-enabled"), authorization: "direct" });
+  mountAdminJsonRoute({ app, spec: pluginSetEnabledRoute, deps: setEnabledDeps }, mountOptions({ operation: "routes/plugins/set-enabled", authorization: "direct" }, { deferMissingPrincipal: true }));
 };
 
 /** `PLUGIN_PREVIEW_STATUS` (GET) then `PLUGIN_PREVIEW` (POST), same order as before. The hook-failure
@@ -175,8 +198,8 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps },
     previewPluginBeforeSave: (...args: Parameters<PluginsRouteDeps["previewPluginBeforeSave"]>) => deps.previewPluginBeforeSave(...args),
     hookFailedError: PluginHookFailedError, pluginHookFailedBody,
   };
-  mountAdminJsonRoute({ app, spec: pluginPreviewStatusRoute, deps: previewDeps }, mountOptions("routes/plugins/preview"));
-  mountAdminJsonRoute({ app, spec: pluginPreviewRunRoute, deps: previewDeps }, mountOptions("routes/plugins/preview"));
+  mountAdminJsonRoute({ app, spec: pluginPreviewStatusRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
+  mountAdminJsonRoute({ app, spec: pluginPreviewRunRoute, deps: previewDeps }, mountOptions({ operation: "routes/plugins/preview", authorization: "guarded" }));
 };
 
 /** The host bag the provider-settings and project-key-use registrar reads (moved from the deleted

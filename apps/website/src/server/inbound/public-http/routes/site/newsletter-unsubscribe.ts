@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
 import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/index";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
