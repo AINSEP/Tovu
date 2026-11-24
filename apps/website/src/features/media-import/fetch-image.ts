@@ -90,7 +90,7 @@ import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media"
  * `media_upload_asset`); it only removes the pointless detour. SVG is accepted because `uploadMedia` sanitizes it before hashing or storing it.
  */
 export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedContentType>([
-  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml", "video/mp4", "video/webm", "video/quicktime", "video/x-m4v",
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml", "video/mp4", "video/webm",
 ]);
 /**
  * Largest payload this tool will import. Not an independent number: it IS `contracts/core/upload-limits.ts`'s
