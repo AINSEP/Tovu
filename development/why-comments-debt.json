@@ -4718,6 +4718,34 @@
     {
       "id": "78e2e1ebdb48",
       "reason": "Moved with its code to Jini @jini-ai/admin/shell/components/WidgetConfigFields/PlacementContentFields (w4-admin-shell batch I); host file names reworded to the host in words, every why-sentence kept."
+    },
+    {
+      "id": "fe084a2972f6",
+      "reason": "Moved with its tests to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (src/local-dev/__tests__/dev-proxy-upstream.test.ts), header reworded neutral."
+    },
+    {
+      "id": "595721325d33",
+      "reason": "Moved with its test fixture to Jini @jini-ai/devops/local-dev/dev-proxy-upstream tests (src/local-dev/__tests__/dev-proxy-upstream.test.ts)."
+    },
+    {
+      "id": "3f92571e6702",
+      "reason": "Dropped-upstream rationale moved with the code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (module header); the Tovu file keeps a header naming the Vite registration and refusal copy."
+    },
+    {
+      "id": "9475cabe2b4b",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (installUpstreamCloseHandling docs)."
+    },
+    {
+      "id": "50d31e589931",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (EventSource reconnect rationale in installUpstreamCloseHandling docs)."
+    },
+    {
+      "id": "858cf8239e55",
+      "reason": "Moved with its code to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (isClientResponse doc comment)."
+    },
+    {
+      "id": "b39d8a145860",
+      "reason": "Refused-upstream 503 rationale: the lifecycle half moved to Jini @jini-ai/devops/local-dev/dev-proxy-upstream (ECONNREFUSED bullet); the Tovu header keeps the 2026-10-05 marker-header rationale."
     }
   ]
 }
