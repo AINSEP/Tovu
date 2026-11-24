@@ -411,7 +411,6 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
 - `C043` tier-2 import allowlist — `plugin-tier2/worker.ts` is changed by `codex/ex2-holds-tovu`, which already
   carries a C043 import policy and `worker-import-allowlist.integration.test.ts`.
 
-<<<<<<< HEAD
 ## Fixed by owner decision (bt-dec-a, 2026-11-24)
 
 ### `B229-permanent-delete-keeps-appdata-dbs` — FIXED
@@ -419,7 +418,7 @@ HIGH rows of `plans/P8-triaged-backlog.md` (plan branch `plan/whats-left-1122`),
 Permanent site delete now also removes `<appData>/databases/<siteId>/`, behind the existing checkbox +
 confirm, and only that one real, non-symlinked folder. Pinned by
 `apps/website/src/platform/site-dir/__tests__/integration/site-trash.integration.test.ts` ("B229: …").
-=======
+
 ## bt-dec-b (owner decisions 2026-11-23 "approve all recs"; Tovu `codex/bt-dec-b-tovu`, Jini `codex/bt-dec-b-jini`)
 
 Report: `cloud-results/bt-dec-b.md`. AFTER-MERGE = the remaining change touches a file a `codex/w3-*` lane is editing.
@@ -445,4 +444,3 @@ Report: `cloud-results/bt-dec-b.md`. AFTER-MERGE = the remaining change touches 
 - `C026` vendor names in seam files — **AFTER-MERGE**: `api-connections/contribution.ts:77` and
   `agent-plugin-connections.ts:185` (manifest `publicConfig` injection) are in flight; guard unchanged (27 lines).
 - xAI media provider entries → provider plugin — **AFTER-MERGE** (J `integrations/src/media-providers/providers.ts` in flight).
->>>>>>> fix/bt-dec-b

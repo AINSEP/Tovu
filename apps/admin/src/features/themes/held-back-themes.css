@@ -1,0 +1,30 @@
+/* "Held back on import" (A452). Mobile-first: rows stack and buttons fill the width, then from 600px
+   the actions sit beside the text. Colours, radii and the card chrome come from the admin's own
+   tokens and `.card` / `.notice` / `.btn-*` classes; only layout lives here. */
+.held-back-themes { margin-top: 2rem; }
+.held-back-themes__intro { color: var(--fg-2); max-width: 65ch; }
+.held-back-themes__loading { color: var(--fg-2); }
+.held-back-themes__retry { margin-top: 0.5rem; }
+
+.held-back-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.75rem; }
+.held-back-row { display: flex; flex-direction: column; gap: 0.75rem; }
+.held-back-row__main { min-width: 0; }
+.held-back-row__name { margin: 0; overflow-wrap: anywhere; }
+.held-back-row__meta { margin: 0.25rem 0 0; color: var(--fg-2); }
+
+.held-back-row__result { margin-top: 0.5rem; }
+.held-back-row__result:empty { display: none; }
+.held-back-row__result p { margin: 0; }
+.held-back-row__result ul { margin: 0.35rem 0 0; padding-left: 1.2rem; }
+.held-back-row__result li { overflow-wrap: anywhere; }
+.held-back-row__result .held-back-ok { color: var(--success, var(--fg)); }
+
+.held-back-row__actions { display: flex; flex-direction: column; gap: 0.5rem; }
+.held-back-row__actions button { width: 100%; }
+.held-back-row__actions button[aria-busy="true"] { cursor: progress; }
+
+@media (min-width: 600px) {
+  .held-back-row { flex-direction: row; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  .held-back-row__actions { flex-direction: row; flex-shrink: 0; }
+  .held-back-row__actions button { width: auto; }
+}

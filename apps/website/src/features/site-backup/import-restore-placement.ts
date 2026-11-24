@@ -15,11 +15,14 @@ export interface ThemeManifestFindings {
   readonly compiledSources: ReadonlyMap<string, string>;
 }
 
-type ThemeManifestVerdict = { kind: "plain" } | { kind: "quarantine" } | { kind: "compiled"; sourcePrefix: string };
+/** A quarantine verdict carries its reason in plain words, so the held-back re-check can say why. */
+type ThemeManifestVerdict = { kind: "plain" } | { kind: "quarantine"; problem: string } | { kind: "compiled"; sourcePrefix: string };
 /** The manifest's `build` exactly as staged; its fields are re-checked before use. */
 type CompiledBuild = Parameters<typeof checkSourceDirContainment>[0]["build"];
 const PLAIN: ThemeManifestVerdict = { kind: "plain" };
-const QUARANTINE: ThemeManifestVerdict = { kind: "quarantine" };
+const quarantine = (problem: string): ThemeManifestVerdict => ({ kind: "quarantine", problem });
+const UNREADABLE = quarantine("Its theme.json could not be read or checked.");
+const BAD_BUILD = quarantine("Its built files did not pass the theme checks.");
 
 const THEME_MANIFEST = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/theme.json$/;
 const THEME_FILE = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/(.+)$/;
@@ -51,22 +54,23 @@ export function inspectThemeManifests(required: { root: string; files: readonly 
 function inspectThemeManifest(required: { root: string; file: string; tier: string; name: string }): ThemeManifestVerdict {
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(required.root, required.file), "utf8"));
-    if (manifest.tier !== required.tier.split("/").at(-1)) return QUARANTINE;
+    const folderTier = required.tier.split("/").at(-1);
+    if (manifest.tier !== folderTier) return quarantine(`Its theme.json says it is a ${String(manifest.tier)} theme, but it sits in the ${folderTier} folder.`);
     if (manifest.build?.source !== "compiled") return PLAIN;
     return inspectCompiledTheme({ root: required.root, id: required.tier + "/" + required.name, name: required.name, manifest });
-  } catch { return QUARANTINE; }
+  } catch { return UNREADABLE; }
 }
 
 /** @throws whatever the share path policy or theme loader throws; the caller quarantines on it. */
 function inspectCompiledTheme(required: { root: string; id: string; name: string; manifest: { tier: unknown; build: CompiledBuild } }): ThemeManifestVerdict {
   const { build } = required.manifest;
-  if (required.manifest.tier !== "static" || typeof build.sourceDir !== "string" || checkSourceDirContainment({ build, schemaVersion: 2 }).length) return QUARANTINE;
+  if (required.manifest.tier !== "static" || typeof build.sourceDir !== "string" || checkSourceDirContainment({ build, schemaVersion: 2 }).length) return BAD_BUILD;
   // A trailing '/' is an empty segment, so this refusal also guarantees `sourcePrefix` below.
   validateSharePath({ path: build.sourceDir });
   // The theme owner treats compiled output as static, never as a server code tier. Reuse its
   // artifact validation; preserve authored build source ONLY in the quarantine tree.
   const theme = loadTheme({ themeDir: path.join(required.root, "themes", required.id), id: required.name, source: "site" });
-  if (theme.status === "invalid") return QUARANTINE;
+  if (theme.status === "invalid") return BAD_BUILD;
   return { kind: "compiled", sourcePrefix: "themes/" + required.id + "/" + build.sourceDir + "/" };
 }
 
@@ -85,10 +89,49 @@ export function liveThemeTrees(required: { files: readonly string[]; findings: T
     live.add(id);
     // Browser JS is an ordinary static asset, unlike TS/JS modules in a code theme. The whole
     // tree is quarantined if it includes build source or declares a different executable tier.
-    if (!isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources }) && !STATIC_ASSETS.some(pattern => pattern.test(match[3]!))) quarantined.add(id);
+    if (!isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources }) && !isStaticAsset(match[3]!)) quarantined.add(id);
   }
   for (const id of quarantined) live.delete(id);
   return live;
+}
+
+function isStaticAsset(relative: string): boolean {
+  return STATIC_ASSETS.some(pattern => pattern.test(relative));
+}
+
+/**
+ * Why one theme tree would be held back by import, in plain words; empty when import would place
+ * it live. The verdict comes from {@link inspectThemeManifests} + {@link liveThemeTrees} themselves
+ * (one source of truth); the words only explain it. Unlike import, authored build source is a
+ * problem here: import keeps it in quarantine even for a live compiled theme, and a restore moves
+ * the whole folder.
+ * @param required.root folder holding `themes/<id>/...`; `files` are root-relative.
+ * @complexity O(files), plus one manifest read (and a theme load for a compiled build).
+ */
+export function explainThemeTree(required: { root: string; id: string; files: readonly string[] }): string[] {
+  const { root, id, files } = required;
+  const findings = inspectThemeManifests({ root, files });
+  const problems = themeTreeProblems({ root, id, files, findings });
+  if (!liveThemeTrees({ files, findings }).has(id) && !problems.length) problems.push("It did not pass the import safety checks.");
+  return problems;
+}
+
+function themeTreeProblems(required: { root: string; id: string; files: readonly string[]; findings: ThemeManifestFindings }): string[] {
+  const { root, id, files, findings } = required;
+  const manifest = "themes/" + id + "/theme.json";
+  const slash = id.lastIndexOf("/");
+  const problems: string[] = [];
+  if (!files.includes(manifest)) problems.push("It has no theme.json file.");
+  else if (findings.quarantinedThemes.has(id)) {
+    const verdict = inspectThemeManifest({ root, file: manifest, tier: id.slice(0, slash), name: id.slice(slash + 1) });
+    if (verdict.kind === "quarantine") problems.push(verdict.problem);
+  }
+  const relative = files.map(file => file.slice(("themes/" + id + "/").length));
+  const source = new Set(files.filter(file => isCompiledSource({ file, theme: id, compiledSources: findings.compiledSources })));
+  const unsupported = relative.filter((file, index) => !source.has(files[index]!) && !isStaticAsset(file));
+  if (source.size) problems.push(`It includes its build source (${source.size} ${source.size === 1 ? "file" : "files"}), which is never placed live.`);
+  if (unsupported.length) problems.push(`It holds files that are not plain web files: ${unsupported.slice(0, 5).join(", ")}${unsupported.length > 5 ? ` and ${unsupported.length - 5} more` : ""}.`);
+  return problems;
 }
 
 function isCompiledSource(required: { file: string; theme: string; compiledSources: ReadonlyMap<string, string> }): boolean {

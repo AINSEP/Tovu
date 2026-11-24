@@ -7,6 +7,21 @@ import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes } from "../hooks/use-themes.hooks";
 import { THEMES_DICT, t } from "../themes-i18n";
 
+/**
+ * These tests drive the Themes screen through `useThemesHook` and never meant to touch the network, so
+ * the live "Held back on import" hook (which would fetch and add its own status/alert regions) is
+ * swapped for its "section unavailable" state. Its own behaviour is covered in `held-back-themes.unit.test.tsx`.
+ */
+vi.mock("../hooks/use-held-back-themes.hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../hooks/use-held-back-themes.hooks")>()),
+  useWiredHeldBackThemes: () => ({
+    status: "hidden", listFailure: null, themes: [], chosenThemeHeldBack: null, rows: {}, restoredNotice: null,
+    dialog: { open: false, title: "", body: "", confirmLabel: "", onConfirm: () => {}, onCancel: () => {} },
+    retry: async () => {}, check: async () => {}, requestRestore: async () => {}, dismissRestoredNotice: () => {},
+  }),
+}));
+
+
 const REQUIRED_KEYS = [
   "Expand preview for {id}",
   "preview reload failed",

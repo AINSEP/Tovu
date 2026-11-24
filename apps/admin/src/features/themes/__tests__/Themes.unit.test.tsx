@@ -7,6 +7,21 @@ import type { ThemesController } from "../hooks/use-themes.hooks";
 import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 
 /**
+ * These tests drive the Themes screen through `useThemesHook` and never meant to touch the network, so
+ * the live "Held back on import" hook (which would fetch and add its own status/alert regions) is
+ * swapped for its "section unavailable" state. Its own behaviour is covered in `held-back-themes.unit.test.tsx`.
+ */
+vi.mock("../hooks/use-held-back-themes.hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../hooks/use-held-back-themes.hooks")>()),
+  useWiredHeldBackThemes: () => ({
+    status: "hidden", listFailure: null, themes: [], chosenThemeHeldBack: null, rows: {}, restoredNotice: null,
+    dialog: { open: false, title: "", body: "", confirmLabel: "", onConfirm: () => {}, onCancel: () => {} },
+    retry: async () => {}, check: async () => {}, requestRestore: async () => {}, dismissRestoredNotice: () => {},
+  }),
+}));
+
+
+/**
  * @file `Themes` (Themes screen) — driven through the `useThemesHook` dependency-injection
  * seam. `features/themes` was 3.6% covered with no dedicated test file before this pass.
  */
