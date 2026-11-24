@@ -160,7 +160,7 @@ describeEachDialect(
         const observed = new SqliteNewsletterCampaignRepo({ store: { ...kernel, run: work => kernel.run(db => work(db.withPlugin({
           transformQuery({ node }) { queries.push(JSON.stringify(node)); return node; },
           async transformResult({ result }) { return result; },
-        }))) } });
+        }))) } satisfies ContentKernel });
         const listed = await observed.list({ workspaceId: WS });
         assert.equal(listed.items[0]?.bodyJson, undefined);
         assert.ok(queries.every(query => !query.includes("newsletter_campaign_revisions")), "list must not read then discard bodies");

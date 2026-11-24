@@ -19,6 +19,26 @@ import { SqlNewsletterCampaignRepo } from "@jini-ai/user-management/newsletter/r
 import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "@jini-ai/user-management/newsletter/repo-subscribers";
 import type { CampaignBodyReporter, NewsletterSqlTables } from "@jini-ai/user-management/newsletter/repo.rows";
 
+/**
+ * @file Newsletter — core domain types (INTERFACES & TYPES ONLY; no feature logic).
+ *
+ * Draft ADR-034 (PROPOSED). These types encode the Newsletter design's data model,
+ * permission catalog, event/hook vocabulary, and own-table row shapes so the design is
+ * compile-checked against the real repo primitives before any implementation exists.
+ *
+ * Placement (tovu-v2-design.md §3.5): Newsletter is a **Tier-3 bundled plugin**
+ * (`plugins/newsletter`) resting on the **Tier-2 `MailerPort` core primitive** (see
+ * `./ports.ts`). Campaigns reuse the ADR-022 `entries` editorial substrate; the relational,
+ * high-volume audience/delivery state lives in core-mediated own-tables (ADR-023 `dataModule`,
+ * namespace `p_newsletter__*`).
+ *
+ * Grounding imports (typecheck against real code):
+ * - `../core/ports` — UUID/ISODateTime/JsonObject/DomainEvent (ADR-007/009 spine).
+ * - `../features/plugins` — the ADR-023 declared-schema shape core executes.
+ */
+/** Registered catalog (declaration, not logic) — enumerable via `tovu permissions list` (ADR-021). */
+// Now: these types (and `NEWSLETTER_PERMISSIONS`) live in `@jini-ai/user-management/newsletter/types`; Tovu maps its own-table rows here.
+
 /** This site's newsletter table names (the Jini adapters have no default): the migrated campaign pair plus the dataModule tables. */
 export const NEWSLETTER_SQL_TABLES: NewsletterSqlTables = {
   campaigns: "newsletter_campaigns",

@@ -21,6 +21,7 @@ import { registerMemberUnlinkIdentityRoute } from "../../inbound/public-http/rou
 import { registerPublicMemberMeRoute } from "../../inbound/public-http/routes/members/me.js";
 import { MEMBER_OIDC_BINDING_COOKIE, MEMBER_OIDC_PROOF_COOKIE, type MemberOidcRouteDeps } from "../../inbound/public-http/routes/members/oidc-deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 const BASE = "/api/members/v1/workspaces/ws";
 const OIDC = `${BASE}/oidc/google`;
@@ -54,7 +55,8 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
   const deps: MemberOidcRouteDeps = { members, listProviders: async () => enabled ? [provider] : [],
     links: { ...toPublicMembersWriteServiceDeps(members), identities,
       transaction: async body => { inTransaction = true; try { return await body(); } finally { inTransaction = false; } },
-      lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); } },
+      lockKey: async value => { assert.equal(inTransaction, true); locks.push(value); },
+      reportFailure: ({ operation, error }) => { reportServerFailure({ error, operation: `public:${operation}` }); } },
     protocol: { ...crypto, ...oidcOperationsFixture, origin: originFixture(),
       resolveProvider: async () => enabled ? provider : null,
       resolveClient: async () => ({ clientId: "client", clientSecret: "secret-never-returned", authMethod: "client_secret_post" }),

@@ -4,6 +4,7 @@ import { ADMIN_LOCALES } from "../../../../website/src/contracts/core/admin-loca
 import { COMMON_I18N } from "../i18n-common";
 import * as adminNavI18n from "@jini-ai/admin/shell/lib/admin-nav-i18n";
 import * as editorFailureI18n from "@jini-ai/admin/shell/lib/editor-failure-i18n";
+import * as pageEditorI18n from "@jini-ai/admin/pages/page-editor-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -34,6 +35,9 @@ const MODULES: Record<string, Record<string, unknown>> = {
   // stay in this check under their former paths (the glob cannot reach a package).
   "../admin-nav-i18n.ts": adminNavI18n,
   "../editor-failure-i18n.ts": editorFailureI18n,
+  // The Page editor's dictionaries moved to @jini-ai/admin/pages; the host module now only binds its
+  // translator, so the copy the admin still ships is checked here under the host module's path.
+  "../../features/pages/page-editor-i18n.ts": pageEditorI18n,
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */
