@@ -8,6 +8,7 @@ import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/sig
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import { webhookEnvelopeStoreFor } from "../modules/integrations.js";
+import { createAgentPauseGate, createMemoryAgentPauseHoldStore } from "../agent-pause-gate.js";
 import { startServingWebhookDeliveryWorker, type ServingWebhookDeliveryDeps, type WebhookDeliveryScheduler } from "../webhook-delivery-worker.js";
 
 /**
@@ -15,7 +16,8 @@ import { startServingWebhookDeliveryWorker, type ServingWebhookDeliveryDeps, typ
  * carried on `RouteDeps.adminAssistantEnabled`): deliveries for subscriptions the agent created are
  * held (left `pending`, attempt not charged) while person-created and unattributed (pre-attribution)
  * subscriptions keep delivering. Pausing never deletes or disables anything, and the held delivery
- * goes out once the switch is back on. (bt2-todos G11·P10-H4.)
+ * goes out only once the switch is back on AND the owner approved the resume card (H4: turning the
+ * assistant back on never resumes agent work silently). (bt2-todos G11·P10-H4.)
  */
 
 const T0 = "2026-11-24T00:00:00.000Z";
@@ -46,6 +48,9 @@ async function rig(adminAssistantEnabled: boolean) {
     observability: createNoopObservabilityPort({}),
     adminAssistantEnabled,
   };
+  // Reads the live deps flag, so a test can flip the switch the way a restart would.
+  deps.agentPauseGate = createAgentPauseGate({ store: createMemoryAgentPauseHoldStore(), workspaceId: "workspace-1",
+    assistantEnabled: () => deps.adminAssistantEnabled !== false, clock: { nowIso: () => now } });
   for (const { id, createdByKind } of SUBSCRIPTIONS) {
     await deps.webhookSubscriptionRepo.save({
       id, workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: id,
@@ -78,7 +83,7 @@ test("assistant off: agent-created webhook deliveries are held, person-created a
   assert.equal((await site.row("sub-person"))?.status, "delivered");
 });
 
-test("adversarial: pausing deletes and disables nothing, and the held delivery goes out once the assistant is back on", async () => {
+test("adversarial: pausing deletes and disables nothing; back on holds until the resume card is approved, then it goes out", async () => {
   const site = await rig(false);
   const worker = startServingWebhookDeliveryWorker({ deps: site.deps }, { httpClient: site.httpClient, scheduler: idleScheduler, log: () => {} });
   await worker.tick();
@@ -94,6 +99,15 @@ test("adversarial: pausing deletes and disables nothing, and the held delivery g
 
   site.deps.adminAssistantEnabled = true;
   site.setNow(LATER);
+  await worker.tick();
+  assert.equal((await site.row("sub-agent"))?.status, "pending", "switch back on alone resumes nothing");
+  assert.deepEqual(await site.deps.agentPauseGate!.resume({ confirm: async () => ({ confirmed: false, reason: "declined" }) }), { resumed: false, reason: "declined" });
+  // Each tick runs later, so the delivery is due again and only the hold can keep it pending.
+  site.setNow("2026-11-24T01:00:00.000Z");
+  await worker.tick();
+  assert.equal((await site.row("sub-agent"))?.status, "pending", "a declined card keeps it held");
+  assert.deepEqual(await site.deps.agentPauseGate!.resume({ confirm: async () => ({ confirmed: true }) }), { resumed: true });
+  site.setNow("2026-11-24T02:00:00.000Z");
   await worker.tick();
   await worker.stop();
   assert.equal((await site.row("sub-agent"))?.status, "delivered");

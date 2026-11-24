@@ -1,4 +1,5 @@
 import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
+import type { AgentPauseGate } from "./agent-pause-gate.js";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import { processDueDeliveries } from "@jini-ai/integrations/webhooks/site/delivery";
 import { TOVU_WEBHOOK_HEADERS } from "#src/features/webhooks/wire-headers";
@@ -57,6 +58,12 @@ export interface ServingWebhookDeliveryDeps {
    * live deps object can flip it. Absent: treated as on (a composition without the switch).
    */
   adminAssistantEnabled?: boolean;
+  /**
+   * The switch's resume hold (`agent-pause-gate.ts`, H4). When present it decides instead of the bare
+   * flag: off holds agent-made deliveries as above, and back on keeps them held until the owner
+   * approves the resume card, so a restart with the assistant on resumes nothing silently.
+   */
+  agentPauseGate?: Pick<AgentPauseGate, "isAgentWorkAllowed">;
 }
 
 /**
@@ -83,6 +90,12 @@ export function startServingWebhookDeliveryWorker(
     signer: deps.webhookSigner,
     headers: TOVU_WEBHOOK_HEADERS,
     clock: deps.clock,
-  } }, { signal, isAgentEnabled: () => deps.adminAssistantEnabled !== false });
+  } }, { signal, isAgentEnabled: agentWorkAllowedFor({ deps }) });
   return startWebhookDeliveryWorker({ processDue }, workerOptional);
+}
+
+/** The gate when the composition carries one, else the bare switch (absent switch = on). */
+function agentWorkAllowedFor(required: { deps: Pick<ServingWebhookDeliveryDeps, "adminAssistantEnabled" | "agentPauseGate"> }): () => boolean | Promise<boolean> {
+  const { deps } = required;
+  return () => (deps.agentPauseGate ? deps.agentPauseGate.isAgentWorkAllowed() : deps.adminAssistantEnabled !== false);
 }
