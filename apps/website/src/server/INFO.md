@@ -44,6 +44,9 @@ w4-routes K legacy-wire opt-ins (default off): `authenticateBeforeWorkspace` run
 `authenticate`, after the credential-kind gate and a deferred missing session (widget preview's 401 before the 404;
 refused at registration on a `requireSameOrigin` spec), and `workspaceRefusal` answers a route's own workspace
 refusal (`{ status }` alone is `res.sendStatus`, `{ status, body }` is JSON). Site backups
+- Site previews: `runtime/composition/modules/site-previews-route.ts` (`registerAdminSitePreviewRoute`, same name)
+  binds the `features/sites` capture reader and content type into `@jini-ai/cms/admin-http/routes/sites/site-previews`'s
+  buffered raw spec; `routes/system/sites.ts` and `routes/themes/preview.ts` read `sitePreviewTargets`/`servingAddressOf` from it.
 (`runtime/composition/modules/system-site-backups.ts`) bind the backup service, its error ladder and
 `adminPublishTrustFor` into `@jini-ai/cms/admin-http/routes/system/site-backups`'s raw specs.
 Public Express middleware stays host adapters over Jini decisions (w4-routes): `inbound/public-http/middleware/`
@@ -242,6 +245,12 @@ Agent plugins memory GET/PUT (`modules/agent-plugin-memory-routes.ts`, own modul
 mocks load) mount `@jini-ai/cms/admin-http/routes/agent-plugins/memory` (`"guarded"`) with the installed check,
 `pluginMemory` and the default caps bound; PUT's `failureFor` claims only errors its bound `writeNote` threw
 (`agent-plugins:write-note`, "The note could not be saved."), so a failing list read keeps the route's copy.
+Agent plugins install/update upload (`modules/agent-plugin-install-route.ts`, w4-routes batch L) mounts
+`@jini-ai/cms/admin-http/routes/agent-plugins/install` (both specs) with `mountAdminRawRoute` (`"guarded"`,
+`failure: routes/agent-plugins/install-response`, `failureCopy: "operation"`) and NO `express.raw` ahead: the spec
+reads the zip via http-kit's `raw.readBody` after its gates. Binds `installUploadedAgentPlugin` (+ update effects),
+`installedAgentPluginRow` over `loadAgentPluginSearchCandidates`, `bodyParseRefusal` / `knownInstallRefusal`
+(which logs its operator warning) and `isAgentPluginName`; wire pinned by `agent-plugin-install-zip.wire.integration.test.ts`.
 Media where-used (`modules/media.ts`) mounts `@jini-ai/cms/admin-http/routes/media/where-used` (`"direct"`) with
 `findMediaWhereUsed` bound and `forbidden` answering `{ error: "media.read is required", code: "FORBIDDEN" }` (no details).
 Media import-url (`modules/media.ts`, `registerAdminMediaImportUrlRoute`) mounts `@jini-ai/cms/admin-http/routes/media/import-url`
