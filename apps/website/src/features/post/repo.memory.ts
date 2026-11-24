@@ -19,8 +19,15 @@ import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entri
  * `bodyJson`, so `ext` (present or absent) round-trips unchanged.
  */
 
+/** The slice of `AgentPauseHoldStore` this repo reads; injected so the memory composition and the SQL composition share one hold. */
+export interface AgentHoldReader {
+  heldSince(required: { workspaceId: string }): Promise<string | null>;
+}
+
 export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   private readonly mediaAccessEvidence: MediaAccessEvidence;
+  /** H4: optional because ~560 unit tests build this repo bare; without a reader nothing is held. */
+  private readonly agentHold: AgentHoldReader | undefined;
   private rows: PostRecord[];
   /** Standing-draft autosave snapshots, keyed apart from `rows` — mirrors `repo.sqlite.ts`'s own
    *  `autosave_json` column being a sibling of the row rather than a `PostRecord` field (see
@@ -30,8 +37,9 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    *  (see `PostRepoPort.appendRevision`'s doc for the append-only contract both adapters share). */
   private revisions: PostRevisionRecord[] = [];
 
-  constructor(_required: Record<string, never>, { initialRows = [], mediaAccessEvidence }: { initialRows?: PostRecord[]; mediaAccessEvidence?: MediaAccessEvidence } = {}) {
+  constructor(_required: Record<string, never>, { initialRows = [], mediaAccessEvidence, agentHold }: { initialRows?: PostRecord[]; mediaAccessEvidence?: MediaAccessEvidence; agentHold?: AgentHoldReader } = {}) {
     this.rows = [...initialRows];
+    this.agentHold = agentHold;
     // Optional only because ~560 unit tests build this repo bare and never read evidence; a bare repo gets its own private store (per repo, not shared state). Memory composition passes the shared one explicitly.
     this.mediaAccessEvidence = mediaAccessEvidence ?? createMediaAccessEvidence();
   }
@@ -59,6 +67,14 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
+  /** The in-JS twin of `repo.ts`'s `notHeldAgentSchedule` (read its doc for the why): rows an agent
+   *  scheduled for after the pause began are dropped while a hold stands; everything else passes. */
+  private async withoutHeldAgentSchedule(required: { workspaceId: string; rows: PostRecord[] }): Promise<PostRecord[]> {
+    const heldSince = (await this.agentHold?.heldSince({ workspaceId: required.workspaceId })) ?? null;
+    if (heldSince === null) return required.rows;
+    return required.rows.filter((row) => !(row.createdByKind === "agent" && row.publishAt != null && row.publishAt > heldSince));
+  }
+
   /** Same bounded kind-filtered contract as the SQL adapter. */
   async listHtmlByKind(required: { workspaceId: string; kind: import("@jini-ai/core/contracts/site/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
     return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind)
@@ -74,13 +90,8 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string; offset?: number }): Promise<PostRecord[]> {
     const nowIso = required.nowIso ?? currentIso();
     const offset = required.offset ?? 0;
-    return this.rows
-      .filter(
-        (row) =>
-          row.workspaceId === required.workspaceId &&
-          row.kind === "post" &&
-          isLiveAt({ record: row, nowIso })
-      )
+    const live = this.rows.filter((row) => row.workspaceId === required.workspaceId && row.kind === "post" && isLiveAt({ record: row, nowIso }));
+    return (await this.withoutHeldAgentSchedule({ workspaceId: required.workspaceId, rows: live }))
       .sort(comparePostsByDisplayDate)
       .slice(offset, offset + required.limit);
   }
@@ -88,8 +99,8 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   /** See `GoLiveCandidatesPort.listGoLiveCandidates` — the in-JS twin of `repo.ts`'s query. */
   async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, _optional: Record<string, never> = {}): Promise<PostRecord[]> {
     const { workspaceId, nowIso, afterIso } = required;
-    return this.rows
-      .filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave({ post: row, nowIso }) && (afterIso === undefined || (row.publishAt as string) > afterIso))
+    const candidates = this.rows.filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave({ post: row, nowIso }) && (afterIso === undefined || (row.publishAt as string) > afterIso));
+    return (await this.withoutHeldAgentSchedule({ workspaceId, rows: candidates }))
       // Fixed-width ISO first, so the concatenation orders by go-live time, then `id` — the SQL order.
       .sort((a, b) => (`${a.publishAt}${a.id}` < `${b.publishAt}${b.id}` ? -1 : 1));
   }
