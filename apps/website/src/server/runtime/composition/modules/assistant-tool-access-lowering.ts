@@ -3,8 +3,7 @@ import { assistantDaemonToken } from '../../lifecycle/assistant-daemon-connectio
 import { getAgentDaemonUrl } from '../../lifecycle/agent-daemon-port.js';
 import type { DaemonCallOptions } from './assistant-daemon-client.js';
 
-import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-export { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
+import { ToolAccessLoweringError } from '@jini-ai/daemon';
 
 type LoweringOptions = DaemonCallOptions & { send?: typeof fetch; daemonUrl?: () => string; token?: () => string | undefined };
 

@@ -10,7 +10,7 @@ import {
   PluginNotFoundError, PluginNotUninstallableError, pluginCapabilitySet, setPluginEnabled, toAdminPluginResponse, uninstallPlugin,
 } from "@jini-ai/plugins/host";
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginInstallError, PluginLoadError, PluginPackagePathError } from "@jini-ai/plugins/host/node";
-import { ToolAccessLoweringError } from "@jini-ai/core/contracts/site/tool-access-change";
+import { ToolAccessLoweringError } from "@jini-ai/daemon";
 import { lowerPluginToolAccess } from "#src/features/plugin-runtime/lower-tool-access";
 import {
   mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,

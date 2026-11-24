@@ -1,5 +1,4 @@
-import { ToolAccessLoweringError } from "@jini-ai/core/contracts/site/tool-access-change";
-export { ToolAccessLoweringError } from "@jini-ai/core/contracts/site/tool-access-change";
+import { ToolAccessLoweringError } from "@jini-ai/daemon";
 import type { ToolAccessChange } from '@jini-ai/core/contracts/site/daemon';
 /**
  * @file A keyed, last-wins fan-out for "the external-MCP roster changed" — the seam that lets every
