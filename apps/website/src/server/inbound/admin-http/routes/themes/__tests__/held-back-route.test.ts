@@ -47,7 +47,7 @@ function buildSite() {
   return { siteDir, themesDir, held };
 }
 
-function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string } = {}) {
+function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree } = {}) {
   const site = buildSite();
   const themes = discoverAllBuiltInThemes({ dir: site.themesDir, source: "built-in" });
   const permissions: string[] = [];
@@ -63,7 +63,7 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     themes,
     themesDir: site.themesDir,
     siteBinding: { dir: site.siteDir },
-    explainThemeTree,
+    explainThemeTree: options.explain ?? explainThemeTree,
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: { nowMs: () => Date.parse("2026-11-24T00:00:00Z"), nowIso: () => "2026-11-24T00:00:00.000Z" }, idGen: { newId: () => `plan-${++serial}` }, authorize: authorizeStub }) },
     presentationRepo: {
       findByWorkspaceId: async () => ({ workspaceId: WORKSPACE_ID, activeThemeId: presentation.activeThemeId, updatedAt: "" }),
@@ -82,9 +82,9 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
   return { app, themes, permissions, presentation, ...site };
 }
 
-async function call(t: import("node:test").TestContext, app: express.Express, options: { path?: string; body?: unknown; principal?: string } = {}) {
+async function call(t: import("node:test").TestContext, app: express.Express, options: { path?: string; body?: unknown; principal?: string; workspaceId?: string } = {}) {
   const baseUrl = await startTestServer(app, t);
-  const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/held-back-themes${options.path ?? ""}`;
+  const url = `${baseUrl}/api/admin/v1/workspaces/${options.workspaceId ?? WORKSPACE_ID}/held-back-themes${options.path ?? ""}`;
   const headers: Record<string, string> = { "content-type": "application/json", ...(options.principal ? { "x-test-principal": options.principal } : {}) };
   const res = options.body === undefined ? await fetch(url, { headers }) : await fetch(url, { method: "POST", headers, body: JSON.stringify(options.body) });
   const text = await res.text();
@@ -319,4 +319,56 @@ test("held-back notice shown when the site's chosen theme was held back", async 
 
   await call(t, shown.app, { path: "/restore", body: await approvedBody(t, shown.app) });
   assert.equal((await call(t, shown.app)).json.chosenThemeHeldBack, null);
+});
+
+/** One request per route whose body would be refused (400) if parsed before the caller is admitted. */
+const BAD_BODY_REQUESTS: { name: string; path: string; body?: unknown; permission: string }[] = [
+  { name: "list", path: "", permission: "theme.set" },
+  { name: "check", path: "/check", body: {}, permission: "theme.set" },
+  { name: "approval", path: "/restore/approval", body: { decision: "approve" }, permission: "theme.edit" },
+  { name: "restore", path: "/restore", body: {}, permission: "theme.edit" },
+];
+
+test("held-back routes answer a foreign workspace first, before the principal, permission or body", async (t) => {
+  const { app, permissions } = buildApp();
+  for (const request of BAD_BODY_REQUESTS) {
+    const refused = await call(t, app, { path: request.path, body: request.body, workspaceId: "someone-elses-workspace" });
+    assert.equal(refused.status, 404, request.name);
+    assert.deepEqual(refused.json, { error: "workspace was not found" }, request.name);
+  }
+  assert.deepEqual(permissions, []);
+});
+
+test("held-back routes answer a missing permission with 403 before reading a bad body", async (t) => {
+  const { app, permissions } = buildApp({ allowed: () => false });
+  for (const request of BAD_BODY_REQUESTS) {
+    const refused = await call(t, app, { path: request.path, body: request.body });
+    assert.equal(refused.status, 403, request.name);
+    assert.deepEqual(refused.json, {
+      error: `principal 'test-principal' is not authorized for '${request.permission}' (no-grant)`,
+      code: "FORBIDDEN",
+      details: { permission: request.permission, reason: "no-grant" },
+    }, request.name);
+  }
+  assert.deepEqual(permissions, ["theme.set", "theme.set", "theme.edit", "theme.edit"]);
+});
+
+test("held-back refusals keep their exact body shape and an unexpected failure keeps its reference", async (t) => {
+  const { app } = buildApp();
+  const invalid = await call(t, app, { path: "/check", body: { themeId: "../x" } });
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(Object.keys(invalid.json), ["code", "error"]);
+
+  const planted = buildApp();
+  const body = await approvedBody(t, planted.app);
+  fs.writeFileSync(path.join(planted.held, "themes", GOOD, "server.ts"), "export {};\n");
+  const failed = await call(t, planted.app, { path: "/restore", body });
+  assert.equal(failed.status, 409);
+  assert.deepEqual(Object.keys(failed.json), ["code", "error", "problems"]);
+
+  const broken = buildApp({ explain: () => { throw new Error("disk exploded"); } });
+  const unexpected = await call(t, broken.app, { path: "/check", body: { themeId: GOOD } });
+  assert.equal(unexpected.status, 500);
+  assert.match(JSON.stringify(unexpected.json), /ERR-/);
+  assert.doesNotMatch(JSON.stringify(unexpected.json), /disk exploded/);
 });
