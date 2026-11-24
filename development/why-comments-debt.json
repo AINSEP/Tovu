@@ -4500,6 +4500,14 @@
     {
       "id": "5b7aef8c7f82",
       "reason": "Moved to Jini @jini-ai/cms admin-http/routes/plugins/set-enabled.ts (RT-K1-adm-plugins) with the spec, its rollback and error ladder; host binding notes on registerPluginSetEnabledRoute/recordSiteApproval in runtime/composition/modules/plugins.ts."
+    },
+    {
+      "id": "2b6a73cf3219",
+      "reason": "Moved (via Jini cms publish/content/report-contract.ts) to Jini core contracts/site/cms-publish-content.ts @file doc:8 ('deliberately neutral...'), rv1123j rt-l5 FIX 1 (combine-16)."
+    },
+    {
+      "id": "11eb90984825",
+      "reason": "Moved with the restore ceremony routes to Jini @jini-ai/cms/admin-http/routes/recovery/restore.ts @file doc (rt-l5-recovery, combine-16); spec/ADR ids kept."
     }
   ]
 }
