@@ -22,14 +22,8 @@
  * The moved copy is kept under `<workspace>/.bundled-id-upgrade/<id>/<digest>` (dot-prefixed, so the
  * package index never reads it as a plugin) and is put back when the replacement does not seed.
  */
+import { RENAMED_TO_JINI } from "../plugins/renamed-bundled-plugin-ids.js";
 import { upgradeRenamedBundledPlugins, type BundledIdUpgradeOutcome, type BundledIdUpgradePort, type BundledPluginRenames } from "@jini-ai/agent-plugins/site/bundled-id-upgrade";
-
-/** Local ids whose bundled package moved from publisher `tovu` to `jini` in @jini-ai/agent-plugins 0.7.3. */
-const RENAMED_TO_JINI = [
-  "calendly", "cloudflare", "composio", "fly", "github", "github-pages", "google-login", "google-workspace",
-  "higgsfield-media", "jev", "meilisearch", "netlify", "opentelemetry", "posthog", "railway", "render",
-  "resend", "s3-compatible", "sentry", "shopify", "site-compliance", "site-import", "supabase", "vercel", "wordpress",
-] as const;
 
 /** Local id -> the pre-rename and canonical publisher-qualified ids. The exact map stays in Tovu. */
 export const RENAMED_BUNDLED_PLUGIN_IDS: BundledPluginRenames =
