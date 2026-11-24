@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useWiredAlwaysAllow } from "./hooks/use-always-allow.hooks";
-import "@jini-ai/admin/screens/providers/always-allow.css";
+import "./always-allow.css";
 
 /**
  * @file The Integrations page's "Always allow" tab — markup only; state and API calls live in

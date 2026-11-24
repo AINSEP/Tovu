@@ -1,5 +1,5 @@
 import "@jini-ai/ui/settings-dialog.css";
-import "@jini-ai/admin/screens/skills/skills.css";
+import "./skills.css";
 import { Skills as SkillsScreen } from "@jini-ai/admin/screens/skills/Skills";
 import { useSkillsTranslator } from "@jini-ai/admin/screens/skills/Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";

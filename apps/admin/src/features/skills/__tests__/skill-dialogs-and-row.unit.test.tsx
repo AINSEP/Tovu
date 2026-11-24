@@ -4,7 +4,6 @@ import { ApiError } from "@/lib/admin-http/request";
 import userEvent from "@testing-library/user-event";
 import { captureSkillDrop } from "@jini-ai/admin/screens/skills/skill-drop";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -114,7 +113,7 @@ describe("SkillInstallConfirmation", () => {
     }
     const user = userEvent.setup();
     const style = document.createElement("style");
-    style.textContent = ".admin-chat-dock > * { flex: 1; }" + readFileSync(createRequire(import.meta.url).resolve("@jini-ai/admin/screens/skills/skills.css"), "utf8");
+    style.textContent = ".admin-chat-dock > * { flex: 1; }" + readFileSync("src/features/skills/skills.css", "utf8");
     document.head.append(style);
     try {
       render(<aside className="admin-chat-dock"><FailedDrop /></aside>);

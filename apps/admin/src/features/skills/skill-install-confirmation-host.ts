@@ -1,4 +1,4 @@
-import "@jini-ai/admin/screens/skills/skills.css";
+import "./skills.css";
 import { useSkillInstallConfirmation } from "@jini-ai/admin/screens/skills/use-skill-confirmation.hooks";
 import type { SkillsScreenClassNames } from "@jini-ai/admin/screens/skills/skills-screen.types";
 import { SKILL_FAILURE_HOST } from "./skill-failure-host";
