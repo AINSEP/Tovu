@@ -10,12 +10,12 @@ import {
   allVisibleSelected,
   describePurgeReport,
   describeRestoreReport,
-  describeTrashLoadError,
   KEYS,
   selectionAfterSelectAll,
   toggleSelection,
   TRASH_RESOURCE,
-} from "../rules";
+} from "@jini-ai/admin/screens/trash/rules";
+import { describeTrashLoadError, trashTranslator } from "../rules";
 import { t } from "../trash-i18n";
 import { defaultTrashPort } from "./trash-dependencies.hooks";
 import type { TrashPort } from "./trash-port.hooks";
@@ -244,7 +244,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       const report = await port.restoreTrashItems({
         items: chosen.map((item) => ({ entityType: item.entityType, entityId: item.entityId })),
       });
-      setNotice(describeRestoreReport({ locale, report }));
+      setNotice(describeRestoreReport({ translate: trashTranslator({ locale }), report }));
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
@@ -261,7 +261,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     setActionError(null);
     try {
       const report = await port.purgeTrashItems({ ids: chosen.map((item) => item.id) });
-      setNotice(describePurgeReport({ locale, report }));
+      setNotice(describePurgeReport({ translate: trashTranslator({ locale }), report }));
       setSelected(new Set<string>());
       setPurgeConfirmOpen(false);
       reloadAfterAction();

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItemDto } from "@jini-ai/core/contracts/site/cms-trash";
-import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
+import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "@jini-ai/admin/screens/trash/rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
-import { describeTrashLoadError } from "../rules";
+import { describeTrashLoadError, trashTranslator } from "../rules";
 import { buildTrashRegistry } from "../../../../../website/src/features/trash/registry";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../../../../../website/src/features/trash/permissions";
 
@@ -10,16 +10,16 @@ it("labels every server Trash kind and the page display kind, including new regi
   // Pages currently use canonical "post" on the server; also guard the requested "page" label.
   const kinds = new Set([...buildTrashRegistry().keys(), ...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), "page"]);
   for (const kind of kinds) {
-    expect(entityTypeLabel({ locale: "en", entity: kind }), `missing human label for ${kind}`).not.toBe(kind);
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: kind }), `missing human label for ${kind}`).not.toBe(kind);
   }
 });
 
 it("uses page subtypes only for canonical posts and preserves legacy and unknown kind labels", () => {
-  expect(entityTypeLabel({ locale: "en", entity: { entityType: "post", displayKind: "page" } })).toBe("Page");
-  expect(entityTypeLabel({ locale: "en", entity: { entityType: "post", displayKind: "post" } })).toBe("Post");
-  expect(entityTypeLabel({ locale: "en", entity: { entityType: "post" } })).toBe("Post");
-  expect(entityTypeLabel({ locale: "en", entity: { entityType: "media", displayKind: "page" } })).toBe("Media");
-  expect(entityTypeLabel({ locale: "en", entity: { entityType: "future-kind", displayKind: "page" } })).toBe("future-kind");
+  expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: { entityType: "post", displayKind: "page" } })).toBe("Page");
+  expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: { entityType: "post", displayKind: "post" } })).toBe("Post");
+  expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: { entityType: "post" } })).toBe("Post");
+  expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: { entityType: "media", displayKind: "page" } })).toBe("Media");
+  expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: { entityType: "future-kind", displayKind: "page" } })).toBe("future-kind");
 });
 
 it("localizes a settled Trash timeout with a refresh action", () => {
@@ -30,20 +30,20 @@ it("localizes a settled Trash timeout with a refresh action", () => {
 
 describe("describePurgeReport", () => {
   it("explains retained media when all or some selected items are still used", () => {
-    expect(describePurgeReport({ locale: "en", report: { purged: 0, results: [{ outcome: "still-referenced" }] } })).toBe(
+    expect(describePurgeReport({ translate: trashTranslator({ locale: "en" }), report: { purged: 0, results: [{ outcome: "still-referenced" }] } })).toBe(
       "Nothing was deleted. Items still in use were not deleted.",
     );
-    expect(describePurgeReport({ locale: "en", report: { purged: 1, results: [{ outcome: "still-referenced" }, { outcome: "purged" }] } })).toBe(
+    expect(describePurgeReport({ translate: trashTranslator({ locale: "en" }), report: { purged: 1, results: [{ outcome: "still-referenced" }, { outcome: "purged" }] } })).toBe(
       "Deleted permanently. 1/2 Items still in use were not deleted.",
     );
-    expect(describePurgeReport({ locale: "es", report: { purged: 0, results: [{ outcome: "still-referenced" }] } })).toBe(
+    expect(describePurgeReport({ translate: trashTranslator({ locale: "es" }), report: { purged: 0, results: [{ outcome: "still-referenced" }] } })).toBe(
       "No se eliminó nada. Los elementos que siguen en uso no se eliminaron.",
     );
   });
 
   it("preserves report copy when no item is still referenced", () => {
-    expect(describePurgeReport({ locale: "en", report: { purged: 1, results: [{ outcome: "purged" }] } })).toBe("Deleted permanently.");
-    expect(describePurgeReport({ locale: "en", report: { purged: 0, results: [{ outcome: "forbidden" }] } })).toBe("Nothing was deleted.");
+    expect(describePurgeReport({ translate: trashTranslator({ locale: "en" }), report: { purged: 1, results: [{ outcome: "purged" }] } })).toBe("Deleted permanently.");
+    expect(describePurgeReport({ translate: trashTranslator({ locale: "en" }), report: { purged: 0, results: [{ outcome: "forbidden" }] } })).toBe("Nothing was deleted.");
   });
 });
 
@@ -81,18 +81,18 @@ function baseItem(overrides: Partial<AdminTrashItemDto> = {}): AdminTrashItemDto
 
 describe("actorLabel", () => {
   it("shows the server-resolved username when there is one", () => {
-    expect(actorLabel({ locale: "en", item: baseItem({ actorUsername: "jdoe" }) })).toEqual({ label: "jdoe" });
+    expect(actorLabel({ translate: trashTranslator({ locale: "en" }), item: baseItem({ actorUsername: "jdoe" }) })).toEqual({ label: "jdoe" });
   });
 
   it("shows 'Deleted user' only when the server explicitly resolved no account (actorUsername: null)", () => {
-    expect(actorLabel({ locale: "en", item: baseItem({ actorUsername: null }) })).toEqual({ label: "Deleted user" });
+    expect(actorLabel({ translate: trashTranslator({ locale: "en" }), item: baseItem({ actorUsername: null }) })).toEqual({ label: "Deleted user" });
   });
 
   it("does not claim the account was deleted when the server simply omitted actorUsername (older server)", () => {
     const withoutField = baseItem();
     delete (withoutField as { actorUsername?: string | null }).actorUsername;
 
-    const label = actorLabel({ locale: "en", item: withoutField });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: withoutField });
     expect(label).toEqual({ label: "Unknown" });
     expect(label.label).not.toBe("Deleted user");
   });
@@ -101,7 +101,7 @@ describe("actorLabel", () => {
     // The server resolves no user for the "system" principal (no account can ever hold that id), so
     // actorUsername comes back null exactly as it would for a real removed account — actorIsSystem
     // is what tells the two apart, and it must win before the "Deleted user" fallback runs.
-    const label = actorLabel({ locale: "en", item: baseItem({ actorUsername: null, actorIsSystem: true }) });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: baseItem({ actorUsername: null, actorIsSystem: true }) });
     expect(label).toEqual({ label: "System" });
   });
 
@@ -109,13 +109,13 @@ describe("actorLabel", () => {
     const withoutField = baseItem({ actorPrincipalId: "principal-owner" });
     delete (withoutField as { actorUsername?: string | null }).actorUsername;
 
-    const label = actorLabel({ locale: "en", item: withoutField }, { knownUsernames: new Map([["principal-owner", "admin"]]) });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: withoutField }, { knownUsernames: new Map([["principal-owner", "admin"]]) });
     expect(label).toEqual({ label: "admin" });
   });
 
   it("does not let client-side resolution override an explicit server null — the server already gave a real answer", () => {
     const label = actorLabel(
-      { locale: "en",
+      { translate: trashTranslator({ locale: "en" }),
       item: baseItem({ actorPrincipalId: "principal-owner", actorUsername: null }) },
       { knownUsernames: new Map([["principal-owner", "admin"]]) }
     );
@@ -127,7 +127,7 @@ describe("actorLabel", () => {
     delete (withoutField as { actorUsername?: string | null }).actorUsername;
     delete (withoutField as { actorIsSystem?: boolean }).actorIsSystem;
 
-    const label = actorLabel({ locale: "en", item: withoutField }, { knownUsernames: new Map() });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: withoutField }, { knownUsernames: new Map() });
     expect(label).toEqual({ label: "System" });
   });
 
@@ -135,12 +135,12 @@ describe("actorLabel", () => {
     const withoutField = baseItem({ actorPrincipalId: "principal-nobody-knows" });
     delete (withoutField as { actorUsername?: string | null }).actorUsername;
 
-    const label = actorLabel({ locale: "en", item: withoutField }, { knownUsernames: new Map([["some-other-principal", "someone-else"]]) });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: withoutField }, { knownUsernames: new Map([["some-other-principal", "someone-else"]]) });
     expect(label).toEqual({ label: "Unknown" });
   });
 
   it("shows '<user label> + AI' with the plugin id as a tooltip, instead of the plugin id alone", () => {
-    expect(actorLabel({ locale: "en", item: baseItem({ actorPluginId: "forms", actorUsername: "jdoe" }) })).toEqual({
+    expect(actorLabel({ translate: trashTranslator({ locale: "en" }), item: baseItem({ actorPluginId: "forms", actorUsername: "jdoe" }) })).toEqual({
       label: "jdoe + AI",
       title: "forms",
     });
@@ -150,13 +150,13 @@ describe("actorLabel", () => {
     const withoutField = baseItem({ actorPluginId: "forms", actorPrincipalId: "principal-owner" });
     delete (withoutField as { actorUsername?: string | null }).actorUsername;
 
-    const label = actorLabel({ locale: "en", item: withoutField }, { knownUsernames: new Map([["principal-owner", "admin"]]) });
+    const label = actorLabel({ translate: trashTranslator({ locale: "en" }), item: withoutField }, { knownUsernames: new Map([["principal-owner", "admin"]]) });
     expect(label).toEqual({ label: "admin + AI", title: "forms" });
   });
 
   it("actorIsSystem does not override a real, already-resolved username actor", () => {
     const label = actorLabel(
-      { locale: "en",
+      { translate: trashTranslator({ locale: "en" }),
       item: baseItem({ actorPluginId: "forms", actorUsername: "jdoe", actorIsSystem: true }) }
     );
     expect(label).toEqual({ label: "jdoe + AI", title: "forms" });
@@ -165,51 +165,51 @@ describe("actorLabel", () => {
 
 describe("entityTypeLabel", () => {
   it("labels the email-template registry kind in all supported locales", () => {
-    expect(entityTypeLabel({ locale: "en", entity: "email-template" })).toBe("Email template");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "email-template" })).toBe("Email template");
     for (const locale of ["es", "fr", "de", "it", "pt-BR", "id", "pl", "tr", "hu", "ru", "uk", "ar", "fa", "ur", "hi", "bn", "th", "ja", "ko", "zh-CN", "zh-TW"]) {
-      expect(entityTypeLabel({ locale, entity: "email-template" })).not.toBe("Email template");
-      expect(entityTypeLabel({ locale, entity: "email-template" })).not.toBe("email-template");
+      expect(entityTypeLabel({ translate: trashTranslator({ locale }), entity: "email-template" })).not.toBe("Email template");
+      expect(entityTypeLabel({ translate: trashTranslator({ locale }), entity: "email-template" })).not.toBe("email-template");
     }
   });
 
   it("translates every registry kind the Trash's phase-1-and-beyond registry can hold", () => {
-    expect(entityTypeLabel({ locale: "en", entity: "post" })).toBe("Post");
-    expect(entityTypeLabel({ locale: "en", entity: "comment" })).toBe("Comment");
-    expect(entityTypeLabel({ locale: "en", entity: "media" })).toBe("Media");
-    expect(entityTypeLabel({ locale: "en", entity: "redirect" })).toBe("Redirect");
-    expect(entityTypeLabel({ locale: "en", entity: "form" })).toBe("Form");
-    expect(entityTypeLabel({ locale: "en", entity: "form_submission" })).toBe("Form submission");
-    expect(entityTypeLabel({ locale: "en", entity: "widget" })).toBe("Widget");
-    expect(entityTypeLabel({ locale: "en", entity: "menu" })).toBe("Menu");
-    expect(entityTypeLabel({ locale: "en", entity: "term" })).toBe("Term");
-    expect(entityTypeLabel({ locale: "en", entity: "taxonomy" })).toBe("Taxonomy");
-    expect(entityTypeLabel({ locale: "en", entity: "plugin" })).toBe("Plugin");
-    expect(entityTypeLabel({ locale: "en", entity: "user" })).toBe("User");
-    expect(entityTypeLabel({ locale: "en", entity: "member" })).toBe("Member");
-    expect(entityTypeLabel({ locale: "es", entity: "member" })).toBe("Miembro");
-    expect(entityTypeLabel({ locale: "en", entity: "theme" })).toBe("Theme");
-    expect(entityTypeLabel({ locale: "es", entity: "theme" })).toBe("Tema");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "post" })).toBe("Post");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "comment" })).toBe("Comment");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "media" })).toBe("Media");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "redirect" })).toBe("Redirect");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "form" })).toBe("Form");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "form_submission" })).toBe("Form submission");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "widget" })).toBe("Widget");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "menu" })).toBe("Menu");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "term" })).toBe("Term");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "taxonomy" })).toBe("Taxonomy");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "plugin" })).toBe("Plugin");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "user" })).toBe("User");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "member" })).toBe("Member");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "es" }), entity: "member" })).toBe("Miembro");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "theme" })).toBe("Theme");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "es" }), entity: "theme" })).toBe("Tema");
   });
 
   it("prints an unrecognized kind as itself rather than hiding the row", () => {
-    expect(entityTypeLabel({ locale: "en", entity: "some_future_kind" })).toBe("some_future_kind");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "en" }), entity: "some_future_kind" })).toBe("some_future_kind");
   });
 
   it("translates the user kind for a non-English locale (delete-user plan v2, Slice 4)", () => {
-    expect(entityTypeLabel({ locale: "es", entity: "user" })).toBe("Usuario");
+    expect(entityTypeLabel({ translate: trashTranslator({ locale: "es" }), entity: "user" })).toBe("Usuario");
   });
 });
 
 describe("itemSubtitle", () => {
   it("marks plugin packages as shared across workspaces", () => {
-    expect(itemSubtitle({ locale: "en", item: { entityType: "plugin", subtitle: "my-plugin 1.0.0" } })).toBe(
+    expect(itemSubtitle({ translate: trashTranslator({ locale: "en" }), item: { entityType: "plugin", subtitle: "my-plugin 1.0.0" } })).toBe(
       "my-plugin 1.0.0 · Shared across all workspaces on this site.",
     );
   });
 
   it("shows only the shared note for a plugin with no subtitle, and leaves other rows' subtitles alone", () => {
-    expect(itemSubtitle({ locale: "en", item: { entityType: "plugin", subtitle: null } })).toBe("Shared across all workspaces on this site.");
-    expect(itemSubtitle({ locale: "en", item: { entityType: "post", subtitle: "Draft" } })).toBe("Draft");
+    expect(itemSubtitle({ translate: trashTranslator({ locale: "en" }), item: { entityType: "plugin", subtitle: null } })).toBe("Shared across all workspaces on this site.");
+    expect(itemSubtitle({ translate: trashTranslator({ locale: "en" }), item: { entityType: "post", subtitle: "Draft" } })).toBe("Draft");
   });
 });
 

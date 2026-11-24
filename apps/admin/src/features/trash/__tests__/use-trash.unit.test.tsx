@@ -9,7 +9,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/sh
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash, useWiredTrash } from "../hooks/use-trash.hooks";
 import type { TrashPort } from "../hooks/trash-port.hooks";
-import { KEYS, TRASH_RESOURCE } from "../rules";
+import { KEYS, TRASH_RESOURCE } from "@jini-ai/admin/screens/trash/rules";
 
 /**
  * @file `useTrash` — the Trash screen's whole state, against an injected port.
