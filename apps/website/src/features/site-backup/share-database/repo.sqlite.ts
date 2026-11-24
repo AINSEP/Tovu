@@ -1,4 +1,5 @@
 import { warnCredentialContent, type CredentialWarning } from "../credential-warnings.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import type { ArchiveMediaSource, ArchiveMediaCopy } from "#src/features/site-backup/archive-media";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
@@ -335,7 +336,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
     await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
-    await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: fresh }) });
+    await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: fresh }), config: POST_SEARCH_HOST });
     const documents = await documentReferences({ target });
     const media = [
       ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],

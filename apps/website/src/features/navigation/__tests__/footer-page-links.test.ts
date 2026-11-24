@@ -1,4 +1,5 @@
 import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
@@ -147,7 +148,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
       .where("id", "=", "menu-footer-nav").execute());
     assert.equal((await kernel.run((db) => db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirstOrThrow())).value, 1);
     assert.equal((await kernel.run((db) => db.selectFrom("menus").select("version").where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow())).version, 2);
-    const postRepo = new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
+    const postRepo = new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel }), POST_SEARCH_HOST));
     const resolveTargetHref = createMenuPageTargetResolver({ postRepo });
     const pageOnly = { ...converted, items: [converted.items[0]] };
     const resolve = () => resolveMenuDoc({ doc: pageOnly, context: { workspaceId: "ws", currentPath: "/" }, resolveTargetHref });

@@ -1,4 +1,5 @@
 import { bindProviderFacePorts } from "#src/features/agent-plugins/provider-plugin-link";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
 import { followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import { preparePostSearchIndex } from "@jini-ai/cms/posts/sql";
@@ -27,7 +28,7 @@ export function composeStoreBasics(required: ComposeStoreBasicsRequired, _option
   // Rows written by OLDER projection code (e.g. HTML pages indexed before f7ca1e766 projected
   // `body_html`) are re-projected once per site by the same step when the stored projection version
   // is behind the code's — no resave needed (`reindexStalePostSearchIndex`). Not awaited by boot.
-  const postSearchBackfillReady = preparePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }) }).catch((err) => {
+  const postSearchBackfillReady = preparePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }).catch((err) => {
     console.error(`preparePostSearchIndex failed at boot: ${(err as Error).message}`);
   });
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.

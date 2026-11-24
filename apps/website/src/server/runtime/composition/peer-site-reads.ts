@@ -1,4 +1,5 @@
 import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
 import { commentRepoFor } from "@jini-ai/cms/comments/sql";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";
@@ -229,7 +230,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     // Optional build-time settings are explicit so builders don't iterate a poison value.
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
-    postRepo, postSearch: postSearchIndexFor(schemaErasedKernel({ store: kernel })), entryRefsRepo,
+    postRepo, postSearch: postSearchIndexFor({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), entryRefsRepo,
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo({ store: kernel }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: kernel }), mediaContentTypeStore, transformDefinitionRepo,

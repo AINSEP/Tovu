@@ -1,4 +1,5 @@
 import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
+import { POST_SEARCH_HOST } from "./search-host-config.js";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
@@ -359,5 +360,5 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
 /** The post repo for `kernel`, with its dialect's search projection. */
 export function postRepoFor(kernel: ContentKernel, _optional: Record<string, never> = {}): SqlPostRepo {
-  return new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
+  return new SqlPostRepo(kernel, postSearchFor(schemaErasedKernel({ store: kernel }), POST_SEARCH_HOST));
 }

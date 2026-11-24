@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { POST_SEARCH_HOST } from "../search-host-config.js";
 import test from "node:test";
 
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { foldForIndex, pgPostSearch } from "../search-index.postgres.js";
+import { pgPostSearchFor } from "@jini-ai/cms/posts/sql";
 import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 
 const post: PostRecord = {
@@ -13,13 +15,6 @@ const post: PostRecord = {
   bodyFormat: "doc", bodyHtml: null,
   bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Try crème brûlée." }] }] },
 };
-
-// F1.1/F4.3: replacing NFKD with NFC, or dropping separator normalization, changes these literals.
-test("Postgres indexing folds combining marks, compatibility characters and punctuation into searchable words", () => {
-  assert.equal(foldForIndex({ text: "  CAFÉ\u0301—crème/brûlée!  " }), "CAFE creme brulee");
-  assert.equal(foldForIndex({ text: "Ｆｕｌｌ １２３ ﬃ 日本語" }), "Full 123 ffi 日本語");
-  assert.equal(foldForIndex({ text: "!?\t\n" }), "");
-});
 
 for (const [query, bug] of [
   ["cafe", false],
@@ -40,7 +35,7 @@ for (const [query, bug] of [
       author: null, showAuthor: false,
     });
     const find = async (text: string) => (await searchAdminPosts({
-      deps: { search: { search: (request) => pgPostSearch.search(kernel, request) } },
+      deps: { search: { search: (request) => pgPostSearchFor(POST_SEARCH_HOST).search(schemaErasedKernel({ store: kernel }), request) } },
       input: { workspaceId: "search-ws", query: text },
     })).hits.map(({ id, title }) => ({ id, title }));
     assert.deepEqual(await find("cafe"), [{ id: "cafe-guide", title: "Café guide" }]);

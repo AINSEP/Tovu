@@ -1,4 +1,5 @@
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import type { SiteStore } from "../open-site-store.js";
 import type { composeStoreBasics } from "./store-basics.js";
 import type { composeTrashStores } from "./trash-stores.js";
@@ -113,7 +114,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
     db: sqliteTrashDb,
     postRepo,
     postGoLiveCandidates: postRepo,
-    postSearch: postSearchIndexFor(schemaErasedKernel({ store: kernel }), { ready: postSearchBackfillReady }),
+    postSearch: postSearchIndexFor({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }, { ready: postSearchBackfillReady }),
   };
 }
 

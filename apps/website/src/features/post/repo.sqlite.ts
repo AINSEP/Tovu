@@ -1,4 +1,5 @@
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
+import { POST_SEARCH_HOST } from "./search-host-config.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlPostRepo } from "./repo.js";
 import { postSearchFor } from "@jini-ai/cms/posts/sql";
@@ -12,6 +13,6 @@ export class SqlitePostRepo extends SqlPostRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
     const kernel = contentKernel({ store });
-    super(kernel, postSearchFor(schemaErasedKernel({ store: kernel })));
+    super(kernel, postSearchFor(schemaErasedKernel({ store: kernel }), POST_SEARCH_HOST));
   }
 }

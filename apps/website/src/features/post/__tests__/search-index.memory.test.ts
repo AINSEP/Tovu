@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { InMemoryPostSearchIndex } from "../search-index.memory.js";
-import { sqlitePostSearch } from "../search-index.sqlite.js";
+import { sqlitePostSearch } from "@jini-ai/cms/posts/sql";
 import type { PostRecord } from "@jini-ai/cms/posts/post";
 
 function post(id: string, workspaceId = "ws"): PostRecord {
