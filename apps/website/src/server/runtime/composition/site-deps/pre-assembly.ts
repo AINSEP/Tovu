@@ -1,3 +1,6 @@
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { SiteStore } from "../open-site-store.js";
+import { sqlAgentPauseHoldStore } from "../agent-pause-gate.js";
 import type { composeOutboundConnections } from "./outbound-connections.js";
 import type { composeContentStores } from "./content-stores.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
@@ -26,6 +29,8 @@ import { ensureSiteConsentPrivacy } from "../site-consent.js";
 import { resolve } from "node:path";
 
 interface ComposePreAssemblyRequired {
+  /** The content kernel the sitemap's agent-pause hold reader queries (the same `agent_pause_holds` row the gate writes). */
+  kernel: SiteStore["content"];
   agentPluginConnections: ReturnType<typeof composeOutboundConnections>["agentPluginConnections"];
   postRepo: ReturnType<typeof composeContentStores>["postRepo"];
   settingsRepo: ReturnType<typeof composeIdentitySettings>["settingsRepo"];
@@ -47,14 +52,14 @@ interface ComposePreAssemblyRequired {
 }
 
 export function composePreAssembly(required: ComposePreAssemblyRequired, _optional = {}) {
-  const { agentPluginConnections, postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock, siteTitleSettingsDeps, siteSettingsReady, identity, workspaceId, routeDeps, agentPluginLifecycle, customCredentialSetRepo, siteAssistantSecretSealer, externalMcpServerRepo, siteAssistantSecretKeyring } = required;
+  const { kernel, agentPluginConnections, postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock, siteTitleSettingsDeps, siteSettingsReady, identity, workspaceId, routeDeps, agentPluginLifecycle, customCredentialSetRepo, siteAssistantSecretSealer, externalMcpServerRepo, siteAssistantSecretKeyring } = required;
   // Boot load of plugin admin-surface handlers (each surface open reloads them too; see handlers.ts).
   const adminSurfaceHandlersReady = agentPluginConnections.adminSurfaceHost.refresh().then(() => {}, (error: unknown) => {
     console.warn(`[admin-surfaces] handler modules could not be loaded at boot, continuing without them — ${error instanceof Error ? error.message : String(error)}`);
   });
   // Every app over this composition shares the store's lifetime; each boot pass leaves once settled.
   const siteAppBootWork = new Set<Promise<void>>();
-  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
+  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, { agentHold: sqlAgentPauseHoldStore({ kernel: kernel as KyselyKernel<unknown> }) });
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
   let resolveRouteDeps!: (deps: RouteDeps) => void;
   const routeDepsBuilt = new Promise<RouteDeps>(resolve => { resolveRouteDeps = resolve; });

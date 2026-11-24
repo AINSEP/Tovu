@@ -10,6 +10,7 @@ import {
   type PostRevisionRecord,
 } from "@jini-ai/cms/posts/post";
 import { comparePostsByDisplayDate, currentIso, isLiveAt } from "@jini-ai/core/scheduled-publish";
+import { withoutHeldAgentSchedule, type AgentHoldReader } from "./agent-hold.js";
 import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**
@@ -18,11 +19,6 @@ import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entri
  * this adapter stores and returns whole `PostRecord`s verbatim, exactly as it already does for
  * `bodyJson`, so `ext` (present or absent) round-trips unchanged.
  */
-
-/** The slice of `AgentPauseHoldStore` this repo reads; injected so the memory composition and the SQL composition share one hold. */
-export interface AgentHoldReader {
-  heldSince(required: { workspaceId: string }): Promise<string | null>;
-}
 
 export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   private readonly mediaAccessEvidence: MediaAccessEvidence;
@@ -67,14 +63,6 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
-  /** The in-JS twin of `repo.ts`'s `notHeldAgentSchedule` (read its doc for the why): rows an agent
-   *  scheduled for after the pause began are dropped while a hold stands; everything else passes. */
-  private async withoutHeldAgentSchedule(required: { workspaceId: string; rows: PostRecord[] }): Promise<PostRecord[]> {
-    const heldSince = (await this.agentHold?.heldSince({ workspaceId: required.workspaceId })) ?? null;
-    if (heldSince === null) return required.rows;
-    return required.rows.filter((row) => !(row.createdByKind === "agent" && row.publishAt != null && row.publishAt > heldSince));
-  }
-
   /** Same bounded kind-filtered contract as the SQL adapter. */
   async listHtmlByKind(required: { workspaceId: string; kind: import("@jini-ai/core/contracts/site/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
     return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind)
@@ -91,7 +79,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const nowIso = required.nowIso ?? currentIso();
     const offset = required.offset ?? 0;
     const live = this.rows.filter((row) => row.workspaceId === required.workspaceId && row.kind === "post" && isLiveAt({ record: row, nowIso }));
-    return (await this.withoutHeldAgentSchedule({ workspaceId: required.workspaceId, rows: live }))
+    return (await withoutHeldAgentSchedule({ workspaceId: required.workspaceId, rows: live, agentHold: this.agentHold }))
       .sort(comparePostsByDisplayDate)
       .slice(offset, offset + required.limit);
   }
@@ -100,7 +88,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, _optional: Record<string, never> = {}): Promise<PostRecord[]> {
     const { workspaceId, nowIso, afterIso } = required;
     const candidates = this.rows.filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave({ post: row, nowIso }) && (afterIso === undefined || (row.publishAt as string) > afterIso));
-    return (await this.withoutHeldAgentSchedule({ workspaceId, rows: candidates }))
+    return (await withoutHeldAgentSchedule({ workspaceId, rows: candidates, agentHold: this.agentHold }))
       // Fixed-width ISO first, so the concatenation orders by go-live time, then `id` — the SQL order.
       .sort((a, b) => (`${a.publishAt}${a.id}` < `${b.publishAt}${b.id}` ? -1 : 1));
   }
