@@ -19,8 +19,8 @@ import type { InstalledAgentPlugin } from "@jini-ai/core/contracts/site/agent-pl
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
@@ -117,7 +117,7 @@ function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
       throw new Error("removePlugin must not be called by the agent-plugin family's uninstall branch");
     },
     externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     siteAssistantSecretKeyring: keyring,
   });
   const registry = createToolRegistry({});

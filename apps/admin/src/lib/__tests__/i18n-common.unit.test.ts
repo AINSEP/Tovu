@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
-import { COMMON_I18N } from "../i18n-common";
+import { COMMON_I18N, translatePlugins } from "../i18n-common";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
@@ -125,5 +125,13 @@ describe("COMMON_I18N: composition rules (mocked Jini dictionary)", () => {
   it("throws at module load when a Tovu locale is missing from Jini", async () => {
     const jini = Object.fromEntries(TOVU_LOCALES.filter((l) => l !== "bn").map((l) => [l, { Save: l }]));
     await expect(importOver(jini)).rejects.toThrow("common dictionary bn is missing from @jini-ai/admin");
+  });
+});
+
+describe("translatePlugins binding", () => {
+  it("names Tovu in the plugins copy, in keys and in translations, over Tovu's common dictionary", () => {
+    expect(translatePlugins({ locale: "es", key: "Not for this Tovu version" })).toBe("No es para esta versión de Tovu");
+    expect(translatePlugins({ locale: "en", key: "Not for this Tovu version" })).toBe("Not for this Tovu version");
+    expect(translatePlugins({ locale: "es", key: "Save" })).toBe(COMMON_I18N.es.Save);
   });
 });

@@ -9,8 +9,8 @@ import {
   type CredentialSetStoreHost, type CredentialSetVaultPolicy, type CredentialSetWriteDeps,
 } from "@jini-ai/integrations/credentialed-http/sets";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 
 /**
  * @file EXTRACT-S8 C1 seam: a SECOND host (owner `acme-host`, its own categories, messages, token
@@ -44,7 +44,7 @@ function countedVault() {
 /** A real AES-GCM sealer whose seal/open calls are counted. */
 function countedSealer() {
   const keyring = new InMemoryKeyring();
-  const real = new AesGcmSecretSealer(keyring);
+  const real = new AesGcmSecretSealer({ keyring });
   const counts = { seal: 0, open: 0 };
   const sealer = {
     seal: (input: Parameters<AesGcmSecretSealer["seal"]>[0]) => { counts.seal++; return real.seal(input); },

@@ -10,7 +10,7 @@ import { resolveSiteAssistantApiKey } from "../../assistant/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "../routes/types.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
@@ -138,7 +138,7 @@ test("GET reports stored metadata even when the keyring can no longer open the k
   const { baseUrl, cookie } = await bootAuthenticated(original.app, t);
   assert.equal((await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "stored-key-4321" })).status, 200);
   const keyring = new BrokenKeyring();
-  const { app } = buildTestApp({ ...original.deps, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring) });
+  const { app } = buildTestApp({ ...original.deps, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }) });
   const secondUrl = await startTestServer(app, t);
   const response = await get(secondUrl, CREDENTIAL_PATH, cookie);
   assert.equal(response.status, 200);
@@ -239,7 +239,7 @@ test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when th
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({
     siteAssistantSecretKeyring: brokenKeyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: brokenKeyring }),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

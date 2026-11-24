@@ -20,8 +20,8 @@ import { type PublishCredentialSource } from "@jini-ai/devops/deploy/site/static
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.memory.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
@@ -1187,7 +1187,7 @@ const VALID_FORM_SUBMISSION = {
 
 test("publish card saves attach to their site and reopening updates the sole attached non-default", async () => {
   const vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
-  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer({ keyring });
   const host: LoadedDeployTarget = { pluginId: "pin-host", descriptor: { id: "pin-host", label: "Pin Host", module: "host.mjs", configFields: [],
     credential: { vendorId: "pin-host", tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true }] } },
     module: { create: () => assert.fail("must not publish") } };
@@ -1335,7 +1335,7 @@ test("propose-credential works for any host with a credential spec: a netlify fo
 test("propose-credential with a project store: cards have no site-only checkbox; forged opt-out values do not change the save target", async () => {
   const { deps } = fakeDeps();
   const projectKeyring = new InMemoryKeyring();
-  const project = { workspaceId: "project", repo: new InMemoryVendorCredentialSetRepo({}), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
+  const project = { workspaceId: "project", repo: new InMemoryVendorCredentialSetRepo({}), sealer: new AesGcmSecretSealer({ keyring: projectKeyring }), keyring: projectKeyring };
   const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const proposeTool = tool(buildRegistrations({ ...deps, vendorCredentialSetRepo: repo }, surfaceExchanges), "credential_save");

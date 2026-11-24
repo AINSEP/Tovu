@@ -14,8 +14,8 @@ import { ToolInputError } from "@jini-ai/core";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import type { OAuthProviderDescriptor } from "#src/platform/oauth/index";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import {
@@ -38,7 +38,7 @@ const TOVU_WORDS = ["plugins_set_enabled", "agent-plugin", "Settings → Externa
 async function fixture(input: { plugin?: string; enabled?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveExternalMcpServer({ repo, sealer, keyring, clock } as never, {
     workspaceId: WS, serverId: SERVER, label: "Docs", transport: "streamable_http", authMode: "oauth", enabled: input.enabled ?? true,
     command: "", url: "https://mcp.example.com/mcp", args: "", allowedToolNames: "search", writeAllowedToolNames: "", principalId: "operator-1",

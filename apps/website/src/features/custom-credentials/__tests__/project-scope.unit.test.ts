@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
@@ -41,13 +41,13 @@ const secret = (name: string) => `${name}-${"x".repeat(8)}-${name.length}1234`;
 
 function projectScope(): CustomCredentialProjectScope {
   const keyring = new InMemoryKeyring();
-  return { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  return { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
 }
 
 let ids = 0;
 function siteDeps(optional: { project?: CustomCredentialProjectScope } = {}): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
-  return { repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, optional), sealer: new AesGcmSecretSealer(keyring), keyring,
+  return { repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, optional), sealer: new AesGcmSecretSealer({ keyring }), keyring,
     clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }), idGen: { newId: () => `cred-${++ids}` } };
 }
 
@@ -134,7 +134,7 @@ test("a project row opens only with the project's key", async () => {
   const site = siteDeps({ project });
   await save(site, SITE_A, "hosting", secret("sealed"));
   const otherKey = new InMemoryKeyring();
-  const wrongKey = siteDeps({ project: { ...project, sealer: new AesGcmSecretSealer(otherKey), keyring: otherKey } });
+  const wrongKey = siteDeps({ project: { ...project, sealer: new AesGcmSecretSealer({ keyring: otherKey }), keyring: otherKey } });
   await assert.rejects(resolveCustomCredentialByLabel(wrongKey, { workspaceId: SITE_A, label: "hosting" }), CustomCredentialSecretStoreUnconfiguredError);
 });
 

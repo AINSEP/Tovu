@@ -16,7 +16,7 @@ import { createAgentPluginStateStore } from "#src/features/api-connections/plugi
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
@@ -242,7 +242,7 @@ export async function openProjectStore(
     throw error;
   }
   const keyring = new FixedSiteKeyKeyring({ hex });
-  const scope: ProjectVaultScope = { workspaceId: PROJECT_WORKSPACE_ID, repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer(keyring) };
+  const scope: ProjectVaultScope = { workspaceId: PROJECT_WORKSPACE_ID, repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer({ keyring }) };
   const vault = createApiConnectionVault({ repo: scope.repo, keyring, sealer: scope.sealer,
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",

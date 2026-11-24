@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,
@@ -28,7 +28,7 @@ function makeWriteDeps(): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   return {
     repo: new InMemoryCustomCredentialSetRepo(),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: "2026-09-01T00:00:00.000Z" }),
     idGen: (() => {

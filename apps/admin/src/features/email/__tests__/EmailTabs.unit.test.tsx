@@ -9,7 +9,11 @@ import { EmailSenderTab } from "../EmailSenderTab";
 import { EmailOverviewTab } from "../EmailOverviewTab";
 import { EmailActivityTab } from "../EmailActivityTab";
 import { EmailTemplatesTab } from "../EmailTemplatesTab";
-import { useEmailProvider } from "../hooks/use-email-provider.hooks";
+import { useEmailProvider, useProviderChoices } from "@jini-ai/admin/screens/email/hooks/use-email-provider.hooks";
+import { useLoad } from "@jini-ai/admin/screens/email/hooks/email-load.hooks";
+
+/** The two data hooks the host binds (required on the args object). */
+const providerHooks = { useLoadHook: useLoad, useProviderChoicesHook: useProviderChoices };
 import { useEmailSender } from "@jini-ai/admin/screens/email/hooks/use-email-sender.hooks";
 import { useEmailActivity } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
@@ -43,7 +47,7 @@ describe("Email tab components", () => {
 
   it("renders only declared key fields, hides secrets, saves without switching and disables an unselectable provider", async () => {
     const api = createEmailFake();
-    function Harness() { return <EmailProviderTab controller={useEmailProvider({ api, pluginApi: api })} status={null} locale="en" />; }
+    function Harness() { return <EmailProviderTab controller={useEmailProvider({ api, pluginApi: api, ApiError, ...providerHooks })} status={null} locale="en" />; }
     render(<Harness />);
     const key = await screen.findByLabelText("Access key");
     expect(key).toHaveAttribute("type", "password");
@@ -278,7 +282,7 @@ describe("adding provider segments", () => {
     const api = createEmailFake();
     api.listAgentPlugins.mockResolvedValue({ agentPlugins: [MAIL_PLUGIN] });
     function Harness() {
-      const controller = useEmailProvider({ api, pluginApi: api });
+      const controller = useEmailProvider({ api, pluginApi: api, ApiError, ...providerHooks });
       const [selected, setSelected] = useState<string | null>(null);
       return <EmailProviderTab controller={controller} status={null} locale="en" selectedId={selected} onSelect={setSelected} />;
     }

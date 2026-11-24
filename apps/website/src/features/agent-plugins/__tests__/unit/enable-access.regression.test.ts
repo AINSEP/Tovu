@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { externalMcpAdmissionRevision, applyExternalMcpAccess } from '@jini-ai/mcp/federation/hosted';
@@ -17,7 +17,7 @@ async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = { nowMs: () => Date.parse('2026-11-04T12:00:00.000Z') };
-  await saveExternalMcpServer({ repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) }, {
+  await saveExternalMcpServer({ repo, keyring, clock, sealer: new AesGcmSecretSealer({ keyring }) }, {
     workspaceId: 'ws', serverId: 'media', label: 'Media', transport: 'streamable_http', url: 'https://media.example.test/mcp',
     authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     principalId: 'owner', provisionedByPluginId: 'images', oauth: { grant: 'authorization_code' },
@@ -218,7 +218,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
   const { runAgentPluginConnect } = await import('../../connect-tool.js');
   const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
   const f = await fixture();
-  if (token) await saveExternalMcpServer({ repo: f.repo, keyring: f.keyring, clock: f.clock, sealer: new AesGcmSecretSealer(f.keyring) }, {
+  if (token) await saveExternalMcpServer({ repo: f.repo, keyring: f.keyring, clock: f.clock, sealer: new AesGcmSecretSealer({ keyring: f.keyring }) }, {
     workspaceId: 'ws', serverId: 'media', label: 'Media', transport: 'streamable_http', authMode: 'static_env', enabled: false,
     url: 'https://media.example.test/mcp', command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     accessToken: 'fixture-only-token', principalId: 'owner',

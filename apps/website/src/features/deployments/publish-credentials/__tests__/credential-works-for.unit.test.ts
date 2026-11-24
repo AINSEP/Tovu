@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createCustomCredential, updateCustomCredential } from "#src/features/custom-credentials/store";
@@ -16,7 +16,7 @@ function fixture() {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryVendorCredentialSetRepo({});
   let id = 0;
-  const deps = { repo, keyring, sealer: new AesGcmSecretSealer(keyring),
+  const deps = { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock: createFakeClock({ startIso: "2026-10-17T00:00:00Z" }),
     idGen: { newId: () => `custom-publish-${++id}` }, loadDeployTargets: loadBundledDeployTargets };
   const customRepo = new CustomCredentialVaultRepo({ vault: repo.vault });

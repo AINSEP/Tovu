@@ -8,7 +8,7 @@ import type { ProviderConfigSource, ProviderPluginConfig, ProviderSettingsView }
 import type { ProviderKeyUsage } from "@jini-ai/core/contracts/site/plugins-host";
 import type { KeyAttachments, ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 import type { AgentPluginStateStore } from "@jini-ai/agent-plugins/admin-surfaces";
-import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { SECRET_OPEN_FAILED } from "@jini-ai/platform/secrets";
 
 /**
  * @file Where a provider plugin's saved settings live (provider wave 2 fix, owner 2026-10-25): a

@@ -1,4 +1,3 @@
-import { isAbortError } from '@jini-ai/core/text';
 import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isUserCollection } from "../../features/collections/rules";
@@ -17,7 +16,7 @@ import {
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
-import { type Translate, interpolate } from '@jini-ai/core/text';
+import { type Translate, interpolate, isAbortError } from '@jini-ai/core/text';
 import { trimChars } from "@jini-ai/core/primitives";
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,

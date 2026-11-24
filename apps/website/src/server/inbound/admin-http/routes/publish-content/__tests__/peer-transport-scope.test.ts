@@ -3,8 +3,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
@@ -111,7 +111,7 @@ function buildApp(httpClient: HttpClientPort): { app: express.Express } {
     clock: { nowMs: () => Date.parse("2026-09-25T00:00:00.000Z"), nowIso: () => "2026-09-25T00:00:00.000Z" },
     idGen: { newId: () => `peer-${++n}` },
     publishContentPeerRepo: repo,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     siteAssistantSecretKeyring: keyring,
     publishContentPeerHttpClient: httpClient,
     workspaceRepo: { findById: async () => ({ id: WORKSPACE_ID, name: "Local Site" }) },

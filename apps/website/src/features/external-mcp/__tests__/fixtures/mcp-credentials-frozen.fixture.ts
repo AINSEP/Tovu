@@ -5,7 +5,7 @@ import { closeSqliteConnection } from "../../../../platform/db/kernel/drivers/sq
 import { type ContentDb, openContentDb } from "../../../../platform/db/sqlite/content-db.js";
 import type { OAuthProviderDescriptor } from "../../../../platform/oauth/index.js";
 import { EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { SITE_KEY_ENV_VAR_NAME } from "../../../webhooks/site-key-sources.js";
 
 /**
@@ -56,7 +56,7 @@ export function frozenKeyring(): EnvOrFileKeyring {
 }
 
 export function frozenSealer(keyring: EnvOrFileKeyring = frozenKeyring()): AesGcmSecretSealer {
-  return new AesGcmSecretSealer(keyring);
+  return new AesGcmSecretSealer({ keyring });
 }
 
 /** A settable clock (the store's `Clock` port reads only `nowMs`). */

@@ -5,8 +5,8 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryCustomCredentialSetRepo } from "../../features/custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../features/custom-credentials/store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../../features/custom-credentials/tool-registrations.js";
@@ -73,7 +73,7 @@ class RefusingHttpClient implements HttpClientPort {
 async function buildDelegatedToolDeps(clientError: Error) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-10T00:00:00.000Z" };
 
   const writeDeps: CustomCredentialWriteDeps = {
@@ -201,7 +201,7 @@ class UnreachableTransport implements HttpTransportAdapter {
 async function executeThroughGuardedClient() {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-16T00:00:00.000Z" };
   await createCustomCredential(
     { repo, sealer, keyring, clock, idGen: { newId: () => "cred-1" } },

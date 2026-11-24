@@ -12,8 +12,8 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";
 import { providerFacesFor } from "../../../plugin-runtime/__tests__/fixtures/plugins-tool-harness.js";
 import type { TovuPluginHostDeps } from "#src/server/runtime/composition/plugin-host";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { AgentPluginUninstallHostDeps as AgentPluginUninstallToolDeps } from "#src/server/runtime/composition/agent-plugin-uninstall-host";
 
 /**
@@ -46,7 +46,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
     onPluginEnabled: unused("onPluginEnabled"),
     onPluginDisabled: unused("onPluginDisabled"),
     removePlugin: unused("removePlugin"),
-    mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
+    mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock }),
   };
   const registration = buildPluginsRegistrations(pluginsDeps, surfaces).find((candidate) => candidate.descriptor.id === "plugins_uninstall");
   assert.ok(registration, "plugins_uninstall must be registered");

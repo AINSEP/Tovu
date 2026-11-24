@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import {
   createCustomCredential,
   deleteCustomCredential,
@@ -33,7 +33,7 @@ const OPTIONS = { idempotencyKey: "k1", workspaceId: WS, sourceContext: { module
 function credentialDeps(): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let n = 0;
-  return { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
+  return { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
 }
 
 function setting(value: MailProviderSetting): MailProviderSettingPort {
@@ -240,7 +240,7 @@ test("status: an undecryptable lane key and an unlistable store are recorded and
   const creds = credentialDeps();
   await saveKey(creds, "key-one");
   const { registry } = fakeProvider();
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const undecryptable = await createResolvedMailer(deps({ creds: { ...creds, sealer: otherSealer }, registry })).status();
   assert.equal(undecryptable.lanes[0]!.state, "missing_credential");
   assert.equal(undecryptable.lastError!.source, "check");

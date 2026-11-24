@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  notifyExternalMcpRosterChanged,
-  ToolAccessLoweringError,
-  onExternalMcpRosterChanged,
-  resetExternalMcpRosterChangeListenersForTests,
-} from "../external-mcp-roster-change.js";
+import { notifyExternalMcpRosterChanged, onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
+import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 
 /**
  * @file RED-first coverage for the roster-change notifier's three load-bearing properties: last-wins

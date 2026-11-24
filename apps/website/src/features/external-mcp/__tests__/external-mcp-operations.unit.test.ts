@@ -4,14 +4,14 @@ import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../external-mcp-store.js";
 import { ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { probeExternalMcpServer, readServerAdmissions } from "../external-mcp-host-copy.js";
 
 const NOW = "2026-10-01T00:00:00.000Z";
 async function fixture(overrides: Record<string, unknown> = {}) {
   const keyring = new InMemoryKeyring();
-  const deps = { workspaceId: "ws-n04", clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW }, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
+  const deps = { workspaceId: "ws-n04", clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW }, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring };
   await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring, clock: deps.clock }, {
     workspaceId: deps.workspaceId, serverId: "hosted", transport: "streamable_http", url: "https://hosted.example/mcp", command: "", args: "", authMode: "none", enabled: true, allowedToolNames: "read_thing", writeAllowedToolNames: "", principalId: "owner", ...overrides,
   });

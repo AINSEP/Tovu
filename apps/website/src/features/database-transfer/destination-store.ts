@@ -4,8 +4,8 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhoo
 import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { TargetDescription } from "@jini-ai/db/transfer";
 
 /**
@@ -140,7 +140,7 @@ function isSameDestination({ existing, original }: { existing: VaultRecord; orig
 export class InMemoryDatabaseDestinationStore extends SealedDatabaseDestinationStore {
   constructor(_required = {}, _options = {}) {
     const keyring = new InMemoryKeyring();
-    super({ repo: new InMemoryVaultRepo({}), sealer: new AesGcmSecretSealer(keyring), keyring });
+    super({ repo: new InMemoryVaultRepo({}), sealer: new AesGcmSecretSealer({ keyring }), keyring });
   }
 }
 

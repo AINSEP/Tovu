@@ -11,8 +11,8 @@ import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/
 import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
 import { loadDeployOpsRegistry } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
-import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.env.ts";
 import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
 import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
 import { runDeploy, runDeployOps } from "../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
@@ -26,7 +26,7 @@ const WORKSPACE_ID = "workspace-local";
 async function credentialDeps({ registry }, _options = {}) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse(AT) };
   await createCustomCredential({ repo, keyring, sealer, clock, idGen: { newId: () => "test-credential" } }, { workspaceId: WORKSPACE_ID, label: "Railway API", category: "hosting", baseUrl: API, connection: { token: "saved-private-token" } });
   const calls = [];

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as translate } from "../plugins-i18n";
+import { translatePlugins as translate } from "../../../lib/i18n-common";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import { usePluginPackageFiles, type PluginPackageFilesController } from "./use-plugin-package-files.hooks";
@@ -42,7 +42,7 @@ export function useAgentPluginDetailsModal({ pluginId, port, t }: AgentPluginDet
   return usePluginPackageFiles({ pluginId, queryRoot: "agent-plugins", port: { getPluginFiles: ({ id }, _optional = {}) => port.getAgentPluginFiles({ pluginId: id }) }, t });
 }
 
-/** Binds the real `/api/.../agent-plugins/:id/files` client and a `plugins-i18n.ts` translator for
+/** Binds the real `/api/.../agent-plugins/:id/files` client and a `translatePlugins` translator for
  *  the current admin locale. */
 export function useWiredAgentPluginDetailsModal({ pluginId }: { pluginId: string }, _optional = {}): PluginPackageFilesController {
   const locale = useAdminLocale();

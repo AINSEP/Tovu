@@ -8,8 +8,8 @@ import {
   type VaultRecord,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { credentialHint, credentialScope, credentialVault, TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
 import type { VendorCredentialSetRecord } from "../types.js";
 import type { SourceControlCredentialSetRecord } from "../../source-control/types.js";
@@ -148,7 +148,7 @@ for (const error of [new VaultError({ code: "conflict" }), new VaultError({ code
 function serviceFixture() {
   const vault = new InMemoryVaultRepo({});
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const required = { repo: { vault }, keyring, sealer, storageError: () => new Error("credential storage unavailable") };
   const scope = credentialScope({ workspaceId: "ws", kind: "vendor" });
   // New writes declare compatibility explicitly; legacy read defaults do not apply at creation.

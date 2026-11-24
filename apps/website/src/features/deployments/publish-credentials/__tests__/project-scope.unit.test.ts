@@ -13,8 +13,8 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { abortGuardedCredentialRepo } from "@jini-ai/integrations/vendor-credentials/abort-guarded-repo";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import type { VendorCredentialProjectScope } from "#src/features/vendor-credentials/types";
@@ -51,7 +51,7 @@ const secret = (name: string) => `${name}-${"x".repeat(8)}-${name.length}1234`;
 /** One project store: its vault, keyring and sealer, as `project-store.ts`'s `ProjectVaultScope` exposes. */
 function projectStore() {
   const keyring = new InMemoryKeyring();
-  return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/core/contracts/vault").VaultRepoPort; vault: import("@jini-ai/core/contracts/vault").VaultRepoPort };
 
@@ -65,7 +65,7 @@ function site(project?: ProjectStoreFixture) {
   const vendorProject = project && half(new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true }), project.createVault ? new VendorCredentialSetVaultRepo({ vault: project.createVault, kind: "vendor", vendor: true }) : undefined).project as VendorCredentialProjectScope;
   const deps: PublishCredentialWriteDeps & { clock: ReturnType<typeof createFakeClock> } = {
     repo: new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }, vendorProject ? { project: vendorProject } : {}),
-    sealer: new AesGcmSecretSealer(keyring), keyring, clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }),
+    sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }),
     idGen: { newId: () => `cred-${++ids}` }, loadDeployTargets: loadBundledDeployTargets,
   };
   const customRepo = new CustomCredentialVaultRepo({ vault }, project ? half(new CustomCredentialVaultRepo({ vault: project.vault }), new CustomCredentialVaultRepo({ vault: project.createVault ?? project.vault })) : {});

@@ -5,8 +5,8 @@ import { createHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { HttpRequest, HttpResponse, HttpTransportAdapter } from "#src/platform/http/ports";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { createSourceControlCredential } from "../store.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
@@ -37,7 +37,7 @@ function makeDeps(transport: HttpTransportAdapter) {
   const keyring = new InMemoryKeyring();
   const clock = createFakeClock({ startIso: "2026-11-17T00:00:00.000Z" });
   const httpClient = createHttpClient({ transport, policy: CUSTOM_CREDENTIALS_EGRESS_POLICY }, { dns: publicDns });
-  return { repo: new InMemorySourceControlCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock,
+  return { repo: new InMemorySourceControlCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock,
     idGen: { newId: () => "cred-1" }, httpClient, loadSourceControlProviders: githubFromSource };
 }
 

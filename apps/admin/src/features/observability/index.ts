@@ -22,9 +22,7 @@ import { useAdminKitValues } from "@jini-ai/admin/react/kit";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { observabilityApi } from "./api/observability-api";
-import { useObservabilityTab } from "@jini-ai/admin/screens/observability/hooks/use-observability-tab.hooks";
-import { useRecentErrorItem } from "@jini-ai/admin/screens/observability/hooks/use-recent-error-item.hooks";
-import { QueryDevtoolsPanel, useWiredObservabilityStatus, useWiredQueriesTab, useWiredRecentServerErrors } from "./hooks/observability-wiring.hooks";
+import { QueryDevtoolsPanel, useWiredObservabilityStatus, useWiredObservabilityTab, useWiredRecentErrorItem, useWiredQueriesTab, useWiredRecentServerErrors } from "./hooks/observability-wiring.hooks";
 
 const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent"> = {
   /**
@@ -44,12 +42,12 @@ const HOST_BINDINGS: Omit<ObservabilityProps, "tabId" | "QueriesPanelComponent">
    *  before. */
   useObservabilityStatusHook: useWiredObservabilityStatus,
   useRecentServerErrorsHook: useWiredRecentServerErrors,
-  useRecentErrorItemHook: (required) => useRecentErrorItem({ ...required, useCopyToClipboardHook: useCopyToClipboard }),
+  useRecentErrorItemHook: useWiredRecentErrorItem,
   useQueriesTabHook: useWiredQueriesTab,
   QueryCachePanel: QueryDevtoolsPanel,
   readToolGaps: () => observabilityApi.getToolGaps(),
   useAdminThemeBoundaryHook: useAdminThemeBoundary,
-  useObservabilityTabHook: (required) => useObservabilityTab({ ...required, useTabbedDialogHook: useTabbedDialog, useAdminKitValuesHook: useAdminKitValues, navigate }),
+  useObservabilityTabHook: useWiredObservabilityTab,
   useAdminKitValuesHook: useAdminKitValues,
   /** This admin's page chrome — the same `.page-header` markup Secrets/AiAssistant use, and the shell's
    *  `settings-ui-section--page-flow` modifier (see its own comment in the admin stylesheet). */

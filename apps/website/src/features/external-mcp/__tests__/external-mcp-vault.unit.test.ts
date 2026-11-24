@@ -4,8 +4,8 @@ import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRecord } from "@jini-ai/core/contracts/vault";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { externalMcpVaultRecord, openExternalMcpVaultPayload, persistExternalMcpVaultEnvelope, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 
@@ -16,7 +16,7 @@ import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope } from "@jini-
  */
 
 const keyring = new InMemoryKeyring();
-const sealer = new AesGcmSecretSealer(keyring);
+const sealer = new AesGcmSecretSealer({ keyring });
 const deps = { sealer, keyring };
 const identity = { workspaceId: "ws-vault", serverId: "server-a" };
 const payload = { TOKEN_ENV: "value-built-at-runtime" };

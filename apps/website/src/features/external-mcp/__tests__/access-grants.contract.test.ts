@@ -7,8 +7,8 @@ import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from '@jini-a
 import { describeEachDialect } from '../../../platform/db/kernel/__tests__/dialect-matrix.js';
 import { ensureVaultRepoFixture } from '../../../platform/db/repos/__tests__/vault-repo.fixture.js';
 import type { ContentKernel } from '../../../platform/db/content-kernel.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { sealExternalMcpVaultPayload } from '../external-mcp-vault.js';
 
 const workspaceId = 'ws-access';
@@ -38,7 +38,7 @@ async function sqlRepo(kernel: ContentKernel): Promise<ExternalMcpServerRepoPort
 
 async function oauthEnvelope(value: string) {
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return sealExternalMcpVaultPayload({ deps: { keyring, sealer }, identity: key, kind: 'mcp-auth', payload: { tokens: { accessToken: value } } });
 }
 

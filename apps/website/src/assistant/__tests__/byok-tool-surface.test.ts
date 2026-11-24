@@ -38,8 +38,8 @@ import { TOOL_ERROR_ID_PATTERN } from "../tool-recovery-preset.js";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
@@ -900,7 +900,7 @@ function federationRouteDeps(repo: InMemoryExternalMcpServerRepo, sealer: AesGcm
 test("BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
@@ -913,7 +913,7 @@ test("BYOK federation: awaitFederation boots the real stored roster and resolves
 test("BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
@@ -933,7 +933,7 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
 test("BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring, "echo, write_ungranted, write_granted", "write_granted");
   const remoteResult = { content: [{ type: "text", text: "remote echo result" }] };
   const session = new InMemoryMcpSession({
@@ -992,7 +992,7 @@ test("BYOK federation: installExtensions: false leaves federation undefined and 
 test("BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
   // Never resolves during this test — stands in for npx startup (6-13s) outlasting
@@ -1025,7 +1025,7 @@ test("BYOK federation: execute_delegated_tool for a still-registering federated 
 test("BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
   // Never resolves during this test, same as the "still-registering" test above — echo-server is
@@ -1054,7 +1054,7 @@ test("BYOK federation: execute_delegated_tool for a server that was never in the
 test("BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
 
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
@@ -1097,7 +1097,7 @@ test('owner discovery exposes permanent deletes with the site grant off, includi
 test('an owner delete executes through the assembled BYOK guard only after the confirmation click', async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
   const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
     ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
@@ -1287,7 +1287,7 @@ function fakeExternalMcpOAuth(resolved: string[]): ExternalMcpOAuthService {
 test("BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
     workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server", label: "OAuth", transport: "stdio", authMode: "oauth", enabled: true,
     command: "npx", args: "-y oauth-mcp", allowedToolNames: "echo", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
@@ -1309,7 +1309,7 @@ test("BYOK federation: a stored OAuth row's access token is resolved through the
 test("BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
     workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server", label: "OAuth", transport: "stdio", authMode: "oauth", enabled: true,
     command: "npx", args: "-y oauth-mcp", allowedToolNames: "echo", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
@@ -1328,7 +1328,7 @@ test("BYOK federation: without a wired OAuth service a connected OAuth row is sk
 test("BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
     federationConnect: async (connection) => new InMemoryMcpSession({ tools: [{ name: connection.config.connectionId === "echo-server" ? "echo" : "wobble", description: "Plexquorn wobble probe", inputSchema: { type: "object" } }] }) });
@@ -1508,7 +1508,7 @@ test("T2 typed calls preserve images, batches, failures and cancellation through
 test("T2 typed permanent deletes retain the existing held-open surface and confirmation", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await saveEchoServerRow(repo, sealer, keyring);
   const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
     ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,

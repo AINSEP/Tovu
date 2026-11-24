@@ -15,8 +15,8 @@ import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { listExternalMcpServerViews, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import type { ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "@jini-ai/core/contracts/hosted-mcp";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";
 
 import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers as provisionWithPort, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
@@ -88,7 +88,7 @@ function provisionAgentPluginMcpServers(deps: ExternalMcpStoreDeps, input: Param
 function makeDeps(): ExternalMcpStoreDeps {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer, clock };
 }
 

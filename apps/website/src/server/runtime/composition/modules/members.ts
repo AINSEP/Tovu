@@ -1,4 +1,5 @@
 import { createReadyLoginProviderList } from "#src/features/member-login/index";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";
 import { memberDisableRoute } from "@jini-ai/cms/admin-http/routes/members/disable";
 import { memberGetRoute } from "@jini-ai/cms/admin-http/routes/members/get-by-id";
@@ -8,7 +9,6 @@ import { memberRequestMagicLinkRoute } from "@jini-ai/cms/admin-http/routes/memb
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";

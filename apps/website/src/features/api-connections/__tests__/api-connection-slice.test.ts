@@ -24,8 +24,8 @@ import type { OAuthHttpPorts } from "@jini-ai/oauth";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createCustomCredential, deleteCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, updateCustomCredential } from "../../custom-credentials/index.js";
 import { byoClientLabel } from "@jini-ai/integrations/api-connections";
-import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
@@ -102,7 +102,7 @@ const hostedEnv = { TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOV
 /** One site key for every host and the saved custom credentials (as in production: `deps.ts` passes the
  *  site's one keyring and sealer to both), so the Tovu keyring type serves both ports. */
 const siteKeyring = new TovuInMemoryKeyring();
-const siteSealer = new TovuAesGcmSecretSealer(siteKeyring);
+const siteSealer = new TovuAesGcmSecretSealer({ keyring: siteKeyring });
 
 function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined; readonly customCredentialRepo?: InMemoryCustomCredentialSetRepo; readonly packageRoot?: string } = {}) {
   const keyring = siteKeyring;

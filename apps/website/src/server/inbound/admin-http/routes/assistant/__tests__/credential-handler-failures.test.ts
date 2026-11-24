@@ -10,8 +10,8 @@ import { assistantVaultRepo, assistantVaultContext } from "#src/assistant/assist
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import { InMemorySettingsRepo, createSettingsPrincipalLookup, set, type ResolvedSetting } from "#src/features/settings/index";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "#src/server/runtime/composition/modules/assistant-settings";
 import { registerAdminAssistantGetExecutionCredentialRoute } from "#src/server/runtime/composition/modules/assistant-settings";
@@ -43,7 +43,7 @@ function depsForHandler(): AssistantSettingsRouteDeps {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretKeyring: keyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     settingsRepo: new InMemorySettingsRepo(),
     getEffective: async () => resolved(false),
     set,

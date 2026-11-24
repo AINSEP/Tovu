@@ -94,13 +94,13 @@ test("an absent request body is read as {} on create (validation 400) and update
 test('new credentials use neutral declared fields; unlisted saved rows remain visible without their secret', async () => {
   const { exampleRegistry } = await import('#src/features/source-control/__tests__/fixtures/example-provider');
   const { InMemorySourceControlCredentialSetRepo } = await import('#src/features/source-control/repo.memory');
-  const { InMemoryKeyring } = await import('#src/features/webhooks/keyring.memory');
-  const { AesGcmSecretSealer } = await import('#src/features/webhooks/secret-sealer.aesgcm');
+  const { InMemoryKeyring } = await import('#src/features/webhooks/keyring.env');
+  const { AesGcmSecretSealer } = await import('@jini-ai/platform/secrets');
   const keyring = new InMemoryKeyring();
   const repo = new InMemorySourceControlCredentialSetRepo();
   let available = true;
   const invoke = harness({
-    sourceControlCredentialSetRepo: repo, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    sourceControlCredentialSetRepo: repo, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     loadSourceControlProviders: async () => available ? exampleRegistry({ probe: false }) : { list: () => [], get: () => undefined, refusals: [] },
   });
   const input = { label: 'default', connection: { providerId: 'example-paired', token: 'fixture-secret', username: 'operator' } };

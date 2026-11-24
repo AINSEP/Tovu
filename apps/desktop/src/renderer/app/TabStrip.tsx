@@ -16,6 +16,11 @@ function CloseIcon() {
   );
 }
 
+/** The "All" tab is the active one only when no project tab and not the Import tab is selected. @complexity O(1). */
+function isSitesHomeSelected({ activeTab, importTab }: { activeTab: string | null; importTab: ImportTab | undefined }): boolean {
+  return activeTab === null && importTab?.selected !== true;
+}
+
 /** The Import tab itself; only it is focusable by Tab key while selected, like a site's. */
 function ImportTabItem({ importTab }: { importTab: ImportTab }) {
   const tabIndex = importTab.selected ? 0 : -1;
@@ -30,11 +35,6 @@ function ImportTabItem({ importTab }: { importTab: ImportTab }) {
       </button>
     </span>
   );
-}
-
-/** The "All" tab is selected only when no site tab is active and the Import tab is not selected. */
-function isSitesHomeSelected({ activeTab, importTab }: { activeTab: string | null; importTab: ImportTab | undefined }): boolean {
-  return activeTab === null && importTab?.selected !== true;
 }
 
 /**

@@ -8,8 +8,8 @@ import { after, before, test } from "node:test";
 import { sql } from "kysely";
 
 import { copyPgStore, nonEmptyTables, readCatalog, StoreCopyError } from "#src/platform/db/site-store-copy";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
@@ -39,7 +39,7 @@ let targetUrl: string;
 let busyUrl: string;
 let lateUrl: string;
 const keyring = new InMemoryKeyring();
-const sealing = { keyring, sealer: new AesGcmSecretSealer(keyring) };
+const sealing = { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 
 async function openOwner(storageSite: string, optional: { sealer?: AesGcmSecretSealer } = {}): Promise<SiteStore> {
   const meta = JSON.parse(fs.readFileSync(path.join(storageSite, SITE_META_FILENAME), "utf8"));

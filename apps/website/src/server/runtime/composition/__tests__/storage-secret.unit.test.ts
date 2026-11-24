@@ -6,8 +6,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
 
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import {
   readSealedConnectionString,
   resolvePostgresConnectionString,
@@ -68,7 +68,7 @@ function siteDir(t: test.TestContext): string {
 }
 
 function sealerFor(keyring: InMemoryKeyring) {
-  return { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  return { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 
 test("a sealed connection string round-trips; the file is 0600 and never holds it in the clear", async (t) => {

@@ -1,5 +1,5 @@
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../../custom-credentials/store.js";
 import { InMemoryCredentialedRequestAuditLog } from "../../../custom-credentials/credentialed-request.js";
@@ -20,7 +20,7 @@ export async function fixture(optional: Options = {}) {
   const { labels = ["ops"], host = EXAMPLE_API, additionalHosts = [EXAMPLE_LOGS] } = optional;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse(AT) };
   let id = 0;
   for (const label of labels) await createCustomCredential({ repo, keyring, sealer, clock, idGen: { newId: () => String(++id) } }, { workspaceId: "ws", label, category: "ops", baseUrl: host, additionalHosts, connection: { token: "saved-private-token" } });

@@ -5,7 +5,7 @@ import { adminKit } from '@/integrations/jini-kits';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
 import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
-import { t } from '../plugins-i18n';
+import { translatePlugins as t } from "../../../lib/i18n-common";
 
 /** The `@jini-ai/admin` plugin glyphs and padlock tip draw through the injected UI kit, which the app
  *  mounts once at its root; each render here mounts the app's own kit the same way. */

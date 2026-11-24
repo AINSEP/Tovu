@@ -1,5 +1,9 @@
 import { lazy, useCallback, useContext } from "react";
-import { createBrowserViewerClipboard } from "@jini-ai/ui";
+import { createBrowserViewerClipboard, useCopyToClipboard, useTabbedDialog } from "@jini-ai/ui";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { useAdminKitValues } from "@jini-ai/admin/react/kit";
+import { useObservabilityTab, type ObservabilityTabArgs } from "@jini-ai/admin/screens/observability/hooks/use-observability-tab.hooks";
+import { useRecentErrorItem, type RecentErrorItemArgs } from "@jini-ai/admin/screens/observability/hooks/use-recent-error-item.hooks";
 import { AdminFetchQueryAdapterContext } from "@jini-ai/admin/shell/lib/fetch-query/adapter-context";
 import { createObservabilityStatusPort } from "@jini-ai/admin/screens/observability/hooks/observability-status-dependencies.hooks";
 import { createRecentServerErrorsPort } from "@jini-ai/admin/screens/observability/hooks/recent-server-errors-dependencies.hooks";
@@ -86,3 +90,13 @@ export function useWiredQueriesTab(): QueriesTabController {
 // provides the same embeddable panel there, using the nearest live QueryClient context.
 export const QueryDevtoolsPanel = lazy(() => import("@tanstack/react-query-devtools/production")
   .then(module => ({ default: module.ReactQueryDevtoolsPanel })));
+
+/** One Recent-errors row's state, with the UI library's copy-to-clipboard hook. */
+export function useWiredRecentErrorItem(required: Omit<RecentErrorItemArgs, "useCopyToClipboardHook">, _optional: Record<string, never> = {}) {
+  return useRecentErrorItem({ ...required, useCopyToClipboardHook: useCopyToClipboard });
+}
+
+/** The `?tab=` adapter, with the UI library's tabbed dialog, this admin's kit values and its router's `navigate`. */
+export function useWiredObservabilityTab(required: Omit<ObservabilityTabArgs, "useTabbedDialogHook" | "useAdminKitValuesHook" | "navigate">, _optional: Record<string, never> = {}) {
+  return useObservabilityTab({ ...required, useTabbedDialogHook: useTabbedDialog, useAdminKitValuesHook: useAdminKitValues, navigate });
+}

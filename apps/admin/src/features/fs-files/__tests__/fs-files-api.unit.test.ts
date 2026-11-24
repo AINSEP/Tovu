@@ -12,8 +12,8 @@ const isFolderPickerBusyError = ({ error }: { error: unknown }) => nativeFolderP
  */
 
 it("treats only an ApiError 409 as a dialog already open", () => {
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "busy", status: 409 }) })).toBe(true);
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "picker-failed", status: 500 }) })).toBe(false);
-  expect(isFolderPickerBusyError({ error: new ApiError({ message: "not found", status: 404 }) })).toBe(false);
-  expect(isFolderPickerBusyError({ error: Object.assign(new Error("busy"), { status: 409 }) })).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "busy", status: 409 }))).toBe(true);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "picker-failed", status: 500 }))).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(new ApiError({ message: "not found", status: 404 }))).toBe(false);
+  expect(nativeFolderPickerDeps.isDialogAlreadyOpen(Object.assign(new Error("busy"), { status: 409 }))).toBe(false);
 });

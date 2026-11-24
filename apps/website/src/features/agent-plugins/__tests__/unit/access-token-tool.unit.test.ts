@@ -10,8 +10,8 @@ import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mc
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
@@ -71,7 +71,7 @@ async function setup(
 ) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse("2026-09-13T00:00:00.000Z"), nowIso: () => "2026-09-13T00:00:00.000Z" };
   const http = new FakeVendorApi(probeOk);
   const connected: string[] = [];

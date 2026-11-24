@@ -8,8 +8,8 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminCustomCredentialsRoutes, type AdminCustomCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 
@@ -22,7 +22,7 @@ function inventoryFixture(_required = {}, _optional = {}) {
   const transaction = async <T>({ run }: { run: () => Promise<T> }) => run();
   const guarded = vault;
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const project = { workspaceId: "project", keyring, sealer,
     repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id" }) }),
     inventoryRepo: new CustomCredentialVaultRepo({ vault: guarded }), createRepo: new CustomCredentialVaultRepo({ vault: guarded }) };

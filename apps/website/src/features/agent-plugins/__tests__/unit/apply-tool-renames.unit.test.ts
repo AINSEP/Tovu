@@ -7,8 +7,8 @@ import test from "node:test";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
 import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
@@ -45,7 +45,7 @@ async function makeHarness(row: {
 }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-01T00:00:00.000Z" }) },

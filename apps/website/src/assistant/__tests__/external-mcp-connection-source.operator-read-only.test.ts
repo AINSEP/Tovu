@@ -4,8 +4,8 @@ import test, { after } from "node:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { recordBundledAgentPluginDigests } from "../../features/agent-plugins/lifecycle.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
@@ -23,7 +23,7 @@ const pluginId = "read-plugin";
 async function harness() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse("2026-10-01T12:00:00.000Z"), nowIso: () => "2026-10-01T12:00:00.000Z" };
   const deps = { repo, keyring, sealer, clock };
   await saveExternalMcpServer(deps, { workspaceId, serverId: "remote", label: "Remote", transport: "streamable_http", authMode: "none",

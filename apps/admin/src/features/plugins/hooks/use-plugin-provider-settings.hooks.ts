@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
 
-import { t as translate } from "../plugins-i18n";
+import { translatePlugins as translate } from "../../../lib/i18n-common";
 import { describeApiError } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";

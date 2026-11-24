@@ -9,7 +9,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
 import { resolveExecutionCredential } from "../../assistant/execution-credential-store.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "../routes/types.js";
 
@@ -204,7 +204,7 @@ test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when th
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({
     siteAssistantSecretKeyring: brokenKeyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: brokenKeyring }),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

@@ -24,8 +24,8 @@ import { saveAgentPluginToken, type AgentPluginAccessTokenToolDeps } from '../..
 import { mcpTestPort, credentialTestPort } from '../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js';
 import { InMemoryExternalMcpServerRepo } from '../../features/external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../features/external-mcp/external-mcp-store.js';
-import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../features/webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import type { HttpRequest } from '../../platform/http/index.js';
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
@@ -65,7 +65,7 @@ function emittedCard(emission: SurfaceEmission) {
 }
 
 async function setup(path: Path) {
-  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse('2026-11-07T00:00:00.000Z'), nowIso: () => '2026-11-07T00:00:00.000Z' };
   const idGen = { newId: () => 'credential-1' };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'exchange-1' }, defaultChannel: 'mcp-ui' });

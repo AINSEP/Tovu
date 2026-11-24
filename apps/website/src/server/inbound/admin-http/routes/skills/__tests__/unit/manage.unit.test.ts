@@ -1,4 +1,5 @@
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
+import { SKILL_STATE_FILE_NAME } from "@jini-ai/agentic/skills/install";
 import { createTempSiteLayoutFixture, testSiteLayoutContext, type TestSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,7 +33,7 @@ async function harness(fn: (call: (method: string, suffix: string, body?: unknow
 const payload = { confirmed: true, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] };
 test("install, read selected guidance, disable, and delete mutate the installed state", () => harness(async (call, siteLayouts) => {
   assert.deepEqual((await call("post", "", payload)).body, { skill: { toolId: "skill_check_ownership", name: "check-ownership", description: "Check who owns a record.", enabled: true, source: "uploaded" } });
-  assert.deepEqual((await call("get", "/:toolId/guidance")).body, { skillName: "check-ownership", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
+  assert.deepEqual((await call("get", "/:toolId/guidance")).body, { skillName: "check-ownership", guidance: MD, files: [SKILL_STATE_FILE_NAME], bundledFiles: [] });
   assert.equal((await call("patch", "/:toolId", { enabled: false })).code, 200);
   assert.equal((await listManagedSkills(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local" })))[0]!.enabled, false);
   assert.deepEqual((await call("get", "/:toolId/guidance")).body, { error: "Skill was not found or is disabled.", code: "NOT_FOUND" });

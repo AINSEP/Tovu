@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
@@ -611,7 +611,7 @@ test("publish-credentials: a site key missing at verify time (present at save ti
     ...createRouteDeps(),
     vendorCredentialSetRepo: deps1.vendorCredentialSetRepo,
     siteAssistantSecretKeyring: brokenKeyring,
-    siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: brokenKeyring }),
   };
   assert.equal(deps2.workspaceId, deps1.workspaceId, "sanity: both deps use the same seeded workspace id, so the shared row is reachable under the same URL");
   const app2 = createApp(deps2);

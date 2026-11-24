@@ -9,8 +9,8 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import { MCP_UI_MIME_TYPE } from "@jini-ai/protocol/mcp-ui";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "../vault-repo.js";
@@ -69,7 +69,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort }
   let allow = options.allow ?? true;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new TrackingSecretSealer(new AesGcmSecretSealer(keyring));
+  const sealer = new TrackingSecretSealer(new AesGcmSecretSealer({ keyring }));
   const authorizeCalls: Array<Record<string, unknown>> = [];
   // One id source for both write paths, as in production: two independent counters would both mint
   // `cred-1`, and the vault refuses a create over an existing id before the label is ever compared.
@@ -716,7 +716,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
 test("submit with a project store: cards have no site-only checkbox and both new keys save to the project", { timeout: 5_000 }, async (t) => {
   const { deps, sealer } = fakeRouteDeps();
   const projectKeyring = new InMemoryKeyring();
-  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring: projectKeyring }), keyring: projectKeyring };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations({ ...deps, customCredentialSetRepo: repo }, surfaceExchanges), TOOL_ID);

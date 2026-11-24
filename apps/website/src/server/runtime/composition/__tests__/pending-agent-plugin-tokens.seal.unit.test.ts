@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds, PENDING_AGENT_PLUGIN_TOKENS_FILENAME, sealPendingAgentPluginTokensForNewSite } from "../pending-agent-plugin-tokens.js";
 
 /** In-process coverage of the onboarding token file: key refusal, sealing with the new site's
@@ -36,7 +36,7 @@ for (const action of ["invalid", "refuse"] as const) {
 test("tokens are sealed with the new site's sealer and import back through the apply path", async (t) => {
   const dir = siteDir(t);
   const keyring = new InMemoryKeyring();
-  const sealing = { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  const sealing = { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
   const keyIds: string[] = [];
   await sealPendingAgentPluginTokensForNewSite({ siteDir: dir, siteKeyId: "k-new", tokens: { "plugin-a": "tok-a", "plugin-b": "tok-b" } }, {
     ensure: async () => ({ action: "mint" }) as never,
@@ -65,7 +65,7 @@ test("applying a file with no tokens field removes it without importing anything
   const target = path.join(dir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   fs.writeFileSync(target, '{"version":1}');
   const keyring = new InMemoryKeyring();
-  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: new AesGcmSecretSealer(keyring), importToken: async () => { throw new Error("nothing to import"); },
+  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: new AesGcmSecretSealer({ keyring }), importToken: async () => { throw new Error("nothing to import"); },
     log: { info: () => {}, warn: () => {} } });
   assert.equal(fs.existsSync(target), false);
 });

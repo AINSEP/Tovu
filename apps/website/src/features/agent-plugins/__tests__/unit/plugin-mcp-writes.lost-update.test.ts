@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
@@ -28,7 +28,7 @@ const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
 async function harness({ provisionedByPluginId }: { provisionedByPluginId: string | null }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const deps = { repo, sealer, keyring, clock };
   await saveExternalMcpServer(deps, { workspaceId: WORKSPACE, serverId: SERVER, label: "supabase", transport: "streamable_http", authMode: "none", enabled: true, command: "",
     url: URL_, args: "", allowedToolNames: "list_projects,get_logs", writeAllowedToolNames: "", principalId: "operator-1",

@@ -2,8 +2,8 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import {
   buildExternalMcpFederationDeps,
   createStoredExternalMcpConnectionSource,
@@ -46,7 +46,7 @@ test("a repo whose listByWorkspaceId throws makes resolve() return [] and failur
     warnLines.push(args.join(" "));
   });
 
-  const sealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const sealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({
     repo: repoWhoseListThrows(new Error("database is locked")),
     sealer,
@@ -82,7 +82,7 @@ test("failures() is replaced on every resolve(), never appended, and a whole-rea
   };
   const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({
     repo,
-    sealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     workspaceId: WORKSPACE,
     log: "[assistant-byok]",
   }));
@@ -152,7 +152,7 @@ test("legacy desktop cleanup keeps suppression and emits redacted cause", async 
   t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.join(" ")));
   const repo = new InMemoryExternalMcpServerRepo();
   t.mock.method(repo, "findByServerId", async () => { throw new Error("legacy lookup context password=MCP_CLEANUP_CANARY"); });
-  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ repo, sealer: new AesGcmSecretSealer(new InMemoryKeyring()), workspaceId: WORKSPACE, log: "[cleanup-test]", desktopOwned: true }));
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ repo, sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }), workspaceId: WORKSPACE, log: "[cleanup-test]", desktopOwned: true }));
   assert.deepEqual(await source.resolve(), []);
   assert.match(warnings.join(" "), /legacy desktop MCP cleanup.*legacy lookup context/);
   assert.doesNotMatch(warnings.join(" "), /MCP_CLEANUP_CANARY/);

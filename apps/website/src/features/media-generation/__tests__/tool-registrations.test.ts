@@ -25,9 +25,9 @@ import {
 } from "../../media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -128,7 +128,7 @@ function fakeRouteDeps(
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const mediaProviderCredentialRepo = new InMemoryMediaProviderCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(keyring);
+  const siteAssistantSecretSealer = new AesGcmSecretSealer({ keyring });
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const generateCalls: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }> = [];
 
@@ -469,7 +469,7 @@ test("a saved credential that fails to decrypt throws its own error and never fa
   // Same repo (holds the already-seeded row), but a sealer built on a keyring that can never derive
   // the key it was sealed with — simulates a rotated/missing site key without touching real env
   // state (same idiom `media/__tests__/provider-credential-store.test.ts` already establishes).
-  const brokenDeps = { ...fixture.deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const brokenDeps = { ...fixture.deps, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
 
   await assert.rejects(
     () => wired("media_generate_asset", brokenDeps).handler(executionContext({ prompt: "a logo" })),

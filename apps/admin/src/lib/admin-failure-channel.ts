@@ -3,9 +3,9 @@
  * secret redaction, version labels and server codes. Jini owns the disclosure rules; this module
  * calls the factory once and the app imports the bound values.
  */
+import { describeRequestFailure, formatUserFacingError } from "@jini-ai/core";
 import { createFailureChannel } from "@jini-ai/ui/panel-kit";
 import { decodeApiError } from "@jini-ai/protocol";
-import { describeRequestFailure, formatUserFacingError } from "@jini-ai/core";
 import { createAdminFailureReporter } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";

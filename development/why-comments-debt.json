@@ -10428,6 +10428,118 @@
     {
       "id": "f9cbac0690b4",
       "reason": "Moved to Jini packages/cms/src/public-http/routes/ops/health.ts (combine-17b); reworded there; the Tovu file is kept but no longer holds the code it explained."
+    },
+    {
+      "id": "401847698f6c",
+      "reason": "moved to Jini packages/admin/src/screens/email/hooks/use-email-provider.hooks.ts:105-108 (reworded neutral)"
+    },
+    {
+      "id": "66cf93dd8ea7",
+      "reason": "moved to Jini packages/core/src/contracts/site/cms-agent-plugins.ts:69 (the Tovu binding alias in integrations-api.types.ts states this host's maturity values) (reworded neutral)"
+    },
+    {
+      "id": "ce4ff66166d5",
+      "reason": "moved to Jini packages/core/src/contracts/site/cms-agent-plugins.ts:71 (reworded neutral)"
+    },
+    {
+      "id": "2b3f122d2a0f",
+      "reason": "moved to Jini packages/core/src/contracts/site/cms-agent-plugins.ts:83-84 (reworded neutral)"
+    },
+    {
+      "id": "157c3ee843d7",
+      "reason": "Explained the allowlist entry for the deleted Tovu sealer adapter (the per-call JiniSecretSealer wrapper); the adapter and its entry are gone, so there is no code left for it to explain."
+    },
+    {
+      "id": "3e39cb0aa93d",
+      "reason": "moved to Jini packages/agent-plugins/src/site/__tests__/host-plugin-guidance.unit.test.ts:19-23 (reworded neutral)"
+    },
+    {
+      "id": "092cee109f6f",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:9-26 (reworded neutral)"
+    },
+    {
+      "id": "ad69611e2d7f",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:29 (reworded neutral)"
+    },
+    {
+      "id": "f50b26de4ff9",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:32-33 (reworded neutral)"
+    },
+    {
+      "id": "2b2b7c0a821f",
+      "reason": "Documented the deleted HostPluginOverlayOptional options interface; Jini's readers now take overlaysDir as a required argument, and the product's default-directory rationale lives in apps/website/src/features/agent-plugins/host-overlays-dir.ts."
+    },
+    {
+      "id": "5b19b55eddc0",
+      "reason": "Documented the deleted overlaysDir option's fallback to agentPluginOverlaysDir; the fallback is now the explicit binding in apps/website/src/features/agent-plugins/host-overlays-dir.ts and lifecycle.ts."
+    },
+    {
+      "id": "e95581b3c99e",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:106-107 (reworded neutral)"
+    },
+    {
+      "id": "4b00446c1f3c",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:200 (reworded neutral)"
+    },
+    {
+      "id": "66741ae628c8",
+      "reason": "moved to Jini packages/agent-plugins/src/site/host-plugin-guidance.ts:208-212 (reworded neutral)"
+    },
+    {
+      "id": "12c016436ad9",
+      "reason": "moved to Jini packages/agentic/src/skills/install/__tests__/state.unit.test.ts:9-10 (reworded neutral)"
+    },
+    {
+      "id": "268d531a8ae0",
+      "reason": "moved to Jini packages/agentic/src/skills/install/state.ts:12 (persisted file name kept stable; the host keeps .tovu-install.json as a legacy read name in site-host.ts) (reworded neutral)"
+    },
+    {
+      "id": "7967a0e853c2",
+      "reason": "moved to Jini packages/agentic/src/skills/install/state.ts:19 (reworded neutral)"
+    },
+    {
+      "id": "d6449b674063",
+      "reason": "moved to Jini packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts:8-14 (restored in Jini 8608ed4a1) (reworded neutral)"
+    },
+    {
+      "id": "b96eb0f8d73f",
+      "reason": "moved to Jini packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts:65-69 (restored in Jini 8608ed4a1) (reworded neutral)"
+    },
+    {
+      "id": "16dd60864f3e",
+      "reason": "moved to Jini packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts:171-172 (reworded neutral)"
+    },
+    {
+      "id": "b08190d22560",
+      "reason": "moved to Jini packages/platform/src/secrets/keyring.memory.ts:3-7 (restored in Jini 8608ed4a1) (reworded neutral)"
+    },
+    {
+      "id": "a1c02368f893",
+      "reason": "Pointer from the deleted Tovu InMemoryKeyring wrapper to Jini's shared derivation; the wrapper is gone and Jini's InMemoryKeyring extends the shared keyring directly."
+    },
+    {
+      "id": "baadcce0569e",
+      "reason": "moved to Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts:5-33 and the seal/open docs at :82-:124 (the sealed-wire-format, shared-key, aad and rule-of-two rationale; Tovu-only ADR history dropped with the deleted adapter) (reworded neutral)"
+    },
+    {
+      "id": "9f3ba6ec12fc",
+      "reason": "Explained why the deleted adapter class declared its keyring field explicitly instead of a parameter property; the class no longer exists in Tovu."
+    },
+    {
+      "id": "cb8bc3d91ef8",
+      "reason": "Explained how the deleted adapter handed the host keyring to Jini's sealer; the adapter is gone and hosts construct Jini's AesGcmSecretSealer directly."
+    },
+    {
+      "id": "a369ebac1810",
+      "reason": "moved to Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts:82-86 (omitted aad is zero AAD bytes, the historical unbound format); the check:seal-aad forwarding note described the deleted adapter's seal() forwarder (reworded neutral)"
+    },
+    {
+      "id": "4a98ed63a191",
+      "reason": "moved to Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts:110-124 (absent aad opens historical records; derivation failures propagate as themselves, only the opening is SECRET_OPEN_FAILED) (reworded neutral)"
+    },
+    {
+      "id": "d624c0ad71d8",
+      "reason": "Pointer from the deleted Tovu sealer adapter to Jini's shared-key/aad rationale; the adapter is gone and the rationale is in that Jini file's header."
     }
   ]
 }

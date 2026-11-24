@@ -7,8 +7,8 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { OAuthError } from '@jini-ai/oauth';
 import { ExternalMcpValidationError, externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames, resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '@jini-ai/mcp/federation/hosted';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { composeAgentPluginMcp, composeAgentPluginConnectServices } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
 import { runAgentPluginConnect } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
@@ -17,7 +17,7 @@ function harness(fault: Error) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const clock = createSystemClock();
-  const mcp = composeAgentPluginMcp({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock });
+  const mcp = composeAgentPluginMcp({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock });
   const services = composeAgentPluginConnectServices({ httpClient: { send: async () => { throw new Error('No HTTP expected'); } },
     loadCards: async () => [], externalMcpOAuth: { beginConnect: async () => { throw fault; } },
   });

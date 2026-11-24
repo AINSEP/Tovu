@@ -8,6 +8,7 @@ import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { AdminModulesProvider } from '../AdminModulesProvider';
 import { createHostAdminScope } from '../modules.hooks';
 import { createHostSecurityModule, SecurityModulePanel, type SecurityOwnerPorts } from '../security-module.hooks';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import type { Runtime } from '../module-context';
 import { tovuKit } from '../kit';
 
@@ -25,6 +26,7 @@ function ownerPorts(): SecurityOwnerPorts {
     passkeys: { status: async () => ({ isOwner: true, credentials: [] }), enroll: vi.fn(), confirm: vi.fn(), remove: vi.fn() },
   };
 }
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
 const securityPorts = () => ({ securityApi: createMemorySecurityApi({}), otherCredentials: createMemoryOtherCredentials({}), rootKey: createMemoryRootKey({}) });
 
 function mount({ permissions = ['*'], grantsReady = true, tab = null as string | null, owner = ownerPorts() } = {}) {

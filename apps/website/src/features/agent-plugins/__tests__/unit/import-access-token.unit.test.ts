@@ -9,8 +9,8 @@ import test, { after } from "node:test";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { openExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 import { hasStoredAgentPluginCredential } from "../../connect-tool.js";
 import { BUNDLED_DIGESTS_FILENAME, listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
@@ -64,7 +64,7 @@ const SUPABASE_SERVERS: Readonly<Record<string, McpServerConfig>> = {
 async function setup() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },

@@ -6,8 +6,8 @@ import type { SourceControlCredentialSetupDeps, proposeSourceControlCredential }
 import type { SourceControlProviderDescriptor } from '../provider-registry.js';
 import type { createSourceControlCredential } from '../store.js';
 import { InMemorySourceControlCredentialSetRepo } from '../repo.memory.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { githubFromSource } from './fixtures/github-from-source.js';
 import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
@@ -28,7 +28,7 @@ async function capture({ input = { provider: 'github' }, onAuthorize = () => {} 
   const deps: SourceControlCredentialSetupDeps = {
     workspaceId: 'ws', authorize: async () => { onAuthorize(); return { allowed: true, reason: 'matched' }; },
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
-    siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     clock: { nowMs: () => 0 }, idGen: { newId: () => 'credential' },
     loadSourceControlProviders: githubFromSource,
   };

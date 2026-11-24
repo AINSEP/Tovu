@@ -2,8 +2,8 @@ import { exampleRegistry } from "../../source-control/__tests__/fixtures/example
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHmac } from 'node:crypto';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs, listExternalMcpServerViews } from "../../external-mcp/external-mcp-store.js";
@@ -21,7 +21,7 @@ const workspaceId = 'credential-safety';
 function cryptoDeps() {
   const keyring = new InMemoryKeyring();
   let sequence = 0;
-  return { keyring, sealer: new AesGcmSecretSealer(keyring), clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' }, idGen: { newId: () => `credential-${++sequence}` } };
+  return { keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' }, idGen: { newId: () => `credential-${++sequence}` } };
 }
 const registry: DeployTargetRegistry = {
   list: () => [registry.get('fixture-host')!], refusals: [],

@@ -15,8 +15,8 @@ import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { applyExternalMcpAccess } from "@jini-ai/mcp/federation/hosted";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
@@ -70,7 +70,7 @@ async function operatorEnabledRow() {
   const keyring = new InMemoryKeyring();
   const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
   await saveExternalMcpServer(
-    { repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock },
+    { repo, sealer: new AesGcmSecretSealer({ keyring }), keyring, clock },
     {
       workspaceId: WORKSPACE,
       serverId: "remote",
@@ -163,7 +163,7 @@ test("the production fallback enables an untouched saved-token row with the inst
     } finally { await source.dispose(); }
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
+    const sealer = new AesGcmSecretSealer({ keyring });
     const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z"), nowIso: () => "2026-09-29T00:00:00.000Z" };
     await saveExternalMcpServer({ repo, sealer, keyring, clock }, {
       workspaceId: WORKSPACE, serverId: "supabase", transport: "streamable_http", authMode: "static_env",

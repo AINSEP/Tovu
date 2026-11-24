@@ -11,8 +11,8 @@ import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connec
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
@@ -76,7 +76,7 @@ function call(handler: ToolRegistration["handler"], input: unknown) {
 async function makeConnectHandler(derivedPublicOrigin: string | undefined): Promise<ToolRegistration["handler"]> {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs: () => Date.parse("2026-09-10T00:00:00.000Z"), nowIso: () => "2026-09-10T00:00:00.000Z" };
 
   await saveExternalMcpServer(

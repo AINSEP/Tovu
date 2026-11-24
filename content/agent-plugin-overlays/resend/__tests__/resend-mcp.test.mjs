@@ -18,7 +18,7 @@ import { buildCredentialSaveRegistrations } from "../../../../apps/website/src/f
 import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
 import { createCustomCredential, resolveCustomCredentialByLabel } from "../../../../apps/website/src/features/custom-credentials/store.ts";
 import { InMemoryExternalMcpServerRepo } from "../../../../apps/website/src/features/external-mcp/external-mcp-store.memory.js";
-import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.env.ts";
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
 import { resolveSiteRoot } from "../../../../apps/website/src/platform/site-dir/index.ts";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";

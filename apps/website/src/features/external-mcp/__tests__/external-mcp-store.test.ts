@@ -5,8 +5,8 @@ import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { listExternalMcpServerViews, openExternalMcpOAuthPayload, parseEnvBlock, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
@@ -47,7 +47,7 @@ const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () 
 function makeDeps() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -258,7 +258,7 @@ test("an allowlist entry the trust tier would refuse is rejected at save time", 
 test("sealing failure surfaces as an unconfigured-secret-store error, not a validation error", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new BrokenKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await assert.rejects(
     () => saveExternalMcpServer({ repo, keyring, sealer, clock }, validInput()),
     (err: unknown) => err instanceof ExternalMcpSecretStoreUnconfiguredError,
@@ -271,7 +271,7 @@ test("a row whose credentials cannot be decrypted is skipped, never thrown on", 
   await saveExternalMcpServer(deps, validInput({ serverId: "healthy", env: "OK=1" }));
 
   // A site key rotated out from under an existing row — the realistic cause.
-  const strangerSealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const strangerSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer: strangerSealer }, workspaceId: WORKSPACE });
 
   assert.equal(configs.length, 0);
@@ -445,7 +445,7 @@ test("OAuth token ciphertext changes leave the admission revision unchanged", as
 test("the admission revision changes when a connection is deleted and re-created under the same id after the clock advances", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   let nowMs = Date.parse("2026-08-09T00:00:00.000Z");
   const movingClock = { nowMs: () => Date.parse(new Date(nowMs).toISOString()), nowIso: () => new Date(nowMs).toISOString() };
   const deps = { repo, keyring, sealer, clock: movingClock };

@@ -16,8 +16,8 @@ import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static
 import { createDbPublishCredentialSource } from "../credentials.js";
 import { createPublishCredential, deletePublishCredential } from "../../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -344,7 +344,7 @@ for (const explicit of [false, true]) {
     const keyring = new InMemoryKeyring();
     let id = 0;
     const writeDeps = { repo: new InMemoryVendorCredentialSetRepo({}), keyring,
-      sealer: new AesGcmSecretSealer(keyring), clock: createFakeClock({ startIso: clock.nowIso() }),
+      sealer: new AesGcmSecretSealer({ keyring }), clock: createFakeClock({ startIso: clock.nowIso() }),
       idGen: { newId: () => `saved-${++id}` }, loadDeployTargets: routeDeps.loadDeployTargets };
     const saved = await createPublishCredential(writeDeps, { workspaceId: routeDeps.workspaceId, label: "Original",
       connection: { providerId: "vercel", token: "ORIGINAL_SECRET" }, isDefault: true });

@@ -12,8 +12,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/credential-save";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { buildPluginCredentialForm, type PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
@@ -94,7 +94,7 @@ test("the plugin card form carries exactly one masked secret field and no Works-
 function harness(cards: readonly PluginCredentialCard[]) {
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   let n = 0;
   const idGen = { newId: () => `cred-${++n}` };
   const deps: CustomCredentialsToolDeps = {

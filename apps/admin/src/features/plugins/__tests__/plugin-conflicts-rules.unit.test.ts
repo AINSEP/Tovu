@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError, pluginConflictLines, pluginQuarantineHeadline, pluginRowDetailView } from "../rules";
-import { t as translatePlugins } from "../plugins-i18n";
+import { translatePlugins } from "../../../lib/i18n-common";
 
 /**
  * @file The Plugins row's conflict and quarantine copy (2026-10-04, plugin conflict detection —

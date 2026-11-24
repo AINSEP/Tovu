@@ -2,8 +2,8 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { credentialScope } from "../../vendor-credentials/vault-adapter.js";
@@ -76,7 +76,7 @@ function makeDeps({ fetchFn, ...overrides }: TestDepsOverrides = {}): SourceCont
   let counter = 0;
   return {
     repo: new InMemorySourceControlCredentialSetRepo(),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
@@ -469,7 +469,7 @@ test("a blank or missing token is rejected for every provider, not just example-
  * again whenever a new `connection` is supplied.
  */
 test("createSourceControlCredential fails closed with SourceControlCredentialSecretStoreUnconfiguredError when the keyring cannot supply a key — never a plaintext write", async () => {
-  const deps = makeDeps({ keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer(new BrokenKeyring()) });
+  const deps = makeDeps({ keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) });
   await assert.rejects(
     createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t" } } }),
     SourceControlCredentialSecretStoreUnconfiguredError
@@ -480,7 +480,7 @@ test("updateSourceControlCredential fails closed the same way when a NEW connect
   const workingDeps = makeDeps();
   const created = await createSourceControlCredential({ deps: workingDeps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t1" } } });
 
-  const brokenDeps: SourceControlCredentialWriteDeps = { ...workingDeps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const brokenDeps: SourceControlCredentialWriteDeps = { ...workingDeps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
   await assert.rejects(
     updateSourceControlCredential({ deps: brokenDeps, input: { workspaceId: WORKSPACE, id: created.id, connection: { providerId: "example-git", token: "t2" } } }),
     SourceControlCredentialSecretStoreUnconfiguredError

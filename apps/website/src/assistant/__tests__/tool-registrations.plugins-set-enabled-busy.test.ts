@@ -55,8 +55,8 @@ const { buildPluginsRegistrations } = await import("#src/__tests__/support/plugi
 const { InMemoryExternalMcpServerRepo } = await import("#src/features/external-mcp/external-mcp-store.memory");
 const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 const { InMemoryChangeSetRepo } = await import("#src/contracts/core/commands/index");
-const { InMemoryKeyring } = await import("#src/features/webhooks/keyring.memory");
-const { AesGcmSecretSealer } = await import("#src/features/webhooks/secret-sealer.aesgcm");
+const { InMemoryKeyring } = await import("#src/features/webhooks/keyring.env");
+const { AesGcmSecretSealer } = await import("@jini-ai/platform/secrets");
 const { InMemoryPluginActivationRepo } = await import("@jini-ai/plugins/host");
 
 const WORKSPACE_ID = "66666666-6666-4666-8666-666666666666";
@@ -117,7 +117,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
 function fakeRouteDeps(): { deps: PluginsToolDeps } {
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   let counter = 0;
 
   const deps = testSiteLayoutContext({

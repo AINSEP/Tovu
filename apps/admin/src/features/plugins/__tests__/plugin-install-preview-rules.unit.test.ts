@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { pluginInstallPreviewDisplay } from "../rules";
-import { t as translatePlugins } from "../plugins-i18n";
+import { translatePlugins } from "../../../lib/i18n-common";
 import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
 
 /**

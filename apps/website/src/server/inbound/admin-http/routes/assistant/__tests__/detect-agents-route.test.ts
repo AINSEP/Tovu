@@ -5,8 +5,8 @@ import test from "node:test";
 import express from "express";
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import { createAssistantAgentInventory, listAssistantAgents, setAgentModelProberForTesting } from "#src/assistant/agents";
@@ -33,7 +33,7 @@ function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps>
   registerAdminAssistantDetectAgentsRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     detectAgents: async () => { calls += 1; if (failure) throw failure; return agents; },
     workspaceId: "workspace-test", authorize: async (params) => {
       assert.deepEqual(params, { principalId: "principal-test", permission: "admin.assistant.manage", workspaceId: "workspace-test", entityType: "assistant-execution" });
@@ -125,7 +125,7 @@ test("Rescan forces discovery once after the cached response and preserves exact
   registerAdminAssistantDetectAgentsRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
     detectAgents: async (_input, options = {}) => { calls++; forces.push(options.force === true); return agents; },
     workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
   } });
@@ -160,7 +160,7 @@ test("each route uses its composition's inventory rather than the process compat
         assistantAgentInventory,
         adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
         siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-        siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+        siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }),
         workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
       } });
       const { res, capture } = createCapturingResponse();

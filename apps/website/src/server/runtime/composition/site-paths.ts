@@ -217,10 +217,10 @@ export { bundledAgentPluginsDir } from "#src/platform/site-dir/product-root";
  * (`GUIDANCE.md` plus `host/*.md`), copied to `dist/content/agent-plugin-overlays/` at build time and
  * resolved package-relative like {@link bundledAgentPluginsDir} above; `TOVU_AGENT_PLUGIN_OVERLAYS_DIR`
  * overrides. Product-shipped, read-only, never site data. Defined in the feature that reads it
- * (`features/agent-plugins/host-plugin-guidance.ts`) because the module-level lifecycle binding has no
+ * (`features/agent-plugins/host-overlays-dir.ts`) because the module-level lifecycle binding has no
  * composition root to receive it from; re-exported here so every product path stays listed in one file.
  */
-export { agentPluginOverlaysDir } from "#src/features/agent-plugins/host-plugin-guidance";
+export { agentPluginOverlaysDir } from "#src/features/agent-plugins/host-overlays-dir";
 
 /**
  * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree

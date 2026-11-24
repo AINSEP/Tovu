@@ -4,8 +4,8 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { createExternalMcpConnectionGate } from "../external-mcp-oauth.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import { deleteExternalMcpServer, toResolvedFederatedConnections } from "@jini-ai/mcp/federation/hosted";
@@ -49,7 +49,7 @@ function makeClock(): FakeClock {
 function makeStoreDeps(clock: FakeClock) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, sealer, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -301,7 +301,7 @@ test("T1-9: a row read that throws refuses without reaching the remote, and the 
 
 test("T1-10: a preset connection with no row still completes", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
-  const sealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const sealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const presetConfig: FederatedMcpConnectionConfig = {
     connectionId: "acme-preset",
     label: "Acme Preset",

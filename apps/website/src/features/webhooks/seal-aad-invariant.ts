@@ -9,7 +9,7 @@ import ts from "typescript";
  *
  * ## The gap this closes
  * `ports.ts`'s own header documents `aad` as optional at the PORT level, on purpose: the sealer is
- * a general-purpose AEAD primitive (see `secret-sealer.aesgcm.test.ts`'s "backward compatibility: a
+ * a general-purpose AEAD primitive (see Jini `packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts`'s "backward compatibility: a
  * value sealed with no aad still opens with no aad" case), and a hypothetical table with no natural
  * row identity to bind is explicitly allowed to seal with none. That is the right call for the
  * PRIMITIVE. It is the wrong call for CREDENTIAL STORES specifically: every credential-shaped table
@@ -26,7 +26,7 @@ import ts from "typescript";
  * ## Why an AST scan, not a type-level port change
  * See above — the port's optionality is a deliberate, tested, documented design choice for the
  * primitive, not an oversight. Narrowing it to `aad: string` would contradict that design and break
- * `secret-sealer.aesgcm.test.ts`'s own backward-compatibility test. The invariant this codebase
+ * Jini `packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts`'s own backward-compatibility test. The invariant this codebase
  * actually wants ("every CREDENTIAL STORE call site passes aad") is a policy about call sites, not
  * about the primitive's shape, so it belongs in a call-site check, not the type.
  *

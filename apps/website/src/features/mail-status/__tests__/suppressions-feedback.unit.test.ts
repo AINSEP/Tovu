@@ -211,11 +211,11 @@ test("feedback tools retain failure semantics for provider, credential and inbox
 
 test("feedback inventory sees project secrets without opening them, with site-over-project precedence", async () => {
   const { InMemoryCustomCredentialSetRepo } = await import("../../custom-credentials/repo.memory.js");
-  const { AesGcmSecretSealer } = await import("../../webhooks/secret-sealer.aesgcm.js");
-  const { InMemoryKeyring } = await import("../../webhooks/keyring.memory.js");
+  const { AesGcmSecretSealer } = await import("@jini-ai/platform/secrets");
+  const { InMemoryKeyring } = await import("../../webhooks/keyring.env.js");
   const { createCustomCredential } = await import("../../custom-credentials/store.js");
   const keyring = new InMemoryKeyring();
-  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring };
   const { CustomCredentialVaultRepo } = await import("../../custom-credentials/vault-repo.js");
   const { InMemoryVaultRepo } = await import("@jini-ai/platform/secrets/credential-sets");
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });

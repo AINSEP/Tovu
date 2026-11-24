@@ -17,8 +17,8 @@ import {
 } from "../external-mcp-reauth-tool.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
@@ -57,7 +57,7 @@ const PRINCIPAL = "principal-admin-1";
 async function makeOAuthServerFixture(status: "needs_reauth" | "connected" = "needs_reauth") {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-02T00:00:00.000Z" };
 
   await saveExternalMcpServer(
@@ -262,7 +262,7 @@ test("real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's
 test("degrades to the existing terminal error when the connection is not OAuth-authenticated, rather than raising a broken dialog", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-02T00:00:00.000Z" };
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },

@@ -2,8 +2,8 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialValidationError, type CustomCredentialWriteDeps } from "../store.js";
@@ -48,7 +48,7 @@ class ScriptedHttpClient implements HttpClientPort {
 
 async function seeded(httpClient: HttpClientPort) {
   const keyring = new InMemoryKeyring();
-  const sealer = new TrackingSealer(new AesGcmSecretSealer(keyring));
+  const sealer = new TrackingSealer(new AesGcmSecretSealer({ keyring }));
   const repo = new InMemoryCustomCredentialSetRepo();
   let n = 0;
   const writeDeps: CustomCredentialWriteDeps = { repo, sealer, keyring, clock: { nowMs: () => Date.parse(NOW) }, idGen: { newId: () => { n += 1; return `c2p1-${n}`; } } };

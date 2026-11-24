@@ -11,8 +11,8 @@ import { ensureMailProviderSettings, readMailProviderSetting } from "@jini-ai/cm
 import { createCustomCredential, updateCustomCredential, InMemoryCustomCredentialSetRepo } from '#src/features/custom-credentials/index';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { MailAdapterRegistry } from '@jini-ai/agent-plugins/lifecycle/mail';
-import { AesGcmSecretSealer } from '#src/features/webhooks/secret-sealer.aesgcm';
-import { InMemoryKeyring } from '#src/features/webhooks/keyring.memory';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
+import { InMemoryKeyring } from '#src/features/webhooks/keyring.env';
 import { createSiteMailer, type SiteMailerRequired } from '../../composition/site-mailer.js';
 import { loadMailCredentialCards, MAIL_SMTP_CREDENTIAL_LABEL } from '../mail-provider-catalog.js';
 import { buildPluginCredentialForm } from '#src/contracts/core/plugin-credential-card';
@@ -43,7 +43,7 @@ async function rig(input: { provider?: string; key?: boolean; sender?: { email?:
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   const settingsDeps = { clock, ids, principals };
   await ensureMailProviderSettings({ deps: { settingsRepo, ...settingsDeps }, systemPrincipalId: 'system' });
-  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring), repo = new InMemoryCustomCredentialSetRepo();
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer({ keyring }), repo = new InMemoryCustomCredentialSetRepo();
   const writeDeps = { repo, sealer, keyring, clock, idGen: ids };
   const http: HttpRequest[] = [], smtp: unknown[] = [], ledgerCalls: { kind: string; input: unknown }[] = [], captured: unknown[] = [];
   const ledger: MailSendLedgerPort = { reserve: async value => { ledgerCalls.push({ kind: 'reserve', input: value }); return { status: 'reserved' }; }, mark: async value => { ledgerCalls.push({ kind: 'mark', input: value }); } };

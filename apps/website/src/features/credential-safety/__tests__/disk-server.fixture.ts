@@ -4,8 +4,8 @@ import { createServer } from 'node:http';
 import { openContentDb } from '../../../platform/db/sqlite/content-db.js';
 import { SqliteExternalMcpServerRepo } from "../../external-mcp/external-mcp-repo.sqlite.js";
 import { InMemoryExternalMcpToolApprovalRepo } from '../../../assistant/external-mcp-tool-approval-adapters.js';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import { registerAdminExternalMcpListRoute, registerAdminExternalMcpPutRoute } from '#src/server/runtime/composition/modules/external-mcp';
 import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter, type ExternalMcpProbeRouteDeps } from '../../../server/inbound/admin-http/routes/external-mcp/probe.js';
@@ -22,7 +22,7 @@ const deps: ExternalMcpProbeRouteDeps = {
   externalMcpServerRepo: new SqliteExternalMcpServerRepo({ store: db }),
   externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
   builtInExternalMcpServerIds: [], observability: createNoopObservabilityPort({}),
-  siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+  siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
   // A hostile upstream error with a credential is the regression: production must discard its text.
   connect: async ({ spec }) => { throw Object.assign(new Error(`hostile upstream ${spec.headers?.authorization ?? ''}`), { status: 401 }); },
 };

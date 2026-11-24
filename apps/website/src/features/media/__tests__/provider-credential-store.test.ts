@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer, SecretOpenError } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SecretOpenError } from "@jini-ai/platform/secrets";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
@@ -36,7 +36,7 @@ const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () 
 function makeDeps() {
   const repo = new InMemoryMediaProviderCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -314,7 +314,7 @@ test("a missing site key fails closed WITHOUT writing or deleting anything", asy
     providers: { openai: { apiKey: ("s" + "k-intact-5555") }, grok: { apiKey: "xai-intact-6666" } },
   });
 
-  const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer({ keyring: new BrokenKeyring() }) };
   await assert.rejects(
     // Also drops `grok` — proving the abort happens before the tombstone pass, not midway through.
     saveMediaProviderCredentials(broken, { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-new-0000") } } }),
@@ -602,7 +602,7 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
 test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time", async () => {
   const repo = new InMemoryMediaProviderCredentialRepo();
   const workingKeyring = new InMemoryKeyring();
-  const workingSealer = new AesGcmSecretSealer(workingKeyring);
+  const workingSealer = new AesGcmSecretSealer({ keyring: workingKeyring });
   await saveMediaProviderCredentials(
     { repo, keyring: workingKeyring, sealer: workingSealer, clock },
     { workspaceId: WORKSPACE, providers: { openai: { apiKey: ("s" + "k-will-fail-to-open") } } }
@@ -610,7 +610,7 @@ test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSe
 
   // Same row, but resolved through a sealer backed by a broken keyring — mirrors this suite's own
   // "a missing site key fails closed" fixture for the write path, applied to the read path.
-  const brokenSealer = new AesGcmSecretSealer(new BrokenKeyring());
+  const brokenSealer = new AesGcmSecretSealer({ keyring: new BrokenKeyring() });
   await assert.rejects(
     () => resolveMediaProviderCredential({ repo, sealer: brokenSealer }, { workspaceId: WORKSPACE, providerId: "openai" }),
     (err: unknown) => {

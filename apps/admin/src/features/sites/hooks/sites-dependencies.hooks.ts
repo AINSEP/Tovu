@@ -93,3 +93,9 @@ export function createFakeSitesPort(
     listTokenSignInPlugins: overrides.listTokenSignInPlugins ?? (() => Promise.resolve({ plugins: [] })),
   };
 }
+
+/** The sidebar's Sites label reads the same cached site list the Sites screen does (`SITES_LISTING`);
+ * Jini's nav takes this host binding as its `useSitesSnapshot` collaborator. */
+export function useSitesNavSnapshot({ port }: { port: Pick<SitesPort, "listSites"> }, { enabled }: { enabled?: boolean }) {
+  return useSitesSnapshot({ port, listing: SITES_LISTING }, { enabled });
+}

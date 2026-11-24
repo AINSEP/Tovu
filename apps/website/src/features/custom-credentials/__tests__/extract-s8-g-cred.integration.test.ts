@@ -13,7 +13,7 @@ import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { HKDF_EXTRACTION_SALT } from "#src/features/webhooks/keyring.env";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
@@ -104,7 +104,7 @@ function counted<T extends object>(target: T, counts: Counts, before: (name: str
 }
 
 function countedSealer(keyring: KeyringPort, counts: Counts): SecretSealerPort {
-  const inner = new AesGcmSecretSealer(keyring);
+  const inner = new AesGcmSecretSealer({ keyring });
   return {
     seal: input => { counts.seals += 1; counts.sealAads.push(input.aad); return inner.seal(input); },
     open: (input, optional) => { counts.opens += 1; counts.openAads.push(optional?.aad ?? ""); return inner.open(input, optional); },
@@ -218,8 +218,8 @@ test("wrong context, wrong kind AAD and foreign ownership fail with the canonica
     // A frozen envelope opened under another identity's AAD fails authentication outright.
     const [legacyRow] = ROWS;
     const sealed = { keyId: String(legacyRow!.sealed_key_id), ciphertext: String(legacyRow!.sealed_ciphertext), nonce: String(legacyRow!.sealed_nonce), alg: "aes-256-gcm" as const };
-    await assert.rejects(new AesGcmSecretSealer(fixedKeyring()).open({ sealed }, { aad: LITERAL_AAD(LEGACY, "vendor") }));
-    assert.equal(JSON.parse(await new AesGcmSecretSealer(fixedKeyring()).open({ sealed }, { aad: LITERAL_AAD(LEGACY, "custom") })).token, OPENED["Legacy custom"].connection.token);
+    await assert.rejects(new AesGcmSecretSealer({ keyring: fixedKeyring() }).open({ sealed }, { aad: LITERAL_AAD(LEGACY, "vendor") }));
+    assert.equal(JSON.parse(await new AesGcmSecretSealer({ keyring: fixedKeyring() }).open({ sealed }, { aad: LITERAL_AAD(LEGACY, "custom") })).token, OPENED["Legacy custom"].connection.token);
     assert.deepEqual(await site.stored(), ROWS);
   });
   await withSite({ keyring: fixedKeyring("ff".repeat(32), KEY.keyId) }, async site => {
@@ -331,7 +331,7 @@ test("metadata list/describe perform 0 opens; resolve opens only the selected au
 /** A second, uninstrumented writer over the same database (concurrency hooks only). */
 async function openSiteDepsOver(site: Site): Promise<{ deps: CustomCredentialWriteDeps }> {
   const keyring = fixedKeyring();
-  return { deps: { repo: new SqlCustomCredentialSetRepo(site.kernel), sealer: new AesGcmSecretSealer(keyring), keyring,
+  return { deps: { repo: new SqlCustomCredentialSetRepo(site.kernel), sealer: new AesGcmSecretSealer({ keyring }), keyring,
     clock: { nowMs: () => Date.parse(LATER) }, idGen: { newId: () => assert.fail("unexpected id request") } } };
 }
 
@@ -478,7 +478,7 @@ test("old reader accepts new operations' stored rows (C0: old==new; the post-mov
     const written = await site.stored();
     assert.deepEqual(written.map(row => [row.id, row.kind]), [["created-later", "vendor"], [LEGACY, "custom"], [VENDOR, "vendor"]]);
     // A reader constructed from scratch over the stored bytes only: fresh facade, fresh sealer.
-    const reader: { repo: CustomCredentialSetRepoPort; sealer: SecretSealerPort } = { repo: new SqlCustomCredentialSetRepo(site.kernel), sealer: new AesGcmSecretSealer(fixedKeyring()) };
+    const reader: { repo: CustomCredentialSetRepoPort; sealer: SecretSealerPort } = { repo: new SqlCustomCredentialSetRepo(site.kernel), sealer: new AesGcmSecretSealer({ keyring: fixedKeyring() }) };
     const expected = {
       "Created later": { id: "created-later", category: "media", baseUrl: "https://created.example.test", additionalHosts: ["https://cdn.example.test"], connection: { token: synthetic("created"), username: "created-login" } },
       "Legacy updated": { ...OPENED["Legacy custom"], connection: { token: synthetic("legacy-new") } },

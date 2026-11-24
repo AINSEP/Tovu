@@ -1,8 +1,8 @@
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs } from "../../external-mcp/external-mcp-store.js";
 import { probeExternalMcpServer } from '../../external-mcp/external-mcp-host-copy.js';
@@ -22,7 +22,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const workspaceId = 'credential-probe';
 const clock = { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' };
 function cryptoDeps() {
-  const keyring = new InMemoryKeyring(); return { keyring, sealer: new AesGcmSecretSealer(keyring) };
+  const keyring = new InMemoryKeyring(); return { keyring, sealer: new AesGcmSecretSealer({ keyring }) };
 }
 async function fixture() {
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo(), clock };

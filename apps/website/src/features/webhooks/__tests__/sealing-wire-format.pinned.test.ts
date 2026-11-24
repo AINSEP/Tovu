@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import * as crypto from "node:crypto";
 import { test } from "node:test";
-import { AesGcmSecretSealer } from "../secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { FixedSiteKeyKeyring } from "../keyring.env.js";
 
 // Public fixture material only. Pin the existing adapter before extracting it.
@@ -25,7 +25,7 @@ test("current sealing wire bytes and stored fixture remain pinned", async () => 
     new Uint8Array(crypto.hkdfSync("sha256", Buffer.from(siteKeyHex, "hex"),
       "tovu-integrations-root-key-hkdf-v1", "secret-sealer.v1:secret-sealer:v1", 32)), // site-key-frozen: never change (every sealed row depends on these bytes)
   );
-  const sealer = new AesGcmSecretSealer(keyring, { randomBytesFn: ({ byteLength }) => {
+  const sealer = new AesGcmSecretSealer({ keyring }, { randomBytesFn: ({ byteLength }) => {
     assert.equal(byteLength, 12);
     return Buffer.from(iv);
   } });

@@ -5,8 +5,8 @@ import { ToolInputError } from '@jini-ai/core';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { applyExternalMcpAccess } from '@jini-ai/mcp/federation/hosted';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { agentPluginMcpProjections } from '../../mcp-host-bindings.js';
 import { grantDeclaredToolsAtBoot, grantDeclaredToolsToSignedInRows, type GrantSignedInDefaultsDeps } from '@jini-ai/agent-plugins/connect';
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv, listInstalledAgentPluginServers, type ImportAgentPluginAccessTokensFromEnvDeps } from '@jini-ai/agent-plugins/connect';
@@ -17,7 +17,7 @@ const servers: Readonly<Record<string, McpServerConfig>> = { crm: { type: 'strea
 async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring(); const clock = createSystemClock();
-  const store = { repo, keyring, clock, sealer: new AesGcmSecretSealer(keyring) };
+  const store = { repo, keyring, clock, sealer: new AesGcmSecretSealer({ keyring }) };
   await saveExternalMcpServer(store, { workspaceId: 'acme', serverId: 'crm', label: 'Acme', transport: 'streamable_http', authMode: 'oauth', enabled: false, command: '', args: '', url: 'https://crm.acme.test/mcp', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' }, principalId: 'owner', provisionedByPluginId: 'crm-plugin' });
   const row = (await repo.findByServerId({ workspaceId: 'acme', serverId: 'crm' }))!;
   await repo.upsert({ ...row, oauthStatus: 'connected' });

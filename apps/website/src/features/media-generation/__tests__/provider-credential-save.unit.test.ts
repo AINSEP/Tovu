@@ -7,8 +7,8 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { getMediaProviderCredentials, saveMediaProviderCredentials } from "../../media/provider-credential-store.js";
 import { mediaVaultScope } from "../../media/provider-credential-vault.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { saveMediaProviderKey } from "../provider-credential-save.js";
 
 /**
@@ -24,7 +24,7 @@ const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z"), nowIso: () 
 function makeDeps() {
   const repo = new InMemoryMediaProviderCredentialRepo();
   const keyring = new InMemoryKeyring();
-  return { repo, deps: { repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock } };
+  return { repo, deps: { repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock } };
 }
 
 test("a first key for a provider is saved and reported configured, with no model or baseUrl", async () => {

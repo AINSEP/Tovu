@@ -25,6 +25,11 @@ const SRC = path.resolve(__dirname, "../..");
  *  common dictionary through the same option (`@jini-ai/admin/source-control/source-control-i18n`). */
 const TRANSLATOR_FACTORIES = new Set(["createDictionaryTranslator", "createSourceControlTranslator"]);
 
+/** K4-i18n-common factories (`create<X>Dictionary({ commonDictionary, ... })`, coordinator decision 3) take
+ *  COMMON_I18N as the REQUIRED `commonDictionary` field of their FIRST argument; only that exact binding
+ *  is a sanctioned sink, so any other key or factory still reports. */
+const COMMON_FIRST_ARG_FACTORIES = new Set(["createMembersTranslator", "createPageEditorTranslator", "createPluginsDictionary"]);
+
 /** Indexed lookups that are allowed, each with its reason. Keep this list short. */
 const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
@@ -339,6 +344,16 @@ describe("findInlineDictionaryLookups: the detector", () => {
     const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; const DICT: Record<string, Record<string, string>> = {}; export const t = createDictionaryTranslator({ featureDictionary: DICT }, { commonDictionary: COMMON_I18N });" };
     expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
   });
+
+  it("permits COMMON_I18N as the required commonDictionary of a K4 feature dictionary factory, nowhere else", () => {
+    const common = { path: "lib/i18n-common.ts", source: "export const COMMON_I18N: Record<string, Record<string, string>> = {};" };
+    const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createMembersTranslator({ commonDictionary: COMMON_I18N }, { hostCopy: {} });" };
+    expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+    const wrongKey = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createMembersTranslator({ hostCopy: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, wrongKey])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
+    const unknownFactory = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const t = createAnything({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, unknownFactory])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
+  });
 });
 
 describe("apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N", () => {
@@ -348,8 +363,10 @@ describe("apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N", () 
       source: readFileSync(full, "utf8"),
     }));
     // Sanity: the scan actually sees the dictionaries, so an empty result below means something.
+    // Floor 25 (was 30): dictionaries keep moving into Jini factories (plugins, members, page editor),
+    // so the admin's own `_DICT` count shrinks; the no-inline-lookup assertion below is unchanged.
     const declared = files.filter((f) => /_DICT\s*:\s*Record</.test(f.source)).length;
-    expect(declared).toBeGreaterThan(30);
+    expect(declared).toBeGreaterThan(25);
     expect(findInlineDictionaryLookups(files)).toEqual([]);
   }, 30_000); // Whole-admin AST scan competes with the other suites in the coordinator's batch.
 });

@@ -5,13 +5,13 @@ import { approvalToolHandler, notConfirmedResult } from '../../contracts/core/hu
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { federatedToolApprovalFingerprint } from '@jini-ai/mcp/federation';
 import { executeCommand } from '../../contracts/core/commands/index.js';
-import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
+import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { PLUGINS_SET_ENABLED_TOOL_ID } from '@jini-ai/plugins/runtime/agent-tools';
 import { pluginAgentToolCatalog, pluginSourceAgentToolCatalog, pluginToolMessages } from './plugin-host-copy.js';
 import { describeUninstallApproval } from '@jini-ai/plugins/runtime/uninstall-confirmation-ui';
 import { describeEnableApproval } from '@jini-ai/plugins/runtime/enable-confirmation-ui';
-import { lowerPluginToolAccess } from './lower-tool-access.js';
+import { lowerPluginToolAccess } from '@jini-ai/plugins/runtime/lower-tool-access';
 import { bindAgentPluginIdentity, bindAgentPluginTools } from './agent-plugin-tool-binding.js';
 import type { PluginsToolDeps } from './tool-registrations.js';
 import type { PluginApprovalPort, PluginManagementToolsRequired, PluginSourceToolsRequired } from '@jini-ai/plugins/host/tools';

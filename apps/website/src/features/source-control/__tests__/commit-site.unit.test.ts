@@ -10,8 +10,8 @@ import express from "express";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { createSourceControlCredential } from "../store.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import {
@@ -257,7 +257,7 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   const deps = await withExampleGitCredential(testRouteDeps());
   // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
   // `sealer.open()` fails auth-tag verification, the same shape a missing site key produces live.
-  const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const brokenSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring() });
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }

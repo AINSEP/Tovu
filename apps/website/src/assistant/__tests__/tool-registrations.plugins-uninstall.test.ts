@@ -16,8 +16,8 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { mcpTestPort } from "../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
@@ -114,7 +114,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
       uninstallCalls.push(required.id);
       return { ok: true, version: null };
     },
-    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
+    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock }),
   });
 
   return { deps, authorizeCalls, uninstallCalls, pluginActivationRepo };

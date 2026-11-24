@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
-import { t as translate } from "../plugins-i18n";
+import { translatePlugins as translate } from "../../../lib/i18n-common";
 import {
   describeApiError,
   packageFilesRead,
@@ -78,7 +78,7 @@ export function usePluginPackageFiles({ pluginId, port, t, queryRoot = "plugins"
   return { ...packageFilesViewState({ read, selectedPath, translate: t }), selectFile: setSelectedPath, t };
 }
 
-/** Binds the real `/api/.../plugins/:id/files` client and a `plugins-i18n.ts` translator for the
+/** Binds the real `/api/.../plugins/:id/files` client and a `translatePlugins` translator for the
  *  current admin locale. */
 export function useWiredPluginPackageFiles({ pluginId }: { pluginId: string }, _optional = {}): PluginPackageFilesController {
   const locale = useAdminLocale();

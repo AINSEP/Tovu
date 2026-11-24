@@ -10,8 +10,8 @@ import {
   PublishContentPeerSecretStoreUnconfiguredError,
   PublishContentPeerValidationError,
 } from "#src/features/publish-content/peers";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -90,7 +90,7 @@ test("POST with no parsed body reads as empty fields and is refused as a validat
 test("PATCH with no parsed body changes nothing and answers the unchanged peer", async () => {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryPublishContentPeerRepo();
-  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring });
+  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring });
   const created = await dispatchJsonRequest(routeApp(registerPublishContentPeerRoutes, deps), "POST", PEERS, {
     label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef",
   });
@@ -103,7 +103,7 @@ test("PATCH with no parsed body changes nothing and answers the unchanged peer",
 test("PATCH forwards each present key and leaves absent ones alone", async () => {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryPublishContentPeerRepo();
-  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring });
+  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring });
   const app = routeApp(registerPublishContentPeerRoutes, deps);
   const created = await dispatchJsonRequest(app, "POST", PEERS, {
     label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef",
@@ -122,7 +122,7 @@ test("a partial PATCH updates only the supplied field: every omitted field, cred
   // (or refuse) every field the body left out.
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryPublishContentPeerRepo();
-  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring });
+  const deps = routeDeps({ publishContentPeerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }), siteAssistantSecretKeyring: keyring });
   const app = routeApp(registerPublishContentPeerRoutes, deps);
   const created = await dispatchJsonRequest(app, "POST", PEERS, {
     label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef",

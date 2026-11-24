@@ -26,8 +26,8 @@ import { sourceControlSavedApiKeyLabels } from "@jini-ai/devops/source-control/s
 import { commitSiteToSourceControl, type SourceControlCommitAdapter } from "../commit-site.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { createSourceControlCredential } from "../store.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
 import { exampleRegistry } from "./fixtures/example-provider.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
@@ -400,7 +400,7 @@ test("saved-key fallback: asked only when no source-control credential exists", 
   assert.deepEqual(none.committed, ["fixture_saved_token"]);
 
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const repo = new InMemorySourceControlCredentialSetRepo();
   await createSourceControlCredential({ deps: {
     repo, sealer, keyring, clock: createSystemClock(), idGen: createRandomUuidGenerator(),

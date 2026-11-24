@@ -25,7 +25,7 @@ import type { ContentDatabase } from "../../../../platform/db/content-database.g
 import { resolveSiteDatabasePaths } from "../../../../platform/site-dir/site-databases.js";
 import { readTemplate } from "../../../../platform/site-dir/read-template.js";
 import { FixedSiteKeyKeyring, EnvOrFileKeyring } from "../../../webhooks/keyring.env.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-sources.js";
 import { attachedOnlyVault } from "../../../project-keys/attached-vault.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
@@ -94,7 +94,7 @@ for (const placement of ["inSite", "appData"] as const) {
     assert.equal(sourceDb.$client.pragma("journal_mode", { simple: true }), "wal");
     const bearer = "roundTripCredentialValue987654321";
     sourceDb.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
-    const keyring = new FixedSiteKeyKeyring({ hex: "11".repeat(32) }), sealer = new AesGcmSecretSealer(keyring);
+    const keyring = new FixedSiteKeyKeyring({ hex: "11".repeat(32) }), sealer = new AesGcmSecretSealer({ keyring });
     const source = await createSavedKeysStore({ kernel: contentKernel({ store: sourceDb }), workspaceId, keyring, sealer });
     const put = async (store: typeof source, id: string, label: string, token: string) => store.vault.put({ workspaceId: store.workspaceId, id,
       kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, provider: "hosting", label, isDefault: false, expectedRevision: null,

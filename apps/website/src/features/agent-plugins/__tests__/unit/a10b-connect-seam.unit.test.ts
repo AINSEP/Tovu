@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ToolExecutionContext, ToolHandler } from '@jini-ai/core';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { InMemoryKeyring } from '#src/features/webhooks/keyring.memory';
-import { AesGcmSecretSealer } from '#src/features/webhooks/secret-sealer.aesgcm';
+import { InMemoryKeyring } from '#src/features/webhooks/keyring.env';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { mcpTestPort } from '../fixtures/connection-service-ports.js';
 import { withAgentPluginMcpPorts } from '../../mcp-host-bindings.js';
 import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.js';
@@ -37,7 +37,7 @@ function fixture({ decide }: { decide: 'approve' | 'expire' }) {
   const log: string[] = [];
   const permissions: string[] = [];
   const repo = new InMemoryExternalMcpServerRepo();
-  const store = { repo, keyring: new InMemoryKeyring(), sealer: new AesGcmSecretSealer(new InMemoryKeyring()), clock: CLOCK };
+  const store = { repo, keyring: new InMemoryKeyring(), sealer: new AesGcmSecretSealer({ keyring: new InMemoryKeyring() }), clock: CLOCK };
   const port = mcpTestPort(store);
   const mcp = withAgentPluginMcpPorts({
     ...port,

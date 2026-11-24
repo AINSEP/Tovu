@@ -17,8 +17,8 @@ import { FakeGitHub } from "../../site-backup/__tests__/fixtures/fake-github.js"
 import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
 import type { SiteBackupPlanContent } from "../../site-backup/plan-content.js";
 import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { githubFromSource } from "./fixtures/github-from-source.js";
 
 // Export review, security flag 1. Kept here because a concurrent export-v2 job owns site-backup/.
@@ -62,7 +62,7 @@ test("SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens
   const github = new FakeGitHub();
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   await createCustomCredential({
     repo, keyring, sealer, clock: createFakeClock({ startIso: stamp }), idGen: { newId: () => "backup-credential" },
   }, {

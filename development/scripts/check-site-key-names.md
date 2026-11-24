@@ -2,7 +2,7 @@
 
 Binding specification: `ADS-memory/.local-artifacts/plan-site-key-BCD-2026-09-24.md`, section 2.
 Run `bash development/scripts/check-site-key-names.sh`; the coordinator runs the accompanying Node tests.
-The scan includes tracked and untracked source, with the specification's history exclusions; unstaged deleted files are omitted. It requires over 1,000 files, zero forbidden-name lines, exactly four frozen lines, exactly sixteen compatibility lines, and a positive environment-name control. Adjacent shell quotes keep the guard's own pattern from counting itself. `SITE_KEY_LEGACY_EXPECTED` can override the compatibility expectation for retirement and test fixtures.
+The scan includes tracked and untracked source, with the specification's history exclusions; unstaged deleted files are omitted. It requires over 1,000 files, zero forbidden-name lines, exactly three frozen lines, exactly sixteen compatibility lines, and a positive environment-name control. Adjacent shell quotes keep the guard's own pattern from counting itself. `SITE_KEY_LEGACY_EXPECTED` can override the compatibility expectation for retirement and test fixtures.
 
 ## Frozen lines: 4
 
@@ -24,7 +24,6 @@ All paths below are repo-relative. Each listed line is annotated with its remova
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `parseKeyHex` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `fingerprintKeyHex` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `generateKeyFile` | Install platform release with canonical exports, on/after 2026-11-01 |
-| `apps/website/src/features/webhooks/keyring.memory.ts` | Import for `FixedSiteKeyKeyring` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/ports.ts` | Handle type re-export | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/ports.ts` | Handle type import | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Installed platform error-name compatibility | Replace with canonical error constructor check after platform release, on/after 2026-11-01 |

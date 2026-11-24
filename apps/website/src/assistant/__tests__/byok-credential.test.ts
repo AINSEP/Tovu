@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
 import { createRequestSuppliedExecutionCredentialPort } from "@jini-ai/agent-runtime/providers/credentials";
@@ -24,7 +24,7 @@ const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () 
 function makeStoredPortDeps() {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   return { repo, keyring, sealer };
 }
 
@@ -144,7 +144,7 @@ test("a decrypt failure on the stored row degrades to null, it does not throw", 
   );
 
   // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const otherSealer = new AesGcmSecretSealer({ keyring: new InMemoryKeyring({}, { keyId: "different-generation" }) });
   const port = createStoredExecutionCredentialPort({ repo, sealer: otherSealer });
   const resolved = await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(resolved, null);

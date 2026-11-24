@@ -12,8 +12,8 @@ import {
   PublishContentPeerValidationError,
 } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -131,7 +131,7 @@ async function sealedPeerApp(send: HttpClientPort["send"]) {
   let ids = 0;
   const deps = routeDeps({
     publishContentPeerRepo: new InMemoryPublishContentPeerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretSealer: new AesGcmSecretSealer({ keyring }),
     siteAssistantSecretKeyring: keyring,
     publishContentPeerHttpClient: { send },
     idGen: { newId: () => `peer-${++ids}` },

@@ -8,8 +8,8 @@ import {
   type VaultKind,
   type VaultMeta,
 } from "@jini-ai/core/contracts/vault";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";
 import { byVaultLabel, createTovuStoreVault, createTovuVaultKinds, parseTovuStoreMeta, type TovuVaultPolicy } from "../vault-kinds.js";
 
@@ -246,7 +246,7 @@ test("store metadata parsing retains safe nullable fields and binary label order
 function storeFixture() {
   const repo = new InMemoryVaultRepo({});
   const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
+  const sealer = new AesGcmSecretSealer({ keyring });
   const storageError = () => new Error("safe storage failure");
   const required = { repo: { vault: repo }, kind: "media-provider" as const, keyring, sealer, storageError };
   const scope: VaultContext = { workspaceId: "ws", kind: "media-provider", ownerKey: "tovu", principalId: null, binding: null };

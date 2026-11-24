@@ -5,6 +5,11 @@ import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 import { THEME_DEFAULT_SENTINEL, type PageEditorView } from "@jini-ai/admin/pages/page-editor-rules";
 
 import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
+import type {
+  StandingDraftAutosaveInput,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
+import { t as translate } from "@jini-ai/admin/pages/pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import {
@@ -47,7 +47,7 @@ function writeDeps(overrides: { ids?: string[]; now?: string } = {}): PublishCon
   const keyring = new InMemoryKeyring();
   return {
     repo: new InMemoryPublishContentPeerRepo(),
-    sealer: new AesGcmSecretSealer(keyring),
+    sealer: new AesGcmSecretSealer({ keyring }),
     keyring,
     clock: { nowMs: () => Date.parse(overrides.now ?? "2026-09-18T00:00:00.000Z") },
     idGen: { newId: () => ids[cursor++] ?? `peer-${cursor}` },

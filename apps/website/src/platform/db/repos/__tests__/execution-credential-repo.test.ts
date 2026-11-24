@@ -10,8 +10,8 @@ import { openContentDb } from "../../sqlite/content-db.js";
 import { SqlAdminExecutionCredentialRepo } from "../../../../assistant/execution-credential-repo.js";
 import { principals, workspaces } from "../../schema.sqlite.js";
 import { setExecutionCredential, type AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 
 /** Existing adapter characterization on the Jini vault: envelope/settings round trips,
  * singleton scope, clears, replacement, SQL constraints and principal isolation on both dialects.
@@ -86,7 +86,7 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["workspaces"]
     const keyring = new InMemoryKeyring();
     const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
 
-    await setExecutionCredential({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock: { nowMs: () => Date.parse(NOW) } },
+    await setExecutionCredential({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.parse(NOW) } },
       { ...scope, protocol: "openai", providerId: "first-provider", model: "first-model" });
 
     assert.deepEqual(await repo.findByWorkspaceAndPrincipal(scope), makeRecord({

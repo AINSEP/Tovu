@@ -9,7 +9,7 @@ import { AgentPluginRow } from "../AgentPluginRow";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
-import { t as translatePlugins } from "../plugins-i18n";
+import { translatePlugins } from "../../../lib/i18n-common";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { ApiError } from "@/lib/admin-http/request";

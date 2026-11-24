@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { FixedRootKeyKeyring } from '@jini-ai/platform/secrets';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';
 import { HKDF_EXTRACTION_SALT } from '../../../webhooks/keyring.env.js';
 import { InMemoryCustomCredentialSetRepo } from '../../../custom-credentials/repo.memory.js';
@@ -50,7 +50,7 @@ async function harness(scenario: Scenario, ledgerFails = false) {
   };
   const keys = new FixedRootKeyKeyring({ hex: ROOT_KEY, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: 's9-fixed-key' });
   const keyring: KeyringPort = { activeKey: () => keys.activeKey({}), derive: input => keys.derive(input), deriveSigningSecret: input => keys.deriveSigningSecret(input) };
-  const realSealer = new AesGcmSecretSealer(keyring);
+  const realSealer = new AesGcmSecretSealer({ keyring });
   const sealer: SecretSealerPort = {
     seal: (...args) => { counts.seals++; return realSealer.seal(...args); },
     open: (...args) => { counts.decrypt++; return realSealer.open(...args); },

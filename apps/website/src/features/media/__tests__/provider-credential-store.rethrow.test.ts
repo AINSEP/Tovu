@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import { CREDENTIAL_MESSAGES, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import { MediaProviderCredentialValidationError, saveMediaProviderCredentials } from "../provider-credential-store.js";
 
@@ -36,7 +36,7 @@ const clock = { nowMs: () => Date.parse("2026-08-09T00:00:00.000Z"), nowIso: () 
 async function assertRethrown(providers: Record<string, Record<string, string>>) {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryMediaProviderCredentialRepo();
-  await assert.rejects(saveMediaProviderCredentials({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock, credentialPolicy },
+  await assert.rejects(saveMediaProviderCredentials({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock, credentialPolicy },
     { workspaceId: "workspace-1", providers }), (err: unknown) => err === unexpected);
   assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: "workspace-1" }), []);
 }
@@ -56,7 +56,7 @@ test("an unexpected failure normalizing a new key is rethrown unchanged", async 
 test("with no credentialPolicy supplied, a secret-shaped baseUrl is refused as a validation error", async () => {
   const keyring = new InMemoryKeyring();
   const repo = new InMemoryMediaProviderCredentialRepo();
-  await assert.rejects(saveMediaProviderCredentials({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock },
+  await assert.rejects(saveMediaProviderCredentials({ repo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock },
     { workspaceId: "workspace-1", providers: { openai: { baseUrl: "https://api.openai.com/v1?token=ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8" } } }),
   // The message proves the store's own default policy refused it, not a later vault rule that also rejects secret-shaped metadata.
   (err: unknown) => err instanceof MediaProviderCredentialValidationError && err.message === CREDENTIAL_MESSAGES.plain);

@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
-import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
+import { InMemoryKeyring } from '../../../webhooks/keyring.env.js';
+import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from '../../connect-tool.js';
@@ -19,7 +19,7 @@ function fixture(principalId = 'owner') {
     workspaceId: 'workspace-local', ownerPrincipalId: Promise.resolve('owner'),
     agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/tmp/oauth-destination-fixture' }),
     authorize: async () => ({ allowed, reason: 'fixture' }), credentials: { loadSafe: async () => [] },
-    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer(keyring), clock }),
+    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock }),
     resolveInstalledPlugin: async () => ({ servers: {} }),
     apiConnections: { sharingAvailable: true,
       listConnections: async () => [{ pluginId: 'office', descriptor: { connectionId: 'account' } } as never],

@@ -268,7 +268,7 @@ type AgentPluginListPanelProps = Pick<
  * Reuses the pre-split lede and empty-state copy VERBATIM rather than rewording them for
  * "downloaded": a downloaded package that is not yet enabled is exactly the "sits inert until you
  * enable it" case those strings already describe. (Correction: an earlier revision of this comment
- * claimed both were already translated into every `plugins-i18n.ts` locale — checked and false,
+ * claimed both were already translated into every `translatePlugins` locale — checked and false,
  * neither has ever had a dictionary entry, pre-dating this split. Reusing them verbatim doesn't
  * regress anything either way, but the claim itself was wrong and is not repeated here.)
  */

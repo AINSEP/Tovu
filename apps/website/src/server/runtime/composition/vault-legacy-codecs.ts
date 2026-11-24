@@ -20,14 +20,14 @@ const AAD_VERSION = "v1";
  * every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
- * `../features/webhooks/secret-sealer.aesgcm.ts`'s file header).
+ * `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `site-assistant-credential:v1:${workspaceId}` — this table is single-row-per-workspace
  * (`workspace_id` is the bare primary key, `db/schema.sqlite.ts`'s `siteAssistantCredentials` doc), so
  * `workspaceId` is the whole row identity there is to bind. That single binding is still
  * load-bearing: without it, an attacker (or a bad migration) with DB write access could copy one
  * workspace's sealed visitor-assistant key onto another workspace's row and have it decrypt
- * cleanly, since the underlying AES key is shared app-wide (`secret-sealer.aesgcm.ts`'s own
+ * cleanly, since the underlying AES key is shared app-wide (`Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s own
  * header).
  *
  * Legacy no-AAD rows remain readable via `site_assistant_credentials.aad_version`; see its schema contract
@@ -53,7 +53,7 @@ export function buildSiteAssistantCredentialAad(input: { workspaceId: UUID }, _o
  * every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
- * `../features/webhooks/secret-sealer.aesgcm.ts`'s file header).
+ * `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `admin-execution-credential:v1:${workspaceId}:${principalId}` — this table has no
  * surrogate `id` column (`(workspace_id, principal_id)` IS the row's own primary key, per
@@ -85,7 +85,7 @@ export function buildExecutionCredentialAad(input: { workspaceId: UUID; principa
  * are formatted — same convention as `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` and its siblings: every
  * `seal()`/`open()` call for this table MUST go through these functions so sealing and opening can
  * never drift onto two different formats (which would make every row permanently unopenable, since
- * AAD is authenticated but never stored — see `../features/webhooks/secret-sealer.aesgcm.ts`).
+ * AAD is authenticated but never stored — see `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`).
  *
  * ## Why this table needs TWO builders, unlike every sibling
  *
@@ -152,7 +152,7 @@ export function buildExternalMcpOAuthAad(input: ExternalMcpAadIdentity, _options
  * exactly, all four of whose file headers this one repeats verbatim: every `seal()`/`open()` call
  * for this table MUST go through this function so sealing and opening can never drift onto two
  * different formats (which would make every row in the table permanently unopenable, since AAD is
- * authenticated but never stored — see `webhooks/secret-sealer.aesgcm.ts`'s file header).
+ * authenticated but never stored — see `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `media-provider-credential:v1:${workspaceId}:${providerId}` — this table has no surrogate
  * `id` column (`(workspace_id, provider_id)` IS the row's own primary key, per `db/schema.sqlite.ts`'s
@@ -313,7 +313,7 @@ export function buildPublishContentPeerAad(input: { workspaceId: UUID; id: UUID;
 /**
  * @file The ONE place `database_transfer_destinations`' AES-GCM additional authenticated data (AAD) is
  * formatted; sealing and opening both call it, so they can never drift apart (AAD is authenticated
- * but never stored — `features/webhooks/secret-sealer.aesgcm.ts`'s header). It binds the sealed
+ * but never stored — `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s header). It binds the sealed
  * address to its workspace: a row copied onto another workspace does not open.
  */
 

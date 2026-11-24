@@ -1,4 +1,5 @@
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
+import { createPluginsDictionary } from "@jini-ai/admin/screens/plugins/plugins-i18n";
 
 /**
  * @file Cross-feature UI-chrome words shared by every `*-i18n.ts` dictionary in this app.
@@ -69,3 +70,8 @@ export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEn
     return [locale, { ...jiniEntries, [OLDER_DESTINATION_KEY]: olderDestination }];
   }),
 );
+
+/** The plugins screens' translator, bound once here: Jini's plugins copy keeps a `{product}` slot
+ *  where the brand name goes (K3), so this is where Tovu names itself, over this app's own common
+ *  dictionary. Every plugins hook, rule and test imports this binding rather than building its own. */
+export const translatePlugins = createPluginsDictionary({ commonDictionary: COMMON_I18N, productName: "Tovu" });

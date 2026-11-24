@@ -21,8 +21,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import {
   PLUGIN, WORKSPACE, accessToken, compose, followConsent, providerUrlOf, mountCallback, refreshToken, startAcmeProvider, stopAcmeProvider, type AcmeComposition,
 } from "#src/server/runtime/composition/__tests__/fixtures/acme-provider";
@@ -47,7 +47,7 @@ function depsFor(apiConnections: ApiConnectionConnectDeps | undefined, waitTimeo
   };
   return testSiteLayoutContext({
     workspaceId: WORKSPACE, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
-    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer(keyring), clock: createSystemClock() }), credentials: credentialTestPort({}), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
+    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: createSystemClock() }), credentials: credentialTestPort({}), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
     // These API-flow fixtures resolve only these installed declarations; activation is explicit
     // so the real connection host is reached without consulting an ambient plugin workspace.
     isPluginEnabled: async (pluginId: string) => pluginId === PLUGIN || pluginId === "other-plugin",

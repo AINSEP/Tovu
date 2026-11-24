@@ -1,7 +1,7 @@
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentAnalysis, type ContentAnalysisController, type ContentAnalysisTarget } from "@jini-ai/admin/screens/content-analysis/hooks/use-content-analysis.hooks";
-import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { defaultContentAnalysisPort } from "./content-analysis-dependencies.hooks";
 
 /**

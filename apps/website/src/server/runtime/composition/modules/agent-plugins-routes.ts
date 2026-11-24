@@ -6,14 +6,14 @@ import {
   AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginNotInstalledError, AgentPluginUpdateError,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
-import { ToolAccessLoweringError } from "#src/assistant/external-mcp-roster-change";
+import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError } from "#src/features/agent-plugins/provider-plugin-link";
 import { AgentPluginNotReadyError } from "#src/features/agent-plugins/soon-lock";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
