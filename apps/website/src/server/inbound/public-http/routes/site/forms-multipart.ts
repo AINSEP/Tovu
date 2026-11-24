@@ -2,7 +2,6 @@
  * Publish/adopt that export before releasing this adapter: the live server must not import an unbuilt symbol. */
 import type { RequestHandler } from "express";
 import { parseFormMultipart } from "@jini-ai/platform/http/multipart";
-export { parseFormMultipart } from "@jini-ai/platform/http/multipart";
 
 /** Express middleware runs after the route-scoped, size-bounded raw parser; malformed input is 400. */
 export const parseFormMultipartMiddleware: RequestHandler = async (req, res, next) => {

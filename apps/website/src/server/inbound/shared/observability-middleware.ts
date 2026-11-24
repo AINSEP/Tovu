@@ -6,7 +6,7 @@ import type { Tracker, TrackerSpan } from "@jini-ai/core/contracts/site/diagnost
 import type { RequestTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
-import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
+import { REQUEST_ID_HEADER, resolveRequestId } from "@jini-ai/http-kit/request-id";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**
@@ -41,7 +41,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
  * doc for why unbounded, attacker-controlled path cardinality must never reach this signal.
  *
  * Also owns the request id: a safe inbound `x-request-id` is reused, otherwise one is minted (see
- * `request-id.ts`); either way it is set on the response BEFORE `next()` — so a gate rejection or a
+ * `@jini-ai/http-kit/request-id`); either way it is set on the response BEFORE `next()` — so a gate rejection or a
  * 404 carries it too — exposed on `res.locals.requestId` for handlers, and handed to
  * `trackRequest` so the id a user reports matches the tracked request.
  *

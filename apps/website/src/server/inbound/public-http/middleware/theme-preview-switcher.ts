@@ -6,7 +6,7 @@ import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { readPreviewSwitcher, choosePreviewTheme } from "#src/features/theme/preview-switcher";
 import { decoratePreviewPage } from "#src/features/theme/preview-switcher-html";
 import type { RouteDeps } from "#src/server/routes/types";
-import { setRequestRenderTheme } from "./render-theme-override.js";
+import { setRequestRenderTheme } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 
 const COOKIE = "tovu_theme_preview";
 const EXCLUDED = /^\/(?:admin|api|theme-assets|theme-explore|theme-preview|m|site-chat|agent-icons|assets)(?:\/|$)/;

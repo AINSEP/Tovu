@@ -13,7 +13,8 @@ import { resolveGalleryWidgetMedia } from '@jini-ai/cms/widgets/html';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import type { RouteDeps } from '#src/server/routes/types';
-import { registerAdminWidgetPreviewRoute, parseWidgetPreviewBody } from '../../preview.js';
+import { parseWidgetPreviewBody } from '@jini-ai/cms/admin-http/routes/widgets/preview';
+import { registerAdminWidgetPreviewRoute } from '#src/server/runtime/composition/modules/widgets';
 import { renderWidgetPreview, type WidgetPreviewDeps } from '../../preview-render.js';
 import { renderStaticPartial } from '#src/features/theme/index';
 import type { DiscoveredTheme } from '#src/features/theme/index';
@@ -47,6 +48,9 @@ test('auth, workspace and widgets.read gates prevent the render port from being 
   const h = harness({ render });
   assert.deepEqual(await h.invoke({ authed: false }), { statusCode: 401, jsonBody: { error: 'authentication required' } });
   assert.deepEqual(await h.invoke({ workspaceId: 'other' }), { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
+  // The hand-written route checked the session BEFORE `rejectForeignWorkspace`: no session on a
+  // foreign workspace is the 401, never the 404 (mount option `authenticateBeforeWorkspace`).
+  assert.deepEqual(await h.invoke({ authed: false, workspaceId: 'other' }), { statusCode: 401, jsonBody: { error: 'authentication required' } });
   assert.equal(h.checks.length, 0);
   const denied = harness({ allowed: false, render });
   assert.deepEqual(await denied.invoke(), { statusCode: 403, jsonBody: {
@@ -119,6 +123,8 @@ test('static theme CSS and tokens use the existing partial preview path; other t
 test('resolver failure keeps the public placeholder and unknown server failures keep the short error envelope', async () => {
   const output = await renderWidgetPreview({ deps: previewDeps(), input: { widgetType: 'text', content: { body: 'Draft' } } }, { resolve: async () => new Map() });
   assert.equal(output.html, renderWidgetIr({ componentId: 'widget-placeholder', props: {} }));
+  const failed = await renderWidgetPreview({ deps: previewDeps(), input: { widgetType: 'text', content: { body: 'Draft' } } }, { resolve: async () => new Map([['unsaved-widget-preview', { ok: false, reason: 'timeout' }]]) });
+  assert.equal(failed.html, renderWidgetIr({ componentId: 'widget-placeholder', props: {} }), 'a failed resolution (not just a missing one) also selects the placeholder IR');
   const h = harness({ render: async () => { throw new Error('private detail'); } });
   assertAdminResponse({ actual: await h.invoke(), expected: { statusCode: 500, jsonBody: { error: 'internal error' } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
 });

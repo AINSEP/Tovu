@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
-import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError, FormSubmissionNotFoundError } from "@jini-ai/cms/forms";
+import { FormSlugConflictError } from "@jini-ai/cms/forms";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import {
   toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,
@@ -104,31 +103,16 @@ test("expired submission IPs serialize as an empty display string in detail and 
   assert.equal(submission.sourceIp, null);
 });
 
-// F4.4: one typed failure at a time. Mutation: drop details or map a not-found error to 500.
-const errorCases = [
-  { label: "forbidden", error: new ForbiddenError({ message: "write denied", permission: "forms.write", reason: "no_grant" }), status: 403,
-    body: { error: "write denied", code: "FORBIDDEN", details: { permission: "forms.write", reason: "no_grant" } } },
-  { label: "field validation", error: new FormFieldValidationError({ message: "invalid field", fieldErrors: [{ field: "email", reason: "unsupported type" }] }), status: 400,
-    body: { error: "invalid field", code: "FORMS_FIELD_VALIDATION_ERROR", details: { fieldErrors: [{ field: "email", reason: "unsupported type" }] } } },
-  { label: "slug conflict", error: new FormSlugConflictError({ message: "slug occupied", slug: "contact" }), status: 409,
-    body: { error: "slug occupied", code: "FORMS_SLUG_CONFLICT", details: { slug: "contact" } } },
-  { label: "definition not found", error: new FormDefinitionNotFoundError({ message: "definition absent" }), status: 404,
-    body: { error: "definition absent", code: "FORMS_DEFINITION_NOT_FOUND" } },
-  { label: "submission not found", error: new FormSubmissionNotFoundError({ message: "submission absent" }), status: 404,
-    body: { error: "submission absent", code: "FORMS_SUBMISSION_NOT_FOUND" } },
-];
-for (const { label, error, status, body } of errorCases) {
-  test(`forms error mapper sends exact ${label} status and details`, () => {
-    const { res, capture } = createCapturingResponse();
-    assert.equal(mapFormsWriteError({ err: error, res }), true);
-    assert.deepEqual(capture, { statusCode: status, jsonBody: body });
-  });
-}
-
-test("unknown forms errors leave the response untouched for the caller's generic fallback", () => {
-  const { res, capture } = createCapturingResponse();
-  assert.equal(mapFormsWriteError({ err: new Error("private db path"), res }), false);
-  assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
+// F4.4: the status/body mapping and its per-error cases moved to `@jini-ai/cms`
+// (`forms-write-error.test.ts`); this pins only the Express writer over it.
+test("forms error mapper writes the engine's status and body, and leaves unknown errors untouched", () => {
+  const known = createCapturingResponse();
+  const error = new FormSlugConflictError({ message: "slug occupied", slug: "contact" });
+  assert.equal(mapFormsWriteError({ err: error, res: known.res }), true);
+  assert.deepEqual(known.capture, { statusCode: 409, jsonBody: { error: "slug occupied", code: "FORMS_SLUG_CONFLICT", details: { slug: "contact" } } });
+  const unknown = createCapturingResponse();
+  assert.equal(mapFormsWriteError({ err: new Error("private db path"), res: unknown.res }), false);
+  assert.deepEqual(unknown.capture, { statusCode: 200, jsonBody: undefined });
 });
 
 test('invalid import classification is exposed beside answers on detail and list responses', () => {

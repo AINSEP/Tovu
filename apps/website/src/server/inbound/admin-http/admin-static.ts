@@ -4,7 +4,7 @@ import path from "node:path";
 import express from "express";
 import type { Express, Response } from "express";
 
-import { createAdminDevProxyRequestHandler } from "./admin-dev-proxy.js";
+import { createDevProxyRequestHandler } from "@jini-ai/http-kit/dev-proxy";
 import { seaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 import type { SeaApi } from "@jini-ai/cms/admin-http/sea-runtime";
 
@@ -19,6 +19,15 @@ const MIME: Record<string, string> = {
   ".json": "application/json",
   ".woff2": "font/woff2",
 };
+
+/** The dev proxy's reply when the Vite origin is unreachable: the 502 text the proxy always answered.
+ * @complexity O(1). */
+function writeDevProxyFailure({ res, error, target }: { res: Response; error: Error; target: URL }, _optional = {}): void {
+  res
+    .status(502)
+    .type("text/plain")
+    .send(`Admin dev proxy: ${target.href} is unreachable (${error.message}).`);
+}
 
 function sendSeaAsset({ sea, key, res }: { sea: SeaApi; key: string; res: Response }, _optional = {}): boolean {
   return orFallbackSync({ work: () => {
@@ -76,7 +85,7 @@ export function registerAdminStatic({ app, distDir }: { app: Express; distDir: s
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler({ devProxyUrl }));
+    app.all(["/admin", "/admin/*"], createDevProxyRequestHandler<Response>({ devProxyUrl, basePath: "/admin", writeFailure: writeDevProxyFailure }));
     return;
   }
 

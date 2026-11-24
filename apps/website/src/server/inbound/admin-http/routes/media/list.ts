@@ -6,7 +6,7 @@ import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaListResponse } from "@jini-ai/cms/admin-http/http/media";
 import { resolveContentTypes } from "@jini-ai/cms/media/site/content-type-resolution";
-import { resolveMediaByteSizes } from "./byte-size.js";
+import { resolveMediaByteSizes } from "@jini-ai/cms/admin-http/routes/media/byte-size";
 import type { MediaRouteRegistrar } from "./deps.js";
 
 /**

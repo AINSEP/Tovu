@@ -9,10 +9,9 @@ import test from "node:test";
 import express from "express";
 
 import { registerAdminStatic } from "../admin-static.js";
-import { stripHopByHopHeaders } from "../admin-dev-proxy.js";
 
 /**
- * @file Proves the dev-proxy branch of `registerAdminStatic` (`admin-dev-proxy.ts`) actually
+ * @file Proves the dev-proxy branch of `registerAdminStatic` (`admin-dev-proxy.ts` glue over `@jini-ai/http-kit/dev-proxy`) actually
  * forwards bytes and the HMR `upgrade` event, rather than just type-checking.
  *
  * Proxy tests stand up a REAL fake "Vite" server and a REAL Express app with
@@ -80,22 +79,6 @@ test("registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vi
   assert.equal(await posted.text(), "upstream missing asset");
   assert.deepEqual(receivedPaths, ["/admin/src/main.tsx?t=123", "/admin/missing?probe=body"]);
   assert.deepEqual(received, [{ method: "POST", cookie: "vite-session=probe", host: `127.0.0.1:${fakeViteAddress.port}`, body: "distinct request payload" }]);
-});
-
-test("stripHopByHopHeaders: drops connection/transfer-encoding/upgrade but keeps every other header untouched", () => {
-  const filtered = stripHopByHopHeaders({
-    connection: "keep-alive",
-    "transfer-encoding": "chunked",
-    upgrade: "websocket",
-    "keep-alive": "timeout=5",
-    "proxy-authenticate": "Basic",
-    "content-type": "text/javascript",
-    "x-fake-vite": "1",
-  });
-  assert.deepEqual(filtered, {
-    "content-type": "text/javascript",
-    "x-fake-vite": "1",
-  });
 });
 
 test("registerAdminStatic dev-proxy mode: does not relay the upstream's own Connection header value to the client — that header describes the proxy's hop to Vite, not the client's hop to this server, and (on an HTTP/2 client) forwarding it verbatim would throw ERR_HTTP2_INVALID_CONNECTION_HEADER outright; the fake Vite below sets `Connection: close`, a value the admin server's own keep-alive hop to the client would never choose on its own, to make a leak observable over plain HTTP/1.1 too", async (t) => {

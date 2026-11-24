@@ -5,6 +5,7 @@ import type { ConsentConfig } from '@jini-ai/core/contracts/site/cookie-consent'
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { hasRequestRenderTheme } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
@@ -267,7 +268,7 @@ export async function siteConsentDocumentAssets({ deps, request, scripts, static
   const config = await documentPolicy({ consent });
   if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
-  if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
+  if (hasRequestRenderTheme({ response: request.res })) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
   return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
@@ -278,7 +279,7 @@ export async function siteConsentDocumentAssets({ deps, request, scripts, static
 async function staticDocumentAssets({ config, request, scripts, consent }: {
   config: ConsentConfig | null; request: Request; scripts: readonly DeclaredScript[]; consent?: SiteCookieConsentDeps;
 }): Promise<DocumentAssets> {
-  if (!config || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
+  if (!config || hasRequestRenderTheme({ response: request.res })) return { head: '', body: '' };
   if (siteBannerMode({ config }) === 'off') {
     const allScripts = [...scripts, ...await documentDeclarations({ consent })];
     return { head: renderScriptAssets({ scripts: allScripts }), body: '' };

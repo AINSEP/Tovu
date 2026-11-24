@@ -1,71 +1,23 @@
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { scanMenuEmbedIds, type StaticMenuItem, type StaticMenuContent } from "#src/features/theme/static-render-menus";
+// Host adapter (w5-routes): the generic static-menu marker resolution lives in Jini cms
+// (`@jini-ai/cms/public-http/routes/site/pages/render-context/static-menus`); what stays here is the
+// theme-owned part — which ids a static theme's files reference (`scanMenuEmbedIds`), the three
+// reserved docs-IA marker ids Tovu's own themes author, and the Tovu `urlFor`/navigation binding.
+import { scanMenuEmbedIds, type StaticMenuContent } from "#src/features/theme/static-render-menus";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { urlFor } from "#src/platform/routing/index";
-import type { RouteTarget } from "@jini-ai/cms/routing";
-import { findBoundMenu, resolveMenuDoc } from "@jini-ai/cms/navigation";
-import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "@jini-ai/cms/navigation";
+import { findBoundMenu, resolveMenuDoc, type ResolvedNavItem } from "@jini-ai/cms/navigation";
+import {
+  findStaticMenu,
+  resolveMenuContent,
+  resolveStaticMenusForIds,
+  type StaticMenuCollaborators,
+  type StaticMenuEntry,
+  type StaticMenuReservedResolver,
+  type StaticMenuResolution,
+} from "@jini-ai/cms/public-http/routes/site/pages/render-context/static-menus";
 import type { TemplateRenderDeps } from "./deps.js";
 
-/** `NavTarget` (`navigation`) and `RouteTarget` (`routing`) are two independently-declared
- * discriminated unions with the same four kinds and matching fields (see `@jini-ai/cms/routing`'s file
- * header: the vocabulary was "promoted from Menus-local to routing-owned" precisely so both domains
- * share it) — but they remain two separate type declarations, not one shared import, so this maps
- * explicitly per-kind rather than relying on structural assignability compiling by coincidence.
- */
-function navTargetToRouteTarget(target: NavTarget): RouteTarget {
-  switch (target.kind) {
-    case "entryRef":
-      return { kind: "entryRef", entryId: target.entryId };
-    case "termRef":
-      return { kind: "termRef", termId: target.termId, taxonomy: target.taxonomy };
-    case "url":
-      return { kind: "url", href: target.href };
-    case "route":
-      return { kind: "route", route: target.route, params: target.params };
-    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
-    default: return undefined as never;
-  }
-}
-
-/**
- * Direct menu-embed wiring (2026-08-10) — resolves every `data-embed-type="menu"` marker a
- * `static`-tier active theme's own pages/partials reference (`scanMenuEmbedIds`) into render-ready
- * link data, ahead of `renderSite`/`renderStaticPage`. Mirrors `resolveWidgetsForRender`'s own
- * "route resolves, render stays I/O-free" split (this is the one call site for this resolution).
- *
- * Selection (2026-10-25, ADR-029 §7): a marker id is FIRST a location key — a menu assigned to that
- * location through `nav_location_bindings` (Jini's `findBoundMenu`, the same lookup
- * `resolveForLocation` uses) wins over a stored menu whose slug or id happens to match. With no
- * (or a stale) binding, the marker falls back to slug, then id (see `findStaticMenu`). The August 10
- * decision that bypassed bindings for static themes is superseded; its rationale is kept in
- * ./NOTES.md. `resolveMenuDoc` (`navigation`) is the doc-level building block
- * `resolveForLocation` itself composes on top of a location lookup — called directly here per
- * referenced menu id. It still needs the same injected `resolveTargetHref` seam `routing`'s
- * own `urlFor` backs, for exactly the same reason `resolveForLocation` needed it.
- *
- * Non-static themes never call this (checked by the caller); declarative/templated/handlebars themes
- * have their own, separate `menu` WIDGET type (`Jini/packages/cms/src/widgets/resolvers/menu.ts`, `resolveMenuDoc` over an
- * explicit per-instance `menuRef`) that already renders real menu content today — a different,
- * narrower mechanism (one specific menu placed by an author, not a theme marker naming a shared
- * site-wide menu), left untouched by this change.
- *
- * A referenced id absent from the returned map (no such menu, wrong workspace, or a theme-authoring
- * typo) is `renderStaticPage`'s own `injectMenuEmbed` treating "no entry" as "leave the theme's
- * authored fallback content untouched" — no caller-side branching needed for that case either.
- *
- * @complexity Up to one binding read plus two menu reads, then `resolveMenuDoc`, per distinct menu
- * id the theme's markup references (bounded in practice to the small, fixed set an author wrote
- * into the theme's own files), run concurrently.
- *
- * `extraMenuIds` (E3, 2026-09-23, D2's `finishStaticTierDocument`) — additional ids to resolve
- * alongside the theme's own file scan, unioned via `Set` so an id present in both is fetched once,
- * not twice. Exists because `scanMenuEmbedIds(theme)` only ever sees the theme's OWN pages/partials;
- * a menu marker authored directly in a Page/Post's own body (never in a theme file) is invisible to
- * it, so `finishStaticTierDocument` scans the fully assembled document for menu ids `staticMenus`
- * (this function's own FIRST, no-`extraMenuIds` call at the top of the request) does not already
- * carry, and passes exactly those here. Omitted, every pre-existing call site is unaffected.
- */
 /**
  * The one reserved `data-embed-id` a static theme's docs-sidebar marker can carry to mean "this
  * page's own sidebar," rather than one fixed stored menu (2026-08-31, docs-nav restructure). See
@@ -138,12 +90,12 @@ const DOCS_PAGER_NEXT_CLASS = "docs-pager-next";
  * left as the theme's own authored fallback).
  */
 async function resolveDocsSectionItem(
-  { deps, context, resolveTargetHref }: StaticMenuResolution,
+  { env }: { env: StaticMenuResolution },
   _optional: Record<string, never> = {},
-): Promise<StaticMenuItem | null> {
-  const headerMenu = await findStaticMenu({ menuId: HEADER_NAV_MENU_SLUG, deps });
+): Promise<ResolvedNavItem | null> {
+  const headerMenu = await findStaticMenu({ menuId: HEADER_NAV_MENU_SLUG, env });
   if (!headerMenu) return null;
-  const headerItems = await resolveMenuDoc({ doc: headerMenu.doc, context, resolveTargetHref });
+  const headerItems = await env.collaborators.navigation.resolveMenuDoc({ doc: headerMenu.doc, context: env.context, resolveTargetHref: env.resolveTargetHref });
   return headerItems.find((item) => item.href === DOCS_LANDING_PATH) ?? null;
 }
 
@@ -155,7 +107,7 @@ async function resolveDocsSectionItem(
  *
  * @complexity O(n) over the subtree's total page count.
  */
-function flattenDocsPages(groups: readonly StaticMenuItem[]): readonly StaticMenuItem[] {
+function flattenDocsPages(groups: readonly ResolvedNavItem[]): readonly ResolvedNavItem[] {
   return groups.flatMap((group) => group.children);
 }
 
@@ -168,8 +120,8 @@ function flattenDocsPages(groups: readonly StaticMenuItem[]): readonly StaticMen
  *
  * @complexity O(1).
  */
-function buildDocsPagerItems({ flatPages, currentIndex }: { flatPages: readonly StaticMenuItem[]; currentIndex: number }, _optional = {}): readonly StaticMenuItem[] {
-  const pagerItem = ({ item, cssClass }: { item: StaticMenuItem; cssClass: string }, _optional = {}): StaticMenuItem => ({
+function buildDocsPagerItems({ flatPages, currentIndex }: { flatPages: readonly ResolvedNavItem[]; currentIndex: number }, _optional = {}): readonly ResolvedNavItem[] {
+  const pagerItem = ({ item, cssClass }: { item: ResolvedNavItem; cssClass: string }, _optional = {}): ResolvedNavItem => ({
     ...item,
     isCurrent: false,
     isActive: false,
@@ -177,7 +129,7 @@ function buildDocsPagerItems({ flatPages, currentIndex }: { flatPages: readonly 
     attrs: { ...item.attrs, cssClass: [cssClass, item.attrs?.cssClass].filter(Boolean).join(" ") },
   });
 
-  const items: StaticMenuItem[] = [];
+  const items: ResolvedNavItem[] = [];
   const prev = flatPages[currentIndex - 1];
   const next = flatPages[currentIndex + 1];
   if (prev) items.push(pagerItem({ item: prev, cssClass: DOCS_PAGER_PREV_CLASS }));
@@ -185,57 +137,39 @@ function buildDocsPagerItems({ flatPages, currentIndex }: { flatPages: readonly 
   return items;
 }
 
-/**
- * One stored menu's render content: its author-written HTML when the menu is in HTML mode (owner
- * 2026-10-08, Jini `menu-html.ts`), else its resolved item tree.
- */
-async function resolveMenuContent({ menu, context, resolveTargetHref }: { menu: NavMenuEntry; context: { workspaceId: string; currentPath: string }; resolveTargetHref: ResolveTargetHrefFn }, _optional = {}): Promise<StaticMenuContent> {
-  if (menu.doc.mode === "html") return { html: menu.doc.html ?? "" };
-  return resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
+async function resolveCurrentPageSidebarMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const { deps, context } = env;
+  const menu = await deps.menuRepo.findBySlug({
+    workspaceId: deps.workspaceId,
+    slug: docsSidebarMenuSlugForPath({ currentPath: context.currentPath }),
+  });
+  if (!menu) return undefined;
+  return [menuId, await resolveMenuContent({ menu, env })] as const;
 }
 
-/** What every static-menu marker resolution needs: deps, the request's path context, and the
- *  shared target-href resolver. */
-interface StaticMenuResolution {
-  readonly deps: TemplateRenderDeps;
-  readonly context: { workspaceId: string; currentPath: string };
-  readonly resolveTargetHref: ResolveTargetHrefFn;
+async function resolveDocsSectionMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const docsItem = await resolveDocsSectionItem({ env });
+  if (!docsItem) return undefined;
+  return [menuId, docsItem.children] as const;
 }
 
-type StaticMenuEntry = readonly [string, StaticMenuContent];
-
-/** Binding selection belongs to Jini; the static marker contract retains slug/id compatibility.
- * @returns A stored menu or null. Repository faults propagate.
- * @complexity At most four indexed reads per theme-authored marker, O(1) additional space.
- */
-// After the binding, SLUG first, id second. A theme marker is authored once and shipped to every
-// install, but `createMenu` mints a menu's id with `idGen.newId()` — so a hardcoded `data-embed-id`
-// could only ever match on the one install where that random id happened to be generated. The slug
-// is the stable machine handle the model already documents for exactly this ("e.g. `primary-nav`",
-// navigation/types.ts:161), so it is what a shipped theme can actually name. The id lookup stays as
-// the fallback for a marker pointing at a specific stored menu, which is what the pre-2026-08-10
-// behavior did unconditionally.
-// The id fallback is also required for `HEADER_NAV_MENU_SLUG` ("menu-header-nav"): it is the literal
-// `data-embed-id` nav.html's theme author wrote, but the seeded `menu-header-nav` row's real `slug`
-// column is `"header-nav"` (no `menu-` prefix) — only its primary-key `id` column equals the literal.
-// A slug-only lookup therefore always missed on real data, degrading `docs-section`/`docs-prev-next`
-// to their authored fallback on every page (found 2026-09-24 debugging a live "No docs menu bound
-// yet" sidebar against production data, not caught by the unit tests' own fixture menu, which
-// happened to give its slug and id the same value).
-async function findStaticMenu(
-  { menuId, deps }: { menuId: string; deps: TemplateRenderDeps },
-  _optional: Record<string, never> = {},
-): Promise<NavMenuEntry | null> {
-  return (await findBoundMenu({
-    deps: { menuRepo: deps.menuRepo, bindingRepo: deps.navLocationBindingRepo },
-    input: { workspaceId: deps.workspaceId, locationKey: menuId },
-  })) ?? (await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId }))
-    ?? deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId });
+async function resolveDocsPrevNextMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const docsItem = await resolveDocsSectionItem({ env });
+  if (!docsItem) return undefined;
+  const flatPages = flattenDocsPages(docsItem.children);
+  const currentIndex = flatPages.findIndex((page) => page.isCurrent);
+  if (currentIndex === -1) return undefined;
+  return [menuId, buildDocsPagerItems({ flatPages, currentIndex })] as const;
 }
 
-/** One menu marker id to its `[id, content]` entry, or `undefined` for a miss (the theme's authored
- *  fallback content stays). @complexity Up to four indexed menu/binding reads plus the doc walk. */
-async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional: Record<string, never> = {}): Promise<StaticMenuEntry | undefined> {
+/** The three reserved docs-IA marker ids (see their constants above) and what each one resolves to. */
+const RESERVED_DOCS_MENUS: ReadonlyMap<string, StaticMenuReservedResolver> = new Map<string, StaticMenuReservedResolver>([
+  [CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID, resolveCurrentPageSidebarMenu],
+  [DOCS_SECTION_MENU_ID, resolveDocsSectionMenu],
+  [DOCS_PREV_NEXT_MENU_ID, resolveDocsPrevNextMenu],
+]);
+
+// Where each reserved id was branched on (verbatim from the pre-split `resolveOneStaticMenu`):
   // `CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID` is a reserved exception: a theme marker authored with
   // THIS literal id does not name one fixed stored menu at all. It names "whichever sidebar menu
   // the page currently being requested owns," resolved by the naming convention
@@ -246,7 +180,6 @@ async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: Stat
   // template file per page. A path with no matching menu (most pages, and any doc page nobody
   // has authored a sidebar for yet) falls through to `!menu` below exactly like an ordinary dead
   // marker id — the theme's authored fallback content, not an empty nav.
-  if (menuId === CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID) return resolveCurrentPageSidebarMenu({ menuId, env });
   // `DOCS_SECTION_MENU_ID` is the second reserved exception (2026-09-24): it names "the Docs
   // subtree of the header nav," not a stored menu of its own. The whole `menu-header-nav` doc is
   // resolved once (so every item, at every depth, gets the same real `isCurrent`/`isActive`
@@ -255,67 +188,36 @@ async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: Stat
   // its own resolved pages. A header nav with no item linking to `/docs` (or no header nav at
   // all) degrades to the theme's authored fallback, same "not authored yet" posture as every
   // other reserved-id miss in this function.
-  if (menuId === DOCS_SECTION_MENU_ID) return resolveDocsSectionMenu({ menuId, env });
   // `DOCS_PREV_NEXT_MENU_ID` is the third reserved exception (2026-09-24): same Docs-subtree
   // lookup as `DOCS_SECTION_MENU_ID` above, flattened across group boundaries and reduced to the
   // 0-2 neighbours of whichever page in that flattened order is `isCurrent`. A current page not
   // found in the flattened list (the requesting page is not itself a page in the Docs subtree —
   // e.g. a non-doc page that happens to carry this marker) degrades the same way as no `/docs`
   // item at all: the theme's authored fallback, not a crash or an empty-but-present pager.
-  if (menuId === DOCS_PREV_NEXT_MENU_ID) return resolveDocsPrevNextMenu({ menuId, env });
-  const menu = await findStaticMenu({ menuId, deps: env.deps });
-  if (!menu) return undefined;
-  return [menuId, await resolveMenuContent({ menu, context: env.context, resolveTargetHref: env.resolveTargetHref })] as const;
-}
 
-async function resolveCurrentPageSidebarMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
-  const { deps, context, resolveTargetHref } = env;
-  const menu = await deps.menuRepo.findBySlug({
-    workspaceId: deps.workspaceId,
-    slug: docsSidebarMenuSlugForPath({ currentPath: context.currentPath }),
-  });
-  if (!menu) return undefined;
-  return [menuId, await resolveMenuContent({ menu, context, resolveTargetHref })] as const;
-}
 
-async function resolveDocsSectionMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
-  const { deps, context, resolveTargetHref } = env;
-  const docsItem = await resolveDocsSectionItem({ deps, context, resolveTargetHref });
-  if (!docsItem) return undefined;
-  return [menuId, docsItem.children] as const;
-}
-
-async function resolveDocsPrevNextMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
-  const { deps, context, resolveTargetHref } = env;
-  const docsItem = await resolveDocsSectionItem({ deps, context, resolveTargetHref });
-  if (!docsItem) return undefined;
-  const flatPages = flattenDocsPages(docsItem.children);
-  const currentIndex = flatPages.findIndex((page) => page.isCurrent);
-  if (currentIndex === -1) return undefined;
-  return [menuId, buildDocsPagerItems({ flatPages, currentIndex })] as const;
-}
-
+/**
+ * Resolves every menu marker id a `static`-tier active theme references (plus `extraMenuIds`) —
+ * the theme gate and `scanMenuEmbedIds` stay here; the resolution itself is Jini's
+ * `resolveStaticMenusForIds` (its doc carries the selection rules).
+ *
+ * `extraMenuIds` (E3, 2026-09-23, D2's `finishStaticTierDocument`) — additional ids to resolve
+ * alongside the theme's own file scan, unioned via `Set` so an id present in both is fetched once,
+ * not twice. Exists because `scanMenuEmbedIds(theme)` only ever sees the theme's OWN pages/partials;
+ * a menu marker authored directly in a Page/Post's own body (never in a theme file) is invisible to
+ * it, so `finishStaticTierDocument` scans the fully assembled document for menu ids `staticMenus`
+ * (this function's own FIRST, no-`extraMenuIds` call at the top of the request) does not already
+ * carry, and passes exactly those here. Omitted, every pre-existing call site is unaffected.
+ */
 export async function resolveStaticMenusForRender({ deps, theme, currentPath }: { deps: TemplateRenderDeps; /* `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */ theme: DiscoveredTheme | null; currentPath: string }, { extraMenuIds }: { extraMenuIds?: readonly string[] } = {}): Promise<StaticMenuMap> {
   if (theme === null || theme.manifest.tier !== "static") return {};
 
   const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
-  if (menuIds.length === 0) return {};
-
-  const resolveTargetHref: ResolveTargetHrefFn = async ({ target }) => {
-    const resolved = await urlFor({
-      deps: { postRepo: deps.postRepo },
-      target: navTargetToRouteTarget(target),
-      ctx: { workspaceId: deps.workspaceId },
-    });
-    return resolved ? { path: resolved.path, available: true } : null;
+  const collaborators: StaticMenuCollaborators = {
+    navigation: { findBoundMenu, resolveMenuDoc },
+    urlFor: ({ target }) => urlFor({ deps: { postRepo: deps.postRepo }, target, ctx: { workspaceId: deps.workspaceId } }),
   };
-
-  const env: StaticMenuResolution = { deps, context: { workspaceId: deps.workspaceId, currentPath }, resolveTargetHref };
-  const entries = await Promise.all(menuIds.map((menuId) => resolveOneStaticMenu({ menuId, env })));
-
-  return Object.fromEntries(
-    entries.filter((entry): entry is StaticMenuEntry => entry !== undefined)
-  );
+  return resolveStaticMenusForIds({ deps, menuIds, currentPath, collaborators }, { reserved: RESERVED_DOCS_MENUS });
 }
 
 /** Local alias for the per-menu-id resolved map {@link resolveStaticMenusForRender} returns (an item

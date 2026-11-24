@@ -12,7 +12,7 @@ import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNew
 import { resolveResumeSessionField } from "../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
-import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
+import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "@jini-ai/daemon/run-start-decisions";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
 import { claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo } from "../assistant-browser-lease.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";

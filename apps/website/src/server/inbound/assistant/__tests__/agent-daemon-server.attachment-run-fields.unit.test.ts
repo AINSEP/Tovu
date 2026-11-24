@@ -4,7 +4,7 @@ import test, { describe } from "node:test";
 
 import type { prepareMessageAttachments } from "@jini-ai/daemon";
 import type { AttachmentStore } from "@jini-ai/daemon/http";
-import { agentReceivesImageAttachments } from "../run-start-decisions.js";
+import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
 
 
 /**

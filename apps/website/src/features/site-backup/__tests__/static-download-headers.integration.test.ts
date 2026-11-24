@@ -5,7 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare } from "../share-service.js";

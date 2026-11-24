@@ -3,10 +3,8 @@ import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import path from "node:path";
 
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
-import { registerPublishContentExportRoute } from "#src/server/inbound/admin-http/routes/publish-content/export";
 import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/publish-content/blobs-probe";
-import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
-import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
+import { registerPublishContentBlobGetRoute, registerPublishContentBlobPutRoute, registerPublishContentExportRoute } from "./publish-content-blobs.js";
 import { registerPublishContentBundleCreateRoute, registerPublishContentCapabilitiesRoute } from "./publish-content-ingest.js";
 import { registerPublishContentImportRoutes } from "./publish-content-import.js";
 import { registerPublishContentDestinationRoutes, registerPublishContentPeerRoutes, registerPublishContentPeerTransportRoutes } from "./publish-content-transport.js";

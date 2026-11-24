@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { applyRequestTracking } from "../observability-middleware.js";
-import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id.js";
+import { REQUEST_ID_HEADER, resolveRequestId } from "@jini-ai/http-kit/request-id";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import {
   createNoopObservabilityPort,

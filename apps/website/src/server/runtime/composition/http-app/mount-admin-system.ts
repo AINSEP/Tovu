@@ -6,9 +6,9 @@
 
 import { bindSiteConsentService } from '../site-consent.js';
 import { registerAdminConsentRoutes } from '../modules/consent.js';
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
-import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
+import { registerAdminSiteBackupRoutes } from "#src/server/runtime/composition/modules/system-site-backups";
 import { toolGapsRoute } from "@jini-ai/cms/admin-http/routes/system/tool-gaps";
 import type { ToolGapsToolDeps } from "@jini-ai/core/contracts/site/assistant-host-ports";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -20,7 +20,7 @@ import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-st
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { observabilityStatusRoute, observabilityTestErrorRoute } from "@jini-ai/cms/admin-http/routes/system/observability-status";
-import { registerAdminBrowserTelemetryRoute } from "../../../inbound/admin-http/routes/system/browser-telemetry.js";
+import { registerAdminBrowserTelemetryRoute } from "../modules/system-telemetry.js";
 import { serverLogsRoute } from "@jini-ai/cms/admin-http/routes/system/server-logs";
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "@jini-ai/diagnostics/server-logs/read-server-logs";
@@ -36,7 +36,7 @@ import { registerAdminSitesRoutes } from "../modules/sites.js";
 import { registerAdminSiteProfileRoute } from "../modules/site.js";
 import { registerAdminDockerfileSourceRoute } from "../../../inbound/admin-http/routes/system/dockerfile-source.js";
 import { registerAdminCustomCredentialsRoutes, registerAdminPublishCredentialsRoutes, registerAdminSourceControlCredentialsRoutes } from "../modules/system-credentials.js";
-import { registerAdminCredentialCopyRoutes } from "../../../inbound/admin-http/routes/system/credential-copy.js";
+import { registerAdminCredentialCopyRoutes } from "../modules/system-credential-copy.js";
 import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/system/site-key.js";
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";

@@ -5,7 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
 
-import { resolveThemeDirs } from "../../theme-asset-dirs.js";
+import { resolvePathWithin } from "@jini-ai/platform/fs";
+import { resolveThemeDirs } from "@jini-ai/cms/public-http/middleware/theme-asset-dirs";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
+
+/** The collaborators the host's theme-static-assets mount injects. */
+const HOST = { themeIdCandidates, resolvePathWithin };
 
 /**
  * @file Direct coverage for `resolveThemeDirs`' refusals that Express routing never lets an HTTP
@@ -23,39 +28,39 @@ function makeRoot(t: TestContext, folders: readonly string[]): string {
 
 test("resolveThemeDirs: an empty theme id never resolves to the root itself", (t) => {
   const root = makeRoot(t, []);
-  assert.deepEqual(resolveThemeDirs({ roots: [root], themeId: "" }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [root], themeId: "" }, {}), []);
 });
 
 test("resolveThemeDirs: a missing theme id is treated as empty and refused", (t) => {
   const root = makeRoot(t, []);
-  assert.deepEqual(resolveThemeDirs({ roots: [root], themeId: undefined }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [root], themeId: undefined }, {}), []);
 });
 
 test("resolveThemeDirs: a __-prefixed folder (the originals catalog) is refused even when it exists", (t) => {
   const root = makeRoot(t, ["__original-themes__"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [root], themeId: "__original-themes__" }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [root], themeId: "__original-themes__" }, {}), []);
 });
 
 test("resolveThemeDirs: a dot-prefixed folder is refused even when it exists", (t) => {
   const root = makeRoot(t, [".git"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [root], themeId: ".git" }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [root], themeId: ".git" }, {}), []);
 });
 
 test("resolveThemeDirs: a traversal id that lands on a real sibling folder is refused", (t) => {
   const parent = makeRoot(t, ["root/real", "outside"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [path.join(parent, "root")], themeId: "real/../../outside" }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [path.join(parent, "root")], themeId: "real/../../outside" }, {}), []);
 });
 
 test("resolveThemeDirs: the first root holding the id wins", (t) => {
   const first = makeRoot(t, ["same"]);
   const second = makeRoot(t, ["same"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [first, second], themeId: "same" }, {}), [path.join(first, "same")]);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [first, second], themeId: "same" }, {}), [path.join(first, "same")]);
 });
 
 test("resolveThemeDirs: a renamed theme lists the current folder before the retired one, from any root", (t) => {
   const first = makeRoot(t, ["basic"]);
   const second = makeRoot(t, ["tovu-theme"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [first, second], themeId: "basic" }, {}), [
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [first, second], themeId: "basic" }, {}), [
     path.join(second, "tovu-theme"),
     path.join(first, "basic"),
   ]);
@@ -63,5 +68,5 @@ test("resolveThemeDirs: a renamed theme lists the current folder before the reti
 
 test("resolveThemeDirs: an id absent from every root resolves to nothing", (t) => {
   const root = makeRoot(t, ["other"]);
-  assert.deepEqual(resolveThemeDirs({ roots: [root], themeId: "missing" }, {}), []);
+  assert.deepEqual(resolveThemeDirs({ ...HOST, roots: [root], themeId: "missing" }, {}), []);
 });

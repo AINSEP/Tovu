@@ -5,7 +5,7 @@ import express from "express";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
 import type { Socket } from "node:net";
-import { registerAdminSiteShareRoutes } from "../site-shares.js";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import type { RouteDeps } from "#src/server/routes/types";
 
 async function request(app: express.Express, url: string, origin = "http://localhost", body: unknown = {}, fetchSite = "same-origin") {

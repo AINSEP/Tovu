@@ -122,3 +122,56 @@ test("a public raw spec writes its bytes, and an unexpected failure is the visit
   assert.equal(body.error, visitor.visitorError);
   assert.deepEqual(Object.keys(body).sort(), ["error", "errorId"]);
 });
+
+// Mutation `raw-mount-drops-origin-context`: a wrapper that stops forwarding `origin` to `mountRawRoute` turns the
+// guarded same-origin request into a 500 ("same-origin adapter context is required") instead of its answer.
+test("a guarded raw spec answers same-origin requests and refuses cross-origin ones through both wrappers", async (t) => {
+  const app = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  const origin = { originPolicy: { isSameOrigin: ({ req }: { req: { headers: Record<string, unknown> } }) => req.headers.origin === undefined || req.headers.origin === "http://site.test" } };
+  mountAdminRawRoute({ app, spec: { ...rawSpec(), requireSameOrigin: true }, deps, origin });
+  const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
+  mountPublicRawRoute({ app, spec: xml, deps: {}, failure: visitor, origin });
+  const server = await listen({ app });
+  t.after(server.close);
+  for (const [path, status] of [["/api/admin/v1/workspaces/local/raw", 302], ["/guarded.xml", 200]] as const) {
+    const same = await fetch(`${server.base}${path}`, { redirect: "manual", headers: { origin: "http://site.test" } });
+    assert.equal(same.status, status, path);
+    const cross = await fetch(`${server.base}${path}`, { redirect: "manual", headers: { origin: "http://evil.test" } });
+    assert.equal(cross.status, 403, path);
+  }
+});
+
+// Mutation `raw-mount-allows-guard-without-origin`: dropping the registration check defers the wiring bug to the
+// first request, which then answers a 500 instead of the server refusing to start.
+test("a guarded raw spec mounted without an origin context is refused at registration", () => {
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  assert.throws(() => mountAdminRawRoute({ app: fakeAdminApp(), spec: { ...rawSpec(), requireSameOrigin: true }, deps }), /origin context/);
+  const xml = defineRawRoute<object>({ method: "get", path: "/guarded.xml", handle: async () => new Response("<ok/>") }, { requireSameOrigin: true });
+  assert.throws(() => mountPublicRawRoute({ app: fakeAdminApp(), spec: xml, deps: {}, failure: visitor }), /origin context/);
+});
+
+/** The Express layer names registered for `path`, in registration order (what the route-table pin records). */
+function layerNames({ app, path }: { app: ReturnType<typeof fakeAdminApp>; path: string }): string[] {
+  const layers = (app as unknown as { _router: { stack: { route?: { path: string; stack: { name: string }[] } }[] } })._router.stack;
+  return layers.filter((layer) => layer.route?.path === path).flatMap((layer) => layer.route!.stack.map((entry) => entry.name));
+}
+
+test("a raw mount registers one anonymous handler unless it opts into a handlerName", () => {
+  const plain = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  mountAdminRawRoute({ app: plain, spec: rawSpec(), deps });
+  assert.deepEqual(layerNames({ app: plain, path: adminPath }), ["<anonymous>"]);
+});
+
+// Named mutation raw-mount-handler-name-dropped: mountAdminRawRoute ignores `handlerName` -> the layer reads <anonymous>.
+test("handlerName gives the one registered handler that function name (the route-table pin's installHandler) and it still answers", async (t) => {
+  const app = fakeAdminApp();
+  const deps: Deps = { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) };
+  mountAdminRawRoute({ app, spec: rawSpec(), deps, handlerName: "installHandler" });
+  assert.deepEqual(layerNames({ app, path: adminPath }), ["installHandler"]);
+  const server = await listen({ app });
+  t.after(server.close);
+  const response = await fetch(`${server.base}/api/admin/v1/workspaces/local/raw`, { redirect: "manual" });
+  assert.equal(response.status, 302);
+});

@@ -6,7 +6,8 @@ import { PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
 import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
-import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
+import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
@@ -22,7 +23,8 @@ import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePo
 import { resolveSiteAssistantWidgetForRequest, resolveWidgetsForRender } from "../render-context/widgets.js";
 import { resolveStaticMenusForRender } from "../render-context/static-menus.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender } from "../render-context/media-metadata.js";
-import { tryRedirectPhase } from "../redirect-phase.js";
+import { tryRedirectPhase } from "@jini-ai/cms/public-http/routes/site/pages/redirect-phase";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
 import { buildExtraHead } from "../extra-head.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "../response.js";
 import { isStaticThemeWithIndex, serveStaticThemeIndex } from "../static-tier.js";
@@ -63,12 +65,12 @@ async function resolveHomePageContent({ deps, memberAccessResolver, memberContex
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,
  *  or the theme's home route). Errors propagate to the route's catch. */
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
-  if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
+  if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res, routing: { runPreContentPhase, runPostContentPhase } })) return;
 
   const memberAccessResolver = createMemberAccessResolver({ deps });
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
     listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-    resolveRenderThemeId(res, deps),
+    resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }),
     // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
     // route that calls `renderSite` resolves this the same way, through the shared
     // `resolveSiteAssistantWidgetForRequest` (see `pages.ts`'s other handler and

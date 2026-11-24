@@ -41,7 +41,7 @@ import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant
 import { createRunActiveContextStore } from "#src/assistant/run-active-context";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
-import { durableAttemptOwnsAnswer, selectRunHistoryPrompt } from "./run-start-decisions.js";
+import { durableAttemptOwnsAnswer, selectRunHistoryPrompt } from "@jini-ai/daemon/run-start-decisions";
 import type { ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { releasingBrowserToo } from "./assistant-browser-lease.js";
 

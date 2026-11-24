@@ -454,8 +454,9 @@ composition mounts it. Both are object fields — never positional.
 - **`requestFacts: true`** — the route needs client IP / User-Agent / Host (rate limiting, analytics ingest,
   publish-trust identity `originOf`, external-mcp probe/poll/connect). `raw.facts` is
   `{ clientAddress, userAgent?, host?, protocol? }`; `clientAddress` is Tovu's trust-proxy answer (`captureRequestFacts`
-  → `resolveClientIp(req)`), `host` is `req.get("host")`, `userAgent` is `req.get("user-agent")`, `protocol` is
-  `req.protocol` under the same trust-proxy setting (publish-trust origin checks compare scheme + host). Every
+  → `resolveClientIp(req)`), `host` is `req.get("host")`, `userAgent` is `req.get("user-agent")`, and
+  `protocol` is `req.protocol` (`"http"`/`"https"`, trust-proxy aware) — together with `host` it rebuilds the
+  request's own origin the way publish-trust's `originOf` did; Tovu's resolver always sets it. Every
   Tovu mount (admin and public, JSON and raw) binds the `requestFacts` port; it is consulted only for a spec
   that opts in (a spec that opts in on a mount without the port throws at mount time).
   ```ts
@@ -482,16 +483,28 @@ return ok({ value: routeReply({ status: 204 }) });
 
 ### 9.3 Raw routes — `mountAdminRawRoute` / `mountPublicRawRoute`
 
-Three layers, kept apart:
+For HTML, XML/text, streams, downloads, `express.raw` uploads, `302` + `Set-Cookie`. Two layers, kept apart:
 
-| layer | owner | what it is |
-|---|---|---|
-| **Contract** (server-neutral) | `@jini-ai/core/contracts/server` | `RouteInputContext`, `ServerApiError`, `routeReply`, `RouteHostContext` / `OriginContext` (the same-origin policy port) — no Express type |
-| **HTTP adapter** | `@jini-ai/http-kit` | `defineRawRoute` / `mountRawRoute` (and `mountJsonRoute`): the gate order, `requireSameOrigin`'s guard, web `Response` write-back |
-| **Host binding** | Tovu `admin-raw-route-ports.ts` | `mountAdminRawRoute` / `mountPublicRawRoute`: Tovu's ports plus the host-supplied `origin` |
+**The server-neutral contract (what a Jini domain package writes).** A plain object typed only with
+`@jini-ai/core/contracts/server` (`RouteInputContext`, `JsonRouteAuthorize`) and the web `Response` — the
+domain package never imports `@jini-ai/http-kit` or Express (example: cms `PublicMemberRawRoute`):
+```ts
+export interface FamilyRawRoute<Deps, Context> {
+  readonly method: "get" | "post" | "put" | "patch" | "delete";
+  readonly path: string;
+  readonly readHeaders?: readonly string[]; readonly requestFacts?: true;
+  readonly responseHeaders?: Readonly<Record<string, string>>; readonly maxBodyBytes?: number;
+  readonly requireSameOrigin?: boolean;
+  handle(required: { raw: RouteInputContext; deps: Deps; context: Context | undefined; authorize: JsonRouteAuthorize },
+         optional: { signal: AbortSignal }): Promise<Response>;
+}
+```
 
-For HTML, XML/text, streams, downloads, `express.raw` uploads, `302` + `Set-Cookie`. The spec is
-`defineRawRoute({ method, path, handle }, { readHeaders?, requestFacts?, responseHeaders?, maxBodyBytes? })`;
+**The HTTP adapter (host side only).** The object is structurally an http-kit `RawRouteSpec`
+(`defineRawRoute({ method, path, handle }, { readHeaders?, requestFacts?, responseHeaders?, maxBodyBytes?, requireSameOrigin? })`
+builds one in a host or a test); http-kit's `mountRawRoute` writes it to Express, and Tovu's
+`mountAdminRawRoute` / `mountPublicRawRoute` wrap that with the ports. Only the composition touches this layer.
+
 `handle({ raw, deps, context, authorize }, { signal })` returns a web `Response` (each `Set-Cookie` header
 is written on its own line; a `ReadableStream` body is streamed and cancelled on client disconnect, `signal`
 aborts with it; `null` body ⇒ `end()`). Same gate order and the SAME host ports as the JSON mounts (workspace
@@ -502,6 +515,17 @@ the redacted 500). `raw.body` is whatever the route's own parser left on `req.bo
 mountAdminRawRoute({ app, spec: pluginsInstallRoute, deps: { ...portDeps, installer } }, { failure: { operation: "routes/plugins/install" } });
 mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site:sitemap", visitorError: "The sitemap couldn’t load." }, workspaceId: deps.workspaceId });
 // spec: return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8" } });
+```
+A route `Vary` header is merged with what middleware and `responseHeaders` already set (union, each field once),
+never replaced.
+
+**Guarded raw mounts need the host's origin context.** A spec with `requireSameOrigin: true` must be mounted
+with `origin` (an `OriginContext`, i.e. `{ originPolicy }` — the host's same-origin policy) on the wrapper's
+required args; both wrappers forward it to `mountRawRoute` and THROW AT REGISTRATION when it is missing, so the
+wiring bug stops boot instead of answering a 500 per request. A cross-origin request then gets the guard's 403
+before `authenticate`.
+```ts
+mountAdminRawRoute({ app, spec: { ...exportRoute, requireSameOrigin: true }, deps, origin: { originPolicy } }, { failure });
 ```
 
 - **Origin context on guarded raw mounts.** A spec with `requireSameOrigin: true` needs the host's
@@ -536,11 +560,19 @@ mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site
   mountAdminJsonRoute({ app, spec: publishImportRoute, deps: { ...portDeps, requestFacts: adminRequestFactsFor } });
   // spec: const { credentialKind, publishTrust } = deps.requestFacts({ context });
   ```
-- **`adminPublishTrustFor({ context })`** — a spec that needs only the publish-trust grant (not the
-  credential kind) binds this accessor (`admin-request-facts.ts`) instead of `adminRequestFactsFor`; it answers
-  `PublishTrustContext | null` for that request's principal and never reads `res`.
-- **`deferMissingPrincipal` + `sessionCredentialOnly`** is refused at registration (rv1123l T6): a deferred
-  sessionless request would reach parse past the credential gate.
+- **`adminPublishTrustFor({ context })`** — grant-only sibling of `adminRequestFactsFor`, for a route that
+  reads the publish-trust grant but never the credential kind (publish-content capabilities, the blob routes'
+  `withGrantAuthorize`). Answers `PublishTrustContext | null`; a request whose session layer recorded no
+  credential kind still answers from its grant instead of `adminRequestFactsFor`'s redacted 500. Same
+  wiring-bug throw for a context the ports never authenticated.
+  ```ts
+  deps: { ...portDeps, publishTrustFor: adminPublishTrustFor }   // spec: deps.publishTrustFor({ context })
+  ```
+- **`deferMissingPrincipal`** (§3) is NOT combinable with `sessionCredentialOnly`: the mount throws at
+  registration. Deferral would skip the credential gate, and gating first would fail on the missing
+  credential kind and defeat the deferral; no hand-written route needed both.
+- **`forwardRejection: true`** — the hand-written route was registered through `asyncRoute`. The mount then
+  registers `asyncRoute({ handler })` on `app[spec.method](path, …)`.
 - **`forbidden: (decision) => { status, body }`** — the route's denial body was not `authorizeOrRespond`'s
   (media where-used/text `{ error: "media.read is required", code: "FORBIDDEN" }`, import-url
   `"not authorized for media.upload"`). Receives `{ principalId, permission, entityType?, entityId?, reason }`.
@@ -557,6 +589,34 @@ mountPublicRawRoute({ app, spec: sitemapRoute, deps, failure: { operation: "site
   directly (presentation PATCH: operation-only copy, not `sendAdminFailure`'s method/route-derived copy).
   ```ts
   { failure: { operation: "routes/presentation/patch-active-theme" }, failureCopy: "operation", authorization: "direct" }
+  ```
+- **`authenticateBeforeWorkspace: true`** (w4-routes K) — the hand-written route ran its session /
+  credential gate BEFORE `rejectForeignWorkspace` (widget preview's `res.locals.principal` 401, credential-copy's
+  `rejectUnlessSessionCredential`). The workspace port is skipped and the same refusal runs inside `authenticate`,
+  after `sessionCredentialOnly` and after a `deferMissingPrincipal` deferral (a deferred missing session skips the
+  workspace check, so the spec must answer its own refusal first — preview's 401), before the principal read.
+  Refused at registration on a `requireSameOrigin` spec (http-kit's same-origin gate sits between the two ports).
+  ```ts
+  { authorization: "direct", deferMissingPrincipal: true, authenticateBeforeWorkspace: true, failure: { operation: "http/widgets" }, failureCopy: "operation" }
+  ```
+- **`preflight: { readHeaders, check }`** (w4-routes P) — the hand-written route refused BEFORE every admin
+  gate (admin-surface bootstrap/actions: their own cross-origin 403 `CROSS_ORIGIN_REFUSED` ahead of the
+  credential 403 and the workspace 404). `check({ headers, deps })` runs first, in the workspace port — before
+  the workspace 404, http-kit's same-origin gate, `sessionCredentialOnly` and `authenticateBeforeWorkspace`'s
+  order — and sees only the headers it declares (lower-cased keys, an absent header has no key; the mount adds
+  them to the spec's `readHeaders`, so `raw.headers` carries them too). A returned `{ status, body }` is written
+  as-is; `undefined` admits. Product-neutral decisions come from Jini (`isSameOriginBrowserWrite` via cms
+  `adminSurfaceWritePreflight({ refusal })`); the refusal copy stays in the host. `mountAdminRawRoute` takes it too.
+  Pins: `admin-json-route-ports-legacy-order.test.ts` (mutation `preflight-after-credential-gate`).
+  ```ts
+  { preflight: adminSurfaceWritePreflight({ refusal: { status: 403, body: { error: "…", code: "CROSS_ORIGIN_REFUSED" } } }), sessionCredentialOnly: { message, permission }, authenticateBeforeWorkspace: true }
+  ```
+- **`workspaceRefusal: ({ workspaceId, requested }) => ({ status, body? })`** (w4-routes K) — the route's own
+  workspace refusal instead of the shared JSON 404: no `body` is `res.sendStatus(status)` (`Not Found` as
+  `text/plain`, site-backups), a `body` is written as JSON (the `{ code: "NOT_FOUND", message: "<step> failed: this
+  workspace is not available." }` routes). Pins: `admin-json-route-ports-legacy-order.test.ts`.
+  ```ts
+  mountAdminRawRoute({ app, spec: siteBackupPlanRoute, deps }, { workspaceRefusal: () => ({ status: 404 }), failure });
   ```
 - **Authorization without an entity type** — a spec calls `authorize({ permission })` with no `entityType`
   and the host authorizer receives NO `entityType` key (users list-roles/policies/policy-permissions, which
@@ -593,6 +653,12 @@ work as in §9.1. Public routes have no session, so `context` is `undefined` and
 | publish-content import/backstop/bundle/capabilities/peer-transport, plugins provider-settings (rt-l5) | credential kind / grant | `sessionCredentialOnly` and/or `adminRequestFactsFor` |
 | publish-content export, blob-get, chart-providers (rt-l5) | stream / bytes / Cache-Control | `mountAdminRawRoute` + `responseHeaders` |
 
-Still out of scope (raise, do not work around): the asyncRoute `[forwardRejection]` handler name in the pin
-(rt-i2 #3), analytics recent-hits' nested 500 envelope, `/readyz`'s source-regex consumer, blobs-probe's
+**Route inventory vs handler-name parity.** Registering with `app[method](path, handler)` (every JSON and raw
+mount, with or without `forwardRejection`) preserves the route INVENTORY — the same method, path and count in
+the route table. It does not by itself preserve the handler NAME the route-table pin records (`<anonymous>` vs
+asyncRoute's `forwardRejection`): that parity holds only because a pin asserts it
+(`admin-json-route-ports.test.ts` pins the wrapped name; `create-app-route-table.pin.test.ts` pins the table).
+A family that changes how a route is registered keeps or adds that pin — inventory equality is not evidence.
+
+Still out of scope (raise, do not work around): analytics recent-hits' nested 500 envelope, `/readyz`'s source-regex consumer, blobs-probe's
 413 before the workspace 404, and `res.once("finish")` hooks.

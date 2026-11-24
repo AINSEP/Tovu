@@ -1,0 +1,198 @@
+w5-routes — create-app route-table pin drift (committed fixture vs regenerated with UPDATE_ROUTE_TABLE_PIN=1)
+Compared by row content with the leading index stripped (sequence diff), per variant. Committed fixture was RESTORED byte-identical afterwards.
+Variants: default, activateAssistantFederation, adminAssistantOff, themeIdOverride, consentAudit, stopForIdle each have 5 hunks (i)+(ii)+(iii) below; cookieConsentPresent has 7 (adds the two consent/analytics rows of group iii).
+
+(i) BASE DRIFT already red before w4 (all in every variant)
+  A. posts autosave (commit 712e54d15, pre-w4: "mount the Jini autosave GET/DELETE specs")
+     - put    .../posts/:postId/autosave [<anonymous>>forwardRejection]   + [<anonymous>><anonymous>]
+     - get    .../posts/:postId/autosave [forwardRejection]               + [<anonymous>]
+     - delete .../posts/:postId/autosave [forwardRejection]               + [<anonymous>]
+  B. users (w3 C1 ec092e550 / 89f5ed229, pre-w4)
+     - post .../workspaces/:workspaceId/users [forwardRejection]          + [<anonymous>]
+  C. internal daemon rows (a310d36d5 agent-daemon-scope split, pre-w4)
+     - post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+     - get  /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
+     + use <anonymous> /       (the two routes are now one mount inside the /internal router)
+
+(ii) w4 ROWS (commit 17d684279, batch O)
+  D. site-share artifact upload — NOT preserved (OWNER-ASK, see report)
+     - put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
+     + put ...same path... [<anonymous>]
+  (Zip install rows 314/315 `[installHandler]` are NOT in the diff: preserved by this lane's handlerName option.)
+
+(iii) ANYTHING ELSE (not touched by w4: modules/assistant.ts has no diff since the w4 merge base 593688119; last touched by pre-w4 commits 9240cbe16/c53c64d01)
+  E. site-assistant frontend sessions (every variant)
+     - get  /api/site-assistant/frontend-sessions/stream [<anonymous>]
+     - post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]   (x2)
+     + use <anonymous> /
+  F. cookieConsentPresent variant only
+     - get /_consent/client-795b803dc863.min.js   + get /_consent/client-a46dee44e263.min.js   (content-hash of the built consent client; pinned in 3403c518e against Jini 46bb0ff6 — a Jini rebuild changes it)
+     + get /_jini/browser-analytics/site/diagnostics.js [<anonymous>]   (new row; browser-analytics-http.ts / browser-diagnostics.ts)
+
+Full per-variant row diff follows.
+==========================================================================
+=== variant default: committed 553 rows, regenerated 550 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant activateAssistantFederation: committed 554 rows, regenerated 551 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant adminAssistantOff: committed 513 rows, regenerated 510 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant themeIdOverride: committed 553 rows, regenerated 550 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant cookieConsentPresent: committed 561 rows, regenerated 559 rows, 7 hunks
+- route get /_consent/client-795b803dc863.min.js [<anonymous>]
++ route get /_consent/client-a46dee44e263.min.js [<anonymous>]
+
++ route get /_jini/browser-analytics/site/diagnostics.js [<anonymous>]
+
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant consentAudit: committed 553 rows, regenerated 550 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]
+
+=== variant stopForIdle: committed 554 rows, regenerated 551 rows, 5 hunks
+- route post /internal/tool-executions [<anonymous>>jsonParser><anonymous>><anonymous>>bodyParserFailure]
+- route get /internal/tool-catalog [<anonymous>><anonymous>><anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>>forwardRejection]
+- route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
+- route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [forwardRejection]
++ route put /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>><anonymous>]
++ route get /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
++ route delete /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave [<anonymous>]
+
+- route get /api/site-assistant/frontend-sessions/stream [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
+- route post /api/site-assistant/frontend-sessions/:sessionId/responses [<anonymous>]
++ use <anonymous> /
+
+- route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>><anonymous>><anonymous>]
++ route put /api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file [<anonymous>]
+
+- route post /api/admin/v1/workspaces/:workspaceId/users [forwardRejection]
++ route post /api/admin/v1/workspaces/:workspaceId/users [<anonymous>]

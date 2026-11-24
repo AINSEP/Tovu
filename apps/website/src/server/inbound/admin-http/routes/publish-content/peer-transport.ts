@@ -23,11 +23,11 @@ import {
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
+import { bodyRecord } from "@jini-ai/cms/admin-http/routes/publish-content/transport-shared";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
 import {
   acceptOverwriteEntityKeys,
   authorizedPrincipalId,
-  bodyRecord,
   mappedErrorResponse,
   OVERWRITE_REFUSED,
   sendRefusal,
@@ -166,7 +166,7 @@ function readSelectedEntityKeys({ body }: { body: unknown }, _options: Record<st
   return raw.selectedEntityKeys;
 }
 
-/** `scope`'s per-field cap, matching `readOverwriteEntityKeys`'s 1000-entry bound (`route-helpers.ts`). */
+/** `scope`'s per-field cap, matching `readOverwriteEntityKeys`'s 1000-entry bound (`@jini-ai/cms/admin-http/routes/publish-content/import`). */
 const MAX_SCOPE_ARRAY_LENGTH = 1000;
 
 /** @complexity O(1). */

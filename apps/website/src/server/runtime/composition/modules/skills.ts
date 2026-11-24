@@ -65,8 +65,7 @@ function skillSourcesLoader({ deps }: { deps: SkillsRouteDeps }, _optional: Reco
 }
 
 /** Every skills route was guarded (`authorizeOrRespond`): a publishing credential answers from its grant. */
-function mountOptions({ operation }: { operation: string }, optional: { message?: string } = {}) {
-  const { message } = optional;
+function mountOptions({ operation }: { operation: string }, { message }: { message?: string } = {}) {
   return { authorization: "guarded" as const, failure: { operation, code: "INTERNAL_ERROR", ...(message === undefined ? {} : { message }) } };
 }
 

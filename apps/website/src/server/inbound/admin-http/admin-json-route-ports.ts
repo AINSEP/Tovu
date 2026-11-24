@@ -4,8 +4,8 @@ import type { JsonRouteAuthorizeScope, RouteInputContext, ServerApiError } from 
 import { RouteRefusalError, rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import type { RouteDeps } from "#src/server/routes/types";
-import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { asyncRoute, type AsyncRouteHandler } from "#src/platform/express/async-route";
+import { adminFailureResponse, reportServerFailure, sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 import { getAuthedPrincipal, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { recordAdminRequestFacts, refuseUnlessSessionCredential, routeRequestFactsFor, type SessionCredentialGate } from "./admin-request-facts.js";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
@@ -62,8 +62,16 @@ export interface AdminJsonRouteMountOptions {
    *  principal (so that 400 still wins); the spec must call `authorize` before any side effect,
    *  because that is where the missing principal then fails closed. */
   deferMissingPrincipal?: boolean;
+  /** Opt-in: register the handler through `asyncRoute` (named `forwardRejection`), as the
+   *  hand-written route was. A rejection that escapes the spec adapter (its own error answer
+   *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
+   *  request open; the route-table pin sees the same registration as before the move. */
+  forwardRejection?: boolean;
   /** Refuse every credential but a session with `rejectUnlessSessionCredential`'s exact 403, in
-   *  `authenticate` — after the workspace 404, before parse, authorization or any side effect. */
+   *  `authenticate` — after the workspace 404, before parse, authorization or any side effect.
+   *  Not combinable with {@link AdminJsonRouteMountOptions.deferMissingPrincipal} (refused at registration):
+   *  a deferred missing principal would skip this gate, and gating first would throw on the missing
+   *  credential kind and defeat the deferral. No hand-written route needed both. */
   sessionCredentialOnly?: SessionCredentialGate;
   /** The route's own denial reply (media where-used/import-url), instead of `authorizeOrRespond`'s
    *  403 body. Given the decision that was denied; whatever it answers is written as-is. */
@@ -74,11 +82,95 @@ export interface AdminJsonRouteMountOptions {
   /** `"route"` (default) is `sendAdminFailure`'s method/route-derived copy; `"operation"` is the
    *  operation-only `adminFailureResponse` body the presentation PATCH writes. */
   failureCopy?: "route" | "operation";
-  /** Opt-in: register the handler through `asyncRoute` (named `forwardRejection`), as the
-   *  hand-written route was. A rejection that escapes the spec adapter (its own error answer
-   *  failing) then reaches `next(error)` and the app's error middleware instead of leaving the
-   *  request open; the route-table pin sees the same registration as before the move. */
-  forwardRejection?: boolean;
+  /** Opt-in (w4-routes K): run the workspace refusal INSIDE `authenticate`, after the credential-kind
+   *  gate and a deferred missing session, instead of ahead of them — the hand-written order of routes
+   *  that called `rejectUnlessSessionCredential` / checked `res.locals.principal` before
+   *  `rejectForeignWorkspace` (credential-copy, widget preview). With
+   *  {@link AdminJsonRouteMountOptions.deferMissingPrincipal}, a missing session skips the workspace
+   *  check and reaches the spec, which must answer its own refusal first (preview's 401). The principal
+   *  read still follows the workspace check, as credential-copy's `admitted` did. Refused at
+   *  registration on a `requireSameOrigin` spec: http-kit's same-origin gate sits between the workspace
+   *  and authenticate ports, so moving the workspace check would silently reorder it too. */
+  authenticateBeforeWorkspace?: boolean;
+  /** Opt-in (w4-routes K): the route's own legacy workspace refusal instead of the shared
+   *  `{ error: "workspace was not found" }` 404. A reply without `body` is `res.sendStatus(status)`
+   *  (Express's status text as `text/plain`, site-backups); with `body`, `res.status(status).json(body)`
+   *  (the `{ code: "NOT_FOUND", message }` routes). Given the mounted and the requested workspace ids. */
+  workspaceRefusal?: (args: AdminWorkspaceRefusalArgs) => AdminWorkspaceRefusalReply;
+  /** Opt-in (w4-routes P): a check answered FIRST — in the workspace port, ahead of the workspace 404,
+   *  the credential-kind gate and `authenticateBeforeWorkspace`'s order — for a hand-written route that
+   *  refused before any of them (the admin-surface writes' own cross-origin 403). It sees only the
+   *  request headers it declares (added to the spec's `readHeaders`, so the spec's `raw.headers` also
+   *  carries them); a returned reply is written as-is, `undefined` admits the request. */
+  preflight?: AdminMountPreflight;
+}
+
+/** What a {@link AdminMountPreflight.check} is given: its declared headers (lower-cased keys, an absent
+ *  header has no key) and the mount's port deps. */
+export interface AdminPreflightArgs { headers: Readonly<Record<string, string>>; deps: AdminJsonRoutePortDeps }
+
+/** A mount-level check evaluated before every other admin gate ({@link AdminJsonRouteMountOptions.preflight}). */
+export interface AdminMountPreflight {
+  /** The only request headers the check reads (readHeaders-style). */
+  readonly readHeaders: readonly string[];
+  readonly check: (args: AdminPreflightArgs) => { status: number; body: unknown } | undefined;
+}
+
+/** Runs the mount's preflight on its declared headers; a reply is thrown as a refusal `onError` writes as-is.
+ * @complexity O(h) in the declared header count. */
+function runPreflight(
+  { raw, deps, preflight }: { raw: RouteInputContext; deps: AdminJsonRoutePortDeps; preflight: AdminMountPreflight },
+  _optional: Record<string, never> = {},
+): void {
+  const headers: Record<string, string> = {};
+  for (const name of preflight.readHeaders) {
+    const key = name.toLowerCase();
+    const value = raw.headers?.[key];
+    if (value !== undefined) headers[key] = value;
+  }
+  const reply = preflight.check({ headers, deps });
+  if (reply) throw new RouteRefusalError(reply);
+}
+
+/** The spec's `readHeaders` plus the preflight's, so the adapter hands them over; nothing without a preflight.
+ * Shared by `mountAdminJsonRoute` and `admin-raw-route-ports.ts`'s `mountAdminRawRoute`.
+ * @complexity O(h). */
+export function preflightReadHeaders(
+  { spec, preflight }: { spec: { readHeaders?: readonly string[] }; preflight: AdminMountPreflight | undefined },
+  _optional: Record<string, never> = {},
+): { readHeaders?: readonly string[] } {
+  if (!preflight) return {};
+  return { readHeaders: [...new Set([...(spec.readHeaders ?? []), ...preflight.readHeaders.map((name) => name.toLowerCase())])] };
+}
+
+/** What a {@link AdminJsonRouteMountOptions.workspaceRefusal} override is given. */
+export interface AdminWorkspaceRefusalArgs { workspaceId: string; requested: string }
+
+/** A legacy workspace refusal: no `body` is `sendStatus`'s text reply, a `body` is written as JSON. */
+export interface AdminWorkspaceRefusalReply { status: number; body?: unknown }
+
+/** Thrown by the workspace check when the mount overrides the refusal; written by `onError` as-is. */
+class AdminWorkspaceRefusal extends Error {
+  constructor(readonly reply: AdminWorkspaceRefusalReply) { super("workspace was not found"); }
+}
+
+/** The workspace refusal (`rejectForeignWorkspace`'s rule, including its `?? ""` fallback): the
+ *  shared 404, or the mount's legacy {@link AdminJsonRouteMountOptions.workspaceRefusal}.
+ * @complexity O(1). */
+function refuseForeignWorkspace(
+  { raw, deps, options }: { raw: RouteInputContext; deps: AdminJsonRoutePortDeps; options: AdminJsonRouteMountOptions },
+  _optional: Record<string, never> = {},
+): void {
+  const requested = String(raw.params.workspaceId ?? "");
+  if (requested === deps.workspaceId) return;
+  if (options.workspaceRefusal) throw new AdminWorkspaceRefusal(options.workspaceRefusal({ workspaceId: deps.workspaceId, requested }));
+  rejectRoute({ status: 404, error: "workspace was not found" });
+}
+
+/** Writes a legacy workspace refusal exactly as the hand-written route did. @complexity O(1). */
+function writeWorkspaceRefusal({ res, reply }: { res: Response; reply: AdminWorkspaceRefusalReply }, _optional: Record<string, never> = {}): void {
+  if (reply.body === undefined) { res.sendStatus(reply.status); return; }
+  res.status(reply.status).json(reply.body);
 }
 
 /** The denied decision a {@link AdminJsonRouteMountOptions.forbidden} override answers. */
@@ -143,33 +235,41 @@ function writeAdminFailure({ res, error, options }: { res: Response; error: unkn
 }
 
 /** Build the admin ports; `failure` carries the per-route `sendAdminFailure` options (operation, status…).
+ * @throws At registration, for `deferMissingPrincipal` together with `sessionCredentialOnly`.
  * @returns Ports for `mountJsonRoute`; the workspace and authorize ports read only `AdminJsonRoutePortDeps`.
  * @throws Error at registration for `deferMissingPrincipal` + `sessionCredentialOnly` (rv1123l T6): a
  *   deferred sessionless request would skip the credential gate, which must answer before parse.
  * @complexity O(1) per request beyond the injected authorizer and the shared failure lifecycle.
  */
 export function createAdminJsonRoutePorts(
-  required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean } = {},
+  required: AdminJsonRouteMountOptions & { workspaceScoped?: boolean; requireSameOrigin?: boolean } = {},
   _optional: Record<string, never> = {},
 ): AdminPorts {
   if (required.deferMissingPrincipal && required.sessionCredentialOnly) {
     throw new Error("admin route ports: deferMissingPrincipal cannot be combined with sessionCredentialOnly — the credential gate must run before parse");
   }
+  if (required.authenticateBeforeWorkspace && required.requireSameOrigin) {
+    throw new Error("an admin mount cannot set authenticateBeforeWorkspace on a same-origin spec: it would move the same-origin gate ahead of the workspace check too");
+  }
+  const workspaceFirst = required.workspaceScoped !== false && !required.authenticateBeforeWorkspace;
   return {
     // Same rule and body as `rejectForeignWorkspace` (shared/route-guards.ts), before any auth —
     // including its `?? ""` fallback, so a missing param on a workspace path is still the 404.
     // Deployment-level paths (`/api/admin/v1/database/*`, `/recovery/*`) never ran that guard.
     workspace: ({ raw, deps }) => {
-      if (required.workspaceScoped === false) return;
-      if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) rejectRoute({ status: 404, error: "workspace was not found" });
+      // `preflight`: the mount's own first refusal, before the workspace 404 and every later gate.
+      if (required.preflight) runPreflight({ raw, deps, preflight: required.preflight });
+      if (workspaceFirst) refuseForeignWorkspace({ raw, deps, options: required });
     },
     // A missing session is deferred only on an opted-in mount (`deferMissingPrincipal`): those
     // hand-written routes validated the body before reading the principal, so their 400 must still
     // win, and `authorize` fails closed below with `getAuthedPrincipal`'s own error (the same
     // redacted 500). Every other mount throws here, before parse, exactly as before.
-    authenticate: ({ res }) => {
+    authenticate: ({ raw, res, deps }) => {
       if (required.deferMissingPrincipal && !res.locals.principal) return undefined;
       if (required.sessionCredentialOnly) refuseUnlessSessionCredential({ res, gate: required.sessionCredentialOnly });
+      // `authenticateBeforeWorkspace`: the refusal the workspace port skipped, after the gates above.
+      if (required.authenticateBeforeWorkspace && required.workspaceScoped !== false) refuseForeignWorkspace({ raw, deps, options: required });
       const principal = { ...getAuthedPrincipal(res) };
       recordAdminRequestFacts({ principal, res });
       const publishTrust = mountMayUseGrant({ options: required }) ? getPublishTrustContext(res) : null;
@@ -179,6 +279,7 @@ export function createAdminJsonRoutePorts(
     authorize: (args, scope = {}) => authorizeWithPorts({ args, scope, options: required }),
     onError: ({ res, error }) => {
       if (error instanceof RouteRefusalError) { writeRefusal({ res, error }); return; }
+      if (error instanceof AdminWorkspaceRefusal) { writeWorkspaceRefusal({ res, reply: error.reply }); return; }
       writeAdminFailure({ res, error, options: required });
     },
     onReturnedError: writeReturnedFailure,
@@ -224,11 +325,14 @@ export function createPublicJsonRoutePorts(
  * Shared by `mountAdminJsonRoute` and `admin-raw-route-ports.ts`'s `mountAdminRawRoute`.
  * @complexity O(options).
  */
-export function adminPortsFor({ path, options }: { path: string; options: AdminJsonRouteMountOptions }, _optional: Record<string, never> = {}): AdminPorts {
+export function adminPortsFor(
+  { path, options, requireSameOrigin }: { path: string; options: AdminJsonRouteMountOptions; requireSameOrigin?: boolean },
+  _optional: Record<string, never> = {},
+): AdminPorts {
   // A path without `:workspaceId` is deployment-level: its hand-written route never ran the guard.
   const workspaceScoped = path.includes(":workspaceId");
   const customized = Object.values(options).some((value) => value !== undefined);
-  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped }) : adminJsonRoutePorts;
+  return customized || !workspaceScoped ? createAdminJsonRoutePorts({ ...options, workspaceScoped, requireSameOrigin }) : adminJsonRoutePorts;
 }
 
 /** Mount a Jini admin route spec behind the admin ports. `deps` is the route's own small deps type
@@ -241,9 +345,10 @@ export function mountAdminJsonRoute<Input, Output, Deps>(
   optional: AdminJsonRouteMountOptions = {},
 ): void {
   const { forwardRejection, ...portOptions } = optional;
-  const ports = adminPortsFor({ path: required.spec.path, options: portOptions });
+  const ports = adminPortsFor({ path: required.spec.path, options: portOptions, requireSameOrigin: required.spec.requireSameOrigin });
   const app = forwardRejection ? registeringThroughAsyncRoute({ app: required.app, method: required.spec.method }) : required.app;
-  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ports }, deps: required.deps });
+  const readHeaders = preflightReadHeaders({ spec: required.spec, preflight: portOptions.preflight });
+  mountJsonRoute<Input, Output, Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app, spec: { ...required.spec, ...readHeaders, ports }, deps: required.deps });
 }
 
 /** The one-method app `mountJsonRoute` registers on, wrapping its handler in `asyncRoute`.

@@ -6,6 +6,7 @@ import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
 
 import { getAuthedCredentialKind, type AuthCredentialKind, type CredentialKindForbiddenBody, type OperatorPrincipalRecord } from "./dev-auth.js";
 import { getPublishTrustContext, type PublishTrustContext } from "./publish-trust-auth.js";
+import { isLocalAdminRequest } from "./local-admin-request.js";
 
 /**
  * @file How an admin request authenticated, for Jini route specs mounted through the admin ports
@@ -21,12 +22,16 @@ export interface AdminRequestFacts {
   readonly credentialKind: AuthCredentialKind;
   /** The publish-trust grant `requirePublishTrust` attached, or `null` (the normal case). */
   readonly publishTrust: PublishTrustContext | null;
+  /** `isLocalAdminRequest` for this request (loopback sockets, no forwarding headers, a local Host and
+   *  matching Origin) — credential-copy's local-host gate. Computed only when read, and not enumerable,
+   *  so a spec that answers its facts as JSON keeps its wire. */
+  readonly localAdmin: boolean;
 }
 
 /** The `sessionCredentialOnly` mount option: the wording and permission the 403 body names. */
 export interface SessionCredentialGate { readonly message: string; readonly permission: string }
 
-type RecordedFacts = { readonly credentialKind: AuthCredentialKind | undefined; readonly publishTrust: PublishTrustContext | null };
+type RecordedFacts = { readonly credentialKind: AuthCredentialKind | undefined; readonly publishTrust: PublishTrustContext | null; readonly req: Request | undefined };
 
 // Keyed on the per-request principal copy `authenticate` returns, exactly like the ports'
 // `publishTrustByContext`: a request's facts die with its context and are never shared across requests.
@@ -38,7 +43,7 @@ const MISSING_FACTS = "adminRequestFactsFor: no admin request facts for this con
  * The kind is read leniently here and checked on read, so a route that never asks keeps its old wire.
  * @complexity O(1). */
 export function recordAdminRequestFacts({ principal, res }: { principal: OperatorPrincipalRecord; res: Response }, _optional: Record<string, never> = {}): void {
-  factsByContext.set(principal, { credentialKind: res.locals.authCredentialKind as AuthCredentialKind | undefined, publishTrust: getPublishTrustContext(res) });
+  factsByContext.set(principal, { credentialKind: res.locals.authCredentialKind as AuthCredentialKind | undefined, publishTrust: getPublishTrustContext(res), req: res.req });
 }
 
 /** The facts of the request a spec is handling, read through its `context`.
@@ -50,7 +55,11 @@ export function recordAdminRequestFacts({ principal, res }: { principal: Operato
 export function adminRequestFactsFor({ context }: { context: OperatorPrincipalRecord | undefined }, _optional: Record<string, never> = {}): AdminRequestFacts {
   const facts = context ? factsByContext.get(context) : undefined;
   if (!facts?.credentialKind) throw new Error(MISSING_FACTS);
-  return { credentialKind: facts.credentialKind, publishTrust: facts.publishTrust };
+  const { req } = facts;
+  // Lazy: the socket/header inspection runs only for a route that asks (credential-copy).
+  return Object.defineProperty({ credentialKind: facts.credentialKind, publishTrust: facts.publishTrust }, "localAdmin", {
+    enumerable: false, get: () => req !== undefined && isLocalAdminRequest({ req }),
+  }) as AdminRequestFacts;
 }
 
 /** Only the publish-trust grant of the request a spec is handling — for a route that never reads the

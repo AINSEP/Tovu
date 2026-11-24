@@ -28,7 +28,7 @@ import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
 import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
-import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";
+import { durableAttemptOwnsAnswer } from "@jini-ai/daemon/run-start-decisions";
 import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "#src/assistant/daemon-call-context";
 import type { ConversationToolApprovalStore } from "@jini-ai/core/contracts/site/assistant-mcp-services";

@@ -5,7 +5,7 @@ import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render/content-html";
-import { FORM_BASELINE_STYLE } from "#src/server/inbound/public-http/http/site/form-presentation-assets";
+import { FORM_BASELINE_STYLE } from "#src/server/inbound/public-http/http/site/form-wire-policy";
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "#src/server/inbound/public-http/http/site/form-feedback-policy";
 import { renderHtmlForm } from "@jini-ai/cms/forms";

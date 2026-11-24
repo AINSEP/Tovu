@@ -4,7 +4,8 @@ import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./layout.js";
 import { entryList } from "./entry-lists.js";
 import { entryContent } from "../post-body.js";
 import { hero, section, featureGrid, announcement, ctaBand } from "./marketing.js";
-import { mediaPlaceholder } from "../media-placeholder.js";
+import { mediaPlaceholder } from "@jini-ai/cms/public-http/http/site/render/media-placeholder";
+import { TOVU_DOC_RENDER_CLASSES } from "#src/server/runtime/composition/doc-render-host";
 
 // ---------------------------------------------------------------------------
 // Core component registry (v1) — the safe building blocks a theme references.
@@ -28,7 +29,7 @@ export const COMPONENTS: Record<string, Component> = {
   "tovu/hero": hero,
   "tovu/section": section,
   "tovu/feature-grid": featureGrid,
-  "tovu/media-placeholder": (_ctx, props) => mediaPlaceholder(props),
+  "tovu/media-placeholder": (_ctx, props) => mediaPlaceholder({ props, classes: TOVU_DOC_RENDER_CLASSES.mediaPlaceholder }),
   "tovu/announcement": announcement,
   "tovu/nav": siteNav,
   "tovu/cta": ctaBand,

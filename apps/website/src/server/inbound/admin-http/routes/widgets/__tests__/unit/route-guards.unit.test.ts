@@ -15,7 +15,7 @@ import { registerAdminWidgetEmbedRemoveRoute } from "../../embed-remove.js";
 import { registerAdminWidgetEmbedReorderRoute } from "../../embed-reorder.js";
 import { registerAdminWidgetGetRoute } from "../../get-by-id.js";
 import { registerAdminWidgetListRoute } from "../../list.js";
-import { registerAdminWidgetPreviewRoute } from "../../preview.js";
+import { registerAdminWidgetPreviewRoute } from "#src/server/runtime/composition/modules/widgets";
 import { registerAdminWidgetRegionBindRoute } from "../../region-bind.js";
 import { registerAdminWidgetRegionGetRoute } from "../../region-get.js";
 import { parseWidgetRegionPlacements, registerAdminWidgetRegionMutatePlacementsRoute } from "../../region-mutate-placements.js";

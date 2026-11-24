@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { createThemePreviewMiddleware, freshThemePreviewHtml } from "../theme-preview-refresh.js";
+import { freshThemePreviewHtml } from "@jini-ai/cms/public-http/middleware/theme-preview-refresh";
+import { createThemePreviewMiddleware } from "../theme-preview-refresh.js";
 
 test("preview assets get a unique directory, preserving relative imports and existing queries", () => {
   const html =
@@ -199,7 +200,8 @@ async function bootServerRoster(t: import("node:test").TestContext) {
   let reload: Function = () => assert.fail("reload route not registered");
   const app = {
     use: (handler: Function) => { middleware = handler; },
-    post: (_route: string, _authenticate: unknown, handler: Function) => { reload = handler; },
+    // `.handler` is the awaitable body (see `asyncRoute`): the wrapper returns before the real work finishes.
+    post: (_route: string, _authenticate: unknown, handler: { handler: Function }) => { reload = handler.handler; },
   };
   const deps = { themes, themesDir, workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) };
   registerThemePreviewRefresh({ app: app as never, deps: deps as never });
@@ -366,7 +368,7 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any
   // more; the failing call chain inside the product is the proof.
   assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*refresh\.node\.(?:ts|js)/);
-  assert.match(detail.diagnostic, /at handler \(.*theme-preview-refresh\.ts/);
+  assert.match(detail.diagnostic, /at (?:async )?handler \(.*theme-preview-refresh\.ts/); // `async` since the reload outcome is awaited from the Jini decision
   assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
 });
 

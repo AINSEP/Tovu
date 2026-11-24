@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin-only chart metadata and immutable bytes; installed/custom browser providers never enter this port. */
 import type { Express } from "express";
+import { chartProviderAsset, chartProviderMetadata } from "@jini-ai/cms/admin-http/routes/plugins/chart-providers";
 import { CHART_TABLE_PROVIDER } from "@jini-ai/ui/charts";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -10,7 +11,10 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 type ChartRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "pluginRuntimeReady" | "siteTitleReady" | "browserProviders" | "chartProviderSnapshot">;
 
 /** Register the authenticated chart bootstrap and exact admitted-asset lookup.
- * No route reads files, accepts an asset URL, or grants browser admission itself.
+ * No route reads files, accepts an asset URL, or grants browser admission itself. The replies are the
+ * Jini cms `chartProviderMetadata` / `chartProviderAsset` functions; this host adapter keeps the
+ * `app.use(base, guard)` (pinned in the route table; unmatched sub-paths answer the guard's 401/403)
+ * and the Express transport, and answers the fixed admin failure envelope.
  * @returns Void. Readiness/ledger failures produce the fixed admin 500 envelope.
  * @complexity O(p + a) per request for the admitted, compiled-in provider/asset list.
  * @example registerChartProviderRoutes({ app, deps });
@@ -33,19 +37,17 @@ export function registerChartProviderRoutes(
   });
   app.get(base, async (_req, res) => {
     try {
-      // A host without a chart snapshot has no provider to prefer: the admin draws the core table.
-      const data = await deps.chartProviderSnapshot?.({}) ?? { generation: "core", siteProvider: CHART_TABLE_PROVIDER, providers: [] };
-      res.set("Cache-Control", "no-store").json({ data });
+      const reply = await chartProviderMetadata({ deps: { ...deps, coreSnapshot: { generation: "core", siteProvider: CHART_TABLE_PROVIDER, providers: [] } } });
+      res.set(reply.headers).json(reply.body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
     }
   });
   app.get(`${base}/assets/:pluginId/:version/:digest/:asset`, (req, res) => {
     const { pluginId, version, digest, asset: filename } = req.params;
-    const providers = deps.browserProviders?.({}).providers.filter((provider) => provider.pluginId === pluginId && provider.version === version) ?? [];
-    const asset = providers.flatMap((provider) => provider.assets).find((asset) => asset.digest === digest && asset.path.split("/").at(-1) === filename);
-    if (!asset) { res.status(404).json({ error: "chart asset was not found" }); return; }
-    res.set({ "Content-Type": asset.contentType, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=31536000, immutable" });
-    res.send(Buffer.from(asset.readBytes({})));
+    const reply = chartProviderAsset({ deps, params: { pluginId, version, digest, filename } });
+    res.status(reply.status).set(reply.headers);
+    if (reply.body instanceof Uint8Array) res.send(Buffer.from(reply.body));
+    else res.json(reply.body);
   });
 }

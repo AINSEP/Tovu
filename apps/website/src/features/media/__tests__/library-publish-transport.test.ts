@@ -19,8 +19,7 @@ import { startTestServer } from '#src/server/__tests__/helpers/http-test-server'
 import { createFileBlobIndex } from '@jini-ai/cms/publish/transfer';
 import { contributeRawRowPublish } from '#src/features/publish-content/raw-row-contributor';
 import type { RawRowSnapshot } from '@jini-ai/cms/publish/transfer';
-import { registerPublishContentBlobGetRoute } from '#src/server/inbound/admin-http/routes/publish-content/blob-get';
-import { registerPublishContentBlobPutRoute } from '#src/server/inbound/admin-http/routes/publish-content/blob-put';
+import { registerPublishContentBlobGetRoute, registerPublishContentBlobPutRoute } from '#src/server/runtime/composition/modules/publish-content-blobs';
 import type { PublishContentRouteDeps } from '#src/server/inbound/admin-http/routes/publish-content/deps';
 import { contributeMediaPublish } from '../publish-content.js';
 import { libraryFixture } from './library.fixture.js';

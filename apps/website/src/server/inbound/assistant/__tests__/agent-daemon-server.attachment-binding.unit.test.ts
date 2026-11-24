@@ -17,7 +17,7 @@ import { buildDaemonAttachmentTools } from "#src/server/runtime/composition/modu
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
-import { agentReceivesImageAttachments } from "../run-start-decisions.js";
+import { agentReceivesImageAttachments } from "@jini-ai/daemon/run-start-decisions";
 import { statementsFor, captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 

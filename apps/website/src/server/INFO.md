@@ -38,8 +38,33 @@ that branches on the credential kind or the publish-trust grant gets `adminReque
 admin and public mount binds http-kit's `requestFacts` port to `routeRequestFactsFor` (client address via
 `captureRequestFacts`, `User-Agent`, `Host`), read only by a spec that opts in; a public mount given `workspaceId`
 answers the shared workspace 404. Non-JSON specs mount through `admin-raw-route-ports.ts`
-(`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration). An `authorize` call without
+(`mountAdminRawRoute`/`mountPublicRawRoute`, same ports, `app[method]` registration); a spec with `requireSameOrigin`
+needs the host's `origin` (`OriginContext`) on the mount, refused at registration without it. An admin mount
+cannot set both `deferMissingPrincipal` and `sessionCredentialOnly` (refused at registration). An `authorize` call without
 `entityType` reaches `deps.authorize` without the key. Template: `plans/K1-route-template.md` §9.
+w4-routes K legacy-wire opt-ins (default off): `authenticateBeforeWorkspace` runs the workspace refusal inside
+`authenticate`, after the credential-kind gate and a deferred missing session (widget preview's 401 before the 404;
+refused at registration on a `requireSameOrigin` spec), and `workspaceRefusal` answers a route's own workspace
+refusal (`{ status }` alone is `res.sendStatus`, `{ status, body }` is JSON). Site backups
+- Site previews: `runtime/composition/modules/site-previews-route.ts` (`registerAdminSitePreviewRoute`, same name)
+  binds the `features/sites` capture reader and content type into `@jini-ai/cms/admin-http/routes/sites/site-previews`'s
+  buffered raw spec; `routes/system/sites.ts` and `routes/themes/preview.ts` read `sitePreviewTargets`/`servingAddressOf` from it.
+(`runtime/composition/modules/system-site-backups.ts`) bind the backup service, its error ladder and
+`adminPublishTrustFor` into `@jini-ai/cms/admin-http/routes/system/site-backups`'s raw specs.
+`runtime/composition/modules/system-site-shares.ts` (w4-routes O) binds the share backend, `readShareInput`,
+`parseStaticExportInput`, the registry's token/file rules, `adminPublishTrustFor` and a captured `sendSiteShareFailure`
+(with `deps.tracker`) into `@jini-ai/cms/admin-http/routes/system/site-shares`'s raw specs; the streamed ZIP download
+(`inbound/admin-http/routes/system/site-shares.ts`) and the password reveal stay host routes in the same order.
+Public Express middleware stays host adapters over Jini decisions (w4-routes): `inbound/public-http/middleware/`
+`canonical-site-host.ts` resolves the origin with `@jini-ai/cms/seo` and asks
+`@jini-ai/cms/public-http/middleware/canonical-site-host` for the 308 target (passes `Host` only, and `toAbsoluteUrl`); `theme-content-security-headers.ts` writes
+`themeAssetSecurityHeaderSet` (keeps the `themeAssetSecurityHeaders` name the route-table snapshot pins);
+`theme-static-assets.ts` injects `themeIdCandidates` (`contracts/core/theme-ids`) and `@jini-ai/platform/fs`'s
+`resolvePathWithin` into `resolveThemeDirs`, and uses the Jini preview-CSS / inherited-template decisions.
+`theme-page-preview.ts` keeps the three `/theme-explore/...` routes (`registerThemePagePreview`), the
+`requireAdminSession` + `authorizeThemeSetPermission` gate and `reportServerFailure` on the templated route, and
+binds `findTheme` (over the live `deps.themes`), `renderStaticPage`/`renderStaticPartial`, `listPublishedPosts`,
+the render-context resolvers and `renderSite` into `@jini-ai/cms/public-http/middleware/theme-page-preview`.
 Menus (`runtime/composition/modules/menus.ts`) mount `@jini-ai/cms/admin-http/routes/menus/*` and
 inject `MENU_RAW_HTML_PERMISSION`, the Node `normalizeMenuHtml` and the host `trashMenu`; read,
 update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before; update-tree's
@@ -95,6 +120,16 @@ Ops (`runtime/composition/modules/core.ts`) registers `/health` and `/healthz` f
 through `mountPublicJsonRoute` (`registerHealthRoute`/`registerHealthzRoute`, `deps: {}`, operations `ops:health`/`ops:healthz`),
 first in the core module as before. `/readyz` stays hand-written in `inbound/public-http/routes/ops/health.ts` because
 `features/deployments/deploy-config.ts` reads the health-check path from that file's `registerReadyzRoute` source.
+Public site render helpers (w4-routes): `routes/site/pages/handlers/{home,listing,post-not-found,slug-routes}.ts` call
+`@jini-ai/cms/public-http/routes/site/pages/redirect-phase` with `routing: { runPreContentPhase, runPostContentPhase }` from
+`platform/routing/index`; `routes/site/pages/static-tier.ts` calls `@jini-ai/cms/public-http/routes/site/pages/render-context/collection-lists`
+with its render deps plus `entryListAttribute: ENTRY_LIST_ATTRIBUTE` (`features/theme/entry-list-markup.ts`) and
+`collaborators: COLLECTION_LIST_COLLABORATORS` (module constant bound once from the public cms `listing`, `widgets/markers`,
+`entries/site/public-list` and `widgets/date-label` subpaths). `routes/site/forms-multipart.ts`
+stays the Express adapter over `@jini-ai/platform/http/multipart` (callers import `parseFormMultipart` from the platform directly).
+The doc renderer's contract is `@jini-ai/cms/public-http/http/site/render/doc/doc-render-contract` (w4-routes Q): `http/site/render/content-html.ts`
+binds `renderWidget` into `DocNodeRenderDeps` and builds the `WidgetDocRendering` the widget renderers receive; per-asset render
+metadata is `@jini-ai/core/contracts/site/cms-media`'s `MediaAssetRenderMeta` (resolved by `routes/site/pages/render-context/media-metadata.ts`).
 Commerce (`runtime/composition/modules/commerce.ts`) exports `registerAdminCommerceStatusRoute`, mounting the Jini
 `commerceStatusRoute` (`"direct"`, operation `routes/commerce/status`) with `readCommerceStatus` from `@jini-ai/commerce` bound
 to `deps.lipay` per request. Production leaves it unmounted, as before; only tests mount it.
@@ -109,6 +144,10 @@ Consent (`runtime/composition/modules/consent.ts`) exports `registerAdminConsent
 `@jini-ai/cms/admin-http/routes/consent/routes` specs in the hand-written order (`"guarded"`, failure `consent-admin`
 503 `CONSENT_UNAVAILABLE` with the enforcement copy). It binds the consent service, `readConsentRequest`/`consentRevisionToken`
 from `features/consent/request` and `isConsentConflict` (`SiteConsentConflict`); `Cache-Control: no-store` comes from the spec.
+Widget preview (`modules/widgets.ts` `registerAdminWidgetPreviewRoute`) mounts `widgetPreviewRoute` (`"direct"`,
+`deferMissingPrincipal`, operation `http/widgets`, `failureCopy: "operation"`), binding the host theme/document adapter
+`renderWidgetPreview` (`routes/widgets/preview-render.ts`, injectable as `render` for tests) and
+`knownWidgetErrorToResponse` (`http/widgets.ts`).
 Presentation PATCH (`modules/presentation.ts` `registerAdminPresentationPatchRoute`) mounts `presentationPatchRoute`
 (`"direct"`, operation `routes/presentation/patch-active-theme`, `failureCopy: "operation"`), binding `setActiveTheme`
 (repo, tracker, clock, `writableThemeIds`), `ThemeStylingRequiredError`, theme discovery, the preview refresh and the DTO.
@@ -130,8 +169,11 @@ System mail (`runtime/composition/modules/system-mail.ts`) mounts `@jini-ai/cms/
 swaps them in after mount. Mail providers mount list, credential plan and activate from Jini in the original
 order around the credential PUT, which stays hand-written in `routes/system/mail-providers.ts` (it reads
 `res.locals.authCredentialKind`, which the admin ports do not carry) and shares Jini's `mailProviderRefusal` table.
-`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) and
-`browser-telemetry.ts` (204 beacon, `Retry-After`, content-length) stay hand-written.
+`routes/system/site-key.ts` (session-credential gate before the workspace 404, `Cache-Control: no-store`) stays
+hand-written. Browser telemetry (`POST /api/admin/v1/telemetry`) is the Jini spec
+`@jini-ai/cms/admin-http/routes/system/browser-telemetry`, mounted by `runtime/composition/modules/system-telemetry.ts`
+with `readHeaders: ["content-length"]`, the host's `ADMIN_BROWSER_TELEMETRY_PER_PRINCIPAL` limiter, `deps.tracker` and
+`adminRequestFactsFor`'s credential kind (the 204 is the spec's `successStatus` with no value).
 Sites (`runtime/composition/modules/sites.ts`) owns `registerAdminSitesRoutes`/`registerSitesHomeRoutes`/
 `registerLocalSitesRoutes` and mounts the Jini sites specs `"guarded"`, binding the site-dir layer,
 `createSiteForOwner`, `activateSiteWithWarmServer`, the token catalog and the Node directory probe. Still
@@ -141,9 +183,13 @@ Saved credentials (`runtime/composition/modules/system-credentials.ts`) mount th
 (create, delete) and publish (create/update/verify/delete) specs, all `"direct"` with their old `sendAdminFailure`
 operations; store deps are bound once at registration as before and the heal scheduler is built once per
 registration and injected. Still hand-written in `inbound/admin-http/routes/system/`: custom list and update
-(they read `res.locals.authCredentialKind`), the publish GET list (a pinned direct-call rejection) and
-`credential-copy.ts` (socket/headers, `Cache-Control: no-store`). Their Jini specs for publish list and custom
-list/update exist but are not mounted until the admin ports carry the credential kind.
+(they read `res.locals.authCredentialKind`) and the publish GET list (a pinned direct-call rejection). Their Jini
+specs for publish list and custom list/update exist but are not mounted until the admin ports carry the credential kind.
+The Shared Keys picker (`runtime/composition/modules/system-credential-copy.ts`, w4-routes K) mounts
+`@jini-ai/cms/admin-http/routes/system/credential-copy`'s two JSON specs with `responseHeaders` (no-store),
+`sessionCredentialOnly` + `authenticateBeforeWorkspace` and its `copy-failed` failure copy, and injects the seeded
+owner, the instance admission, `projectKeys` and `isLocalRequest` (`adminRequestFactsFor(...).localAdmin`, a lazy,
+non-enumerable `isLocalAdminRequest` answer read from `res.req`). Pins: `credential-copy.wire.test.ts`.
 Site shares, imports, backups and the share password (`routes/system/site-*.ts`) stay hand-written: they need
 per-route response headers, a `{ code, message }` refusal/workspace-404 body, the publish-trust context and
 per-error failure copy from the admin ports (owner decisions).
@@ -174,7 +220,12 @@ DTO lookups (recorded content type, public URL, blob size), the transactional `r
 the reference-checked `purgeMedia` + `forgetRemovedMedia`, and the provider credential store with
 `MEDIA_PROVIDER_SAVE_ERRORS` (its refusal table, incl. the 503 site-key copy). The admin media DTO is
 `@jini-ai/cms/admin-http/http/media`. list, where-used, import-url, text, upload, replace and original
+`@jini-ai/cms/admin-http/http/media`. list and original
 remain hand-written (non-JSON headers/bodies, or a 403 copy the admin ports do not write).
+The blob byte-size lookup those routes and the media DTO share is Jini's `@jini-ai/cms/admin-http/routes/media/byte-size`
+(`resolveMediaByteSizes`); the host passes its `workspaceId`, `assetBlobRepo` and `blobStore`.
+Change sets (`modules/change-sets.ts`) inject `features/change-sets`' `toChangeSetView` as `toChangeSetHeader` and Jini's
+`@jini-ai/cms/admin-http/http/change-sets` `toChangeSetItemResponse` as `toChangeSetItem`.
 Assistant settings, credentials and visitor tools (`runtime/composition/modules/assistant-settings.ts`)
 mount `@jini-ai/cms/admin-http/routes/assistant/*` `"direct"` and inject `ADMIN_ASSISTANT_PERMISSION`, the
 settings ledger, the sealed site/execution credential stores, the visitor-tools service and each route's
@@ -201,10 +252,26 @@ probe, OAuth connect/sign-in/device-poll and the session-credential routes stay 
 Agent plugins (`modules/agent-plugins-routes.ts`) mount `@jini-ai/cms/admin-http/routes/agent-plugins/{list,files,set-enabled}`
 (`"guarded"`) with the activation service, MCP provisioning, error predicates and activation copy injected;
 id-free checks send `entityType: ""` (the port requires a string; RBAC treats it as the old absent value).
+
+update-tree and assign mount `"direct"`, create and delete `"guarded"`, as before.
 Agent plugins memory GET/PUT (`modules/agent-plugin-memory-routes.ts`, own module so the error test's partial
 mocks load) mount `@jini-ai/cms/admin-http/routes/agent-plugins/memory` (`"guarded"`) with the installed check,
 `pluginMemory` and the default caps bound; PUT's `failureFor` claims only errors its bound `writeNote` threw
 (`agent-plugins:write-note`, "The note could not be saved."), so a failing list read keeps the route's copy.
+Agent plugin admin surfaces (`modules/agent-plugin-admin-surfaces-routes.ts`, w4-routes batch P, registrar
+`registerAgentPluginAdminSurfaceRoutes`, called by `modules/agent-plugins.ts`) mount cms `defineAdminSurfaceRoutes`
+(`"guarded"`, operation `routes/agent-plugins/admin-surfaces`): the list binds the surface source (or the
+test seam's `adminSurfaceSource`) and `adminSurfaceFileUrl`; the two writes bind `findAdminSurface`, the host's
+bootstrap data/handlers/sign-in collector (`NO_ADMIN_SURFACE_HOST` by default), `@jini-ai/agent-plugins`'
+dispatcher/envelope/headers, the clock and the handler-error log, and mount the legacy order with `preflight`
+(Tovu's `CROSS_ORIGIN_REFUSED` copy over cms `adminSurfaceWritePreflight`) → `sessionCredentialOnly` →
+`authenticateBeforeWorkspace` (pin: `routes/agent-plugins/__tests__/admin-surfaces.gate-order.wire.test.ts`).
+Agent plugins install/update upload (`modules/agent-plugin-install-route.ts`, w4-routes batch L) mounts
+`@jini-ai/cms/admin-http/routes/agent-plugins/install` (both specs) with `mountAdminRawRoute` (`"guarded"`,
+`failure: routes/agent-plugins/install-response`, `failureCopy: "operation"`) and NO `express.raw` ahead: the spec
+reads the zip via http-kit's `raw.readBody` after its gates. Binds `installUploadedAgentPlugin` (+ update effects),
+`installedAgentPluginRow` over `loadAgentPluginSearchCandidates`, `bodyParseRefusal` / `knownInstallRefusal`
+(which logs its operator warning) and `isAgentPluginName`; wire pinned by `agent-plugin-install-zip.wire.integration.test.ts`.
 Media where-used (`modules/media.ts`) mounts `@jini-ai/cms/admin-http/routes/media/where-used` (`"direct"`) with
 `findMediaWhereUsed` bound and `forbidden` answering `{ error: "media.read is required", code: "FORBIDDEN" }` (no details).
 Media import-url (`modules/media.ts`, `registerAdminMediaImportUrlRoute`) mounts `@jini-ai/cms/admin-http/routes/media/import-url`
@@ -249,6 +316,12 @@ reader/audit probe and `adminRequestFactsFor`'s `publishTrust` per request.
 Publish-content capabilities (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/capabilities`,
 mounted `"guarded"` by `modules/publish-content-ingest.ts`; it binds the content-type registry, the backstop
 grant rules and `adminPublishTrustFor` (grant-only: the route never reads the credential kind) per request.
+Publish-content export and blobs GET/PUT (w4-routes) are `@jini-ai/cms/admin-http/routes/publish-content/{export,blob-get,blob-put}`,
+mounted `"guarded"` by `modules/publish-content-blobs.ts`: export through `mountAdminRawRoute` (streamed body) binding
+`workspaceRepo`, `adminPublishTrustFor` and `packAuthorizedEntities` over `toPublishContentDeps`; the blob routes through
+`mountAdminJsonRoute` with `deferMissingPrincipal: true` (the `:sha` 400 precedes the session), binding `mediaRepo`/`assetBlobRepo`,
+`createCompositePeerBlobSource` per request (GET) and `blobStore.putIfAbsent` (PUT). `routes/publish-content/route-helpers.ts`
+stays host-side: it is the Express-response preamble of the hand-written peer push relay.
 Publish-content import (w3 C3c) is `@jini-ai/cms/admin-http/routes/publish-content/import`, mounted `"guarded"`
 with `failureCopy: "operation"` (`IMPORT_FAILURE`) by `modules/publish-content-import.ts`; it binds the gateway
 calls, `withGrantAuthorize`/`withGrantContentAuthorize` over `adminPublishTrustFor`, `adminRequestFactsFor`'s
@@ -264,3 +337,6 @@ undo transaction and `backstopRefusal` (`BackstopRefusal` 409, else `peer-transp
 - Public members sign-out (w3 C5): `runtime/composition/modules/public-members.ts` (`registerPublicMemberSignOutRoute`, called by `modules/members.ts`) mounts `@jini-ai/cms/public-http/routes/members/sign-out` with `mountPublicRawRoute` on `memberPostApp`, an app view whose `post` runs `checkMemberPost` (workspace 404, comments same-origin 403, 4 KiB post-parse 413) on the Express request before the spec; it binds the member cookie reader, `clearedMemberSessionCookie`, `NodeSessionTokens` hashing, `memberAuthRefusal` and `MEMBER_AUTH_FAILURE` (all in `inbound/public-http/routes/members/complete-sign-in.ts`).
 - publish-content peer pull (w3 C3e): `POST .../peers/:peerId/pull` is the Jini spec `@jini-ai/cms/admin-http/routes/publish-content/peer-transport`, mounted last by `modules/publish-content-transport.ts`'s `registerPublishContentPeerTransportRoutes` (injected: `pullAndStageFromPeer`, `knownPeerActionRefusal`). The three push routes stay hand-written in `routes/publish-content/peer-transport.ts` (`registerPublishContentPeerPushRoutes`): their live-site 403 precedes the workspace 404.
 - Public members password/me/login-providers (w3 C5b): `runtime/composition/modules/public-members.ts` also holds `registerPublicMemberResetPasswordRoute`, `registerPublicMemberSetPasswordRoute`, `registerPublicMemberForgotPasswordRoute` (each `mountPublicJsonRoute` on `memberPostApp`), `registerPublicMemberMeRoute` and `registerMemberLoginProvidersRoute` (plain `mountPublicJsonRoute`; workspace 404 from the public ports), mounting `@jini-ai/cms/public-http/routes/members/{reset-password,set-password,forgot-password,me,login-providers}`. It binds the shared limiters through `liveLimiter` (read per request), the members service calls, `readRequestCookie` / `uniqueMemberCookie`, `publicMemberIdentities`, `memberAuthRefusal` (`complete-sign-in.ts`), `memberSignInRefusal` + `MEMBER_SIGN_IN_FAILURE` (`sign-in.ts`), `memberOidcRefusal` (`oidc-deps.ts`), and the `setImmediate` delivery reporting through `reportMemberDeliveryFailure`.
+- Public agent-plugin surface files (w4-routes): `runtime/composition/modules/agent-plugin-surface-files-route.ts` (`registerAdminSurfaceFilesRoute`, called by `modules/agent-plugins.ts`) mounts `@jini-ai/cms/public-http/routes/agent-plugin-surfaces/files` with `mountPublicRawRoute` at `ADMIN_SURFACE_FILES_PREFIX`; it binds the `ADMIN_SURFACE_FILES_PER_IP` limiter (or the test seam's), and `findAdminSurface` / `readSurfaceFile` over the lifecycle-backed `AdminSurfaceSource` (`features/agent-plugins/admin-surfaces/surfaces.ts`). The client key is the public ports' `requestFacts` (`resolveClientIp`). The spec's http-kit `bufferedReply` keeps `res.send`'s `Content-Length`, weak ETag and 304 (`files.wire.test.ts`).
+- Form presentation assets (w4-routes R-public-http-1): `http/site/form-wire-policy.ts` holds `FORM_PRESENTATION_NAMES` (`tovu-form`, `tovu-form-error`, `data-tovu-form`, `--tovu-form-*-fallback`, ...) and builds `FORM_BASELINE_STYLE`/`FORM_RANGE_READOUT_JS`/`FORM_RANGE_READOUT_SCRIPT` once via `@jini-ai/cms/public-http/http/site/form-presentation-assets`; `form-presentation-assets.snapshot.test.ts` pins the generated bytes (sha256) so the injected-name output stays identical.
+- Member sign-in script (w4 Batch C): `routes/site/pages/response.ts` calls `@jini-ai/cms/public-http/http/site/member-auth-script` `injectMemberAuthScript` with `marker: MEMBER_AUTH_SCRIPT_MARKER` (`"data-tovu-member-auth"`, defined in `http/site/form-wire-policy.ts`, which stays host-side with the other product wire names: the `tovu_form_flash` cookie and the form-result query keys). `member-auth-script.unit.test.ts` stays in Tovu because it runs the script against `MEMBER_PAGES` (`routes/site/member-pages.ts`).

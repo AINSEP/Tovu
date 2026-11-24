@@ -1,7 +1,8 @@
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/core/contracts/site/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
-import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
+import type { SiteProduct, SiteRenderContext } from "./render-context.js";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { type SiteChatSelection } from "./site-chat-markup.js";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import type { DiscoveredTheme, StaticMenuItem } from "#src/features/theme/index";
@@ -15,7 +16,7 @@ import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { injectSiteAssistantIntoStaticPage } from "./render/site-assistant-mount.js";
 import { pageShell } from "./render/document-shell.js";
 import { siteHeader, siteFooter } from "./render/components/layout.js";
-import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
+import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "@jini-ai/cms/public-http/http/site/render/doc/doc-nodes";
 import { entryContent } from "./render/post-body.js";
 import { entryList, productEntryContent, productEntryList } from "./render/components/entry-lists.js";
 import { renderBlock } from "./render/blocks.js";

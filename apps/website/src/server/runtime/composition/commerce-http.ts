@@ -6,7 +6,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerCommerceRoutes } from "#src/server/inbound/public-http/routes/commerce/purchase";
 import { registerProductRoutes } from "#src/server/inbound/public-http/routes/site/products";
 import { pageShell } from "#src/server/inbound/public-http/http/site/render/document-shell";
-import { resolveRenderThemeId } from "#src/server/inbound/public-http/middleware/render-theme-override";
+import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
@@ -28,7 +29,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
   // proxy every buyer would share the proxy's address and one rate budget. Requests stay on the host app.
   const storefront = express.Router();
   registerCommerceRoutes({ app: storefront, deps: { ...deps, renderCommercePage: async ({ res, title, body }) => {
-    const [themeId, siteTitle] = await Promise.all([resolveRenderThemeId(res, deps), resolveSiteTitleForRender(deps)]);
+    const [themeId, siteTitle] = await Promise.all([resolveRenderThemeId({ response: res, resolveStoredThemeId: () => resolveActiveThemeId(deps) }), resolveSiteTitleForRender(deps)]);
     const resolved = resolveActiveTheme({ deps, activeThemeId: themeId });
     // Payment status remains readable even when no theme is installed.
     return pageShell({ title: `${title} | ${siteTitle}`, theme: resolved === NO_THEME_ID ? null : resolved, body });

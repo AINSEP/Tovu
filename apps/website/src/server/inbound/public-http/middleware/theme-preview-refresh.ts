@@ -8,14 +8,13 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../platform/express/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-
-/** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
-export function freshThemePreviewHtml(
-  { html, revision }: { html: string; revision: string },
-  _optional: Record<string, never> = {},
-): string {
-  return html.replaceAll("/theme-assets/", `/theme-preview-assets/${encodeURIComponent(revision)}/`);
-}
+import {
+  createPreviewRevisionCache,
+  freshThemePreviewHtml,
+  isThemeAssetPath,
+  previewRevisionOf,
+  runThemePreviewReload,
+} from "@jini-ai/cms/public-http/middleware/theme-preview-refresh";
 
 /**
  * A query token opts into authenticated preview rendering; ordinary public caching is untouched.
@@ -33,9 +32,9 @@ export function createThemePreviewMiddleware(
   _optional: Record<string, never> = {},
 ): RequestHandler {
   return (req, res, next) => {
-    const isAsset = /^\/(?:theme-assets|theme-preview-assets)(?:\/|$)/.test(req.path ?? "");
-    const revision = req.query.__tovu_preview;
-    if (typeof revision !== "string" || !/^[\w-]{1,100}$/.test(revision)) {
+    const isAsset = isThemeAssetPath({ path: req.path });
+    const revision = previewRevisionOf({ value: req.query.__tovu_preview });
+    if (revision === undefined) {
       try {
         // The outer desktop guest uses public URLs. Daemon writes must update its render maps too,
         // while visitor caching and the asset response bytes keep their ordinary public behavior.
@@ -73,20 +72,11 @@ export function registerThemePreviewRefresh(
   { app, deps }: { app: Express; deps: RouteDeps },
   _optional: Record<string, never> = {},
 ): (required: { revision: string }, optional?: {}) => boolean {
-  // Asset loads from sandboxed previews may omit cookies (fonts use anonymous CORS). The
-  // authenticated document establishes the namespace; only that namespace rewrites public CSS.
-  const authenticatedRevisions = new Set<string>();
+  const authenticatedRevisions = createPreviewRevisionCache({ limit: 512 });
   app.use(
     createThemePreviewMiddleware({
       authenticate: requireAdminSession(deps),
-      rememberRevision: ({ revision }) => {
-        authenticatedRevisions.add(revision);
-        if (authenticatedRevisions.size > 512) {
-          const oldest = authenticatedRevisions.values().next();
-          if (oldest.done) throw new Error("theme preview revision cache has no oldest entry");
-          authenticatedRevisions.delete(oldest.value);
-        }
-      },
+      rememberRevision: ({ revision }) => authenticatedRevisions.remember({ revision }),
       syncThemes: () => {
         syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
       },
@@ -98,22 +88,16 @@ export function registerThemePreviewRefresh(
     asyncRoute({ handler: async (req, res) => {
       if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       const principal = getAuthedPrincipal(res);
-      const auth = await deps.authorize({
+      const outcome = await runThemePreviewReload({
         principalId: principal.id,
         workspaceId: deps.workspaceId,
-        permission: "theme.set",
-        entityType: "theme",
+        authorize: (required) => deps.authorize(required),
+        refresh: () => requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }),
       });
-      if (!auth.allowed) {
-        res.status(403).json({ error: "not authorized for 'theme.set'" });
-        return;
-      }
-      try {
-        res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }));
-      } catch (error) {
-        sendAdminFailure({ res, error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
-      }
+      if (outcome.kind === "forbidden") res.status(403).json(outcome.body);
+      else if (outcome.kind === "reloaded") res.json(outcome.body);
+      else sendAdminFailure({ res, error: outcome.error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
     } }),
   );
-  return ({ revision }) => authenticatedRevisions.has(revision);
+  return ({ revision }) => authenticatedRevisions.has({ revision });
 }

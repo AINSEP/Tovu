@@ -14,10 +14,10 @@ import type { RateLimiter } from '#src/contracts/core/rate-limit/rate-limit';
 import {
   MAX_TELEMETRY_BODY_BYTES,
   parseBrowserTelemetry,
-  registerAdminBrowserTelemetryRoute,
   scrubTelemetryText,
   toRouteTemplate,
-} from '../browser-telemetry.js';
+} from '@jini-ai/cms/admin-http/routes/system/browser-telemetry';
+import { registerAdminBrowserTelemetryRoute } from '#src/server/runtime/composition/modules/system-telemetry';
 
 /** Fake ports: what reached the observability port and the analytics vendor. */
 function fakePorts() {

@@ -6,7 +6,7 @@ import type { PluginMaturity } from "@jini-ai/core/contracts/site/lifecycle-host
 import { agentPluginLifecycleFields } from "@jini-ai/cms/admin-http/http/agent-plugins";
 
 /**
- * @file Pure response builders for `install.ts` (`AGENT_PLUGIN_INSTALL_ZIP`): which status and body
+ * @file Pure response builders for the install upload (`AGENT_PLUGIN_INSTALL_ZIP`; Jini `@jini-ai/cms/admin-http/routes/agent-plugins/install`, mounted by `composition/modules/agent-plugin-install-route.ts`): which status and body
  * each install refusal answers, and the row a successful install reports. Error bodies carry a code
  * and a plain message; no host path ever reaches them.
  */
@@ -73,12 +73,21 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
 
 /**
  * Maps a thrown install error to its HTTP refusal. Anything unrecognised is a redacted 500.
+ * @complexity O(1).
+ */
+export function installErrorResponse({ error }: { error: unknown }, options: AdminFailurePorts = {}): InstallRefusal {
+  return knownInstallRefusal({ error }) ?? adminFailureResponse({ error: error, tracker: options.tracker }, { operation: "routes/agent-plugins/install-response" });
+}
+
+/**
+ * The refusal for a recognised install error, or `undefined` for anything else (the caller's redacted
+ * 500; the Jini install spec's mount answers that with this same operation).
  * Every update refusal (changed since the operator looked, bundled, downgrade, a pending recovery,
  * another plugin's package) and an incompatible host are conflicts with the installed state: 409
  * with the lifecycle owner's own code and plain message, which never carries a host path.
  * @complexity O(1).
  */
-export function installErrorResponse({ error }: { error: unknown }, options: AdminFailurePorts = {}): InstallRefusal {
+export function knownInstallRefusal({ error }: { error: unknown }, _optional: Record<string, never> = {}): InstallRefusal | undefined {
   if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return { status: 409, body: { code: error.code, error: error.message } };
   if (error instanceof AgentPluginUploadError) return uploadErrorRefusal(error);
   if (error instanceof AgentPluginInstallError) return installErrorRefusal(error);
@@ -89,7 +98,7 @@ export function installErrorResponse({ error }: { error: unknown }, options: Adm
       warning: `[agent-plugins] upload refused — ${error.message}`,
     };
   }
-  return adminFailureResponse({ error: error, tracker: options.tracker }, { operation: "routes/agent-plugins/install-response" });
+  return undefined;
 }
 
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */

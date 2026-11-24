@@ -6,9 +6,7 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
 
 import {
   acceptOverwriteEntityKeys,
-  INVALID_OVERWRITE_KEYS,
   OVERWRITE_REFUSED,
-  readOverwriteEntityKeys,
 } from "../route-helpers.js";
 
 test("readRouteParam reads an absent or undefined param as an empty string, never the literal 'undefined'", () => {
@@ -30,20 +28,30 @@ test("rejectForeignWorkspace lets the matching workspace through without writing
   assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
 
-test("readOverwriteEntityKeys reads absent and null as 'force nothing'", () => {
-  assert.equal(readOverwriteEntityKeys({ overwriteEntityKeys: undefined }), null);
-  assert.equal(readOverwriteEntityKeys({ overwriteEntityKeys: null }), null);
+const MALFORMED_TICKS_400 = { statusCode: 400, jsonBody: { error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" } };
+const allowAll = (_required: unknown, _optional = {}): boolean => true;
+
+test("acceptOverwriteEntityKeys reads absent and null as 'force nothing' and sends nothing", () => {
+  for (const raw of [undefined, null]) {
+    const { res, capture } = createCapturingResponse();
+    assert.equal(acceptOverwriteEntityKeys({ res, raw, mayOverwrite: allowAll }), null);
+    assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
+  }
 });
 
-test("readOverwriteEntityKeys refuses a non-array, a non-string entry, and more than 1000 entries", () => {
-  assert.equal(readOverwriteEntityKeys({ overwriteEntityKeys: "post:1" }), INVALID_OVERWRITE_KEYS);
-  assert.equal(readOverwriteEntityKeys({ overwriteEntityKeys: ["post:1", 2] }), INVALID_OVERWRITE_KEYS);
-  assert.equal(readOverwriteEntityKeys({ overwriteEntityKeys: Array.from({ length: 1001 }, (_, i) => `post:${i}`) }), INVALID_OVERWRITE_KEYS);
+test("acceptOverwriteEntityKeys refuses a non-array, a non-string entry, and more than 1000 entries with the exact 400", () => {
+  for (const raw of ["post:1", ["post:1", 2], Array.from({ length: 1001 }, (_, i) => `post:${i}`)]) {
+    const { res, capture } = createCapturingResponse();
+    assert.equal(acceptOverwriteEntityKeys({ res, raw, mayOverwrite: allowAll }), OVERWRITE_REFUSED);
+    assert.deepEqual(capture, MALFORMED_TICKS_400);
+  }
 });
 
-test("readOverwriteEntityKeys accepts exactly 1000 string entries", () => {
+test("acceptOverwriteEntityKeys accepts exactly 1000 string entries", () => {
   const keys = Array.from({ length: 1000 }, (_, i) => `post:${i}`);
-  assert.deepEqual(readOverwriteEntityKeys({ overwriteEntityKeys: keys }), keys);
+  const { res, capture } = createCapturingResponse();
+  assert.deepEqual(acceptOverwriteEntityKeys({ res, raw: keys, mayOverwrite: allowAll }), keys);
+  assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
 
 test("acceptOverwriteEntityKeys sends the exact 400 for malformed ticks and never asks the rule", () => {

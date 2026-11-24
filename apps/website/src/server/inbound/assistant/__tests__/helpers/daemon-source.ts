@@ -28,7 +28,7 @@ import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartL
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
 import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.js";
-import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../../run-start-decisions.js";
+import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "@jini-ai/daemon/run-start-decisions";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
 import { claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo } from "../../assistant-browser-lease.js";

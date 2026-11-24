@@ -28,7 +28,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { SITE_PREVIEW_CONTENT_TYPE, type SitePreviewService } from "#src/features/sites/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { themeContentVersion, themePreviewImage } from "#src/features/theme/theme-preview-image";
-import { servingAddressOf } from "../sites/site-previews.js";
+import { servingAddressOf } from "@jini-ai/cms/admin-http/routes/sites/site-previews";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 

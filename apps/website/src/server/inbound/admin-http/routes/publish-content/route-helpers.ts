@@ -1,4 +1,5 @@
 import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
+import { readOverwriteEntityKeys } from "@jini-ai/cms/admin-http/routes/publish-content/import";
 import type { Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -7,10 +8,11 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PublishContentRouteDeps } from "./deps.js";
 
 /**
- * @file The request preamble and body readers every publish-content route file in this folder
- * shares: the authenticated-principal-plus-permission gate, the typed-error to HTTP mapping, and
- * the `overwriteEntityKeys` reader. One copy, so a route cannot drift from the others on the exact
- * 403 body or on the 1000-entry cap. The mount-path 404 lives in `shared/route-guards.ts`.
+ * @file The Express glue every publish-content route file in this folder shares: the
+ * authenticated-principal-plus-permission gate, the typed-error to HTTP mapping, and the
+ * `overwriteEntityKeys` 400/403 writes. The body reader (`bodyRecord`) and the `overwriteEntityKeys`
+ * parser, with its 1000-entry cap, are Jini's (`@jini-ai/cms/admin-http/routes/publish-content/
+ * transport-shared`, `.../import`), so this relay and the destination cannot drift apart on either. The mount-path 404 lives in `shared/route-guards.ts`.
  */
 
 /** The status-and-body pair a refusal or a mapped error answers with. */
@@ -30,11 +32,6 @@ export async function authorizedPrincipalId(
   const principal = getAuthedPrincipal(res);
   const allowed = await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } });
   return allowed ? principal.id : null;
-}
-
-/** A request body as a field bag; an absent body reads as empty. @complexity O(1). */
-export function bodyRecord({ body }: { body: unknown }, _options: Record<string, never> = {}): Record<string, unknown> {
-  return (body ?? {}) as Record<string, unknown>;
 }
 
 /** A typed store/transport error class and the status/code it answers with. */
@@ -62,28 +59,6 @@ export function sendRefusal({ res, refusal }: { res: Response; refusal: RouteRef
   res.status(refusal.status).json(refusal.body);
 }
 
-/** Distinguishes "the body carried a malformed set of ticks" (a 400) from "the body carried none"
- *  (`null`, force nothing) — two outcomes a bare `null` return could not tell apart. */
-export const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
-
-/**
- * publish-overwrite-live-plan §4/S6 and §4/S7 — reads `overwriteEntityKeys` off a request body: the
- * `entityKey()` strings (planner.ts) the operator ticked "overwrite on live" for. Absent/`null`
- * means "force nothing", the pre-S6 default every existing caller keeps getting. Bounded at 1000
- * entries, matching the plan's own cap — this ceremony never has a legitimate use for more than
- * that in one bundle. The destination (`import.ts`) and the relay (`peer-transport.ts`) used to
- * repeat this reader under a one-reader-per-route-file convention; it is shared now so the two
- * caps cannot drift apart.
- * @complexity O(n) in the submitted key count.
- */
-export function readOverwriteEntityKeys({ overwriteEntityKeys }: { overwriteEntityKeys: unknown }, _options: Record<string, never> = {}): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
-  if (overwriteEntityKeys === undefined || overwriteEntityKeys === null) return null;
-  if (!Array.isArray(overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
-  if (overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
-  if (!overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
-  return overwriteEntityKeys;
-}
-
 /** Returned by {@link acceptOverwriteEntityKeys} when it has already sent a 400 or 403. */
 export const OVERWRITE_REFUSED = Symbol("overwrite-refused");
 
@@ -91,14 +66,15 @@ export const OVERWRITE_REFUSED = Symbol("overwrite-refused");
 export type OverwriteRule = (required: { res: Response; overwriteEntityKeys: readonly string[] | null }, optional?: Record<string, never>) => boolean;
 
 /**
- * Reads `overwriteEntityKeys` and applies the route's own "who may tick overwrite" rule.
+ * Reads `overwriteEntityKeys` (Jini's parser answers the `"invalid"` sentinel for a malformed set,
+ * which this adapter turns into the relay's 400) and applies the route's own "who may tick overwrite" rule.
  * @returns the ticks (`null` = force nothing), or {@link OVERWRITE_REFUSED} once the 400 (malformed)
  *   or the rule's own 403 has been sent.
  * @complexity O(n) in the submitted key count.
  */
 export function acceptOverwriteEntityKeys({ res, raw, mayOverwrite }: { res: Response; raw: unknown; mayOverwrite: OverwriteRule }, _options: Record<string, never> = {}): readonly string[] | null | typeof OVERWRITE_REFUSED {
   const keys = readOverwriteEntityKeys({ overwriteEntityKeys: raw });
-  if (keys === INVALID_OVERWRITE_KEYS) {
+  if (keys === "invalid") {
     res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
     return OVERWRITE_REFUSED;
   }

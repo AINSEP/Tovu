@@ -1,7 +1,7 @@
 import type { RunPorts } from './agent-daemon-run-start.js';
 import { formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { resolveResumeSessionField, agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "#src/assistant/agent-session-preset";
-import { resolveStoredSessionId } from "./run-start-decisions.js";
+import { resolveStoredSessionId } from "@jini-ai/daemon/run-start-decisions";
 
 /** A run's session-binding decision: the agent it runs and the session fields handed to the CLI. */
 export type RunSessionBinding = {

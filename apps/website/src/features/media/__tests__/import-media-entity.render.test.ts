@@ -26,7 +26,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src/features/media/index";
-import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
+import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";

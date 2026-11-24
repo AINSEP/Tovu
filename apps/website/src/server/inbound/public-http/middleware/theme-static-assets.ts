@@ -4,13 +4,18 @@ import express from "express";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import { resolvePathWithin } from "@jini-ai/platform/fs";
+import { resolveThemeDirs } from "@jini-ai/cms/public-http/middleware/theme-asset-dirs";
+import {
+  inheritedTemplateSource,
+  isRewritableCssPath,
+  previewCss,
+  trustedPreviewRevision,
+  type IsAuthenticatedPreviewRevision,
+} from "@jini-ai/cms/public-http/middleware/theme-static-assets";
 
-import { resolveThemeDirs } from "./theme-asset-dirs.js";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-
-/** Whether an authenticated admin previewed `revision` (supplied by `theme-preview-refresh.ts`). */
-type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional: {}) => boolean;
 
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
@@ -75,7 +80,7 @@ export function registerThemeStaticAssets(
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
   app.use(["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"], themeAssetSecurityHeaders, (req, res, next) => {
-    const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId }, {});
+    const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId, themeIdCandidates, resolvePathWithin }, {});
     const requestedRevision = req.params.revision;
     const preview = typeof requestedRevision === "string";
     const serveFrom = ({ index }: { index: number }, _optional = {}): void => {
@@ -124,35 +129,10 @@ function sendInheritedTemplate(
   { themes, themeDir, url, method, res }: { themes: readonly DiscoveredTheme[]; themeDir: string; url: string; method: string; res: Response },
   _options: Record<string, never> = {},
 ): boolean {
-  if (method !== "GET" && method !== "HEAD") return false;
-  let relativePath: string;
-  try { relativePath = decodeURIComponent(url.split("?")[0]).replace(/^\/+/, ""); }
-  catch { return false; }
-  const sources = themes.find(theme => theme.dir === themeDir)?.inheritedTemplateSources ?? {};
-  if (!Object.hasOwn(sources, relativePath)) return false;
-  res.type("html").send(sources[relativePath]);
+  const source = inheritedTemplateSource({ themes, themeDir, url, method });
+  if (source === undefined) return false;
+  res.type("html").send(source);
   return true;
-}
-
-/**
- * The preview revision a `/theme-preview-assets/:revision/...` request's CSS may be rewritten for:
- * the one an upstream middleware already authenticated (`res.locals.themePreviewRevision`) when set,
- * otherwise the URL's own revision if it is well-formed and the predicate trusts it.
- *
- * A set but non-string `localsRevision` still wins over the URL's revision and yields `undefined`,
- * so nothing is rewritten.
- * @returns The revision string, or `undefined` when no CSS rewrite is allowed.
- */
-function trustedPreviewRevision(
-  required: { requestedRevision: string; localsRevision: unknown },
-  optional: { isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
-): string | undefined {
-  const { requestedRevision } = required;
-  const revision = required.localsRevision ?? (
-    /^[\w-]{1,100}$/.test(requestedRevision) && optional.isAuthenticatedPreviewRevision?.({ revision: requestedRevision }, {})
-      ? requestedRevision : undefined
-  );
-  return typeof revision === "string" ? revision : undefined;
 }
 
 /**
@@ -176,16 +156,4 @@ function sendPreviewCss(required: { res: Response; themeDir: string; url: string
     required.res.type("css").send(previewCss({ css, revision: required.revision }));
   } catch { required.nextDir(); }
   return true;
-}
-
-/** A `.css` file (any case) with no dot-prefixed segment anywhere in its theme-relative path. */
-function isRewritableCssPath({ relativePath }: { relativePath: string }, _optional = {}): boolean {
-  return relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."));
-}
-
-/** `css` with every `url(...)`/`@import` reference to `/theme-assets/` moved under `revision`'s preview prefix. */
-function previewCss(required: { css: string; revision: string }): string {
-  // Match root-relative references, preserving external hosts and existing query/fragment tails.
-  return required.css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
-    (_match, prefix: string) => `${prefix}/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
 }

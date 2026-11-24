@@ -144,10 +144,20 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
  * since a `Response` can only be finalized once.
  */
 export function widgetErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): WidgetErrorResponse {
+  return knownWidgetErrorToResponse({ err }) ?? adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "http/widgets" });
+}
+
+/**
+ * The typed rungs of {@link widgetErrorToResponse} alone: `undefined` for anything unmapped, so a
+ * Jini route spec (`@jini-ai/cms/admin-http/routes/widgets/preview`, injected as `mapWidgetError`)
+ * rethrows it to its mount's `http/widgets` operation-copy 500 — the same failure this ladder's
+ * fallback writes — instead of minting that 500 here without the request's tracker.
+ */
+export function knownWidgetErrorToResponse({ err }: { err: unknown }, _optional: Record<string, never> = {}): WidgetErrorResponse | undefined {
   for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
-  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "http/widgets" });
+  return undefined;
 }
 
 /**

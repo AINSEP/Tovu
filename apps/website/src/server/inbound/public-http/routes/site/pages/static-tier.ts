@@ -11,8 +11,10 @@ import { type StaticFeaturedImage } from "#src/features/theme/index";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
-import { markersOfType, MENU_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
-import { assignListingKeys } from "@jini-ai/cms/listing";
+import { markersOfType, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
+import { assignListingKeys, collectionMarkerKey, splitCollectionMarkerInner, renderEntryList, listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
+import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "@jini-ai/cms/entries/site/public-list";
+import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
@@ -21,8 +23,18 @@ import type { TemplateRenderDeps, SiteRequestDeps, PostPreviewsAccess } from "./
 import { resolveSiteTitleForRender, htmlEmbedHostDeps } from "./render-context/site-title.js";
 import { resolveStaticMenusForRender, type StaticMenuMap } from "./render-context/static-menus.js";
 import { resolvePostPreviewsForRender } from "./render-context/post-previews.js";
-import { resolveCollectionListsForRender } from "./render-context/collection-lists.js";
+import { resolveCollectionListsForRender, type CollectionListsCollaborators } from "@jini-ai/cms/public-http/routes/site/pages/render-context/collection-lists";
+import { warnCollectionLists } from "#src/server/runtime/composition/collection-list-warnings";
+import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { resolvePerVisitorResponse, sendPublicPage } from "./response.js";
+
+/** The CMS domain functions collection-marker resolution is injected with, bound once from their public subpaths. */
+const COLLECTION_LIST_COLLABORATORS: CollectionListsCollaborators = {
+  listing: { collectionMarkerKey, splitCollectionMarkerInner, renderEntryList, listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore },
+  markers: { markersOfType, COLLECTION_MARKER_TYPE },
+  entries: { parseCollectionListConfig, humanizeFieldName, entryPublicHref },
+  dates: { formatDateLabel, resolveSiteTimeZoneSafely },
+};
 
 /**
  * D2's single static-tier document pipeline (E3, 2026-09-23) — the one sequence every static-tier
@@ -154,7 +166,7 @@ async function resolveStaticTierData({ deps, theme, assembled, currentPath, stat
   // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
   // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
   // only one hand-authored directly into a theme file.
-  const collectionLists = await resolveCollectionListsForRender({ deps, html: assembled, pagePath: currentPath });
+  const collectionLists = await resolveCollectionListsForRender({ deps: { ...deps, entryListAttribute: ENTRY_LIST_ATTRIBUTE, collaborators: COLLECTION_LIST_COLLABORATORS, warn: warnCollectionLists }, html: assembled, pagePath: currentPath });
   return { menus, postPreviews, collectionLists };
 }
 

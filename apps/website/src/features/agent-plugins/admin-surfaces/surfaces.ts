@@ -21,7 +21,7 @@ export const ADMIN_SURFACES_FILENAME = "jini-admin-surfaces.json";
 /** The screen route and assistant adapter enforce the same workspace permission. */
 export const ADMIN_SURFACE_ACTION_PERMISSION = "admin.plugins.enable";
 
-/** Where the public files route (`public-http/routes/agent-plugin-surfaces/files.ts`) serves surfaces. */
+/** Where the public files route (Jini cms `public-http/routes/agent-plugin-surfaces/files`, mounted by `composition/modules/agent-plugin-surface-files-route.ts`) serves surfaces. */
 export const ADMIN_SURFACE_FILES_PREFIX = "/api/agent-plugin-surfaces/v1";
 
 /** The URL a surface file is served at. Segments are encoded; the path keeps its `/` separators.

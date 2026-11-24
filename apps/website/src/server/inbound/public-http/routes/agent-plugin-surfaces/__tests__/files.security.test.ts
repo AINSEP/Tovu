@@ -3,7 +3,7 @@ import { test } from "node:test";
 import express from "express";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSurfaceFilesRoute } from "../files.js";
+import { registerAdminSurfaceFilesRoute } from "#src/server/runtime/composition/modules/agent-plugin-surface-files-route";
 
 test("T6: per-IP limiting precedes contribution loads, covers unknown paths, and resets with the existing window", async (t) => {
   let now = 0;

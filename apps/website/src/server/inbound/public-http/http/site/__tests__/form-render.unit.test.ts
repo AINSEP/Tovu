@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
 
-import { FORM_BASELINE_STYLE, FORM_SUCCESS_CLASS, FORM_ERROR_CLASS } from "../form-presentation-assets.js";
+import { FORM_SUCCESS_CLASS } from "@jini-ai/cms/public-http/http/site/form-presentation-assets";
+import { FORM_BASELINE_STYLE, FORM_ERROR_CLASS } from "../form-wire-policy.js";
 import { clearFormSubmissionResultQueryParams, decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery } from "@jini-ai/cms/forms/result-query";
 import { decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
 import { renderFormErrorSlot, renderFormSuccessSlot } from "@jini-ai/cms/forms/form-controls";

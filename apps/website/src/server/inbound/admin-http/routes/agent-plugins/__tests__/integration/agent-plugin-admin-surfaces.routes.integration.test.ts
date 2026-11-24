@@ -13,8 +13,8 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { AdminSurfaceHost, AdminSurfaceSource } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
-import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
-import { registerAgentPluginAdminSurfaceRoutes } from "../../admin-surfaces.js";
+import { registerAdminSurfaceFilesRoute } from "#src/server/runtime/composition/modules/agent-plugin-surface-files-route";
+import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/runtime/composition/modules/agent-plugin-admin-surfaces-routes";
 
 /**
  * @file Contract tests for the admin-surface routes beyond the phase-A security pins: the surface

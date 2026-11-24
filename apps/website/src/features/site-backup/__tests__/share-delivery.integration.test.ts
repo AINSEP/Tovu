@@ -6,7 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { PeerCallDeps } from "../../publish-content/peer-transport.js";

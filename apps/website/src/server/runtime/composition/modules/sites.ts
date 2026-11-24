@@ -6,7 +6,7 @@ import { siteActivateRoute, siteCreateRoute, siteTokenSignInPluginsRoute, type S
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { nodeSitesDirectoryProbe, registerSitesConfigSaveRoute, type SitesSettingsDeps } from "#src/server/inbound/admin-http/routes/sites/sites-home";
 import { registerWarmSiteControl } from "#src/server/inbound/admin-http/routes/sites/warm-site-control";
-import { registerSitePreviewRoutes } from "#src/server/inbound/admin-http/routes/sites/site-previews";
+import { registerSitePreviewRoutes } from "#src/server/runtime/composition/modules/site-previews-route";
 import { handleListSites, registerDevWarmSiteRoute, type SitesPorts } from "#src/server/inbound/admin-http/routes/system/sites";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";

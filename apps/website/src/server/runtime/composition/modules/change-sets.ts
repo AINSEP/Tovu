@@ -2,7 +2,8 @@ import { changeSetGetRoute } from "@jini-ai/cms/admin-http/routes/change-sets/ge
 import { changeSetListRoute } from "@jini-ai/cms/admin-http/routes/change-sets/list";
 import { changeSetRevertRoute } from "@jini-ai/cms/admin-http/routes/change-sets/revert";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { toChangeSetHeaderResponse, toChangeSetItemResponse } from "#src/server/inbound/admin-http/http/change-sets";
+import { toChangeSetItemResponse } from "@jini-ai/cms/admin-http/http/change-sets";
+import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
 
 /**
@@ -11,9 +12,9 @@ import type { ContentRouteDeps, ContentRouteRegistrar } from "./content.js";
  * `ContentRouteDeps` is read only here, at registration: each mount builds that route's own small
  * deps object, so a spec never sees the whole bag.
  *
- * The change-set response serializers stay in Tovu (`http/change-sets.ts`): the header one delegates to
- * `features/change-sets`' model-facing view, shared with the agent tool, so the specs receive them as
- * injected functions. All three routes asked `authorizeDirectOrRespond` (never the publishing-credential
+ * The change-set header serializer is `features/change-sets`' model-facing view, shared with the agent
+ * tool; the item serializer is Jini's (`@jini-ai/cms/admin-http/http/change-sets`). The specs receive both
+ * as injected functions. All three routes asked `authorizeDirectOrRespond` (never the publishing-credential
  * override), so all three mount `"direct"`; switching one is an authorization change, not a move.
  *
  * Owns all 3 registrations (list, get, revert), same relative order as before.
@@ -30,7 +31,7 @@ function mountOptions(operation: string) {
   return { authorization: "direct" as const, failure: { operation, code: "INTERNAL_ERROR" } };
 }
 
-const toChangeSetHeader = ({ changeSet }: { changeSet: Parameters<typeof toChangeSetHeaderResponse>[0] }) => toChangeSetHeaderResponse(changeSet);
+const toChangeSetHeader = ({ changeSet }: { changeSet: Parameters<typeof toChangeSetView>[0]["changeSet"] }) => toChangeSetView({ changeSet });
 
 export const registerAdminChangeSetListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountAdminJsonRoute(
@@ -42,7 +43,7 @@ export const registerAdminChangeSetListRoute: ContentRouteRegistrar = ({ app, de
 export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const getDeps = {
     ...changeSetPortDeps({ deps }), changeSets: deps.changeSets, toChangeSetHeader,
-    toChangeSetItem: ({ item }: { item: Parameters<typeof toChangeSetItemResponse>[0] }) => toChangeSetItemResponse(item),
+    toChangeSetItem: ({ item }: { item: Parameters<typeof toChangeSetItemResponse>[0]["item"] }) => toChangeSetItemResponse({ item }),
   };
   mountAdminJsonRoute({ app, spec: changeSetGetRoute, deps: getDeps }, mountOptions("routes/change-sets/get"));
 };

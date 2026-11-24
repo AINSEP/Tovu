@@ -15,7 +15,7 @@ import { IncomingMessage, ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
 import type { Socket } from "node:net";
 import type { RouteDeps } from "../../../../server/routes/types.js";
-import { registerAdminSiteShareRoutes } from "../../../../server/inbound/admin-http/routes/system/site-shares.js";
+import { registerAdminSiteShareRoutes } from "#src/server/runtime/composition/modules/system-site-shares";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { contentKernel } from "../../../../platform/db/content-kernel.js";

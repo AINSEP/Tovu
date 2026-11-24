@@ -89,8 +89,8 @@ export const changeSetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
 ]);
 
 /**
- * Model-facing change-set view, shared with `admin-http/http/change-sets.ts#toChangeSetHeaderResponse`,
- * which delegates here.
+ * Model-facing change-set view, shared with the admin change-set routes (`modules/change-sets.ts` passes it
+ * to the Jini specs as `toChangeSetHeader`).
  * `inversePayload` is never exposed here either, for the identical reason that file's own header
  * gives — it may hold full content snapshots.
  */

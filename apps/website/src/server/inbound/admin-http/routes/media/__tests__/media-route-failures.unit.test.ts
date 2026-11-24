@@ -6,7 +6,7 @@ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { registerAdminMediaDeleteRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaImportUrlRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaListRoute } from '../list.js';
-import { registerAdminMediaOriginalRoute, resolveMediaOriginalBlob } from '../original.js';
+import { registerAdminMediaOriginalRoute } from '../original.js';
 import { registerAdminMediaPutProvidersRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaReplaceRoute } from '#src/server/runtime/composition/modules/media';
 import { registerAdminMediaTextRoute } from '#src/server/runtime/composition/modules/media';
@@ -144,21 +144,6 @@ for (const [label, sizeOf, bytes] of [
     }
   });
 }
-
-test('media original: callers can supply their own not-found response without reading a blob', async () => {
-  let reads = 0;
-  let resolved: unknown = 'not called';
-  const { app } = fixture(({ app, deps }) => {
-    app.get('/original-missing', async (_req, res) => {
-      resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: WS, mediaId: 'unknown' } }, { onNotFound: target => {
-        target.status(404).json({ error: 'public response' });
-      } });
-    });
-  }, { mediaRepo: { findBySlug: async () => null, findById: async () => null }, assetBlobRepo: { findByHash: async () => { reads++; return null; } } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/original-missing'), { status: 404, body: { error: 'public response' } });
-  assert.equal(resolved, null);
-  assert.equal(reads, 0);
-});
 
 for (const body of [undefined, { filename: 'file', dataBase64: 'YQ==' }, { filename: 'file', contentType: 'image/png' },
   { filename: 'file', contentType: 'image/png', dataBase64: 7 }]) {

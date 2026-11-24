@@ -1,11 +1,11 @@
 import { registerPluginExportFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files";
 import { registerAgentPluginMemoryRoutes } from "./agent-plugin-memory-routes.js";
 import { registerAgentPluginFilesRoute } from "./agent-plugins-routes.js";
-import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
+import { registerAgentPluginInstallRoute } from "./agent-plugin-install-route.js";
 import { registerAgentPluginsListRoute } from "./agent-plugins-routes.js";
 import { registerAgentPluginSetEnabledRoute } from "./agent-plugins-routes.js";
-import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
-import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
+import { registerAgentPluginAdminSurfaceRoutes } from "./agent-plugin-admin-surfaces-routes.js";
+import { registerAdminSurfaceFilesRoute } from "./agent-plugin-surface-files-route.js";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { registerApiConnectionSignInRoute } from "./agent-plugins-routes.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -27,7 +27,7 @@ import type { ServerModuleHandle } from "./types.js";
  * (the eye button's read-only package viewer, 2026-09-13). All take the same narrow
  * `AgentPluginsRouteDeps` slice; see `set-enabled.ts`'s own header for why that mutation is
  * `authorizeOrRespond`-gated rather than `executeCommand`-wrapped, and what that costs.
- * `AGENT_PLUGIN_INSTALL_ZIP` (2026-10-06) is the "Add a plugin" upload; see `install.ts`.
+ * `AGENT_PLUGIN_INSTALL_ZIP` (2026-10-06) is the "Add a plugin" upload; see the registrar `agent-plugin-install-route.ts`.
  * Plugin-owned admin surfaces (2026-10-20): the session-gated list/bootstrap/action routes in
  * `admin-surfaces.ts`, and the PUBLIC surface-files route (see its header for why it carries no
  * session), which therefore must not sit under `/api/admin`.
