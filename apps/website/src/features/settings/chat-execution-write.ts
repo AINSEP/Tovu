@@ -1,6 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import { getEffective, resolveDefinitionRaw } from "@jini-ai/core/settings";
-import { type DetectedAgent, validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import type { DetectedAgent } from "@jini-ai/core/contracts/site/agent-runtime";
 import type { SettingsToolDeps } from "./tool-deps.js";
 
 /** These coordinates already belong to the composer ledger; no parallel selection store. */

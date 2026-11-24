@@ -23,7 +23,7 @@ import {
 } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
-import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
+import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { processBuildRelease } from '../build-release.js';
 
 /**

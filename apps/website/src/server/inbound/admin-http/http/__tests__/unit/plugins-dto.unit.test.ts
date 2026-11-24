@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { toAdminPluginResponse } from "@jini-ai/plugins/host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 /**
  * @file C-017 `toAdminPluginResponse()` — SPEC-005 REQ-10/REQ-11, api.spec.md §5.

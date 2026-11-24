@@ -19,7 +19,7 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
-import type { UserRepoPort } from "@jini-ai/user-management";
+import type { UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { TrashRegistry } from "@jini-ai/cms/trash";

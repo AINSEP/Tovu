@@ -1575,18 +1575,18 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    React-rendered, so every active-row change rewrites `className` and dropped such a class, leaving
    both labels visible side by side (2026-10-08). React preserves unmanaged attributes; avoiding
    `:has` also keeps composer keystrokes from re-matching this rule (2026-10-11).
-   `.cms-item > span.cms-sites-label` stays below the rail rule's specificity so the collapsed rail
+   `.cms-item > span.jini-sites-label` stays below the rail rule's specificity so the collapsed rail
    still clips it. */
 .cms-item[data-cms-sites-split] { flex-wrap: nowrap; }
 .cms-item[data-cms-sites-split] > span:first-of-type {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-.cms-item > span.cms-sites-label {
+.cms-item > span.jini-sites-label {
   display: flex; flex: 1 1 0; min-width: 0; white-space: nowrap;
 }
-.cms-sites-prefix, .cms-sites-suffix { flex: 0 0 auto; white-space: pre; }
-.cms-sites-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.jini-sites-prefix, .jini-sites-suffix { flex: 0 0 auto; white-space: pre; }
+.jini-sites-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* Rail-mode hover/focus tooltip. `position: fixed`, not `absolute` — this is portaled to
    `document.body` by `Sidebar.tsx`'s `RailTooltip`, not a descendant of the scrollable `.cms-nav`
    (see that component's doc comment for why a CSS-only child tooltip could not escape it), so
@@ -5196,7 +5196,7 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
    `.jini-lightbox-button`): this dialog's content sits on the app's own light surface (a table, a
    code block, an MCP-UI card), so a token-based badge reads correctly there the way the lightbox's
    fixed dark-stage chip (tuned for sitting around a photograph) would not. */
-.message-overflow-modal {
+.jini-message-overflow-modal {
   position: relative;
   border: var(--jini-border-width, 1px) solid var(--border-strong);
   border-radius: var(--r-lg);
@@ -5210,30 +5210,30 @@ details.jini-login-card > form { display: flex; flex-direction: column; gap: 0.9
   box-shadow: var(--tovu-admin-elevated-shadow);
   background-image: var(--jini-panel-texture, none);
 }
-.message-overflow-modal[open] { display: flex; flex-direction: column; }
-.message-overflow-modal::backdrop { background: var(--jini-overlay-bg-preview);
+.jini-message-overflow-modal[open] { display: flex; flex-direction: column; }
+.jini-message-overflow-modal::backdrop { background: var(--jini-overlay-bg-preview);
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
-.message-overflow-modal-body {
+.jini-message-overflow-modal-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
-.message-overflow-modal-close {
+.jini-message-overflow-modal-close {
   position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
   width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border);
   font-size: 1.3rem; line-height: 1; box-shadow: var(--shadow-sm); cursor: pointer;
 }
-.message-overflow-modal-close:hover { background: var(--accent-dim); color: var(--fg-1); }
+.jini-message-overflow-modal-close:hover { background: var(--accent-dim); color: var(--fg-1); }
 
 /* `ThemePageDetailsModal.tsx` — the Theme Pages tab's per-row "Details" info modal (2026-08-31 owner
    review pass, replacing that row's old inline "see more" disclosure). Same native-`<dialog>`
    foundation as `.confirm-dialog` above and the SAME `[open]`-scoped `display` split those rules'
    own comments explain (an author `display` rule on the bare class always wins over the UA
    stylesheet's `dialog:not([open]) { display: none }` regardless of specificity). Sized like
-   `.confirm-dialog` (a fixed, content-fit box), not `.message-overflow-modal`'s viewport-filling one
+   `.confirm-dialog` (a fixed, content-fit box), not `.jini-message-overflow-modal`'s viewport-filling one
    — this shows a short list of facts about one row, not arbitrary full-size content. */
 .theme-page-details-dialog {
   border: var(--jini-border-width, 1px) solid var(--border-strong); border-radius: var(--r-lg); padding: var(--space-6);

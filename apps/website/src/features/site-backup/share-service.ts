@@ -1,7 +1,7 @@
 import type { CredentialWarning } from "./credential-warnings.js";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+import type { ArtifactStorePort } from "@jini-ai/core/contracts/site/devops-deploy";
 import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
 import { SiteShareRefusal } from "./share-policy.js";
 

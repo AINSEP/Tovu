@@ -40,7 +40,7 @@ export function describeApiError({ e, fallback }: { e: unknown; fallback: string
 }
 
 // The stored-key endpoint rules (`storedKeyIsForOtherEndpoint`, `hasUsableKey`, `storedKeyBlocksProbe`,
-// `describeProbeError` and their two copy constants) live in `lib/stored-credential-endpoint.ts`, shared
+// `describeProbeError` and their two copy constants) live in `@jini-ai/admin/shell/lib/stored-credential-endpoint` (bound describer in `lib/shell-collaborators.ts`), shared
 // with the admin's own key screen.
 
 /** The server's `••••<last 4>` shown IN the key field — which key is stored, answered where the

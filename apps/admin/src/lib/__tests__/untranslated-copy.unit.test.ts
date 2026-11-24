@@ -8,6 +8,7 @@ import * as contentAnalysisI18n from "@jini-ai/admin/screens/content-analysis/co
 import * as importExportI18n from "@jini-ai/admin/screens/import-export/import-export-i18n";
 import * as skillsI18n from "@jini-ai/admin/screens/skills/skills-i18n";
 import * as webmcpI18n from "@jini-ai/admin/screens/webmcp/webmcp-i18n";
+import * as sharedComponentsI18n from "@jini-ai/admin/shell/components/shared-components-i18n";
 
 /**
  * @file One untranslated-copy check for EVERY admin dictionary — not one parity test per file.
@@ -34,7 +35,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   ...import.meta.glob<Record<string, unknown>>(["../../**/*-i18n.ts", "../../**/*-i18n.tsx", "../i18n-common.ts", "!../../**/__tests__/**"], {
     eager: true,
   }),
-  // These two moved to @jini-ai/admin with the shell, but the admin still ships their copy, so they
+  // These moved to @jini-ai/admin with the shell, but the admin still ships their copy, so they
   // stay in this check under their former paths (the glob cannot reach a package).
   "../admin-nav-i18n.ts": adminNavI18n,
   "../editor-failure-i18n.ts": editorFailureI18n,
@@ -43,6 +44,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   "../../features/import-export/import-export-i18n.ts": importExportI18n,
   "../../features/skills/skills-i18n.ts": skillsI18n,
   "../../features/webmcp/webmcp-i18n.ts": webmcpI18n,
+  "../../components/shared-components-i18n.ts": sharedComponentsI18n,
 };
 
 /** `*-i18n` modules with no key→copy dictionary: helpers, not copy. */

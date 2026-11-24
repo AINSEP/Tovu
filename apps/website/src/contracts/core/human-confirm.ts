@@ -22,7 +22,7 @@ import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, 
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SurfaceDetail } from "@jini-ai/core/contracts/cards";
-import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+import type { UIResourceUri } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { approvalText } from './approval-i18n.js';
 
 import {

@@ -3,7 +3,7 @@ import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-iden
 import { createMailPurposeGateProbe } from "@jini-ai/platform/mail";
 import { createMailTestSendLimiter, type MailTestSendDeps } from "@jini-ai/platform/mail/test-send";
 import { SettingsRevisionConflictError, type AuthorizeFn, type SettingsRepoPort, type SetValueRequired } from "@jini-ai/core/settings";
-import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/core/contracts/mail";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile } from "#src/features/agent-plugins/mail-adapter-registry";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";

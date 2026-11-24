@@ -4,8 +4,6 @@ import type { CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { ChatStoreFactory } from './persistence/tenant-scope.js';
 
-export type { ProviderConfigSource } from '@jini-ai/plugins/host';
-
 /** Commerce owns its private repositories; the assistant sees only admitted tool registrations. */
 export interface CommerceToolHost {
   toolRegistrations(required: { authorize: AuthorizeFn; askHuman: CommerceResolutionToolsRequired['askHuman'] }): ToolRegistration[];

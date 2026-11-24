@@ -5,7 +5,7 @@ import { MediaContentEditor } from '../WidgetConfigFields/MediaContentEditor';
 import { useWidgetPreview } from '../WidgetConfigFields/WidgetPreview.hooks';
 import type { HtmlPreviewPort } from '@jini-ai/ui/admin-widgets';
 import type { MediaPickerPort } from '../MediaPickerDialog/media-picker-port.hooks';
-import { SHARED_COMPONENTS_DICT } from '../shared-components-i18n';
+import { SHARED_COMPONENTS_DICT } from '@jini-ai/admin/shell/components/shared-components-i18n';
 import { renderWidgetPreviewDocument } from '../WidgetConfigFields/widget-config-fields-dependencies.hooks';
 import type { authenticatedAdminRequest } from '../../lib/admin-http/request';
 

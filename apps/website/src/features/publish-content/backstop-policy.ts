@@ -1,5 +1,5 @@
 import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
-import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
+import { scanTextForSecrets } from "@jini-ai/diagnostics/redaction/secrets-only";
 
 /** An expected manual-publishing refusal with a caller-safe message.
  * Unexpected storage/transport errors must retain their original type for private diagnostics.

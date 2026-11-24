@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
-import type { SecretsVaultService, VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultArchiveEntry, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import { EMPTY_IMPORT, importLegacyKeys } from "../../commands/owner-store-import.js";
 

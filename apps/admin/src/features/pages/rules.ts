@@ -9,7 +9,7 @@ import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";
@@ -397,7 +397,7 @@ export function buildPageAutosaveDraft(
  * them, and what actually resumes autosaving.
  *
  * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
- * refused draft into browser storage (`lib/standing-draft-local-backup.ts`), but that mirror is
+ * refused draft into browser storage (`lib/shell-collaborators.ts`'s `standingDraftLocalBackup`), but that mirror is
  * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
  * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
  * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.
@@ -418,7 +418,7 @@ export function pageAutosaveStaleBasisMessage({ t, ...staleBasis }: { t: Transla
  * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
  * `code`, which is exactly what makes them tellable apart.
  *
- * A feature-local name for `lib/version-conflict.ts`'s shared `VERSION_CONFLICT_CODE`, which
+ * A feature-local name for `@jini-ai/admin/shell/lib/version-conflict`'s shared `VERSION_CONFLICT_CODE`, which
  * `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE` aliases too. The shared one lives in
  * `lib/`, so the no-cross-feature-import boundary (`lib/` hosts the shared pieces) still holds.
  * Pages and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two names describe

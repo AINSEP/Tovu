@@ -6,7 +6,7 @@ import { setActiveTheme } from "#src/features/presentation/index";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
 import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
-import type { HeadlessThemeSummary } from "#src/contracts/headless/index";
+import type { HeadlessThemeSummary } from "@jini-ai/core/contracts/headless/contracts";
 import { duplicateThemeIds, findStoredTheme, rescanThemes, ThemeStylingRequiredError, validThemeIds, writableThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";

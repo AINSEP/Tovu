@@ -14,7 +14,8 @@ import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberRequestLimits, checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
-import { MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
+import { MEMBER_OIDC_PATH } from "@jini-ai/core/contracts/headless/member-login";
+import { MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
   memberOidcHeaders, memberOidcProviderId, MemberOidcCancelled, redirectMemberOidcError, uniqueMemberCookie,
   type MemberOidcRouteDeps } from "./oidc-deps.js";
 

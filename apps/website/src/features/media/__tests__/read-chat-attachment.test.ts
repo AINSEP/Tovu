@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
+import { CHAT_ATTACHMENT_REF_PATTERN } from "@jini-ai/core/contracts/headless/chat-attachment";
 import {
-  CHAT_ATTACHMENT_REF_PATTERN,
   chatAttachmentSidecarFileName,
   isChatAttachmentSidecarShape,
   readChatAttachmentForOwner,

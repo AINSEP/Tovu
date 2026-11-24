@@ -1,5 +1,6 @@
 import { prepareMessageAttachments } from "@jini-ai/daemon";
-import { readChatAttachmentForOwner, type ChatAttachmentReadResult, sniffContentType } from "#src/features/media/index";
+import type { ChatAttachmentReadResult } from "@jini-ai/core/contracts/headless/chat-attachment";
+import { readChatAttachmentForOwner, sniffContentType } from "#src/features/media/index";
 
 export class AttachmentUnavailableError extends Error {}
 

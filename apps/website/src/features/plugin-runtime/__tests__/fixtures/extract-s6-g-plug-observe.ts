@@ -14,7 +14,7 @@ import { createToolRegistry, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { InMemoryPluginActivationRepo, PluginInvalidError, setPluginEnabled, type PluginManifest } from "@jini-ai/plugins/host";
 import type { PluginActivationRecord } from "@jini-ai/core/contracts/site/plugins-host";
-import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";

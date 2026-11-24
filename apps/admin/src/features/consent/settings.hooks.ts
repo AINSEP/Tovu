@@ -1,4 +1,4 @@
-import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/cookie-consent/react';
+import type { ConsentFieldProblem, ConsentSettingsView } from "@jini-ai/core/contracts/site/cookie-consent-react";
 import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { authenticatedAdminRequest } from '@/lib/admin-http/request';
 

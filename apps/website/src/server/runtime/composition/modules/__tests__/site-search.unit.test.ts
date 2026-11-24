@@ -3,10 +3,8 @@ import test from "node:test";
 
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import {
-  createSearchProviderRegistry, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProvider, type SearchProviderContext,
-  type SearchSourceRecord, type SearchStatus,
-} from "@jini-ai/search";
+import { createSearchProviderRegistry, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProviderContext, type SearchSourceRecord, type SearchStatus } from "@jini-ai/search";
+import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { createInMemorySearchProvider, createInMemorySearchState, createStaticAccessPort } from "@jini-ai/search/testkit";
 
 import type { LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";

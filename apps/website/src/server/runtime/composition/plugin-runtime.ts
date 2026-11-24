@@ -1,7 +1,8 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
-import { nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createFileLockPort } from "@jini-ai/node-adapters/fs";
+import { withFileLock } from "@jini-ai/platform/fs";
 import { createPluginModuleImporter, createPluginRuntimeCore, type PluginRuntimeCoreBindings, type PluginRuntimeSource, type PluginRuntimeText } from "@jini-ai/plugins/host/node";
 import type { BundledBrowserProviderApproval, PluginSourcePolicyPort } from '@jini-ai/plugins/host';
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
@@ -14,6 +15,8 @@ import type { ExtensionClaim } from "@jini-ai/plugins/host";
 import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
+/** Platform's file functions under core's port names; node-adapters takes them injected (it imports no platform implementation). */
+const nodeFileLock = createFileLockPort({ withFileLock });
 
 /**
  * Extract-s6 L1c: the plugin-owned runtime core (`createPluginRuntimeCore`, its port types, the

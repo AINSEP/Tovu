@@ -1,13 +1,11 @@
 /** Display-only desktop resource contract. No command lines, credentials or stop-by-pid API. */
+import type { MemoryMetric, ResourceProcess } from '@jini-ai/core/contracts/site/contracts-resources';
 export const RUNNER_RESOURCES_GET_CHANNEL = 'runner:resources:get';
 
 /** The renderer polls only while visible: panel open = 5s (Windows 10s), badge only = 60s. */
 export interface ResourcesRequest {
   panelOpen: boolean;
 }
-
-/** Source of the bytes carried by the historical rssBytes wire field. */
-export type MemoryMetric = 'physical-footprint' | 'private-working-set' | 'committed' | 'rss' | 'mixed-rss' | 'mixed';
 
 /** CPU percent uses one core as 100%; null means there is no comparable previous sample. */
 export interface ResourceMetrics {
@@ -18,20 +16,6 @@ export interface ResourceMetrics {
   memoryMetric?: MemoryMetric;
   cpuPercent: number | null;
   memoryWarning: boolean;
-  cpuWarning: boolean;
-}
-
-/** Executable basename and tree position only; never OS command arguments. */
-export interface ResourceProcess {
-  pid: number;
-  ppid: number;
-  name: string;
-  role: 'site-server' | 'daemon' | 'app' | 'process';
-  rssBytes: number;
-  memoryMetric?: MemoryMetric;
-  /** Current OS RSS for safety limits and stable telemetry, independent of display sampling. */
-  rawRssBytes?: number;
-  cpuPercent: number | null;
   cpuWarning: boolean;
 }
 

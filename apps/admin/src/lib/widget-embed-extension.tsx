@@ -9,7 +9,7 @@ import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPicker
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
 import { PlacementContentFields } from "../components/WidgetConfigFields/PlacementContentFields";
 import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttributeRows";
-import { t as sharedComponentsT } from "../components/shared-components-i18n";
+import { t as sharedComponentsT } from "@jini-ai/admin/shell/components/shared-components-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { uniqueId } from "@jini-ai/admin/shell/lib/unique-id";
 

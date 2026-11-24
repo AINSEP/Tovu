@@ -1,51 +1,38 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import type { AdminSiteKeyState } from "@jini-ai/core/contracts/site/site-key";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { AdminSiteKeyState as SharedSiteKeyState } from "@jini-ai/core/contracts/site/site-key";
 
 import { ADMIN_SITE_KEY_STATES } from "@/features/sites/api/sites-api.types";
 
 /**
- * @file Parity tripwire across the three places the site-key state set is written down:
+ * @file Parity tripwire between `ADMIN_SITE_KEY_STATES` (`features/sites/api/sites-api.types.ts`)
+ * and the shared site-key state union (`@jini-ai/core/contracts/site/site-key`'s
+ * `AdminSiteKeyState`) — the one union the server's `GET .../system/site-key` route
+ * (`routes/system/site-key.ts`'s `siteKeyState`) now types its `state` field with.
  *
- * - the Core union `AdminSiteKeyState` (`@jini-ai/core/contracts/site/site-key`) — the type every
- *   admin screen reads;
- * - the host tuple `ADMIN_SITE_KEY_STATES` (`features/sites/api/sites-api.types.ts`) — the runtime
- *   list, kept on the host because a Core contract module carries no runtime values;
- * - the website union `SiteKeyState` (`apps/website/src/contracts/core/site-key-state.ts`) — the
- *   server's own source of truth.
- *
- * The first case compares the Core union and the host tuple at the type level, in both directions,
- * so a literal added to either side fails the admin type-check. The second reads the website
- * source file directly off disk (a plain `fs` read, not an import — the admin app's `@tovu/*`
- * path-alias list does not carry that file) and compares its literal union against the host tuple.
+ * This used to read the server's own `contracts/core/site-key-state.ts` off disk and regex its
+ * literal union. That file is gone: the union lives in the shared contract both apps import, so the
+ * remaining drift risk is between this app's RUNTIME list and that type. `SHARED_STATES` below is a
+ * `Record` keyed by the shared union, so adding, removing or renaming a state there fails the
+ * typecheck here until this object is edited too; the runtime assertion then ties the list to it.
  */
-const WEBSITE_SITE_KEY_STATE_SOURCE = path.resolve(
-  __dirname,
-  "../../../../website/src/contracts/core/site-key-state.ts",
-);
+const SHARED_STATES: Record<SharedSiteKeyState, true> = {
+  active: true,
+  missing: true,
+  "missing-with-data": true,
+  mismatch: true,
+  invalid: true,
+};
 
-describe("AdminSiteKeyState parity with the server's SiteKeyState union", () => {
-  it("matches the Core state union in both directions", () => {
-    expectTypeOf<AdminSiteKeyState>().toEqualTypeOf<(typeof ADMIN_SITE_KEY_STATES)[number]>();
+describe("AdminSiteKeyState parity with the shared site-key state union", () => {
+  it("matches the Core state union in both directions (type level)", () => {
+    expectTypeOf<SharedSiteKeyState>().toEqualTypeOf<(typeof ADMIN_SITE_KEY_STATES)[number]>();
   });
 
-  it("matches apps/website/src/contracts/core/site-key-state.ts literal for literal", () => {
-    const source = readFileSync(WEBSITE_SITE_KEY_STATE_SOURCE, "utf8");
-    const match = source.match(/export type SiteKeyState = ([^;]+);/);
-    if (!match) {
-      throw new Error("could not find `export type SiteKeyState = ...` in site-key-state.ts — has it moved or been renamed?");
-    }
-    const serverStates = match[1]
-      .split("|")
-      .map((literal) => literal.trim().replace(/^"|"$/g, ""))
-      .sort();
-
-    expect(ADMIN_SITE_KEY_STATES.slice().sort()).toEqual(serverStates);
+  it("matches the shared AdminSiteKeyState union literal for literal", () => {
+    expect(ADMIN_SITE_KEY_STATES.slice().sort()).toEqual(Object.keys(SHARED_STATES).sort());
   });
 
-  it("is a real, non-trivial list — proves the regex above actually matched something", () => {
+  it("is a real, non-trivial list — proves the comparison above compared something", () => {
     expect(ADMIN_SITE_KEY_STATES.length).toBeGreaterThanOrEqual(5);
   });
 });
-

@@ -6,7 +6,8 @@ import {
 } from "@jini-ai/cms/admin-http/routes/database/migrate-forward";
 import { executeMigrateForward, MigrationAlreadyInFlightError, RestorePointUnavailableError } from "@jini-ai/db/recovery/migrate-forward-execute";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
-import { authorizeForHooks, confirm, execute, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
+import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";

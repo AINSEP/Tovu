@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AI_ASSISTANT_DICT } from "../../ai-assistant/ai-assistant-i18n";
-import { STORED_KEY_NO_ENDPOINT_COPY, STORED_KEY_OTHER_PROVIDER_COPY } from "@/lib/stored-credential-endpoint";
+import { STORED_KEY_NO_ENDPOINT_COPY, STORED_KEY_OTHER_PROVIDER_COPY } from "@jini-ai/admin/shell/lib/stored-credential-endpoint";
 import { t } from "../settings-execution-i18n";
 
 /**

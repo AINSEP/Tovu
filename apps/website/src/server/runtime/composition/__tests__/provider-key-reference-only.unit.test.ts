@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fakeAttachments } from '#src/features/project-keys/__tests__/helpers';
-import { withAttachedProject, withUnavailableProject, type ProviderConfigSource } from '../provider-config-source.js';
+import { withAttachedProject, withUnavailableProject } from '../provider-config-source.js';
+import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 
 const keyId = 'plugin-state:example:provider.config';
 function source(scope: 'site' | 'project'): ProviderConfigSource {

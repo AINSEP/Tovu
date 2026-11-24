@@ -21,7 +21,7 @@ import {
   type PluginProviderDeclaration,
 } from "@jini-ai/core/contracts/plugin-sdk";
 
-import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
+import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';
 import { resolveTovuObservabilityExport } from './observability-export.js';
 import { processBuildRelease } from './build-release.js';

@@ -1,4 +1,4 @@
-import type { CredentialSubmitFailure } from "../../lib/credential-submit-error";
+import type { CredentialSubmitFailure } from "@jini-ai/admin/shell/lib/credential-submit-error";
 import type { AdminPublishConnectionInput, AdminPublishCredentialProviderId, AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishExecutionMode } from "../security/api/security-api.types";
 import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview, AdminPublishRunSnapshot, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField, AdminStaticPublishConfig, AdminStaticPublishTargetId } from "./api/deployment-api.types";
 import type { AdminExportRunSnapshot } from "../import-export/api/import-export-api.types";

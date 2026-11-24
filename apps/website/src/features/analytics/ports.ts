@@ -25,23 +25,8 @@
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
-import type {
-  AnalyticsAggregateRow,
-  AnalyticsDomainEventName,
-  AnalyticsDomainEventPayloads,
-  AnalyticsEventRow,
-  AnalyticsGoalDef,
-  AnalyticsGranularity,
-  AnalyticsSessionRow,
-  AnalyticsSiteConfig,
-  DimensionName,
-  IngestBeacon,
-  IngestContext,
-  NormalizedHit,
-  RealtimeSnapshot,
-  StatsQuery,
-  StatsResult,
-} from "@jini-ai/analytics";
+import type { AnalyticsAggregateRow, AnalyticsDomainEventName, AnalyticsDomainEventPayloads, AnalyticsEventRow, AnalyticsGoalDef, AnalyticsGranularity, AnalyticsSessionRow, AnalyticsSiteConfig, DimensionName, RealtimeSnapshot, StatsQuery, StatsResult } from "@jini-ai/analytics";
+import type { IngestBeacon, IngestContext, NormalizedHit } from "@jini-ai/core/contracts/site/analytics";
 
 /** Static capabilities of a sink adapter (frozen-minimal surface, cf. ADR-027 presign). */
 export interface AnalyticsSinkCapabilities {

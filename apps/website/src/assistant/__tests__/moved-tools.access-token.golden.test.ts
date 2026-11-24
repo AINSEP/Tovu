@@ -18,7 +18,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from '@ji
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/platform/system';
-import type { UIResource } from '@jini-ai/protocol/mcp-ui';
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from '../../__tests__/fixtures/site-layout-context.js';
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from '../../__tests__/support/credential-save.js';
 import { mcpTestPort, credentialTestPort } from '../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js';

@@ -5,7 +5,7 @@ import type { AssetBlobRepoPort, BlobStorePort } from "#src/features/media/index
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort } from "@jini-ai/core/contracts/site/cms-forms";
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type {
   ContentLookupPort,
@@ -27,7 +27,7 @@ import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type { EntryListExcludingTypesPort } from "@jini-ai/cms/widgets/resolvers";
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PrincipalRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import type { DiscoveredTheme } from "#src/features/theme/catalog";

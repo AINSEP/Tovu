@@ -5,7 +5,7 @@ import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collec
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
-import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
+import { VERSION_CONFLICT_MESSAGE } from "@jini-ai/admin/shell/lib/version-conflict";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "@jini-ai/admin/shell/lib/router";
 import { slugRedirectPath } from "@jini-ai/admin/shell/lib/slug-redirect-path";

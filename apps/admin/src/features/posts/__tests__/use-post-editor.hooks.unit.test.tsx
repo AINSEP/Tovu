@@ -121,7 +121,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   // A REFUSED autosave mirrors the operator's text into `localStorage`
-  // (`lib/standing-draft-local-backup.ts`), and jsdom keeps one storage for the whole file — so
+  // (`lib/shell-collaborators.ts`'s `standingDraftLocalBackup`), and jsdom keeps one storage for the whole file — so
   // without this, one test's refused draft becomes the NEXT test's mount-time `recoverableDraft`
   // for the same post id. Refusals are reachable from any test here now that
   // `createFakePostEditorPort` models the server's real version guard.

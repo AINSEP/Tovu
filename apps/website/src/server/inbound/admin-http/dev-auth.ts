@@ -11,11 +11,7 @@ import {
   type AuthRequest, type AuthSessionOptions, type BootRedemption,
 } from "@jini-ai/user-management/admin-http/auth";
 
-import {
-  type IdentityRepos,
-  type PrincipalKind as IdentityPrincipalKind,
-  type PrincipalRecord,
-} from "@jini-ai/user-management";
+import type { PrincipalKind as IdentityPrincipalKind, IdentityRepos, PrincipalRecord } from "@jini-ai/core/contracts/site/user-management";
 import {
   beginOwnerLogin,
   beginPrincipalSignIn,
@@ -26,8 +22,8 @@ import {
   logout,
   NodeSessionTokens,
   validateSession,
-  type AuthServiceDeps,
 } from "@jini-ai/user-management/server";
+import type { AuthServiceDeps } from "@jini-ai/core/contracts/site/user-management-server";
 import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
 import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";

@@ -1,6 +1,6 @@
 import type { FrontendSessionOwner } from '@jini-ai/core/contracts/site/daemon';
-import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import type { VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
+import type { ToolAttemptAuditSink } from "@jini-ai/core/contracts/site/daemon-tool-audit";
+import type { VisitorToolPolicy } from "@jini-ai/core/contracts/site/site-assistant-visitor-tools-management";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
 import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
 

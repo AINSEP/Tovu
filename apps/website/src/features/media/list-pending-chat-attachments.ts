@@ -39,7 +39,7 @@ import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
  * no results: neither another conversation nor an earlier message may donate pending files.
  */
 import type { ToolExecutionContext, ToolHandler, ToolRegistration } from "@jini-ai/core";
-import type { PendingAttachmentSummary } from "@jini-ai/daemon/http";
+import type { PendingAttachmentSummary } from "@jini-ai/core/contracts/site/daemon-http";
 
 export const CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID = "chat_list_pending_attachments";
 

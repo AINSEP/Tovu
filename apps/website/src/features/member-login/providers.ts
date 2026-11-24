@@ -7,7 +7,8 @@ import { parseLoginProviders as parseLoginProviderPresets } from "@jini-ai/user-
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { loadPluginContributionsFromSource, type LoadPluginContributions,
   type PluginContributionDefinition } from "../agent-plugins/lifecycle.js";
-import type { LoginProvider, LoginProviderPreset } from "@jini-ai/user-management/server";
+import type { LoginProviderPreset } from "@jini-ai/user-management/server";
+import type { LoginProvider } from "@jini-ai/core/contracts/site/user-management-server";
 
 export const LOGIN_PROVIDERS_FILENAME = "jini-login-providers.json";
 

@@ -9,7 +9,7 @@
  *   UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts
  */
 
-import type { AgentNavigationScreen } from "@jini-ai/agentic";
+import type { AgentNavigationScreen } from "@jini-ai/core/contracts/site/agentic";
 
 export const ADMIN_SCREENS: readonly AgentNavigationScreen[] = [
   {"id":"dashboard","label":"Overview","description":"Review site status, recent activity and useful next steps.","path":"/","routeTemplates":["/"],"allowedQueryParams":{},"entityTargets":[]},

@@ -7,7 +7,7 @@ import {
   latestSurfaceIdIn,
   surfaceIdOf,
   useRoutedA2uiSurfaceCard,
-} from "../hooks/use-routed-a2ui-surface-card.hooks";
+} from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-routed-a2ui-surface-card.hooks";
 import { resetPlaygroundRenderTargetBus } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 /**
@@ -76,7 +76,7 @@ describe("latestSurfaceIdIn", () => {
       { updateComponents: { surfaceId: "s1" } },
       { createSurface: { surfaceId: "s2" } },
     ];
-    expect(latestSurfaceIdIn(events)).toBe("s2");
+    expect(latestSurfaceIdIn({ events })).toBe("s2");
   });
 
   it("skips events with no surfaceId of their own, keeping the most recent real one", () => {
@@ -85,12 +85,12 @@ describe("latestSurfaceIdIn", () => {
       { someUnrelatedEvent: true },
       { __simulateError: true },
     ];
-    expect(latestSurfaceIdIn(events)).toBe("s1");
+    expect(latestSurfaceIdIn({ events })).toBe("s1");
   });
 
   it("returns undefined for an empty stream or one with no recognizable surfaceId anywhere", () => {
-    expect(latestSurfaceIdIn([])).toBeUndefined();
-    expect(latestSurfaceIdIn([{ foo: "bar" }, { baz: 1 }])).toBeUndefined();
+    expect(latestSurfaceIdIn({ events: [] })).toBeUndefined();
+    expect(latestSurfaceIdIn({ events: [{ foo: "bar" }, { baz: 1 }] })).toBeUndefined();
   });
 });
 

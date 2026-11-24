@@ -2,7 +2,7 @@ import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
-import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import {
   discoverSealedColumns, inventoryVaultCredentials, isVaultRestoreArtifact, opensVaultCredential, SealedCredentialInventoryLimitError,
