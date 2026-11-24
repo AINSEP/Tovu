@@ -1,4 +1,5 @@
-import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 
@@ -19,14 +20,14 @@ import type { AdminPublishDestinationView } from "@/features/publish-content/api
  *
  * ## The credential rule, restated where it is easiest to break
  *
- * `PublishContentPeerSummary` carries `masked` and `hasCredential`. Those are the ONLY
+ * `PublishContentPeerView` carries `masked` and `hasCredential`. Those are the ONLY
  * credential-shaped fields that exist on the client at all. No method on this port takes a peer URL
  * or a secret, and none returns one: every call names a peer by `peerId` and the server resolves
  * the sealed material itself. Do not add a method that breaks that.
  */
 export interface PublishContentPort {
   /** `publish_content.read`. */
-  listPeers(): Promise<{ peers: readonly PublishContentPeerSummary[] }>;
+  listPeers(): Promise<{ peers: readonly PublishContentPeerView[] }>;
   /**
    * `publish_content.apply`. Reads whether this install already has a connected destination, and if
    * not, the candidate pre-filled from the repo's own deploy config. The dialog calls this only when

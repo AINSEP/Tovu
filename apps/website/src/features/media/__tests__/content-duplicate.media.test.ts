@@ -18,7 +18,7 @@ import {
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "@jini-ai/cms/media/site/duplicate-asset";
-import { deriveDuplicateName } from "#src/features/content-duplication/derive-available-name";
+import { deriveDuplicateName } from "#src/features/content-duplication/copy-naming-policy";
 
 /**
  * @file Certifies this domain's `"media"` contribution to `content_duplicate` — the third resource,

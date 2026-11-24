@@ -7,9 +7,10 @@
 import type { CmsSearchDocumentRules } from "@jini-ai/search/site/cms-document-source";
 
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import { isLiveAt } from "#src/contracts/core/scheduled-publish";
+import { isLiveAt } from "@jini-ai/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
-import { toRecord, toPostSearchDocument } from "../post/read-model.js";
+import { toRecord } from "../post/read-model.js";
+import { toPostSearchDocument } from "@jini-ai/cms/posts/search";
 import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 
 export const CMS_SEARCH_RULES: CmsSearchDocumentRules<ContentDatabase> = {

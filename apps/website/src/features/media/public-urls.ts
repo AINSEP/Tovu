@@ -1,6 +1,6 @@
 import { resolveMediaPublicUrls as resolveJiniMediaPublicUrls } from "@jini-ai/cms/media/site/public-urls";
 import type { MediaRecord } from "@jini-ai/cms/media";
-import type { MediaPublicUrlDeps } from "./contracts.js";
+import type { MediaPublicUrlDeps } from "@jini-ai/cms/media/site/contracts";
 
 /**
  * @file The ADR-009 door of `features/media` for `/m/...` public URLs. Jini owns the rendition

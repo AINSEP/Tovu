@@ -1,3 +1,4 @@
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { ApiError, describeApiError, request } from "@/lib/admin-http/request";
 import { adminFailureChannel, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { isClipboardRefusal } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
@@ -51,6 +52,9 @@ export const taxonomyHostKit: TaxonomyHostKit = {
   },
   useContentRefreshSubscription,
   useTaxonomyHtmlEmbed,
+  useFetchMutation,
+  useFetchQuery,
+  useInvalidate,
 };
 
 /** Builds a real {@link ApiError} for `createFakeTaxonomyPort`'s blocked-trash seed — `describeDeleteBlocked`

@@ -45,8 +45,8 @@ test("the host binding injects Tovu's policy: drift wording, type aliases, query
     (error: unknown) => error instanceof PublishPlanDriftError && error.message === "The live site changed while publishing was being planned. Check the list again.",
   );
   assert.equal(barrel.decodePublishCriteriaFromQuery({ raw: "x".repeat(4001) }), null);
-  assert.throws(() => barrel.parsePublishContentToolInput({ types: "page" }), /^Error: admin\.publish_content: 'types' must be an array of strings$/);
-  const rows = barrel.toPublishReportRows({ refused: false, rows: [{ entityType: "menu", entityId: "m", outcome: "created", writes: true, entityLabel: "M", reason: null }] } as never);
+  assert.throws(() => barrel.parsePublishContentToolInput({ input: { types: "page" } }), /^Error: admin\.publish_content: 'types' must be an array of strings$/);
+  const rows = barrel.toPublishReportRows({ report: { refused: false, rows: [{ entityType: "menu", entityId: "m", outcome: "created", writes: true, entityLabel: "M", reason: null }] } as never });
   assert.deepEqual([...barrel.applyPublishCriteria({ rows, criteria: { types: ["nav"] } }).deselectedKeys], []);
   assert.equal(rows[0]?.entityTypeLabel, "Menu");
 });

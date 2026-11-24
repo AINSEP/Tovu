@@ -4,7 +4,8 @@ import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import { THEME_DEFAULT_SENTINEL, type PageEditorView } from "@jini-ai/admin/pages/page-editor-rules";
 
-import { VERSION_CONFLICT_CODE, type SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
+import { VERSION_CONFLICT_CODE } from "@jini-ai/core/optimistic-concurrency";
+import type { SaveConflict } from "@jini-ai/admin/shell/lib/version-conflict";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,

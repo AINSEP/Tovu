@@ -28,7 +28,6 @@ import { createSqliteConversationToolApprovalStore } from "#src/assistant/persis
 import { createTrashSweep } from "@jini-ai/cms/trash";
 import { getSlugChangeCapture } from "#src/platform/routing/adapter";
 import { postSearchIndexFor } from "@jini-ai/cms/posts/sql";
-import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";

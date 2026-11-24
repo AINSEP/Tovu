@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { publishScopeDescriptionKey as ruleDescriptionKey, publishScopeTitleKey as ruleTitleKey } from "@jini-ai/admin/publish-content/screen/publish-scope";
-import type { PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
 import { publishSectionForEntityTypes as sectionForEntityTypes } from "@tovu/publish-content-ui";
 
 /** The rules (`@jini-ai/admin`) bound to this admin's section table, exactly as the dialog binds them. */

@@ -1,7 +1,7 @@
 /**
  * @file The host binding for the neutral `@jini-ai/cms/publish/content/ui` module (K5, STAYS-HOST):
  * each function below is the neutral one with this product's policy (`policy.ts`, `sections.ts`)
- * injected, under the SAME name and positional shape the admin dialog and the server-side planners
+ * injected, under the SAME names (object-arg shape: required first, optional second) the admin dialog and the server-side planners
  * have always called — so behaviour and call sites are unchanged. Pure functions only.
  */
 import {
@@ -26,7 +26,7 @@ import {
 } from "./policy.js";
 
 /** @complexity O(n) in the report's row count. */
-export function toPublishReportRows(report: PublishContentReport, { completed = false }: { completed?: boolean } = {}): readonly PublishReportRow[] {
+export function toPublishReportRows({ report }: { report: PublishContentReport }, { completed = false }: { completed?: boolean } = {}): readonly PublishReportRow[] {
   return toRows({ report, policy: PUBLISH_REPORT_POLICY }, { completed });
 }
 
@@ -46,7 +46,7 @@ export function decodePublishCriteriaFromQuery({ raw }: { raw: string }, _option
 }
 
 /** @throws {Error} naming the one `admin.publish_content` field that is malformed. */
-export function parsePublishContentToolInput(input: Record<string, unknown>): PublishCriteria {
+export function parsePublishContentToolInput({ input }: { input: Record<string, unknown> }, _optional: Record<string, never> = {}): PublishCriteria {
   return parseToolInput({ input, capabilityId: PUBLISH_CONTENT_CAPABILITY.id });
 }
 

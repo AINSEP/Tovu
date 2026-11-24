@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
-import type { PublishContentReport } from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentReport } from "@jini-ai/cms/publish/content/ui";
 import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
 import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.hooks";
 

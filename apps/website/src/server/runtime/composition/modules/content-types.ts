@@ -9,7 +9,7 @@ import { entryLifecycleRoute } from "@jini-ai/cms/admin-http/routes/entries/life
 import { entryListRoute } from "@jini-ai/cms/admin-http/routes/entries/list";
 import { entryUpdateRoute } from "@jini-ai/cms/admin-http/routes/entries/update";
 import { processOutbox } from "#src/contracts/core/events/index";
-import { registerContentType, updateContentTypeFields } from "#src/features/content-types/index";
+import { registerContentType, updateContentTypeFields } from "@jini-ai/cms/content-types";
 import { mountAdminJsonRoute, type AdminJsonRoutePortDeps } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";

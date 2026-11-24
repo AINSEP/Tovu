@@ -1,3 +1,5 @@
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
+import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { ApiError, request } from "@/lib/admin-http/request";
 import type { MenusHostKit } from "@jini-ai/admin/screens/menus/menus-host-kit";
@@ -52,4 +54,7 @@ export const menusHostKit: MenusHostKit = {
   useMenuItemActions,
   useMenuCopyEmbed,
   useMenuSave,
+  useCachedLoader,
+  useDirtyGuard,
+  useFetchQuery,
 };

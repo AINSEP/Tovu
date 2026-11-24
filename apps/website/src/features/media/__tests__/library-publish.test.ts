@@ -7,7 +7,7 @@ import { InMemoryOutbox } from '#src/contracts/core/events/index';
 import type { PackedEntity } from '#src/features/publish-content/type-registry';
 import { contributeMediaPublish } from '../publish-content.js';
 import { duplicateMediaAsset } from '@jini-ai/cms/media/site/duplicate-asset';
-import { deriveDuplicateName } from '#src/features/content-duplication/derive-available-name';
+import { deriveDuplicateName } from '#src/features/content-duplication/copy-naming-policy';
 import { libraryFixture } from './library.fixture.js';
 
 test('Library documents and their blobs are absent from publish output; forged apply and public duplication fail', async () => {

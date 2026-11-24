@@ -5,7 +5,8 @@ import { pageGetRoute } from "@jini-ai/cms/admin-http/routes/pages/get-by-id";
 import { pageListRoute } from "@jini-ai/cms/admin-http/routes/pages/list";
 import { pageUpdateHtmlRoute } from "@jini-ai/cms/admin-http/routes/pages/update-html";
 import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
-import { createPost, getAdminPostByIdOrSlug, listAdminPages, PostNotFoundError, type PostRecord } from "#src/features/post/index";
+import { createPost, getAdminPostByIdOrSlug, listAdminPages } from "#src/features/post/index";
+import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 import {
   DEFAULT_PAGE_SKELETON,
   PAGES_EDIT_HTML_PERMISSION,

@@ -1,3 +1,4 @@
+import { parsePublishContentToolInput, PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
@@ -36,7 +37,7 @@ import { readPublishToLiveAvailability } from "@jini-ai/admin/publish-content/sc
 import {
   setPublishToLiveAvailable,
 } from "./features/publish-content/hooks/publish-availability.store";
-import { parsePublishContentToolInput, PUBLISH_CONTENT_CAPABILITY, type PublishCriteria, type PublishRequestResult } from "@jini-ai/cms/publish/content/dialog";
+import { type PublishCriteria, type PublishRequestResult } from "@jini-ai/cms/publish/content/ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "@jini-ai/admin/shell/lib/tab-event-source";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
@@ -751,7 +752,7 @@ export function buildAdminCapabilityExecutors(
   return {
     "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
       if (capabilityId === PUBLISH_CONTENT_CAPABILITY.id) {
-        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput(input)) });
+        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput({ input })) });
       }
       if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
         throw new Error(`no admin capability serves "${capabilityId}"`);

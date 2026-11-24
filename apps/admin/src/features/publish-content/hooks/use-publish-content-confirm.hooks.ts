@@ -1,7 +1,8 @@
-import { publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import { applyPublishCriteria, preparePublishConfirmation, toPublishReportRows, publishEntityTypeLabel, publishEntityTypePluralLabel, publishSectionForEntityTypes } from "@tovu/publish-content-ui";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { applyPublishCriteria, overwriteReplanIsConsistent, preparePublishConfirmation, PublishPlanDriftError, canConfirmPlan, canRequestPlan, confirmationTokenFor, countSelectedPublishing, planOnScreen, reportOnScreen, publishOrderComparator, rowPublishesWithSelection, selectableRowKeys, sortPublishReportRows, summarizePublishReport, toPublishReportRows, type CriteriaSelection, type PublishContentNotSupportedByLive, type PublishContentExecuteResult, type PublishContentOutcomeRow, type PublishContentPeerSummary, type PublishContentPhase, type PublishContentPlanResult, type PublishContentReport, type PublishCriteria, type PublishReportRow, type PublishReportSummary, type PublishRequestResult, type PublishScope } from "@jini-ai/cms/publish/content/dialog";
+import { overwriteReplanIsConsistent, PublishPlanDriftError, canConfirmPlan, canRequestPlan, confirmationTokenFor, countSelectedPublishing, planOnScreen, reportOnScreen, publishOrderComparator, rowPublishesWithSelection, selectableRowKeys, sortPublishReportRows, summarizePublishReport, type CriteriaSelection, type PublishContentNotSupportedByLive, type PublishContentExecuteResult, type PublishContentOutcomeRow, type PublishContentPhase, type PublishContentPlanResult, type PublishContentReport, type PublishCriteria, type PublishReportRow, type PublishReportSummary, type PublishRequestResult, type PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 /**
  * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
@@ -71,7 +72,7 @@ export interface PublishContentConnectOffer {
  *  component gets finished strings and booleans, not state to interpret. */
 export interface PublishContentConfirmView {
   readonly phase: PublishContentPhase;
-  readonly peers: readonly PublishContentPeerSummary[];
+  readonly peers: readonly PublishContentPeerView[];
   readonly selectedPeerId: string | null;
   /** Choosing a different site discards any plan on screen — a plan belongs to the site that made
    *  it — and is ignored while {@link peerSelectionEnabled} is `false`. */
@@ -314,7 +315,7 @@ function completionMessagesFor(
 /** Count actual row outcomes, retaining the count-only reply from older peers.
  * @complexity O(n) actual report rows; no I/O. */
 function completionOutcomeMessage({ result, t }: { result: PublishContentExecuteResult; t: Translate }, _options = {}): string {
-  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows({ report: result.report, entityTypeLabel: publishEntityTypeLabel }) }) : null;
+  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows({ report: result.report }) }) : null;
   const changeCount = actual?.publishing ?? result.changeSetIds.length;
   const published = publishedCountMessage({ count: changeCount, t });
   const skipped = actual?.skipped ?? 0;
@@ -441,7 +442,7 @@ function canConfirmSelection(
 }
 
 /** A sole target is unambiguous; multiple targets still require the operator's selection. */
-function singlePublishPeerId(peers: readonly PublishContentPeerSummary[]): string | null {
+function singlePublishPeerId(peers: readonly PublishContentPeerView[]): string | null {
   return peers.length === 1 ? peers[0].id : null;
 }
 
@@ -480,7 +481,7 @@ export function usePublishContentConfirm(props: {
 
   const [phase, setPhase] = useState<PublishContentPhase>({ kind: "idle" });
   // Load the target list before offering destination discovery for an empty install.
-  const [peers, setPeers] = useState<readonly PublishContentPeerSummary[]>([]);
+  const [peers, setPeers] = useState<readonly PublishContentPeerView[]>([]);
   const [peersLoaded, setPeersLoaded] = useState(false);
   const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
   const [peersError, setPeersError] = useState<string | null>(null);
@@ -800,7 +801,7 @@ export function usePublishContentConfirm(props: {
     // The plan on screen is not yet the one the operator's latest tick describes.
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
-    const planRows = toPublishReportRows({ report: plan.details, entityTypeLabel: publishEntityTypeLabel });
+    const planRows = toPublishReportRows({ report: plan.details });
     const selectable = selectableRowKeys({ rows: planRows });
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
     if (keep.length === 0) return;
@@ -814,7 +815,7 @@ export function usePublishContentConfirm(props: {
       // drop an "Overwrite on live" tick. A ticked row the operator ALSO unchecked is not in
       // `keep`, so its key is dropped here: an overwrite of something not being published
       // would only ask live to force a row the bundle doesn't carry.
-      const confirmed = await preparePublishConfirmation({ entityTypeLabel: publishEntityTypeLabel,
+      const confirmed = await preparePublishConfirmation({ 
         plan,
         deselectedKeys,
         planPublish: (input, _options = {}) => planInScope({ peerId, ...input }),
@@ -919,7 +920,7 @@ export function usePublishContentConfirm(props: {
     const { criteria, applyOverwriteKeys } = criteriaInputs.current;
     if (criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
     criteriaAppliedRef.current = true;
-    const sel = applyPublishCriteria({ rows: toPublishReportRows({ report: phase.plan.details, entityTypeLabel: publishEntityTypeLabel }), criteria });
+    const sel = applyPublishCriteria({ rows: toPublishReportRows({ report: phase.plan.details }), criteria });
     criteriaSelectionRef.current = sel;
     setDeselectedKeys(sel.deselectedKeys);
     if (sel.overwriteKeys.size > 0) {
@@ -1107,7 +1108,7 @@ function publishReportSelection(
   // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
-    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows({ report: report, entityTypeLabel: publishEntityTypeLabel }, { completed: phase.kind === "done" }), locale });
+    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows({ report: report }, { completed: phase.kind === "done" }), locale });
   const summary = report === null || phase.kind === "done" ? null : summarizePublishReport({ rows });
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.
@@ -1262,7 +1263,7 @@ function publishPrimaryDisabled(
  *  from the loaded list, or a generic "the live site" when that list does not name `peerId`
  *  (`onSelectPeer` accepts any id). @complexity O(peers). */
 export function publishMismatchMessage(
-  { peers, peerId, t }: { peers: readonly PublishContentPeerSummary[]; peerId: string; t: Translate },
+  { peers, peerId, t }: { peers: readonly PublishContentPeerView[]; peerId: string; t: Translate },
   _options: Record<string, never> = {}
 ): string {
   const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
@@ -1273,7 +1274,7 @@ export function publishMismatchMessage(
 function publishConnectOffer(
   { peersLoaded, peers, peersError, destinationLoaded, destination }: {
     peersLoaded: boolean;
-    peers: readonly PublishContentPeerSummary[];
+    peers: readonly PublishContentPeerView[];
     peersError: string | null;
     destinationLoaded: boolean;
     destination: AdminPublishDestinationView | null;
