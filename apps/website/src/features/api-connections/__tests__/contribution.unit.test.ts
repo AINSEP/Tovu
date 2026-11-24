@@ -111,6 +111,35 @@ test("parse: the same connection id declared twice is refused", () => {
 const loaderFor = (packageRoot: string): LoadPluginContributions => (input) =>
   loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot }, definition: input.definition });
 
+const vendorClients = {
+  web: { clientIdEnv: "VENDORX_ACME_OFFICE_OAUTH_WEB_CLIENT_ID", clientSecretEnv: "VENDORX_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET" },
+};
+
+test("load: a plugin whose manifest declares a client namespace is admitted under it, with no plugin id known to the loader", async (t) => {
+  const root = acmeFixtureCopy(t, (declaration) => { declaration.clients = vendorClients; });
+  const asked: string[] = [];
+  const loaded = await loadDeclaredApiConnections(
+    { workspaceId: "ws-1", loadContributions: loaderFor(root) },
+    { clientNamespaceFor: async ({ pluginId }) => { asked.push(pluginId); return "VENDORX_"; } },
+  );
+  assert.deepEqual(asked, [ACME_PLUGIN], "the namespace is asked of the plugin that declared the connection");
+  assert.deepEqual(loaded.connections.map(({ clients }) => clients), [vendorClients]);
+  assert.deepEqual(loaded.refusals, []);
+});
+
+test("load: a plugin that declares no client namespace gets this host's own namespace", async (t) => {
+  const root = acmeFixtureCopy(t, (declaration) => { declaration.clients = vendorClients; });
+  const loaded = await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) }, { clientNamespaceFor: async () => undefined });
+  assert.deepEqual(loaded.connections, []);
+  assert.deepEqual(loaded.refusals, ["API connection 'account' from 'acme-office' was not loaded: Client settings must belong to this plugin's TOVU_ACME_OFFICE_ namespace."]);
+});
+
+test("load: with no namespace source at all the host namespace applies", async (t) => {
+  const root = acmeFixtureCopy(t, () => {});
+  const loaded = await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) });
+  assert.equal(loaded.connections.length, 1);
+});
+
 test("load: Google Workspace admits the canonical Jini web and desktop client settings", async (t) => {
   const clients = {
     web: { clientIdEnv: "JINI_GOOGLE_WORKSPACE_OAUTH_WEB_CLIENT_ID", clientSecretEnv: "JINI_GOOGLE_WORKSPACE_OAUTH_WEB_CLIENT_SECRET" },
@@ -120,7 +149,7 @@ test("load: Google Workspace admits the canonical Jini web and desktop client se
   const loaded = await loadDeclaredApiConnections({
     workspaceId: "ws-1",
     loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "google-workspace", packageRoot: root }, definition: input.definition }),
-  });
+  }, { clientNamespaceFor: async () => "JINI_" });
   assert.deepEqual(loaded.connections.map(({ pluginId, clients }) => ({ pluginId, clients })), [{ pluginId: "google-workspace", clients }], "the trusted Google Workspace connection must keep both canonical runtime clients");
   assert.deepEqual(loaded.refusals, [], "canonical Google Workspace client settings must not be refused");
 });
@@ -147,7 +176,7 @@ test("load: Google Workspace refuses the old Tovu client setting names", async (
   const loaded = await loadDeclaredApiConnections({
     workspaceId: "ws-1",
     loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "google-workspace", packageRoot: root }, definition: input.definition }),
-  });
+  }, { clientNamespaceFor: async () => "JINI_" });
   assert.deepEqual(loaded.connections, [], "Google Workspace must not retain the old Tovu runtime client names");
   assert.deepEqual(loaded.refusals, ["API connection 'account' from 'google-workspace' was not loaded: Client settings must belong to this plugin's JINI_GOOGLE_WORKSPACE_ namespace."], "the refusal must identify Google Workspace's canonical Jini namespace");
 });

@@ -27,6 +27,9 @@ export const API_CONNECTIONS_FILENAME = "jini-connections.json";
 /** This host's client-setting namespace: every plugin's client settings are named `TOVU_<PLUGIN>_OAUTH_<RUNTIME>_CLIENT_*`. */
 const CLIENT_NAMESPACE = "TOVU_";
 
+/** Resolves the client-setting prefix a plugin's manifest declares (`extensions.jini.clientNamespace`); `undefined` when it declares none. */
+export type ClientNamespaceFor = (input: { readonly pluginId: string }) => Promise<string | undefined>;
+
 /** A declared, trusted connection ready for the host to build a service around. */
 export interface DeclaredApiConnection {
   readonly pluginId: string;
@@ -46,13 +49,25 @@ export function parseApiConnectionsFile(required: { readonly raw: string }, _opt
   return parseApiConnectionDeclarations({ raw: required.raw, clientNamespace: CLIENT_NAMESPACE });
 }
 
+/** The first `_`-ended segment of the first declared client id setting (`VENDOR_` in `VENDOR_ACME_OAUTH_WEB_CLIENT_ID`), if the file names one. @complexity O(1). */
+function declaredNamespace({ raw }: { readonly raw: string }, _optional: Record<string, never> = {}): string | undefined {
+  try {
+    const first = (JSON.parse(raw) as { connections?: readonly { clients?: Record<string, { clientIdEnv?: unknown } | undefined> }[] }).connections?.[0]?.clients;
+    const id = Object.values(first ?? {})[0]?.clientIdEnv;
+    return typeof id === "string" ? /^[A-Z][A-Z0-9]*_/.exec(id)?.[0] : undefined;
+  } catch { return undefined; }
+}
+
 const connectionContribution = defineExecutablePluginContribution<ApiConnectionDeclaration, ApiConnectionHooksModule>({
   filename: API_CONNECTIONS_FILENAME, contribution: "API connections",
   parse: ({ raw }) => {
     const parsed = parseApiConnectionsFile({ raw });
     if (parsed.ok) return parsed;
-    const jini = parseApiConnectionDeclarations({ raw, clientNamespace: "JINI_" });
-    return jini.ok ? jini : parsed;
+    // Shape only: a plugin may name settings under the prefix its manifest declares. Who may use which
+    // name is decided per plugin, by `checkApiConnectionClientNamespace` in the loader below.
+    const declared = declaredNamespace({ raw });
+    const alternate = declared === undefined ? parsed : parseApiConnectionDeclarations({ raw, clientNamespace: declared });
+    return alternate.ok ? alternate : parsed;
   }, modulePath: ({ descriptor }) => descriptor.module,
   validate: ({ exported }) => asApiConnectionHooksModule({ exported }),
   refusal: ({ plugin, descriptor, reason }) => `API connection '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
@@ -65,14 +80,17 @@ const connectionContribution = defineExecutablePluginContribution<ApiConnectionD
  */
 export async function loadDeclaredApiConnections(
   required: { readonly workspaceId: string; readonly loadContributions: LoadPluginContributions },
-  _optional: Record<string, never> = {},
+  optional: {
+    /** The client-setting prefix a plugin's manifest declares; absent or `undefined` means {@link CLIENT_NAMESPACE}. */
+    readonly clientNamespaceFor?: ClientNamespaceFor;
+  } = {},
 ): Promise<{ readonly connections: readonly DeclaredApiConnection[]; readonly refusals: readonly string[] }> {
   const load = await required.loadContributions({ workspaceId: required.workspaceId, definition: connectionContribution }, { orderByPluginId: true });
   const connections: DeclaredApiConnection[] = [];
   const refusals = [...load.refusals];
   for (const item of load.items) {
     try {
-      checkApiConnectionClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients, clientNamespace: item.pluginId === "google-workspace" ? "JINI_" : CLIENT_NAMESPACE });
+      checkApiConnectionClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients, clientNamespace: (await optional.clientNamespaceFor?.({ pluginId: item.pluginId })) ?? CLIENT_NAMESPACE });
       const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
       const { clients, budgets, scopeSets, apiOrigins, byoClient } = item.descriptor;
       connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, byoClient, module: item.module });
