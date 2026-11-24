@@ -95,7 +95,7 @@ export function registerAdminServerLogsRoute(
   const logs = optional.logs ?? processServerLogSource;
   mountAdminJsonRoute({ app, spec: serverLogsRoute, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize,
     parseServerLogFilters, readServerLogs: (filters) => readServerLogs({ logs }, filters as ServerLogFilters),
-    isServerLogFilterError: (error): error is Error => error instanceof ServerLogFilterError } },
+    serverLogFilterReply: ({ error }) => (error instanceof ServerLogFilterError ? error.message : undefined) } },
   { authorization: "direct", failure: { operation: "routes/system/server-logs", code: "INTERNAL_ERROR" } });
 }
 

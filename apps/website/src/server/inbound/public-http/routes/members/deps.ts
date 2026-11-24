@@ -1,4 +1,5 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 /**
  * @file Deps bundle for the new PUBLIC (unauthenticated) `members` route family
@@ -70,6 +71,7 @@ export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
 export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, optional: { request?: Request } = {}): MembersWriteServiceDeps {
   const request = optional.request;
   return {
+    orFallbackSync,
     onMemberCreated: request ? ({ workspaceId, memberId, creationSource, initialState }) => {
       void captureVisitorEvent({ deps, request, name: "member_registered", properties: {
         eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,

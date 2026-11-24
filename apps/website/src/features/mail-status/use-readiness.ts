@@ -17,6 +17,7 @@
  * projection) is separate: a ready row with a bounced last send is both, and a failed evidence read
  * leaves the state standing with `evidence: null`.
  */
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { SenderIdentityNotConfiguredError, type MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
@@ -193,5 +194,5 @@ export type MailUseReadinessHostDeps = Omit<MailUseReadinessDeps, "newsletterLau
 export function mailUseReadinessDepsFrom(deps: MailUseReadinessHostDeps, _options: Record<string, never> = {}): MailUseReadinessDeps {
   const { originRegistry, newsletterCampaignRepo, membersConsentCapability, newsletterSendingEnabled, ...rest } = deps;
   if (newsletterCampaignRepo === undefined || originRegistry === undefined) return rest;
-  return { ...rest, newsletterLaunchGate: { isSendingEnabled: newsletterSendingEnabled ?? (async () => false), consentCapability: membersConsentCapability ?? null, originRegistry, mailer: deps.mailer } };
+  return { ...rest, newsletterLaunchGate: { isSendingEnabled: newsletterSendingEnabled ?? (async () => false), consentCapability: membersConsentCapability ?? null, orFallback, originRegistry, mailer: deps.mailer } };
 }
