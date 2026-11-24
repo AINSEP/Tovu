@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
-import { mediaAccessEvidence } from "#src/features/media/access-evidence";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
 /**
@@ -25,7 +24,8 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache(kernel = recordingKernel().kernel) {
-  const repo = entryRepoFor({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() });
+  const mediaAccessEvidence = createMediaAccessEvidence();
+  const repo = entryRepoFor({ store: kernel, mediaAccessEvidence });
   const cache = mediaAccessEvidence.getCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();

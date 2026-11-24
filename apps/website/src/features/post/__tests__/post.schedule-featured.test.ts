@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -89,7 +90,7 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
 
 runContract("memory", async () => ({ repo: new InMemoryPostRepo({}), teardown: () => {} }));
 
-describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
+describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
   runContract("sql", async () => ({ repo: makeRepo(), teardown: () => {} }));
 });
 

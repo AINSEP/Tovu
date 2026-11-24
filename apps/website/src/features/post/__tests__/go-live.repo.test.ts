@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -49,6 +50,6 @@ function runContract(name: string, makeRepo: () => PostRepoPort & GoLiveCandidat
 
 runContract("memory", () => new InMemoryPostRepo({}));
 
-describeEachDialect("post go-live candidates", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
+describeEachDialect("post go-live candidates", { tables: ["posts", "post_revisions"], make: (kernel) => postRepoFor(kernel, { mediaAccessEvidence: createMediaAccessEvidence() }) }, (makeRepo) => {
   runContract("sql", makeRepo);
 });

@@ -1,3 +1,4 @@
+import { createMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { entryRepoFor } from "#src/features/entries/entry-repo";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
