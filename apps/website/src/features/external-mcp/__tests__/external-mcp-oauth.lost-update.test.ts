@@ -8,7 +8,7 @@ import { createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from ".
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
+import { createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from "@jini-ai/mcp/federation/hosted";
