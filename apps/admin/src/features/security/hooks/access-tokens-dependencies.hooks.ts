@@ -3,7 +3,7 @@ import { securityApi } from "@/features/security/api/security-api";
 import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/api/source-control-api";
-import { providersApi } from "@/features/providers/api/providers-api";
+import { providersApi } from "@/features/providers/providers-host-ports";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

@@ -2,7 +2,7 @@ import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { SITE_KEY_MANAGE_PERMISSION } from "../rules";
 import { defaultSecurityPermissionsPort } from "./security-permissions-dependencies.hooks";
-import type { SecurityPermissionsPort } from "./security-permissions-port.hooks";
+import type { SecurityPermissionsPort } from "@jini-ai/admin/security/host/hooks/security-permissions-port.hooks";
 
 /**
  * @file `Security.tsx`'s own affordance-hiding controller: whether the current principal holds

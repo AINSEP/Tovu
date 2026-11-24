@@ -5,7 +5,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { siteKeyGenerateErrorMessage } from "./security-i18n";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site-key.hooks";
-import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";
+import { useRevealedKeyCopy } from "@jini-ai/admin/security/host/SiteKeyTab.hooks";
 import { isSiteKeyLocked, siteKeyLockedNote, useWiredSiteKeyRecovery, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 import { SiteKeyRecoveryCard } from "./SiteKeyRecoveryCard";
 
