@@ -283,6 +283,9 @@ function buildIdentityRouteDeps(
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
   // await just the owner id without waiting on the permission-migration fan-out below.
   const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
+  // A failed seed already rejects `identityReady`, which boot awaits (one readable error). This fork is only
+  // read later (`disablePrincipal`), so mark it handled; whoever does await it still sees the rejection.
+  ownerPrincipalId.catch(() => undefined);
 
   const identityReady = createIdentityReady(seedResult, repos, required);
 

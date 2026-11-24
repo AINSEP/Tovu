@@ -1,3 +1,4 @@
+import type { WidgetSlugLookupPort } from "@jini-ai/cms/widgets";
 import type { composeAgentPluginBootstrap } from "./agent-plugin-bootstrap.js";
 import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
 import type { SiteStore } from "../open-site-store.js";
@@ -56,6 +57,8 @@ interface RouteDepsChatAgentsRequired {
   clock: ReturnType<typeof composeStoreBasics>["clock"];
   outbox: ReturnType<typeof composeEventsOrigin>["outbox"];
   entryRefsRepo: ReturnType<typeof composeContentRepos>["entryRefsRepo"];
+  /** B224: the slug lookup a page write uses to give a slug-only widget marker its widget id. */
+  entryRepo: WidgetSlugLookupPort;
   tracker: Awaited<ReturnType<ReturnType<typeof providerPluginBoot>>>["tracker"];
   postRepo: ReturnType<typeof composeContentStores>["postRepo"];
   pluginExports: ReturnType<typeof composePreAssembly>["pluginExports"];
@@ -119,7 +122,7 @@ export function routeDepsContentTrash(required: RouteDepsContentTrashRequired, _
 }
 
 export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _optional = {}): Pick<NewsletterRouteDeps & ByokToolSurfaceDeps, "slugChangeCapture" | "docBodyAsPageHtml" | "pagesHtmlStore" | "chatHistory" | "chatRunLedger" | "agentSessions" | "conversationToolApprovals"> {
-  const { kernel, chat, clock, outbox, entryRefsRepo, tracker, postRepo, pluginExports } = required;
+  const { kernel, chat, clock, outbox, entryRefsRepo, entryRepo, tracker, postRepo, pluginExports } = required;
   return {
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
     // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
@@ -132,7 +135,7 @@ export function routeDepsChatAgents(required: RouteDepsChatAgentsRequired, _opti
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("@jini-ai/core/contracts/site/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml, widgetSlugLookup: entryRepo }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
