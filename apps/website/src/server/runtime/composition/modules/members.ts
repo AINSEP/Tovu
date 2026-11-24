@@ -1,9 +1,4 @@
 import { createReadyLoginProviderList } from "#src/features/member-login/index";
-import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
-import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
-import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
-import { registerAdminMemberDisableRoute } from "#src/server/inbound/admin-http/routes/members/disable";
-import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/admin-http/routes/members/request-magic-link";
 import type { MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { memberDeleteRoute } from "@jini-ai/cms/admin-http/routes/members/delete";

@@ -86,7 +86,7 @@ export function composeMemoryTrash(required: MemoryTrashInput, _optional = {}) {
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) }), adapter: pluginTrashAdapter, remove: bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) }), adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash,
     entityType: PLUGIN_ENTITY_TYPE
   }) });

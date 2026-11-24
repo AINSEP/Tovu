@@ -15,7 +15,7 @@ import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { createTrashService } from "@jini-ai/cms/trash";
 
 /** The host binding of the rollback reporter, exactly as the composition sites bind it. */
-const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
+const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) });
 
 const WS = "workspace-1";
 const ENTITY = "plugin";

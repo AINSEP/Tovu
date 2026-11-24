@@ -78,6 +78,6 @@ export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
 /** Host binding of the Jini rollback reporter: a failed unhide is written to stderr with the same
  *  line as before the move. Theme trash wiring imports it from here (theme files are frozen). */
-export const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) });
+export const reportDirectoryRollbackFailure = createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) });
 export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

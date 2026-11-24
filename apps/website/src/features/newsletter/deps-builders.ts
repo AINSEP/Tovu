@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ConfirmationDeps } from "./confirmation.js";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
@@ -69,6 +70,7 @@ export function buildSendPipelineDeps(
       consentCapability: deps.membersConsentCapability,
       originRegistry: deps.originRegistry,
       mailer: deps.mailer,
+      orFallback,
     },
     // Campaign mail is bulk: each recipient gets signed RFC 8058 one-click unsubscribe headers.
     ...(unsubscribe === undefined ? {} : { unsubscribe }),

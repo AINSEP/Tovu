@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { trashMember } from "@jini-ai/user-management/members/trash-member";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/members';
@@ -235,7 +236,7 @@ function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
       ctx.signal.throwIfAborted();
-      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
+      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
         void deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
         } });
@@ -248,7 +249,7 @@ function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       const memberId = requireString({ input, key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
       ctx.signal.throwIfAborted();
-      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
+      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
   };
@@ -308,7 +309,7 @@ function memberRemovalHandlers(deps: MembersToolDeps): Record<string, ToolHandle
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
       ctx.signal.throwIfAborted();
-      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId } });
+      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps: { ...deps, orFallbackSync } }), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },
 
@@ -344,7 +345,7 @@ function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: buildMembersWriteServiceDeps({ deps: { ...deps, mailTransport: membersMailTransport } }),
+        deps: buildMembersWriteServiceDeps({ deps: { ...deps, mailTransport: membersMailTransport, orFallbackSync } }),
         input: {
           workspaceId: deps.workspaceId,
           email,

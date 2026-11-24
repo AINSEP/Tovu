@@ -66,6 +66,6 @@ export function composePublishingStoresThemes(required: ComposePublishingStoresT
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   return { mediaContentTypeStore, publishContentBundleRepo, publishContentBaselineRepo, publishContentFileBlobIndex, publishContentPeerRepo, publishContentSeedHash, siteThemes, removeTheme };
 }

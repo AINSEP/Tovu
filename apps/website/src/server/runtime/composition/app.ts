@@ -353,7 +353,7 @@ function createMemoryPublishing(context: ReturnType<typeof createMemoryRuntime> 
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: (message, detail) => console.error(message, detail) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: createDirectoryRollbackReporter({ log: ({ message, error }) => console.error(message, error) }), adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createMemoryPublishApply({ ...context,
     publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore,
     mediaContentTypeStore, publishContentSeedHash, siteThemes,
