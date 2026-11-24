@@ -52,7 +52,7 @@ test("importing feature permission modules registers nothing: a fresh registry s
   await import("#src/features/pages/permissions");
   await import("@jini-ai/user-management/identity/site-key-permission");
   await import("#src/features/publish-content/permissions");
-  await import("#src/features/fs-files/custom-root-permission");
+  await import("@jini-ai/cms/fs-files/custom-root-permission");
 
   const fresh = createPermissionGrantRegistry({});
   assert.deepEqual(fresh.roleGrants.list({}), []);

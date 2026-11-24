@@ -4,7 +4,7 @@ import test from "node:test";
 import { createHttpClient } from "#src/platform/http/client";
 import type { HttpRequest, HttpResponse, HttpTransportAdapter } from "#src/platform/http/ports";
 import { WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { createRequestRouter, decideRequest, MAX_REDIRECT_HOPS, type FetchedResource, type OwnSiteFetch, type RouteLike } from "../request-guard.js";
+import { createRequestRouter, decideRequest, MAX_REDIRECT_HOPS, type FetchedResource, type OwnSiteFetch, type RouteLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 /**
  * @file The screenshot browser's request router, against the REAL guarded client (`platform/http`)
@@ -55,7 +55,7 @@ function fakeRoute(url: string, { method = "GET", resourceType = "image", naviga
 const neverOwnSite: OwnSiteFetch = async () => assert.fail("the own-site fetch must not be used for this origin");
 
 function router(client: ReturnType<typeof guardedClient>["client"], { allowedOrigins = [] as string[], ownSiteFetch = neverOwnSite, ...options }: { allowedOrigins?: string[]; ownSiteFetch?: OwnSiteFetch; maxRequests?: number; maxTotalBytes?: number; maxConcurrent?: number } = {}) {
-  return createRequestRouter({ httpClient: client, ownSiteFetch, allowedOrigins, signal: new AbortController().signal }, options);
+  return createRequestRouter({ httpClient: { send: ({ request }) => client.send(request) }, ownSiteFetch, allowedOrigins, signal: new AbortController().signal }, options);
 }
 
 test("decideRequest: only http(s) GET/HEAD is fetched; allowlisted origins take the own-site path", () => {

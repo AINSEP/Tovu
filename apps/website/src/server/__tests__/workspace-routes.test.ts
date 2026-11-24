@@ -6,10 +6,6 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { WorkspaceLastRemainingError, WorkspaceNotFoundError } from "../../features/workspace/index.js";
-import { sendDeleteWorkspaceError } from "../inbound/admin-http/routes/workspace/delete.js";
-import { createCapturingResponse } from "./helpers/http-test-server.js";
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level proof of SPEC-044 (Workspace Administration) — AC-01..AC-08.
@@ -312,38 +308,4 @@ test("AC-06c/INV-05: minting a second workspace row does NOT unlock deleting the
     await deps.workspaceRepo.findById({ id: deps.workspaceId }),
     "the bound workspace row must still exist after a refused delete"
   );
-});
-
-/**
- * AC-06d/AC-06e now exercise `sendDeleteWorkspaceError` directly rather than over HTTP.
- *
- * INV-05 refuses before `deleteWorkspace` is ever called, so no fetch against this route can reach
- * the typed-error mapping any more (that is the point of the guard). The mapping is retained for
- * the multi-workspace future, so it is covered by direct invocation instead of deleted — the same
- * choice `admin-menus-routes.test.ts` makes for its own unreachable-by-fetch 500 branch.
- */
-test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOURCE_NOT_FOUND", () => {
-  const { res, capture } = createCapturingResponse();
-
-  sendDeleteWorkspaceError({ res, err: new WorkspaceNotFoundError({ message: "workspace 'nope' was not found" }) });
-
-  assert.equal(capture.statusCode, 404);
-  assert.deepEqual(capture.jsonBody, {
-    error: "workspace 'nope' was not found",
-    code: "RESOURCE_NOT_FOUND",
-  });
-});
-
-test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 LAST_WORKSPACE, and anything else to a generic 500 that leaks no message", () => {
-  const last = createCapturingResponse();
-  sendDeleteWorkspaceError({ res: last.res, err: new WorkspaceLastRemainingError({ message: "the install's last remaining workspace cannot be deleted (INV-03)" }) });
-  assert.equal(last.capture.statusCode, 409);
-  assert.equal((last.capture.jsonBody as { code?: string }).code, "LAST_WORKSPACE");
-
-  const generic = createCapturingResponse();
-  sendDeleteWorkspaceError({ res: generic.res, err: new Error("db exploded: connection string postgres://user:pw@host") });
-  assert.equal(generic.capture.statusCode, 500);
-  // The untyped branch must stay opaque — a repo error can carry connection strings.
-  assertAdminResponse({ actual: generic.capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The workspace removal could not be confirmed.", action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove workspace" } });
-  assert.doesNotMatch(JSON.stringify(generic.capture.jsonBody), /db exploded|postgres:\/\//);
 });

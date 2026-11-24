@@ -4,7 +4,7 @@ import test from 'node:test';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
 import { renderSiteConsentPreview, siteBannerMode } from '../cookie-consent.js';
-import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
+import { ensureSettingsUiTabDefinitions } from '@jini-ai/cms/webmcp/settings';
 
 const clock = { nowMs: () => Date.parse('2026-10-09T12:00:00.000Z'), nowIso: () => '2026-10-09T12:00:00.000Z' };
 

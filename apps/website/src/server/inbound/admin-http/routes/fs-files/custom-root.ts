@@ -5,13 +5,13 @@ import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
-import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "@jini-ai/cms/fs-files/custom-root-permission";
 import {
   CustomFsRootError,
   getCustomFsRootStatus,
   setCustomFsRoot,
   type CustomFsRootStoreOptional,
-} from "#src/features/fs-files/custom-root-store";
+} from "@jini-ai/cms/fs-files/custom-root-store";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 

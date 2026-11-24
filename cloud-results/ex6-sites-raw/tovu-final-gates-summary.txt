@@ -1,0 +1,16 @@
+HEAD 1a3ef34888
+size exit=1 secs=23
+boundaries exit=0 secs=30
+admin-tsc exit=0 secs=35
+desktop-tsc exit=0 secs=24
+typecheck exit=2 secs=18
+hooks exit=0 secs=1
+worker-import-graph exit=0 secs=13
+errors exit=0 secs=23
+complexity exit=1 secs=27
+typecheck-scripts exit=2 secs=24
+why-comments exit=1 secs=27
+typecheck-tests exit=2 secs=67
+architecture exit=1 secs=79
+route-table-pin exit=1 secs=8
+DONE

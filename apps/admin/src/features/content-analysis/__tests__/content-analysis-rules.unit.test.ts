@@ -13,7 +13,7 @@ import {
   previewRequestBody,
   storedAnalysis,
   type AnalysisState,
-} from "../rules";
+} from "@jini-ai/admin/screens/content-analysis/rules";
 import { VALID_REPORT, VALID_REPORT_JSON, reportJson } from "./content-analysis-fixtures";
 
 /**

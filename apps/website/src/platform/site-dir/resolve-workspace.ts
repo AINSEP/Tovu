@@ -1,6 +1,6 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../db/content-kernel.js";
-import type { WorkspaceRecord } from "../../features/workspace/index.js";
+import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 import { SiteCorruptError, ValidationError } from "./errors.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });

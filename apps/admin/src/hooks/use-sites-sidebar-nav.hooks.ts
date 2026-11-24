@@ -2,9 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { useSidebar } from "@jini-ai/admin/react";
 import type { AdminNavGroup } from "@jini-ai/core/contracts/site/nav";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
-import { defaultSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
-import type { SitesPort } from "@/features/sites/hooks/sites-port.hooks";
-import { useSitesSnapshot } from "@/features/sites/hooks/use-sites-snapshot.hooks";
+import { SITES_LISTING, defaultSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
+import type { SitesPort } from "@jini-ai/admin/screens/sites/sites-port.hooks";
+import { useSitesSnapshot } from "@jini-ai/admin/screens/sites/use-sites-snapshot.hooks";
 
 export interface SitesSidebarNavOptions {
   port?: Pick<SitesPort, "listSites">;
@@ -51,7 +51,7 @@ export function useSitesSidebarNav(
 ): SitesSidebarNavView {
   const { collapsed } = useSidebar();
   const enabled = groups.some((group) => group.items.some((item) => item.id === "sites"));
-  const list = useSitesSnapshot({ port }, { enabled });
+  const list = useSitesSnapshot({ port, listing: SITES_LISTING }, { enabled });
   // currentSite is the live binding, even for an unlisted site; persistedSiteName awaits restart.
   const siteName = enabled ? list.data?.currentSite.name ?? "" : "";
   const { prefix, suffix, label } = formatSitesSidebarLabel({ siteName, locale }, {});

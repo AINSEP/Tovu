@@ -46,6 +46,7 @@ import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbou
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
+import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import {
   registerDuplicateResourceHandler,
@@ -72,11 +73,15 @@ import { contributeWebTools } from "#src/features/web/tool-registrations";
 import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
-import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
-import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
-import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
-import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
-import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
+import { importPlaywrightChromium, playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
+import { createPageCaptureForHost } from "@jini-ai/integrations/web-screenshot/desktop-page-capture";
+import { createPlaywrightPageCapture } from "@jini-ai/diagnostics/web-evidence/playwright-page-capture";
+import { CAPTURE_LIMITS, PageCaptureError } from "@jini-ai/integrations/web-screenshot/web-screenshot";
+import { desktopRenderForHost } from "#src/platform/headless-browser/desktop-render";
+import { RenderServiceError } from "@jini-ai/desktop-host";
+import { createScreenshotTileEncoder } from "@jini-ai/integrations/web-screenshot/screenshot-image";
+import { createOwnSiteOpener } from "@jini-ai/integrations/web-screenshot/own-site-opener";
+import { captureRootFor, createCaptureFileWriter } from "@jini-ai/integrations/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
@@ -113,7 +118,7 @@ import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-the
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
-import { contributeWorkspaceTools } from "#src/features/workspace/index";
+import { contributeWorkspaceTools } from "@jini-ai/cms/workspace/site/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
@@ -132,7 +137,8 @@ import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
-import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
+import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
+import { openLoopbackSiteServer } from "@jini-ai/diagnostics/web-evidence/published-page";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
@@ -560,7 +566,7 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
-  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability })) });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools({ httpClient: createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability }), selectConnectedDestination }) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
@@ -605,7 +611,12 @@ function installWebReadTools(contributions: AssistantToolContributions, { create
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPageCaptureForHost({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+      capture: createPageCaptureForHost({
+        playwright: createPlaywrightPageCapture({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }), limits: CAPTURE_LIMITS, importPlaywrightChromium,
+          createCaptureError: fields => new PageCaptureError(fields), isCaptureTimeout: ({ error }) => error instanceof PageCaptureError && error.kind === "timeout" }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+        nativeCapture: desktopRenderForHost({ env: process.env }),
+        isRenderServiceError: (error): error is RenderServiceError => error instanceof RenderServiceError,
+      }),
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
@@ -702,7 +713,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
   contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations({ registrations: input.registrations, routeDeps: input.routeDeps }, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });
-  contributions.contributors.register({ contribution: contributeWorkspaceTools() });
+  contributions.contributors.register({ contribution: contributeWorkspaceTools({ readToolId: "content_read.workspace" }) });
 
   // `content_duplicate`'s per-resource handler registry (`assistant/duplicate-resource-registry.ts`)
   // — a SEPARATE registration from the ToolContributor calls above (see that file's own header for

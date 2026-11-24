@@ -44,7 +44,7 @@ import type { PresentationSettingsRepoPort } from "../../features/presentation/i
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
-import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
+import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
 import type {

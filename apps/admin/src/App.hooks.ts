@@ -8,8 +8,9 @@ import { createFrontendSessionBridge, createFrontendRequestCaller, createFronten
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
 import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
-import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
+import { registerAdminPageWebMcpTools } from "@jini-ai/agentic/dom/admin-page-tools";
+import { directPageAction } from "@tovu/headless";
+import { browserAgentSettingsPort, useAdminBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "@jini-ai/admin/shell/lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
@@ -847,11 +848,11 @@ export function registerAdminWebMcpTool(
   },
   { modelContext = resolveWebMcpModelContext() }: { modelContext?: AdminWebMcpModelContext | undefined } = {},
 ): void {
-  if (!modelContext || signal.aborted || !getBrowserAgentEnabled({})) return;
+  if (!modelContext || signal.aborted || !browserAgentSettingsPort.getEnabled({})) return;
   const registration = toWebMcpTool({
     capability: PUBLISH_CONTENT_CAPABILITY,
     execute: ({ id, args }) => {
-      if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
+      if (signal.aborted || !browserAgentSettingsPort.getEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
       const execute = executors["admin."];
       if (!execute) throw new Error("WebMCP admin executor is missing");
       return execute.call(executors, id, args);
@@ -874,7 +875,7 @@ export function useAgentPageBridge(
 ): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
-  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
+  const { enabled: webMcpEnabled } = useAdminBrowserAgentSettings({});
   const routeLocation = useRouteLocation();
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
@@ -928,7 +929,11 @@ export function useAgentPageBridge(
       path: "/api/frontend-sessions/request", fetch,
       bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
-    registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
+    registerAdminPageWebMcpTools({
+      driver: pageDriver, signal: webMcpController.signal, directPageAction,
+      isEnabled: () => browserAgentSettingsPort.getEnabled({}),
+      onError: ({ name, error }) => console.warn(`[admin] WebMCP registration failed: ${name}`, error),
+    }, {
       requestPageAction: async (request, _options = {}) => {
         if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
         else await agentBridge.rebind({ signal: request.signal }, {});
