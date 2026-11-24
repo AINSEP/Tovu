@@ -5,7 +5,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { describeApiError } from "@/lib/admin-http/request";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
-import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
+import type { AgentPluginMemoryPort, PluginMemoryListing } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-memory-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 type MemoryStatus = { pluginId: string; message: string } | null;

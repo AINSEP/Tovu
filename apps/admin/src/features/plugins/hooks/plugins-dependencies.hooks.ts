@@ -1,10 +1,10 @@
-import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
-import { pluginsApi } from "@/features/plugins/api/plugins-api";
-import { providersApi } from "@/features/providers/api/providers-api";
+import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import { pluginsApi } from "@/features/plugins/plugins-host-ports";
+import { providersApi } from "@/features/providers/providers-host-ports";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
-import type { PluginsPort } from "./plugins-port.hooks";
+import type { PluginsPort } from "@jini-ai/admin/screens/plugins/hooks/plugins-port.hooks";
 
 /**
  * @file The only place under `features/plugins`'s screen hook that reaches `lib/api` — see

@@ -1,6 +1,6 @@
 import type { ExternalMcpToolApprovalDto } from "@jini-ai/core/contracts/site/cms-external-mcp";
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
-import type { AdminPluginFiles } from "../../plugins/api/plugins-api.types";
+import type { AdminPluginFiles } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 
 /**
  * One configured external MCP server, as the admin tab sees it. Mirrors

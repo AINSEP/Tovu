@@ -10,7 +10,7 @@ import {
   useWiredThemePages,
   type ThemePageRow,
 } from "../hooks/use-theme-pages.hooks";
-import type { ThemePagesFileEntry } from "../hooks/theme-pages-port.hooks";
+import type { ThemePagesFileEntry } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 /**
  * @file `useThemePages` — the "Theme Pages" tab's data load.

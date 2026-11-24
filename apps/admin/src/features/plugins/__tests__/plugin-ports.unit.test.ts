@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { createFakePluginInstallPort, defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
-import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
+import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 /**
  * @file The plugin screens' ports: the live bindings' request shapes (method, path, body) through

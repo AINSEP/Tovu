@@ -9,7 +9,7 @@ import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { databaseApi } from "../../features/database/api/database-api";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { ApiError } from "../admin-http/request";

@@ -6,7 +6,7 @@ import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
 import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";
-import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "./theme-pages-port.hooks";
+import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export type { ThemePageSlugCollision };

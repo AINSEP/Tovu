@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeThemePagesPort } from "../theme-pages-dependencies.hooks";
-import type { ThemePagesFileEntry, ThemePagesPort } from "../theme-pages-port.hooks";
+import type { ThemePagesFileEntry, ThemePagesPort } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 import { useThemePages } from "../use-theme-pages.hooks";
 
 const ABOUT: ThemePagesFileEntry = {

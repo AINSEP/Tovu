@@ -1,5 +1,5 @@
 import { adminFrontendTabId } from "@jini-ai/admin/shell/lib/admin-frontend-session";
-import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
+import type { SelectedComposerSkill } from "@jini-ai/admin/screens/plugins/selected-skills";
 import { useMemo } from "react";
 import { type FrontendSessionBridge } from "@jini-ai/chat/react";
 

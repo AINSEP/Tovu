@@ -1,5 +1,5 @@
 import { themesApi } from "@/features/themes/api/themes-api";
-import type { ThemePagesFileEntry, ThemePagesPort } from "./theme-pages-port.hooks";
+import type { ThemePagesFileEntry, ThemePagesPort } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 /**
  * @file The only place `use-theme-pages.hooks.ts` reaches `lib/api` — see `theme-pages-

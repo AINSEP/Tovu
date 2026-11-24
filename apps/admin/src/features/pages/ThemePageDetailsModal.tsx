@@ -10,7 +10,7 @@ import {
   type ThemePageSlugCollision,
 } from "./hooks/use-theme-pages.hooks";
 import { themePageCollisionMessage, themePagePublishState } from "./lib/theme-page-publish-state";
-import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
+import { useThemePageDetailsModal } from "@jini-ai/admin/pages/ThemePageDetailsModal.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useWiredPageEditor, usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
-import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
 import { PAGES_RESOURCE } from "../rules";

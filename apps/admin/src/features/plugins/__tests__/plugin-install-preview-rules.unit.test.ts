@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { pluginInstallPreviewDisplay } from "../rules";
 import { t as translatePlugins } from "../plugins-i18n";
-import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
+import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 /**
  * @file The install dialog's preview copy (2026-10-04): AW-7 Tier 1's code-free wording for a

@@ -3,7 +3,7 @@ import { Button, Dialog } from "@jini-ai/ui-kit/react";
 
 import { useEffect, useId } from "react";
 
-import type { AdminPlugin, AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPlugin, AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 import { ProviderSettingField } from "./PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";

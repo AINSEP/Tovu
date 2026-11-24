@@ -6,7 +6,7 @@ import { usePostEditor } from "../../features/posts/hooks/use-post-editor.hooks"
 import { createFakePostEditorPort } from "../../features/posts/hooks/post-editor-dependencies.hooks";
 import { usePageEditor } from "../../features/pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../../features/pages/hooks/page-editor-dependencies.hooks";
-import { createFakeThemeCanvasPort } from "../../features/pages/hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks";
 import { readStandingDraftLocalBackup } from "../../lib/standing-draft-local-backup";
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { withTitleNode } from "../../features/posts/rules";

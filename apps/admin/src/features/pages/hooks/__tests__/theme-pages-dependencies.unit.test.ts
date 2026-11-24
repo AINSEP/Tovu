@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ThemePagesFileEntry } from "../theme-pages-port.hooks";
+import type { ThemePagesFileEntry } from "@jini-ai/admin/pages/hooks/theme-pages-port.hooks";
 
 /**
  * @file Coverage for `theme-pages-dependencies.hooks.ts`'s remaining gaps:

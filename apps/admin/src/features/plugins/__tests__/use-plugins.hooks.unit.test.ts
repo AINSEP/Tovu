@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
-import { pluginsApi } from "@/features/plugins/api/plugins-api";
+import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
+import { pluginsApi } from "@/features/plugins/plugins-host-ports";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";

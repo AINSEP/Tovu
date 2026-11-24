@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPluginProviderSettings } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 
 import { t as translate } from "../plugins-i18n";
 import { describeApiError } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
-import type { PluginsPort } from "./plugins-port.hooks";
+import type { PluginsPort } from "@jini-ai/admin/screens/plugins/hooks/plugins-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

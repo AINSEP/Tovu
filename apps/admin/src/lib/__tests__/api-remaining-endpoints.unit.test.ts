@@ -10,7 +10,7 @@ import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
 import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
 

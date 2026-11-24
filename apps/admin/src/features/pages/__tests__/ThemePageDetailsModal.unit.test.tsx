@@ -3,7 +3,7 @@ import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-r
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThemePageDetailsModal } from "../ThemePageDetailsModal";
-import { useThemePageDetailsModal } from "../ThemePageDetailsModal.hooks";
+import { useThemePageDetailsModal } from "@jini-ai/admin/pages/ThemePageDetailsModal.hooks";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
 const row: ThemePageRow = {

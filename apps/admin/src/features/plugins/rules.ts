@@ -1,12 +1,12 @@
 import type { AdminAgentPlugin } from "../integrations/api/integrations-api.types";
-import type { AdminPlugin, AdminPluginConflict, AdminPluginFiles, AdminPluginPackageFile, AdminPluginProviderSettingField } from "./api/plugins-api.types";
+import type { AdminPlugin, AdminPluginConflict, AdminPluginFiles, AdminPluginPackageFile, AdminPluginProviderSettingField } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";
 
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
-import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
+import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Resource names on the existing assistant content-refresh bus. Unknown scope refreshes both. */

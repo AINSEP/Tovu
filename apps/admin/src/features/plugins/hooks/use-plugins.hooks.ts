@@ -1,17 +1,17 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
-import type { PluginsPort } from "./plugins-port.hooks";
+import type { PluginsPort } from "@jini-ai/admin/screens/plugins/hooks/plugins-port.hooks";
 import { usePluginInstall, type PluginInstallController } from "./use-plugin-install.hooks";
 import { defaultPluginInstallPort } from "./plugin-install-dependencies.hooks";
-import type { PluginInstallPort } from "./plugin-install-port.hooks";
+import type { PluginInstallPort } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**

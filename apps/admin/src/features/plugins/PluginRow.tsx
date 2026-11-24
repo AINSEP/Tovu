@@ -1,13 +1,13 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 
 import { pluginRowDetailView, pluginRowFacts } from "./rules";
-import { usePluginRowFocus } from "./hooks/use-plugin-row-focus.hooks";
+import { usePluginRowFocus } from "@jini-ai/admin/screens/plugins/hooks/use-plugin-row-focus.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

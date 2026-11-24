@@ -1,5 +1,6 @@
 import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
-import { createPostsTranslator } from "./Posts.hooks";
+import { createPostsTranslator } from "@jini-ai/admin/posts/Posts.hooks";
+import { t as translateForPosts } from "./posts-i18n";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
 import { agentHandle } from "@jini-ai/core/agent-handles";
@@ -69,7 +70,7 @@ export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLoc
     rowMenuHandleById,
   } = usePostsHook();
   const locale = hooks.useWiredAdminLocale();
-  const t = createPostsTranslator({ locale });
+  const t = createPostsTranslator({ locale, translate: translateForPosts });
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
   // piece of state on this screen. The line to draw: async/API/data state always moves into the

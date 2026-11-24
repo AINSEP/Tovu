@@ -5,7 +5,7 @@ import {
   type ComposerCapabilityProjection,
   type ComposerHostBinding,
 } from "@/features/plugins/composer-capabilities";
-import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
+import { draftAfterSkillSelection, type SelectedComposerSkill } from "@jini-ai/admin/screens/plugins/selected-skills";
 import { loadSkillDraft } from "@/features/skills/api";
 
 export interface ResolveComposerDiscoveryOutcomeDeps {

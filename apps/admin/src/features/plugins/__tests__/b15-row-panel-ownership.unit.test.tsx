@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
-import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import type { AdminPlugin } from "@jini-ai/admin/screens/plugins/api/plugins-api.types";
 import { AgentPluginRow } from "../AgentPluginRow";
 import { PluginRow } from "../PluginRow";
 

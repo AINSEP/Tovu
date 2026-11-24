@@ -1,7 +1,7 @@
 import { createAssistantTransportClient } from "@jini-ai/chat/transports/http";
 import type { ChatMessage, StartRunInput } from "@jini-ai/chat/core";
 import type { ExecutionConfig } from "@jini-ai/ui";
-import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
+import { promptWithSelectedSkills } from "@jini-ai/admin/screens/plugins/selected-skills";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
 import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
 import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";

@@ -1,6 +1,6 @@
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { usersApi } from "@/features/users/api/users-api";
-import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
+import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@jini-ai/admin/screens/trash/api/trash-api.types";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { TrashPort } from "./trash-port.hooks";
 

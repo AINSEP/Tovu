@@ -2,7 +2,7 @@ import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-libr
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
-import type { AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
+import type { AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@jini-ai/admin/screens/trash/api/trash-api.types";
 import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";

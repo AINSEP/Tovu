@@ -47,8 +47,8 @@ import {
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import { applyPartialSave, applySavedPage, applySaveFailure, PageBodyWriteError, writePage } from "./page-editor-save";
 import type { PageEditorPort } from "./page-editor-port.hooks";
-import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
-import type { ThemeCanvasPort } from "./theme-canvas-port.hooks";
+import { defaultThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-dependencies.hooks";
+import type { ThemeCanvasPort } from "@jini-ai/admin/pages/hooks/theme-canvas-port.hooks";
 import {
   resolveCanvasTemplateChoice,
   useThemeCanvasStyling,

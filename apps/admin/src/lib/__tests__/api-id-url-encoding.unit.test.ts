@@ -9,7 +9,7 @@ import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
-import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pluginsApi } from "../../features/plugins/plugins-host-ports";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
