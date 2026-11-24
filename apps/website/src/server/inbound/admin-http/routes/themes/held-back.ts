@@ -38,6 +38,7 @@ const HELD_BACK_STATUS: Record<HeldBackErrorCode, number> = {
   CHECK_FAILED: 409,
   CHANGED_SINCE_CHECK: 409,
   NAME_TAKEN: 409,
+  LIVE_FOLDER_UNSAFE: 409,
 };
 
 /** The approval gateway's refusals (same mapping as the other gated routes), or `null`. */

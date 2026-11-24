@@ -91,3 +91,37 @@ test("held-back marker writer: a marker that arrived inside the imported archive
   recordHeldBackChoice({ siteDir, chosenThemeId: "starter", finalThemeId: "starter" });
   assert.equal(readHeldBackChoice({ siteDir }), null);
 });
+
+test("held-back list reads the manifest name without following a link and within a size bound", () => {
+  const { siteDir, themesDir, held } = site();
+  const linked = path.join(held, "declarative", "linked-manifest");
+  placeTheme(linked);
+  const outside = path.join(siteDir, "outside.json");
+  fs.writeFileSync(outside, JSON.stringify({ name: "Read Through A Link" }));
+  fs.rmSync(path.join(linked, "theme.json"));
+  fs.symlinkSync(outside, path.join(linked, "theme.json"));
+  const huge = path.join(held, "declarative", "huge-manifest");
+  placeTheme(huge);
+  // Valid JSON with a name, but far beyond any real manifest: must not be read whole.
+  fs.writeFileSync(path.join(huge, "theme.json"), JSON.stringify({ name: "Huge", pad: "x".repeat(2 * 1024 * 1024) }));
+  const names = Object.fromEntries(listHeldBackThemes({ siteDir, themesDir }).map(theme => [theme.id, theme.name]));
+  assert.equal(names["declarative/linked-manifest"], "linked-manifest");
+  assert.equal(names["declarative/huge-manifest"], "huge-manifest");
+});
+
+test("held-back restore refuses a live themes parent that is redirected by a link, and moves nothing", () => {
+  const { siteDir, themesDir, held } = site();
+  const dir = path.join(held, "declarative", "minimal-declarative");
+  placeTheme(dir);
+  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-held-back-elsewhere-"));
+  fs.mkdirSync(themesDir, { recursive: true });
+  fs.symlinkSync(elsewhere, path.join(themesDir, "declarative"));
+  const check = checkHeldBackTheme({ siteDir, themesDir, themeId: "declarative/minimal-declarative" });
+  assert.equal(check.passes, true);
+  assert.throws(
+    () => restoreHeldBackTheme({ siteDir, themesDir, themes: [], themeId: "declarative/minimal-declarative", approvedDigest: check.digest! }),
+    (err: { code?: string }) => err.code === "LIVE_FOLDER_UNSAFE",
+  );
+  assert.deepEqual(fs.readdirSync(elsewhere), []);
+  assert.ok(fs.lstatSync(path.join(dir, "theme.json")).isFile());
+});

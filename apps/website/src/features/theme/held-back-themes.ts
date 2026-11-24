@@ -208,6 +208,7 @@ export function restoreHeldBackTheme(required: { siteDir: string; themesDir: str
   if (!check.passes) throw new HeldBackThemeError({ code: "CHECK_FAILED", message: "This theme still fails the safety checks, so it stays held back." }, { problems: check.problems });
   if (check.digest !== required.approvedDigest) throw new HeldBackThemeError({ code: "CHANGED_SINCE_CHECK", message: "This theme's files changed after you approved them. Check it again." });
   const target = path.resolve(required.themesDir, located.id);
+  assertCanonicalLiveParent({ themesDir: required.themesDir, target });
   claimLiveFolder({ target });
   try { fs.renameSync(located.dir, target); } catch (err) { fs.rmdirSync(target); throw err; }
   rescanThemes({ themes: required.themes, dir: required.themesDir });
@@ -218,6 +219,22 @@ export function restoreHeldBackTheme(required: { siteDir: string; themesDir: str
     theme: { id: located.name, name: theme.manifest.name || located.name, status: theme.status === "valid" ? "valid" : "invalid" },
     restoredFrom: located.id,
   };
+}
+
+/**
+ * The live tier folder (`themes/<tier>`) must be the real folder under the real themes folder: a
+ * link anywhere between them would make the rename drop the restored theme wherever it points.
+ * Checked after creating any missing levels and before anything is claimed or moved.
+ * @throws {HeldBackThemeError} `LIVE_FOLDER_UNSAFE`. @complexity O(path depth), two `realpath`s.
+ */
+function assertCanonicalLiveParent(required: { themesDir: string; target: string }): void {
+  const root = path.resolve(required.themesDir);
+  const parent = path.dirname(required.target);
+  fs.mkdirSync(parent, { recursive: true });
+  const expected = path.join(fs.realpathSync(root), path.relative(root, parent));
+  if (fs.realpathSync(parent) !== expected || !fs.lstatSync(parent).isDirectory()) {
+    throw new HeldBackThemeError({ code: "LIVE_FOLDER_UNSAFE", message: "The live themes folder is redirected by a link, so nothing was restored." });
+  }
 }
 
 /** @throws {HeldBackThemeError} `NAME_TAKEN` when the live folder already exists. */

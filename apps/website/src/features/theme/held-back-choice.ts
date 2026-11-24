@@ -24,7 +24,7 @@ const THEME_NAME = new RegExp(`^${NAME}$`);
 /** Only the two tiers a live site's chosen theme can sit in; originals are never "chosen". */
 const CHOSEN_TIERS = ["static", "declarative"] as const;
 
-export type HeldBackErrorCode = "INVALID_ID" | "HELD_BACK_NOT_FOUND" | "APPROVAL_REQUIRED" | "CHECK_FAILED" | "CHANGED_SINCE_CHECK" | "NAME_TAKEN";
+export type HeldBackErrorCode = "INVALID_ID" | "HELD_BACK_NOT_FOUND" | "APPROVAL_REQUIRED" | "CHECK_FAILED" | "CHANGED_SINCE_CHECK" | "NAME_TAKEN" | "LIVE_FOLDER_UNSAFE";
 
 /** A refusal the routes map to an HTTP status; `problems` is set for `CHECK_FAILED`. */
 export class HeldBackThemeError extends Error {
@@ -65,11 +65,39 @@ export function isAbsent(err: unknown): boolean {
   return code === "ENOENT" || code === "ENOTDIR";
 }
 
+/** Real manifests are a few hundred bytes. Quarantined content is untrusted, so the list and the
+ *  fallback notice never read more than this from one `theme.json`. */
+export const MAX_HELD_BACK_MANIFEST_BYTES = 64 * 1024;
+
+/**
+ * The manifest text, or `null` when it is missing, a link (opened with `O_NOFOLLOW`, so a link
+ * swapped in later is not followed either), not a regular file, or over the byte bound. Held-back
+ * folders are quarantined because they failed import checks: a linked `theme.json` could otherwise
+ * surface another file's content as the theme's name.
+ * @throws on any other read fault. @complexity O(min(size, MAX_HELD_BACK_MANIFEST_BYTES)).
+ */
+function readHeldBackManifest(required: { file: string }): string | null {
+  let fd: number;
+  try { fd = fs.openSync(required.file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); } catch (err) {
+    if (isAbsent(err) || (err as NodeJS.ErrnoException | null)?.code === "ELOOP") return null;
+    throw err;
+  }
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile() || stat.size > MAX_HELD_BACK_MANIFEST_BYTES) return null;
+    const buffer = Buffer.alloc(stat.size);
+    return buffer.subarray(0, fs.readSync(fd, buffer, 0, stat.size, 0)).toString("utf8");
+  } finally { fs.closeSync(fd); }
+}
+
 /** `theme.json`'s `name` when it is a non-empty string, else the folder name (also when the
- *  manifest is missing or not JSON). @throws on any other read fault. @complexity O(manifest size). */
+ *  manifest is missing, a link, oversized or not JSON). @throws on any other read fault.
+ *  @complexity O(min(manifest size, MAX_HELD_BACK_MANIFEST_BYTES)). */
 export function heldBackThemeName(required: { dir: string; fallback: string }): string {
   try {
-    const name = JSON.parse(fs.readFileSync(path.join(required.dir, "theme.json"), "utf8"))?.name;
+    const text = readHeldBackManifest({ file: path.join(required.dir, "theme.json") });
+    if (text === null) return required.fallback;
+    const name = JSON.parse(text)?.name;
     return typeof name === "string" && name.trim() ? name : required.fallback;
   } catch (err) {
     if (err instanceof SyntaxError || isAbsent(err)) return required.fallback;
