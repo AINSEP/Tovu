@@ -5352,6 +5352,166 @@
     {
       "id": "95848dd58e39",
       "reason": "Moved to Jini @jini-ai/cms/public-http/routes/agent-plugin-surfaces/files.ts @file doc (w4-routes H)."
+    },
+    {
+      "id": "fdcb57e5a6b3",
+      "reason": "Moved to Jini packages/http-kit/src/__tests__/dev-proxy.test.ts, the comment above the resolveDevProxyPath cases (w5-routes); the tests merged into the http-kit dev-proxy suite, so the former @file doc is now a plain comment, reworded to name resolveDevProxyPath/dev-proxy.ts."
+    },
+    {
+      "id": "bb5e17663288",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts @file (w5-routes); reworded only to take the dev-server URL as devProxyUrl/basePath instead of the host env var and to name createDevProxyUpgradeListener."
+    },
+    {
+      "id": "7d722492c296",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts createDevUpstreamHttpsAgent doc (w5-routes); reworded only to drop the host vite.config.ts path."
+    },
+    {
+      "id": "603ca7813671",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts resolveDevProxyPath doc (w5-routes); adds the basePath @param."
+    },
+    {
+      "id": "03118ac197a8",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts HOP_BY_HOP_RESPONSE_HEADERS doc (w5-routes); reworded only to name createDevProxyRequestHandler."
+    },
+    {
+      "id": "0a44f8626ac0",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts claimedUpgradeUrl doc (w5-routes); reworded for the injected basePath."
+    },
+    {
+      "id": "d315cfc86454",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts createDevProxyUpgradeListener doc (w5-routes); the env-var/SEA no-op paragraph stays in the Tovu adapter apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts registerAdminDevProxyUpgrade doc, where that host decision is made."
+    },
+    {
+      "id": "d579bc2bc302",
+      "reason": "Moved to Jini packages/http-kit/src/dev-proxy.ts createDevProxyUpgradeListener inline comment (w5-routes); reworded for the injected basePath."
+    },
+    {
+      "id": "ef0fa8187219",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts @file (SECURITY and RANGE SUPPORT paragraphs, reworded for the injected parseRangeHeader and returned reply data) (w5-routes); the route, permission and 401/403-before-lookup paragraphs stay in Tovu apps/website/src/server/inbound/admin-http/routes/media/original.ts @file."
+    },
+    {
+      "id": "fa04c0adb89b",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts DISALLOWED_INLINE_CONTENT_TYPES doc (w5-routes); reworded only to drop the host route path."
+    },
+    {
+      "id": "4ad2a8e7a364",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts lookupMediaOriginalBlob doc (w5-routes); reworded because it now returns a not-found/trashed outcome instead of writing the response, the not-found policy paragraph kept; the reuse-by-the-public-route rationale is carried by the module @file (admin, public and chat-attachment routes all share it)."
+    },
+    {
+      "id": "f3287c320058",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts decideMediaOriginalReply doc (w5-routes); reworded because it returns status/headers/body instead of writing to a response."
+    },
+    {
+      "id": "674a84dff03c",
+      "reason": "Obsolete, not moved (w5-routes): the SendOriginalInput interface it described no longer exists. Evidence: Tovu media/original.ts is now a thin route over Jini decideMediaOriginalForAsset, whose arguments ({ deps, media, blob, rangeHeader }) are typed inline in packages/cms/src/media/original-response.ts."
+    },
+    {
+      "id": "9bc03e48458d",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts decideDocumentOriginal doc (w5-routes); reworded only so the host, not the caller, answers 500."
+    },
+    {
+      "id": "c6664a8c465a",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts documentDisposition inline comment (w5-routes); reworded only for the TextEncoder/TextDecoder round-trip that replaced the Node Buffer one."
+    },
+    {
+      "id": "156f40697a39",
+      "reason": "Moved to Jini packages/cms/src/media/original-response.ts decideInlineOriginal inline comment (w5-routes); reworded because the no-store header is now set once by originalSecurityHeaders (Cache-Control private, no-store)."
+    },
+    {
+      "id": "0aff2b09722f",
+      "reason": "Kept in Tovu apps/website/src/server/inbound/admin-http/routes/publish-content/route-helpers.ts @file (w5-routes); reworded to Express glue, pointing at the Jini transport-shared bodyRecord and import.ts readOverwriteEntityKeys that now own the body reader and the 1000-entry cap."
+    },
+    {
+      "id": "14ca6cf09d1c",
+      "reason": "Obsolete, not moved (w5-routes): the INVALID_OVERWRITE_KEYS symbol it explained is gone. Evidence: Jini packages/cms/src/admin-http/routes/publish-content/import.ts readOverwriteEntityKeys now returns OverwriteEntityKeys | \"invalid\" (typed, with the null = force nothing case documented on OverwriteEntityKeys), and Tovu route-helpers.ts acceptOverwriteEntityKeys maps \"invalid\" to the 400."
+    },
+    {
+      "id": "bc91fe36aa3f",
+      "reason": "Moved to Jini packages/cms/src/admin-http/routes/publish-content/import.ts readOverwriteEntityKeys doc (w5-routes); dropped only the sentence about the former per-route-file reader, since the reader now lives in one Jini place."
+    },
+    {
+      "id": "17b95af9e0f9",
+      "reason": "Moved to Jini packages/cms/src/widgets/site/preview-render.ts resolveWidgetPreviewIr doc (w5-routes); the Tovu adapter's renderWidgetPreview doc now describes the host binding."
+    },
+    {
+      "id": "bf7c47848f74",
+      "reason": "Moved to Jini packages/daemon/src/run-start-decisions.ts @file (w5-routes); reworded only to say 'a host's agent-daemon entry' instead of naming the host file."
+    },
+    {
+      "id": "8a1ab92e2235",
+      "reason": "Moved to Jini packages/core/src/contracts/run-attempt.ts DurableAttemptStatus doc (w5-routes)."
+    },
+    {
+      "id": "737848e38535",
+      "reason": "Kept in Tovu apps/website/src/server/runtime/composition/widget-render-host.ts (w5-routes); reworded to describe the injected host classes/id prefix."
+    },
+    {
+      "id": "913c739b4130",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/contact-form-widget.ts renderContactFormWidget doc (w5-routes); the host-class/id-prefix sentence stays in Tovu widget-render-host.ts."
+    },
+    {
+      "id": "36c66268b8a7",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/contact-form-widget.ts doc (w5-routes); reworded for the injected host classes."
+    },
+    {
+      "id": "60635a77c915",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/contact-form-widget.ts (w5-routes), same wording with the host form hook passed in."
+    },
+    {
+      "id": "6f34f220db20",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/doc-nodes.ts render-depth bound comment (w5-routes); reworded only to drop the internal audit ids."
+    },
+    {
+      "id": "d7a313483805",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/doc-nodes.ts post-title node comment (w5-routes); reworded only to drop host admin file paths."
+    },
+    {
+      "id": "15bf087ac0c4",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/doc-nodes.ts renderDocMention comment (w5-routes); reworded only to drop host file paths (the host post feature)."
+    },
+    {
+      "id": "f8515ef53cef",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/doc-nodes.ts widget-wrapper class-list doc (w5-routes)."
+    },
+    {
+      "id": "28162a14dbed",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/media-ref.ts (w5-routes)."
+    },
+    {
+      "id": "4bd2ee7c5f06",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/doc/media-ref.ts (w5-routes)."
+    },
+    {
+      "id": "0880ecec0142",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/widgets/post-content.ts (w5-routes); reworded only to drop the host template-preview path."
+    },
+    {
+      "id": "0c621b075c1e",
+      "reason": "Moved to Jini packages/cms/src/public-http/http/site/render/widgets/social-entries.ts recent-entries renderer doc (w5-routes); the legacy host marker attribute is now a jini-* name."
+    },
+    {
+      "id": "8c9a69f23d0f",
+      "reason": "Moved to Jini packages/cms/src/public-http/middleware/render-theme-override.ts resolveRenderThemeId doc (w5-routes); reworded for the injected resolveStoredThemeId reader."
+    },
+    {
+      "id": "a25ab2224e6c",
+      "reason": "Moved to Jini packages/cms/src/media/rendition-negotiation.ts PRIVATE_NO_STORE doc (w5-routes); reworded to name a single host helper."
+    },
+    {
+      "id": "bd0c4120791e",
+      "reason": "Moved to Jini packages/cms/src/media/rendition-negotiation.ts renditionCacheControl (w5-routes), verbatim."
+    },
+    {
+      "id": "06724d5b4f54",
+      "reason": "Kept in Tovu apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts (w5-routes); reworded only to name lookupMediaOriginalBlob and its not-found outcome."
+    },
+    {
+      "id": "a425146036fa",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/site/pages/render-context/static-menus.ts (w5-routes); the extraMenuIds paragraph stays in Tovu render-context/static-menus.ts resolveStaticMenusForRender doc, where that parameter lives."
+    },
+    {
+      "id": "b27ee55a9dd1",
+      "reason": "Moved to Jini packages/cms/src/public-http/routes/site/pages/render-context/static-menus.ts collaborators doc (w5-routes); reworded for the injected collaborators."
     }
   ]
 }
