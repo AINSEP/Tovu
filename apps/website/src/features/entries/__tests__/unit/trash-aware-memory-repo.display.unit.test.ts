@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ContentTypeFieldDef } from "#src/features/content-types/index";
+import type { ContentTypeFieldDef } from "@jini-ai/cms/content-types";
 
 import { createEntry, publishEntry, EntrySlugConflictError } from "@jini-ai/cms/entries";
 import type { EntryRecord } from "@jini-ai/cms/entries";

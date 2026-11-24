@@ -3,7 +3,7 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 
 import { PluginInvalidError } from "@jini-ai/plugins/host";
 import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/declared-content-types";

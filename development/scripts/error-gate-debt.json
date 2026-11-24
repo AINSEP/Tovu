@@ -545,11 +545,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/custom-credentials/credential-recovery.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/database-transfer/destination-store.ts",
     "rule": "catch-reads-error",
     "value": 1

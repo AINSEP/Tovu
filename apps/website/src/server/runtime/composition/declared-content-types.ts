@@ -1,10 +1,6 @@
 /** Concrete Tovu content-type write binding; generic enable/defer live in @jini-ai/plugins/host. */
-import {
-  NoopContentTypeIndexProvisioner,
-  registerContentType,
-  toContentTypeOutbox,
-  type ContentTypeWriteServiceDeps,
-} from "#src/features/content-types/index";
+import { NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeWriteServiceDeps } from "@jini-ai/cms/content-types";
+import { registerContentType } from "#src/features/content-types/write-service";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 
 import type { DeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-content-types";

@@ -27,7 +27,7 @@ import {
   CHANGE_SETS_DEFAULT_LIST_LIMIT,
   CHANGE_SETS_MAX_LIST_LIMIT,
   getChangeSetsAgentToolCatalog,
-} from "./agent-tools.js";
+} from "@jini-ai/cms/change-sets/agent-tools";
 
 /**
  * @file `change_sets_list` + `change_sets_revert` (F7b option A, S6, 2026-09-24) — the agent-callable
@@ -183,7 +183,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "change-sets",
-    catalogModule: "features/change-sets/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/change-sets/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: changeSetsDerivedRisk,

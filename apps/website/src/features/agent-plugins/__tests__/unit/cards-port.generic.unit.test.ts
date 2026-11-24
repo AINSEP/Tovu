@@ -6,7 +6,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { SurfaceCardSignInSpec, SurfaceCardSignInState } from '@jini-ai/core/contracts/cards';
 import type { AgentPluginCardsPort } from '@jini-ai/agent-plugins/connect';
 import { waitAtAgentPluginSignInCardWithPorts } from '../../connect-sign-in-wait.js';
-import { buildAgentPluginConnectCardWithPorts } from '../../connect-card-ui.js';
+import { buildAgentPluginConnectCardWithPorts } from '@jini-ai/agent-plugins/connect';
 
 /** Distinct from UIResource: losing Resource at the wait callback fails this compile pin. */
 interface TestResource { readonly kind: 'test-resource'; readonly identity: symbol }

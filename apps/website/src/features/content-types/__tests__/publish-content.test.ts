@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, type ContentTypeRecord } from "../index.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, type ContentTypeRecord } from "@jini-ai/cms/content-types";
 import { contributeContentTypePublish } from "../publish-content.js";
 
 function contentType(overrides: Partial<ContentTypeRecord> = {}): ContentTypeRecord {

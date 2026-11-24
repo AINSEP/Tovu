@@ -6,7 +6,7 @@ import test from "node:test";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 
@@ -22,7 +22,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file RED-first coverage for the user `TrashAdapter` (delete-user plan v2 Slice 1) — hide/unhide
- * against real `principals`/`sessions` rows, purge delegated to the real `SqliteUserPurge`, and the
+ * against real `principals`/`sessions` rows, purge delegated to the real `SqlUserPurge`, and the
  * `"*"` permission gate. Real SQLite identity wiring throughout, same fixture shape as
  * `identity/__tests__/delete-user-service.test.ts` — no fakes for anything this adapter touches.
  */
@@ -74,7 +74,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry();
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
     repo: new SqliteTrashRepo({ store: db.$client }),
@@ -291,7 +291,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo({ store: f.db.$client }),
     adapters,
@@ -408,7 +408,7 @@ test("hide: a status change committed between the read and the write reports ver
   const targetId = await createBareUser(f, "racing");
   const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
     db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)) }),
-    purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
+    purge: new SqlUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });
@@ -427,7 +427,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
     db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () =>
       f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
     ) }),
-    purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
+    purge: new SqlUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });

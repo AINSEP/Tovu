@@ -15,7 +15,7 @@ import {
   renameEmailTemplate,
   renderEmailTemplateForSend,
 } from "@jini-ai/platform/mail/email-template-operations";
-import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/index";
+import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { entityNotLiveResponse } from "@jini-ai/cms/admin-http/http/entity-not-live";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

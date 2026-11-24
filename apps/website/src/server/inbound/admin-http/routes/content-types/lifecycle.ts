@@ -3,8 +3,8 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "#src/features/content-types/index";
-import { toContentTypeOutbox } from "#src/features/content-types/index";
+import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "@jini-ai/cms/content-types";
+import { toContentTypeOutbox } from "@jini-ai/cms/content-types";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";

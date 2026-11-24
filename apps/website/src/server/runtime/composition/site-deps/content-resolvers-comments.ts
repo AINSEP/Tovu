@@ -1,6 +1,6 @@
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";

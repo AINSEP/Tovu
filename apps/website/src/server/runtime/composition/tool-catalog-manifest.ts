@@ -91,7 +91,7 @@ import type { ExternalMcpOperations } from "#src/features/external-mcp/operation
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
-import { contributeEmailTemplatesTools } from "#src/features/email-templates/index";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';

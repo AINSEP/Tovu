@@ -14,7 +14,7 @@ import {
   createSqliteIdentityRouteDeps,
   type IdentityRouteDepsSlice,
 } from "#src/features/identity/wiring";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import {
   bindRemoveEntity,
   createContentDbTransactionRunner,
@@ -91,7 +91,7 @@ async function buildApp(
   const callerId = principalId ?? ownerId;
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),

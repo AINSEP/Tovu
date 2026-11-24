@@ -15,7 +15,7 @@ import { getPublishRunSnapshot, startPublishRun } from "../publish-run.js";
 import type { PublishCredentialSource } from "../types.js";
 import { createDbPublishCredentialSource } from "../credentials.js";
 import { createPublishCredential, deletePublishCredential } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "../../../vendor-credentials/repo.memory.js";
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

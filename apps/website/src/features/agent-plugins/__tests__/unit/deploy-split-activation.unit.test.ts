@@ -6,7 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { carryCloudflareActivation } from "../../deploy-split-activation.js";
+import { carryCloudflareActivation } from "@jini-ai/agent-plugins/site/deploy-split-activation";
 
 /** @file Explicit Cloudflare rename decisions and unreadable activation state remain protected. */
 
@@ -43,7 +43,7 @@ test("unreadable activation state refuses carry and seeding without writing succ
 });
 
 for (const enabled of [true, false]) test(`Cloudflare rename carries the previous ${enabled ? 'enabled' : 'disabled'} decision before seeding`, async () => {
-  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled, actor: 'operator' }, { origin: 'bundled' });
     await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
@@ -56,7 +56,7 @@ for (const enabled of [true, false]) test(`Cloudflare rename carries the previou
 });
 
 test('Cloudflare explicit successor decision wins; absent predecessor stays absent', async () => {
-  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
     await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare, undefined);
@@ -68,7 +68,7 @@ test('Cloudflare explicit successor decision wins; absent predecessor stays abse
 });
 
 test('Cloudflare untouched seed records yield to explicit predecessor decisions; corrupt verdict refuses', async () => {
-  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  const { carryCloudflareActivation } = await import('@jini-ai/agent-plugins/site/deploy-split-activation');
   await withWorkspaceRoot(async workspaceRoot => {
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare-pages' });
     await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });

@@ -2,10 +2,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import {
-  registerContentType, buildContentTypesRegistrations, InMemoryContentTypeRepo,
-  NoopContentTypeIndexProvisioner, ReservedContentTypeKeyError,
-} from "../index.js";
+import { registerContentType, buildContentTypesRegistrations } from "../write-service.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, ReservedContentTypeKeyError } from "@jini-ai/cms/content-types";
 
 const workspaceId = "reserved-content-types";
 const clock = { nowMs: () => Date.parse("2026-10-11T00:00:00Z") };

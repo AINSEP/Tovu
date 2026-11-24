@@ -12,7 +12,8 @@ import { createToolRegistry, type ToolDescriptor, type ToolRegistration } from '
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createIssuedTokenMemories, type AgentPluginToolModule, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 
-import { AGENT_PLUGIN_TOOLS_FILENAME, registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost, type ApplyAgentPluginApproval } from '../../register.js';
+import { registerAgentPluginExecutableTools } from '../../register.js';
+import { AGENT_PLUGIN_TOOLS_FILENAME, type AgentPluginExecutableToolHost, type ApplyAgentPluginApproval } from '../../host-bindings.js';
 import type { AgentPluginArtifactWriter } from '@jini-ai/agent-plugins/connect/executable';
 import { allowAll, fakeConnections, fakeHttp, PLUGIN, WORKSPACE } from '../fixtures.js';
 

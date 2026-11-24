@@ -46,7 +46,7 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
-import { contentDuplicationAgentToolCatalog } from "./agent-tools.js";
+import { contentDuplicationAgentToolCatalog } from "@jini-ai/cms/content-duplication/agent-tools";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: contentDuplicationAgentToolCatalog });
 
@@ -165,7 +165,7 @@ export function buildContentDuplicationRegistrations<TDeps extends ContentDuplic
   // same tripwire discipline as Post/Forms/Entries/Widgets.
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "content-duplication",
-    catalogModule: "features/content-duplication/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/content-duplication/agent-tools",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, ContentDuplicationAgentToolDefinition>,
     // A resource's own copy can run a plugin save hook (post/page -> `createPost`), so a plugin
     // refusal becomes the same fixed `PLUGIN_HOOK_FAILED` message `content_post_create` gives

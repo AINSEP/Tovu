@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";

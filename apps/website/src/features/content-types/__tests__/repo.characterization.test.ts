@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
-import type { ContentTypeRecord } from "../index.js";
+import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
 import { SqliteContentTypeRepo } from "../repo.sqlite.js";
 
 /**

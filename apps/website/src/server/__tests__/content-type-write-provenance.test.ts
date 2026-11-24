@@ -4,8 +4,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
-import type { ContentTypeRevisionInput } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
+import type { ContentTypeRevisionInput } from "@jini-ai/cms/content-types";
 import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";

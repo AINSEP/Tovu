@@ -1,12 +1,12 @@
-import { type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { type MediaObjectStorePorts } from "#src/features/object-storage/media-store";
 import { bundledAgentPluginsDir } from "../site-paths.js";
 import { composePublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import { createMediaBlobStore } from "#src/features/object-storage/index";
-import { loadBundledObjectStoreRegistry } from "#src/features/object-storage/index";
-import { loadObjectStoreRegistry } from "#src/features/object-storage/index";
+import { createMediaBlobStore } from "#src/features/object-storage/media-store";
+import { loadBundledObjectStoreRegistry } from "#src/features/object-storage/registry";
+import { loadObjectStoreRegistry } from "#src/features/object-storage/registry";
 import { mediaUploadsDir } from "../site-paths.js";
-import { readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
+import { readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/registry";
 import { getEffective } from "@jini-ai/core/settings";
 import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { storeBoundServicesFor } from "../store-bound-services.js";

@@ -9,10 +9,6 @@ import {
   buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenFormWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts,
   type AgentPluginConnectCardSpec, type AgentPluginAccessTokenFormMessages,
 } from "@jini-ai/agent-plugins/connect";
-export {
-  buildAgentPluginConnectCardWithPorts, buildAgentPluginAccessTokenOutcomeWithPorts, resolveAgentPluginCardIdentity,
-  type AgentPluginConnectCardSpec, type AgentPluginCardIdentity, type AgentPluginCredentialCardForms, type AgentPluginAccessTokenFormMessages,
-} from "@jini-ai/agent-plugins/connect";
 
 /** Tovu's token-form wording (bytes unchanged from the pre-seam body). */
 export const tovuAccessTokenFormMessages: AgentPluginAccessTokenFormMessages = {

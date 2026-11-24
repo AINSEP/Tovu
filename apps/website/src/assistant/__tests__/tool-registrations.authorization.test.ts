@@ -8,9 +8,9 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { contentTypesAgentToolCatalog } from "../../features/content-types/index.js";
-import { ForbiddenError } from "../../features/content-types/index.js";
-import type { ContentTypeRecord } from "../../features/content-types/index.js";
+import { contentTypesAgentToolCatalog } from "@jini-ai/cms/content-types";
+import { ForbiddenError } from "@jini-ai/cms/content-types";
+import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
 import { ToolInputError } from "@jini-ai/core";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 

@@ -3,7 +3,7 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { TrashAwareInMemoryMenuRepo } from "@jini-ai/cms/navigation/site/trash-aware-memory-menu-repo";
 import { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 
 export function composeNavFormContentRepos(_required: Record<string, never> = {}, _optional = {}) {
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin

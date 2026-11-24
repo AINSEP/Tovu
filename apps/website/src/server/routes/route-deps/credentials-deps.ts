@@ -175,7 +175,7 @@ export interface CredentialsDeps {
   /**
    * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
    * "Add custom provider" form (`apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts`). Real
-   * `SqliteCustomCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryCustomCredentialSetRepo` in
+   * `SqlCustomCredentialSetRepo` in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryCustomCredentialSetRepo` in
    * `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `sourceControlCredentialSetRepo` already

@@ -41,7 +41,7 @@ import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
-import { registerContentType } from "#src/features/content-types/index";
+import { registerContentType } from "#src/features/content-types/write-service";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";

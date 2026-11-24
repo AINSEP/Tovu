@@ -34,7 +34,7 @@ import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
-import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
+import { contentDuplicationAgentToolCatalog } from "@jini-ai/cms/content-duplication/agent-tools";
 import { publishContentAgentToolCatalog } from "@jini-ai/cms/publish/content/agent-tools";
 import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
@@ -50,10 +50,8 @@ import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
 import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
-import {
-  contentTypesAgentToolCatalog,
-  type ContentTypesAgentToolDefinition as AgentToolDefinition,
-} from "../../features/content-types/index.js";
+import { contentTypesAgentToolCatalog } from "@jini-ai/cms/content-types";
+import { type AgentToolDefinition as AgentToolDefinition } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { credentialSaveCatalog } from "../../features/custom-credentials/credential-save-tool.js";
 import { providerStatusAgentToolCatalog } from "../../features/plugin-runtime/provider-status-tool.js";
@@ -97,7 +95,7 @@ import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-t
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
 import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-tool.js";
 import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
-import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
+import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
@@ -120,7 +118,7 @@ import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
 import { catalog as commerceStatusCatalog, commerceCatalogToolCatalog } from "@jini-ai/commerce/tools";
 import { commerceResolutionToolCatalog } from "@jini-ai/commerce/payments/tools";
 import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
-import type { ContentTypeRecord } from "../../features/content-types/index.js";
+import type { ContentTypeRecord } from "@jini-ai/cms/content-types";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import {

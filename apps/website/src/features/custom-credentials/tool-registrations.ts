@@ -10,7 +10,8 @@ import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credentia
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { withCustomCredentialSetup } from "./credential-recovery.js";
+import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credentials/credential-recovery";
+import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
@@ -42,7 +43,7 @@ import {
 } from "./credentialed-request.js";
 
 import { bindCredentialedRequestPort } from "./credential-ports.js";
-import { cleanCardToken } from "./card-token.js";
+import { cleanCardToken } from "@jini-ai/integrations/custom-credentials/card-token";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome } from "./custom-credential-create-ui.js";
@@ -462,7 +463,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
       buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
       create: buildCreateForm, createOutcome: buildCreateOutcome, rotate: setTokenForm, rotateOutcome: setTokenOutcome,
     },
-    recovery: { withSetup: withCustomCredentialSetup },
+    recovery: { withSetup: (required, optional) => withCustomCredentialSetup({ ...required, issueCredentialSetup }, optional) },
     publish: {
       loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
       prepareInvalidation: () => routeDeps.publishCompatibility.prepareInvalidation({ workspaceId: routeDeps.workspaceId }),

@@ -18,7 +18,7 @@ import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "../../vendor-credentials/repo.memory.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";

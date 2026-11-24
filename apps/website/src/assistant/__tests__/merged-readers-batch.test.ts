@@ -11,7 +11,7 @@ import { createContributionRegistry, type ToolExecutionContext, type ToolRegistr
 import { InMemoryRedirectRepo, type RedirectRecord } from "@jini-ai/cms/redirects";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryNewsletterCampaignRepo } from "../../features/newsletter/repo.memory.js";
 import type { CampaignRecord } from "../../features/newsletter/types.js";

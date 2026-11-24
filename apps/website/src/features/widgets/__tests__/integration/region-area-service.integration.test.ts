@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { WidgetAreaConflictError, WidgetInstanceNotFoundError } from "@jini-ai/cms/widgets";

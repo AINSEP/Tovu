@@ -95,3 +95,11 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 - Never put a secret in a surface file: the files route is public. Start data goes through the
   bootstrap, which is session-gated, never cached and short-lived; never a refresh token.
 - Never add `allow-same-origin` to the frame.
+
+## Wiring
+
+- `public-config.ts` binds `@jini-ai/agent-plugins/site/admin-surfaces/public-config` with Tovu's
+  `publicNamePattern` (`TOVU_…_APP_ID|CLIENT_ID|BROWSER_KEY|PUBLIC_KEY` plus the two Google Picker names);
+  the secret-word refusal and `PUBLIC_CONFIG_REFUSED_MESSAGE` are Jini's. Bound into the capability port
+  in `server/runtime/composition/agent-plugin-connections.ts`.
+- `issued-sign-ins.ts` binds Jini's issued sign-in collector to Tovu's hosted sign-in link path.

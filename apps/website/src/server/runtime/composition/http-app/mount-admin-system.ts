@@ -37,7 +37,7 @@ import { registerAdminSiteKeyRoutes } from "../../../inbound/admin-http/routes/s
 import { siteKeyRecovery } from "../site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminFsFilesFolderPickerRoutes } from "../../../inbound/admin-http/routes/fs-files/folder-picker.js";
-import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
+import { createNativeFolderPicker } from "@jini-ai/cms/fs-files/native-folder-picker";
 import { isLocalTovuHost } from "../registered-sites.js";
 import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { mountRoutes, startModule } from "./module-handles.js";

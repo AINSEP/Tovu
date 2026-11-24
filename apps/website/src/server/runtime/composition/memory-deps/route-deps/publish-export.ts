@@ -25,7 +25,7 @@ import { loadMailCredentialCards } from "../../../boot/mail-provider-catalog.js"
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";

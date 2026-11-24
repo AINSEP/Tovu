@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryWidgetRegionBindingRepo, WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";

@@ -26,7 +26,7 @@ export function composeMemoryAgentPlugins(required: { routeDeps: () => Newslette
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
-  // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
+  // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqlCustomCredentialSetRepo`; see
   // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
   const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();

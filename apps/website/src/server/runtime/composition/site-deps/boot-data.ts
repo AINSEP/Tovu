@@ -11,7 +11,7 @@ import { installNewsletterDataModule } from "#src/features/newsletter/data-modul
 import { rebuildNavLocationBindings } from "#src/features/navigation/index";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveSiteBindingOverride } from "./overrides.js";
-import type { createMediaBlobStore } from "#src/features/object-storage/index";
+import type { createMediaBlobStore } from "#src/features/object-storage/media-store";
 import type { createConsoleLogger } from "@jini-ai/core/primitives";
 
 interface StartBootDataRequired {

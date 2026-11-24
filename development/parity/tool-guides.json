@@ -1842,7 +1842,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/change-sets/agent-tools.ts",
+        "path": "../Jini/packages/cms/src/change-sets/agent-tools.ts",
         "ids": [
           "change_sets_list",
           "trash_restore_item",
@@ -1867,7 +1867,7 @@
         ]
       },
       {
-        "path": "apps/website/src/features/content-duplication/agent-tools.ts",
+        "path": "../Jini/packages/cms/src/content-duplication/agent-tools.ts",
         "ids": [
           "content_read.content_post",
           "content_read.form_definition",

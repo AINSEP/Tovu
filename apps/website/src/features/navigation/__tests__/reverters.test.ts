@@ -8,7 +8,7 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import { InMemoryMenuRepo, type NavMenuEntry  } from "../index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "../publish-content.js";
-import { createMenuReverters, registerMenuReverters } from "../reverters.js";
+import { createMenuReverters, registerMenuReverters } from "@jini-ai/cms/navigation/site/reverters";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

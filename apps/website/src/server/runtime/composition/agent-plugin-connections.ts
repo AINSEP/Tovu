@@ -21,7 +21,7 @@ import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/a
 import { resolveApiConnectionRuntime } from '../../../contracts/core/runtime-mode.js';
 export { resolveApiConnectionRuntime };
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
+import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/host-bindings";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "@jini-ai/agent-plugins/connect/executable";
 import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "#src/features/agent-plugins/admin-surfaces/handlers";
 import { createAdminSurfaceCapabilities } from "@jini-ai/agent-plugins/site/admin-surfaces/capabilities";
@@ -49,7 +49,7 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
  * The budget behind the `limiter` capability a plugin calls itself: per plugin key, one shared
  * window per site, sized to the largest per-instance budget a bundled provider needs (~240/min).
  * Budgets a plugin DECLARES on a connection (`budgets` in `jini-connections.json`) are enforced by
- * the host on every token read instead (`features/api-connections/budgets.ts`), whatever the plugin
+ * the host on every token read instead (`@jini-ai/integrations/api-connections` budgets, bound in `features/api-connections/host-bindings.ts`), whatever the plugin
  * calls here.
  */
 export const AGENT_PLUGIN_OUTBOUND_BUDGET: RateLimitProfile = { windowSeconds: 60, max: 240, burst: 40 };

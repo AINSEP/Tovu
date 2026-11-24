@@ -5,7 +5,6 @@
  * caller that already carries projections keeps its own pair (same function and error identity). */
 import { withAgentPluginMcpPorts, withOverrides } from "./mcp-host-bindings.js";
 import {
-  deriveAgentPluginConnectionId as deriveConnectionId, isEmptyJsonList as emptyJsonList,
   planAgentPluginMcpFederation as planWithTrust, provisionAgentPluginMcpServers as provisionWithPorts,
   resolveAgentPluginMcpServers as resolveWithReads, resolveAgentPluginReadOnlyRemoteNames as readOnlyNamesWithReads,
   type AgentPluginInstalledMcpReads, type AgentPluginMcpFederationMessages, type AgentPluginMcpFederationPlan, type AgentPluginMcpTrustClassifier,
@@ -15,11 +14,6 @@ import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./ca
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
-export {
-  findAgentPluginMcpServerDefaults,
-  type SkippedAgentPluginMcpServer, type AgentPluginMcpTrustClassifier, type PlannedAgentPluginMcpUpsert,
-  type AgentPluginMcpFederationPlan, type ProvisionAgentPluginMcpServersResult,
-} from "@jini-ai/agent-plugins/connect";
 
 /** Tovu's lifecycle owner, adapted to the portable object-argument reads (same functions, same order). */
 export const tovuInstalledMcpReads: AgentPluginInstalledMcpReads = {
@@ -55,13 +49,4 @@ export function provisionAgentPluginMcpServers(
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
   return provisionWithPorts(withOverrides({ target: input, overrides: { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages } }));
-}
-
-/** Keep the host entry points bound to the portable implementations. */
-export function deriveAgentPluginConnectionId({ serverKey }: { serverKey: string }, _optional: Record<string, never> = {}): string | null {
-  return deriveConnectionId({ serverKey });
-}
-
-export function isEmptyJsonList({ raw }: { raw: string | null }, _optional: Record<string, never> = {}): boolean {
-  return emptyJsonList({ raw });
 }

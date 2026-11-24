@@ -13,7 +13,7 @@ import {
   purgeMedia, saveMediaProviderCredentials,
 } from "#src/features/media/index";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
-import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
+import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { resolveMediaByteSizes } from "#src/server/inbound/admin-http/routes/media/byte-size";
 import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";

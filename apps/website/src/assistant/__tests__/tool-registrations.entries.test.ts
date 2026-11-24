@@ -6,8 +6,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
-import { registerContentType } from "../../features/content-types/index.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
+import { registerContentType } from "../../features/content-types/write-service.js";
 import { entriesAgentToolCatalog } from "@jini-ai/cms/entries";
 import type { AgentToolDefinition as EntriesAgentToolDefinition } from "@jini-ai/core";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";

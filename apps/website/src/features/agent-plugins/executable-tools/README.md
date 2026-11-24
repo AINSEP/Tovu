@@ -90,4 +90,12 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
 - One limiter profile (`AGENT_PLUGIN_OUTBOUND_BUDGET`, 240/min per plugin key) backs the `limiter`
   capability. Plugin-declared request budgets (per connection / per instance, `budgets` in
   `jini-connections.json`) are charged by the host on every token read
-  (`../../api-connections/budgets.ts`).
+  (`@jini-ai/integrations/api-connections` budgets, limiter bound in `../../api-connections/host-bindings.ts`).
+
+## Wiring
+
+- `register.ts` composes `host-bindings.ts`'s `bindExecutableToolRegistration` with
+  `@jini-ai/agent-plugins/connect/executable`'s registrar. `AGENT_PLUGIN_TOOLS_FILENAME`,
+  `AgentPluginExecutableToolHost` and `ApplyAgentPluginApproval` are imported from `host-bindings.ts`
+  (their owner), not re-exported by `register.ts`.
+- `approval-bindings.ts` supplies Tovu's approval-card copy (`AgentPluginDisclosureMessages`).

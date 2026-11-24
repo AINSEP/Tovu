@@ -27,7 +27,8 @@
 import type { ToolRegistration } from "@jini-ai/core";
 import type { InstalledExtensionRegistrar } from "#src/assistant/installed-extension-tools";
 import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
-import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
+import { createRetiredPluginToolAliases } from "@jini-ai/agent-plugins/site/retired-plugin-tool-aliases";
+import { RETIRED_PLUGIN_REPLACEMENTS, toAgentPluginToolId } from "#src/features/agent-plugins/bundled-catalog";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
@@ -49,7 +50,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     try {
       // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
       const registrations: ToolRegistration[] = [];
-      const aliases = createRetiredPluginToolAliases({ registry: { register: registration => { registrations.push(registration); } } });
+      const aliases = createRetiredPluginToolAliases({ registry: { register: registration => { registrations.push(registration); } }, replacements: RETIRED_PLUGIN_REPLACEMENTS, toToolId: toAgentPluginToolId });
       await registerInstalledAgentPluginTools({ registry: aliases.registry, ctx: { ...deps, withExtensionApprovalPolicy } });
       aliases.registerAliases();
       // The executor's core scope owns replacement and collision/revocation checks. Standalone

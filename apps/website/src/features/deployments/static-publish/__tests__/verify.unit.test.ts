@@ -6,7 +6,7 @@ import { createHash, createHmac } from "node:crypto";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, PublishCredentialSecretStoreUnconfiguredError, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import type { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,

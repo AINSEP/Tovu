@@ -101,7 +101,7 @@ import type {
 } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
-import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
+import type { TeardownIndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
 import type { EntryRepoPort } from "@jini-ai/cms/entries";
 import type { EntryListPort } from "@jini-ai/cms/entries";
@@ -1305,7 +1305,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * hand-built test bag without them keeps every one of the three families off.
    */
   apiConnections?: import("#src/features/api-connections/connect").ApiConnectionConnectDeps;
-  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/register").AgentPluginExecutableToolHost;
+  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/host-bindings").AgentPluginExecutableToolHost;
   adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
   /** Same composition: the Agent Plugin update's non-secret settings snapshot (keys and revisions).
    *  Absent, an update is refused before anything changes. */

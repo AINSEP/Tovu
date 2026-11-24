@@ -8,7 +8,7 @@ import test from "node:test";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createContentDbTransactionRunner, createUserTrashAdapter, SqliteTrashRepo, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort } from "@jini-ai/cms/trash";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
@@ -79,7 +79,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
   };
 
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqlUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
