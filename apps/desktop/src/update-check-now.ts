@@ -1,7 +1,8 @@
 import { formatErrorForLog, formatUserFacingError } from '@jini-ai/core';
-import { isNetworkUpdateError } from '@jini-ai/desktop-host/electron/updates';
+import { isNetworkUpdateError, registerUpdateCheckIpc } from '@jini-ai/desktop-host/electron/updates';
 import type { UpdateCheckCopy, UpdateCheckOutcome, UpdateNotice, UpdateNoticeArgs } from '@jini-ai/desktop-host/electron/updates';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from './contracts/app-version.ts';
 /**
  * Tovu's words for "Check for updates…" in the sites home Settings menu. The manual check itself
  * (one check per click, join while running, look-only with automatic updates off) is Jini's
@@ -79,3 +80,11 @@ export const updateCheckCopy: UpdateCheckCopy = {
     return `\n\nCopy details:\n${failure.copyText}`;
   },
 };
+
+/** Registers the manual update-check IPC on the shell's deployed channel (the channel name is host-owned). */
+export function registerHostUpdateCheckIpc(
+  { ipcMain, checkNow }: Omit<Parameters<typeof registerUpdateCheckIpc>[0], "channel">,
+  _optional = {},
+): void {
+  registerUpdateCheckIpc({ ipcMain, channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, checkNow });
+}

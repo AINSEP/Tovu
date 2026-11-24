@@ -105,7 +105,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  */
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents, type MenuItemConstructorOptions, type WebContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import electronUpdater from "electron-updater";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
@@ -146,9 +146,8 @@ import { runOwnerStoreCli } from "../owner-store-cli.ts";
 import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
-import { describeUpdateErrorForLog, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
-import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from "../contracts/app-version.ts";
+import { createUpdateCheckNow, type UpdateNotice as DesktopNotice } from "@jini-ai/desktop-host/electron/updates";
+import { describeUpdateErrorForLog, registerHostUpdateCheckIpc, updateCheckCopy, updateErrorMessage } from "../update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
 import { writeSiteName } from "../site-config.ts";
@@ -175,7 +174,6 @@ import { createLivePreviewGuests, isLivePreviewGuestAllowed } from "./boot/site-
 import { presenceDirPath } from "@jini-ai/desktop-host/shell/instance-presence";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
-import type { MenuItemConstructorOptions, WebContents } from "electron";
 import type { SelftestTracker } from "@jini-ai/desktop-host/electron/selftest";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
@@ -1040,7 +1038,7 @@ function bootSitesHomeMode(): void {
       controller: ownerStore,
     }),
     settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
-    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, checkNow: updateCheck.checkNow }),
+    registerUpdateCheckIpc: () => registerHostUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
     registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
     registerGuestNavigationPolicy,
     installMenu: installAppWideMenu,
