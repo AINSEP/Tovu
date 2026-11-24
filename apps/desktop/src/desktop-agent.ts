@@ -398,7 +398,8 @@ async function startBridgeServer(
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   // 4 MiB: the byte size of the `express.json({ limit: "4mb" })` parser above; the lists derive their body limit from it.
   const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 4 * 1024 * 1024 });
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry) }, host: routeHost }) });
+  // One operator (DESKTOP_OPERATOR) is the only principal here, so the catalog is declared unscoped.
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry), unscoped: true }, host: routeHost }) });
   mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR }, host: routeHost }) });
   const { server, url: daemonUrl } = await listenOnLoopback(app);
   portRef.current = (server.address() as AddressInfo).port;
