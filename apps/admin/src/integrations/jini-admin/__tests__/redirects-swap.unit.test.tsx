@@ -29,7 +29,7 @@ async function fixture({ useLocale = () => 'en' }: { useLocale?: () => string } 
   const hits = vi.spyOn(api, 'getRedirectHitStats');
   const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { redirectsPorts: { redirectsApi: api, redirectsEvents } });
   scopes.push(runtime);
-  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects useModulePanel={useModulePanel} ModuleLoading={RedirectsModuleLoading} /></AdminModulesContext.Provider></FetchQueryProvider>;
+  const node = () => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Redirects useModulePanel={useModulePanel} ModuleLoading={() => <RedirectsModuleLoading useAdminLocaleHook={useLocale} />} /></AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, row, list, hits, runtime, node };
 }
 

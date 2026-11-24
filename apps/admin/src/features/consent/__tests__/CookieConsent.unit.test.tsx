@@ -4,7 +4,10 @@ import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { adminKit } from '@/integrations/jini-kits';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '@jini-ai/admin/screens/consent/ConsentOverviewTab';
-import { CookieConsent } from '@jini-ai/admin/screens/consent/CookieConsent';
+import { CookieConsent, type CookieConsentHooks } from '@jini-ai/admin/screens/consent/CookieConsent';
+import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '@jini-ai/admin/screens/consent/use-consent-page.hooks';
+import { useAdminKit } from '@jini-ai/admin/react/kit';
+import { agentHandle } from '@jini-ai/core/agent-handles';
 import type { ConsentRevisionsPort } from '@jini-ai/admin/screens/consent/settings.hooks';
 import { consentErrors, consentUi } from '@/integrations/jini-admin/consent-ports';
 import { CONSENT_CONFIG, conflict, consentSnapshot, fakeConsentPort, revision, saved } from './consent-fixtures';
@@ -13,6 +16,7 @@ vi.mock('@jini-ai/admin/shell/lib/router', async importOriginal => ({ ...(await 
 
 /** @file The Cookie Consent page: tab routing, Publish gating, notices, and the inert preview. */
 
+const consentHooks: CookieConsentHooks = { useConsentPage, useConsentReadiness, useConsentPreview, useConsentPreviewScale, useAdminKit };
 const t = (key: string) => key;
 const useTranslate = () => ({ t, dictionary: {} });
 const delays = { autosaveMs: 0, previewMs: 0 };
@@ -20,7 +24,7 @@ const withDraft = consentSnapshot({ draft: revision('d1'), published: revision('
 const cookieConsentSnapshot = consentSnapshot({ ...withDraft, editor: { ...withDraft.editor, bannerModes: ['jini', 'headless', 'off'] } });
 
 function renderPage(port: ConsentRevisionsPort, tabId: string | null = 'banner') {
-  return render(<CookieConsent tabId={tabId} port={port} useTranslate={useTranslate} errors={consentErrors} ui={consentUi} delays={delays} />);
+  return render(<CookieConsent tabId={tabId} port={port} useTranslate={useTranslate} errors={consentErrors} ui={consentUi} delays={delays} hooks={consentHooks} agentHandle={agentHandle} />);
 }
 
 const publishButton = () => screen.getByRole('button', { name: /^Publish/ });

@@ -8,6 +8,7 @@ import { navigate } from '@jini-ai/admin/shell/lib/router';
 import { AdminModulesProvider } from '../AdminModulesProvider';
 import { createHostAdminScope } from '../modules.hooks';
 import { createHostSecurityModule, SecurityModulePanel, type SecurityOwnerPorts } from '../security-module.hooks';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import type { Runtime } from '../module-context';
 import { tovuKit } from '../kit';
 
@@ -25,12 +26,13 @@ function ownerPorts(): SecurityOwnerPorts {
     passkeys: { status: async () => ({ isOwner: true, credentials: [] }), enroll: vi.fn(), confirm: vi.fn(), remove: vi.fn() },
   };
 }
+const useAdminLocaleHook: UseAdminLocaleHook = () => 'en';
 const securityPorts = () => ({ securityApi: createMemorySecurityApi({}), otherCredentials: createMemoryOtherCredentials({}), rootKey: createMemoryRootKey({}) });
 
 function mount({ permissions = ['*'], grantsReady = true, tab = null as string | null, owner = ownerPorts() } = {}) {
-  const runtime = createHostAdminScope({ permissions }, { securityPorts: securityPorts(), securityOwnerPorts: owner, useSecurityLocaleHook: () => 'en', grantsReady });
+  const runtime = createHostAdminScope({ permissions, useAdminLocaleHook }, { securityPorts: securityPorts(), securityOwnerPorts: owner, grantsReady });
   disposers.push(() => { runtime.admin.dispose(); runtime.overlays.dispose(); });
-  render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={permissions} grantsReady={grantsReady} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} /></AdminModulesProvider></KitProvider>);
+  render(<KitProvider kit={tovuKit}><AdminModulesProvider permissions={permissions} grantsReady={grantsReady} useAdminLocaleHook={useAdminLocaleHook} useAdminModulesHook={() => runtime}><SecurityModulePanel tabId={tab} /></AdminModulesProvider></KitProvider>);
   return { owner };
 }
 const tabNames = () => screen.getAllByRole('tab').map(tab => tab.textContent?.trim());

@@ -5,6 +5,7 @@ import { security } from '@jini-ai/admin/security/react';
 import { OnboardingChipField } from '@jini-ai/ui';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { TotpSettings, PasskeySettings, RecoveryCodesCard, useOwnerRecoveryKit, useDesktopOwnerReset, createOwnerRecoveryKitDownload, useRecoveryKit, useOwnerPasswordReset, type OwnerRecoveryHookArgs, type OwnerRecoveryPort, type PasskeySettingsPort, type TotpSettingsPort } from '@jini-ai/user-management/react';
+import type { UseAdminLocaleHook } from '@jini-ai/admin/react/kit';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { ownerMfaPort, ownerPasskeySettingsPort, ownerRecoveryPort, ownerRecoveryFailure } from '../../lib/owner-clients';
 import { createSecurityTranslator, describeSecurityError, onSecurityCredentialsChanged, securityRefreshSignal } from './security-ports';
@@ -43,7 +44,7 @@ function OwnerControls({ locale, ports }: { locale: string; ports: SecurityOwner
  * @returns Stable Provider/page bindings; a locale change keeps the mounted tab and its controllers.
  * @example createHostSecurityModule({});
  */
-export function createHostSecurityModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale, ownerPorts = hostOwnerPorts }: { useAdminLocaleHook?: () => string; ownerPorts?: SecurityOwnerPorts } = {}): HostSecurityModule {
+export function createHostSecurityModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale, ownerPorts = hostOwnerPorts }: { useAdminLocaleHook?: UseAdminLocaleHook; ownerPorts?: SecurityOwnerPorts } = {}): HostSecurityModule {
   const feature = security({ ui: reactModuleUi, ChipField: OnboardingChipField, clipboard: browserClipboard }, {
     t: createSecurityTranslator({ locale: 'en' }),
     // The host never generates a site key in the browser; its env var and confirm flow stay as before.
@@ -53,7 +54,7 @@ export function createHostSecurityModule(_required: Record<string, never>, { use
   });
   const ScopeProvider = feature.react.Provider;
   function Provider({ admin, children }: { admin: Parameters<typeof ScopeProvider>[0]['admin']; children: ReactNode }) {
-    const locale = useAdminLocaleHook();
+    const locale = useAdminLocaleHook({}, {});
     const t = useMemo(() => createSecurityTranslator({ locale }), [locale]);
     const ownerControls = useMemo(() => createElement(OwnerControls, { locale, ports: ownerPorts }), [locale]);
     return createElement(ScopeProvider, { admin, t, ownerControls, children });
@@ -62,8 +63,8 @@ export function createHostSecurityModule(_required: Record<string, never>, { use
 }
 
 /** A translated status line before the host scope or lazy page is available. */
-export function SecurityModuleLoading({ useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string }): ReactElement {
-  const locale = useAdminLocaleHook();
+export function SecurityModuleLoading({ useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: UseAdminLocaleHook }): ReactElement {
+  const locale = useAdminLocaleHook({}, {});
   return createElement('p', { role: 'status' }, createSecurityTranslator({ locale })('loading'));
 }
 

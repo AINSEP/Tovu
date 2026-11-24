@@ -36,7 +36,7 @@ function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset>
   const subscribe = vi.fn(seoEvents.subscribe);
   const runtime = createHostAdminScope({ permissions: ['*'], useAdminLocaleHook: useLocale }, { seoPorts: { seoApi: api, seoEvents: { subscribe } } });
   scopes.push(runtime);
-  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
+  const node = (requestedTab = tabId) => <KitProvider kit={tovuKit}><FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={requestedTab} useModulePanel={useModulePanel} ModuleLoading={() => <SeoModuleLoading useAdminLocaleHook={useLocale} />} /></AdminModulesContext.Provider></FetchQueryProvider></KitProvider>;
   return { api, load, subscribe, runtime, node };
 }
 

@@ -1,3 +1,4 @@
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { useContentAnalysis, type ContentAnalysisController, type ContentAnalysisTarget } from "@jini-ai/admin/screens/content-analysis/hooks/use-content-analysis.hooks";
@@ -16,5 +17,5 @@ import { defaultContentAnalysisPort } from "./content-analysis-dependencies.hook
  */
 export function useWiredContentAnalysis(props: ContentAnalysisTarget): ContentAnalysisController {
   const locale = useAdminLocale();
-  return useContentAnalysis(props, { port: defaultContentAnalysisPort, locale });
+  return useContentAnalysis(props, { port: defaultContentAnalysisPort, locale, useFetchQuery, useFetchMutation });
 }

@@ -24,5 +24,5 @@ export function Redirects({
   useAdminModulesHook?: typeof useAdminModules;
   useModuleProviderContentHook?: typeof useModuleProviderContent; } = {}) {
   const runtime = useAdminModulesHook({ permissions: ['*'], useAdminLocaleHook: useHostAdminLocale });
-  return useModuleProviderContentHook({ runtime, children: <HostRedirects useModulePanel={useModulePanel} ModuleLoading={RedirectsModuleLoading} /> });
+  return useModuleProviderContentHook({ runtime, children: <HostRedirects useModulePanel={useModulePanel} ModuleLoading={() => <RedirectsModuleLoading useAdminLocaleHook={useHostAdminLocale} />} /> });
 }

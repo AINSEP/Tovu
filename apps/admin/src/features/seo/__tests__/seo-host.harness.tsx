@@ -19,7 +19,7 @@ export async function mountSeoHost() {
   runtime = createHostAdminScope({ permissions: ['admin.seo.manage'], useAdminLocaleHook }, {
     seoPorts: { seoApi: createMemorySeoApi({}) },
   });
-  render(<FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={null} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} /></AdminModulesContext.Provider></FetchQueryProvider>);
+  render(<FetchQueryProvider><AdminModulesContext.Provider value={runtime}><Seo tabId={null} useModulePanel={useModulePanel} ModuleLoading={() => <SeoModuleLoading useAdminLocaleHook={useAdminLocaleHook} />} /></AdminModulesContext.Provider></FetchQueryProvider>);
   await screen.findByRole('tab', { name: 'Site defaults' });
 }
 

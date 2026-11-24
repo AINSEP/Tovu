@@ -3,6 +3,7 @@
  * secret redaction, version labels and server codes. Jini owns the disclosure rules; this module
  * calls the factory once and the app imports the bound values.
  */
+import { describeRequestFailure, formatUserFacingError } from "@jini-ai/core";
 import { createFailureChannel } from "@jini-ai/ui/panel-kit";
 import { decodeApiError } from "@jini-ai/protocol";
 import { createAdminFailureReporter } from "@jini-ai/admin/shell/lib/admin-failure-reporter";
@@ -25,4 +26,6 @@ export const { adminFailureChannel, isPageWideFailure, publishAdminFailure, publ
   jiniVersion: JINI_CORE_VERSION,
   decodeError: decodeApiError,
   notRunningCodes: ASSISTANT_NOT_RUNNING_CODES,
+  formatUserFacingError,
+  describeRequestFailure,
 });

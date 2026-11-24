@@ -1231,7 +1231,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={() => <SeoModuleLoading useAdminLocaleHook={ctx.useAdminLocaleHook} />} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
@@ -1242,7 +1242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "redirects",
     description: "Manage URL redirects and retired destinations.",
     anyOfPermissions: ["admin.redirects.manage"],
-    render: () => <Redirects useModulePanel={useModulePanel} ModuleLoading={RedirectsModuleLoading} />,
+    render: (ctx) => <Redirects useModulePanel={useModulePanel} ModuleLoading={() => <RedirectsModuleLoading useAdminLocaleHook={ctx.useAdminLocaleHook} />} />,
     nav: {
       label: "Redirects",
       group: "Marketing",

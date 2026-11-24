@@ -1,3 +1,4 @@
+import { useFetchQuery } from '@jini-ai/ui/fetch-query';
 /**
  * @file Host bindings for the Jini Analytics screen (`@jini-ai/admin/screens/analytics`): the
  * live {@link AnalyticsPort} over this app's admin request client and workspace id, and the
@@ -28,5 +29,5 @@ export const analyticsHostPort: AnalyticsPort = {
 export function useWiredAnalytics(): AnalyticsController {
   const locale = useAdminLocale();
   const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale: locale, key: key });
-  return useAnalytics({ port: analyticsHostPort, t });
+  return useAnalytics({ port: analyticsHostPort, t, useFetchQueryHook: useFetchQuery });
 }
