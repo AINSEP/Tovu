@@ -148,7 +148,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     assert.deepEqual(input.imageContents, [{ mimeType: "image/png", data: imageBytes.toString("base64") }],
       "the image's exact bytes must reach the executor as normalized pixels");
     const notice = `\n\nAttachments to this message:\nsecond-report.pdf: read the attached file at ${path.join(input.uploadRoot!, path.basename(secondPath))}.`;
-    assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\nRead both attachments${notice}`,
+    assert.equal(input.prompt, `Read both attachments${notice}`,
       "the real PDF must be explicitly named to the agent, not merely granted directory access");
     assert.equal(input.extraAllowedDirs, undefined);
     assert.ok(input.uploadRoot?.startsWith(fs.realpathSync(uploadDirectory) + path.sep));

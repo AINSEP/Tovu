@@ -23,7 +23,7 @@ test("the run prompt renders decoded.pageContext directly after the dispatch mar
     DAEMON_ENTRY_SOURCE,
     // History is selected (resume tail or cold-start context) before this decoration, so the
     // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
+    /prompt = `\$\{subagentDispatchPrefix\(\{ siteDir: routeDeps\.siteBinding\.dir, fileExists: existsSync \}\)\}\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
   );
 });
 
@@ -33,7 +33,7 @@ test("onStarted forwards page context and the operator's words to the executor",
     entry: { kind: "page", id: "distinctive-page", title: "Distinctive landing page" },
   };
   const runActiveContexts = createRunActiveContextStore();
-  const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts });
+  const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts, agentsMdPresent: true });
   assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock({ context: pageContext })}\n\nPlease edit this page.`);
   // The same decoded screen is what `GET /api/active` answers from while the run is live.
   const active = runActiveContexts.read();

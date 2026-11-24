@@ -22,6 +22,7 @@ import { createEarlySessionCapture } from "../../early-run-session.js";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
+import { subagentDispatchPrefix } from "../../subagent-dispatch-marker.js";
 import { createRunActiveContextStore, type RunActiveContextStore } from "#src/assistant/run-active-context";
 import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-assembly.js";
 import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
@@ -126,7 +127,7 @@ export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Recor
  * decisions and hook-settings generation are real. No daemon/server/CLI is started. */
 export async function captureDaemonRun(
   context: Record<string, unknown>,
-  options: { runId?: string; executorSettles?: Promise<unknown>; hookPresent?: boolean; runActiveContexts?: RunActiveContextStore; bindings?: Record<string, unknown>; lifecycle?: unknown; terminalFailure?: boolean; request?: Record<string, unknown> } = {},
+  options: { runId?: string; executorSettles?: Promise<unknown>; hookPresent?: boolean; agentsMdPresent?: boolean; runActiveContexts?: RunActiveContextStore; bindings?: Record<string, unknown>; lifecycle?: unknown; terminalFailure?: boolean; request?: Record<string, unknown> } = {},
 ): Promise<AgentExecutorRunInput> {
   let resolve!: (input: AgentExecutorRunInput) => void;
   let reject!: (error: Error) => void;
@@ -145,7 +146,7 @@ export async function captureDaemonRun(
     assistantInventory: { listAssistantAgents: async () => [{ id: options.request?.agentId ?? "claude", available: true, authStatus: "unknown" }] },
     ownerRetentionTimers: new Set(), siteId: "test-scope", tracing: { noteRunInput() {} },
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
-    parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
+    parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix, subagentDispatchPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
@@ -203,7 +204,7 @@ export async function captureDaemonRun(
     process: { env: {}, cwd: () => "/tmp/daemon-test" },
     resolvePermissionMode: () => "bypass",
     homedir: () => "/home/daemon-test",
-    existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
+    existsSync: (file: string) => (options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search") || (options.agentsMdPresent === true && file === path.join(tmpdir(), "AGENTS.md")),
     failRunBeforeStart: async ({ message }: { message: string }) => { reject(new Error(message)); },
     // The bound runtime's startup-failure formatter; the real binding supplies it in production.
     startupMessage: ({ stage }: { stage: string }) => `startup failed at ${stage}`,
