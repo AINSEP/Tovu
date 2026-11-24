@@ -2249,7 +2249,8 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
    any width instead. Harmless for the ~30 button-only callers this class already has: none of them
    are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
-.editor-actions, .jini-collections-dialog .jini-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.jini-collections-dialog .jini-editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 /* Twin for the Jini post settings dialog's action row (Jini emits only `jini-*` classes); its own
    block so `.editor-actions` stays the standalone rule its ~30 other callers share. */
 .jini-post-settings-dialog__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
