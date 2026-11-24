@@ -17,6 +17,8 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
+import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
@@ -469,6 +471,8 @@ function ExternalMcpRemoveConfirmSection(props: {
       t={tDrift}
       ConfirmDialog={ConfirmActionDialog}
       buildCopy={buildExternalMcpRemoveConfirmCopy}
+      useExternalMcpRemoveConfirmHook={useExternalMcpRemoveConfirm}
+      useFocusTrapHook={useFocusTrap}
     />
   );
 }

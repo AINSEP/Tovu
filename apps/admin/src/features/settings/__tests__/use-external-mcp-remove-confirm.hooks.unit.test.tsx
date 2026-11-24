@@ -2,11 +2,16 @@ import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ExternalMcpRemoveConfirmDialog } from "@jini-ai/admin/screens/settings/ExternalMcpRemoveConfirmDialog";
+import { useExternalMcpRemoveConfirm } from "@jini-ai/admin/screens/settings/hooks/use-external-mcp-remove-confirm.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import { ConfirmActionDialog } from "../../../components/ConfirmActionDialog";
 import { buildExternalMcpRemoveConfirmCopy } from "../rules";
 
 // Host integration: the moved dialog with this host's own markup (`ConfirmActionDialog`) and copy bound in.
-const HOST = { ConfirmDialog: ConfirmActionDialog, buildCopy: buildExternalMcpRemoveConfirmCopy };
+const HOST = {
+  ConfirmDialog: ConfirmActionDialog, buildCopy: buildExternalMcpRemoveConfirmCopy,
+  useExternalMcpRemoveConfirmHook: useExternalMcpRemoveConfirm, useFocusTrapHook: useFocusTrap,
+};
 
 // F2.3/F3.3/F6.2: use the real dialog, DOM listeners and focus trap; exercise update and unmount.
 // Author Checklist: literal OAuth copy, exact callback delivery, real keyboard input, fresh renders.
