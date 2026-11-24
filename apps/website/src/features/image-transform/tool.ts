@@ -4,7 +4,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
-import { FsFilePathError } from "../fs-files/fs-files.js";
+import { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
 import { FsWriteInputError } from "@jini-ai/cms/fs-files/write-files";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
 import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../asset-transfer/asset-sources.js";
