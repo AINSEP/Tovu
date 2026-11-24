@@ -13,7 +13,7 @@ import { withCustomCredentialSetup } from "@jini-ai/integrations/custom-credenti
 import { issueCredentialSetup } from "../../contracts/core/tool-failure-diagnostics.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
-import { resolveOperatorLocale } from '@jini-ai/core/settings/operator-locale';
+import { resolveOperatorLocale } from '@jini-ai/core/operator-locale';
 import type { OperatorLocaleDeps } from '@jini-ai/core/contracts/headless/plugin-host';
 import type { Clock } from "@jini-ai/core/primitives";
 

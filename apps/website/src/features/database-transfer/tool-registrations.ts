@@ -2,7 +2,7 @@ import { type DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-por
 import { toolMetadata } from "@jini-ai/core/tool-metadata/database-transfer";
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from "./destination-exchange.js";
-import { resolveOperatorLocale } from "@jini-ai/core/settings/operator-locale";
+import { resolveOperatorLocale } from "@jini-ai/core/operator-locale";
 import type { OperatorLocaleDeps } from "@jini-ai/core/contracts/headless/plugin-host";
 import { assertCredentialToken, CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
 

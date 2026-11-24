@@ -24,7 +24,7 @@ import { publicPageSecurityHeaders as defaultSecurityHeaders } from "#src/featur
  * - `helmet`: its default CSP is enforced and would break the pages above.
  * - Admin (`/admin`, `/api/admin`): a separate app with its own headers; left unchanged.
  *
- * The values live in `contracts/core/public-page-security-headers.ts` so a static export carries the
+ * The values live in `@jini-ai/cms/public-http/middleware/public-page-security-headers` so a static export carries the
  * SAME set (`features/site-export/static-security-headers.ts`: a `_headers` file or the host's own header
  * config, rendered by its plugin, or a `<meta name="referrer">` where the host has no header config).
  */

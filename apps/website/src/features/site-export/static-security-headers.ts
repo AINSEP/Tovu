@@ -5,7 +5,7 @@ import { escapeHtml } from "@jini-ai/core/text";
 /**
  * @file Carries the live server's public-page security headers into a static export, which is
  * plain files served by someone else's host. Every value comes from the ONE shared set in
- * `contracts/core/public-page-security-headers.ts`; nothing here retypes a header.
+ * `@jini-ai/cms/public-http/middleware/public-page-security-headers`; nothing here retypes a header.
  *
  * - A host that reads a `_headers` file ({@link renderHeadersFile}'s format), applied to every
  *   path. How the file must reach that host (e.g. as its own upload field, never a public asset)
