@@ -339,8 +339,10 @@ describe("apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N", () 
       source: readFileSync(full, "utf8"),
     }));
     // Sanity: the scan actually sees the dictionaries, so an empty result below means something.
+    // Floor 25 (was 30): dictionaries keep moving into Jini factories (plugins, members, page editor),
+    // so the admin's own `_DICT` count shrinks; the no-inline-lookup assertion below is unchanged.
     const declared = files.filter((f) => /_DICT\s*:\s*Record</.test(f.source)).length;
-    expect(declared).toBeGreaterThan(30);
+    expect(declared).toBeGreaterThan(25);
     expect(findInlineDictionaryLookups(files)).toEqual([]);
   }, 30_000); // Whole-admin AST scan competes with the other suites in the coordinator's batch.
 });
