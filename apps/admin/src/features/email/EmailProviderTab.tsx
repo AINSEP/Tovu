@@ -1,4 +1,4 @@
-import { createEmailProviderLabel, createEmailProviderSelect } from "./EmailProviderTab.hooks";
+import { createEmailProviderLabel, createEmailProviderSelect } from "@jini-ai/admin/screens/email/EmailProviderTab.hooks";
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";

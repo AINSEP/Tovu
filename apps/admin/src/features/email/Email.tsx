@@ -25,7 +25,7 @@ import type { EmailTemplatesController } from "@jini-ai/admin/screens/email/hook
 import { resolveActiveTabId } from '@jini-ai/core/text';
 // The segmented pill's look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
 import "../../styles/assistant.css";
-import "./email.css";
+import "@jini-ai/admin/screens/email/email.css";
 
 /**
  * @file The Email screen — markup only; state lives in `hooks/use-email.hooks.ts`.

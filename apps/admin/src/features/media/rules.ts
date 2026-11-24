@@ -3,7 +3,7 @@ import { describeApiError } from "../../lib/admin-http/request";
 import type { MediaHtmlAttributeError } from "@jini-ai/admin/media";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "@jini-ai/core/fetch";
-import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
+import type { MediaContentTabId } from "@jini-ai/admin/screens/media/hooks/use-media-tabs.hooks";
 import { t as translate } from "./media-i18n";
 
 /**

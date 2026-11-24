@@ -2,7 +2,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "@jini-ai/admin/screens/plugins/hooks/agent-plugin-surfaces-port.hooks";
-import { useAgentPluginSurfaces } from "./hooks/use-agent-plugin-surfaces.hooks";
+import { useAgentPluginSurfaces } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-surfaces.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

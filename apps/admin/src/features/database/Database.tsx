@@ -1,4 +1,4 @@
-import { navigateDatabaseTab } from "./Database.hooks";
+import { navigateDatabaseTab } from "@jini-ai/admin/screens/database/Database.hooks";
 import { Icon } from "@jini-ai/ui";
 import type { AdminLedgerRow } from "@jini-ai/admin/core";
 
