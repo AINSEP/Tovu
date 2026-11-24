@@ -4236,6 +4236,22 @@
     {
       "id": "869a187fdeaa",
       "reason": "rv1123e K1 migration: the admin client type became an alias of the Core wire DTO; the field doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoSettingsDto header), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:1-1."
+    },
+    {
+      "id": "8dd34a9324f7",
+      "reason": "rv1123i K1 migration: the per-entry admin client types (SeoEntryMeta/SeoEntryAnalysis/SeoIssue) became aliases of the Core wire DTOs, so the 'mirrored from src/seo/types.ts per SPEC-037 REQ-06/07' provenance no longer describes a hand mirror; the replacement header in the same file says where the shapes are declared, and Jini packages/core/src/contracts/site/cms-seo.ts (file header) records why they moved. Was apps/admin/src/features/seo/api/seo-api.types.ts:35-38."
+    },
+    {
+      "id": "ade91cbff741",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc (fully-resolved meta, overrides over site defaults over derived values, GET and PUT both answer it, not the raw override bag) moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoMetaDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:59-61."
+    },
+    {
+      "id": "0b639a8c9eaf",
+      "reason": "rv1123i K1 migration: the admin client type became an alias of the Core wire DTO; the doc moved with the declaration to Jini packages/core/src/contracts/site/cms-seo.ts (AdminSeoAnalysisDto), reworded host-neutral. Was apps/admin/src/features/seo/api/seo-api.types.ts:120-120."
+    },
+    {
+      "id": "d223545f9421",
+      "reason": "Moved verbatim with the media update route to Jini @jini-ai/cms/admin-http/routes/media/update.ts:17 (rt-l3-pubsite, combine-16); the host update.ts is deleted."
     }
   ]
 }

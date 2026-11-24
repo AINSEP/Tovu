@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import { describeRequestFailure } from "@jini-ai/core";
+import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 
 import { mediaDeleteRoute } from "@jini-ai/cms/admin-http/routes/media/delete";
 import { mediaGetProvidersRoute } from "@jini-ai/cms/admin-http/routes/media/get-providers";
@@ -84,8 +86,9 @@ function mediaPortDeps({ deps }: { deps: Pick<MediaRouteDeps, "workspaceId" | "a
 }
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) and authorization mode each route
- *  had: delete consulted the publishing-credential override (`authorizeOrRespond`, `"guarded"`); the
- *  others did not (`"direct"`). Switching either is an authorization change, not a move. Each route
+ *  had (update mounts with its own operation-only copy instead, see `operationOnlyFailure`): delete
+ *  consulted the publishing-credential override (`authorizeOrRespond`, `"guarded"`); the others,
+ *  update included, did not (`"direct"`). Switching either is an authorization change, not a move. Each route
  *  made exactly one authorization call, so no mount needs `authorizationByPermission`; and every one
  *  read the session before its params/body, so none opts into `deferMissingPrincipal`. */
 function mountOptions(
@@ -93,6 +96,16 @@ function mountOptions(
   _optional: Record<string, never> = {},
 ): AdminJsonRouteMountOptions {
   return { authorization, failure: { operation, code: "INTERNAL_ERROR" } };
+}
+
+/** update's hand-written 500 came from `adminFailureResponse` with the operation alone, never the
+ *  request's method/route, so its copy is the operation-derived one. `sendAdminFailure` prefers the
+ *  route. With today's vocabulary the two happen to match ("Save media item"), but a route-keyed
+ *  vocabulary entry would silently change the moved route. Pinned here as explicit copy, as seo.ts
+ *  does for put-entry, so the route keeps answering as before. */
+function operationOnlyFailure({ operation }: { operation: string }, _optional: Record<string, never> = {}): AdminJsonRouteMountOptions["failure"] {
+  const copy = describeRequestFailure({ operation, vocabulary: ADMIN_FAILURE_VOCABULARY });
+  return { operation, message: copy.message, failure: { action: copy.action, step: copy.step } };
 }
 
 /** The single-asset DTO lookups, bound to the host's content-type store, public-URL resolver and blob sizes. */
@@ -116,7 +129,7 @@ const MEDIA_PROVIDER_SAVE_ERRORS: readonly MediaErrorMapping[] = [
 
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
-  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, mountOptions({ operation: "routes/media/update", authorization: "direct" }));
+  mountAdminJsonRoute({ app, spec: mediaUpdateRoute, deps: updateDeps }, { authorization: "direct", failure: operationOnlyFailure({ operation: "routes/media/update" }) });
 };
 
 export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
