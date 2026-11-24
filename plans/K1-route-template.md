@@ -580,6 +580,22 @@ mountAdminRawRoute({ app, spec: { ...exportRoute, requireSameOrigin: true }, dep
   ```ts
   { failure: { operation: "routes/presentation/patch-active-theme" }, failureCopy: "operation", authorization: "direct" }
   ```
+- **`authenticateBeforeWorkspace: true`** (w4-routes K) — the hand-written route ran its session /
+  credential gate BEFORE `rejectForeignWorkspace` (widget preview's `res.locals.principal` 401, credential-copy's
+  `rejectUnlessSessionCredential`). The workspace port is skipped and the same refusal runs inside `authenticate`,
+  after `sessionCredentialOnly` and after a `deferMissingPrincipal` deferral (a deferred missing session skips the
+  workspace check, so the spec must answer its own refusal first — preview's 401), before the principal read.
+  Refused at registration on a `requireSameOrigin` spec (http-kit's same-origin gate sits between the two ports).
+  ```ts
+  { authorization: "direct", deferMissingPrincipal: true, authenticateBeforeWorkspace: true, failure: { operation: "http/widgets" }, failureCopy: "operation" }
+  ```
+- **`workspaceRefusal: ({ workspaceId, requested }) => ({ status, body? })`** (w4-routes K) — the route's own
+  workspace refusal instead of the shared JSON 404: no `body` is `res.sendStatus(status)` (`Not Found` as
+  `text/plain`, site-backups), a `body` is written as JSON (the `{ code: "NOT_FOUND", message: "<step> failed: this
+  workspace is not available." }` routes). Pins: `admin-json-route-ports-legacy-order.test.ts`.
+  ```ts
+  mountAdminRawRoute({ app, spec: siteBackupPlanRoute, deps }, { workspaceRefusal: () => ({ status: 404 }), failure });
+  ```
 - **Authorization without an entity type** — a spec calls `authorize({ permission })` with no `entityType`
   and the host authorizer receives NO `entityType` key (users list-roles/policies/policy-permissions, which
   pin exact params). Do not invent an `entityType` any more (the skills/fs-files departures above can drop theirs).

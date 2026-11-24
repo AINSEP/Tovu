@@ -2,7 +2,8 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { PUSH_POLL_WAIT_MS, registerAdminSiteBackupRoutes } from "../site-backups.js";
+import { PUSH_POLL_WAIT_MS } from "@jini-ai/cms/admin-http/routes/system/site-backups";
+import { registerAdminSiteBackupRoutes } from "#src/server/runtime/composition/modules/system-site-backups";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SiteBackupToolDeps } from "#src/features/site-backup/backup-service";
 

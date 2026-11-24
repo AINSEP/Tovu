@@ -36,7 +36,9 @@ import type { ServerModuleHandle } from "./types.js";
  * (`renderWidgetPreview`, host-owned — `render` stays injectable for tests) and the widget error
  * ladder's typed rungs. `"direct"` is the hand-written `authorizeDirectOrRespond`;
  * `deferMissingPrincipal` lets the spec answer its own 401 for a missing session (the hand-written
- * route checked the session before the permission and the body); an unmapped failure is
+ * route checked the session before the permission and the body) and `authenticateBeforeWorkspace`
+ * keeps that 401 ahead of the workspace 404 (it checked the session before `rejectForeignWorkspace`;
+ * w4-routes K restored the order a K1 conversion had flipped); an unmapped failure is
  * `adminFailureResponse`'s operation-only `http/widgets` copy, as `mapWidgetErrorToResponse` wrote it.
  */
 export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
@@ -52,7 +54,7 @@ export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; d
         mapWidgetError: ({ error }) => knownWidgetErrorToResponse({ err: error }),
       },
     },
-    { authorization: "direct", deferMissingPrincipal: true, failure: { operation: "http/widgets" }, failureCopy: "operation" },
+    { authorization: "direct", deferMissingPrincipal: true, authenticateBeforeWorkspace: true, failure: { operation: "http/widgets" }, failureCopy: "operation" },
   );
 }
 

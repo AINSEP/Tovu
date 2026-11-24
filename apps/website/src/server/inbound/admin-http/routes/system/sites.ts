@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
-import { servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
+import { servingAddressOf, sitePreviewTargets } from "@jini-ai/cms/admin-http/routes/sites/site-previews";
 import type { SitePreviewService } from "#src/features/sites/index";
 import type { Express, Request, Response } from "express";
 import {
@@ -91,7 +91,7 @@ import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sit
  * either way). Delegates to `site-registry.ts`'s `createSite`, itself a thin wrapper over the SAME
  * `initSite` `tovu init` calls — so a site created here and one created by the CLI are identical.
  *
- * `GET .../system/sites/:name/preview` (2026-10-08) — a card's screenshot (`../sites/site-previews.ts`).
+ * `GET .../system/sites/:name/preview` (2026-10-08) — a card's screenshot (`@jini-ai/cms/admin-http/routes/sites/site-previews`).
  * List carries `previewVersions` (`{ [name]: mtime }`) and enqueues due captures without waiting
  * on them; only with local site management on, so a production deployment never launches Chromium.
  *

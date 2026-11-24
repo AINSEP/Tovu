@@ -34,7 +34,7 @@ export function mountAdminRawRoute<Deps>(
   optional: AdminJsonRouteMountOptions = {},
 ): void {
   assertOriginContext({ spec: required.spec, origin: required.origin });
-  const ports = adminPortsFor({ path: required.spec.path, options: optional });
+  const ports = adminPortsFor({ path: required.spec.path, options: optional, requireSameOrigin: required.spec.requireSameOrigin });
   mountRawRoute<Deps & AdminJsonRoutePortDeps, OperatorPrincipalRecord>({ app: required.app, spec: { ...required.spec, ports }, deps: required.deps, adapter: required.origin });
 }
 
