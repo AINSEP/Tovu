@@ -10,6 +10,7 @@ import type {
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { createPublicPostReader } from "../post/index.js";
+import { withoutHeldAgentSchedule, type AgentHoldReader } from "../post/agent-hold.js";
 import { resolveFeaturedImageRef, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
 import { ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
@@ -42,12 +43,13 @@ export const seoSettingsHostBindings: SeoSettingsLedgerBindings = {
  * @example createSeoPostPort({ postRepo }, {})
  * @complexity O(1) wiring; reads/writes retain the host repository's costs and errors.
  */
-export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _optional: Record<string, never> = {}): SeoPostListPort & SeoPostWritePort {
+export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, { agentHold }: { agentHold?: AgentHoldReader } = {}): SeoPostListPort & SeoPostWritePort {
   const reader = createPublicPostReader({ repo: postRepo });
   return {
     // Call through the receiver so prototype methods keep `this` and fault-injection remains live.
     findById: reader.findById,
-    list: reader.list,
+    // H4: the sitemap reads here, so an agent post held by the pause is not listed (see `withoutHeldAgentSchedule`).
+    list: async (input) => withoutHeldAgentSchedule({ workspaceId: input.workspaceId, rows: await reader.list(input), agentHold }),
     extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }),
     isTrashed: ({ post }) => isTrashed(post),
     transaction: ({ fn }) => postRepo.transaction({ fn }),
@@ -90,12 +92,12 @@ export function createSeoDeps({ deps }: { deps: Omit<FeaturedImageDeps, "findMed
   transformDefinitionRepo: TransformDefinitionRepoPort;
   originRegistry: OriginRegistryPort;
   clock: { nowIso(): string };
-} }, _optional: Record<string, never> = {}): SeoHostBindings {
+} }, { agentHold }: { agentHold?: AgentHoldReader } = {}): SeoHostBindings {
   return {
     originRegistry: deps.originRegistry,
     // Messaging/social crawlers receive the JPEG variant registered by media bootstrap.
     shareImageTransform: "og",
-    postRepo: createSeoPostPort({ postRepo: deps.postRepo }, {}),
+    postRepo: createSeoPostPort({ postRepo: deps.postRepo }, { agentHold }),
     settings: {
       getSeoSettings: (input) => getSeoSettings({ settingsRepo: deps.settingsRepo, getEffective }, input),
       isDefaultRobotsNoindexExplicitlySet: (input) => isDefaultRobotsNoindexExplicitlySet({ deps: { settingsRepo: deps.settingsRepo, getEffective }, input }, {}),

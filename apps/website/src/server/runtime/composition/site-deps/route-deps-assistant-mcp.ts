@@ -100,6 +100,12 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
   // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
   // `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`.
   const adminAssistantEnabled = isAdminAssistantEnabled();
+  // The resume hold lives in the content store so it outlives the restart that flips the switch.
+  const agentPauseGate = createAgentPauseGate({ store: sqlAgentPauseHoldStore({ kernel: kernel as KyselyKernel<unknown> }), workspaceId,
+    assistantEnabled: () => adminAssistantEnabled, clock });
+  // Boot IS the switch-off transition (the env var is read once per process), so the hold is recorded
+  // here, in the readiness every route awaits, not lazily by whichever worker happens to tick first.
+  const assistantReadyWithHold = assistantSettingsReady.then(async (ready) => { await agentPauseGate.recordSwitchState(); return ready; });
   return {
     presentationRepo,
     settingsRepo,
@@ -116,13 +122,11 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     seoDeps,
     sitemapService,
     settingsReady,
-    assistantSettingsReady,
+    assistantSettingsReady: assistantReadyWithHold,
     visitorToolsManagement: composeVisitorToolsManagement({ workspaceId, ready: assistantSettingsReady,
       settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     adminAssistantEnabled,
-    // The resume hold lives in the content store so it outlives the restart that flips the switch.
-    agentPauseGate: createAgentPauseGate({ store: sqlAgentPauseHoldStore({ kernel: kernel as KyselyKernel<unknown> }), workspaceId,
-      assistantEnabled: () => adminAssistantEnabled, clock }),
+    agentPauseGate,
     siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
