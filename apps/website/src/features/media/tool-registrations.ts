@@ -1,4 +1,5 @@
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
+import { withLargeUploadRouting } from "./large-upload-routing.js";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
@@ -175,7 +176,7 @@ export function buildMediaRegistrationsForTovu(
       return { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) };
     }
     return registration;
-  });
+  }).map((registration) => withLargeUploadRouting(registration));
 }
 
 /**

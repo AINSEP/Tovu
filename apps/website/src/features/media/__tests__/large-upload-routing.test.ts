@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { mediaImportAgentToolCatalog } from "../../media-import/agent-tools.js";
+import { mediaImportAgentToolCatalog } from "../../media-import/tool-registrations.js";
 import { LARGE_UPLOAD_ROUTING, withLargeUploadRouting } from "../large-upload-routing.js";
 
 /** @file A212 — the inline upload tool must lead an agent holding a >10 MB video to the local file import. */
