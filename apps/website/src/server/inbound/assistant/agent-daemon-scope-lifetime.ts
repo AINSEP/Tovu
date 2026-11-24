@@ -5,7 +5,10 @@ import { type RunLifecycle } from "@jini-ai/daemon";
 import { type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createRunScopedCredentials } from "#src/assistant/daemon-access";
-import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
+import { awaitBootWorkWithinBound } from "@jini-ai/server/shutdown/boot-work";
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 type ScopeLifetime = {
   disposed: boolean; closing: Promise<void> | undefined; responses: Set<express.Response>;
@@ -44,7 +47,7 @@ function dispose({ state, processActivity, ownsIdlePark, lifecycle, assistantInv
           await lifecycle.cancel({ runId: run.id });
           await lifecycle.waitForTerminal({ runId: run.id }, { signal: AbortSignal.timeout(5_000) });
         });
-        await awaitBootWorkWithinBound({ work: drains }, { timeoutMs: 5_000 });
+        await awaitBootWorkWithinBound({ work: drains, logger: consoleLogger }, { timeoutMs: 5_000 });
         // Terminal callbacks own session saves and attachment cleanup beyond the run's end.
         const drained = state.activeWork === 0 ? Promise.resolve() : new Promise<void>(resolve => { state.resolveDrained = resolve; });
         // Keep the retained client alive until accepted preparation/cleanup really settles.

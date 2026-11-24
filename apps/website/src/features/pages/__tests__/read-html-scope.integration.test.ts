@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import type { BatchResult } from "@jini-ai/core";
 import { peerFixture } from "../../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
 import { createPost } from "../../post/index.js";
 import { PagesHtmlDocumentStore } from "../html-document-store.sqlite.js";

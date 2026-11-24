@@ -1,11 +1,11 @@
 import type { StoreBoundServices } from "./store-bound-contracts.js";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { PostgresDbOpsAdapter } from "#src/platform/db/postgres/db-ops-adapter";
-import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
+import { kernelStampWatermark } from "@jini-ai/db/watermark/kernel";
+import { WRITE_WATERMARK_TABLES } from "#src/platform/db/write-watermark-tables";
 import type { SiteStore } from "./open-site-store.js";
 import { sqliteOnlyServices } from "./sqlite-only-services.js";
 
-export type { StoreBoundServices } from "./store-bound-contracts.js";
 
 /**
  * @file The composition body's one seam between storage engines (R1 plan R1d step 4, R1f).
@@ -16,7 +16,7 @@ export type { StoreBoundServices } from "./store-bound-contracts.js";
  *
  * - SQLite (`sqliteOnlyServices`): restore points are whole-file copies of `content.db`.
  * - Postgres/PGlite ({@link pgOnlyServices}): restore points are reported unavailable.
- * The watermark stamp is the async kernel stamp on both (`watermark-kernel.ts`; Jini cms awaits it,
+ * The watermark stamp is the async kernel stamp on both (Jini `@jini-ai/db/watermark/kernel`; Jini cms awaits it,
  * owner decision O2); it stays in this bundle so the body keeps one source for it.
  */
 
@@ -28,7 +28,7 @@ export type { StoreBoundServices } from "./store-bound-contracts.js";
 export function pgOnlyServices(kernel: ContentKernel): StoreBoundServices {
   return {
     dbOps: new PostgresDbOpsAdapter(),
-    stampWatermark: kernelStampWatermark({ kernel }),
+    stampWatermark: kernelStampWatermark({ kernel: schemaErasedKernel({ store: kernel }), tables: WRITE_WATERMARK_TABLES }),
   };
 }
 

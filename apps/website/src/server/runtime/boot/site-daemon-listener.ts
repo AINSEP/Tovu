@@ -1,6 +1,6 @@
 import { createServer, type RequestListener } from 'node:http';
-import { reserveBootListener } from './boot-listener.js';
-import { stopServingWithinGrace } from '../lifecycle/close-store-on-shutdown.js';
+import { reserveBootListener } from '@jini-ai/devops/local-dev';
+import { stopServingWithinGrace } from '@jini-ai/server/shutdown';
 
 // This is a Tovu route adapter: parsing, bearer/peer checks and attempt authority stay with
 // the existing private route owners. The extra listener exposes no public/admin route.

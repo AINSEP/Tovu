@@ -1,4 +1,4 @@
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 /**
  * @file RED->GREEN for wm S16 (redirects half): the redirects tool handlers threw the plain-`Error`
  * `Redirect*Error` classes and the kit's `ForbiddenError` with no `withModelFacingErrors` wrap, so
@@ -14,7 +14,7 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import {
   createVerifiedOrigin,
   InMemoryOriginSettingRepo,

@@ -4,7 +4,6 @@ import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-c
 /** t10: real human exchange and credential persistence; fake only the provider network boundary. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EventEmitter } from 'node:events';
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from '@jini-ai/core';
 
 /** Context fields a test call may override, plus the surface channel the handler receives separately. */
@@ -18,9 +17,7 @@ import { buildSourceControlCredentialHandler, buildSourceControlRegistrations, s
 import { githubFromSource } from './fixtures/github-from-source.js';
 import { exampleRegistry } from './fixtures/example-provider.js';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
-import type { Express, Request, Response } from 'express';
-import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../assistant/mcp-ui-tool-calls-route.js';
-import { RUN_PRINCIPAL_HEADER } from "../../../assistant/daemon-access.js";
+import { startMcpUiToolCallsServer } from "../../../assistant/__tests__/support/mcp-ui-tool-calls-server.js";
 import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutor } from '@jini-ai/daemon';
 import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, PROPOSE_CREDENTIAL_SAVE_FAILED, proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
@@ -40,24 +37,15 @@ test('t10 source credential form submit and cancel pass both MCP-UI callback gat
   assert.equal(isMcpUiToolCallAllowed({ toolName: 'source_control_get_capabilities' }), false);
 });
 
-test('t10 source callback delivers a human token only to its parked call, rejects wrong principals and replay', async () => {
+test('t10 source callback delivers a human token only to its parked call, rejects wrong principals and replay', async (t) => {
   const f = fixture(); const { pending, emitted } = await form(f);
-  let handler!: (req: Request, res: Response) => Promise<void>;
-  // Invoke the registered production handler directly: no HTTP listener or transport mock.
-  // why: the route is wrapped in asyncRoute (b394c8ca8), whose wrapper returns before the work ends;
-  // `.handler` is the original async handler, so each call is awaited before its response is read.
-  registerMcpUiToolCallsRoute({ app: { post: (path: string, route: { handler: typeof handler }) => {
-    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = route.handler;
-  } } as unknown as Express, deps: {
+  // Drive the production route over real HTTP: the route mounts through the Jini route table, so there is no handler to capture.
+  const server = await startMcpUiToolCallsServer({ t, deps: {
     scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
   } });
   async function callback(principal: string, params: Record<string, unknown>) {
-    let status = 200; let body: unknown;
-    const response = Object.assign(new EventEmitter(), { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } });
-    await handler({ body: { toolName: ID, params }, get: (header: string) => {
-      assert.equal(header, RUN_PRINCIPAL_HEADER); return principal;
-    } } as unknown as Request, response as unknown as Response);
+    const { status, body } = await server.post({ body: { toolName: ID, params }, principalId: principal });
     return { status, body };
   }
   assert.deepEqual(await callback('person', { label: 'Human label', token: SECRET }), { status: 403, body: {

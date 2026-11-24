@@ -4,7 +4,7 @@ import test from 'node:test';
 import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
 import { createPluginCredentialCardsLoader } from '../plugin-credential-cards.js';
-import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
 const mail = { providerId: 'mail', label: 'Mail', category: 'ops', baseUrl: 'https://mail.example.com', title: 'Mail' };
 const manifest = { providerId: 'host', label: 'Host', category: 'hosting', baseUrl: 'https://host.example.com', title: 'Hosting' };

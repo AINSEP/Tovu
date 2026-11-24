@@ -5,7 +5,7 @@ import type { ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
 import { orFallback } from '@jini-ai/core/errors/idioms';
 import { agentSupportsChromeIntegration, agentSupportsSubagents } from "@jini-ai/agent-runtime";
 import { type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/core/contracts/agents";
-import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
+import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-preferences.js";
 
 /** Reply guidance; Normal deliberately contributes no text to the existing overlay. */
 export const SHORT_REPLY_GUIDANCE = "Lead with the result in 1–3 lines, then only decisions, approvals, failures or unverified items needing the person; retain the Tool gap line and anything flagged as needing the person, and omit step narration, recaps and change lists unless asked.";

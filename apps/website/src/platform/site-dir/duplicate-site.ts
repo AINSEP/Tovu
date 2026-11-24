@@ -16,7 +16,7 @@ import {
   UPLOADS_ENTRY_NAME,
 } from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import { parseSiteStorage } from "./site-storage.js";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
@@ -81,7 +81,7 @@ import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
  * anything has been written.
  *
  * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Every fs write
- * below is derived from `target` (`resolveInstallDirTarget`'s own return), never re-derived from the
+ * below is derived from `target` (`resolveDirectoryTarget`'s own return), never re-derived from the
  * raw `targetDir` argument (INV-01, mirrors `initSite`'s identical discipline).
  */
 
@@ -172,7 +172,7 @@ export interface DuplicateSiteResult {
  * nor is any top-level entry `layout.ts` has not classified.
  *
  * @param required.sourceDir - path to the site being duplicated; resolved once (path/symlink
- *   containment, mirrors `initSite`'s own `resolveInstallDirTarget` discipline) and validated as a
+ *   containment, mirrors `initSite`'s own `resolveDirectoryTarget` discipline) and validated as a
  *   real site via {@link readSiteDir} before anything is written.
  * @param required.targetDir - path for the new site; resolved the same way, then refused unless
  *   absent or an empty directory (INV-02/AC-04, {@link validateInitTarget}).
@@ -193,8 +193,8 @@ export interface DuplicateSiteResult {
  */
 export async function duplicateSite(required: DuplicateSiteRequired, { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {}): Promise<DuplicateSiteResult> {
   const { sourceDir, targetDir, name } = required;
-  const source = resolveInstallDirTarget({ dirArg: sourceDir });
-  const target = resolveInstallDirTarget({ dirArg: targetDir });
+  const source = resolveDirectoryTarget({ dirArg: sourceDir });
+  const target = resolveDirectoryTarget({ dirArg: targetDir });
 
   const resolvedName = resolveSiteName({ target, name }); // pre-write VALIDATION, mirrors initSite step 1.
   validateInitTarget({ target }); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.

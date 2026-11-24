@@ -14,7 +14,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
-import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
+import { withPluginHookRefusals } from "@jini-ai/plugins/host/hook-refusals";
 import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "./deps.js";
 
 /** Re-exported for this file's existing callers/tests, now sourced from the shared composer
@@ -38,7 +38,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: WidgetsToolDeps }, _optional 
     widgetBindingRepo: routeDeps.widgetBindingRepo,
     composeWriteDeps: () => buildWidgetsDeps(routeDeps),
     composeRegionDeps: () => buildWidgetsRegionDeps(routeDeps),
-    wrapHookRefusals: withPluginHookRefusals,
+    wrapHookRefusals: (handlers) => withPluginHookRefusals({ handlers }),
   };
 }
 

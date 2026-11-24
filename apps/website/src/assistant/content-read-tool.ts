@@ -1,5 +1,5 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/content-read.js';
-import { buildDomainRegistrations, isRecord, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolInputNormalizer, type NormalizedToolInput, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, dispatchByIdPresence, isRecord, renameInputSelectors, renameSchemaSelector, requireInputRecord, requireString, rewriteSchemaDescriptions, ToolInputError, unionInputSchema, valueAtPath, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolInputNormalizer, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";
 
@@ -195,16 +195,6 @@ export function currentToolIdFor({ toolId }: { toolId: string }, _optional = {})
  *  same card both resolve to it. */
 const REPEATED_CARD_ID_PATTERN = /(content_read\.[a-z_]+)(?:\s*(?:[,/]|\s(?:or|and)\s)\s*\1\b)+/g;
 
-/** Applies `rewriteText` to every string `description` in a JSON schema.
- *  @complexity O(n) in the schema size. */
-function rewriteSchemaDescriptions({ value, rewriteText }: { value: unknown; rewriteText: (required: { text: string }) => string }, _optional = {}): unknown {
-  if (Array.isArray(value)) return value.map((child) => rewriteSchemaDescriptions({ value: child, rewriteText: rewriteText }));
-  if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, key === "description" && typeof child === "string" ? rewriteText({ text: child }) : rewriteSchemaDescriptions({ value: child, rewriteText: rewriteText })]),
-  );
-}
-
 /**
  * Builds the rewrite that points every retired read tool id in a registration's description and
  * input-schema descriptions at the card that serves it now.
@@ -285,43 +275,6 @@ function sourceRegistration({ byId, toolId }: { byId: ReadonlyMap<string, ToolRe
     throw new Error(`content-read-tool.ts: internal error — '${toolId}' passed cardIsAvailable but is missing from byId`);
   }
   return found;
-}
-
-/**
- * **The one shared handler factory** every merged (get+list) card wires through. Dispatches to
- * `get` when the caller supplied `idProperty`, to `list` otherwise — both branches invoke the
- * ORIGINAL, already-shipped handler completely unchanged, including its own input validation and
- * its own permission enforcement (see this file's header for why that is sufficient).
- *
- * `value !== undefined` rather than a stricter non-empty-string check: an empty-string id is left
- * for the underlying `get` handler's own `requireString` to reject with its own message, rather
- * than this wrapper inventing a second, possibly-inconsistent validation error.
- * A batch-enabled get owns `items` before id dispatch: its existing wrapper validates the batch
- * and runs each item through get, so a missing item id fails instead of disclosing a whole list.
- *
- * @complexity O(1) plus whichever branch's own cost.
- */
-function dispatchByIdPresence(
-  { idProperty, get, list }: { idProperty: string; get: ToolHandler; list: ToolHandler },
-  { batchGet = false }: { batchGet?: boolean } = {},
-): ToolHandler {
-  return async (ctx, options) => {
-    const candidate = { value: ctx.input };
-    if (batchGet && isRecord(candidate) && Object.hasOwn(candidate.value, "items")) return get(ctx, options);
-    const value = isRecord(candidate) ? candidate.value[idProperty] : undefined;
-    return value !== undefined ? get(ctx, options) : list(ctx, options);
-  };
-}
-
-/** The value at `path` inside `item`, or `undefined` when any step is not a record. */
-function valueAtPath({ item, path }: { item: unknown; path: readonly string[] }, _optional = {}): unknown {
-  let current: unknown = item;
-  for (const key of path) {
-    const candidate = { value: current };
-    if (!isRecord(candidate)) return undefined;
-    current = candidate.value[key];
-  }
-  return current;
 }
 
 /**
@@ -441,60 +394,7 @@ function describeCardIdInput(
   const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
   if (!idProperty || idProperty === "id") return { inputSchema, idDescription: "" };
   const idDescription = `id: the ${card.resource.replace(/_/g, " ")}'s selector, using the same value as legacy '${idProperty}' (accepted for 90 days from release).`;
-  return { inputSchema: canonicalCardSchema({ inputSchema, idProperty }), idDescription };
-}
-
-/** Project the source selector to `id`, including a source-owned batch's item schema.
- * Other filters, required context and natural-key constraints are preserved verbatim.
- * @complexity O(p) time/space in the single and batch-item properties; no effects.
- */
-function canonicalCardSchema(
-  { inputSchema, idProperty }: { inputSchema: Readonly<Record<string, unknown>>; idProperty: string },
-  _options = {},
-): Readonly<Record<string, unknown>> {
-  // A schema-less reader keeps its empty fallback: there is no selector to project.
-  if (inputSchema.properties === undefined && inputSchema.required === undefined) return inputSchema;
-  const properties = (inputSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
-  const projected = Object.fromEntries(Object.entries(properties).map(([key, value]) => [key === idProperty ? "id" : key, value]));
-  const batch = properties.items as Readonly<Record<string, unknown>> | undefined;
-  if (batch?.items) projected.items = { ...batch, items: canonicalCardSchema({ inputSchema: batch.items as Readonly<Record<string, unknown>>, idProperty }) };
-  return { ...inputSchema, properties: projected,
-    required: ((inputSchema.required as readonly string[] | undefined) ?? []).map((key) => key === idProperty ? "id" : key),
-  };
-}
-
-/** Rename one selector without mutating caller input or exposing values in errors/notes.
- * @throws ToolInputError for conflicting spellings, even when their values are equal.
- * @complexity O(k) time/space for k input keys; no I/O.
- */
-function renameCardSelector(
-  { input, from, to }: { input: unknown; from: string; to: string }, _options = {},
-): NormalizedToolInput {
-  const candidate = { value: input };
-  if (!isRecord(candidate) || !Object.hasOwn(candidate.value, from)) return { input, notes: [] };
-  if (Object.hasOwn(candidate.value, to)) throw new ToolInputError({ message: `Conflicting inputs '${from}' and '${to}' both name '${to}'. Send only '${to}'.` });
-  const { [from]: selector, ...rest } = candidate.value;
-  return { input: { ...rest, [to]: selector }, notes: [`${from}→${to}`] };
-}
-
-/** Translate only the target selector at the root and in source-owned batch items.
- * Batch execution, limits, per-item authorization and result envelopes remain with Jini.
- * @throws ToolInputError if any single item contains both spellings, before a read begins.
- * @complexity O(k) time/space in root and batch-item keys; no per-item I/O.
- */
-function mapCardSelectors(
-  { input, from, to }: { input: unknown; from: string; to: string }, _options = {},
-): NormalizedToolInput {
-  const renamed = renameCardSelector({ input, from, to });
-  const candidate = { value: renamed.input };
-  if (!isRecord(candidate) || !Array.isArray(candidate.value.items)) return renamed;
-  const notes = [...renamed.notes];
-  const items = candidate.value.items.map((item, index) => {
-    const result = renameCardSelector({ input: item, from, to });
-    notes.push(...result.notes.map((note) => `items[${index}].${note}`));
-    return result.input;
-  });
-  return { input: { ...candidate.value, items }, notes };
+  return { inputSchema: renameSchemaSelector({ inputSchema, from: idProperty, to: "id" }), idDescription };
 }
 
 /** Adapt canonical card input back to the original handler ABI; aliases belong to the gate hook.
@@ -510,54 +410,17 @@ function canonicalCardDispatch(
   const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => {
     // Slug lookup belongs to the host target adapter after site selection and authorization;
     // this card owns only canonical id ↔ source-selector spelling.
-    return mapCardSelectors({ input, from: idProperty, to: "id" });
+    return renameInputSelectors({ input, from: idProperty, to: "id" });
   };
-  const handler: ToolHandler = (ctx, options) => dispatch.handler({ ...ctx, input: mapCardSelectors({ input: ctx.input, from: "id", to: idProperty }).input }, options);
+  const handler: ToolHandler = (ctx, options) => dispatch.handler({ ...ctx, input: renameInputSelectors({ input: ctx.input, from: "id", to: idProperty }).input }, options);
   return { ...dispatch, handler, normalizeInput };
 }
 
-/**
- * Builds a merged card's inputSchema as the union of its `get` and `list` members' own ALREADY-
- * PUBLISHED schemas — never hand-authored, so it cannot drift from what those two tools actually
- * accept. `idProperty` becomes optional in the union (its presence, not a `required` entry, is the
- * dispatch signal `dispatchByIdPresence` reads) with a one-line note appended explaining that.
- * `required` is the intersection of the two members' own required fields (with `idProperty` removed
- * from `get`'s side first) — a field required by only ONE branch cannot be required overall, since
- * the other branch never needs it. Shared required context stays required; `content_post`'s `id`
- * is get-only and becomes optional, while its `kind` is optional on both branches.
- *
- * @complexity O(p) in combined property count.
- */
-function unionInputSchema(
-  { getSchema, listSchema, idProperty }: { getSchema: Readonly<Record<string, unknown>>; listSchema: Readonly<Record<string, unknown>>; idProperty: string }, _optional = {},
-): Readonly<Record<string, unknown>> {
-  const getProps = (getSchema.properties as Record<string, unknown> | undefined) ?? {};
-  const listProps = (listSchema.properties as Record<string, unknown> | undefined) ?? {};
-  const getRequired = new Set(((getSchema.required as readonly string[] | undefined) ?? []).filter((key) => key !== idProperty));
-  const listRequired = new Set((listSchema.required as readonly string[] | undefined) ?? []);
-  const required = [...getRequired].filter((key) => listRequired.has(key));
-
-  const idSchema = getProps[idProperty] as Record<string, unknown> | undefined;
-  const idPropertyEntry = idSchema
-    ? {
-        [idProperty]: {
-          ...idSchema,
-          description: `${(idSchema.description as string | undefined) ?? ""} Omit to list instead of fetching a single item.`.trim(),
-        },
-      }
-    : {};
-
-  const properties = { ...listProps, ...getProps, ...idPropertyEntry };
-  // A merged card may advertise peer reads only when either dispatch branch can honor them.
-  if (!Object.hasOwn(listProps, "site") || !Object.hasOwn(getProps, "site")) delete properties.site;
-
-  return {
-    type: "object",
-    additionalProperties: false,
-    required,
-    properties,
-  };
-}
+/** A merged card may advertise peer reads only when either dispatch branch can honor them:
+ *  `site` survives {@link unionInputSchema} only when both members declare it. In the union, shared
+ *  required context stays required; `content_post`'s `id` is get-only and becomes optional, while
+ *  its `kind` is optional on both branches. */
+const PEER_READ_KEYS: readonly string[] = ["site"];
 
 /**
  * The composition-root read pass: takes the already-built flat registration list every domain
@@ -672,7 +535,7 @@ function pairedCardDispatch({ card, get, list, byId }: {
   const inputSchema = unionInputSchema(
     { getSchema: getSchema,
     listSchema: registrationInputSchema({ registration: listReg }),
-    idProperty: get.idProperty },
+    idProperty: get.idProperty }, { sharedOnlyKeys: PEER_READ_KEYS },
   );
   return { memberIds: [get.toolId, list.toolId], handler, inputSchema };
 }
@@ -691,7 +554,7 @@ function lookupCardDispatch({ card, list, lookup, byId }: {
   const inputSchema = unionInputSchema(
     { getSchema: listLookupIdSchema({ resource: card.resource, lookup, listSchema: registrationInputSchema({ registration: listReg }) }),
     listSchema: registrationInputSchema({ registration: listReg }),
-    idProperty: lookup.idProperty },
+    idProperty: lookup.idProperty }, { sharedOnlyKeys: PEER_READ_KEYS },
   );
   return { memberIds: [list.toolId], handler, inputSchema };
 }

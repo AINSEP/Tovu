@@ -12,7 +12,7 @@ import { buildCommentsRegistrations, contributeCommentsTools, type CommentsToolD
 import { commentsDerivedRisk, createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

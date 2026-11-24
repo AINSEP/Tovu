@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkSitePathname, checkSiteRelativeTarget, RESERVED_SEGMENTS } from "../reserved-paths.js";
 import { resolveSitePath as resolveSameOriginPath } from "@jini-ai/diagnostics/web-evidence/site-path-policy";
+import { checkSitePathname, checkSiteRelativeTarget } from "@jini-ai/cms/routing/site/reserved-paths";
 
 /**
  * @file The shared reserved-path rule (`reserved-paths.ts`) and the pin that keeps its two

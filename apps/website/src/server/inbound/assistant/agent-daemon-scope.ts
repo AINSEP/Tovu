@@ -6,10 +6,10 @@ import { createScopeToolRegistry, createScopeToolExecutor } from './agent-daemon
 import { createScopeLifetime } from './agent-daemon-scope-lifetime.js';
 import type { AgentDaemonCoreDeps } from '../../runtime/composition/agent-daemon-core-deps.js';
 import { type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
-import { type ToolAccessRun } from '@jini-ai/daemon';
+import { type ToolAccessRun, createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from '@jini-ai/daemon';
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import express from "express";
@@ -22,10 +22,10 @@ import { type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance
 import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 
 import { createAssistantAgentInventory } from "#src/assistant/agents";
-import { createLiveRunTracker, createConversationStartLock } from "#src/assistant/agent-session-preset";
-import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
+import { createLiveRunTracker, createConversationStartLock } from "@jini-ai/daemon/session-coordination";
+import { createCustomInstructionsCache } from "@jini-ai/agent-runtime/custom-instructions";
 import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assistant/daemon-access";
-import { createRunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { readProcessStart } from "./attempt-process-identity.js";
@@ -204,7 +204,7 @@ const toolExecutor = createScopeToolExecutor({ routeDeps, registry, surfaceExcha
  * first read. `onStarted` calls `.refresh()` before every run; `assistantPromptAugmenter.
  * systemOverlay()` reads the result synchronously.
  */
-const customInstructionsCache = createCustomInstructionsCache( { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady, getEffective: routeDeps.getEffective, instructionsNamespace: routeDeps.instructionsNamespace, }, { workspaceId: routeDeps.workspaceId }, );
+const customInstructionsCache = createCustomInstructionsCache( { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady, getEffective: routeDeps.getEffective, instructionsNamespace: routeDeps.instructionsNamespace, warn: (message: string, error: unknown) => console.error(`[assistant] ${message}`, error), workspaceId: routeDeps.workspaceId, });
 
 // Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
 // concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.

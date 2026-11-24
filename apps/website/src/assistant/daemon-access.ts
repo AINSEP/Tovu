@@ -4,7 +4,7 @@ import { startupSecretEnvironment } from '#src/platform/secrets/startup-secrets'
 import type { Express } from "express";
 import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import { createNodeCredentialCrypto, authorizeDaemonRequest, createRouteAccessPolicy,
-  ensureAgentDaemonToken as ensureDaemonToken, authorizeRunOwnership, listOwnedRuns,
+  ensureAgentDaemonToken as ensureDaemonToken, adoptAndEnsureDaemonSecret, authorizeRunOwnership, listOwnedRuns,
   createRunScopedCredentials as createDaemonRunCredentials } from "@jini-ai/daemon/run-credentials";
 import type { RunOwnerRegistry, RunScopedCallerResolver } from "@jini-ai/daemon/run-credentials";
 import { attachmentLookupRoutes, ATTACHMENT_LOOKUP_ROUTE_PATH, type AttachmentLookup, type DaemonRouteHost } from "@jini-ai/daemon/http";
@@ -34,10 +34,8 @@ const daemonTokenHolder: NodeJS.ProcessEnv = {};
 /** Keep the server's proxy capability in memory; custom env records retain their existing DI contract. */
 export function ensureAgentDaemonToken({ env }: { env?: NodeJS.ProcessEnv }, optional = {}): string {
   if (env !== undefined && env !== process.env) return ensureDaemonToken({ env, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto }, optional);
-  const token = startupSecretEnvironment({ env: process.env })[AGENT_DAEMON_TOKEN_ENV_VAR];
-  delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  if (token && !daemonTokenHolder[AGENT_DAEMON_TOKEN_ENV_VAR]) daemonTokenHolder[AGENT_DAEMON_TOKEN_ENV_VAR] = token;
-  return ensureDaemonToken({ env: daemonTokenHolder, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto }, optional);
+  return adoptAndEnsureDaemonSecret({ env: process.env, holder: daemonTokenHolder, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto },
+    { ...optional, readOperatorSecrets: startupSecretEnvironment });
 }
 /** Resolve this server's authority; an explicit scope never falls back to another scope's holder. */
 export function currentAgentDaemonToken({ env = process.env }: { env?: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): string | undefined {
@@ -51,10 +49,8 @@ const toolExecTokenHolder: NodeJS.ProcessEnv = {};
  * @returns The token, the same for the life of this process.
  */
 export function ensureToolExecToken({ env = process.env, holder = toolExecTokenHolder }: { env?: NodeJS.ProcessEnv; holder?: NodeJS.ProcessEnv }, optional = {}): string {
-  const operatorToken = startupSecretEnvironment({ env })[TOOL_EXEC_TOKEN_ENV_VAR];
-  delete env[TOOL_EXEC_TOKEN_ENV_VAR];
-  if (operatorToken && !holder[TOOL_EXEC_TOKEN_ENV_VAR]) holder[TOOL_EXEC_TOKEN_ENV_VAR] = operatorToken;
-  return ensureDaemonToken({ env: holder, envVarName: TOOL_EXEC_TOKEN_ENV_VAR, crypto }, optional);
+  // Jini owns adopt-then-delete-then-ensure; Tovu injects its secret-file resolver.
+  return adoptAndEnsureDaemonSecret({ env, holder, envVarName: TOOL_EXEC_TOKEN_ENV_VAR, crypto }, { ...optional, readOperatorSecrets: startupSecretEnvironment });
 }
 /** The minted tool RPC token, or `undefined` before {@link ensureToolExecToken} ran. */
 export function currentToolExecToken(_required = {}, _optional = {}): string | undefined {

@@ -1,6 +1,6 @@
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import { SqlOutboxAdapter } from "@jini-ai/db/events";
-import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import type { ContentDb } from "./content-db.js";
 
 /** Tovu owns the persisted name; the adapter and the transactional writers use the same wiring. */

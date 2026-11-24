@@ -20,8 +20,8 @@ import { commerceProductRepoFor, commercePriceRepoFor } from '@jini-ai/commerce/
 import { sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { composeCommerce, type ComposeCommerceRequired } from '../commerce.js';
-import { ensureCommerceSetting } from '../commerce-settings.js';
-import type { ProviderConfigSource } from "@jini-ai/core/contracts/site/composition-provider-config-source";
+import { ensureCommerceSetting } from '@jini-ai/commerce';
+import type { ProviderConfigSource } from '../provider-config-source.js';
 
 const context = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, signal: new AbortController().signal };
 const authorize = async () => ({ allowed: true, reason: 'fixture-owner' });

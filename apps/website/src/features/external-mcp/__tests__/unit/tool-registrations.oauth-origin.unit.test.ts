@@ -10,9 +10,9 @@ import { createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../../external-mcp-store.js";
-import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";

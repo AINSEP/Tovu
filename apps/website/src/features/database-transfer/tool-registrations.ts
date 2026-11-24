@@ -10,8 +10,9 @@ import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { DbOpsPort } from "@jini-ai/core/contracts/site/gated-mutations-ports";
-import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import {
   SURFACE_DISMISSED_PARAM,
 } from "@jini-ai/daemon/surface-exchanges";
@@ -70,7 +71,7 @@ export type DatabaseTransferAdapters = Pick<Parameters<typeof createDatabaseTran
 
 /** Input errors name the rule, never the connection string. */
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER" }),
+  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER", error: ForbiddenError }),
   { error: InvalidConnectionStringError, code: "DATABASE_TRANSFER_INVALID_CONNECTION_STRING" },
   { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" },
 ];

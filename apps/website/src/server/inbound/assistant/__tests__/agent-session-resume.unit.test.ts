@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
+import { agentCarriesOwnMemory } from "../../../../assistant/agent-session-preset.js";
 import {
-  agentCarriesOwnMemory,
   extractSessionRefFromEndEvent,
   resolveResumeSessionField,
   shouldClearSessionOnFailedResume,
   wouldForcedColdStartLoseConversationContext,
-} from "../../../../assistant/agent-session-preset.js";
+} from "@jini-ai/daemon/session-coordination";
 
 /**
  * @file `agent-daemon-server.ts` cannot be imported directly by a unit test (import-time side

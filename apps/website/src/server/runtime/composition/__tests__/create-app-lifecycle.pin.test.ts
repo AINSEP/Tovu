@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 
-import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 

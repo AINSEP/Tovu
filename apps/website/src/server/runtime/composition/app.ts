@@ -24,8 +24,8 @@ import { createPluginExportSource } from "#src/features/agent-plugins/exports/so
 import { bindSiteConsentService } from './site-consent.js';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
-import { resolveMenuDoc, createNavMenuReadModel } from "@jini-ai/cms/navigation";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH } from "@jini-ai/cms/publish/content/seed-hash";

@@ -10,7 +10,7 @@ import { contentKernel } from '#src/platform/db/content-kernel';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/platform/db/repos/media-repo';
 import { outboxOn } from '#src/platform/db/__tests__/events-adapters';
-import { InMemoryEventBus } from '#src/contracts/core/events/index';
+import { InMemoryEventBus } from '@jini-ai/infra/events/memory-bus';
 import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '../form-file-purge.js';
 import { sniffContentType } from '@jini-ai/cms/media';
 import { purgeMedia as purgeSiteMedia } from '@jini-ai/cms/media/site/purge-media';

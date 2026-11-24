@@ -1,6 +1,7 @@
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { EventEmitter, once } from "node:events";
-import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "../visitor-confirmations.js";
+import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS } from "../visitor-confirmations.js";
+import type { ToolConfirmationDirective } from "@jini-ai/core/contracts/site/client-directives";
 
 /** Real Jini exchanges with only time, IDs and scheduling replaced. No sleeping or processes. */
 export function confirmationFixture() {

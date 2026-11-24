@@ -12,7 +12,7 @@ import {
   type RegisterContentTypeRequired,
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 
 /** Bind Tovu's route vocabulary to the shared, authorization-first write owner. O(1). */
 export function registerContentType(required: RegisterContentTypeRequired, _optional: Record<string, never> = {}) {

@@ -1,5 +1,5 @@
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { bytesMatchSha256 } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { peerHostname, peerUrl } from "@jini-ai/cms/publish/content/peer-url";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";

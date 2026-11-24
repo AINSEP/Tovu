@@ -42,7 +42,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
-import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
+import { applyBatchInputs } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
 import type { ContentTypesToolDeps } from "@jini-ai/cms/content-types";

@@ -7,8 +7,7 @@ import type { ClaimMode, DeclarativeContentTypesPort, PluginSdkBinding, PluginTi
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
 import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME, PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
-import { readDefinedPlugin } from "@jini-ai/plugins/runtime/plugin-export";
-import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
+import { SHARED_EXTENSION_CAPABILITIES } from "@jini-ai/core/extension-capability-vocabulary";
 import { applyDeclaredContentTypes, parseDeclaredContentTypes, planDeclaredContentTypes, validateDeclarativeManifest, type DeclaredContentTypePlan, type DeclaredContentTypePorts, type DeclaredContentType } from "./declarative-content-types.js";
 import { readSitePluginArchive } from "./install-archive.js";
 import { createPluginInvocationCoreDeps } from "./invocation-core-deps.js";

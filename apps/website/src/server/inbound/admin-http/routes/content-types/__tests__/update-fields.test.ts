@@ -4,7 +4,7 @@ import express from "express";
 
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 import * as contentTypes from "@jini-ai/cms/content-types";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modules/content-types";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";

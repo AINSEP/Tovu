@@ -22,9 +22,9 @@ import {
 import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { inventoryVaultCredentials } from "#src/platform/db/vault-credential-inventory";
-import { legacyVaultAad } from "./vault-legacy-codecs.js";
+import { legacyVaultAad } from "@jini-ai/platform/secrets/legacy-codecs";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { legacyContext, loadSiteVaultKinds, recoverLegacyVaultRecord } from "./vault-boot.js";
+import { legacyContext, loadSiteVaultKinds, recoverLegacyVaultRecord, TOVU_VAULT_OWNER_KEY } from "./vault-boot.js";
 
 /**
  * @file What the admin Site key route's last-resort recovery ("Paste your old token", "Start
@@ -135,7 +135,7 @@ export const siteKeyRecovery = { checkKey, discardNotOpening, resealFrom, instal
 export function recoveryAad({ record }: { record: VaultRecord }, _options = {}): string | undefined {
   // Includes the pinned former custom-kind vault marker; recovery shares boot's exact codec.
   const legacy = legacyContext({ record });
-  return legacy ? legacyVaultAad({ record, legacy }) : buildVaultAad(record);
+  return legacy ? legacyVaultAad({ record, legacy, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY }) : buildVaultAad(record);
 }
 
 /** Legacy recovery reuses boot normalization. Ordinary rotation calls Jini's lifecycle with a

@@ -8,10 +8,12 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.env.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
-import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "../live-model-cache.js";
+import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
+import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "@jini-ai/agent-runtime/model-catalog/live-discovery";
+import { resolveExecutionCredential } from "../execution-credential-store.js";
 
 /**
- * @file `live-model-cache.ts` — the two properties the design doc's Local CLI live-discovery
+ * @file `@jini-ai/agent-runtime/model-catalog/live-discovery`, bound to Tovu's real credential repo + sealer — the two properties the design doc's Local CLI live-discovery
  * decision is built on:
  * 1. **Never a gate.** No stored credential, or a stored credential for any protocol other than
  *    `anthropic`, must make ZERO network calls — proven here by making `globalThis.fetch` throw
@@ -29,17 +31,27 @@ import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "..
 const WORKSPACE = "workspace-1";
 const ADMIN_A = "principal-admin-a";
 const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" };
-/** Mirrors `live-model-cache.ts`'s internal `LIVE_MODEL_CACHE_TTL_MS` — not exported (callers
+/** Mirrors `@jini-ai/agent-runtime/model-catalog/live-discovery`'s internal `LIVE_MODEL_CACHE_TTL_MS` — not exported (callers
  *  should not need to know the exact number), so this is restated here rather than imported. If
  *  the module's TTL ever changes, the cache-expiry test below is the one place that needs updating
  *  to match. */
 const TTL_MS = 5 * 60_000;
 
-function makeDeps({ nowMs = Date.now, discover = fetchLiveClaudeModels }: { nowMs?: () => number; discover?: typeof fetchLiveClaudeModels } = {}, _options = {}) {
+/** Mirrors the host binding in `server/runtime/composition/modules/assistant.ts`: Jini emits a
+ *  prefix-free line through the injected `warn`; Tovu's binding adds the `[assistant]` prefix on
+ *  `console.warn`, so the operator-visible log text is unchanged. */
+const hostWarn = (message: string) => console.warn(`[assistant] ${message}`);
+type Discover = (required: { apiKey: string; baseUrl: string }) => ReturnType<typeof fetchLiveClaudeModels>;
+const hostDiscover: Discover = (required) => fetchLiveClaudeModels({ ...required, warn: hostWarn });
+
+function makeDeps({ nowMs = Date.now, discover = hostDiscover }: { nowMs?: () => number; discover?: Discover } = {}, _options = {}) {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
-  const discovery = createLiveModelDiscovery({ repo, sealer, clock: { nowMs }, discover });
+  const discovery = createLiveModelDiscovery({
+    resolveCredential: input => resolveExecutionCredential({ deps: { repo, sealer }, input }),
+    defaultBaseUrl: VENDOR_API_BASE_URLS.anthropic, clock: { nowMs }, discover,
+  });
   return { discovery, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -371,7 +383,7 @@ test("a failed live call with an empty error body names only the failure kind, w
 });
 
 test("a failed listing that carries a detail names both the failure kind and the detail, then falls back", async () => {
-  const { result, warnings } = await captureWarnings(() => fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+  const { result, warnings } = await captureWarnings(() => fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async () => ({ ok: false, kind: "auth_failed", detail: "invalid x-api-key", latencyMs: 1 }),
   }));
   assert.equal(result, null);
@@ -381,7 +393,7 @@ test("a failed listing that carries a detail names both the failure kind and the
 
 test("a successful listing returns its models unchanged", async () => {
   const listed = [{ id: "claude-live-1", label: "Claude Live 1" }];
-  const models = await fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+  const models = await fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async () => ({ ok: true, kind: "success", latencyMs: 1, models: listed }),
   });
   assert.deepEqual(models, listed);
@@ -389,7 +401,7 @@ test("a successful listing returns its models unchanged", async () => {
 
 test("a successful listing that carries no models array resolves to null rather than an empty catalog", async () => {
   const calls: unknown[] = [];
-  const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9" }, {
+  const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9", warn: hostWarn }, {
     listModels: async (input) => { calls.push(input); return { ok: true, kind: "success", latencyMs: 1 }; },
   });
   assert.equal(models, null);

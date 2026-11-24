@@ -10,12 +10,12 @@ import { ensureFormDestinationSetting } from "@jini-ai/cms/settings/site/form-de
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
-import type { MemoryClock, MemoryIdGen } from "../ports.js";
+import type { Clock, IdGenerator, IsoClock } from "@jini-ai/core/primitives";
 import type { composeIdentitySettings } from "./identity-settings.js";
 
 type IdentitySettings = ReturnType<typeof composeIdentitySettings>;
 
-export function composeSiteTitleSettings(required: { settingsRepo: InMemorySettingsRepo; clock: MemoryClock; idGen: MemoryIdGen; settingsPrincipals: IdentitySettings["settingsPrincipals"]; analyticsSettingsReady: IdentitySettings["analyticsSettingsReady"] }, _optional = {}) {
+export function composeSiteTitleSettings(required: { settingsRepo: InMemorySettingsRepo; clock: Clock & IsoClock; idGen: IdGenerator; settingsPrincipals: IdentitySettings["settingsPrincipals"]; analyticsSettingsReady: IdentitySettings["analyticsSettingsReady"] }, _optional = {}) {
   const { settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady } = required;
   // SPEC-050 `core.site.title` (`@jini-ai/cms/settings/site/site-title`): registration, then the one-time
   // pin for workspaces that existed before the setting. This root always seeds fresh, so it records

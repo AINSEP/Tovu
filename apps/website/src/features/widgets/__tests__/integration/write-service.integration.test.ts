@@ -12,7 +12,7 @@ import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance, type W
 import { WidgetForbiddenError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
 import { WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /**
  * @file C-005 widget-instance CRUD — SPEC-043 REQ-01..06/42/43, AC-01..04/29, INV-01/09.

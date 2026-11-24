@@ -1,4 +1,4 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, batchDescriptorFor } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,14 +7,14 @@ import { DOC_NODE_HANDLERS } from "@jini-ai/cms/public-http/http/site/render/doc
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
-import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributePostTools } from "../../features/post/tool-registrations.js";

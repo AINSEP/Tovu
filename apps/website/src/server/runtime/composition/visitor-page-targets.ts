@@ -3,7 +3,8 @@ import { DefaultMemberAccessResolver, resolvePostMemberAccess } from '@jini-ai/u
 import { listPublishedPosts } from '#src/features/post/index';
 import { resolveActiveTheme, isStandaloneThemePage } from '#src/features/theme/index';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
-import { postPublicPath, checkSiteRelativeTarget, RESERVED_SEGMENTS } from '#src/platform/routing/index';
+import { checkSiteRelativeTarget, RESERVED_SEGMENTS } from '@jini-ai/cms/routing/site/reserved-paths';
+import { postPublicPath } from '#src/platform/routing/index';
 import { readAnonymousPublishedPosts } from '#src/assistant/site/public-content';
 import { RedirectPhaseHandlerResolver, redirectMatcher } from '@jini-ai/cms/redirects';
 import type { RouteDeps } from '#src/server/routes/types';

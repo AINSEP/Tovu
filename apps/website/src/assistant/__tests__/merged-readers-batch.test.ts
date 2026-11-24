@@ -26,7 +26,7 @@ import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redire
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
 import type { ToolContributor, DerivedToolContributor } from "../index.js";
-import type { BatchResult } from "../batch-tool-inputs.js";
+import type { BatchResult } from "@jini-ai/core";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "./fixtures/registry-deps.js";
 

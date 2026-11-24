@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { startupFailureMessage } from '@jini-ai/agent-runtime';
 import { createInMemoryEventLog, createRunLifecycle } from '@jini-ai/daemon';
-import { failRunBeforeStart } from '#src/assistant/agent-session-preset';
+import { failRunBeforeStart } from '@jini-ai/daemon/session-coordination';
 import { captureDaemonRun } from './helpers/daemon-source.js';
 
 test('onStarted saves the preparation stage and cause on a pre-spawn rejection', async () => {

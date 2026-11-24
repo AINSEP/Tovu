@@ -9,7 +9,7 @@ import { VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_OUTPUT_BYTES, VIDEO_MAX_SHEET_BYTES, V
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, uploadMedia } from '../index.js';
 import { buildMediaViewVideoRegistrations, MEDIA_VIEW_VIDEO_INPUT_SCHEMA, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
 import { startStubProviderServer } from '../../../server/__tests__/helpers/stub-provider-server.js';
-import { runByokProviderTurn } from '../../../assistant/byok-provider-turn.js';
+import { providerTurnAdapters, runProviderToolTurn } from '@jini-ai/agent-runtime/providers/tool-turn';
 import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
 import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
@@ -288,10 +288,10 @@ test('read-only delegated gateway preserves frames and the real BYOK OpenAI payl
     payload = body;
     return { status: 200, body: 'data: {"choices":[{"delta":{"content":"red clip"},"finish_reason":null}]}\n\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n' };
   });
-  await runByokProviderTurn({ protocol: 'openai', apiKey: 'test', baseUrl, model: 'test', system: 'test', messages: [{ role: 'user', content: 'What is in this clip?' }], tools: [h.tool.descriptor], executeTool: async () => {
+  await runProviderToolTurn({ protocol: 'openai', adapters: providerTurnAdapters, apiKey: 'test', model: 'test', system: 'test', messages: [{ role: 'user', content: 'What is in this clip?' }], tools: [h.tool.descriptor], executeTool: async () => {
     const result = await execute();
     return { content: result.content as Array<{ type: 'text'; text: string } | { type: 'image'; mimeType: string; data: string }> };
-  }, onEvent: () => {} });
+  }, onEvent: () => {} }, { baseUrl });
   assert.ok(payload, 'must send a continuation request after executing the tool');
   const messages = payload.messages as Array<{ role: string; content: unknown }>;
   const images = messages.flatMap(message => Array.isArray(message.content) ? message.content : []).filter(part => part.type === 'image_url');

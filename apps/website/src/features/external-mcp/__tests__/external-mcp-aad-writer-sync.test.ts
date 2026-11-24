@@ -5,9 +5,10 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
 import { EXTERNAL_MCP_VAULT_VERSION } from "@jini-ai/mcp/federation/hosted";

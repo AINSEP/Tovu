@@ -12832,6 +12832,942 @@
     {
       "id": "ffdd87f6e304",
       "reason": "Moved with the code to Jini packages/admin/src/deployment/api/deployment-api.types.ts (w5-admin); host paths reworded per Jini guard N2, reasoning kept."
+    },
+    {
+      "id": "4bbbfbfa321d",
+      "reason": "Moved to Jini @jini-ai/chat embed-widget/browser/embed-send-bridge.ts (installEmbedSendBridge doc: conversation owner, no parallel transport, one in-flight request per pane), reworded neutral; the comparison-frame opt-in sentence stays on Tovu site-chat-comparison.ts's bridge config doc."
+    },
+    {
+      "id": "c16ec5335e76",
+      "reason": "Moved to Jini @jini-ai/chat embed-widget/browser/embed-send-bridge.ts (ChatPane agent-control adapter doc: reuses the existing send capability, ordinary visitors omit it), reworded neutral."
+    },
+    {
+      "id": "b8ebc2fe90d6",
+      "reason": "Test file deleted with the module-level notifier (batch I); its coverage and header moved to Jini @jini-ai/mcp federation/__tests__/roster-change.unit.test.ts (last-wins, waitMs cap, throwing listener, plus lowering/isolation/reset)."
+    },
+    {
+      "id": "60e3bc6d1e8a",
+      "reason": "Reworded in place: the test now pins only Tovu's admin copy; the exact-upstream-wording mechanics it described are certified in Jini @jini-ai/daemon http/__tests__/lost-frontend-binding.test.ts (header names this split)."
+    },
+    {
+      "id": "cd0efabd6536",
+      "reason": "The ask-choice store adapter that forwarded Jini open() args moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (batch E); the DYNAMIC_BINDINGS entry this explained was deleted with the host code, so there is no host binding left to justify."
+    },
+    {
+      "id": "96ffb13e6f80",
+      "reason": "Reworded in place in the same test's @file header (now pins only Tovu's copy; detection/pass-through/wrapping certified in Jini @jini-ai/agentic core/__tests__/page-navigate-error.test.ts)."
+    },
+    {
+      "id": "3fea6f6c213b",
+      "reason": "Tovu's withPageNavigateErrorRewrap wiring was deleted (batch E); the wiring half moved to Jini @jini-ai/agentic core/page-navigate-error.ts and is tested there, so this test no longer exercises it."
+    },
+    {
+      "id": "e0d3dbf4bb56",
+      "reason": "Reworded in place in the same test's @file header (host integration of the rebindable discovery catalog; the catalog itself is owned and unit-tested by @jini-ai/registry/tool-catalog-builder)."
+    },
+    {
+      "id": "cb2a38acaaec",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (extractDeclaredSurfaceId doc), reworded neutral (route param named generically)."
+    },
+    {
+      "id": "b11d4dd9d837",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (A2UI post validator doc: shared by every hop that accepts the post), reworded neutral."
+    },
+    {
+      "id": "d4f24aee640c",
+      "reason": "Moved to Jini @jini-ai/daemon http/a2ui-actions.ts (409 not-waiting body doc, citing surfaceNotPendingBody's identical reasoning), reworded neutral."
+    },
+    {
+      "id": "086191724788",
+      "reason": "Header of the deleted createLiveToolCatalogQuery re-export (batch F); discovery now reseeds on registry revision via Jini @jini-ai/registry createRefreshingToolCatalogQuery (query.ts doc), bound in Tovu tool-catalog-query.ts."
+    },
+    {
+      "id": "852a09efbf2b",
+      "reason": "Header of the deleted agent-discovery.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "9f2257595b94",
+      "reason": "Split on the move: the option/answer-splitting rationale moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts @file (reworded neutral); the QuestionForm match and @jini-ai/ui 0.7.0 CSS-reveal bridge note stay on Tovu ask-choice-custom-answer.ts's reworded @file."
+    },
+    {
+      "id": "2a5014787ed3",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (CUSTOM_CHOICE_VALUE doc), reworded neutral ('before the answer is classified')."
+    },
+    {
+      "id": "21ff2464452e",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (CustomAnswerCopy.withPicksNote doc), reworded neutral (operator, not administrator)."
+    },
+    {
+      "id": "0a9ec77a7f51",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (addCustomAnswerFields radio comment), reworded neutral."
+    },
+    {
+      "id": "7d6ef221fafa",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (splitCustomAnswer doc), reworded neutral."
+    },
+    {
+      "id": "c5eee3937e83",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (single-select typed-answer helper doc), reworded neutral."
+    },
+    {
+      "id": "191aa81b8414",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (mergeCustomAnswer doc), reworded neutral."
+    },
+    {
+      "id": "76756966f7ba",
+      "reason": "Moved to Jini @jini-ai/mcp tools/ask-choice/custom-answer.ts (exchange-store wrapper doc), reworded neutral."
+    },
+    {
+      "id": "43a962079359",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts @file, reworded neutral (host BYOK tool surface named generically)."
+    },
+    {
+      "id": "afd7513c2a85",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (meta-tool result type doc), now citing agent-runtime's ProviderToolExecutor instead of the deleted Tovu ByokToolExecutor."
+    },
+    {
+      "id": "df87d952211f",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (comment above the non-array record guard), reworded neutral."
+    },
+    {
+      "id": "04c217f7cbe2",
+      "reason": "Moved to Jini @jini-ai/daemon byok-meta-tool-result.ts (resolveDelegatedInput / DelegatedInputResolution doc), reworded neutral."
+    },
+    {
+      "id": "5fd899922042",
+      "reason": "@file of the deleted byok-provider-turn.ts wrapper (Jini batch L); the implementation is Jini @jini-ai/agent-runtime providers/tool-turn.ts, and the 'no provider-specific browser branches' reason lives at Tovu assistant-byok.ts's onEvent relay comment (translateRunAgentPayload, zero new cases)."
+    },
+    {
+      "id": "1673e22c5f5d",
+      "reason": "Explained the wrapper's re-declared four-protocol union; the wrapper was deleted (Jini batch L) and callers use @jini-ai/agent-runtime's ProviderProtocol/resolveProviderProtocol, so no host re-declaration remains."
+    },
+    {
+      "id": "00699b94308e",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn.ts (resolveProviderProtocol doc), reworded neutral."
+    },
+    {
+      "id": "942b26e06e0f",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (ProviderChatMessage.images doc: shared attachment pixels translated at the wire adapter seam), reworded."
+    },
+    {
+      "id": "6d2f5c064430",
+      "reason": "Type deleted with the byok-provider-turn.ts wrapper (Jini batch L); callers use Jini ProviderTurnEvent, and the load-bearing identity with translateRunAgentPayload is stated at Tovu assistant-byok.ts's onEvent relay comment."
+    },
+    {
+      "id": "4b969c204d59",
+      "reason": "Moved to Jini: the shared text/image result-block type doc now lives once at @jini-ai/core contracts/tool-result-block.ts (ToolResultContentBlock, w5 rv1123r fix 16), used by daemon byok-meta-tool-result.ts and agent-runtime providers/tool-turn-types.ts; reworded neutral."
+    },
+    {
+      "id": "e939c362227d",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (ProviderToolExecutor doc), reworded neutral."
+    },
+    {
+      "id": "08983e404146",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (maxToolTurns doc), reworded neutral (host injects its policy value)."
+    },
+    {
+      "id": "a5430c1d7c3b",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (getTools / getToolSnapshot docs: read immediately before each request), reworded."
+    },
+    {
+      "id": "f0682facbe57",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (onSchemaFallback doc: value-free diagnostic, host still validates), reworded."
+    },
+    {
+      "id": "830aec0e17a0",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn-types.ts (onUnexposedToolCall doc: audit and word the refusal, never execute), reworded."
+    },
+    {
+      "id": "4265e81451f7",
+      "reason": "Moved to Jini @jini-ai/agent-runtime providers/tool-turn.ts (runProviderToolTurn doc: provider mapping constraints, Gemini schema and reference-cap reasoning), reworded neutral."
+    },
+    {
+      "id": "ebf7ba04c59c",
+      "reason": "'Temporary host binding until Jini publishes' is obsolete: the Tovu cli-probe-cache.ts binding was deleted and the cache is Jini @jini-ai/agent-runtime cli-probe-cache.ts, whose header keeps the settled-snapshot sentence."
+    },
+    {
+      "id": "51686f839b05",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (dispatchByIdPresence doc), reworded neutral."
+    },
+    {
+      "id": "7a43b9314ff3",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (selector projection doc), reworded neutral (generic from/to selector)."
+    },
+    {
+      "id": "be648206090e",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (selector translation doc), reworded neutral ('remain with the batch owner')."
+    },
+    {
+      "id": "1ec680af3e69",
+      "reason": "Moved to Jini @jini-ai/core tool-read-cards.ts (union input-schema builder doc), reworded neutral."
+    },
+    {
+      "id": "8334549b764c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts @file, reworded neutral (host daemon's PromptAugmenter)."
+    },
+    {
+      "id": "4ef89b324617",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (GetEffective type doc), reworded neutral; module-cycle reasoning kept."
+    },
+    {
+      "id": "b78756b6a8c7",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (settingsReady doc), reworded neutral (host's settings-tabs-ready promise)."
+    },
+    {
+      "id": "5f79ecccde14",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (getEffective dep doc), reworded neutral (host composition root)."
+    },
+    {
+      "id": "6efea06b23ca",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (instructionsNamespace dep doc), reworded neutral."
+    },
+    {
+      "id": "49640ff1f36f",
+      "reason": "Moved to Jini @jini-ai/agent-runtime custom-instructions.ts (createCustomInstructionsCache doc), reworded neutral (host daemon)."
+    },
+    {
+      "id": "a6073000990c",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (a2uiActionOf doc), reworded neutral."
+    },
+    {
+      "id": "b037bb1c88cf",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (a2uiActionOf doc, second paragraph), reworded neutral."
+    },
+    {
+      "id": "a699d4931d52",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (validatedA2uiMessage doc), reworded neutral."
+    },
+    {
+      "id": "11f30f58102f",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (withA2uiExchange doc: exchange opened before any message is sent), reworded neutral."
+    },
+    {
+      "id": "5da9843d9257",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (A2uiExchangeSession.surfaceId doc), reworded neutral."
+    },
+    {
+      "id": "fc11162d8bad",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (A2uiExchangeSession.emit doc), reworded."
+    },
+    {
+      "id": "b5cb3a1dbddd",
+      "reason": "Moved to Jini @jini-ai/agentic core/render-surface.ts (withA2uiExchange doc: idempotent close, real cleanup only on early return or abort), reworded neutral."
+    },
+    {
+      "id": "5017634a93ed",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts @file, reworded neutral (every host root that federates)."
+    },
+    {
+      "id": "b6f19591da5d",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (FederationRuntime.reload doc), reworded neutral."
+    },
+    {
+      "id": "e14f24d150d1",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (configuredConnectionIds doc), reworded neutral."
+    },
+    {
+      "id": "46b040a6ca2f",
+      "reason": "The named report alias it justified was deleted with the host accounting (batch N); Jini @jini-ai/mcp federation/runtime.ts uses its own exported types, so there is no Awaited<ReturnType<...>> spelling left to name."
+    },
+    {
+      "id": "f3406a761c19",
+      "reason": "Reworded at Tovu mcp-federation/bootstrap.ts's console-sink doc (the error rides along as a second console argument), where the host sink now lives."
+    },
+    {
+      "id": "870eda8e3cc9",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (connect-failure merge doc), reworded neutral."
+    },
+    {
+      "id": "30afe9236a7e",
+      "reason": "Moved to Jini @jini-ai/mcp federation/runtime.ts (local helper copy doc), reworded."
+    },
+    {
+      "id": "60c012d98f98",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts @file (createMcpRosterChangeBus), reworded neutral; module-level Map replaced by an instance-owned bus."
+    },
+    {
+      "id": "a2fc7d69e88f",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (McpRosterChangeListener doc), reworded neutral."
+    },
+    {
+      "id": "d3f12beafbd1",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (default waitMs doc), reworded neutral."
+    },
+    {
+      "id": "729ee62329ed",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (on() doc and @file keyed-rather-than-list paragraph), reworded neutral."
+    },
+    {
+      "id": "a6fb6f7bc83c",
+      "reason": "Moved to Jini @jini-ai/mcp federation/roster-change.ts (best-effort refresh and lowering docs), reworded neutral."
+    },
+    {
+      "id": "eb6967f868da",
+      "reason": "The module-level registry it reset no longer exists (batch I: instance-owned Jini bus); the Tovu reset helper's doc was reworded in place to reset this process's bus."
+    },
+    {
+      "id": "56232ba4bcec",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts @file, reworded neutral."
+    },
+    {
+      "id": "5e868f920d5c",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (getLiveClaudeModels doc), reworded neutral."
+    },
+    {
+      "id": "7c13513464b6",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (createLiveModelDiscovery doc), reworded neutral (a host may be multi-workspace)."
+    },
+    {
+      "id": "4580aa3786df",
+      "reason": "Moved to Jini @jini-ai/agent-runtime model-catalog-live-discovery.ts (client-safe projection comment), reworded neutral."
+    },
+    {
+      "id": "a9be76ed95d0",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts @file, reworded neutral (host-worded reload, injected messages)."
+    },
+    {
+      "id": "56f2415e73d8",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts (FrontendDisconnectedError doc), reworded neutral."
+    },
+    {
+      "id": "1b8564a2a397",
+      "reason": "Moved to Jini @jini-ai/daemon http/lost-frontend-binding.ts (createLostFrontendBindings maxRuns param doc), reworded."
+    },
+    {
+      "id": "81be82681fee",
+      "reason": "Explained a FederatedAdmissionReport import the Tovu bootstrap no longer has (batch N); the report type stays canonical in Jini @jini-ai/mcp federation/bootstrap.ts."
+    },
+    {
+      "id": "424d44d80a27",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (AttachFederatedToolsResult.reports doc), reworded neutral; the Tovu adapter no longer redeclares the result type."
+    },
+    {
+      "id": "e501a1301ddd",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (isPreset doc), reworded neutral; the Tovu adapter no longer redeclares it."
+    },
+    {
+      "id": "b3a26e9d0158",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (connectFailures doc), reworded neutral; the Tovu adapter no longer redeclares it."
+    },
+    {
+      "id": "efa4a7264501",
+      "reason": "Lives in Jini @jini-ai/mcp federation/bootstrap.ts (defaulted-inputs resolver doc; origin tagging deduped onto exported withPresetOrigin), reworded neutral."
+    },
+    {
+      "id": "3497f2b930e6",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (Shape-2 result-mapping doc), reworded neutral."
+    },
+    {
+      "id": "76236644d1e2",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (exchangeId field doc), reworded."
+    },
+    {
+      "id": "f6adb9797118",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (callback body validator doc), reworded neutral."
+    },
+    {
+      "id": "51873652cd5e",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (validator doc: answer shape decided before the allowlist check), reworded neutral."
+    },
+    {
+      "id": "b650fac4ade1",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (exchange-id read comment), reworded neutral."
+    },
+    {
+      "id": "d8e6a4e7051f",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (typed-answer predicate doc), reworded."
+    },
+    {
+      "id": "692999af359f",
+      "reason": "Moved to Jini @jini-ai/daemon http/surface-callback-request.ts (unregistered-toolId catch comment), reworded neutral."
+    },
+    {
+      "id": "8a3f61b8c87a",
+      "reason": "Moved to Jini @jini-ai/daemon page-approval-context.ts (approval context port doc), reworded neutral ('Host wiring')."
+    },
+    {
+      "id": "8d1cb8608bca",
+      "reason": "Reworded in place in the same test's @file header; hashSessionKey/chatExpiryFor tests moved to Jini @jini-ai/chat store/runtime chat-principal.test.ts."
+    },
+    {
+      "id": "8418cc0c0b27",
+      "reason": "Moved to Jini @jini-ai/chat store/runtime/chat-principal.ts (ChatStoreFactory doc), reworded neutral (host route deps, raw database handle)."
+    },
+    {
+      "id": "97fb1b48b3cf",
+      "reason": "Header of the deleted prompt-guidance.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "b7d0b0b81b47",
+      "reason": "Split on the move: detection/wrapping rationale moved to Jini @jini-ai/agentic core/page-navigate-error.ts @file (neutral); the CMS-vocabulary collision is kept in Tovu rewrap-page-navigate-error.ts's reworded @file."
+    },
+    {
+      "id": "58a8525a3bee",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (PAGE_NAVIGATE_TOOL_ID doc: capability ids become tool ids verbatim), reworded."
+    },
+    {
+      "id": "b509b62edad2",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (refusal regex doc), reworded neutral."
+    },
+    {
+      "id": "273b499fa724",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (rewrapPageNavigateError doc), reworded neutral."
+    },
+    {
+      "id": "16ebbdfd943d",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-navigate-error.ts (withPageNavigateErrorRewrap doc), reworded neutral; host call-site references dropped."
+    },
+    {
+      "id": "73a7c28d4216",
+      "reason": "Moved to Jini @jini-ai/daemon http/run-active-context.ts (ActiveContext id doc), reworded neutral ('host path')."
+    },
+    {
+      "id": "0ee8b090dddb",
+      "reason": "Moved to Jini @jini-ai/daemon http/run-active-context.ts (path doc), reworded neutral ('host route path')."
+    },
+    {
+      "id": "7ce7de8cdd42",
+      "reason": "Header of the deleted runtime-settings.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "7ba56c8844c0",
+      "reason": "Header of the deleted session-services.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "b3419b5027fe",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-publication.ts (publishedPageActionNeedsConfirmation doc), reworded."
+    },
+    {
+      "id": "b20261b92e58",
+      "reason": "Moved to Jini @jini-ai/agentic core/page-publication.ts (reviewed action-class table doc), reworded."
+    },
+    {
+      "id": "4b42fbb083a0",
+      "reason": "Moved to Jini @jini-ai/agentic core/published-page-input.ts (summarizePageTargets doc), reworded."
+    },
+    {
+      "id": "c7977cf73b8c",
+      "reason": "Mechanics moved to Jini @jini-ai/core settings/guarded-reads.ts (read-failure policy type and readEffectiveFailClosed @throws docs); the Tovu doc was reworded in place to point there."
+    },
+    {
+      "id": "8192bc9828db",
+      "reason": "Header of the deleted tool-catalog-live-query.ts (batch F); the swap-on-reload wrapper was replaced by revision-driven reseeding in Jini @jini-ai/registry tool-catalog-builder/query.ts (createRefreshingToolCatalogQuery doc), bound in Tovu tool-catalog-query.ts."
+    },
+    {
+      "id": "d03744026797",
+      "reason": "API doc of the deleted swappable LiveToolCatalogQuery (batch F); Jini createRefreshingToolCatalogQuery has no rebind step, so the 'pass exactly once' identity note has nothing left to describe."
+    },
+    {
+      "id": "f659fb658cc2",
+      "reason": "API doc of the deleted LiveToolCatalogQuery.swap (batch F); reseeding is now revision-driven in Jini @jini-ai/registry createRefreshingToolCatalogQuery."
+    },
+    {
+      "id": "ed0c8d581381",
+      "reason": "@param doc of the deleted createLiveToolCatalogQuery (batch F); Jini createRefreshingToolCatalogQuery takes a seed function instead of an initial snapshot."
+    },
+    {
+      "id": "b38d79f90b2a",
+      "reason": "Moved to Jini @jini-ai/daemon core/tool-family.ts (createPrefixToolFamilyPort doc), reworded neutral (host group id injected)."
+    },
+    {
+      "id": "55f9d8ad5423",
+      "reason": "Moved to Jini @jini-ai/daemon core/tool-family.ts (createPrefixToolFamilyPort doc, second paragraph and params), reworded neutral."
+    },
+    {
+      "id": "8284ba38f0d5",
+      "reason": "Moved to Jini @jini-ai/registry tool-catalog-builder/declared-keywords.ts (keyword append doc), reworded neutral; Tovu keeps the isKnownTool comment."
+    },
+    {
+      "id": "c98f3cd214e8",
+      "reason": "Header of the deleted visitor-services.ts forwarding barrel (Tovu 299954871, batch O); importers now import the real owners directly."
+    },
+    {
+      "id": "77bec9a1aad8",
+      "reason": "Kept in Tovu apps/website/src/cli/commands/import-local.ts (parseRequest now delegates to the Jini parseRequestObject, documented at Jini cli/src/request-fields.ts); reworded"
+    },
+    {
+      "id": "489dace95a07",
+      "reason": "Test moved with the class: the error class is owned by @jini-ai/plugins host (hook-refusals.ts) and its Tovu forwarder was deleted in w4-runtime"
+    },
+    {
+      "id": "e48beea148bb",
+      "reason": "Test moved to Jini infra/src/events/__tests__/domain-outbox.enqueue-only.test.ts (w4-runtime) with its own @file header"
+    },
+    {
+      "id": "16ca2ab46e1b",
+      "reason": "Moved to Jini infra/src/events/outbox/enqueue-only.ts and domain-outbox.ts (w4-runtime); reworded to drop product and daemon names"
+    },
+    {
+      "id": "d9cf486d038c",
+      "reason": "Moved to Jini infra/src/events/outbox/enqueue-only.ts and domain-outbox.ts (w4-runtime); reworded to drop product and daemon names"
+    },
+    {
+      "id": "341fb28157eb",
+      "reason": "Obsolete: events/index.ts was a barrel forwarder deleted in w4-runtime; importers use @jini-ai/infra/events"
+    },
+    {
+      "id": "ee503ebef991",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "03bcad33a1bc",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "0415e27ae2b8",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "0c6d85967785",
+      "reason": "Moved to Jini infra/src/events/domain-outbox.ts (w4-runtime); reworded from CMS/Jini port-translation wording to neutral worker/domain-port wording"
+    },
+    {
+      "id": "a58b9857ae34",
+      "reason": "Moved to Jini infra/src/events/memory-bus.ts @file header (w4-runtime); reworded to drop the project name"
+    },
+    {
+      "id": "de97a5679e5e",
+      "reason": "Obsolete: the outbox-worker.ts compatibility facade note; policy now lives in @jini-ai/infra/events/outbox"
+    },
+    {
+      "id": "d20131090ab7",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (MAX_OUTBOX_ATTEMPTS, reworded, w4-runtime)"
+    },
+    {
+      "id": "c60ba67b1fad",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (DEFAULT_OUTBOX_CLAIM_LEASE_MS, reworded, w4-runtime)"
+    },
+    {
+      "id": "86c8db0ad112",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS, reworded, w4-runtime)"
+    },
+    {
+      "id": "4751cf6a77c6",
+      "reason": "Restored at Jini infra/src/events/outbox/policy.ts (computeOutboxBackoffMs, reworded, w4-runtime)"
+    },
+    {
+      "id": "1225c2db15f8",
+      "reason": "Obsolete: contracts/core/index.ts was a barrel forwarder deleted in w4-runtime; importers use the owning packages"
+    },
+    {
+      "id": "48ef1453b4b0",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "e41e5747a02d",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "930c54de9166",
+      "reason": "Moved to Jini core/src/model-facing-tool-errors.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "b4d7734b289c",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "3d9e0cd84e09",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "6e968332eeb4",
+      "reason": "Moved to Jini plugins/src/host/hook-refusals.ts (w4-runtime); reworded to drop the product name"
+    },
+    {
+      "id": "8ac7241e9aea",
+      "reason": "Kept in Tovu apps/website/src/contracts/core/tool-failure-diagnostics.ts (reworded; diagnostic authority lives in the Jini daemon owner)"
+    },
+    {
+      "id": "e499fa7c8cce",
+      "reason": "Test moved to Jini devops/src/local-dev/__tests__/bind-host.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "894f75481c35",
+      "reason": "Test moved to Jini devops/src/local-dev/__tests__/boot-listener.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "e631abc423c0",
+      "reason": "Test moved to Jini sidecar/src/supervision/__tests__/parent-watchdog.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "3cc329378b86",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "ce30b315f2ce",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "4d40d23d8b3c",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "b9ef7d7cf160",
+      "reason": "Moved to Jini devops/src/local-dev/bind-host.ts (w4-runtime); reworded env var and command names to host-generic"
+    },
+    {
+      "id": "daa535d170a0",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "e40bf0880238",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "bb5fe035bf62",
+      "reason": "Moved to Jini devops/src/local-dev/index.ts (reserveBootListener/listenServer, w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "372557c031ac",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "d8c4242bfac4",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "c1837f7cb8e1",
+      "reason": "Moved to Jini sidecar/src/supervision/parent-watchdog.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "66e5db1bcba3",
+      "reason": "Test moved to Jini devops/src/dns/__tests__/binding-sweeper.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "2ca0bd17a14a",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "33f337d6c24b",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "0a85b6455f32",
+      "reason": "Moved to Jini devops/src/dns/binding-sweeper.ts (w4-runtime); reworded env/route names to host-generic"
+    },
+    {
+      "id": "90ace888bafa",
+      "reason": "Obsolete: jini-agents.ts was a forwarder deleted in w4-runtime; the ChatAgentFailurePort binding is exercised at Jini chat/src/core/__tests__/agents-port.typecheck.ts"
+    },
+    {
+      "id": "025582ccf064",
+      "reason": "Moved to Jini core/src/primitives/lazy-proxy.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "a705504cce74",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "fa9b72a45cd9",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts / ports.ts (w4-runtime); reworded to drop product names"
+    },
+    {
+      "id": "5eb4dad4c174",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts reportSafely (w4-runtime); reworded"
+    },
+    {
+      "id": "65d85b8a3761",
+      "reason": "Moved to Jini chat/src/core/durable-runs/run-finalizer.ts reportSafely (w4-runtime); reworded"
+    },
+    {
+      "id": "fa42cbd6c3cc",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "5ef26f3844f8",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "0990271e3bd9",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "b1f78c999e9c",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "fb5587a2ba86",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "b8b36f777b76",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "8393dea279d6",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "21a23e2b5c5a",
+      "reason": "Moved to Jini platform/src/secrets/legacy-codecs.ts (w4-runtime); AAD file headers reworded to drop product paths"
+    },
+    {
+      "id": "9b1b3de5adac",
+      "reason": "Test moved to Jini sidecar/src/__tests__/daemon-origin.test.ts with its own @file header (w4-runtime)"
+    },
+    {
+      "id": "7d3f74a25e9a",
+      "reason": "Test moved to Jini server/src/shutdown/__tests__/close-store-on-shutdown-boot-work.test.ts (w4-runtime)"
+    },
+    {
+      "id": "61beb62f3527",
+      "reason": "Test moved to Jini server/src/shutdown/__tests__/close-within-bound-defaults.test.ts (w4-runtime)"
+    },
+    {
+      "id": "4ad330bcd209",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "8e69c647a021",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "cb7f55621635",
+      "reason": "Moved to Jini sidecar/src/daemon-origin.ts (w4-runtime); reworded env var names to host-generic"
+    },
+    {
+      "id": "9d9b6d5df3a7",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "04989f825c55",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "db202306429e",
+      "reason": "Moved to Jini server/src/shutdown/await-boot-work.ts (w4-runtime); reworded"
+    },
+    {
+      "id": "c03a74e3127e",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "4e289f83d00e",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "8f8f010bbea7",
+      "reason": "Moved to Jini server/src/shutdown/close-store-on-shutdown.ts (w4-runtime); reworded command/entry names to host-generic"
+    },
+    {
+      "id": "ce1214a96f32",
+      "reason": "Kept in Tovu daemon-demand-fetch.ts (reworded) and at Jini sidecar/src/daemon-park-recovery.ts"
+    },
+    {
+      "id": "640b2cb15ebb",
+      "reason": "Kept in Tovu site-idle-park.ts (reworded) and at Jini server/src/shutdown/idle-park.ts"
+    },
+    {
+      "id": "958db828f2c2",
+      "reason": "Kept in Tovu run-in-worker.unit.test.ts (reworded); the per-call runner's own tests live in Jini sandbox"
+    },
+    {
+      "id": "805ec43a5be6",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "2a80508a718f",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "ea148657dd41",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "7a919d85ee5f",
+      "reason": "Kept in Tovu plugin-tier2/run-in-worker.ts (reworded) and at Jini sandbox/src/node-worker/per-call-runner.ts (env allowlist, strict timeout read)"
+    },
+    {
+      "id": "023003458061",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "1d5ae7b28d10",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "303756e9cece",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "9385f6d6875f",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-repo.sql.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c7a5720b88b8",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-schema.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "daa931de883b",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-schema.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "66a6ac60f819",
+      "reason": "Moved to Jini packages/db/src/recovery/journal-kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "921a6efa8f8f",
+      "reason": "Moved to Jini packages/db/src/__tests__/recovery/journal-kernel.test.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "0530c2001bb6",
+      "reason": "Moved to Jini packages/cms/src/publish/content/sql/baseline-repo.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "80f94c69c7ce",
+      "reason": "Moved to Jini packages/cms/src/publish/transfer/sql/bundle-repo.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "3708cda0e1c2",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "7de35079c2ee",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "be0050632042",
+      "reason": "Moved to Jini packages/cms/src/routing/site/reserved-paths.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "7f774113cf7d",
+      "reason": "Moved to Jini packages/db/src/watermark/kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "8f60ed6244db",
+      "reason": "Moved to Jini packages/db/src/watermark/kernel.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "8263414e03a0",
+      "reason": "Moved to Jini packages/oauth/src/errors.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c957affd9e84",
+      "reason": "Moved to Jini packages/oauth/src/registry.ts (w4-db, codex/w4-db-jini) with the code it explains; only path references / product names were neutralised, so the exact Tovu text no longer matches."
+    },
+    {
+      "id": "c4fc15f69e0c",
+      "reason": "Pointer comment of the deleted oauth/errors.ts re-export shell (\"declarations live in Jini errors.ts\"); importers now import @jini-ai/oauth directly, so there is nothing left for it to point from."
+    },
+    {
+      "id": "9ce6b031ea22",
+      "reason": "Moved to Jini packages/daemon/src/http/a2ui-actions.ts (w5 rv1123r fix 17: the A2UI action route spec now lives there; reworded neutral)."
+    },
+    {
+      "id": "d5453d0c7466",
+      "reason": "Moved to Jini packages/daemon/src/core-rpc-schema.ts (w5 DISAGREE split of daemon-core-protocol; reworded neutral)."
+    },
+    {
+      "id": "71a6d49d4378",
+      "reason": "Explained the ClientDirective re-export that w5 removed from assistant/index.ts (no forwarding exports); the human-only directive rationale lives at Jini packages/core/src/contracts/site/client-directives.ts header."
+    },
+    {
+      "id": "02f7e8e18093",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17: server-neutral MCP-UI callback handler, Shape 1)."
+    },
+    {
+      "id": "05b3344d2e00",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts deliverTypedAnswer (w5 rv1123r fix 17, Shape 3 typed-answer correlation)."
+    },
+    {
+      "id": "b586d8c648ef",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-request.ts / surface-callback-route.ts (same 409 refusal rationale; w5 rv1123r fix 17)."
+    },
+    {
+      "id": "4dc5e256a07d",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 2 legacy two-call redemption)."
+    },
+    {
+      "id": "f739a51421a1",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 1 dispatch marker)."
+    },
+    {
+      "id": "467140cbfd44",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 3 ordering before Shape 2)."
+    },
+    {
+      "id": "8f2053bcd941",
+      "reason": "Moved to Jini packages/daemon/src/http/surface-callback-route.ts (w5 rv1123r fix 17, Shape 2 dispatch marker)."
+    },
+    {
+      "id": "4f388d95ea9f",
+      "reason": "Moved to Jini packages/core/src/contracts/site/client-directives.ts header (w5 DISAGREE move of site/client-directives.ts; SPEC ref dropped for neutrality)."
+    },
+    {
+      "id": "70f3aff81394",
+      "reason": "Moved to Jini packages/core/src/extension-capability-vocabulary.ts (identical literals; Tovu copy deleted in w5, importers use @jini-ai/core/extension-capability-vocabulary)."
+    },
+    {
+      "id": "5eacf2ecb372",
+      "reason": "Moved to Jini packages/platform/src/fs/__tests__/resolve-directory-target.test.ts (unit test moved with the code in w5)."
+    },
+    {
+      "id": "5b788fdcf7f9",
+      "reason": "Moved to Jini packages/platform/src/fs/resolve-directory-target.ts header (w5 DISAGREE move of resolve-install-dir-target; reworded neutral)."
+    },
+    {
+      "id": "4cf0918121ed",
+      "reason": "Moved to Jini packages/platform/src/fs/resolve-directory-target.ts resolveDirectoryTarget doc (w5 DISAGREE move)."
+    },
+    {
+      "id": "c3ac8082cde4",
+      "reason": "Header rewritten in w5 when the served-vs-stopped copy and owner-lock lifecycle moved to Jini packages/db/src/pglite/copy-source.ts (its \"Reaching the source\" paragraph lives there); the Tovu header keeps the host half (chat-table purge, title reset)."
+    },
+    {
+      "id": "9cd5168611b9",
+      "reason": "Moved to Jini packages/platform/src/fs/leased-directory-move.ts (w5 DISAGREE split of move-sites-home; release-after-move rationale)."
+    },
+    {
+      "id": "bad15529609e",
+      "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (checkpointer section header and CheckpointWatch doc), reworded neutral; the Tovu file is now the binding and says so."
+    },
+    {
+      "id": "c0061347a4fd",
+      "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (inline note above the checkpoint interval selection); the host-side checkpointDelay helper no longer exists."
+    },
+    {
+      "id": "c1598057223a",
+      "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (doc block of the engine `checkpoint` function), reworded neutral."
+    },
+    {
+      "id": "f256f3f97b39",
+      "reason": "Moved to Jini packages/chat/src/core/durable-runs/run-finalizer.ts (doc block of `writeCheckpoint`); the delta-receipt wording is now the host ledger binding's concern."
+    },
+    {
+      "id": "51150f53f8ed",
+      "reason": "Moved to Jini packages/platform/src/image/png-encode.ts header (w5: owner-less PNG encoder moved to @jini-ai/platform/image/png-encode; demo-tool sentences reworded neutral)."
+    },
+    {
+      "id": "4692099e2c35",
+      "reason": "Moved to Jini packages/platform/src/image/png-encode.ts fill-colour doc (same default, \"indigo\"; demo-tool wording dropped)."
+    },
+    {
+      "id": "cca79c495978",
+      "reason": "Moved to Jini packages/sidecar/src/daemon-connection.ts header (w5 rv1123r fix 5 split: current/previous endpoint state machine, memory only, never persisted); the Tovu binding keeps a one-line header."
+    },
+    {
+      "id": "842ac114609f",
+      "reason": "Moved to Jini packages/sidecar/src/daemon-connection.ts set() doc (w5 rv1123r fix 5: capture endpoint + credential together; old-run probes retain both)."
+    },
+    {
+      "id": "52bb0c576411",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "868c9fa350b7",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "932abbf62565",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "087eccd250bb",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
+    },
+    {
+      "id": "5394a49e018f",
+      "reason": "Explained the deleted fake-app handler capture (calling the registered Express handler directly). w5 rv1123r fix 20 mounts the route through the Jini dispatcher, so these tests now drive the real mounted route over HTTP via assistant/__tests__/support/mcp-ui-tool-calls-server.ts, whose header states the new mechanism."
     }
   ]
 }

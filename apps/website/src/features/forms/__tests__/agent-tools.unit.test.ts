@@ -11,7 +11,7 @@ test("forms_create_definition explains rich-text widget insertion and the HTML f
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
-import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createFormCollectionRegistry, formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";

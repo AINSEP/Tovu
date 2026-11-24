@@ -3,7 +3,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-s
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/custom-credentials.js";
 import type { DevRestartPort } from "@jini-ai/core/contracts/site/dev-supervisor-dev-restart";
-import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 import type { ProjectKeysPort } from "./service.js";
 
 export const projectKeysCatalog: AgentToolDefinition[] = [

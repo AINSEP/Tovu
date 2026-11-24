@@ -1,5 +1,5 @@
 import { validateNativePermissionSnapshot, InvalidNativePermissionsError } from "@jini-ai/agent-runtime/native-permissions";
-import type { SettingsRepoPort } from "@jini-ai/core/settings";
+import { readEffectiveFailClosed, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, CLI_CAPABILITY_KEYS, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
@@ -11,17 +11,14 @@ export async function readAssistantCliPermissions(required: {
   settingsRepo: SettingsRepoPort; getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>; workspaceId: string; principalId: string;
 }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<AssistantCliPermissions> {
-  try {
-    await required.settingsReady;
-    const stored = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
-      scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId } });
-    // The definition default means no owner preference; inherit the legacy Full CLI access grant.
-    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.({ source: "site" }); return parseCliPermissionsSnapshot({ value: stored.value }); }
-    return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
-  } catch (error) {
-    denyOrRethrow({ error }, optional);
-    return assistantCliPermissions({ enabled: false });
-  }
+  return readEffectiveFailClosed({ ...failClosedDeps(required, optional), namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
+    scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
+    project: async ({ setting: stored }) => {
+      // The definition default means no owner preference; inherit the legacy Full CLI access grant.
+      if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.({ source: "site" }); return parseCliPermissionsSnapshot({ value: stored.value }); }
+      return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
+    },
+    denied: () => assistantCliPermissions({ enabled: false }) }, optional);
 }
 
 /** Validates a persisted owner snapshot: the master flag and every known capability must be booleans.
@@ -47,13 +44,13 @@ function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCli
 }
 
 /** Shared read-failure policy: HTTP readers propagate the error; the daemon logs a safe diagnostic
- * and the caller then denies access.
- * @throws the original error unchanged when `readFailure` is "throw".
+ * and the caller then denies access (the fail-closed mechanics live in @jini-ai/core/settings).
  */
-function denyOrRethrow(required: { error: unknown }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void }): void {
-  if (optional.readFailure === "throw") throw required.error;
-  // Storage exceptions may contain sensitive values; never copy them into daemon logs.
-  (optional.warn ?? console.warn)("[agent-daemon] Full CLI access settings unavailable; access remains OFF.");
+function failClosedDeps(required: { settingsRepo: SettingsRepoPort; getEffective: typeof import("@jini-ai/core/settings").getEffective; settingsReady: Promise<void> },
+  optional: { warn?: (message: string) => void }) {
+  return { settingsRepo: required.settingsRepo, getEffective: required.getEffective, settingsReady: required.settingsReady,
+    deniedWarning: "[agent-daemon] Full CLI access settings unavailable; access remains OFF.", // Resolved at failure time, as before, so a console replaced after the call is honoured.
+    warn: (message: string) => (optional.warn ?? console.warn)(message) };
 }
 
 /** Fresh ledger read per launch; the daemon cannot cache a grant changed by the API process.
@@ -67,15 +64,11 @@ export async function readAssistantSubagentsEnabled(required: {
   settingsReady: Promise<void>;
   workspaceId: string;
 }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<boolean> {
-  try {
-    await required.settingsReady;
-    const setting = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
-      scopeContext: { workspaceId: required.workspaceId } });
-    optional.onSource?.({ source: setting && setting.sourceLayer !== "default" ? "site" : "default" });
-    return setting === null ? true : setting.value === true;
-  } catch (error) {
-    denyOrRethrow({ error }, optional);
-    return false;
-  }
+  return readEffectiveFailClosed({ ...failClosedDeps(required, optional), namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
+    scopeContext: { workspaceId: required.workspaceId },
+    project: ({ setting }) => {
+      optional.onSource?.({ source: setting && setting.sourceLayer !== "default" ? "site" : "default" });
+      return setting === null ? true : setting.value === true;
+    },
+    denied: () => false }, optional);
 }
-

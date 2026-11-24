@@ -11,8 +11,8 @@ import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/
 import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createTovuVaultKinds, type TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
-import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, recoverLegacyVaultRecord, type VaultBootInput } from "../vault-boot.js";
-import { legacyVaultAad, buildPublishContentPeerAad, type VaultLegacyContext } from "../vault-legacy-codecs.js";
+import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, recoverLegacyVaultRecord, TOVU_VAULT_OWNER_KEY, type VaultBootInput } from "../vault-boot.js";
+import { legacyVaultAad, type VaultLegacyContext } from "@jini-ai/platform/secrets/legacy-codecs";
 
 /** S2: real GCM + SQLite/PGlite integration; ordinary Jini reads prove new AAD, not a legacy
  * fallback. Moved duplicates are dropped without crypto; blocked rows retain their original
@@ -68,7 +68,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
           assert.notEqual(record.sealed.ciphertext, fixture.sealed.ciphertext);
           assert.notEqual(record.sealed.nonce, fixture.sealed.nonce);
           assert.ok(await sealer.open({ sealed: record.sealed }, { aad: buildVaultAad(record) }));
-          await assert.rejects(sealer.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy: { ...legacy,
+          await assert.rejects(sealer.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY, legacy: { ...legacy,
             provider: record.kind === "vendor" && legacy.table === "publish_credential_sets" ? legacy.provider : record.provider } }) }));
         }
       }
@@ -522,7 +522,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     try {
       const original = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       const legacy = original.meta.legacyAad as unknown as VaultLegacyContext;
-      const sealed = await sealer.seal({ plaintext: "[]", key: await keyring.activeKey({}), aad: legacyVaultAad({ record: original, legacy })! });
+      const sealed = await sealer.seal({ plaintext: "[]", key: await keyring.activeKey({}), aad: legacyVaultAad({ record: original, legacy, formerCustomOwnerKey: TOVU_VAULT_OWNER_KEY })! });
       const invalid = await repo.put({ expectedRevision: original.revision,
         record: { ...original, sealed, revision: original.revision + 1 } });
       const report = await normalizeVaultAtBoot(input);
@@ -550,19 +550,6 @@ test("Tovu parsers call injected policy on reads/complete patches, retain proven
     { category: "general", additionalHosts: ["https://example.test/path"] }, { category: "general", legacyAad: {} },
     { category: "general", unexpected: "field" }]) assert.throws(() => parse({ meta: meta && !Array.isArray(meta) ? { credentialType: "custom", worksFor: [], ...meta } : meta }));
   assert.deepEqual(Object.keys(registered.metaParsers).sort(), [...VAULT_KINDS, "custom"].sort());
-});
-
-test("legacy codec checks versions, personal/MCP identity and exact peer version format", () => {
-  assert.equal(buildPublishContentPeerAad({ workspaceId: "ws", id: "peer" }), "publish-content-peer:v1:ws:peer");
-  assert.equal(buildPublishContentPeerAad({ workspaceId: "ws", id: "peer", aadVersion: 2 }), "publish-content-peer:v2:ws:peer");
-  const record = { workspaceId: "ws", kind: "personal-execution", principalId: "p", provider: "provider", ownerKey: "tovu" } as Parameters<typeof legacyVaultAad>[0]["record"];
-  const legacy: VaultLegacyContext = { table: "admin_execution_credentials", workspaceId: "ws", id: "ws", principalId: "p", provider: "provider", serverId: null, aadVersion: 1 };
-  assert.equal(legacyVaultAad({ record, legacy }), "admin-execution-credential:v1:ws:p");
-  assert.equal(legacyVaultAad({ record, legacy: { ...legacy, aadVersion: 0 } }), undefined);
-  assert.throws(() => legacyVaultAad({ record, legacy: { ...legacy, aadVersion: 2 } }));
-  assert.throws(() => legacyVaultAad({ record, legacy: { ...legacy, principalId: "other" } }));
-  assert.throws(() => legacyVaultAad({ record, legacy: { ...legacy, workspaceId: "other" } }));
-  assert.throws(() => legacyVaultAad({ record, legacy: { ...legacy, table: "unknown" } }));
 });
 
 test("host boot wiring emits flagged coverage before returning when the site key is missing", async () => {

@@ -6,7 +6,7 @@ import { buildDomainRegistrations, optionalString, requireInputRecord, requireSt
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
-import { ToolInputError } from "@jini-ai/core";
+import { httpOriginOf, ToolInputError } from "@jini-ai/core";
 
 /**
  * @file The general navigation fallback: when the assistant has no in-chat tool that can perform an
@@ -169,14 +169,8 @@ export function buildAdminScreenPath(input: { path: string; tab?: string }, _opt
  */
 function resolveConfiguredPublicOrigin(env: AdminScreenLinkEnv): string | undefined {
   const configured = env.TOVU_PUBLIC_URL?.trim();
-  if (!configured) return undefined;
-  try {
-    const url = new URL(configured);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    return url.origin;
-  } catch {
-    return undefined;
-  }
+  // Jini's shared HTTP(S) origin parser never throws: an invalid value degrades to `undefined`.
+  return configured ? httpOriginOf({ value: configured }) : undefined;
 }
 
 /**

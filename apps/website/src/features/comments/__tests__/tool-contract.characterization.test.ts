@@ -20,9 +20,10 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions } from "@jini-ai/cms/comments/site/settings";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { InMemorySettingsRepo } from "../../settings/index.js";
 import { contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 

@@ -10,7 +10,7 @@ import express from "express";
 import { createExternalMcpOAuthService } from "../../features/external-mcp/external-mcp-oauth.js";
 import { createDeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
-import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "@jini-ai/oauth";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";

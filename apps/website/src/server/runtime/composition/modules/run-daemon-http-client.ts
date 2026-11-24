@@ -7,7 +7,7 @@ import { RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
-import { releaseUnreadBody } from "./run-finalizer/release-body.js";
+import { releaseUnreadBody } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 import { createRunDaemonOrigins, type RunDaemonAddress, type RunDaemonOrigins } from "./run-daemon-origins.js";
 
 /**

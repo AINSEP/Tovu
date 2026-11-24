@@ -4,11 +4,13 @@ import test from "node:test";
 
 import {
   ConfirmationTokenRecord,
-  InMemoryTokenStore,
   TokenAlreadyRedeemedError,
   TokenExpiredError,
-  expireToken,
   isRedeemable,
+} from "@jini-ai/core/gated-mutations";
+import {
+  InMemoryTokenStore,
+  expireToken,
   mintToken,
   redeemToken,
 } from "../../token.js";

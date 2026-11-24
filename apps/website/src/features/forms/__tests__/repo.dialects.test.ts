@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { FormSlugConflictError } from "@jini-ai/cms/forms";
-import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "@jini-ai/cms/forms/site/rate-limit-profile";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";

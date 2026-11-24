@@ -11,6 +11,7 @@ import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/u
 import { runPublicSiteGuide } from "../public-site-guide.js";
 import { VISITOR_SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";
+import { createMemoryCounterStore } from "@jini-ai/http-kit/rate-limit";
 import { VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
@@ -36,16 +37,12 @@ import {
   resolveBoundedHistory,
   resolveSiteAssistantMode,
   isPublicAssistantEnabled,
-  runByokProviderTurn,
   resolvePublicAssistantAvailability,
-  resolveByokProtocol,
-  type ByokProtocol,
-  type ByokToolCall,
-  type ByokToolResult,
   type ResolvedSiteAssistantCredential,
   type SiteAssistantHistoryTurn,
   type SiteAssistantModeResolution,
 } from "#src/assistant/index";
+import { providerTurnAdapters, resolveProviderProtocol, runProviderToolTurn, type ProviderProtocol, type ProviderToolCall, type ProviderToolResult } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
 // own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
@@ -73,7 +70,7 @@ import type { ServerModuleHandle } from "./types.js";
  *    admin's own, and a key-leak if pointed at the public. ADR-054's decision 1 originally said to
  *    mount it; that was written before checking how it sources credentials, and decision 3 ("the
  *    key is server-side, always") is the one that governs.
- * 2. **No process spawn.** `runByokProviderTurn` is an in-process HTTP relay. The
+ * 2. **No process spawn.** `runProviderToolTurn` is an in-process HTTP relay. The
  *    agent-CLI path spawns an OS process per run, so N visitors is N processes —
  *    disabled for visitors, including legacy demo opt-ins (`assistant/site/mode.ts`).
  * 3. **No tool the allowlist did not name.** The executor below dispatches through
@@ -101,7 +98,7 @@ import type { ServerModuleHandle } from "./types.js";
  *    `apiKey` off the resolved site credential and dropped that credential's
  *    `provider`/`baseUrl`/`model`, so a workspace that had saved an Anthropic or OpenAI key still
  *    posted to `generativelanguage.googleapis.com` with a Gemini model id. It now dispatches
- *    through `assistant/byok-provider-turn.ts`'s `runByokProviderTurn` — the SAME provider-neutral
+ *    through `@jini-ai/agent-runtime/providers/tool-turn`'s `runProviderToolTurn` — the SAME provider-neutral
  *    adapter the admin's own BYOK execution path uses, deliberately reused rather than
  *    reimplemented, so exactly one place in this codebase knows how to turn
  *    `(protocol, key, baseUrl, model)` into a provider call.
@@ -169,7 +166,7 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  * @complexity O(1).
  */
 function resolveModel(
-  { protocol, storedModel, envModel }: { protocol: ByokProtocol; storedModel: string | null; envModel: string | undefined },
+  { protocol, storedModel, envModel }: { protocol: ProviderProtocol; storedModel: string | null; envModel: string | undefined },
   _optional = {},
 ): string {
   return storedModel?.trim() || envModel || (protocol === "google" ? DEFAULT_MODEL : "");
@@ -262,7 +259,7 @@ function beginStream(req: Request, res: Response): void {
  *  key that pays for it, where it dials, and what model it asks for. Resolved as one unit so no
  *  caller can pick a provider from one source and a model or endpoint from another. */
 interface SiteAssistantProviderConfig {
-  readonly protocol: ByokProtocol;
+  readonly protocol: ProviderProtocol;
   readonly apiKey: string;
   readonly baseUrl: string | undefined;
   readonly model: string;
@@ -336,11 +333,11 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
 /** The stored `provider` string, narrowed to a protocol this route can actually dispatch, or `null`
  *  when it names something else. Case- and whitespace-insensitive because the column is free-form.
  *  `site_assistant_credentials.provider` is a plain text column and `put-site-credential.ts`
- *  accepts any string, so anything outside the four protocols `byok-provider-turn.ts` dispatches
+ *  accepts any string, so anything outside the four protocols `@jini-ai/agent-runtime/providers/tool-turn` dispatches
  *  is a real operator mistake that has to be named rather than rounded to Google.
  *  @complexity O(n) in provider length. */
-function toByokProtocol({ provider }: { provider: string }, _optional = {}): ByokProtocol | null {
-  return resolveByokProtocol({ provider });
+function toByokProtocol({ provider }: { provider: string }, _optional = {}): ProviderProtocol | null {
+  return resolveProviderProtocol({ provider });
 }
 
 /**
@@ -359,7 +356,7 @@ function toByokProtocol({ provider }: { provider: string }, _optional = {}): Byo
  *
  * @complexity O(1).
  */
-function describeMissingKey({ protocol, storedKeyPresent }: { protocol: ByokProtocol; storedKeyPresent: boolean }, _optional = {}): string {
+function describeMissingKey({ protocol, storedKeyPresent }: { protocol: ProviderProtocol; storedKeyPresent: boolean }, _optional = {}): string {
   const unopenable = storedKeyPresent
     ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_SITE_KEY is the same one it was saved under, then re-save the key."
     : "";
@@ -499,7 +496,7 @@ export interface SiteAssistantEnvFallbacks {
 const NO_ENV_FALLBACKS: SiteAssistantEnvFallbacks = { apiKey: undefined, baseUrl: undefined, model: undefined };
 
 /** @complexity O(1). */
-export function siteAssistantEnvFallbacks({ env, protocol }: { env: NodeJS.ProcessEnv; protocol: ByokProtocol }, _optional: Record<string, never> = {}): SiteAssistantEnvFallbacks {
+export function siteAssistantEnvFallbacks({ env, protocol }: { env: NodeJS.ProcessEnv; protocol: ProviderProtocol }, _optional: Record<string, never> = {}): SiteAssistantEnvFallbacks {
   if (protocol !== "google") return NO_ENV_FALLBACKS;
   return {
     apiKey: nonBlank({ value: env.GEMINI_API_KEY }),
@@ -618,7 +615,7 @@ function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantM
   const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
   const resolution = resolveSiteAssistantMode(env);
   // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
-  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
+  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock, createCounterStore: () => createMemoryCounterStore({}) });
   const log = deps.siteAssistantErrorLog ?? ((entry: SiteAssistantErrorLogEntry) => console.error("[site-assistant]", entry));
   const reporter = createSiteAssistantErrorReporter({
     ids: deps.idGen, redact: redactSecrets,
@@ -729,7 +726,7 @@ async function handleChat(req: Request, res: Response, context: ReturnType<typeo
 
 /**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the
-         * `ByokToolResult` shape `runByokProviderTurn` expects (each provider adapter maps that onto
+         * `ProviderToolResult` shape `runProviderToolTurn` expects (each provider adapter maps that onto
          * its own wire shape — Gemini's `functionResponse`, Anthropic's `tool_result`, OpenAI's
          * `[tool error]` content fold). This route is now ONE adapter over
          * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
@@ -745,8 +742,8 @@ async function handleChat(req: Request, res: Response, context: ReturnType<typeo
 function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }: {
   capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; releaseFrontend: () => void;
   abort: AbortController; reportError: SiteAssistantErrorReporter;
-}, navigation: { terminalNavigation: boolean }): (call: ByokToolCall) => Promise<ByokToolResult> {
-  return async (call: ByokToolCall): Promise<ByokToolResult> => {
+}, navigation: { terminalNavigation: boolean }): (call: ProviderToolCall) => Promise<ProviderToolResult> {
+  return async (call: ProviderToolCall): Promise<ProviderToolResult> => {
           if (navigation.terminalNavigation) return { content: VISITOR_TOOL_REFUSAL, isError: true };
           const input = (call.input ?? {}) as Record<string, unknown>;
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
@@ -855,38 +852,32 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
         await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
         await capture({ name: "assistant_run_started", properties: { logicalRunId, eventId: `assistant-start:${logicalRunId}` } });
         let runOutcome = "completed";
-        try { await runByokProviderTurn({
+        try { await runProviderToolTurn({
           protocol: provider.protocol,
+          adapters: providerTurnAdapters,
           apiKey: provider.apiKey,
-          ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
           model: provider.model,
-          maxTokens: VISITOR_MAX_OUTPUT_TOKENS,
           system: SYSTEM_PREAMBLE,
           // SPEC-046 REQ-3: bounded prior turns (if any) precede the live message as real multi-turn
           // entries, each keeping its own `role` — not a flattened transcript string the way a
           // coding-agent host's `buildTranscript` would build one. Every provider adapter takes an
           // ordered role-tagged message array natively, so this shape needs no per-provider branch
-          // here; `byok-provider-turn.ts` maps it into each wire format (Gemini's
+          // here; `@jini-ai/agent-runtime/providers/tool-turn` maps it into each wire format (Gemini's
           // `contents: [{role, parts}]` among them).
           messages: [...priorTurns, { role: "user", content: message }],
           // The registry's own schemas, mapped into the `ToolDescriptor` shape every provider
-          // adapter takes. `byok-provider-turn.ts` owns the per-provider translation from there,
+          // adapter takes. `@jini-ai/agent-runtime/providers/tool-turn` owns the per-provider translation from there,
           // including Gemini's restricted OpenAPI subset (`googleParametersOf`) — which is exactly
           // why this route must not hand a raw `functionDeclarations` array to one provider and
           // something else to the rest.
           tools: capabilities.schemas.map(
             (schema): ToolDescriptor => ({ id: schema.name, description: schema.description, inputSchema: schema.parameters }),
           ),
-          onUnexposedToolCall: async ({ toolName, input }) => {
-            await capabilities.invoke({ name: toolName, input, caller: "anonymous-visitor" }, { refuseOnly: true });
-            return { text: VISITOR_TOOL_REFUSAL };
-          },
           executeTool,
-          signal: abort.signal,
           onEvent: (event) => {
             // Only what a visitor's UI needs. Notably NOT `tool_use`/`tool_result` — echoing those
             // would disclose the site's internal tool names and raw lookup results to the public.
-            // `client_directive` (SPEC-046 REQ-4) is not one of `runByokProviderTurn`'s event kinds —
+            // `client_directive` (SPEC-046 REQ-4) is not one of `runProviderToolTurn`'s event kinds —
             // it is written directly from `executeTool` above, the moment a page-action capability
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
@@ -897,6 +888,14 @@ async function runVisitorProviderTurn({ req, res, provider, priorTurns, message,
               if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
             }
           },
+        }, {
+          ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
+          maxTokens: VISITOR_MAX_OUTPUT_TOKENS,
+          onUnexposedToolCall: async ({ toolName, input }) => {
+            await capabilities.invoke({ name: toolName, input, caller: "anonymous-visitor" }, { refuseOnly: true });
+            return { text: VISITOR_TOOL_REFUSAL };
+          },
+          signal: abort.signal,
         });
         } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
         finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }

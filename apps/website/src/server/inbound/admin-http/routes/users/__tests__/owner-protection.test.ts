@@ -12,7 +12,7 @@ import { registerAdminUserAssignRoleRoute } from "#src/server/runtime/compositio
 import { registerAdminUserAttachPolicyRoute } from "#src/server/runtime/composition/modules/users";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 /** Owner-email follow-up: real identity services and transactions, with direct route invocation
  * to verify response mapping in environments that cannot open HTTP listeners. Existing HTTP

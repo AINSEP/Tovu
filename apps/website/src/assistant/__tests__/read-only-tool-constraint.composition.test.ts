@@ -24,7 +24,7 @@ import {
   withReadOnlyToolConstraint,
 } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
-import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { issueToolFailureDiagnostic } from "@jini-ai/daemon/tool-recovery";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";

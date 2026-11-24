@@ -1,6 +1,6 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
-import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "../../contracts/core/assistant-content-guidance.js";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
 
 /**
  * @file The Pages domain's agent-tool catalog — how the assistant authors a bespoke HTML Page.

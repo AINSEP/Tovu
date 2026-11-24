@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { confirmSiteAssistantTool, type ToolConfirmation } from './tool-confirmation';
+import { confirmSiteAssistantTool } from './tool-confirmation';
+import type { ToolConfirmationDirective } from '@jini-ai/core/contracts/site/client-directives';
 
 /** Live prompt state has no persistence or message/history dependency. Native buttons provide
  * keyboard activation; focus returns to the prior control after a click, expiry or run teardown.
  * @complexity O(1), one 60-second UI deadline. The server owns the authoritative expiry.
  */
 export function useSiteToolConfirmation(_required: Record<string, never>, { confirm = confirmSiteAssistantTool }: { confirm?: typeof confirmSiteAssistantTool } = {}) {
-  const [pending, setPending] = useState<ToolConfirmation | null>(null);
+  const [pending, setPending] = useState<ToolConfirmationDirective | null>(null);
   const [sendFailed, setSendFailed] = useState(false);
   const inFlight = useRef(false);
-  const current = useRef<ToolConfirmation | null>(null);
+  const current = useRef<ToolConfirmationDirective | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const receive = useCallback(({ directive }: { directive: ToolConfirmation | null }, _options = {}) => { current.current = directive; setPending(directive); setSendFailed(false); }, []);
+  const receive = useCallback(({ directive }: { directive: ToolConfirmationDirective | null }, _options = {}) => { current.current = directive; setPending(directive); setSendFailed(false); }, []);
   useEffect(() => {
     if (!pending) return undefined;
     const previous = document.activeElement as HTMLElement | null;

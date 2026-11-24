@@ -69,7 +69,8 @@ test("renderPage renders the same-origin path through a consent-audit site app",
 test('privacy defaults wait for the dependency literal, then bind title, owner, settings and outbox', async () => {
   const { InMemorySettingsRepo, ensureSettingDefinitions } = await import('@jini-ai/core/settings');
   const { ensureSiteConsentDefinitions, createSiteConsentReadiness } = await import('@jini-ai/cookie-consent/site/settings');
-  const { InMemoryOutbox } = await import('#src/contracts/core/events/index');
+  const { InMemorySettingsRepo } = await import('@jini-ai/core/settings');
+  const { InMemoryOutbox } = await import('@jini-ai/infra/events/memory-bus');
   const { ensureSiteConsentPrivacy } = await import('../site-consent.js');
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
   const { InMemorySiteTitlePreservationStore } = await import('@jini-ai/cms/settings/site/site-title');

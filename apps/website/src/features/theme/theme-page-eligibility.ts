@@ -1,4 +1,4 @@
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import { type DiscoveredTheme } from "./theme.js";
 
 

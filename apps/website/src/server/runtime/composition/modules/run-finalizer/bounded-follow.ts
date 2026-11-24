@@ -3,7 +3,7 @@ import type { RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
 import type { RunSettlement } from "#src/assistant/index";
 
 import type { RunDaemonClient, RunDaemonRequest } from "../run-daemon-http-client.js";
-import type { RunTimerPort, RunWatchOutcome } from "./ports.js";
+import type { RunTimerPort, RunWatchOutcome } from "@jini-ai/chat/core/durable-runs/run-finalizer";
 import type { StreamReader, StreamResult } from "./stream.js";
 import { interruptionEvents, stopWatch, type Watch } from "./watch-state.js";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";

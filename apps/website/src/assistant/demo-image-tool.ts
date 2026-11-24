@@ -2,7 +2,7 @@ import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
+import { renderSolidColorPng, type RgbColor } from "@jini-ai/platform/image/png-encode";
 
 /**
  * @file A development-only agent tool that returns a real image as a typed content block, so the
@@ -17,7 +17,7 @@ import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
  * a prompt. Wiring that here would pull in network I/O, an API key, and a whole credential story —
  * none of which this slice is about proving. What has to be proven is the TRANSPORT: that a block
  * shaped `{type:'image', mimeType, data}` in a tool's return value actually reaches the chat pane as
- * a real `<img>`. `demo-image-png.ts`'s hand-rolled encoder produces a genuinely decodable PNG with
+ * a real `<img>`. `@jini-ai/platform/image/png-encode`'s hand-rolled encoder produces a genuinely decodable PNG with
  * zero new dependencies and zero network calls, which is what makes this the cheapest HONEST proof
  * available — not a stub that merely LOOKS like an image block.
  *

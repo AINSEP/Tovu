@@ -9,7 +9,8 @@ import {
   execute,
   plan,
 } from "../../gateway.js";
-import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, isRedeemable, mintToken } from "../../token.js";
+import { InMemoryTokenStore, mintToken } from "../../token.js";
+import { TokenAlreadyRedeemedError, TokenExpiredError, isRedeemable } from "@jini-ai/core/gated-mutations";
 import type { PrincipalKind } from "../../ports.js";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 

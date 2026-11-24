@@ -4,8 +4,8 @@ import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-s
 import { approvalToolHandler, notConfirmedResult } from '../../contracts/core/human-confirm.js';
 import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import { federatedToolApprovalFingerprint } from '@jini-ai/mcp/federation';
-import { executeCommand } from '../../contracts/core/commands/index.js';
-import { ToolAccessLoweringError } from '@jini-ai/core/tool-access-change';
+import { executeCommand } from '@jini-ai/cms/core/commands';
+import { ToolAccessLoweringError } from '@jini-ai/daemon';
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { PLUGINS_SET_ENABLED_TOOL_ID } from '@jini-ai/plugins/runtime/agent-tools';
 import { pluginAgentToolCatalog, pluginSourceAgentToolCatalog, pluginToolMessages } from './plugin-host-copy.js';

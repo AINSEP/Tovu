@@ -7,7 +7,8 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
-import { InMemoryEventBus, processOutbox } from "../index.js";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "../outbox-worker.js";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Outbox row: "Crash/restart tests

@@ -49,10 +49,10 @@ export const sanctionedModules = [];
  */
 export const pureHelpers = [
   { name: 'resolveSitePath', module: '@jini-ai/diagnostics/web-evidence/site-path-policy' },
-  { name: 'isLoopbackHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
-  { name: 'resolveBindHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
+  { name: 'isLoopbackHost', module: '@jini-ai/devops/local-dev' },
+  { name: 'resolveBindHost', module: '@jini-ai/devops/local-dev' },
   { name: 'isLocalAdminUrl', module: 'apps/website/src/server/runtime/boot/local-owner-signin' },
-  { name: 'isRecord', module: 'apps/website/src/assistant/byok-meta-tool-result' },
+  { name: 'isNonArrayRecord', module: '@jini-ai/core/records' },
 ];
 const rules = { 'catch-reads-error': catchReadsError, 'no-generic-failure-text': noGenericFailureText, 'failure-text-from-catalog': failureTextFromCatalog };
 const ruleNames = Object.keys(rules);

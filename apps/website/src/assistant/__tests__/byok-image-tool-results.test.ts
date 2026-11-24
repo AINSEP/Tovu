@@ -7,7 +7,7 @@ import test from "node:test";
 import type { ToolDescriptor } from "@jini-ai/core";
 
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
-import { runByokProviderTurn, type ByokProtocol, type ByokToolResult } from "../byok-provider-turn.js";
+import { providerTurnAdapters, runProviderToolTurn, type ProviderProtocol, type ProviderToolResult } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
@@ -33,7 +33,7 @@ installFirstPartyToolContributors({ contributions });
 
 /** A real 1x1 PNG. */
 const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-const IMAGE_RESULT: ByokToolResult = {
+const IMAGE_RESULT: ProviderToolResult = {
   content: [
     { type: "text", text: '{"title":"ai-caps"}' },
     { type: "image", mimeType: "image/png", data: PNG_BASE64 },
@@ -131,7 +131,7 @@ const TOOL: ToolDescriptor = { id: "view_tool", description: "view", inputSchema
 /** Runs one tool round trip for `protocol` and returns the SECOND outbound request (the one carrying the tool result) plus the reported tool_result events. */
 async function roundTrip(
   t: import("node:test").TestContext,
-  protocol: ByokProtocol,
+  protocol: ProviderProtocol,
   firstReply: string,
   secondReply: string,
 ): Promise<{ body: Record<string, unknown>; toolResults: Array<Record<string, unknown>> }> {
@@ -142,9 +142,9 @@ async function roundTrip(
     return { status: 200, body: secondReply };
   });
   const events: Array<Record<string, unknown>> = [];
-  await runByokProviderTurn({
+  await runProviderToolTurn({
     protocol,
-    baseUrl,
+    adapters: providerTurnAdapters,
     apiKey: "test-key-not-real",
     model: protocol === "google" ? "gemini-3.6-flash" : protocol === "anthropic" ? "claude-opus-4-8" : "gpt-5",
     system: "be terse",
@@ -152,7 +152,7 @@ async function roundTrip(
     tools: [TOOL],
     executeTool: async () => IMAGE_RESULT,
     onEvent: (event) => events.push(event as unknown as Record<string, unknown>),
-  });
+  }, { baseUrl });
   assert.ok(second, "expected a second request carrying the tool result");
   return { body: second, toolResults: events.filter((event) => event.type === "tool_result") };
 }

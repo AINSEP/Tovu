@@ -1,7 +1,6 @@
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../../contracts/headless/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Express, Request, Response } from "express";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import { InMemorySettingsRepo, SettingsRevisionConflictError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
@@ -10,7 +9,7 @@ import { createInMemoryConversationToolApprovalStore } from "../../../assistant/
 import type { SettingsToolDeps } from "../tool-registrations.js";
 import { contributeSettingsTools } from "../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
+import { startMcpUiToolCallsServer } from "#src/assistant/__tests__/support/mcp-ui-tool-calls-server";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -383,24 +382,16 @@ test("aborting a held card closes it without a write", async () => {
 
 for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
   for (const decision of ["confirm", "cancel", "typed"] as const) {
-    test(`${toolId}: real callback route delivers ${decision} to the held card without executing again`, async () => {
+    test(`${toolId}: real callback route delivers ${decision} to the held card without executing again`, async (t) => {
       const f = fixture("core.execution", "byok.protocol");
-      let callback!: (req: Request, res: Response) => Promise<void>;
       let executions = 0;
-      // Only the HTTP transport is replaced. The route's allowlist, identity parsing,
-      // exchange delivery, card classification and settings write remain real.
-      const app = { post: (path: string, handler: typeof callback) => { assert.equal(path, MCP_UI_TOOL_CALLS_PATH); callback = unwrapRouteHandle(handler); } } as unknown as Express;
+      // Only the HTTP client is a stand-in: the production route runs mounted on a real server. The route's allowlist,
+      // identity parsing, exchange delivery, card classification and settings write remain real.
       const toolExecutor = { execute: async () => { executions++; throw new Error("a reply must not start another tool call"); } } as unknown as ToolExecutor;
-      registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: f.surfaceExchanges } });
+      const server = await startMcpUiToolCallsServer({ t, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: f.surfaceExchanges } });
       const reply = async (toolName: string, principalId: string | undefined, params: Record<string, unknown>) => {
-        const response = { statusCode: 200, body: undefined as unknown,
-          status(code: number) { this.statusCode = code; return this; },
-          on() { return this; }, off() { return this; },
-          json(body: unknown) { this.body = body; return this; },
-        };
-        const request = { get: (header: string) => header === RUN_PRINCIPAL_HEADER ? principalId : undefined, body: { toolName, exchangeId: "exchange-1", params } } as unknown as Request;
-        await callback(request, response as unknown as Response);
-        return { status: response.statusCode, body: response.body };
+        const { status, body } = await server.post({ body: { toolName, exchangeId: "exchange-1", params }, ...(principalId === undefined ? {} : { principalId }) });
+        return { status, body };
       };
       const emitSurface = async () => {
         assert.deepEqual(await reply(toolId, undefined, { decision: "confirm" }), { status: 401, body: { error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" } });

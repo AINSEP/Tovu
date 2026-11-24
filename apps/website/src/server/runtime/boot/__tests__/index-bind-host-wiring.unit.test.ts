@@ -8,7 +8,7 @@ import ts from "typescript";
  * @file LAN-bind plan (2026-09-23), Slice 2: `index.ts` — the container/server entry point
  * (`npm run dev`/`dev:server`, `npm start`, Docker/Fly/Render's own CMD) — keeps its existing
  * default (Node's own all-interfaces bind) but must now honour an operator's `TOVU_HOST`, same as
- * `tovu serve` already does (Slice 1's `serve.ts`/`bind-host.ts`).
+ * `tovu serve` already does (Slice 1's `serve.ts`/`@jini-ai/devops/local-dev`'s `resolveBindHost`).
  *
  * `index.ts` is the one real top-level boot path — it is never imported by a test (its own file
  * header says so), and it runs a real `app.listen()` the moment it is imported, so there is no
@@ -23,11 +23,11 @@ function readSource(): string {
   return fs.readFileSync(INDEX_TS_PATH, "utf8");
 }
 
-test("index.ts resolves TOVU_HOST via resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined }) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
+test("index.ts resolves TOVU_HOST via resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: \"--host/TOVU_HOST\", invalidHost: ({ message }) => new ValidationError({ message }) }) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
   const source = readSource();
   assert.ok(
-    source.includes("resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined })"),
-    "index.ts no longer resolves TOVU_HOST with resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined }) -- deleting or " +
+    source.includes("resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: \"--host/TOVU_HOST\", invalidHost: ({ message }) => new ValidationError({ message }) })"),
+    "index.ts no longer resolves TOVU_HOST with resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: \"--host/TOVU_HOST\", invalidHost: ({ message }) => new ValidationError({ message }) }) -- deleting or " +
       "rewording that call silently reverts every container/server boot to ignoring TOVU_HOST entirely " +
       "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md). index.ts has no --host flag, so it passes " +
       "the env value directly, unlike serve.ts's input.host ?? process.env.TOVU_HOST."
@@ -44,7 +44,7 @@ test("index.ts resolves TOVU_HOST via resolveBindHost({ raw: process.env.TOVU_HO
   const initializer = bindings[0].initializer;
   assert.ok(initializer && ts.isCallExpression(initializer));
   assert.equal(initializer.expression.getText(ast), "resolveBindHost");
-  assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ["{ raw: process.env.TOVU_HOST, fallback: undefined }"]);
+  assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ['{ raw: process.env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) }']);
 });
 
 function parseIndex(): ts.SourceFile {

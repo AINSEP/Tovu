@@ -1,8 +1,8 @@
 import { openNativeSqlite } from "../platform/db/kernel/drivers/sqlite.js";
-import { toolRegistryRevision, withoutBatchGuidance, type ToolRegistry } from "@jini-ai/core";
+import { withoutBatchGuidance, type ToolRegistry } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ToolCatalogEntry as DescribedEntry, ToolCatalogQuery } from "@jini-ai/daemon/http";
-import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
+import { buildToolCatalogQuery as buildCatalogSnapshot, createRefreshingToolCatalogQuery, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
 import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-builder/sqlite";
 
 import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
@@ -125,12 +125,9 @@ export function buildToolCatalogQuery(
     };
   };
 
-  let snapshot = seed();
-  let revision = toolRegistryRevision({ registry });
-  const refresh = () => {
-    const next = toolRegistryRevision({ registry });
-    if (next !== revision) { snapshot = seed(); revision = next; }
-  };
+  // Reseeding on a registry revision change is Jini's (`createRefreshingToolCatalogQuery`); this
+  // seed reuses the SAME `db`, so a reseed never leaks a replacement connection.
+  const catalog = createRefreshingToolCatalogQuery({ seed, registry });
 
   // Both accessors strip the folded search vocabulary back off. The keywords exist to be RANKED on,
   // never to be read: a tool's description is a contract the model reasons about, and padding it
@@ -140,11 +137,10 @@ export function buildToolCatalogQuery(
     /** Release the owned FTS connection when its principal's last live run ends. O(1). */
     dispose() { if (db.open) db.close(); },
     search({ query }, { limit = 10 } = {}) {
-      refresh();
-      return snapshot.query.search({ query }, { limit });
+      return catalog.search({ query }, { limit });
     },
     describe({ id }, { visibleToolIds } = {}) {
-      refresh();
+      const snapshot = catalog.current();
       const entry = snapshot.query.describe({ id });
       if (entry) return entry;
       const currentId = currentToolIdFor({ toolId: id });

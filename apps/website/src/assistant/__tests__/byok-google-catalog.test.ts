@@ -20,7 +20,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
  *
  * The rules below are not derived from Google's published docs, which proved incomplete and
  * inconsistent when checked directly. They are the constraints a live Gemini 400 actually
- * enforced — see `GOOGLE_SUPPORTED_SCHEMA_KEYS`' own doc in `byok-provider-turn.ts` for the
+ * enforced — see `GOOGLE_SUPPORTED_SCHEMA_KEYS`' own doc in `@jini-ai/agent-runtime/providers/tool-turn` for the
  * provenance of the supported-field list.
  */
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";

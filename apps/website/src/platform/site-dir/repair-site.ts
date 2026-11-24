@@ -7,8 +7,8 @@ import { InternalError } from "./errors.js";
 import { resolveSiteName } from "./init-site.js";
 import { carriedKeyFields, readKeyOnlySiteMeta, UNKNOWN_TEMPLATE_ID, UNKNOWN_TEMPLATE_VERSION } from "./key-only-site-meta.js";
 import { readAppliedSchemaIdentityOfFile } from "./read-applied-schema-identity.js";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
+import { resolveDirectoryTarget } from "@jini-ai/platform/fs";
 import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
@@ -61,7 +61,7 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  *
  * Architectural role:
  * `site-dir` domain logic (INV-06) — no `express`/`cli` import. Every fs write below is derived from
- * `target` (`resolveInstallDirTarget`'s own return), never re-derived from the raw `dir` argument
+ * `target` (`resolveDirectoryTarget`'s own return), never re-derived from the raw `dir` argument
  * (INV-01, mirrors `initSite`'s/`duplicateSite`'s identical discipline). Read-only with respect to
  * `content.db`: only ever reached via {@link readAppliedSchemaIdentityOfFile}, which opens it through
  * `openContentDbReadOnly` — this file never imports `openContentDb` (the migrating one) at all.
@@ -99,7 +99,7 @@ export class SiteRepairRefusedError extends Error {
 
 export interface RepairSiteRequired {
   /** Path to the EXISTING site directory to repair (resolved the same way `initSite`'s `dir`
-   *  is — path/symlink containment, {@link resolveInstallDirTarget}). */
+   *  is — path/symlink containment, {@link resolveDirectoryTarget}). */
   dir: string;
   /** Site display name for the regenerated `config.json`; defaults to the target directory's
    *  basename (same default rule `initSite`'s own `name?` uses, via `resolveSiteName`). */
@@ -205,7 +205,7 @@ function existingMarkerFiles({ target }: { target: string }, _optional = {}): st
  */
 async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairPlan> {
   const { dir, name } = required;
-  const target = resolveInstallDirTarget({ dirArg: dir });
+  const target = resolveDirectoryTarget({ dirArg: dir });
   const resolvedName = resolveSiteName({ target, name });
 
   if (!isExistingDirectory({ target })) {

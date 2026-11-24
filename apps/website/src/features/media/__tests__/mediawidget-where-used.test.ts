@@ -7,7 +7,7 @@ import { findMediaWhereUsed } from '@jini-ai/cms/media/site/where-used';
 import { purgeMedia } from '@jini-ai/cms/media/site/purge-media';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createPost, InMemoryPostRepo } from '#src/features/post/index';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 

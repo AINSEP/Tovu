@@ -4,8 +4,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { contributeFormsDuplicateHandlers, type FormsToolDeps } from "../tool-registrations.js";

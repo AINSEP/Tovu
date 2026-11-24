@@ -7,7 +7,8 @@ import {
 } from "@jini-ai/agent-plugins/lifecycle";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { ToolAccessLoweringError } from "@jini-ai/core/tool-access-change";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { ToolAccessLoweringError } from "@jini-ai/daemon";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/lifecycle";

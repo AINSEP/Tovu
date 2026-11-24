@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEmbedChatDialog } from '@jini-ai/chat/react/embed';
-import { createReactSiteComparisonControl } from './site-chat-comparison';
+import { createEmbedSendAgentControl } from '@jini-ai/chat/browser/embed-send-bridge';
+import { isSiteChatComparisonRoot, SITE_CHAT_COMPARISON_COPY, SITE_CHAT_COMPARISON_NAMES } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
 
 /** Public adapter over Jini's shared dialog lifecycle and the page's own language. O(1). */
@@ -18,7 +19,9 @@ export function useSiteAssistantSurface({ open, setOpen }: {
 
 /** The bridge is stable across streaming renders; only the dev comparison frame enables it. */
 export function useSiteAssistantComparison({ root }: { root: HTMLElement | null }, _options = {}) {
-  return useMemo(() => createReactSiteComparisonControl({ root }), [root]);
+  return useMemo(() => createEmbedSendAgentControl(
+    { root, enabled: isSiteChatComparisonRoot({ root }), ...SITE_CHAT_COMPARISON_NAMES }, SITE_CHAT_COMPARISON_COPY,
+  ), [root]);
 }
 
 /** Loader activation may precede React's first effect; the mount attribute carries that intent. */

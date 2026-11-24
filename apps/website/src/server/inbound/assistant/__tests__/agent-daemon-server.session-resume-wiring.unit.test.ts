@@ -56,8 +56,8 @@ describe("H1 wiring — a failed resume must clear its dead stored session id", 
   test("imports shouldClearSessionOnFailedResume from the pure decision module", () => {
     assert.match(
       runModuleSource,
-      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
-      "onStarted must import the H1 decision function through agent-session-preset.ts, not reimplement the check inline",
+      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["']@jini-ai\/daemon\/session-coordination["']/,
+      "onStarted must import the H1 decision function from @jini-ai/daemon/session-coordination, not reimplement the check inline",
     );
   });
 
@@ -88,8 +88,8 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   test("imports createLiveRunTracker and constructs exactly one module-level instance", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
-      "agent-daemon-server.ts must import createLiveRunTracker through agent-session-preset.ts",
+      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["']@jini-ai\/daemon\/session-coordination["']/,
+      "agent-daemon-server.ts must import createLiveRunTracker from @jini-ai/daemon/session-coordination",
     );
     assert.match(
       DAEMON_ENTRY_SOURCE,
@@ -192,8 +192,8 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     );
     assert.match(
       runModuleSource,
-      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
-      "onStarted must import wouldForcedColdStartLoseConversationContext through agent-session-preset.ts",
+      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["']@jini-ai\/daemon\/session-coordination["']/,
+      "onStarted must import wouldForcedColdStartLoseConversationContext from @jini-ai/daemon/session-coordination",
     );
   });
 
@@ -284,8 +284,8 @@ describe("Send right after Stop — wait for the stopped run, and say why when r
 async function sessionFixture() {
   const { createInMemoryEventLog, createRunLifecycle } = await import("@jini-ai/daemon");
   const { createInMemoryAgentSessionStore } = await import("@jini-ai/daemon/store/agent-sessions");
-  const { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../../../../assistant/agent-session-preset.js");
-  const { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("../../../../assistant/agent-session-preset.js");
+  const { waitForStoppingRuns, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../../../../assistant/agent-session-preset.js");
+  const { createLiveRunTracker, STOPPING_RUN_WAIT_MS, failRunBeforeStart, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("@jini-ai/daemon/session-coordination");
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   await lifecycle.rehydrate({});
   await lifecycle.start({ contextRef: "session-regression" }, { runId: "daemon-test-run" });

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ensureSettingDefinitions, getEffective, set, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryMediaRepo } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { createSettingsPrincipalLookup, InMemorySettingsRepo } from "../../settings/index.js";

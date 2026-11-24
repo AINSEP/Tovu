@@ -9,8 +9,11 @@ import type { PublishContentRunRecord } from "@jini-ai/cms/publish/content/run-r
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlPublishContentBaselineRepo } from "../publish-content-baseline-repo.js";
-import { SqlPublishContentBundleRepo } from "../publish-content-bundle-repo.js";
+import { SqlPublishContentBaselineRepo } from "@jini-ai/cms/publish/content/sql/baseline-repo";
+import { SqlPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer/sql/bundle-repo";
+import { schemaErasedKernel } from "../../content-kernel.js";
+import { PUBLISH_CONTENT_BASELINE_TABLES } from "../../sqlite/publish-content-baseline-repo.sqlite.js";
+import { PUBLISH_CONTENT_BUNDLE_TABLES } from "../../sqlite/publish-content-bundle-repo.sqlite.js";
 import { SqlPublishContentPeerRepo } from "../../../../features/publish-content/publish-content-peer-repo.js";
 import { SqlPublishContentRunRepo } from "../publish-content-run-repo.js";
 import { SqlPublishHistoryStore } from "../publish-history-repo.js";
@@ -41,8 +44,8 @@ function makeAll(base: ContentKernel) {
   const kernel = heldUntil(base, seeded);
   return {
     seeded,
-    baselines: new SqlPublishContentBaselineRepo(kernel),
-    bundles: new SqlPublishContentBundleRepo(kernel),
+    baselines: new SqlPublishContentBaselineRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: PUBLISH_CONTENT_BASELINE_TABLES }),
+    bundles: new SqlPublishContentBundleRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: PUBLISH_CONTENT_BUNDLE_TABLES }),
     peers: new SqlPublishContentPeerRepo(kernel),
     runs: new SqlPublishContentRunRepo(kernel),
     history: new SqlPublishHistoryStore(kernel),

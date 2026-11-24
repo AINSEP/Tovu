@@ -1,10 +1,11 @@
 import { VISITOR_TOOL_PRESENTATION } from './visitor-tool-presentation.js';
 /** CMS policy over Jini's frontend registrations; no second page executor. */
-import { PAGE_CAPABILITIES, normalizeAgentLabel, pageActionNeedsConfirmation, type PagePublication } from '@jini-ai/agentic';
-import { findCapabilityInputError, type CapabilityDef } from '@jini-ai/core/contracts/capabilities';
+import { PAGE_CAPABILITIES, acceptsPublishedPageInput, findPublishedPageElement, pageActionPublishedForTarget, publishedPageActionNeedsConfirmation, summarizePageTargets, type PagePublication } from '@jini-ai/agentic';
+import type { CapabilityDef } from '@jini-ai/core/contracts/capabilities';
 import type { ToolRegistration } from '@jini-ai/core';
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from './public-content.js';
-import { postPublicPath, checkSiteRelativeTarget } from '#src/platform/routing/index';
+import { checkSiteRelativeTarget } from '@jini-ai/cms/routing/site/reserved-paths';
+import { postPublicPath } from '#src/platform/routing/index';
 import type { VisitorCapabilityContract } from './visitor-executor.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
 
@@ -65,12 +66,6 @@ function assertVisitorPath({ path }: { path: string }): void {
   if (checkSiteRelativeTarget({ raw: path }).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
 }
 
-/** Server-issued action classes determine both eligibility and forced confirmation. */
-export function visitorPageNeedsConfirmation({ toolId, input, publication }: { toolId: string; input: unknown; publication: PagePublication }, _options = {}): boolean {
-  const handle = (input as Record<string, unknown> | null)?.handle;
-  return pageActionNeedsConfirmation({ capabilityId: toolId, element: publication.elements.find(element => element.handle === handle) });
-}
-
 /** Recheck publication immediately before delegation; live DOM checks stay in Jini.
  * The registration handler receives only this detached server-bound plan, never a browser grant.
  * O(p) in <=256 reviewed handles plus the content owner's navigation read. */
@@ -78,42 +73,20 @@ export function createVisitorPageCapabilities({ deps, page }: { deps: AnonymousP
   return VISITOR_PAGE_CAPABILITIES.map(capability => {
     const registration = page.registrations.find(tool => tool.descriptor.id === capability.id)!;
     return { name: capability.id, visitorOfferable: true as const, ...VISITOR_TOOL_PRESENTATION[capability.id as keyof typeof VISITOR_TOOL_PRESENTATION], readOnly: capability.risk === 'read',
-      acceptsInput: ({ input }) => validVisitorPageInput({ capability, input, publication: page.publication }),
-      requiresConfirmation: ({ input }: { input: unknown }) => visitorPageNeedsConfirmation({ toolId: capability.id, input, publication: page.publication }),
+      // Jini owns the manifest gates: action-class eligibility, input contract and forced confirmation.
+      acceptsInput: ({ input }) => acceptsPublishedPageInput({ capability, input, publication: page.publication }),
+      requiresConfirmation: ({ input }: { input: unknown }) => publishedPageActionNeedsConfirmation({ capabilityId: capability.id, input, publication: page.publication }),
       async execute({ input, context }) {
         if (!context || !readVisitorPagePublication({ revision: page.publication.revision, workspaceId: deps.workspaceId })) throw new Error('Page publication expired');
         const args = structuredClone(input) as Record<string, unknown>;
-        const target = page.publication.elements.find(element => element.handle === args.handle);
-        if (!publishedAction({ toolId: capability.id, target })) throw new Error('Unpublished page action');
+        if (!pageActionPublishedForTarget({ capabilityId: capability.id, element: findPublishedPageElement({ input: args, publication: page.publication }) })) throw new Error('Unpublished page action');
         const pages = page.listPages ? await page.listPages() : await publicTargets({ deps });
         if (page.publication.path && !pages.some(target => target.path === page.publication.path)) throw new Error('Page no longer public');
         const navigation = capability.id === 'page.navigate' ? await resolveVisitorPageTarget({ deps, input: args }, { pages, assertPath: page.assertPath }) : undefined;
         if (navigation) { args.page = navigation.id; delete args.slug; delete args.entity; delete args.query; }
-        const wire = { ...args, __visitorPage: { revision: page.publication.revision, approved: true, pages: pageTargetSummaries({ pages, navigation }), ...(navigation ? { path: navigation.path } : {}) } };
+        const wire = { ...args, __visitorPage: { revision: page.publication.revision, approved: true, pages: summarizePageTargets({ pages }, { navigation }), ...(navigation ? { path: navigation.path } : {}) } };
         return { result: await registration.handler({ ...context, input: wire }, {}) };
       },
     };
   });
-}
-
-/** Automatic clicks are reviewed UI operations; anchors must use validated navigation. */
-function publishedAction({ toolId, target }: { toolId: string; target?: PagePublication['elements'][number] }): boolean {
-  if (['page.navigate', 'page.find_elements'].includes(toolId)) return true;
-  if (!target) return false;
-  const allowed: Readonly<Record<string, readonly string[]>> = {
-    'page.fill': ['fill'], 'page.select_option': ['select'], 'page.click': ['menu', 'tab', 'accordion', 'carousel', 'media', 'submit'],
-  };
-  return !allowed[toolId] || allowed[toolId]!.includes(target.action);
-}
-function validVisitorPageInput({ capability, input, publication }: { capability: CapabilityDef; input: unknown; publication: PagePublication }): boolean {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) return false;
-  const args = input as Record<string, unknown>;
-  if (findCapabilityInputError({ capability, input: args })) return false;
-  return publishedAction({ toolId: capability.id, target: publication.elements.find(element => element.handle === args.handle) });
-}
-
-/** Bound discovery metadata without limiting direct navigation to an already-known public ID. */
-function pageTargetSummaries({ pages, navigation }: { pages: readonly VisitorPageTarget[]; navigation?: VisitorPageTarget }): readonly { id: string; label: string }[] {
-  const candidates = navigation ? [navigation, ...pages.filter(page => page.id !== navigation.id)] : pages;
-  return candidates.slice(0, 128).map(page => ({ id: page.id, label: normalizeAgentLabel({ raw: page.label }).text }));
 }

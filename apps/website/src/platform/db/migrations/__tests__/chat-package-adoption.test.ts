@@ -11,7 +11,7 @@ import { createSqliteChatStore } from "@jini-ai/chat/store/sqlite";
 import { chatKernel, type ChatDatabase } from "#src/platform/db/chat-kernel";
 import { openSiteChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-store";
-import { hashSessionKey } from "#src/assistant/persistence/tenant-scope";
+import { hashSessionKey } from "@jini-ai/chat/store/runtime";
 import { createChatHistoryStore as beforeAdoption } from "./chat-pre-adoption.fixture.js";
 import { SQLITE_CHAT_STATEMENTS } from "./chat-pre-adoption-schema.fixture.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";

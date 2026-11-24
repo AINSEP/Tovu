@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
+import { createPrefixToolFamilyPort, delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
-import { createContentReadFamilyPort } from "#src/assistant/tool-family-port";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
@@ -24,7 +23,7 @@ function fixture({ withFamilies = true }: { withFamilies?: boolean } = {}) {
   const deps = evaluateDaemonExpression<DelegatedToolsHttpDeps>(daemonInitializer("delegatedToolRouteDeps"), {
     lifecycle, toolExecutor, delegatedToolErrorDisclosure, publishJobRecoveryMessage: () => "",
     resolvePrincipal: (call: unknown) => { principalCalls.push(call); return { id: "editor" }; },
-    siteTools: { registry, ...(withFamilies ? { families: createContentReadFamilyPort({ registry }) } : {}) },
+    siteTools: { registry, ...(withFamilies ? { families: createPrefixToolFamilyPort({ registry, familyId: "content_read", selectorKeys: ["resource", "type", "entity", "kind"] }) } : {}) },
   });
   return { deps, lifecycle, executorCalls, principalCalls };
 }

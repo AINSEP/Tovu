@@ -7,7 +7,7 @@ import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-lim
 import { resolveSiteConsentOrigin } from '../../inbound/public-http/middleware/site-consent.js';
 import { currentCredential } from '../../inbound/admin-http/dev-auth.js';
 import { TELEMETRY_CONSENT } from './telemetry-consent.js';
-import { receiveBrowserDiagnostics } from './browser-diagnostics.js';
+import { receiveBrowserDiagnostics } from '@jini-ai/diagnostics/browser-diagnostics';
 
 /** Require a same-origin browser POST; never trust a caller's chosen upstream URL. O(1). */
 function sameOrigin({ request }: { request: Request }, _options = {}): boolean {
@@ -48,7 +48,7 @@ async function dispatchBrowserDiagnostics(required: { request: Request; response
   if (request.method !== 'POST') { response.status(404).end(); return; }
   if (!(await collectionAllowed({ request, deps, surface: 'site' }))) { response.status(403).end(); return; }
   if (!(await limiter.check({ key: resolveClientIp(request) })).allowed) { response.status(429).end(); return; }
-  await deliver({ request, response, http: { path: '/_jini/browser-analytics/site', handle: input => receiveBrowserDiagnostics(input, { deps }) }, fullPath: '/_jini/browser-analytics/site/diagnostics' });
+  await deliver({ request, response, http: { path: '/_jini/browser-analytics/site', handle: input => receiveBrowserDiagnostics(input, { deps: { settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId, observability: deps.observability, consentSetting: TELEMETRY_CONSENT } }) }, fullPath: '/_jini/browser-analytics/site/diagnostics' });
 }
 
 /** No cookie or proof crosses the provider port. Failed policy/setting reads deny delivery. O(1). */

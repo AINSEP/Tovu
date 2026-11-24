@@ -36,7 +36,7 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
-import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
+import { formatCustomInstructionsOverlay } from "@jini-ai/agent-runtime/custom-instructions";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { POST_ENTITY_TYPE } from "../../features/trash/adapters/post.js";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
@@ -382,7 +382,7 @@ test(`${BYOK_TURN_PATH} rejects a request with no usable BYOK credential before 
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  // No provider stub needed: credential validation fails before `runByokProviderTurn` is ever
+  // No provider stub needed: credential validation fails before `runProviderToolTurn` is ever
   // reached, so there is nothing to intercept — see `stub-provider-server.ts`'s doc for why a
   // `globalThis.fetch` mock would not have intercepted a real outbound call here anyway.
   const res = await postByokTurn(baseUrl, cookie, { messages: BYOK_BODY.messages, byok: { protocol: "anthropic" } });
@@ -655,7 +655,7 @@ test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE when the surface has no f
 });
 
 /**
- * Coverage for the other 3 protocols (`byok-provider-turn.ts`'s `runOpenAiTurn`/`runAzureTurn`/
+ * Coverage for the other 3 protocols (`@jini-ai/agent-runtime/providers/tool-turn`'s `runOpenAiTurn`/`runAzureTurn`/
  * `runGoogleTurn`) — previously "implemented but unverified" per the 2026-08-04 milestone report.
  * OpenAI's own wire helpers below are copied from `@jini-ai/agent-runtime`'s
  * `providers/__tests__/openai-chat.test.ts` (same reasoning as the Anthropic helpers above: a drift
@@ -727,7 +727,7 @@ test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into
   // `openai-chat.ts`'s internal result guard, which only ever sets `isError: true` for the
   // adapter's OWN content-shape violations (e.g. an oversized image), never for what a host's
   // `executeTool` returned. So the wire's `isError` is NOT trustworthy taken from the adapter
-  // directly — `byok-provider-turn.ts`'s `runOpenAiTurn` derives it instead from whether `content`
+  // directly — `@jini-ai/agent-runtime/providers/tool-turn`'s `runOpenAiTurn` derives it instead from whether `content`
   // carries the `[tool error]` fold marker. Both are asserted below: this is the property that
   // would break if that derivation were ever removed and the raw (always-false) adapter value crept
   // back in — a UI coloring a "failed" tool result off `isError` would stop distinguishing a failed

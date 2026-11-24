@@ -1,11 +1,11 @@
 import { createRunStartHandler, type RunStartRequired, type RunStartOptional } from '../../agent-daemon-run-start.js';
-import { createLiveRunTracker } from '#src/assistant/agent-session-preset';
+import { createLiveRunTracker, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext, resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock } from '@jini-ai/daemon/session-coordination';
 import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
-import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -19,14 +19,13 @@ import { type readAssistantRunToolPolicy as ReadAssistantRunToolPolicy, assistan
 import { assistantRunToolFacts } from "../../assistant-run-tool-facts.js";
 
 import { createEarlySessionCapture } from "../../early-run-session.js";
-import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
+import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
-import { createRunActiveContextStore, type RunActiveContextStore } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore, type RunActiveContextStore } from "@jini-ai/daemon/http";
 import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-assembly.js";
-import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
-import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
-import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
+import { agentCarriesOwnMemory } from "../../../../../assistant/agent-session-preset.js";
+import { agentAcceptsHostMintedSessionId } from "../../../../../assistant/agent-session-preset.js";
 import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.js";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "@jini-ai/daemon/run-start-decisions";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";

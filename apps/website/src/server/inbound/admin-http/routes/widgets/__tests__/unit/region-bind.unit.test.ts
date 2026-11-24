@@ -5,7 +5,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 
 test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and failure responses", async () => {

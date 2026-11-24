@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { assertCredentialFreeField } from '../credential-token.js';
 import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken, credentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
-import { ADMIN_LOCALES } from '../admin-locales.js';
+import { ADMIN_LOCALES } from '@tovu/contracts/admin-locales';
 import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
 const rejected = (message: string) => (error: unknown) => error instanceof CredentialInputError && error.message === message;

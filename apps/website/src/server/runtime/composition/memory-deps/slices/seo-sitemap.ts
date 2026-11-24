@@ -4,7 +4,7 @@ import { createSitemapService } from "@jini-ai/cms/seo";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import type { composeOriginNewsletter } from "./origin-newsletter.js";
-import type { MemoryClock } from "../ports.js";
+import type { Clock, IsoClock } from "@jini-ai/core/primitives";
 import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import type { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 
@@ -14,7 +14,7 @@ export interface MemorySeoInput {
   mediaRepo: InMemoryVersionedMediaRepo;
   mediaContentTypeStore: InMemoryMediaContentTypeStore;
   originRegistry: ReturnType<typeof composeOriginNewsletter>["originRegistry"];
-  clock: MemoryClock;
+  clock: Clock & IsoClock;
 }
 
 export function composeMemorySeo(required: MemorySeoInput, _optional = {}) {

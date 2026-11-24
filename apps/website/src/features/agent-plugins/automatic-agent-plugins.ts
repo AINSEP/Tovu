@@ -1,7 +1,7 @@
 /** Tovu wiring for Jini's automatic-use owner. No plugin identities or matching rules live here. */
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
-import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
 import type { PrepareToolGuidance } from '@jini-ai/core/contracts/site/daemon';
 import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-grant.js';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';

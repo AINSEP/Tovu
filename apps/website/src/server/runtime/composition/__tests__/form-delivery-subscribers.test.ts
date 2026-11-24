@@ -6,12 +6,14 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDelive
 import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { writeFormDeliveryBindings } from "@jini-ai/cms/settings/site/form-delivery-write";
 import { ensureFormDeliverySettings } from "@jini-ai/cms/settings/site/form-delivery";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@jini-ai/integrations/webhooks/site/repo.memory";
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/outbox-worker";
+import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { composeFormDelivery } from "../form-delivery.js";
 import { createIntegrationsModule } from "../modules/integrations.js";
 import { SETTINGS_WRITE_POLICIES } from "#src/features/settings/settings-write-policies";

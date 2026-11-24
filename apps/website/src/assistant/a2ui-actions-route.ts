@@ -1,9 +1,12 @@
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 
-import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/protocol/a2ui";
+import { parseRendererToAgentMessage } from "@jini-ai/protocol/a2ui";
+import { a2uiActionsRoutes } from "@jini-ai/daemon/http";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
-import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { surfaceRouteHost } from "./surface-route-host.js";
+import { mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
+import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file The daemon-side inbound half of A2UI (a2ui-project/a2ui v1.0) — where a rendered surface's
@@ -36,7 +39,7 @@ import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStor
  *
  * A2UI's `ActionMessage`/`FunctionResponseMessage`/`ErrorMessage` carry no field naming the tool
  * that opened the surface — only `surfaceId` (or, for a `functionResponse`, nothing at all; see
- * `extractDeclaredSurfaceId` below). The browser genuinely has no `toolId` to offer. See
+ * Jini's `extractDeclaredSurfaceId`). The browser genuinely has no `toolId` to offer. See
  * `surface-exchanges.ts`'s `DeliverySpec` doc for why the store accommodates that by making the
  * caller's `toolId` optional rather than forcing this route to fabricate one.
  *
@@ -75,121 +78,23 @@ export interface A2uiActionsRouteDeps {
   surfaceExchanges: SurfaceExchangeStore;
 }
 
-function readPrincipalId(req: Request): string | undefined {
-  const value = req.get(RUN_PRINCIPAL_HEADER);
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
+// The endpoint itself — the principal header check, body validation (non-empty exchangeId, A2UI
+// schema, the surfaceId/exchangeId cross-check), a2ui-channel delivery and the 202/400/401/409
+// answers — is Jini's (`@jini-ai/daemon/http`'s `a2uiActionsRoutes`), shared with the admin
+// server's BYOK-first hop so both refuse the same malformed posts. This file only injects what Jini
+// does not own (the principal header name and the protocol's parser) and mounts the route on Express.
 
 /**
- * The `surfaceId` a validated renderer→agent message declares, if it declares one at all.
- *
- * `action` and `error` (both its `VALIDATION_FAILED` and generic-with-`surfaceId` shapes) carry it;
- * `functionResponse` and a generic `error` keyed by `functionCallId` instead do not — A2UI's own
- * spec correlates those by `functionCallId`, not `surfaceId` (see `interpreter.ts`'s module doc,
- * decision 2: "`callFunction`/`actionResponse` are not surface-scoped on the wire"). `undefined` in
- * that case is not a validation failure; it means this particular message has nothing to cross-check
- * against the route's `exchangeId` param, and delivery proceeds on `exchangeId` + `principalId`
- * alone, same as it would for any channel with no `toolId` to offer.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-function extractDeclaredSurfaceId(message: RendererToAgentMessage): string | undefined {
-  if ("action" in message) return message.action.surfaceId;
-  if ("error" in message && "surfaceId" in message.error) return message.error.surfaceId;
-  return undefined;
-}
-
-/** A validated A2UI post, or the 400 body that refuses it. */
-export type ReadA2uiActionResult =
-  | { ok: true; exchangeId: string; message: RendererToAgentMessage }
-  | { ok: false; error: { error: string; code: "VALIDATION_ERROR" } };
-
-/**
- * Validates an A2UI post's body: a non-empty `exchangeId`, a schema-valid renderer message, and a
- * declared `surfaceId` (when the message has one) equal to `exchangeId`. Shared by the daemon route
- * below and the admin server's BYOK-first hop, so both refuse the same malformed posts.
- *
- * @complexity O(size of the message) for the schema parse.
- */
-export function readA2uiAction({ rawBody }: { rawBody: unknown }, _options = {}): ReadA2uiActionResult {
-  const body = (rawBody ?? {}) as { exchangeId?: unknown; message?: unknown };
-  const exchangeId = body.exchangeId;
-  if (typeof exchangeId !== "string" || exchangeId.length === 0) {
-    return { ok: false, error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" } };
-  }
-
-  // Real spec-conformance enforcement, not a rubber stamp — mirrors `daemon.ts`'s own `/a2ui-action`
-  // relay in Jini's reference app: a malformed envelope is refused at the network boundary, before
-  // it can ever reach a handler waiting on `exchange.receive()`.
-  const parsed = parseRendererToAgentMessage({ raw: body.message });
-  if (!parsed.ok) return { ok: false, error: { error: parsed.reason, code: "VALIDATION_ERROR" } };
-
-  const declaredSurfaceId = extractDeclaredSurfaceId(parsed.message);
-  if (declaredSurfaceId !== undefined && declaredSurfaceId !== exchangeId) {
-    return {
-      ok: false,
-      error: {
-        error: `message declares surfaceId "${declaredSurfaceId}", which does not match exchangeId "${exchangeId}"`,
-        code: "VALIDATION_ERROR",
-      },
-    };
-  }
-  return { ok: true, exchangeId, message: parsed.message };
-}
-
-/**
- * Delivers a validated A2UI message into `store`. No `toolId` — see this module's doc for why A2UI
- * has none to offer. `channel: "a2ui"` is what keeps it out of an MCP-UI confirmation's exchange.
- *
- * @complexity O(1).
- */
-export function deliverA2uiAction(
-  { store, ...action }: { store: SurfaceExchangeStore } & { exchangeId: string; principalId: string; message: RendererToAgentMessage },
-  _optional: Record<string, never> = {},
-): DeliverResult {
-  return store.deliver({ exchangeId: action.exchangeId, principalId: action.principalId, params: { message: action.message } }, { channel: "a2ui" });
-}
-
-/**
- * The 409 body for an A2UI post whose surface is not waiting. 409, not 404: the same reasoning
- * `mcp-ui-tool-calls-route.ts` gives for its own identical choice — from the browser's side, "no
- * such exchange" and "already closed" both mean "this surface is no longer the one waiting on you",
- * which the human cannot act on differently.
- */
-export function a2uiNotPendingBody({ reason }: { reason: SurfaceDeliveryRejectionReason }, _optional: Record<string, never> = {}) {
-  return { error: "that surface is no longer waiting for an answer", code: "SURFACE_NOT_PENDING", reason } as const;
-}
-
-/**
- * Registers `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`.
+ * Mounts `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`, at this position in its middleware order.
  *
  * @complexity O(1) request handling; the actual delivery cost is `SurfaceExchangeStore.deliver`'s
  * own, which is O(1) (a `Map` lookup).
  * @overallScore 100
  */
 export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
-  app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response) => {
-    const principalId = readPrincipalId(req);
-    if (!principalId) {
-      res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
-      return;
-    }
-
-    const action = readA2uiAction({ rawBody: req.body });
-    if (!action.ok) {
-      res.status(400).json(action.error);
-      return;
-    }
-
-    const delivered = deliverA2uiAction({ store: deps.surfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
-    if (!delivered.ok) {
-      res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
-      return;
-    }
-
-    // Deliberately not the tool's eventual result — the agent's own call is what returns that, to
-    // the model, where it belongs. Same posture as `mcp-ui-tool-calls-route.ts`'s Shape 1.
-    res.status(202).json({ delivered: true });
-  });
+  mountJiniRoutes({ app, routes: a2uiActionsRoutes({
+    path: A2UI_ACTIONS_PATH,
+    host: surfaceRouteHost(),
+    deps: { surfaceExchanges: deps.surfaceExchanges, principalHeader: RUN_PRINCIPAL_HEADER, parseRendererMessage: parseRendererToAgentMessage },
+  }) });
 }

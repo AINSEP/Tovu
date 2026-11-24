@@ -18,8 +18,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/commands/index";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo, revertChangeSet } from "@jini-ai/cms/core/commands";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPost } from "../post-create.js";

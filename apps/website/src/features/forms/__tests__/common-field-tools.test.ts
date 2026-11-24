@@ -3,11 +3,11 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
-import { executeCommand, InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
+import { executeCommand, InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 import { submitForm } from "../index.js";
-import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 test("assistant tools create/edit a dropdown with options and persist only declared submissions", async () => {

@@ -11,7 +11,7 @@ import test from "node:test";
 import { OWNER_LOCK_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { openSiteStore, PGLITE_DATA_DIR_NAME } from "#src/server/runtime/composition/open-site-store";
-import { closeStoreOnShutdown, type ShutdownProcess } from "../close-store-on-shutdown.js";
+import { closeStoreOnShutdown, type ShutdownProcess } from "@jini-ai/server/shutdown";
 
 /**
  * @file Every storage dialect closes through the same bounded shutdown.
@@ -52,7 +52,7 @@ test("T47/runtime-0#3: beforeExit stops the daemon before closing its shared sto
   const closed = new Promise<void>((resolve) => { storeClosed = resolve; });
   closeStoreOnShutdown({
     store: fakeStore("sqlite", async () => { order.push("store"); storeClosed(); }),
-    onShutdown: () => { order.push("daemon"); return daemonStopped; },
+    logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => { order.push("daemon"); return daemonStopped; },
   }, { proc });
 
   proc.emit("beforeExit");
@@ -70,7 +70,7 @@ test("T47/runtime-0#3: beforeExit stops the daemon before closing its shared sto
 test("real signals use the default process, close once across SIGTERM/SIGINT, and run the exit handler after closing", { timeout: 15_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shutdown-signals-"));
   const resultPath = path.join(dir, "result.json");
-  const moduleUrl = new URL("../close-store-on-shutdown.ts", import.meta.url).href;
+  const moduleUrl = "@jini-ai/server/shutdown";
   const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
     import { writeFileSync } from 'node:fs';
     import { closeStoreOnShutdown } from ${JSON.stringify(moduleUrl)};
@@ -88,7 +88,7 @@ test("real signals use the default process, close once across SIGTERM/SIGINT, an
         await released;
         order.push('closed');
       } },
-      onShutdown: () => {
+      logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => {
         clearInterval(keepAlive);
         order.push('daemon');
         if (++shutdowns === 2) process.send('second-signal');
@@ -124,7 +124,7 @@ test("sqlite: the end of the stopOnEnd stream runs the same stop as a signal", a
   const stdin = new PassThrough();
   const order: string[] = [];
   closeStoreOnShutdown(
-    { store: fakeStore("sqlite", async () => { order.push("store"); }), onShutdown: () => { order.push("daemon"); } },
+    { store: fakeStore("sqlite", async () => { order.push("store"); }), logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => { order.push("daemon"); } },
     { proc, stopOnEnd: stdin }
   );
   const exited = proc.exited();
@@ -137,7 +137,7 @@ test("sqlite: the end of the stopOnEnd stream runs the same stop as a signal", a
 test("sqlite: shutdown owns the signals and closes the store before exit", async () => {
   const proc = new FakeProcess();
   let closed = false;
-  const registered = closeStoreOnShutdown({ store: fakeStore("sqlite", async () => { closed = true; }), onShutdown: () => {} }, { proc });
+  const registered = closeStoreOnShutdown({ store: fakeStore("sqlite", async () => { closed = true; }), logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => {} }, { proc });
   assert.equal(registered, true);
   const exited = proc.exited();
   proc.emit("SIGTERM");
@@ -155,7 +155,7 @@ test("shutdown closes the owner store after the daemon has stopped, so ours is t
   const daemonStopped = new Promise<void>((resolve) => { release = resolve; });
   closeStoreOnShutdown({
     store: fakeStore("sqlite", async () => { order.push("store"); }),
-    onShutdown: () => daemonStopped.then(() => { order.push("daemon"); }),
+    logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => daemonStopped.then(() => { order.push("daemon"); }),
   }, { proc, stopServing: async () => { order.push("listener"); } });
   const exited = proc.exited();
   proc.emit("SIGTERM");
@@ -172,8 +172,8 @@ test("an unresponsive daemon delays the store close by only a quarter of the bou
   const order: string[] = [];
   closeStoreOnShutdown({
     store: fakeStore("sqlite", async () => { order.push("store"); }),
-    onShutdown: () => new Promise<void>(() => {}),
-  }, { proc, timeoutMs: 200, log: () => {} });
+    logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => new Promise<void>(() => {}),
+  }, { proc, timeoutMs: 200 });
   const exited = proc.exited();
   proc.emit("SIGTERM");
   await new Promise<void>((resolve) => setTimeout(resolve, 100));
@@ -190,7 +190,7 @@ test("SIGTERM on a pg site: the daemon is shut down, the store closes, then the 
       store: fakeStore("postgres", async () => {
         order.push("close");
       }),
-      onShutdown: () => order.push("daemon"),
+      logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => order.push("daemon"),
     },
     { proc }
   );
@@ -206,8 +206,8 @@ test("a store that never closes does not hold the exit past the bound", async ()
   const proc = new FakeProcess();
   const logs: string[] = [];
   closeStoreOnShutdown(
-    { store: fakeStore("pglite", () => new Promise<void>(() => {})), onShutdown: () => {} },
-    { proc, timeoutMs: 50, log: (m) => logs.push(m) }
+    { store: fakeStore("pglite", () => new Promise<void>(() => {})), logger: { info: () => {}, warn: () => {}, error: ({ message }) => void logs.push(message) }, onShutdown: () => {} },
+    { proc, timeoutMs: 50 }
   );
   const exited = proc.exited();
   proc.emit("SIGINT");
@@ -219,15 +219,18 @@ test("a store that never closes does not hold the exit past the bound", async ()
 test("a store whose close fails is logged and the process still exits 0", async () => {
   const proc = new FakeProcess();
   const logs: string[] = [];
+  const failures: unknown[] = [];
   closeStoreOnShutdown(
-    { store: fakeStore("pglite", async () => Promise.reject(new Error("boom"))), onShutdown: () => {} },
-    { proc, log: (m) => logs.push(m) }
+    { store: fakeStore("pglite", async () => Promise.reject(new Error("boom"))), logger: { info: () => {}, warn: () => {}, error: ({ message }, optional) => { logs.push(message); failures.push(optional?.error); } }, onShutdown: () => {} },
+    { proc }
   );
   const exited = proc.exited();
   proc.emit("SIGHUP");
   await exited;
   assert.deepEqual(proc.exits, [0]);
-  assert.deepEqual(logs, ["[shutdown] closing the pglite store failed: boom"]);
+  // The failure travels in the logger's error bag, never in the line text (Jini log-safety gate).
+  assert.deepEqual(logs, ["[shutdown] closing the pglite store failed"]);
+  assert.equal((failures[0] as Error).message, "boom");
 });
 
 test("a normal exit (the event loop drains) closes the store without calling exit; `exit` shuts the daemon down", async () => {
@@ -239,7 +242,7 @@ test("a normal exit (the event loop drains) closes the store without calling exi
       store: fakeStore("pglite", async () => {
         closes += 1;
       }),
-      onShutdown: () => (daemonShutdowns += 1),
+      logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => (daemonShutdowns += 1),
     },
     { proc }
   );
@@ -270,7 +273,7 @@ test("a real PGlite owner: SIGINT releases the socket file and the owner lock be
     const proc = new FakeProcess();
     const seenAtExit: boolean[] = [];
     proc.once("exited", () => seenAtExit.push(fs.existsSync(socketPath), fs.existsSync(lockPath)));
-    closeStoreOnShutdown({ store, onShutdown: () => {} }, { proc, timeoutMs: 30_000 });
+    closeStoreOnShutdown({ store, logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => {} }, { proc, timeoutMs: 30_000 });
     const exited = proc.exited();
     proc.emit("SIGINT");
     await exited;
@@ -287,7 +290,7 @@ test("idle stop preserves daemon/store ordering and the requested exit code", as
   let stop!: (input: { exitCode: number }) => void;
   closeStoreOnShutdown({
     store: fakeStore("sqlite", async () => { order.push("store"); }),
-    onShutdown: () => { order.push("daemon"); },
+    logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => { order.push("daemon"); },
   }, { proc, registerStop: ({ stop: registered }, _optional = {}) => { stop = registered; }, stopServing: async () => { order.push("listener"); } });
   const exited = proc.exited();
   stop({ exitCode: 89 });
@@ -299,6 +302,6 @@ test("idle stop preserves daemon/store ordering and the requested exit code", as
 
 test('a memory boot without an owned store installs no shutdown handlers', () => {
   const proc = new FakeProcess();
-  assert.equal(closeStoreOnShutdown({ store: undefined, onShutdown: () => assert.fail('no store owner') }, { proc }), false);
+  assert.equal(closeStoreOnShutdown({ store: undefined, logger: { info: () => {}, warn: () => {}, error: () => {} }, onShutdown: () => assert.fail('no store owner') }, { proc }), false);
   assert.deepEqual(proc.eventNames(), []);
 });

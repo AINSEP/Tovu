@@ -1,7 +1,8 @@
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
-import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
+import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
+import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { TOOLS_FIRST_RULE, ASSISTANT_DISALLOWED_TOOLS } from "@tovu/contracts/assistant-native-fallbacks";
-import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "@tovu/contracts/assistant-content-guidance";
 import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.

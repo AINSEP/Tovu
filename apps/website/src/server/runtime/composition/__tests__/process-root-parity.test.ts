@@ -417,10 +417,10 @@ test("daemon shutdown waits for publication even when durability fails after ren
   let rejectPublication!: (error: Error) => void;
   const publication = new Promise<void>((_resolve, reject) => { rejectPublication = reject; });
   const calls: string[] = [];
-  const { closeWithinBound } = await import("../../lifecycle/close-store-on-shutdown.js");
+  const { closeWithinBound } = await import("@jini-ai/server/shutdown");
   let releaseStore!: () => void;
   const storeClosed = new Promise<void>((resolve) => { releaseStore = resolve; });
-  const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "scopes",
+  const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "scopes", "consoleLogger",
     `let daemonExiting = false; const stopIdleMonitor = () => {}; const stopDaemonServing = async () => {}; ${code}; return exitDaemon;`)(
       publication,
       { removeIfCurrent: async ({ pid }: { pid: number }) => { calls.push(`remove:${pid}`); } },
@@ -428,6 +428,7 @@ test("daemon shutdown waits for publication even when durability fails after ren
       { error: () => undefined },
       closeWithinBound,
       new Map([['site', Promise.resolve({ dispose: async () => { calls.push("store-closing"); await storeClosed; calls.push("store-closed"); } })]]),
+      { error: () => undefined, warn: () => undefined, info: () => undefined, debug: () => undefined },
     );
   const first = exit({ exitCode: 143 });
   await exit({ exitCode: 130 });

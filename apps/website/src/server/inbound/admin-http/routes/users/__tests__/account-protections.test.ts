@@ -1,6 +1,6 @@
 import { registerAdminPolicyPermissionRemoveRoute } from "#src/server/runtime/composition/modules/users-access";
-import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { registerAdminUserListRoute } from "#src/server/runtime/composition/modules/users";
+import { InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";

@@ -6,8 +6,8 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";

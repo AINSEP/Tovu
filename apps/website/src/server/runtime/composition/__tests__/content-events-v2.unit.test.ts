@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
-import { InMemoryEventBus } from '#src/contracts/core/events/index';
+import { InMemoryEventBus } from '@jini-ai/infra/events/memory-bus';
 import { registerContentAnalytics } from '../content-events.js';
 
 test('committed content events cover create, save and publish for both post and page, without content properties', async () => {

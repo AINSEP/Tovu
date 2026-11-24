@@ -16,7 +16,7 @@ import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/site-paths.js";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
-import { startPluginActivationPolling } from "../composition/plugin-activation-polling.js";
+import { startPluginActivationPolling } from "@jini-ai/plugins/host";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
@@ -275,7 +275,7 @@ function pluginRuntimeBootModule(deps: NewsletterRouteDeps, options: BuildBootMo
     // detached the hook only there; without this poll, every save served here kept running the
     // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
     // this server-owned poll still reconciles durable version changes made by other processes
-    // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
+    // (`@jini-ai/plugins/host` activation-polling), without recreating a daemon hook registry.
     name: "plugin-runtime-attach",
     owner: "features/plugin-runtime",
     criticality: "optional",
@@ -283,7 +283,7 @@ function pluginRuntimeBootModule(deps: NewsletterRouteDeps, options: BuildBootMo
     start: async () => {
       pluginActivationPoll?.stop();
       pluginActivationPoll = startPluginActivationPolling(
-        deps,
+        { ...deps, logger: consoleLogger },
         options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
       );
     },

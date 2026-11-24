@@ -1,6 +1,6 @@
-import { resolveHostReadRefs, type ToolRegistration } from "@jini-ai/core";
+import { resolveHostReadRefs, type ToolRegistration, batchDescriptorFor } from "@jini-ai/core";
 import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
-import { batchDescriptorFor, resolveBatchableTools } from "../../batch-tool-inputs.js";
+import { resolveBatchableTools } from "../../batch-tool-inputs.js";
 
 /** What the assembly publishes for a catalog entry: the entry itself, plus `items` when the tool is
  *  batchable by default — derived with the REAL `resolveBatchableTools`/`batchDescriptorFor`.

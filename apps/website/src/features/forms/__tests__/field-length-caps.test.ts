@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FormSubmissionValidationError, InMemoryFormSubmissionRepo, type FieldDescriptor, type FormDefinitionRecord } from "@jini-ai/cms/forms";
-import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus } from "@jini-ai/infra/events/memory-bus";
 import { submitForm } from "../index.js";
 
 const FIELDS: FieldDescriptor[] = [

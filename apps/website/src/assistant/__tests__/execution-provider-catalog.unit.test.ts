@@ -23,7 +23,9 @@ test('execution settings use the provider catalog endpoint when its default chan
 });
 
 test('live model discovery uses the provider catalog when a saved key has no custom endpoint', async () => {
-  const { createLiveModelDiscovery } = await import('../live-model-cache.js');
+  const { createLiveModelDiscovery } = await import('@jini-ai/agent-runtime/model-catalog/live-discovery');
+  const { resolveExecutionCredential } = await import('../execution-credential-store.js');
+  const { VENDOR_API_BASE_URLS } = await import('@jini-ai/integrations/media-providers/catalog');
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer({ keyring });
@@ -32,7 +34,9 @@ test('live model discovery uses the provider catalog when a saved key has no cus
     workspaceId: 'workspace', principalId: 'admin', protocol: 'anthropic', apiKey: 'test-key',
   });
   let requested: string | undefined;
-  const discovery = createLiveModelDiscovery({ repo, sealer, clock, discover: async ({ baseUrl }) => {
+  const discovery = createLiveModelDiscovery({
+    resolveCredential: input => resolveExecutionCredential({ deps: { repo, sealer }, input }),
+    defaultBaseUrl: VENDOR_API_BASE_URLS.anthropic, clock, discover: async ({ baseUrl }) => {
     requested = baseUrl; return [{ id: 'test-model', label: 'Test model' }];
   } });
   assert.deepEqual(await discovery.getLiveClaudeModels({ workspaceId: 'workspace', principalId: 'admin' }), [{ id: 'test-model', label: 'Test model' }]);

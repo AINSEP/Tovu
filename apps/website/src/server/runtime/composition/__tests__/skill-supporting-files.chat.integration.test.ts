@@ -7,7 +7,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
-import { runByokProviderTurn, type ByokTurnEvent } from "#src/assistant/byok-provider-turn";
+import { providerTurnAdapters, runProviderToolTurn, type ProviderTurnEvent } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
 
@@ -35,10 +35,10 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
     continuation = body;
     return { status: 200, body: frame({ choices: [{ index: 0, delta: { content: "I loaded the visual foundations." }, finish_reason: null }] }) + frame({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }) + "data: [DONE]\n\n" };
   });
-  const events: ByokTurnEvent[] = [];
+  const events: ProviderTurnEvent[] = [];
   const executions: unknown[] = [];
-  const turn = await runByokProviderTurn({
-    protocol: "openai", baseUrl, apiKey: "test-key-not-real", model: "scripted-model",
+  const turn = await runProviderToolTurn({
+    protocol: "openai", adapters: providerTurnAdapters, apiKey: "test-key-not-real", model: "scripted-model",
     system: "Load the requested installed skill reference before answering.",
     messages: [{ role: "user", content: "Read the UI/UX visual foundations reference." }],
     tools: fixture.registry.list({}),
@@ -51,7 +51,7 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
       return { content: JSON.stringify(result.output), isError: false };
     },
     onEvent: event => events.push(event),
-  });
+  }, { baseUrl });
   assert.equal(turn.toolTurns, 1);
   assert.equal(executions.length, 1);
   const use = events.find(event => event.type === "tool_use");

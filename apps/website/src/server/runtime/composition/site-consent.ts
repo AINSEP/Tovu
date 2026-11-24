@@ -20,7 +20,7 @@ import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
 import { isBarePageChoice } from '#src/features/theme/index';
 import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
 import type { ConsentProblem } from '@jini-ai/core/contracts/site/core-consent-refusal';
-import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';
 

@@ -1,9 +1,8 @@
 import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
-import { createHash } from "node:crypto";
 
-import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatHistoryStore } from "@jini-ai/chat/core";
 
-import { createRunGuardedChatStore } from "@jini-ai/chat/store/runtime";
+import { createRunGuardedChatStore, hashSessionKey, type ChatPrincipal } from "@jini-ai/chat/store/runtime";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { createChatHistoryStore } from "./chat-history-store.js";
@@ -27,53 +26,9 @@ import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
  * the only mitigation that does not depend on everyone remembering.
  *
  * Guest sessions are keyed by a hash of their cookie, never the cookie itself — see
- * {@link hashSessionKey}.
+ * `hashSessionKey` in `@jini-ai/chat/store/runtime`, which also owns `ChatPrincipal`,
+ * `ChatStoreFactory`, `chatExpiryFor` and `GUEST_CHAT_TTL_MS`.
  */
-
-/** How long a visitor's chat history survives without activity. */
-export const GUEST_CHAT_TTL_MS = 2 * 24 * 60 * 60 * 1000;
-
-/**
- * Hashes a visitor's session key for storage.
- *
- * The cookie is a bearer credential: anyone holding it can read that visitor's transcripts. Stored
- * raw, a database dump, a stray log line, or a backup handed to a contractor becomes a set of live
- * session tokens. Hashed, the same leak yields values that cannot be replayed against the site.
- *
- * Plain SHA-256 rather than a password KDF, deliberately: the input is a high-entropy random token
- * we generate, not a user-chosen secret, so there is nothing for a slow hash to protect against —
- * and this runs on every request to the public assistant, where a deliberately slow hash would be
- * a self-inflicted denial of service.
- */
-export function hashSessionKey({ sessionKey }: { sessionKey: string }, _optional = {}): string {
-  return createHash("sha256").update(sessionKey).digest("hex");
-}
-
-/** An authenticated staff member. History is retained until explicitly deleted. */
-export interface AdminChatPrincipal {
-  readonly kind: "user";
-  readonly workspaceId: string;
-  readonly userId: string;
-}
-
-/** An anonymous site visitor, identified only by the opaque token in their cookie. */
-export interface GuestChatPrincipal {
-  readonly kind: "guest";
-  readonly workspaceId: string;
-  /** The RAW cookie value. It is hashed here and never stored or logged in this form. */
-  readonly sessionKey: string;
-}
-
-export type ChatPrincipal = AdminChatPrincipal | GuestChatPrincipal;
-
-/**
- * What routes are handed instead of a database.
- *
- * Injected through `RouteDeps` so a handler's only path to chat history runs through a principal.
- * The raw `better-sqlite3` handle is closed over at composition time and never reaches a route,
- * which is what makes the unscoped query unwritable rather than merely discouraged.
- */
-export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
 /* Server acceptance owns daemon rows, so presentation text cannot decide cancellation or recovery.
  * A lost browser stream still must not release a live execution's conversation slot. */
@@ -102,16 +57,4 @@ export function createTenantScopedChatStore(
     } }),
     ledger,
   }, {});
-}
-
-/**
- * When a new conversation for this principal should expire, or `undefined` for never.
- *
- * Admin history has no TTL: it is work product, and an assistant that quietly forgets what an
- * administrator did two days ago is worse than useless during an incident review. Guest history
- * expires because it is personal data belonging to someone who never created an account, and
- * keeping it indefinitely is a liability with no matching benefit.
- */
-export function chatExpiryFor({ principal }: { principal: ChatPrincipal }, { now = Date.now() }: { now?: number } = {}): number | undefined {
-  return principal.kind === "guest" ? now + GUEST_CHAT_TTL_MS : undefined;
 }

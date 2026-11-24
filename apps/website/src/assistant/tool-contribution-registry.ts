@@ -28,7 +28,8 @@ import type { ToolRegistration, ToolContributions } from "@jini-ai/core";
  * `tool-registrations.ts`'s assembly, rather than the contribution registry.
  */
 
-/** One feature's AI-tool contribution: its builder and the risk classification its own wiring file
+/* `@jini-ai/core`'s `ToolContributor` (bound to this host's deps in `tool-registrations.ts`): one
+ * feature's AI-tool contribution — its builder and the risk classification its own wiring file
  * maintains. The static assistant-owned `DomainSlice` uses the same contract.
  *
  *
@@ -48,12 +49,12 @@ import type { ToolRegistration, ToolContributions } from "@jini-ai/core";
  * Each test owns or clears its registry instance before selecting contributors; composition
  * state otherwise persists for the lifetime of that instance.
  */
-export type ToolContributor<TDeps, TSurfaces> = import("@jini-ai/core").ToolContributor<TDeps, TSurfaces>;
 
-/** A post-processing contribution: tools DERIVED from the registrations every {@link ToolContributor}
+/* `@jini-ai/core`'s `DerivedToolContributor` (bound in `tool-registrations.ts`): a post-processing
+ * contribution — tools DERIVED from the registrations every `ToolContributor`
  * already built (today: `trash_item`, which reuses the per-domain delete tools' handlers — see
  * `features/trash/trash-item-tool.ts`). Registered by the composition root
- * (`installFirstPartyToolContributors`) for the same reason as {@link ToolContributor}: so
+ * (`installFirstPartyToolContributors`) for the same reason as `ToolContributor`: so
  * `tool-registrations.ts` never imports the feature by value (that edge closed the `assistant ->
  * trash -> comments -> plugins -> assistant` module cycle). `risk` is merged and cross-checked like
  * any other domain's.
@@ -66,7 +67,6 @@ export type ToolContributor<TDeps, TSurfaces> = import("@jini-ai/core").ToolCont
  * Clearing derived contributions is separate from clearing normal contributions, so tests
  * can retain the composition's derived passes when selecting domain contributors.
  */
-export type DerivedToolContributor<TDeps, TSurfaces> = import("@jini-ai/core").DerivedToolContributor<TDeps, TSurfaces>;
 
 /** The two ordered registries belong to one composition root, never shared across workspaces. */
 export interface AssistantToolContributions<TDeps, TSurfaces> extends ToolContributions<TDeps, TSurfaces> {

@@ -85,9 +85,6 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   // All five replacement tools are exercised against real exchanges by theme-file-safety.test.ts.
   ["features/theme/file-mutation-tools.ts", new Set(["description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
-  // The ask-choice store adapter forwards the Jini open() args untouched; assistant_ask_choice is already
-  // listed as a parameterised exchange id above, so the id stays covered.
-  ["assistant/ask-choice-custom-answer.ts", new Set(["args"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
   // The copy tool receives the host-bound credential_copy_from_project id; Jini owns the exchange.
   ["features/custom-credentials/credential-copy-tool.ts", new Set(["toolId"])],

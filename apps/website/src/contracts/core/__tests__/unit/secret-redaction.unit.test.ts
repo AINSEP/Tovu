@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { redactSecretShapes } from "../../secret-redaction.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /**
  * @file `redactSecretShapes` — the pure engine behind the tool-failure redactor

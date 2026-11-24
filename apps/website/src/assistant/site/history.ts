@@ -57,7 +57,7 @@ function toHistoryRole({ role }: { role: unknown }, _options = {}): SiteAssistan
 
 /**
  * Bounds and converts client-supplied, untrusted `history` into {@link SiteAssistantHistoryTurn}s
- * ready to prepend to the live message in `runByokProviderTurn`'s `messages`. Never throws: any
+ * ready to prepend to the live message in `runProviderToolTurn`'s `messages`. Never throws: any
  * input shape that is not a usable history (not an array, wrong-shaped entries throughout) simply
  * produces `[]`.
  *

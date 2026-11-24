@@ -6,7 +6,7 @@ import { assistantTestAgentRoute, type TestAgentFn } from "@jini-ai/cms/admin-ht
 import { assistantTestConnectionRoute, type TestConnectionFn } from "@jini-ai/cms/admin-http/routes/assistant/test-connection";
 import type { ResolveProbeCredentialFn } from "@jini-ai/cms/admin-http/routes/assistant/execution-shared";
 
-import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
+import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agents";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import {
   mountAdminJsonRoute, type AdminJsonRouteMountOptions, type AdminJsonRoutePortDeps, type AdminRouteAuthorization,

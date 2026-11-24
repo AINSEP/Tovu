@@ -6,8 +6,8 @@ import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
 import { POST_LIST_FIELDS } from "@jini-ai/cms/posts/post-tool-schemas";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { InMemoryPostSearchIndex } from "../search-index.memory.js";

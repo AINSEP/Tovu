@@ -23,7 +23,6 @@ import {
 } from "../commit-site.js";
 import { toCommitFile } from "@jini-ai/devops/source-control";
 import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
-import type { ExportReport } from "#src/contracts/core/export-report";
 import { createStaticSitePackager } from '../../site-backup/static-site-packager.js';
 import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
 import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult } from '@jini-ai/devops/source-control/site/provider-module';

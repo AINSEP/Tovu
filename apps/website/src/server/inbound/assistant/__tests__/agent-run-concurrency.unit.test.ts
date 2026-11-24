@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, type FailingRunLifecycle } from "../../../../assistant/agent-session-preset.js";
+import { CONCURRENT_RUN_REFUSAL_MESSAGE, waitForStoppingRuns } from "../../../../assistant/agent-session-preset.js";
+import { createLiveRunTracker, failRunBeforeStart, type FailingRunLifecycle } from "@jini-ai/daemon/session-coordination";
 
 /**
  * @file H2 regression cover for `createLiveRunTracker`. Before this tracker existed, nothing

@@ -1,8 +1,8 @@
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
-import { SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
-import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { SqliteDatabaseLedgerRepo } from "@jini-ai/db/recovery/journal-repo.sql";
+import { SqliteMigrationRunsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { SqliteRestorePointsRepo } from "@jini-ai/db/recovery/journal-repo.sql";
 import { defaultDatabaseJournalDbPath } from "../site-paths.js";
 import { dirname } from "node:path";
 import { mkdirSync } from "node:fs";
@@ -10,6 +10,7 @@ import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-
 import type { StoreCloseRegistration } from "./open-store.js";
 import type { SiteStore } from "../open-site-store.js";
 import type { storeBoundServicesFor } from "../store-bound-services.js";
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 interface ComposeDatabaseJournalRequired {
   dbPath: string;
@@ -46,6 +47,7 @@ export function composeDatabaseJournal(required: ComposeDatabaseJournalRequired,
   const publishContentRunRepo = new SqlitePublishContentRunRepo({ store: kernel });
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId,
     protectedRestorePointIds: () => publishContentRunRepo.inFlightRestorePointIds({ workspaceId }),
+    onPruneWarning: warnRestorePointPruneFailed,
   });
   const { dbOps } = storeBound;
   // ADR-041 §3 (this dispatch) — reuses the SAME already-open store `dbOps` above is bound to,

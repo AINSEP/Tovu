@@ -5,6 +5,7 @@ import { openPgliteKernel } from "../db/kernel/drivers/pglite.js";
 import { acquireOwnerLock, PgliteOwnerLockedError, runningPgliteOwner } from "../db/kernel/drivers/pglite-owner.js";
 import { copyServedPgliteTo, StorageOpError, storageOps } from "../db/kernel/ops.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { copyPgliteSourceTo } from "@jini-ai/db/pglite";
 import { CHAT_LEDGER_TABLE } from "../db/migrations/index.js";
 import { resetLegacySiteTitlePin } from "../db/sqlite/reset-legacy-site-title-pin.js";
 import { InternalError, ValidationError } from "./errors.js";
@@ -19,10 +20,8 @@ import { InternalError, ValidationError } from "./errors.js";
  * - The source's legacy site-title pin is reset (SPEC-050 REQ-12), exactly as `duplicateContentDb`.
  * - Compacted and verified (`VACUUM` + `CHECKPOINT` + ledger read-back) before it is handed back.
  *
- * Reaching the source: when THIS process serves it (duplicating the site you are running), through
- * its owner's exclusive window; otherwise the source must be stopped — the copy takes the data dir's
- * owner lock for the duration, so nothing writes to it meanwhile. A source served by another live
- * process is refused (its owner is the only one who may open it).
+ * Reaching the source: served-versus-stopped and the owner lock live in `copyPgliteSourceTo`
+ * (`@jini-ai/db/pglite`); a source served by another live process is refused with a `ValidationError`.
  */
 
 /** The `ai_chat` tables emptied in a copy: all of them but the migration ledger. */
@@ -37,34 +36,25 @@ async function purgeAiChat(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.execute(sql`TRUNCATE ${sql.join(tableNames)}`);
 }
 
-/** Copies the source data dir to `targetDataDir` through the right door (see this file's header). */
+/** Copies the source data dir to `targetDataDir` through the right door (see this file's header); the served-versus-
+ *  stopped lifecycle lives in `@jini-ai/db/pglite`, this binds Tovu's kernels and maps the lock refusal. */
 async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: string; targetDataDir: string }, _optional = {}): Promise<void> {
-  const owner = runningPgliteOwner({ dataDir: sourceDataDir });
-  if (owner !== undefined) {
-    await copyServedPgliteTo({ owner, targetPath: targetDataDir });
-    return;
-  }
-  let release: () => void;
-  try {
-    release = acquireOwnerLock({ dataDir: sourceDataDir });
-  } catch (err) {
-    if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError({ message: `the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry` });
-    }
-    throw err;
-  }
-  // Nested so the lock is released however the open, the copy or the close fails: the open can
-  // throw synchronously, and a rejected close must not skip `release()` for the process's life.
-  try {
-    const source = openPgliteKernel<unknown>({ dataDir: sourceDataDir });
-    try {
-      await storageOps({ kernel: source }).copyTo(targetDataDir);
-    } finally {
-      await source.close();
-    }
-  } finally {
-    release();
-  }
+  await copyPgliteSourceTo({ sourceDataDir, targetDataDir, ports: {
+    runningOwner: ({ dataDir }) => runningPgliteOwner({ dataDir }),
+    copyServed: ({ owner, targetPath }) => copyServedPgliteTo({ owner, targetPath }),
+    acquireOwnerLock: ({ dataDir }) => {
+      try {
+        return acquireOwnerLock({ dataDir });
+      } catch (err) {
+        if (err instanceof PgliteOwnerLockedError) {
+          throw new ValidationError({ message: `the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry` });
+        }
+        throw err;
+      }
+    },
+    openStopped: ({ dataDir }) => openPgliteKernel<unknown>({ dataDir }),
+    copyStopped: ({ source, targetPath }) => storageOps({ kernel: source }).copyTo(targetPath),
+  } });
 }
 
 /**

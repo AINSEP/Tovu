@@ -27,7 +27,7 @@ import type { PeerSiteReads } from '#src/assistant/tool-registrations';
 export type { PeerSiteReads } from '#src/assistant/tool-registrations';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import type { ContentDatabase } from '#src/platform/db/content-database.generated';
-import type { JournalDatabase } from '#src/platform/db/journal-kernel';
+import type { JournalDatabase } from '@jini-ai/db/recovery/journal-kernel';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { SqliteDatabaseIntrospectionAdapter } from '#src/platform/db/sqlite/database-introspection-adapter.sqlite';
 import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '#src/platform/db/sqlite/database-journal-repo';
@@ -60,6 +60,7 @@ import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';
 import { registeredSources, isLocalTovuHost, type RegisteredSiteSource } from './registered-sites.js';
+import { warnRestorePointPruneFailed } from "#src/platform/db/sqlite/restore-point-prune-warning";
 
 const CHAT_SURFACE_DESCRIPTION = "Chat UI surface, independent of site data.";
 
@@ -273,7 +274,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
       authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }), tokens: unavailable({ field: 'gatedMutations.tokens' }) }) },
     databaseLedgerRepo: new SqliteDatabaseLedgerRepo({ db: journal, siteId: workspaceId }),
     migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
-    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
+    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId, onPruneWarning: warnRestorePointPruneFailed }),
   };
   return bag;
 }

@@ -102,7 +102,8 @@ import {
 } from "@jini-ai/core/gated-mutations";
 import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { adaptTokenStore, type ConfirmationTokenRecord, type TokenStorePort } from "./token.js";
+import { adaptTokenStore, type TokenStorePort } from "./token.js";
+import { type ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
 
 export { ForbiddenError, PlanStaleError, UnauthenticatedError } from "@jini-ai/core/gated-mutations";
 export type { GatewayPlan } from "@jini-ai/core/gated-mutations";

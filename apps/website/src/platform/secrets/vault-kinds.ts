@@ -1,4 +1,4 @@
-import { createVaultMetaParsers, isCopyableKind, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { createStoreKeyring, createVaultMetaParsers, isCopyableKind, protectStorage, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VAULT_KINDS,
   VaultError,
@@ -12,7 +12,6 @@ import {
 } from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
-import { createStoreKeyring, protectStorage } from "./store-vault-guards.js";
 import { assertHostMetaRules, assertRecoveryMeta, parseStructuralMeta, withRecoveryMeta } from "./vault-meta-rules.js";
 
 /** Tovu owns catalogs and safe-metadata policy; Jini owns structural parsing and the vault lifecycle. */

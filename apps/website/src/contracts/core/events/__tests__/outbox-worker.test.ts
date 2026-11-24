@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS, processOutbox } from "../index.js";
-import { DEFAULT_OUTBOX_CLAIM_LEASE_MS, DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } from "../outbox-worker.js";
+import { computeDomainOutboxBackoffMs as computeOutboxBackoffMs } from "@jini-ai/infra/events/domain-outbox";
+import { InMemoryEventBus, InMemoryOutbox } from "@jini-ai/infra/events/memory-bus";
+import { MAX_OUTBOX_ATTEMPTS } from "@jini-ai/infra/events/outbox";
+import { processOutbox } from "../outbox-worker.js";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS, DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } from "@jini-ai/infra/events/outbox";
 
 /** Copied from `outbox-drainer.test.ts:20-37` — never import test-only helpers across test files. */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -229,12 +232,6 @@ test("computeOutboxBackoffMs stays within [half, full] of the exponential step a
   assert.equal(cappedLower, computeOutboxBackoffMs({ attempts: 7 }, { random: () => 0 }));
   assert.equal(cappedUpper, 1_800_000);
   assert.equal(cappedUpper, computeOutboxBackoffMs({ attempts: 7 }, { random: () => 1 }));
-});
-
-test("computeOutboxBackoffMs uses host randomness when no random port is supplied", (t) => {
-  t.mock.method(Math, "random", () => 0.25);
-
-  assert.equal(computeOutboxBackoffMs({ attempts: 1 }), 18_750);
 });
 
 test("processOutbox stops retrying and permanently excludes a row once MAX_OUTBOX_ATTEMPTS is reached", async () => {

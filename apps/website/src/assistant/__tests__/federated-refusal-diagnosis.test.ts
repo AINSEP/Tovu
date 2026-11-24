@@ -5,7 +5,8 @@ import type { Principal, RunRef } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import type { FederatedAdmissionReport, FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
-import { withFederatedRefusalDiagnosis, type FederationBootStatus } from "../server-federation-diagnosis.js";
+import { withFederatedRefusalDiagnosis } from "../server-federation-diagnosis.js";
+import { type FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
 
 /**
  * @file The incident this closes: an operator's higgsfield connection allowlists only

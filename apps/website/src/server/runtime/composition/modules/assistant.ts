@@ -2,7 +2,8 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
-import { restoreSurface } from '@jini-ai/daemon/http';
+import { parseRendererToAgentMessage } from '@jini-ai/protocol/a2ui';
+import { restoreSurface, a2uiNotPendingBody, deliverA2uiAction, isTypedSurfaceAnswer, readA2uiAction } from '@jini-ai/daemon/http';
 import { answerSurface } from '#src/assistant/surface-answer';
 import { nodeIntervalScheduler } from '../jini-routes.js';
 /**
@@ -54,21 +55,17 @@ import { nodeIntervalScheduler } from '../jini-routes.js';
  */
 import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import type { AgentSummary } from "@jini-ai/daemon/http";
+/** Fixed, secret-free recovery copy shared by both HTTP hops. */
+import { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from "@jini-ai/daemon/http";
+import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels, type LiveModelDiscovery } from "@jini-ai/agent-runtime/model-catalog/live-discovery";
+import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import {
   A2UI_ACTIONS_PATH,
-  a2uiNotPendingBody,
-  deliverA2uiAction,
-  createLiveModelDiscovery,
-  fetchLiveClaudeModels,
-  type LiveModelDiscovery,
-  unionModels,
+  resolveExecutionCredential,
   isMcpUiToolCallPermitted,
-  MCP_UI_TYPED_ANSWER_REFUSAL,
-  isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
-  readA2uiAction,
   RUN_PRINCIPAL_HEADER,
 } from "#src/assistant/index";
 import {
@@ -86,7 +83,7 @@ import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
-import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
+import { RunSlotBusyError } from "@jini-ai/chat/store/runtime";
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
 type AssistantRouteDeps = RouteDeps & {
@@ -310,7 +307,7 @@ async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: R
  * `agentListRoute`/`rescanAgentsRoute`, both `ok({agents: await ...()})`), so one handler serves
  * both. For the one entry with `id === "claude"`, enriches `models`/`modelsSource` with a live
  * discovery call against the ADMIN's own stored `anthropic` execution credential (never the SITE's
- * — see `live-model-cache.ts`'s header) — UNIONED into the static fallback list, never replacing
+ * — see `@jini-ai/agent-runtime/model-catalog/live-discovery`'s header) — UNIONED into the static fallback list, never replacing
  * it (design §3.5: the bare `sonnet`/`opus`/`haiku` aliases are resolved by the CLI itself at spawn
  * time and must never be at risk of being dropped by an API-account-scoped live list that doesn't
  * contain them). `modelsSource` is only overwritten to `"live"` when the live call actually
@@ -426,7 +423,7 @@ function tryLocalMcpUiDelivery(
  * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
  */
 async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const action = readA2uiAction({ rawBody: req.body });
+  const action = readA2uiAction({ rawBody: req.body, parseRendererMessage: parseRendererToAgentMessage });
   if (!action.ok) {
     res.status(400).json(action.error);
     return;
@@ -458,7 +455,7 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
   // authoritatively for every run it owns.
   const namesAnExchange = typeof exchangeId === "string" && exchangeId.length > 0;
   const typedTarget =
-    !namesAnExchange && isTypedSurfaceAnswer(params)
+    !namesAnExchange && isTypedSurfaceAnswer({ params })
       ? byokSurfaceExchanges.findTypedAnswerTarget({ principalId: getAuthedPrincipal(res).id, toolId: toolName })
       : undefined;
   return typedTarget ?? exchangeId;
@@ -500,7 +497,7 @@ function readAllowedMcpUiCallback({ body, res }: {
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
   // The same rule the daemon route applies: a federated id (G3's per-call card) may only ANSWER an
   // open card, never be executed.
-  const typedAnswer = isTypedSurfaceAnswer(params);
+  const typedAnswer = isTypedSurfaceAnswer({ params });
   const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || typedAnswer;
   if (!isMcpUiToolCallPermitted({ toolName: toolName, answersAnExchange: answersAnExchange }, { typedAnswer })) {
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
@@ -765,10 +762,12 @@ export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { rou
   const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
   const liveModels = createLiveModelDiscovery({
-    repo: routeDeps.adminExecutionCredentialRepo,
-    sealer: routeDeps.siteAssistantSecretSealer,
+    resolveCredential: input => resolveExecutionCredential({
+      deps: { repo: routeDeps.adminExecutionCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer }, input,
+    }),
+    defaultBaseUrl: VENDOR_API_BASE_URLS.anthropic,
     clock: routeDeps.clock,
-    discover: fetchLiveClaudeModels,
+    discover: (required) => fetchLiveClaudeModels({ ...required, warn: (message) => console.warn(`[assistant] ${message}`) }),
   });
   return {
     name: "assistant",

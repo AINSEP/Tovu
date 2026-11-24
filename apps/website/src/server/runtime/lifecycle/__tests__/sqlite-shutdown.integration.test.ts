@@ -19,7 +19,7 @@ for (const role of ["owner", "workspace-client"] as const) {
       const journalPath = path.join(dir, "ops", "database-journal.db");
       const depsUrl = new URL("../../composition/deps.ts", import.meta.url).href;
       const daemonDepsUrl = new URL("../../composition/agent-daemon-core-deps.ts", import.meta.url).href;
-      const shutdownUrl = new URL("../close-store-on-shutdown.ts", import.meta.url).href;
+      const shutdownUrl = "@jini-ai/server/shutdown";
       const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
         import { createServer } from 'node:http';
         import { sql } from 'kysely';
@@ -49,7 +49,7 @@ for (const role of ["owner", "workspace-client"] as const) {
         }
         const server = createServer((_request, response) => response.end('ready'));
         await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-        closeStoreOnShutdown({ store, onShutdown: () => {} }, {
+        closeStoreOnShutdown({ store, onShutdown: () => {}, logger: { info: () => {}, warn: () => {}, error: () => {} } }, {
           bootWork: () => bootWork(deps),
           stopServing: () => stopServingWithinGrace({ server, workers: [] }),
         });

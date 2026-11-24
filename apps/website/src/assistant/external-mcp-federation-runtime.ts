@@ -1,24 +1,18 @@
-import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { createFederatedMcpPresetRegistry, createFederationRuntime as createJiniFederationRuntime, type FederationRuntime } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
-import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+import { attachFederatedMcpTools, createFederationConsoleLogger, resolveRegisteredPresets } from "./mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
-import { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 import { createFederationReloadCoordinator } from "./mcp-federation/reload-adapter.js";
 import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /**
- * @file One federation runtime per process, shared by daemon and BYOK composition.
- * Boot and reload own one accounting state: `start()` seeds it, `reload()` extends it, and
- * `reports()`/`refusalPrefix()` read it live. Separate state for these views would allow drift.
- *
- * Architectural role:
- * Composition. No I/O of its own — every I/O call (`attach`, `resolveConnections`) is a parameter, so
- * this file is importable and testable without booting a real process, matching `bootstrap.ts` and
- * `reload.ts`'s own posture.
+ * @file Tovu binds its registry, approval deps, preset registry, refusal copy and reload adapter to
+ * Jini's per-process federation runtime (`@jini-ai/mcp/federation` `createFederationRuntime`), shared
+ * by daemon and BYOK composition. The boot/reload accounting and its rationale live at the Jini owner.
  */
 
 /** Everything one process needs to build its own federation runtime. */
@@ -56,127 +50,6 @@ export interface CreateFederationRuntimeParams {
   readonly connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
 }
 
-export interface FederationRuntime {
-  /** The boot pass: presets plus the roster `resolveConnections` returns. Single-flight and
-   *  idempotent — calling it any number of times performs the boot pass exactly once and every call
-   *  shares that one result. Never rejects: attach absorbs per-connection failures, and this
-   *  runtime catches failures from `after` and `resolveConnections` so callers can await boot
-   *  unconditionally and `started` reaches its terminal state. */
-  start(): Promise<void>;
-  /** Re-admits every roster connection not yet admitted. Resolves `{newlyAdmittedConnectionIds: [],
-   *  reports: []}` with no roster read at all if `start()` was never called — there is nothing yet to
-   *  extend. Installed guidance can refresh independently before BYOK's lazy federation boot.
-   *  If a `start()` is in flight, waits for it first, so a reload can never run against a
-   *  boot pass's stale pre-seed state. */
-  reload(): Promise<FederationReloadResult>;
-  /** A live read of the merged boot-plus-every-reload admission accounting. */
-  reports(): AttachFederatedToolsResultReports;
-  /** A live read of the merged boot-plus-every-reload CONNECT failures — one entry per
-   *  connection that never reached admission at all (bad spawn, timed-out handshake, malformed
-   *  listing), so it has no entry in `reports()` either. Same shape and same merge discipline as
-   *  `reports()`. */
-  connectFailures(): AttachFederatedToolsResultConnectFailures;
-  /** The refusal-prefix text for `reports()`, cached and recomputed only when `reports()` changes —
-   *  `""` when there is nothing to report. */
-  refusalPrefix(): string;
-  /** Whether the boot pass has completed — successfully or not; see `start()`'s own doc.
-   */
-  readonly started: boolean;
-  /**
-   * The boot roster's connection ids — `undefined` until `resolveConnections()` resolves
-   * (the roster itself is not known yet), then fixed for the rest of boot. Lets a caller building
-   * `FederationBootStatus` (`Jini packages/daemon/src/tool-recovery/federated-refusal.ts`) tell "a real, pending roster connection"
-   * apart from "never configured at all" while `!started`, without waiting for the whole boot pass —
-   * see that file's `configuredConnectionIds` doc for why `undefined` and `[]` are different claims.
-   */
-  configuredConnectionIds(): readonly string[] | undefined;
-}
-
-/** Named alias purely so this file's public surface does not have to spell out
- *  `Awaited<ReturnType<typeof attachFederatedMcpTools>>["reports"]` at every use. */
-type AttachFederatedMcpToolsResult = Awaited<ReturnType<typeof attachFederatedMcpTools>>;
-type AttachFederatedToolsResultReports = AttachFederatedMcpToolsResult["reports"];
-type AttachFederatedToolsResultConnectFailures = AttachFederatedMcpToolsResult["connectFailures"];
-function buildRuntimeReloadCoordinator(params: CreateFederationRuntimeParams, { presetRegistry, attach, logger }: { presetRegistry: ReturnType<typeof createFederatedMcpPresetRegistry>; attach: typeof attachFederatedMcpTools; logger: FederationLogger }, { connections, mergedReports }: { connections: readonly ResolvedFederatedConnection[]; mergedReports: AttachFederatedToolsResultReports }) {
-      const emptyGrantIds = new Set(connections.filter(connection => connection.config.allowedToolNames.length === 0).map(connection => connection.config.connectionId));
-      return createFederationReloadCoordinator({ coordDeps: {
-          registry: params.registry,
-          deps: params.deps,
-          // Presets can arrive after a failed desktop listener bind. The existing coordinator
-          // retries only unadmitted identities and still freezes every successfully admitted tool.
-          resolveConnections: async () => [
-            ...resolveRegisteredPresets({ env: process.env, logger, registry: presetRegistry }).map(connection => ({ ...connection, config: { ...connection.config, origin: { kind: "preset" as const } } })),
-            ...await params.resolveConnections(),
-          ],
-          attach,
-          logger,
-          ...(params.connect ? { connect: params.connect } : {}),
-        }, initiallyAdmitted: mergedReports.map((entry) => entry.connectionId),
-      }, { initiallyAwaitingGrants: mergedReports.filter(entry => !entry.isPreset && entry.report.admitted.length === 0
-        && emptyGrantIds.has(entry.connectionId))
-        .map(entry => entry.connectionId) });
-}
-
-function createFederationAccounting(params: CreateFederationRuntimeParams, { presetRegistry, attach, logger }: { presetRegistry: ReturnType<typeof createFederatedMcpPresetRegistry>; attach: typeof attachFederatedMcpTools; logger: FederationLogger }, getStartPromise: () => Promise<void> | undefined) {
-
-  let mergedReports: AttachFederatedToolsResultReports = [];
-
-  let mergedConnectFailures: AttachFederatedToolsResultConnectFailures = [];
-
-  let cachedPrefix = "";
-
-  let startedFlag = false;
-
-  let coordinator: ReturnType<typeof createFederationReloadCoordinator> | undefined;
-
-  let configuredConnectionIds: readonly string[] | undefined;
-
-  function recomputePrefix(): void {
-    cachedPrefix = buildFederatedRefusalPrefix({ snapshot: mergedReports, messages: tovuFederationMessages });
-  }
-
-
-  async function reload(): Promise<FederationReloadResult> {
-    // Federation remains lazy before the first BYOK turn; installed guidance still needs the
-    // operator's reload now. An in-flight boot must finish before refreshing either catalog.
-    const startPromise = getStartPromise();
-    if (startPromise) await startPromise;
-
-    const installedChanged = await params.beforeReload?.() ?? false;
-    const result: FederationReloadResult = coordinator ? await coordinator.reload()
-      : { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
-    // A reload's own connect failures are merged unconditionally, even when nothing was newly
-    // admitted — a reload that only ever fails a connection must still make that failure visible,
-    // not just a reload that also happened to admit something else alongside it. Every connection
-    // this pass attempted (admitted or failed) first drops its older entry: a now-admitted one must
-    // leave the list (the admissions wire documents `connections`/`configFailures` as disjoint), and
-    // a repeat failure replaces rather than piling up one entry per reload. Does not touch
-    // `cachedPrefix`: `buildFederatedRefusalPrefix` is a pure function of `mergedReports` alone, and
-    // a connect failure never produces a report entry to feed it.
-    const attemptedIds = new Set([...result.newlyAdmittedConnectionIds, ...result.connectFailures.map((entry) => entry.connectionId)]);
-    if (attemptedIds.size > 0) {
-      mergedConnectFailures = [...mergedConnectFailures.filter((entry) => !attemptedIds.has(entry.connectionId)), ...result.connectFailures];
-    }
-    if (result.newlyAdmittedConnectionIds.length === 0 && !installedChanged) return result;
-
-    const refreshedIds = new Set(result.reports.map(entry => entry.connectionId));
-    mergedReports = [...mergedReports.filter(entry => !refreshedIds.has(entry.connectionId)), ...result.reports];
-    recomputePrefix();
-    params.onAdmitted?.(result);
-    return result;
-  }
-  function seed(attached: AttachFederatedMcpToolsResult, connections: readonly ResolvedFederatedConnection[]): void {
-    mergedReports = attached.reports;
-    mergedConnectFailures = attached.connectFailures;
-    recomputePrefix();
-    coordinator = buildRuntimeReloadCoordinator(params, { presetRegistry, attach, logger }, { connections, mergedReports });
-  }
-  return { reload, seed, configure: (ids: readonly string[]) => { configuredConnectionIds = ids; }, complete: () => { startedFlag = true; },
-    reports: () => mergedReports, connectFailures: () => mergedConnectFailures, refusalPrefix: () => cachedPrefix,
-    configuredConnectionIds: () => configuredConnectionIds, get started() { return startedFlag; } };
-}
-
-
 /**
  * Builds one process's federation runtime. Nothing here performs I/O until `start()` or `reload()` is
  * called — constructing this is free, which is what lets a caller (`installed-extension-tools.ts`)
@@ -189,52 +62,17 @@ function createFederationAccounting(params: CreateFederationRuntimeParams, { pre
 export function createFederationRuntime(params: CreateFederationRuntimeParams): FederationRuntime {
   const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
   const attach = params.attach ?? attachFederatedMcpTools;
-  const logger: FederationLogger = {
-    // The original error (Jini's `{ error }` host-sink argument) rides along as a second console argument.
-    info: ({ message }, { error } = {}) => console.log(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
-    warn: ({ message }, { error } = {}) => console.warn(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
-  };
-  let startPromise: Promise<void> | undefined;
-  const accounting = createFederationAccounting(params, { presetRegistry, attach, logger }, () => startPromise);
-
-  async function runStart(): Promise<void> {
-    // Catch prerequisites as well as attachment: a failed roster read must complete boot's
-    // lifecycle so later calls are diagnosed as failed rather than "still connecting" forever.
-    // Optional federation failures cannot disable the native assistant.
-    try {
-      await (params.after ?? Promise.resolve());
-      const connections = await params.resolveConnections();
-      accounting.configure(connections.map((connection) => connection.config.connectionId));
-      const attached = await attach({
-        presetRegistry,
-        registry: params.registry,
-        deps: params.deps,
-        extraConnections: connections,
-        logger,
-        ...(params.connect ? { connect: params.connect } : {}),
-      });
-
-      accounting.seed(attached, connections);
-    } catch (error) {
-      logger.warn({ message: `mcp-federation: boot pass failed, continuing without federated tools — ${messageOf({ error: error })}` });
-    } finally {
-      accounting.complete();
-    }
-  }
-
-  function start(): Promise<void> {
-    if (!startPromise) startPromise = runStart();
-    return startPromise;
-  }
-
-  return { start, reload: accounting.reload, reports: accounting.reports, connectFailures: accounting.connectFailures,
-    refusalPrefix: accounting.refusalPrefix, configuredConnectionIds: accounting.configuredConnectionIds,
-    get started() { return accounting.started; } };
-}
-
-/** Local copy of `bootstrap.ts`'s private helper of the same name — not shared because that file
- *  exports nothing for this one purpose, and this is a one-line reduction, not a policy this module
- *  needs to stay byte-identical with. */
-function messageOf({ error }: { error: unknown }, _optional = {}): string {
-  return error instanceof Error ? error.message : String(error);
+  const connect = params.connect ? { connect: params.connect } : {};
+  return createJiniFederationRuntime({
+    logger: createFederationConsoleLogger({ prefix: params.log }), messages: tovuFederationMessages, resolveConnections: params.resolveConnections,
+    boot: ({ extraConnections, logger }) => attach({ presetRegistry, registry: params.registry, deps: params.deps, extraConnections, logger, ...connect }),
+    resolvePresetConnections: ({ logger }) => resolveRegisteredPresets({ env: process.env, logger, registry: presetRegistry }),
+    createReloadCoordinator: ({ resolveConnections, logger, initiallyAdmitted, initiallyAwaitingGrants }) => createFederationReloadCoordinator({
+      coordDeps: { registry: params.registry, deps: params.deps, resolveConnections, attach, logger, ...connect }, initiallyAdmitted,
+    }, { initiallyAwaitingGrants }),
+  }, {
+    ...(params.after ? { after: params.after } : {}),
+    ...(params.onAdmitted ? { onAdmitted: params.onAdmitted } : {}),
+    ...(params.beforeReload ? { beforeReload: params.beforeReload } : {}),
+  });
 }

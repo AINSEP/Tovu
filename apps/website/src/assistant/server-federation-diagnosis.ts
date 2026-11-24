@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import { withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis } from "@jini-ai/daemon/tool-recovery";
 import type { FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
-export type { FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
 import { findFederatedToolRefusal, FEDERATED_TOOL_ID_PREFIX, parseFederatedConnectionId } from "@jini-ai/mcp/federation";
 import type { FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
