@@ -1,4 +1,4 @@
-__FIRSTLINE__
+PARTIAL 324cb830ea 0f692df00: Pages editor core (PageEditor/usePageEditor size-debt STOP; page-editor-port/save need a core AdminContentRow contract), website features/pages (8, core-contract/post-seam prerequisites), member-login credentials/ready-providers/providers (K5-custom-credentials-3, agent-plugins), 4 held-patch newsletter files + deps-builders/delivery registrations, SQLite bindings and host wiring by design, routes (w3-rtfnd); gate reds listed: Jini log-safety +2 (moved, reported not hidden), Tovu dictionary-lookup-sinks guard (owner call). FILES LEFT 2,269 -> 2,185 (-84; excl. themes 2,158 -> 2,074)
 
 # w3-pages-members — Pages, Dashboard/Activity/Observability, Members/Newsletter (2026-11-23/24, unattended)
 
@@ -59,7 +59,7 @@ Opus coordinator (high) + 19 builder subagents (Opus high; one Sonnet xhigh), at
 | R tool-audit SQL | opus-high | `tool-audit/{repo,tool-gaps.repo}` (kysely optional peer, lockfile +3) | 5 | 8 new; M1–M3 | DONE |
 | S members SQL | opus-high | `members/{repo,repo.rows}` | 16 | 7; M1–M4 | DONE |
 | T newsletter SQL | opus-high | `newsletter/{repo,repo.rows,repo-subscribers,repo-sends}` | 4 | 7; M1–M3 | DONE |
-| P + sweep + last fixes | opus-high | — (baselines, changesets, stale Tovu baseline rows, typecheck:tests, gate-evasion revert) | — | see Gates | __LASTFIX__ |
+| P + sweep + last fixes | opus-high | — (baselines, changesets, stale Tovu baseline rows, typecheck:tests, gate-evasion revert) | — | see Gates | DONE (2 log-safety + dictionary-lookup-sinks listed) |
 
 The checkpoint commits are named after their batches; the full list of pushed SHAs is in the git log of both branches.
 
@@ -101,13 +101,38 @@ The checkpoint commits are named after their batches; the full list of pushed SH
   - One artifact was accidentally published by a builder that used the Artifact tool to edit a README: a private, unshared copy of the Jini newsletter README (https://claude.ai/artifact/9Udbb8v37AktqFJvaN5BvQ). It was not deleted, because deleting is the owner's call.
 
 ## Gates (tip vs base merge-15; raw in `cloud-results/w3-pages-members-raw/`)
-__GATES__
+| gate | base | tip | new vs base | status |
+|---|---|---|---|---|
+| Jini build | 0 | 0 | none | ok |
+| Jini typecheck | 0 | 0 | none | ok |
+| Jini guard | 1 | 1 | none (HW3 `shell-failure-log.ts` is base-red) | = |
+| Jini api:check | 0 | 0 | baselines regenerated for 5 packages only | ok |
+| Jini check:cross-package (XP) | 1 | 1 | not runnable in this environment either time (`JINI_DECLARATION_BASELINE_DIR`); 2 listed lines | env |
+| Jini check:size | 1 | 1 | none (members `repo.ts` was split into `repo.sessions.ts` + `repo.sql.ts`) | = |
+| Jini check:complexity | 1 | 1 | none | = |
+| Jini check:why-comments | 1 | 1 | none | = |
+| Jini check:hooks | 0 | 0 | none (2 components, ok) | ok |
+| Jini check:errors (WARN) | 0 | 0 | +1 WARN `member-login/oidc-login.ts` (4 bare catches moved verbatim by ex6-members; Tovu debt row kept) | LISTED |
+| Jini check:log-safety | 1 | 1 | **+2 stored-error-text**: `admin/.../dashboard/hooks/use-dashboard.hooks.ts:201`, `cms/.../routes/system/server-logs.ts:50` (both from the ex6 pages-dash moves). A builder hid them behind a local variable; that evasion was reverted, so they are reported. They need a client-copy contract | **RED (listed)** |
+| Tovu typecheck / typecheck:tests | 0 / 0 | 0 / 0 | none | ok |
+| Tovu typecheck:scripts | 2 | 2 | none | = |
+| Tovu check:size | 1 | 1 | none (PageEditor/usePageEditor rows are base-red, owner commit e73e946464) | = |
+| Tovu check:boundaries | 0 | 0 | none (members mail transport injected through route deps) | ok |
+| Tovu check:errors / complexity / hooks | 0 | 0 | none | ok |
+| Tovu check:architecture | 1 | 1 | ratchet warning: runtime-only propagation 3.06 → 3.33; API surface 821 → 640 and hubs 335 → 266 improved | LISTED (warning) |
+| Tovu check:why-comments | 1 | 1 | none in this lane after the restores (all 71 + 10 restored verbatim) | = |
+| Tovu admin tsc | 0 | 0 | none | ok |
+
+**Tests** (details in `cloud-results/w3-pages-members-raw/final-gates.md`):
+- **Jini:** user-management 1514 (runtime-boundary ×2 is base-red); diagnostics 1127/1131 (`page-body` ×4 is base-red, `RegExp.escape` on Node 22); admin pages/screens/react/forms 1288/1288; cms system routes 27/27; core tool-metadata 24/24.
+- **Tovu admin:** 230 files, 3877/3882. Base-red: `admin-literal-copy` and `credential-input-autocomplete`. **New red, listed:** `dictionary-lookup-sinks`. The guard does not recognise `COMMON_I18N` passed into the Jini `create*Translator` factories (members-i18n, page-editor-i18n); this needs an owner call on extending the guard.
+- **Tovu website node tests:** 152 files, 137 pass. All 15 failing files fail in base too (14 directly; `set-token-agent-tool` is a timing flake that also fails in base when run alone). A members route shape pin keeps its 3 pre-existing unpinned keys.
 
 ## FILES LEFT (`plans/P9-data/tools/scan.mjs` + `plan.mjs` from `origin/plan/whats-left-1122`)
 | tree | FILES LEFT (all areas) | excl. themes |
 |---|---|---|
 | base merge-15 (Tovu `bd89a2aa8`) | **2,269** | **2,158** |
-| tip (Tovu, committed head) | **__FL__** | **__FLX__** |
+| tip (Tovu, committed head) | **2,185** | **2,074** |
 
 By lane area (production sources), base → tip:
 
