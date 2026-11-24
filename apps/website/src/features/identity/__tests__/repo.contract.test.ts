@@ -10,7 +10,7 @@ import { authenticateApiKey } from "../api-key-service.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
 import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
-import { SqlPrincipalPolicyRepo, SqlPrincipalRoleRepo, SqlRolePolicyRepo } from "../repo.assignments.js";
+import { SqlitePrincipalPolicyRepo, SqlitePrincipalRoleRepo, SqliteRolePolicyRepo } from "../repo.sqlite.js";
 import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
 import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
 import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
@@ -359,12 +359,12 @@ for (const each of eachDialect({ tables: ["policy_permissions"], make: (kernel) 
 }
 
 runRolePolicyRepoSuite("InMemoryRolePolicyRepo", () => new InMemoryRolePolicyRepo({}));
-for (const each of eachDialect({ tables: ["role_policies"], make: (kernel) => new SqlRolePolicyRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["role_policies"], make: (kernel) => new SqliteRolePolicyRepo(kernel) })) {
   runRolePolicyRepoSuite(`SqlRolePolicyRepo [${each.name}]`, each.make);
 }
 
 runPrincipalRoleRepoSuite("InMemoryPrincipalRoleRepo", () => new InMemoryPrincipalRoleRepo({}));
-for (const each of eachDialect({ tables: ["principal_roles"], make: (kernel) => new SqlPrincipalRoleRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["principal_roles"], make: (kernel) => new SqlitePrincipalRoleRepo(kernel) })) {
   runPrincipalRoleRepoSuite(`SqlPrincipalRoleRepo [${each.name}]`, each.make);
 }
 
@@ -478,7 +478,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
 }
 
 runPrincipalPolicyRepoSuite("InMemoryPrincipalPolicyRepo", () => new InMemoryPrincipalPolicyRepo({}));
-for (const each of eachDialect({ tables: ["principal_policies"], make: (kernel) => new SqlPrincipalPolicyRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["principal_policies"], make: (kernel) => new SqlitePrincipalPolicyRepo(kernel) })) {
   runPrincipalPolicyRepoSuite(`SqlPrincipalPolicyRepo [${each.name}]`, each.make);
 }
 
