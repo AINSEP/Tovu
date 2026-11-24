@@ -1,12 +1,6 @@
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
-import express from "express";
-import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets, type PreviewableLocalSite } from "./site-previews.js";
-import { extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import type { SitePreviewService } from "#src/features/sites/index";
-
-const ROUTE = "/api/admin/v1/workspaces/:workspaceId/system/sites/:name/preview";
+import { servingAddressOf, sitePreviewTargets, type PreviewableLocalSite } from "@jini-ai/cms/admin-http/routes/sites/site-previews";
 
 function local(state: Partial<PreviewableLocalSite> & { name: string }): PreviewableLocalSite {
   return { status: "running", pid: 10, adminUrl: "https://localhost:3101/admin/", ...state };
@@ -32,85 +26,4 @@ test("servingAddressOf reads the socket, never a forwarded header, and is undefi
   assert.deepEqual(servingAddressOf({ req: { socket: { localPort: 3000, encrypted: true } } as never }, { pid: 7 }), { scheme: "https", port: 3000, pid: 7 });
   assert.deepEqual(servingAddressOf({ req: { socket: { localPort: 3000 } } as never }, { pid: 7 }), { scheme: "http", port: 3000, pid: 7 });
   assert.equal(servingAddressOf({ req: {} as never }), undefined);
-});
-
-function imageResponse() {
-  const capture: { status?: number; headers?: Record<string, string>; body?: unknown; json?: unknown } = {};
-  const res = {
-    locals: { principal: { id: "operator" } } as Record<string, unknown>,
-    status(code: number) { capture.status = code; return res; },
-    set(headers: Record<string, string>) { capture.headers = headers; return res; },
-    send(body: unknown) { capture.body = body; return res; },
-    json(body: unknown) { capture.json = body; return res; },
-  };
-  return { res, capture };
-}
-
-function route({ allowed = true, sitePreviews }: { allowed?: boolean; sitePreviews?: SitePreviewService } = {}) {
-  const app = express();
-  const reads: string[] = [];
-  const service: SitePreviewService = sitePreviews ?? {
-    versions: () => ({}),
-    read: ({ name }) => { reads.push(name); return name === "alpha" ? Buffer.from("jpeg") : null; },
-    idle: async () => {},
-  };
-  registerSitePreviewRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), sitePreviews: service } });
-  const handler = extractRouteHandler(app, "get", ROUTE);
-  return {
-    reads,
-    handler,
-    async get(name: string, workspaceId = "ws") {
-      const { res, capture } = imageResponse();
-      await handler({ params: { workspaceId, name } }, res as never);
-      return capture;
-    },
-  };
-}
-
-test("serves the stored capture as an immutable private JPEG", async () => {
-  const r = route();
-  const response = await r.get("alpha");
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.headers, { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
-  assert.equal(String(response.body), "jpeg");
-});
-
-test("404 without a capture; workspace and authorization are checked before any read", async () => {
-  const r = route();
-  assert.deepEqual(await r.get("beta"), { status: 404, json: { code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" } });
-  assert.equal((await r.get("alpha", "other")).status, 404);
-  const denied = route({ allowed: false });
-  assert.equal((await denied.get("alpha")).status, 403);
-  assert.deepEqual(denied.reads, []);
-  assert.deepEqual(r.reads, ["beta"]);
-});
-
-test("a read that throws is a 500 without the error text", async () => {
-  const r = route({ sitePreviews: { versions: () => ({}), read: () => { throw new Error("/secret/path EACCES"); }, idle: async () => {} } });
-  const original = console.error;
-  console.error = () => {};
-  try {
-    assertAdminResponse({ actual: await r.get("alpha"), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message": "The site operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "site operation"} });
-  } finally {
-    console.error = original;
-  }
-});
-
-test("a host without a preview service answers 404 for every site rather than failing", async () => {
-  const app = express();
-  registerSitePreviewRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }) } });
-  const { res, capture } = imageResponse();
-  await extractRouteHandler(app, "get", ROUTE)({ params: { workspaceId: "ws", name: "alpha" } }, res as never);
-  assert.deepEqual(capture, { status: 404, json: { code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" } });
-});
-
-test("missing :workspaceId / :name params fall back to empty strings (direct handler call; Express always fills both)", async () => {
-  const r = route();
-  const handler = (params: Record<string, string>) => {
-    const { res, capture } = imageResponse();
-    return Promise.resolve(r.handler({ params }, res as never)).then(() => capture);
-  };
-  assert.deepEqual(await handler({}), { status: 404, json: { error: "workspace was not found" } });
-  assert.deepEqual(await handler({ workspaceId: "ws" }), { status: 404, json: { code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" } });
-  assert.deepEqual(r.reads, [""]);
 });

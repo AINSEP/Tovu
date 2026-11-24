@@ -4,7 +4,7 @@ import { test } from "node:test";
 import express from "express";
 import type { SitePreviewService } from "#src/features/sites/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerSitePreviewRoutes } from "../site-previews.js";
+import { registerSitePreviewRoutes } from "#src/server/runtime/composition/modules/site-previews-route";
 
 /**
  * Wire pin for `GET …/system/sites/:name/preview`: the hand-written Express route answered the capture with

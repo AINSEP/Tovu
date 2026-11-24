@@ -1,3 +1,5 @@
+import { formBaselineStyle, formRangeReadoutJs, formRangeReadoutScript, type FormPresentationNames } from "@jini-ai/cms/public-http/http/site/form-presentation-assets";
+
 /** Query param names shared by {@link encodeFormSubmissionResultQuery} (write side, forms-submit.ts
  *  builds a redirect Location with) and {@link decodeFormSubmissionResultFromQuery} (read side,
  *  pages.ts reads `req.query` with) — one constant so the two halves of the round trip cannot drift
@@ -20,3 +22,30 @@ export const FORM_FLASH_COOKIE_NAME = "tovu_form_flash";
  *  `injectMemberAuthScript` (`@jini-ai/cms`) adds to a public page; its presence is that function's
  *  idempotency check, so the host owns one fixed name (the engine ships no product-branded one). */
 export const MEMBER_AUTH_SCRIPT_MARKER = "data-tovu-member-auth";
+
+/** Product class, attribute and custom-property names Tovu themes select on (tovu-theme's `theme.css`
+ *  "forms" section styles `.tovu-form`). Injected into `@jini-ai/cms`'s baseline CSS and range-readout
+ *  script, which ship no product-branded name of their own. */
+export const FORM_PRESENTATION_NAMES: FormPresentationNames = {
+  formClass: "tovu-form",
+  errorClass: "tovu-form-error",
+  formAttr: "data-tovu-form",
+  errorAttr: "data-tovu-form-error",
+  rangeValueClass: "tovu-form-range-value",
+  rangeMarkerAttr: "data-tovu-range",
+  dangerFallbackProp: "--tovu-form-danger-fallback",
+  successFallbackProp: "--tovu-form-success-fallback",
+};
+
+/** Class a `<form>` element carries so {@link FORM_BASELINE_STYLE} styles it — a named constant rather
+ *  than a literal so a second form-rendering widget's own `<form class="...">` cannot drift from what
+ *  the CSS actually selects. */
+export const FORM_CLASS = FORM_PRESENTATION_NAMES.formClass;
+export const FORM_ERROR_CLASS = FORM_PRESENTATION_NAMES.errorClass;
+
+/** Baseline CSS every form-rendering widget carries (see `formBaselineStyle`), built once with Tovu's names. */
+export const FORM_BASELINE_STYLE = formBaselineStyle({ names: FORM_PRESENTATION_NAMES });
+/** Range-slider readout script body, for tests that run it against a fake `document`. */
+export const FORM_RANGE_READOUT_JS = formRangeReadoutJs({ names: FORM_PRESENTATION_NAMES });
+/** {@link FORM_RANGE_READOUT_JS} as the inline `<script>` a rendered form appends after itself. */
+export const FORM_RANGE_READOUT_SCRIPT = formRangeReadoutScript({ names: FORM_PRESENTATION_NAMES });

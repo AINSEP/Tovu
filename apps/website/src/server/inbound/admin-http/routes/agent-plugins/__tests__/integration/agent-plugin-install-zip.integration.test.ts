@@ -17,7 +17,7 @@ import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/h
 import { buildZipFixture } from "#src/features/agent-plugins/__tests__/fixtures/build-zip";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { registerAgentPluginInstallRoute } from "../../install.js";
+import { registerAgentPluginInstallRoute } from "#src/server/runtime/composition/modules/agent-plugin-install-route";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 
