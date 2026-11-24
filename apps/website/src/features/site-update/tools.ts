@@ -22,6 +22,13 @@ export interface SiteUpdateRuntime {
   ids: IdGenerator;
   /** The version the live site reports right now. */
   runningVersion(): Promise<string>;
+  /** Serialises whole updates (backup through verify); the host binds its own lock. Absent: no serialisation. */
+  lock?: SiteUpdateLockPort;
+}
+
+/** Runs one update at a time; `run` is awaited inside the lock and its result returned. */
+export interface SiteUpdateLockPort {
+  withLock<T>(required: { run: () => Promise<T> }, optional?: { signal?: AbortSignal | undefined }): Promise<T>;
 }
 
 export interface SiteUpdateToolDeps {
@@ -94,6 +101,18 @@ async function runApproved({ deps, runtime, ctx, prepared, approvedBy }: { deps:
   const { plan, runningVersion } = prepared;
   if (!plan) return { applied: false, runningVersion, message: `You are on the latest version (${runningVersion}). Nothing was changed.` };
   await deps.authorize({ ctx, permission: "system.write" });
+  const guarded = async () => {
+    // The card approved moving FROM the version it showed: if the site moved since, that approval is void.
+    const liveVersion = await runtime.runningVersion();
+    if (liveVersion !== plan.fromVersion) {
+      return { applied: false, outcome: "refused", runningVersion: liveVersion, message: `The site is now on ${liveVersion}, but you approved the update from ${plan.fromVersion}. Nothing was changed. Ask again to approve the update from ${liveVersion}.` };
+    }
+    return applyApproved({ runtime, ctx, plan, approvedBy });
+  };
+  return runtime.lock ? runtime.lock.withLock({ run: guarded }, { signal: ctx.signal }) : guarded();
+}
+
+async function applyApproved({ runtime, ctx, plan, approvedBy }: { runtime: SiteUpdateRuntime; ctx: ToolExecutionContext; plan: SiteUpdatePlan; approvedBy: string }, _optional = {}) {
   const result = await runSiteUpdate(
     { ports: { site: runtime.site, backup: runtime.backup, readiness: runtime.readiness, ids: runtime.ids }, plan, approval: { kind: "owner-approval", approvedBy, toVersion: plan.toVersion } },
     { signal: ctx.signal },

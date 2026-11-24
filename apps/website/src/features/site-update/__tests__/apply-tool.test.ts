@@ -149,3 +149,30 @@ test("permission is checked before any card is shown", async () => {
   assert.deepEqual(fake.calls, []);
   void tool;
 });
+
+test("the live version changing while the card is open voids the approval: nothing is backed up or applied", async () => {
+  const { tool, fake, surfaceExchanges } = setup();
+  const { ui, pending } = await raiseCard(tool, { toVersion: "1.3.0" });
+  fake.state.liveVersion = "1.2.5"; // someone updated or rolled the site by hand after the card was drawn
+  answer(surfaceExchanges, ui!, "confirm");
+  const result = (await pending) as { applied: boolean; outcome: string; message: string };
+  assert.equal(result.applied, false);
+  assert.equal(result.outcome, "refused");
+  assert.match(result.message, /now on 1\.2\.5.*approved the update from 1\.2\.0.*Nothing was changed\./s);
+  assert.deepEqual(fake.calls.filter((c) => c.startsWith("createBackup") || c.startsWith("applyUpdate")), []);
+});
+
+test("the version is re-read under the update lock, and the whole apply runs inside it", async () => {
+  const { tool, fake, surfaceExchanges, deps } = setup();
+  const events: string[] = [];
+  deps.runtime!.lock = { withLock: async ({ run }) => { events.push("lock-in"); try { return await run(); } finally { events.push("lock-out"); } } };
+  const registered = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
+  const live = deps.runtime!.runningVersion;
+  deps.runtime!.runningVersion = async () => { events.push("read-version"); return live(); };
+  const { ui, pending } = await raiseCard(registered, { toVersion: "1.3.0" });
+  events.length = 0;
+  answer(surfaceExchanges, ui!, "confirm");
+  await pending;
+  assert.deepEqual(events, ["lock-in", "read-version", "lock-out"]);
+  assert.equal(fake.calls.some((c) => c.startsWith("applyUpdate")), true);
+});
