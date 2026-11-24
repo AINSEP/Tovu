@@ -12,24 +12,10 @@
  * `hooks/push-to-talk-state.hooks.ts` for the state machine and `hooks/use-push-to-talk.hooks.ts`
  * for the hook that drives this port.
  */
+import type { SpeechBridge } from "@jini-ai/core/contracts/speech-transcription";
 
-/** Mirrors `apps/desktop/src/speech/transcription-port.ts`'s `TranscriptionAvailability`. */
-export interface VoiceInputAvailability {
-  available: boolean;
-  reason?: string;
-}
-
-/** Mirrors `apps/desktop/src/speech/transcription-port.ts`'s `TranscriptionResult`. */
-export interface VoiceInputTranscriptionResult {
-  text: string;
-  elapsedMs: number;
-}
-
-/** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuVoice", ...)`. */
-export interface VoiceInputPort {
-  isAvailable(): Promise<VoiceInputAvailability>;
-  transcribe(required: { samples: Float32Array | number[]; sampleRate: number }, options?: {}): Promise<VoiceInputTranscriptionResult>;
-}
+/** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuVoice", ...)`; its wire shape is Jini's shared `SpeechBridge` contract, the same one the desktop shell implements. */
+export type VoiceInputPort = SpeechBridge;
 
 declare global {
   interface Window {

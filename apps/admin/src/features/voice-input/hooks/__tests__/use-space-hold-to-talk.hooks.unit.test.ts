@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SPACE_HOLD_TO_TALK_MS } from "../space-hold-rules";
+import { SPACE_HOLD_TO_TALK_MS } from "../space-hold-config";
 import { findComposerTextarea, useSpaceHoldToTalk } from "../use-space-hold-to-talk.hooks";
 
 /**

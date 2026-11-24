@@ -10,7 +10,7 @@ import {
   resolveTranscriptionPort as resolvePort, unavailablePort as unavailable,
   type TranscriptionPort, type TranscriptionMessages,
 } from "@jini-ai/desktop-host/speech";
-export type { TranscriptionAvailability, TranscriptionPort, TranscriptionResult } from "@jini-ai/desktop-host/speech";
+export type { TranscriptionPort } from "@jini-ai/desktop-host/speech";
 export interface ResolveTranscriptionPortDeps { platform: NodeJS.Platform; createMacPort: () => TranscriptionPort }
 const messages: TranscriptionMessages = {
   unsupportedPlatform: ({ platform }) => `unsupported-platform:${platform}`,

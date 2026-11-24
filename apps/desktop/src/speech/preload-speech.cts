@@ -47,6 +47,8 @@ import electron = require("electron");
 // Speech bridge implementation and rationale: Jini/packages/desktop-host/src/speech/speech-bridge.ts.
 // A static require lets the preload bundler inline the ESM package into its CommonJS output.
 const { createSpeechBridge }: typeof import("@jini-ai/desktop-host/speech", { with: { "resolution-mode": "import" } }) = require("@jini-ai/desktop-host/speech");
+// Type-only (erased from the bundle): the renderer-visible shape is Jini's shared speech contract, also used by the admin's voice input.
+type SpeechTranscribeRequest = import("@jini-ai/core/contracts/speech-transcription", { with: { "resolution-mode": "import" } }).SpeechTranscribeRequest;
 const { contextBridge, ipcRenderer, webUtils } = electron;
 declare const window: { readonly location: { readonly pathname: string } };
 // Declare only this DOM global: the shared preload tsconfig omits DOM so the ESM preload needs
@@ -58,7 +60,7 @@ const speech = createSpeechBridge({
 contextBridge.exposeInMainWorld("tovuVoice", {
   isAvailable: () => speech.isAvailable(),
   /** Preserve sample identity and native IPC order across the host renderer's bridge. */
-  transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _options = {}) =>
+  transcribe: ({ samples, sampleRate }: SpeechTranscribeRequest, _options = {}) =>
     speech.transcribe({ samples, sampleRate }),
 });
 /** File paths are a host capability granted only to the admin document. */
