@@ -17,7 +17,7 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoPostSitemapRegenerateRoute } from "#src/server/runtime/composition/modules/seo";
-import type { SeoRouteDeps } from "../deps.js";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**

@@ -5,7 +5,8 @@ import test from "node:test";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError } from "#src/features/agent-plugins/install-upload";
-import { agentPluginLifecycleFields, bodyParseRefusal, installErrorResponse, installedAgentPluginRow } from "../../install-response.js";
+import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow } from "../../install-response.js";
+import { agentPluginLifecycleFields } from "@jini-ai/cms/admin-http/http/agent-plugins";
 
 /**
  * @file Pure refusal and row builders behind `AGENT_PLUGIN_INSTALL_ZIP` (`install.ts`). Real error

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import { registerAdminPublishSiteRoutes } from "../publish-site.js";
+import { registerAdminPublishSiteRoutes } from "#src/server/runtime/composition/modules/system-deploy";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { LoadedDeployTarget, DeployTargetRegistry } from "#src/features/deployments/deploy-targets/types";

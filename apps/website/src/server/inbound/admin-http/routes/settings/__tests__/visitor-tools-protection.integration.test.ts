@@ -7,10 +7,10 @@ import { visitorSettingsFixture, ws, off } from "#src/features/settings/__tests_
 import { buildSettingsRegistrations, type SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { VISITOR_TOOLS_SETTING } from "#src/contracts/site-assistant/visitor-tools";
-import { registerAdminSettingsClearRoute } from "../clear.js";
-import { registerAdminSettingsResetRoute } from "../reset.js";
-import { registerAdminSettingsSetRoute } from "../set.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../register-definitions.js";
+import { registerAdminSettingsClearRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsResetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsSetRoute } from "#src/server/runtime/composition/modules/settings";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/runtime/composition/modules/settings";
 import type { SettingsRouteDeps } from "../deps.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 

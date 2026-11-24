@@ -17,3 +17,10 @@ The original five screen/hook/rules suites and the dictionary suite now live in 
 The real browser check of list/import/hits remains required before release. Original extraction rationale
 (including the fetch-query pilot and one-locale-per-screen rule) survives in Jini's
 `packages/admin/src/redirects/SOURCE-RATIONALE.md`.
+
+## Wiring
+
+**Locale (P12 #6.T).** `Redirects` (index.ts) and `RedirectsModuleLoading`/`createHostRedirectsModule` (`integrations/jini-admin/redirects-module.hooks.ts`) take a REQUIRED `useAdminLocaleHook` (`UseAdminLocaleHook` from
+`@jini-ai/admin/react/kit`); there is no default and no direct import of the live hook. `panels.tsx` passes `ctx.useAdminLocaleHook` from `PanelRenderContext`; the
+function is the host's one `useHostAdminLocale` (`hooks/admin-locale-dependencies.hooks.ts`), the
+same one `adminKit.hooks.useAdminLocale` holds. Tests pass a fake hook or `useHostAdminLocale`.

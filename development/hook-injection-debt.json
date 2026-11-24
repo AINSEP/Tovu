@@ -139,12 +139,6 @@
         "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
       ]
     },
-    "Login::useWiredAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/auth/Login.tsx"
-      ]
-    },
     "Media::useMediaHook": {
       "count": 1,
       "files": [

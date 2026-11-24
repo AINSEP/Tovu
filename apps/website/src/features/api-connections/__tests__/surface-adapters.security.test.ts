@@ -39,7 +39,7 @@ import { trackStartingBrowser, type StartingBrowser } from "./support/starting-b
 import { PLUGIN_STATE_MAX_KEYS, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
 import { createSurfaceConnections, type IssuedSignIn } from "../surface-connections.js";
 import { runApiConnectionConnect } from "../connect.js";
-import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/runtime/composition/public-oauth-callbacks";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
 const PLUGIN = "acme-office";

@@ -1,7 +1,7 @@
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
-import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
+import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/runtime/composition/modules/system-credentials";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";

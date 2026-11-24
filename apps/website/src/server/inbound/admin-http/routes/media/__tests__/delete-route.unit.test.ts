@@ -6,8 +6,8 @@ import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { BASE, INTERNAL, WS } from '#src/server/__tests__/helpers/admin-route-failures';
 import type { Deps } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminMediaDeleteRoute } from '../delete.js';
-import { registerAdminMediaTrashRoute } from '../trash.js';
+import { registerAdminMediaDeleteRoute } from '#src/server/runtime/composition/modules/media';
+import { registerAdminMediaTrashRoute } from '#src/server/runtime/composition/modules/media';
 import { forbiddenBody, mediaApp, seedPng } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId';

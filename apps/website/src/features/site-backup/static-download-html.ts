@@ -1,6 +1,6 @@
 /** @file Download-only HTML transforms for the backup/share static copy: backend forms are disabled and document bases rebased. */
 import type { DroppedReference } from "@jini-ai/devops/static-export";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { attribute, editedHtml, elements, type Edit, type Element } from "#src/platform/html/source-edits";
 
 /** Local form actions address a backend, including empty actions that post to the page itself. */

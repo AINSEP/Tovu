@@ -3,7 +3,7 @@ import { computeIndexableEntries, renderLlmsTxt } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "@jini-ai/cms/settings/site/site-title";
 import { siteTitleHostBindings } from "#src/features/settings/site-title-legacy";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
-import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteRegistrar } from "#src/server/runtime/composition/modules/seo";
 
 /**
  * @file `GET /llms.txt` — public, unauthenticated (owner decision TM-TOVU-2026-08-31, per

@@ -10,7 +10,7 @@ import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { EgressRefusedError } from "#src/platform/http/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
+import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import type { MediaRouteDeps } from "./deps.js";
 import { parseOptionalStringField } from "@jini-ai/cms/media";
 

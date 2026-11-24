@@ -1,5 +1,5 @@
 import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
-import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/runtime/composition/modules/seo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -13,7 +13,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { bootAuthenticated, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerSeoRobotsRoute } from "../robots.js";
-import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 import {
   OriginNotVerifiedError,
   type OriginRegistryPort,

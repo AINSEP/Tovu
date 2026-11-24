@@ -10,8 +10,7 @@ import type { MailerPort, MailerSendResult } from "#src/platform/mail/index";
 import type { DnsChangeToolDeps } from "#src/features/domain-dns/index";
 import { context, fakeAuthoritative, memoryBindings } from "#src/features/domain-dns/__tests__/dns-fakes";
 import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
-import { registerAdminMailDnsRoutes } from "../mail-dns.js";
-import { registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "../mail-test-send.js";
+import { registerAdminMailDnsRoutes, registerAdminMailTestSendRoute, type AdminMailTestSendDeps } from "#src/server/runtime/composition/modules/system-mail";
 
 /**
  * @file The Email page's phase-3 admin adapters, driven as direct handler calls: each route checks
@@ -163,4 +162,31 @@ test("mail-test-send never returns provider error text in its HTTP body", async 
   assert.equal(response.statusCode, 200);
   assert.match(JSON.stringify(response.jsonBody), /The provider refused the message/);
   assert.doesNotMatch(JSON.stringify(response.jsonBody), /super-secret|private@example/);
+});
+
+// Deferral pins: the hand-written route validated the body before reading the session principal.
+async function callWithoutSession(app: express.Express, body: unknown) {
+  const { res, capture } = createCapturingResponse();
+  await extractRouteHandler(app, "post", SEND_PATH)({ params: { workspaceId: WS }, body }, res);
+  return capture;
+}
+
+test("mail-test-send without a session: a malformed body keeps its old 400, the same answer a signed-in click gets", async () => {
+  let authorizeCalls = 0;
+  const { app, sent } = sendDeps({ authorize: async () => { authorizeCalls += 1; return { allowed: true, reason: "fixture" }; } });
+  for (const body of [{ to: "nope" }, { requestId: "x" }, { requestId: 7 }, ["to"], "text"]) {
+    const anonymous = await callWithoutSession(app, body);
+    assert.deepEqual([anonymous.statusCode, (anonymous.jsonBody as { code: string }).code], [400, "INVALID_INPUT"], JSON.stringify(body));
+    assert.deepEqual(anonymous, await callRoute(app, "post", SEND_PATH, { body }), JSON.stringify(body));
+  }
+  assert.deepEqual([sent.length, authorizeCalls], [0, 0]);
+});
+
+test("mail-test-send without a session: a valid body is the fixed 500 and nothing is authorized or sent", async (t) => {
+  t.mock.method(console, "error", () => {});
+  let authorizeCalls = 0;
+  const { app, sent } = sendDeps({ authorize: async () => { authorizeCalls += 1; return { allowed: true, reason: "fixture" }; } });
+  const reply = await callWithoutSession(app, { to: "ops@example.com", requestId: "click-0001" });
+  assertAdminResponse({ actual: reply, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assert.deepEqual([sent.length, authorizeCalls], [0, 0]);
 });

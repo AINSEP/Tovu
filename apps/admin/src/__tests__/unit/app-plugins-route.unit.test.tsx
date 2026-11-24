@@ -6,6 +6,9 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
+
+const useAdminLocaleHook = useHostAdminLocale;
 
 /**
  * @file REQ-17/AC-25 — `App.tsx`'s `case "section":` dispatch must render `Plugins`, not
@@ -61,7 +64,7 @@ afterEach(() => {
 });
 
 it("AC-25: navigating to /admin/plugins does NOT fall through to <Placeholder>'s copy", async () => {
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
 
   // Wait for the boot screen to clear, rather than for text: `findByText(/plugins/i)` rejects
   // immediately when several nodes match (the sidebar item *and* the screen), and the `.catch` that
@@ -97,7 +100,7 @@ it.each([
 ])("redirects %s to %s with replacement history", async (legacyUrl, canonicalUrl, panelId) => {
   window.history.replaceState(null, "", legacyUrl);
   const historyLength = window.history.length;
-  const { container } = render(<App />);
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} />);
   await waitFor(() => {
     expect(window.location.pathname + window.location.search).toBe(canonicalUrl);
     expect(container.querySelector("main")).toHaveAttribute("data-agent-page", panelId);

@@ -19,7 +19,7 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoPutEntryRoute } from "#src/server/runtime/composition/modules/seo";
-import type { SeoRouteDeps } from "../deps.js";
+import type { SeoRouteDeps } from "#src/server/runtime/composition/modules/seo";
 
 /**
  * @file Unit-tier coverage for `PUT .../seo/entries/:entryId` (`registerAdminSeoPutEntryRoute`).

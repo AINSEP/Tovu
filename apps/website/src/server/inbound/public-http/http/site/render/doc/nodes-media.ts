@@ -4,7 +4,7 @@ import { tryRenderRefImage, mediaNodeStyleOverride } from "./media-ref.js";
 import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { mediaPlaceholder } from "../media-placeholder.js";
 import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
-import { escapeHtml } from "#src/platform/html/escape";
+import { escapeHtml } from "@jini-ai/core/text";
 import { formatHtmlAttributes } from "@jini-ai/cms/widgets/media-attributes";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";

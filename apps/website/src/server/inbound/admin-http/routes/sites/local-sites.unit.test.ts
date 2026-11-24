@@ -5,7 +5,7 @@ import express from "express";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../system/sites.js";
+import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor, type LocalSiteProcessPort } from "#src/platform/site-dir/local-site-supervisor";
 
