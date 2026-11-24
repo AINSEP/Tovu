@@ -6,9 +6,12 @@ import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { menuHtmlEmbed } from "@jini-ai/admin/screens/menus/html-rules";
-import { MENUS_DICT } from "../menus-i18n";
+
+import { tMenus } from "../../../lib/i18n-common";
 import { FORMS_DICT } from "../../forms/forms-i18n";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
+
+const MENUS_DICT = tMenus.dictionary as Record<string, Record<string, string>>;
 
 const menu: AdminMenu = { id: "m1", workspaceId: "ws", title: "Docs", slug: "docs", status: "published", items: [], locations: [], version: 1, updatedAt: "2026-10-04" };
 
