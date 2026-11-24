@@ -24,6 +24,7 @@ import { identityServiceDepsFrom } from "../../../inbound/admin-http/routes/user
 import { createFormsAdminModule } from "../modules/forms-admin.js";
 import { createRedirectsModule } from "../modules/redirects.js";
 import { createDatabaseRecoveryModule } from "../modules/database-recovery.js";
+import { createMediaConversionPorts } from "../media-video-ports.js";
 import { mountRoutes } from "./module-handles.js";
 import type { MountInput } from "./module-handles.js";
 
@@ -59,7 +60,12 @@ export function mountAdminFeatures({ app, routeDeps }: MountInput, _optional = {
   // route (previously registered much later, see below near the old catch-all-precedence group;
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
-  mountRoutes({ app, mod: createMediaModule(routeDeps) });
+  // The owner's video import rule (2026-10-31) gets the same ffmpeg adapter the assistant's convert tool uses; a conversion that
+  // cannot be made is logged for the operator and never fails the upload (no owner-facing field exists on the upload response).
+  mountRoutes({ app, mod: createMediaModule(routeDeps, { videoImport: {
+    ports: createMediaConversionPorts(),
+    reportNote: ({ note, cause }) => console.warn(`[media-import] ${note}`, cause),
+  } }) });
   // The local admin Trash screen's 3 routes (design:
   // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Registered next to `media`
   // because Media is one of the four kinds it lists, but it is a platform surface, not a media one:

@@ -10,6 +10,9 @@ import type { MediaAssetLookups, MediaErrorMapping } from "@jini-ai/cms/admin-ht
 import { mediaTrashRoute } from "@jini-ai/cms/admin-http/routes/media/trash";
 import { mediaUpdateRoute } from "@jini-ai/cms/admin-http/routes/media/update";
 import type { MediaRecord } from "#src/features/media/index";
+import { withVideoConversionOnImport, type ImportVideoConversion } from "#src/features/media/import-video-conversion";
+import { createDerivedMediaLink } from "#src/features/media/derived-media-link";
+import type { MediaConversionPorts } from "#src/features/media/tool-registrations";
 import { toAdminMediaResponse } from "@jini-ai/cms/admin-http/http/media";
 import { readRecordedContentType } from "@jini-ai/cms/media/site/content-type-resolution";
 import { purgeMedia } from "@jini-ai/cms/media/site/purge-media";
@@ -28,7 +31,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { mediaTextRoute } from "@jini-ai/cms/admin-http/routes/media/text";
 import { mediaReplaceRoute, type MediaReplacement } from "@jini-ai/cms/admin-http/routes/media/replace";
 import { mediaUploadRoute, type MediaUploadInput } from "@jini-ai/cms/admin-http/routes/media/upload";
-import { readDocumentText, replaceMediaFile, type MediaKind } from "@jini-ai/cms/media";
+import { readDocumentText, replaceMediaFile, type MediaKind, type UploadMediaDeps } from "@jini-ai/cms/media";
 import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { createDocumentArchiveReader } from "@jini-ai/cms/media/site/document-archive";
 import * as yauzl from "yauzl";
@@ -197,6 +200,31 @@ function uploadedMediaKind(required: { kind: string; contentType: string }, _opt
   return "other";
 }
 
+/** The injected pieces of the owner's video import rule (2026-10-31); absent, uploads never convert. */
+export interface VideoImportOptions {
+  /** The ffmpeg adapter built at the composition root; no transcoder means no conversion. */
+  ports: MediaConversionPorts;
+  /** Where the plain-words note goes when a conversion could not be made (see `ImportVideoConversion`). */
+  reportNote: ImportVideoConversion["reportNote"];
+  /** Overrides Jini's 50 MiB import threshold. */
+  thresholdBytes?: number | undefined;
+}
+
+/** Builds the hook's conversion ports from the same repositories the upload itself writes to, or
+ *  `undefined` when the host injected no converter. @complexity O(1). */
+function importVideoConversion(
+  { deps, uploadDeps, video }: { deps: MediaRouteDeps; uploadDeps: UploadMediaDeps; video: VideoImportOptions | undefined },
+  _optional: Record<string, never> = {},
+): ImportVideoConversion | undefined {
+  const transcoder = video?.ports.transcoder;
+  if (!video || !transcoder) return undefined;
+  return {
+    deps: { ...uploadDeps, transcoder, linkDerivedMedia: createDerivedMediaLink({ mediaRepo: deps.mediaRepo, clock: deps.clock }) },
+    reportNote: video.reportNote,
+    thresholdBytes: video.thresholdBytes,
+  };
+}
+
 /**
  * `upload`: Jini `mediaUploadRoute` with the host's upload pipeline (50 MiB owner cap, document archive
  * reader), sniff-type store, product event and stored-asset describer bound. Its hand-written route
@@ -210,17 +238,24 @@ function uploadedMediaKind(required: { kind: string; contentType: string }, _opt
  * upload path should stream bytes (multipart or raw octet-stream), not
  * base64-inflate them through JSON. `express.json()`'s body-size limit was
  * bumped in `server/runtime/composition/app.ts` to accommodate this (see that file's comment).
+ * The video import rule (2026-10-31) is opt-in through `videoImport`, so a bare mount never converts.
  */
-export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
+export function registerAdminMediaUploadRoute(
+  { app, deps }: { app: Express; deps: MediaRouteDeps },
+  { videoImport }: { videoImport?: VideoImportOptions } = {},
+): void {
+  const uploadPorts = {
+    clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+    renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
+  };
+  const storeUpload = (input: MediaUploadInput) => uploadMedia({
+    deps: uploadPorts,
+    input: { workspaceId: deps.workspaceId, ...input },
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
   const uploadDeps = {
     ...mediaPortDeps({ deps }),
-    storeUpload: (input: MediaUploadInput) => uploadMedia({
-      deps: {
-        clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
-        renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, documentArchiveReader: createDocumentArchiveReader(documentArchiveDeps),
-      },
-      input: { workspaceId: deps.workspaceId, ...input },
-    }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES }),
+    // A video over the owner's import size is converted after it is stored (the original stays); see import-video-conversion.ts.
+    storeUpload: withVideoConversionOnImport({ storeUpload, conversion: importVideoConversion({ deps, uploadDeps: uploadPorts, video: videoImport }) }),
     recordContentType: ({ sha256, contentType }: { sha256: string; contentType: string }) => deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType }),
     onUploaded: ({ actorId, kind, contentType, byteLength }: { actorId: string; kind: MediaKind; contentType: string; byteLength: number }) => captureMediaUploaded({
       tracker: deps.tracker, actorId, byteLength, kind: uploadedMediaKind({ kind, contentType }), source: "admin",
@@ -228,7 +263,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }
     describeStored: (input: { media: MediaRecord; contentType: string; byteLength: number }) => toStoredMediaResponse({ deps, ...input }),
   };
   mountAdminJsonRoute({ app, spec: mediaUploadRoute, deps: uploadDeps }, { authorization: "direct", failure: MEDIA_WRITE_FAILURE, deferMissingPrincipal: true });
-};
+}
 
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   const updateDeps = { ...mediaPortDeps({ deps }), ...mediaAssetLookups({ deps }), clock: deps.clock, mediaRepo: deps.mediaRepo };
@@ -323,13 +358,16 @@ function egressRefusalMessage({ error }: { error: unknown }, optional: { log?: (
   return error.callerSafeMessage;
 }
 
-export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {
+export function createMediaModule(
+  deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps,
+  { videoImport }: { videoImport?: VideoImportOptions } = {},
+): ServerModuleHandle {
   return {
     name: "media",
     registerRoutes: ({ app }, _options = {}) => {
       registerAdminMediaListRoute({ app, deps });
       registerAdminMediaWhereUsedRoute({ app, deps });
-      registerAdminMediaUploadRoute({ app, deps });
+      registerAdminMediaUploadRoute({ app, deps }, { videoImport });
       registerAdminMediaImportUrlRoute({ app, deps });
       registerAdminMediaReplaceRoute({ app, deps });
       registerAdminMediaUpdateRoute({ app, deps });
