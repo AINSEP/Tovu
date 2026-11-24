@@ -11,7 +11,7 @@ import { createAgentPluginStateStore } from './plugin-state.js';
 import { API_CONNECTION_OAUTH_CALLBACK_PATH } from './browser-binding.js';
 import { createByoCredentials } from './byo-client.js';
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
-import { loadDeclaredApiConnections } from './contribution.js';
+import { loadDeclaredApiConnections, type ClientNamespaceFor } from './contribution.js';
 import { createSharedApiConnections, type SharedApiConnectionDeps } from '@jini-ai/integrations/api-connections/shared-api';
 import { createRateLimiter } from '../../contracts/core/rate-limit/rate-limit.js';
 
@@ -33,6 +33,8 @@ const messages: ApiConnectionHostMessages = {
 export interface ApiConnectionHostDeps {
   readonly workspaceId: string;
   readonly loadContributions: LoadPluginContributions;
+  /** The client-setting prefix a plugin's manifest declares; absent, every plugin uses the host's own prefix. */
+  readonly clientNamespaceFor?: ClientNamespaceFor;
   readonly vaultRepo: VaultRepoPort;
   /** The site's saved custom credentials, where an admin's own OAuth client is kept (`byo-client.ts`); opened with `keyring` + `sealer`. */
   readonly customCredentialRepo: CustomCredentialSetRepoPort;
@@ -66,7 +68,7 @@ export function bindApiConnectionHost({ required, optional }: { required: ApiCon
       workspaceId: required.workspaceId, clock: required.clock, oauthHttp: required.oauthHttp, oauth: apiConnectionOAuthCapabilities,
       pluginHttp: required.pluginHttp, runtime: required.runtime, env: required.env, publicOrigin: required.publicOrigin,
       apiConnectionStorage: { records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
-      loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }),
+      loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }, { clientNamespaceFor: required.clientNamespaceFor }),
       createSharedConnections: (input: ApiConnectionSharedFactoryInput) => {
         if (optional.shared === undefined) throw new Error('Shared API connections have no host configuration');
         return createSharedApiConnections({ ...optional.shared, ...input });

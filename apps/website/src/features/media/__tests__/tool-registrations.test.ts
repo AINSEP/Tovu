@@ -224,3 +224,14 @@ test("media_upload_asset attributes analytics to each caller even when bytes are
   assert.deepEqual(captures.map(([event]) => event.userId).sort(), ["owner-uploading", "plugin-uploading"].sort());
   assert.ok(captures.every(([event]) => event.name === "media_uploaded"));
 });
+
+/** A212: an agent holding a video over its own ~10 MB inline-upload channel is pointed at the local file import. */
+test("the registered media_upload_asset routes a video over 10 MB to the local file import path", () => {
+  const { deps } = fakeRouteDeps();
+  const description = wired("media_upload_asset", deps).descriptor.description ?? "";
+  assert.match(description, /over about 10 MB/);
+  assert.match(description, /media_import_local_file/);
+  assert.match(description, /fs_list_files/);
+  const others = [...mediaRegistrations(deps)].filter(([id]) => id !== "media_upload_asset");
+  assert.ok(others.length > 0 && others.every(([, r]) => !(r.descriptor.description ?? "").includes("over about 10 MB")), "no other media tool carries the routing sentence");
+});

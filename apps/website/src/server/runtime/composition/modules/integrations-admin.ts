@@ -98,14 +98,14 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
   const createDeps = {
     ...integrationsPortDeps({ deps }),
     // ADR-PIPE-015 GAP-06: the real core/origin egress oracle (see `toWebhookSubscriptionDeps`); built per request.
-    createSubscription: (input: { workspaceId: string; label: string; targetUrl: string; topics: string[] }) => createSubscription({
+    createSubscription: ({ actorPrincipalId, ...input }: { workspaceId: string; actorPrincipalId: string; label: string; targetUrl: string; topics: string[] }) => createSubscription({
       deps: toWebhookSubscriptionDeps(deps),
       input: {
         ...input,
-        // Dev-mode single-actor placeholder, matching the session/command-gateway convention
-        // (`dev-auth.ts`'s fixed `"user-local"` session subject) — no permissions feature yet.
-        ownerPrincipalId: "user-local",
-        createdByPrincipalId: "user-local",
+        // The signed-in operator who made the request (dev auth's session still stamps its fixed
+        // `"user-local"` subject, so a dev install records that same value through the session).
+        ownerPrincipalId: actorPrincipalId,
+        createdByPrincipalId: actorPrincipalId,
       },
     }),
     isValidationError,

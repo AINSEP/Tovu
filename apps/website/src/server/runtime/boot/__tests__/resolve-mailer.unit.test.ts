@@ -619,6 +619,25 @@ test("checkProvider: a hosted provider with a usable key passes; unknown, local-
   assert.deepEqual(await keyless.checkProvider({ id: "postal" }), { ok: true, label: "Postal" });
 });
 
+test("domainRequirements: a provider calling ctx.httpClient.send({ request }) reaches the host's positional client", async () => {
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
+  const request = { method: "GET", url: "https://api.postal.test/dns", idleTimeoutMs: 1000 };
+  const http = new FakeHttpClient();
+  const postal = fixtureRegistry({
+    capabilities: { hosted: true, feedback: false, domainVerification: true },
+    domainRequirements: async (ctx: { httpClient: { send(input: { request: unknown }): Promise<unknown> } }) => {
+      await ctx.httpClient.send({ request });
+      return { status: "ok", value: { purpose: "mail", domain: "example.com", providerId: "postal", records: [] } };
+    },
+    domainStatus: async () => ({ status: "ok", value: { domain: "example.com", state: "verified" } }),
+    create: () => FIXTURE_MAILER,
+  });
+  const resolved = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, loadMailAdapters: async () => postal, httpClient: http, readSenderEmail: async () => "news@example.com", providerSetting: memorySetting({ transactional: "postal", bulk: null }) }));
+  await resolved.domainRequirements({ workspaceId: WORKSPACE });
+  assert.deepEqual(http.calls, [request]);
+});
+
 test("domainRequirements: the active transactional provider's records for the sender domain, or null when any part is missing", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });

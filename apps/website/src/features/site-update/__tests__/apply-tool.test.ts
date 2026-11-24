@@ -1,0 +1,151 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
+import type { UIResource } from "@jini-ai/core/contracts/site/protocol-mcp-ui";
+import { createFakeSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease } from "@jini-ai/devops/deploy";
+import { buildSiteUpdateRegistrations, type SiteUpdateToolDeps } from "../tools.js";
+
+/** @file `site_update_apply`: never runs without the owner's card; the approval is for exactly the version shown. */
+
+const APPLY = "site_update_apply";
+const OWNER = "owner-1";
+
+function setup(options: FakeSiteUpdateOptions = {}, latest: SiteRelease = { version: "1.3.0", notes: "Faster pages." }) {
+  const fake = createFakeSiteUpdate({ runningVersion: "1.2.0", latest }, options);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deps: SiteUpdateToolDeps = {
+    authorize: async () => {},
+    runtime: { feed: fake.feed, site: fake.ports.site, backup: fake.ports.backup, readiness: fake.ports.readiness, ids: fake.ports.ids, runningVersion: async () => fake.state.liveVersion },
+  };
+  const tool = buildSiteUpdateRegistrations(deps, { surfaceExchanges } as never).find((r) => r.descriptor.id === APPLY)!;
+  assert.ok(tool, "site_update_apply must be registered");
+  return { fake, surfaceExchanges, tool, deps };
+}
+
+function invoke(tool: ToolRegistration, input: unknown, emitSurface?: SurfaceEmitter) {
+  const ctx = { executionId: "e", principal: { id: OWNER }, run: { id: "r" }, input, signal: new AbortController().signal } as ToolExecutionContext;
+  return tool.handler(ctx, emitSurface ? { emitSurface } : {});
+}
+
+async function raiseCard(tool: ToolRegistration, input: unknown = {}) {
+  const emitted: unknown[] = [];
+  const pending = invoke(tool, input, async (s) => void emitted.push(s));
+  pending.catch(() => {}); // a refusal may land before the test awaits it
+  await new Promise((resolve) => setImmediate(resolve));
+  return { emitted, pending, ui: emitted[0] ? (emitted[0] as { payload: { resource: UIResource } }).payload.resource : undefined };
+}
+
+function answer(store: ReturnType<typeof setup>["surfaceExchanges"], ui: UIResource, decision: "confirm" | "cancel") {
+  const plan = JSON.parse(ui.resource.text.match(/var PLAN = (.+);/)![1]!) as Record<string, { params: Record<string, unknown> }>;
+  const params = plan[decision]!.params;
+  return store.deliver({ exchangeId: params[SURFACE_EXCHANGE_ID_PARAM] as string, principalId: OWNER, params }, { toolId: APPLY });
+}
+
+test("the card shows from-version, to-version and notes, and nothing is applied while it is open", async () => {
+  const { tool, fake, surfaceExchanges } = setup();
+  const { ui, pending } = await raiseCard(tool);
+  assert.ok(ui, "a card must be shown");
+  for (const text of ["1.2.0", "1.3.0", "Faster pages."]) assert.ok(ui.resource.text.includes(text), `card must show ${text}`);
+  assert.deepEqual(fake.calls, []);
+  answer(surfaceExchanges, ui, "cancel");
+  await pending;
+});
+
+test("cancel: nothing is applied and the model is told so", async () => {
+  const { tool, fake, surfaceExchanges } = setup();
+  const { ui, pending } = await raiseCard(tool);
+  answer(surfaceExchanges, ui!, "cancel");
+  const result = (await pending) as { applied: boolean; cancelled: boolean };
+  assert.equal(result.applied, false);
+  assert.equal(result.cancelled, true);
+  assert.deepEqual(fake.calls, [], "the adapter must not be touched without approval");
+});
+
+test("no way to ask (headless run): refuses and nothing is applied", async () => {
+  const { tool, fake } = setup();
+  await assert.rejects(invoke(tool, {}), /no interactive confirmation channel/);
+  assert.deepEqual(fake.calls, []);
+});
+
+test("input cannot stand in for the click", async () => {
+  const { tool, fake } = setup();
+  await assert.rejects(invoke(tool, { confirm: true }, async () => {}), /'confirm' is not an input/);
+  assert.deepEqual(fake.calls, []);
+});
+
+test("a version other than the one on offer is refused before any card or change", async () => {
+  const { tool, fake } = setup();
+  const { emitted, pending } = await raiseCard(tool, { toVersion: "9.9.9" });
+  await assert.rejects(pending, /9\.9\.9 is not the version on offer \(1\.3\.0\)\. Nothing was changed\./);
+  assert.equal(emitted.length, 0);
+  assert.deepEqual(fake.calls, []);
+});
+
+test("confirm: the approved version is applied and the step log is reported in plain words", async () => {
+  const { tool, fake, surfaceExchanges } = setup();
+  const { ui, pending } = await raiseCard(tool, { toVersion: "1.3.0" });
+  answer(surfaceExchanges, ui!, "confirm");
+  const result = (await pending) as { applied: boolean; outcome: string; message: string; steps: string[] };
+  assert.equal(result.applied, true);
+  assert.equal(result.outcome, "updated");
+  assert.equal(result.message, "Updated from 1.2.0 to 1.3.0. What changed: Faster pages.");
+  assert.deepEqual(result.steps, [
+    "Approval: Approved by owner-1 for 1.3.0.", "Backup: Backup backup-1 made of 1.2.0.", "Readiness: Stored data is ready for 1.3.0.",
+    "Apply: Deployed 1.3.0.", "Verify: The live site works on 1.3.0.",
+  ]);
+  assert.deepEqual(fake.calls.filter((c) => c.startsWith("applyUpdate")), ["applyUpdate:1.3.0:backup-1"]);
+});
+
+test("the approval is for the version on the card: a feed that moves on while the card is open does not change what is installed", async () => {
+  const { tool, fake, surfaceExchanges } = setup();
+  const { ui, pending } = await raiseCard(tool);
+  fake.feed.latestRelease = async () => ({ version: "1.4.0", notes: "Surprise." });
+  answer(surfaceExchanges, ui!, "confirm");
+  await pending;
+  assert.deepEqual(fake.calls.filter((c) => c.startsWith("applyUpdate")), ["applyUpdate:1.3.0:backup-1"]);
+});
+
+test("already on the latest: no card, nothing applied", async () => {
+  const { tool, fake } = setup({}, { version: "1.2.0", notes: "" });
+  const { emitted, pending } = await raiseCard(tool);
+  const result = (await pending) as { applied: boolean; message: string };
+  assert.equal(emitted.length, 0);
+  assert.equal(result.applied, false);
+  assert.equal(result.message, "You are on the latest version (1.2.0). Nothing was changed.");
+  assert.deepEqual(fake.calls, []);
+});
+
+test("a blocked migration check is reported and the deploy is never started", async () => {
+  const { tool, fake, surfaceExchanges } = setup({ readiness: { status: "blocked", reason: "Two database changes are still pending." } });
+  const { ui, pending } = await raiseCard(tool);
+  answer(surfaceExchanges, ui!, "confirm");
+  const result = (await pending) as { applied: boolean; outcome: string; message: string };
+  assert.equal(result.applied, false);
+  assert.equal(result.outcome, "blocked");
+  assert.match(result.message, /Two database changes are still pending/);
+  assert.equal(fake.calls.some((c) => c.startsWith("applyUpdate")), false);
+});
+
+test("a failed live check rolls back and says so", async () => {
+  const { tool, surfaceExchanges } = setup({ verify: { status: "unhealthy", reason: "the home page returned an error" } });
+  const { ui, pending } = await raiseCard(tool);
+  answer(surfaceExchanges, ui!, "confirm");
+  const result = (await pending) as { applied: boolean; outcome: string; message: string };
+  assert.equal(result.applied, false);
+  assert.equal(result.outcome, "rolled-back");
+  assert.match(result.message, /rolled back to 1\.2\.0/);
+});
+
+test("permission is checked before any card is shown", async () => {
+  const { tool, deps, fake } = setup();
+  deps.authorize = async () => { throw new Error("no permission"); };
+  const rebuilt = buildSiteUpdateRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } as never).find((r) => r.descriptor.id === APPLY)!;
+  const { emitted, pending } = await raiseCard(rebuilt);
+  await assert.rejects(pending, /no permission/);
+  assert.equal(emitted.length, 0);
+  assert.deepEqual(fake.calls, []);
+  void tool;
+});

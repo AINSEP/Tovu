@@ -7,7 +7,31 @@
     "cloudflare.forms.binding": "JINI_FORMS",
     "cloudflare.forms.privateRoute": "/_jini/*",
     "sheets.submission.id": "_jini_submission_id",
-    "resend.credential.label": "Mail — Resend API"
+    "resend.credential.label": "Mail \u2014 Resend API",
+    "sheets.submitted.at": "_jini_submitted_at"
   },
-  "changes": []
+  "changes": [
+    {
+      "key": "sheets.submission.id",
+      "from": "_tovu_submission_id",
+      "to": "_jini_submission_id",
+      "cutover": {
+        "approval": "bt2-bugs FIX 1 (review rv1124c): the old header stays accepted, so no sheet is rewritten",
+        "owner": "google-workspace Sheets form destination (composition/form-delivery-deliverer.ts ADAPTER_OPTIONS_BY_PLUGIN)",
+        "affected": "Google Sheets already receiving form rows under _tovu_submission_id",
+        "recovery": "nothing to restore: existing sheets keep their old header and keep receiving rows under it; only a new tab gets the new name"
+      }
+    },
+    {
+      "key": "sheets.submitted.at",
+      "from": "_tovu_submitted_at",
+      "to": "_jini_submitted_at",
+      "cutover": {
+        "approval": "bt2-bugs FIX 1 (review rv1124c): the old header stays accepted, so no sheet is rewritten",
+        "owner": "google-workspace Sheets form destination (composition/form-delivery-deliverer.ts ADAPTER_OPTIONS_BY_PLUGIN)",
+        "affected": "Google Sheets already receiving form rows under _tovu_submitted_at",
+        "recovery": "nothing to restore: existing sheets keep their old header and keep receiving rows under it; only a new tab gets the new name"
+      }
+    }
+  ]
 }

@@ -57,6 +57,7 @@ export {
   assertPortableSiteName,
   reconcileSiteCreation,
   describeSiteBinding,
+  describeSiteBindingForDir,
   includeServingSite,
   listSitesForBinding,
   switcherBaseForBinding,

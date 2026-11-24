@@ -1,7 +1,7 @@
 import type { MailFeedbackSetupReport } from "@jini-ai/core/contracts/site/platform-mail";
 import type {
   EmailApi, EmailTemplateDetail, EmailTemplatePreview, EmailTemplateSummary, MailActivityDetail, MailActivityFilter,
-  MailActivityPage, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
+  MailActivityPage, MailCaptureClearAnswer, MailDnsStatus, MailProviderConfiguration, MailProviderConfigurationReport,
   MailProviderCredentialInput, MailSuppressionPage, MailSuppressionRemovalPlan, MailSuppressionScope, MailTestSendResult,
   MailUseRow,
 } from "@jini-ai/admin/screens/email/email-api.types";
@@ -35,7 +35,7 @@ const send = <T>(
 const enc = encodeURIComponent;
 
 /** The Email page's API port: one object a test replaces wholesale. */
-export const emailApi: EmailApi = {
+export const emailApi: EmailApi & Required<Pick<EmailApi, "clearCaptured">> = {
   listProviders: () => get<MailProviderConfigurationReport>({ path: `${SYSTEM}/mail-providers` }),
   saveProviderKey: ({ providerId, input }: { providerId: string; input: MailProviderCredentialInput }) =>
     send<{ provider: MailProviderConfiguration }>({ method: "PUT", path: `${SYSTEM}/mail-providers/${enc(providerId)}/credential` }, { body: input }),
@@ -58,6 +58,11 @@ export const emailApi: EmailApi = {
   removeSuppression: (required: { address: string; scope: MailSuppressionScope; reason: string }, options: { confirm?: { revision: string } } = {}) =>
     send<{ removed: boolean; confirmationRequired?: true; plan?: MailSuppressionRemovalPlan }>({ method: "POST", path: `${SYSTEM}/mail-suppressions/remove` }, {
       body: { ...required, ...(options.confirm ? { confirmed: true, revision: options.confirm.revision } : {}) },
+    }),
+  /** Without `confirm` this only previews (`plan`, `revision`); with it, `revision` must be the previewed one. */
+  clearCaptured: (options: { confirm?: { revision: string } } = {}) =>
+    send<MailCaptureClearAnswer>({ method: "POST", path: `${SYSTEM}/mail-capture/clear` }, {
+      body: options.confirm ? { confirmed: true, revision: options.confirm.revision } : {},
     }),
   readFeedback: () => get<MailFeedbackSetupReport>({ path: `${SYSTEM}/mail-feedback` }),
 

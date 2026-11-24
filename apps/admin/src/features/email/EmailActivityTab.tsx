@@ -5,14 +5,15 @@ import { t } from "@jini-ai/admin/screens/email/email-i18n";
 import type { MailActivityItem, MailSuppressionEntry } from "@jini-ai/admin/screens/email/email-api.types";
 import type { MailFeedbackProviderSetup } from "@jini-ai/core/contracts/site/platform-mail";
 import { Chip, CopyButton, Loaded, Section, when, type Tone } from "./EmailParts";
-import type { EmailActivityController, PagedList } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
+import type { CaptureClearState, EmailActivityController, PagedList } from "@jini-ai/admin/screens/email/hooks/use-email-activity.hooks";
 
 /**
  * @file The Activity tab: recent sends (filters, Load more, one send's feedback), blocked
  * addresses (search; Remove asks for a reason, then shows what removal means before the final
  * confirm — the server records the reason and only lets the owner do it), and whether provider
  * feedback (bounces, complaints) reaches this site. The page shows one section at a time (`part`,
- * from its segmented pill); with no `part` all three render.
+ * from its segmented pill); with no `part` all three render. Recent sends also offers the owner
+ * "Clear test emails" (previewed, then a confirm card with the count).
  */
 
 const OUTCOMES = ["accepted", "delivered", "bounced", "complained", "suppressed", "deferred", "failed", "unknown", "captured"] as const;
@@ -113,6 +114,53 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
   );
 }
 
+/** The words under the button: nothing to clear, how many were cleared, or why it did not work. */
+function CaptureNotice(props: { state: CaptureClearState; locale: string }) {
+  const { state, locale } = props;
+  if (state.kind === "empty") return <p className="jini-field-hint" role="status">{t({ locale, key: "No test emails to clear" })}</p>;
+  if (state.kind === "cleared") return <p className="jini-field-hint" role="status">{t({ locale, key: "Cleared {count} test emails." }).replace("{count}", () => String(state.deleted))}</p>;
+  if (state.kind === "error") return <p className="jini-field-error" role="alert">{t({ locale, key: state.message })}</p>;
+  return null;
+}
+
+/**
+ * "Clear test emails": owner-only (`controller.capture.canClear`), previewed first, then a confirm
+ * card that names how many will go; only the captured test emails are deleted, never sent-mail records.
+ */
+function CaptureClear(props: { controller: EmailActivityController; locale: string }) {
+  const { controller, locale } = props;
+  const { capture } = controller;
+  if (!capture.canClear) return null;
+  const step = capture.state.kind === "confirm" ? capture.state : null;
+  return (
+    <div className="email-capture-clear">
+      <div className="email-row">
+        <button type="button" className="btn-secondary" disabled={capture.state.kind === "checking"} onClick={() => void capture.start()}
+          {...agentHandle({ handle: "email-capture-clear" }, { role: "button", label: "Clear all captured test emails" })}>
+          {t({ locale, key: capture.state.kind === "checking" ? "Checking…" : "Clear test emails" })}
+        </button>
+      </div>
+      <CaptureNotice state={capture.state} locale={locale} />
+      <ConfirmDialog
+        open={step !== null}
+        agentHandle="email-capture-clear-confirm"
+        title={t({ locale, key: "Clear all test emails?" })}
+        body={step ? (
+          <div className="email-removal">
+            <p>{t({ locale, key: "Test emails kept on this machine: {count}. Clearing deletes all of them and nothing else. This cannot be undone." }).replace("{count}", () => String(step.plan.count))}</p>
+            {step.error ? <p className="jini-field-error" role="alert">{t({ locale, key: step.error })}</p> : null}
+          </div>
+        ) : null}
+        confirmLabel={t({ locale, key: "Clear" })}
+        destructive
+        pending={step?.pending ?? false}
+        onConfirm={() => void capture.confirm()}
+        onCancel={capture.cancel}
+      />
+    </div>
+  );
+}
+
 function RecentSends(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   return (
@@ -132,6 +180,7 @@ function RecentSends(props: { controller: EmailActivityController; locale: strin
           value={controller.filter.recipient ?? ""} onChange={(e) => controller.setFilter({ ...controller.filter, recipient: e.target.value })}
           {...agentHandle({ handle: "email-activity-recipient" }, { role: "field", label: "Filter sends by recipient address" })} />
       </div>
+      <CaptureClear controller={controller} locale={locale} />
       <Loaded view={controller.activity.view} locale={locale} retry={controller.activity.reload}>
         {(page) => (
           <>

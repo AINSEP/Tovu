@@ -12,6 +12,8 @@ import { announcePendingGoLive } from "@jini-ai/cms/entries";
 import { SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
+import { normalizeWidgetSlugMarkers, type WidgetSlugLookupPort } from "@jini-ai/cms/widgets";
+import type { UUID } from "@jini-ai/core/primitives";
 import { extractHtmlEntryRefs } from "@jini-ai/cms/widgets";
 import { warnUnindexedEntryRef } from "../../contracts/core/entry-refs/unindexed-ref-warning.js";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
@@ -59,17 +61,24 @@ export class InMemoryPagesHtmlDocumentStore {
   private readonly allowedKinds: ReadonlySet<PostKind>;
 
   private readonly scope: PagesHtmlDocumentStoreScope;
-  private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"] };
+  private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"]; widgetSlugLookup?: WidgetSlugLookupPort };
   constructor(
     scope: PagesHtmlDocumentStoreScope,
     // `entryRefsRepo` is optional for the identical reason `PagesHtmlDocumentStoreDeps.entryRefsRepo`
     // (the real adapter) is — see that field's own doc.
     /** `outbox`: the real store's go-live catch-up (`PagesHtmlDocumentStoreDeps.outbox`). */
-    deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"] }
+    deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"]; widgetSlugLookup?: WidgetSlugLookupPort }
   ) {
     this.scope = scope;
     this.deps = deps;
     this.allowedKinds = deps.allowedKinds ?? new Set(["page"]);
+  }
+
+  /** B224: gives a slug-only widget marker its widget id before the HTML is stored (a no-op without `widgetSlugLookup`). */
+  private async withWidgetIds(html: string, _options = {}): Promise<string> {
+    const entryRepo = this.deps.widgetSlugLookup;
+    if (!entryRepo) return html;
+    return normalizeWidgetSlugMarkers({ deps: { entryRepo }, input: { workspaceId: this.scope.workspaceId as UUID, html } });
   }
 
   private async load(): Promise<PostRecord | null> {
@@ -116,7 +125,7 @@ export class InMemoryPagesHtmlDocumentStore {
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
   async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
+    const seedHtml = await this.withWidgetIds(normalizeEmbedMarkerQuoting({ html: authoredSeedHtml }));
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
@@ -186,11 +195,12 @@ export class InMemoryPagesHtmlDocumentStore {
    */
   async write({ html: authoredHtml }: { html: string }, _optional?: Record<string, never>): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
+    const quoted = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }
     const expectedVersion = this.lastReadVersion;
+    const html = await this.withWidgetIds(quoted);
     // Preserve this call's read basis across asynchronous plugin validation (CIC-1).
     await this.validatePluginEmbeds({ html });
     const row = await this.load();

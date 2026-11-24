@@ -444,3 +444,28 @@ Report: `cloud-results/bt-dec-b.md`. AFTER-MERGE = the remaining change touches 
 - `C026` vendor names in seam files — **AFTER-MERGE**: `api-connections/contribution.ts:77` and
   `agent-plugin-connections.ts:185` (manifest `publicConfig` injection) are in flight; guard unchanged (27 lines).
 - xAI media provider entries → provider plugin — **AFTER-MERGE** (J `integrations/src/media-providers/providers.ts` in flight).
+
+## bt2-bugs (Tovu `codex/bt2-bugs-tovu`, Jini `codex/bt2-bugs-jini`, base `integ/merge-18-2026-11-24`, 2026-11-24)
+
+Deferred AFTER-COMBINE / AFTER-MERGE rows, re-verified on merge-18. Full table: `cloud-results/bt2-bugs.md`.
+WAIT-M19 = the fix needs a file that the in-flight w5-content/admin/runtime-assistant lanes change.
+
+- `C7-jini-directory-trash-exdev-cause` — **STALE**: `directory.node.ts:82` throws with `{ cause }`, pinned by `cms/src/trash/__tests__/directory-adapter.test.ts`.
+- `C7-plugin-contribution-filenames` — **STALE**: Tovu constants are already `jini-*` (`deploy-targets/registry.ts:35` …); `site-backup/__tests__/tool-registrations.unit.test.ts` 84/84.
+- `C7-theme-preview-refresh-public-barrel` — **STALE**: imports `#src/features/theme/theme-roster-ports`; the worker-import-graph case passes.
+- `C7-y1-credential-label-prefix` — **STALE**: search and mail lookups fall back to the old `Tovu …`/`Jini …` labels (`site-search.ts:455-457`, `resolve-mailer.ts:124-128`).
+- `1280-optional-peer-contract` (C014) — **FIXED** (J `b40a5b121`), 58/58.
+- `C8-github-managed-manifest-path` — **STALE**: `commit-site.mjs` reads the injected `previousManagedManifestPath` on a 404 and writes only the new path; Tovu injects `.tovu/managed-files.json` (`source-control/commit-site.ts:134`). GUIDANCE note added (T `feec2fe6f`).
+- `C8-dev-select-node-runtime-env` — **STALE**: `dev.mjs:863` passes `env: process.env`.
+- `C8-css-unrenamed-jini-classes` — **FIXED** for the three listed selectors (T `ea4452915`); the other `.jini-tab-bar-*`/`.jini-row-menu-*` rules are unverified.
+- `C11-agui-run-error-raw-message` follow-ups: **C131 FIXED** (J `bb7ff2705`, T `e1921f9f4`, host `failureMessage`); **B143 failed-as-succeeded FIXED** (same commits; a bare stream close is now RUN_ERROR, the old "dual-completion" pin was replaced — owner review).
+- `C13-overlay-core-primitives-uuid` — **FIXED** (T `4dc5db3cd`).
+- `C13-test-writes-dev-site` / A312 — **FIXED** (T `5f3c4aca1`): a dbPath-only composition binds to that database's own site folder.
+- `A2-resend-positional-http-abi` — **STALE**: neutral-host regression green; Tovu wires `toPluginHttpClient`.
+- `plugin-host-bundled-identity` — **OPEN, WAIT-M19**: the test's 9-row `JINI_PUBLISHED_IDENTITIES` map vs ~37 shipped `jini/*` ids; the test file is on the merge-19 list.
+- `snapshot-stale-header` — **FIXED** (J `15aa85744`, comment only).
+- `C026` — still **OPEN**: guard no longer crashes on a renamed seam (T `ffe8c6fc1`), real count 25 hits; the manifest move needs a Jini descriptor field (after merge-19).
+- `B258` desktop import swap — **STALE** (done; `redactor-bindings.test.ts` 5/5). `A310` gate comment — **FIXED** (T `2556075fe`).
+- `B229` — still pinned by `site-trash.integration.test.ts` ("B229: …").
+- **NEW `sheet-header-legacy-names`** — RELEASE BLOCKER until wired: the Google Sheets destination matched its two plugin columns by header text, so a sheet already receiving rows under `_tovu_submission_id`/`_tovu_submitted_at` was refused after the `_jini_*` rename. Jini half **FIXED** (J `2d5441259`, `legacyHeaders` + `adapterOptions`); Tovu wiring **WAIT-M19** in `server/runtime/composition/form-delivery-deliverer.ts:50`.
+- Also fixed (triage rows, no entry above): C130, A196, B257, B174, B015 (J); B159, B189, B236, B120, B284, B033, A448, A007, C025, B233, B109, C028 (share-service half), bt FIX 17. See the report.

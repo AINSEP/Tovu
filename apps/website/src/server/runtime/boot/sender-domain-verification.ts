@@ -1,10 +1,10 @@
 import {
   createSenderDomainVerification as createJiniSenderDomainVerification,
-  type MailProviderCallContext,
   type SenderDomainVerificationDeps as JiniSenderDomainVerificationDeps,
   type SenderDomainVerificationPort,
 } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
+import { toEngineHttpClient } from "./mail-provider-catalog.js";
 
 /**
  * @file The sender domain's state at the active transactional provider (its own `domainStatus`),
@@ -24,5 +24,5 @@ export interface SenderDomainVerificationDeps extends Omit<JiniSenderDomainVerif
  * @example await createSenderDomainVerification(deps)()
  */
 export function createSenderDomainVerification(deps: SenderDomainVerificationDeps, options: { timeoutMs?: number } = {}): SenderDomainVerificationPort {
-  return createJiniSenderDomainVerification({ ...deps, httpClient: deps.httpClient as unknown as MailProviderCallContext["httpClient"] }, options);
+  return createJiniSenderDomainVerification({ ...deps, httpClient: toEngineHttpClient({ httpClient: deps.httpClient }) }, options);
 }

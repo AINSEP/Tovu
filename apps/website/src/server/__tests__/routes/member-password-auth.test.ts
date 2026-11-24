@@ -13,7 +13,7 @@ import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-manag
 import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
-import { type MemberRecord } from "@jini-ai/user-management/members/types";
+import { MagicLinkTokenRejectedError, type MemberRecord } from "@jini-ai/user-management/members/types";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import {
@@ -450,7 +450,7 @@ test("challenge CAS rejection is 401 but database outage surfaces as 500", async
   const h = harness(); await h.seed();
   const base = await startTestServer(h.app, t);
   const challenge = await h.challenge();
-  h.deps.magicLinkRepo.consume = async ({ id }) => { throw new Error(`magic link token '${id}' was already consumed`); };
+  h.deps.magicLinkRepo.consume = async ({ id }) => { throw new MagicLinkTokenRejectedError({ id, reason: "already_consumed" }); };
   const invalid = await post(base, "sign-in/complete", { token: challenge.token });
   assert.equal(invalid.status, 401); assert.deepEqual(await invalid.json(), INVALID);
   h.deps.magicLinkRepo.consume = async () => { throw new Error("database connection lost"); };

@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ApiError } from "@/lib/admin-http/request";
+import { authApi } from "@/features/auth/api/auth-api";
 import { emailApi } from "../email-api";
 import { newRequestId, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailTemplateEditor, useWiredEmailTemplates } from "../email-hooks-host";
 import { TEMPLATE } from "./email.test-helpers";
@@ -32,6 +33,20 @@ describe("email hooks host bindings", () => {
     const { result } = renderHook(() => useWiredEmailActivity());
     await waitFor(() => expect(result.current.feedback).toEqual({ kind: "forbidden" }));
     await waitFor(() => expect(result.current.suppressions.view).toEqual({ kind: "error", message: "Server says no" }));
+  });
+
+  it.each([
+    ["the owner", ["*"], true],
+    ["someone without the grant", ["mail.suppressions.manage"], false],
+    ["a server that sends no permissions", undefined, false],
+  ])("offers Clear test emails to %s only when the session holds mail.capture.clear", async (_who, effectivePermissions, expected) => {
+    vi.spyOn(emailApi, "listActivity").mockResolvedValue({ items: [], nextCursor: null, empty: "none_recorded", access: "full" });
+    vi.spyOn(emailApi, "listSuppressions").mockResolvedValue({ items: [], nextCursor: null, empty: "none_recorded" });
+    vi.spyOn(emailApi, "readFeedback").mockResolvedValue({ available: false, providers: [] });
+    const me = vi.spyOn(authApi, "me").mockResolvedValue({ user: { id: "u1" } as never, ...(effectivePermissions ? { effectivePermissions } : {}) });
+    const { result } = renderHook(() => useWiredEmailActivity());
+    await waitFor(() => expect(me).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.capture.canClear).toBe(expected));
   });
 
   it("opens a new template through this app's router", async () => {

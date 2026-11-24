@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { loadSourceControlProviderRegistryFromSource } from '../../../../apps/website/src/features/source-control/provider-registry.ts';
 import { createSourceControlCredential } from '../../../../apps/website/src/features/source-control/store.ts';
 import { buildSourceControlRegistrations } from '../../../../apps/website/src/features/source-control/tool-registrations.ts';
+import { createStaticSitePackager } from '../../../../apps/website/src/features/site-backup/static-site-packager.ts';
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
 import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.env.ts';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
@@ -54,7 +55,9 @@ test('with no gitAdapter override, a confirmed commit reaches the real GitHub ad
     clock: createSystemClock(), idGen: createRandomUuidGenerator(), loadSourceControlProviders,
     sourceControlExportRootDir: exportDir,
     authorize: async input => { permissions.push(input.permission); return { allowed: true, reason: 'matched' }; },
-    // Required dep since 1485b4e49/0a0885ad7: the commit pins site identity + theme before rendering.
+    // Required deps: the commit pins site identity + theme before rendering (1485b4e49/0a0885ad7), then packages the export
+    // through the host's packager (2f6bfeed7); without it the commit stops at 'static site packaging failed'.
+    staticSitePackager: createStaticSitePackager(),
     staticSiteContext: async () => ({ name: 'Demo', slug: 'demo', theme: 'Fixture', themeId: 'fixture' }),
     exportSiteBound: async ({ outputDir, themeId }) => {
       exportCount++;

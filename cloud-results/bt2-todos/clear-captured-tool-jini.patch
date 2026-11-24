@@ -1,0 +1,79 @@
+From e1838e3e24589b55ef2419b74712a6c2dcb96a6f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 24 Nov 2026 12:26:13 +0000
+Subject: [PATCH] feat(mail): mail_clear_captured catalog entry and delete/plan
+ metadata (bt2-todos clear-all-tool)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../__tests__/site-tool-metadata-identity.unit.test.ts   | 4 +++-
+ packages/core/src/tool-metadata/mail-status.ts           | 9 +++++++++
+ .../src/mail/status/delivery-agent-tools.ts              | 6 ++++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/packages/core/src/__tests__/site-tool-metadata-identity.unit.test.ts b/packages/core/src/__tests__/site-tool-metadata-identity.unit.test.ts
+index 60a065130..0a9a1a1af 100644
+--- a/packages/core/src/__tests__/site-tool-metadata-identity.unit.test.ts
++++ b/packages/core/src/__tests__/site-tool-metadata-identity.unit.test.ts
+@@ -92,6 +92,7 @@ test("the other moved maps keep their ids and approval classes", () => {
+     "mail_get_activity read/direct",
+     "mail_list_suppressions read/direct",
+     "mail_remove_suppression escalation/plan",
++    "mail_clear_captured delete/plan",
+     "mail_get_feedback_setup read/direct",
+   ]);
+   assert.deepEqual(approvalsOf(media), [
+@@ -130,11 +131,12 @@ test("the other moved maps keep their ids and approval classes", () => {
+ 
+ test("projected together, the moved maps gate exactly the plan/policy tools and one secret form", () => {
+   const projected = projectToolMetadata<ToolApprovalPolicy>({ domains });
+-  assert.equal(Object.keys(projected.byId).length, 62);
++  assert.equal(Object.keys(projected.byId).length, 63);
+   assert.deepEqual([...projected.policyConfirmationIds].sort(), [
+     "files_copy",
+     "identity_policy_delete",
+     "identity_role_delete",
++    "mail_clear_captured",
+     "mail_remove_suppression",
+     "mail_send_test",
+     "mail_set_provider",
+diff --git a/packages/core/src/tool-metadata/mail-status.ts b/packages/core/src/tool-metadata/mail-status.ts
+index 20fd1093c..39a7c7b60 100644
+--- a/packages/core/src/tool-metadata/mail-status.ts
++++ b/packages/core/src/tool-metadata/mail-status.ts
+@@ -87,6 +87,15 @@ export const toolMetadata = {
+     },
+     approval: { class: 'escalation', confirmation: 'plan' },
+   },
++  "mail_clear_captured": {
++    title: 'Delete all captured test emails',
++    summary: 'This permanently deletes every test email this site kept instead of sending.',
++    search: {
++      keywords: "email clear delete captured test emails mail capture outbox test mode remove all",
++      queries: ["Delete all the captured test emails.", "Clear the test emails my site kept."],
++    },
++    approval: { class: 'delete', confirmation: 'plan' },
++  },
+   "mail_get_feedback_setup": {
+     search: {
+       keywords: "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
+diff --git a/packages/user-management/src/mail/status/delivery-agent-tools.ts b/packages/user-management/src/mail/status/delivery-agent-tools.ts
+index 1e0d297d3..afa43b835 100644
+--- a/packages/user-management/src/mail/status/delivery-agent-tools.ts
++++ b/packages/user-management/src/mail/status/delivery-agent-tools.ts
+@@ -47,6 +47,12 @@ export const mailDeliveryAgentToolCatalog = [{
+     scope: { type: "string", enum: ["all", "bulk"] },
+     reason: { type: "string", minLength: 3, maxLength: 500, description: "Why this address may be mailed again; recorded." },
+   } },
++}, {
++  name: "mail_clear_captured",
++  description: "Deletes every captured test email of this site (the emails the site kept instead of sending while sending was off or in test mode; they are also deleted automatically after 7 days). Shows the person a confirmation card with how many will be deleted every time (approval cannot be remembered). If new test emails arrive before the person confirms, nothing is deleted and they must be asked again. Sent-email records, delivery history and the do-not-send list are not touched. Returns {cleared: true, deleted}, or {cleared: false, empty: true} when there is nothing to clear. Requires mail.capture.clear (owner only).",
++  sideEffects: "mutates-durable-state" as const,
++  authorization: { permission: "mail.capture.clear" },
++  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+ }, {
+   name: "mail_get_feedback_setup",
+   description: "Shows whether each active mail provider reports deliveries, bounces and complaints back to this site, and what is still needed: {available, providers: [{providerId, label, lanes, supported, webhookPath, webhookUrl (paste into the provider; null until the site's address is verified), signingSecret {current, previous: {label, configured, updatedAt}} (presence only, never the secret; save one with credential_save under that label), lastVerifiedEvent {kind, receivedAt} | null, state (unsupported|secret_missing|no_events_yet|receiving)}]}. no_events_yet means set up but nothing received so far, which is not the same as working. Read-only. Requires admin.forms.manage.",
+-- 
+2.43.0
+

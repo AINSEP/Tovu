@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 import { createToolRegistry } from '@jini-ai/core';
-import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/core/primitives';
+import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/platform/system';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';

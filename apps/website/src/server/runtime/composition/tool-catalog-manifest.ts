@@ -20,6 +20,7 @@ import { contributeConsentTools } from '@jini-ai/cookie-consent/site/tool-regist
 import { consentToolHost } from '#src/features/consent/host-bindings';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
+import { contributeSiteUpdateTools, type SiteUpdateRuntime } from "#src/features/site-update/tools";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
@@ -585,6 +586,11 @@ function installPublishingAndPluginTools(contributions: AssistantToolContributio
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
   contributions.contributors.register({ contribution: contributeSiteInspectionTools({ httpClient: createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability }), selectConnectedDestination }) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
+  // Site update: absent unless the host composes a platform runtime as `siteUpdateRuntime` (desktop, self-hosted).
+  contributions.contributors.register({ contribution: { ...contributeSiteUpdateTools(), build: (deps: AssistantToolRegistryDeps & { siteUpdateRuntime?: SiteUpdateRuntime | null }, surfaces) => contributeSiteUpdateTools().build({
+    authorize: ({ ctx, permission }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "site-update" }),
+    runtime: deps.siteUpdateRuntime ?? null,
+  }, surfaces) } });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
 }

@@ -1,17 +1,18 @@
-import type { Express, Response } from "express";
+import type { Express } from "express";
+import { defineJsonRoute, ok, type JsonRouteAuthorize } from "@jini-ai/core/contracts/server";
+import { RouteRefusalError } from "@jini-ai/core/errors/route-refusal";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
-import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme, type ExplainThemeTree } from "#src/features/theme/held-back-themes";
 import { chosenThemeHeldBack, HeldBackThemeError, type HeldBackErrorCode } from "#src/features/theme/held-back-choice";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { gatedPrincipalKindFor, type OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev-auth";
+import { adminRequestFactsFor } from "#src/server/inbound/admin-http/admin-request-facts";
+import { mountAdminJsonRoute, type AdminJsonRouteMountOptions } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import { confirm, execute, ForbiddenError, PlanStaleError, plan } from "#src/contracts/core/gated-mutations/gateway";
 import type { GatedMutationHooks } from "@jini-ai/core/gated-mutations";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildHeldBackRestoreHooks, HELD_BACK_READ_PERMISSION, HELD_BACK_RESTORE_DOMAIN, HELD_BACK_RESTORE_PERMISSION, type HeldBackRestoreScope } from "#src/features/theme/held-back-gated-hooks";
-import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bodyRecord } from "@jini-ai/cms/admin-http/routes/themes/explore-shared";
 
@@ -54,30 +55,33 @@ function gatewayFailure(error: unknown): { status: number; code: string } | null
   return null;
 }
 
-/** Map a service or approval refusal to its status; anything else is unexpected and gets an ERR- reference. */
-function sendHeldBackFailure(required: { res: Response; error: unknown; operation: string }): void {
-  const { res, error } = required;
+/** A service or approval refusal as the route's own response, or the error unchanged (it then gets an ERR- reference). */
+function refusalFor(error: unknown): unknown {
   if (error instanceof HeldBackThemeError) {
     const problems = error.code === "CHECK_FAILED" ? { problems: error.problems } : {};
-    res.status(HELD_BACK_STATUS[error.code]).json({ code: error.code, error: error.message, ...problems });
-    return;
+    return new RouteRefusalError({ status: HELD_BACK_STATUS[error.code], body: { code: error.code, error: error.message, ...problems } });
   }
   const refused = gatewayFailure(error);
-  if (refused && error instanceof Error) { res.status(refused.status).json({ code: refused.code, error: error.message }); return; }
-  sendAdminFailure({ res, error }, { operation: required.operation, code: "INTERNAL_ERROR" });
+  if (refused && error instanceof Error) return new RouteRefusalError({ status: refused.status, body: { code: refused.code, error: error.message } });
+  return error;
 }
 
-/** Workspace guard + principal + one permission; `false` when a response was already sent. */
-async function allowed(required: { req: Parameters<typeof rejectForeignWorkspace>[0]["req"]; res: Response; deps: HeldBackRouteDeps; permission: string }): Promise<boolean> {
-  const { req, res, deps, permission } = required;
-  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
-  const params = { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId, entityType: "theme" };
-  return authorizeDirectOrRespond({ res, authorize: deps.authorize, params });
+/** Runs one route's work; a known refusal leaves as its response, anything else as the original error. */
+async function refusing<T>(run: () => Promise<T> | T): Promise<T> {
+  try { return await run(); } catch (error) { throw refusalFor(error); }
+}
+
+/** One permission on the owner's `theme` entity, answered directly from RBAC (never a publishing grant).
+ * A route without an authorizer is a wiring bug, so it fails closed. */
+async function permit(authorize: JsonRouteAuthorize | undefined, permission: string): Promise<void> {
+  if (!authorize) throw new Error("held-back route has no authorizer");
+  await authorize({ permission, entityType: "theme" });
 }
 
 /** The gateway's view of who is asking: id plus actor class (an agent may never confirm). */
-function actor(res: Response): { principalId: string; principalKind: ReturnType<typeof gatedPrincipalKindFor> } {
-  return { principalId: getAuthedPrincipal(res).id, principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)) };
+function actor(context: OperatorPrincipalRecord | undefined): { principalId: string; principalKind: ReturnType<typeof gatedPrincipalKindFor> } {
+  if (!context) throw new Error("getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route");
+  return { principalId: context.id, principalKind: gatedPrincipalKindFor(adminRequestFactsFor({ context }).credentialKind) };
 }
 
 function stringField(body: Record<string, unknown>, key: string): string {
@@ -93,40 +97,59 @@ function restoreHooks(required: { deps: HeldBackRouteDeps; scope: Omit<HeldBackR
   return buildHeldBackRestoreHooks({ scope: { workspaceId: deps.workspaceId, siteDir: deps.siteBinding.dir, ...scope }, restore }) as GatedMutationHooks<unknown, unknown>;
 }
 
+type Principal = OperatorPrincipalRecord;
+
+/** The themes list: what site import left in `.import-quarantine/`, plus the notice when the chosen theme is among it. */
+const listRoute = defineJsonRoute<undefined, unknown, HeldBackRouteDeps, Principal>({
+  method: "get",
+  path: BASE,
+  parse: () => ok({ value: undefined }),
+  handle: ({ deps, authorize }) => refusing(async () => {
+    await permit(authorize, HELD_BACK_READ_PERMISSION);
+    const active = (await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }))?.activeThemeId ?? null;
+    return ok({ value: {
+      themes: listHeldBackThemes({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir }),
+      chosenThemeHeldBack: chosenThemeHeldBack({ siteDir: deps.siteBinding.dir, activeThemeId: active }),
+    } });
+  }),
+});
+
 /** `/check`: the fresh re-check, plus — only when it passes — the plan the approval card confirms. */
-function registerCheckRoute({ app, deps }: { app: Express; deps: HeldBackRouteDeps }): void {
-  app.post(BASE + "/check", async (req, res) => {
-    try {
-      if (!(await allowed({ req, res, deps, permission: HELD_BACK_READ_PERMISSION }))) return;
-      const themeId = String(bodyRecord({ body: req.body }).themeId ?? "");
-      const check = checkHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themeId, explainThemeTree: deps.explainThemeTree });
-      const planned = check.passes && check.digest
-        ? await plan({ deps: deps.gatedMutations.gatewayDeps, ...actor(res), hooks: restoreHooks({ deps, scope: { themeId: check.themeId, digest: check.digest } }) })
-        : null;
-      res.json({ ...check, approval: planned ? { planId: planned.planId, planHash: planned.planHash } : null });
-    } catch (error) { sendHeldBackFailure({ res, error, operation: "routes/themes/held-back/check" }); }
-  });
-}
+const checkRoute = defineJsonRoute<{ themeId: string }, unknown, HeldBackRouteDeps, Principal>({
+  method: "post",
+  path: BASE + "/check",
+  parse: (raw) => ok({ value: { themeId: String(bodyRecord({ body: raw.body }).themeId ?? "") } }),
+  handle: ({ input, deps, context, authorize }) => refusing(async () => {
+    await permit(authorize, HELD_BACK_READ_PERMISSION);
+    const check = checkHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themeId: input.themeId, explainThemeTree: deps.explainThemeTree });
+    const planned = check.passes && check.digest
+      ? await plan({ deps: deps.gatedMutations.gatewayDeps, ...actor(context), hooks: restoreHooks({ deps, scope: { themeId: check.themeId, digest: check.digest } }) })
+      : null;
+    return ok({ value: { ...check, approval: planned ? { planId: planned.planId, planHash: planned.planHash } : null } });
+  }),
+});
 
 /**
  * `/restore/approval`: the approval card's answer. Only an explicit `"approve"` mints a token —
  * a decline, or any other value, mints nothing, so there is nothing a later restore could redeem.
  */
-function registerApprovalRoute({ app, deps }: { app: Express; deps: HeldBackRouteDeps }): void {
-  app.post(BASE + "/restore/approval", async (req, res) => {
-    try {
-      if (!(await allowed({ req, res, deps, permission: HELD_BACK_RESTORE_PERMISSION }))) return;
-      const body = bodyRecord({ body: req.body });
-      if (body.decision !== "approve") { res.json({ approved: false }); return; }
-      const planId = stringField(body, "planId");
-      const planHash = stringField(body, "planHash");
-      if (!planId || !planHash) throw approvalRequired();
-      const hooks = buildConfirmOnlyHooks({ domain: HELD_BACK_RESTORE_DOMAIN, readPermission: HELD_BACK_READ_PERMISSION, mutatePermission: HELD_BACK_RESTORE_PERMISSION, scopeId: deps.workspaceId });
-      const record = await confirm({ deps: deps.gatedMutations.gatewayDeps, ...actor(res), hooks, planId, planHash });
-      res.json({ approved: true, confirmationToken: record.confirmationToken });
-    } catch (error) { sendHeldBackFailure({ res, error, operation: "routes/themes/held-back/approval" }); }
-  });
-}
+const approvalRoute = defineJsonRoute<{ decision: unknown; planId: string; planHash: string }, unknown, HeldBackRouteDeps, Principal>({
+  method: "post",
+  path: BASE + "/restore/approval",
+  parse: (raw) => {
+    const body = bodyRecord({ body: raw.body });
+    return ok({ value: { decision: body.decision, planId: stringField(body, "planId"), planHash: stringField(body, "planHash") } });
+  },
+  handle: ({ input, deps, context, authorize }) => refusing(async () => {
+    await permit(authorize, HELD_BACK_RESTORE_PERMISSION);
+    if (input.decision !== "approve") return ok({ value: { approved: false } });
+    const { planId, planHash } = input;
+    if (!planId || !planHash) throw approvalRequired();
+    const hooks = buildConfirmOnlyHooks({ domain: HELD_BACK_RESTORE_DOMAIN, readPermission: HELD_BACK_READ_PERMISSION, mutatePermission: HELD_BACK_RESTORE_PERMISSION, scopeId: deps.workspaceId });
+    const record = await confirm({ deps: deps.gatedMutations.gatewayDeps, ...actor(context), hooks, planId, planHash });
+    return ok({ value: { approved: true, confirmationToken: record.confirmationToken } });
+  }),
+});
 
 /**
  * `/restore`: redeems the approval, then moves the theme. The gateway re-authorizes, checks the
@@ -134,22 +157,26 @@ function registerApprovalRoute({ app, deps }: { app: Express; deps: HeldBackRout
  * this theme at the echoed digest; the move itself then re-checks the files against that digest.
  * The token is spent before the move, so a move refused for changed files needs a fresh approval.
  */
-function registerRestoreRoute({ app, deps }: { app: Express; deps: HeldBackRouteDeps }): void {
-  app.post(BASE + "/restore", async (req, res) => {
-    try {
-      if (!(await allowed({ req, res, deps, permission: HELD_BACK_RESTORE_PERMISSION }))) return;
-      const body = bodyRecord({ body: req.body });
-      const themeId = String(body.themeId ?? "");
-      const approvedDigest = stringField(body, "approvedDigest");
-      const confirmationToken = stringField(body, "confirmationToken");
-      if (!approvedDigest || !confirmationToken) throw approvalRequired();
-      const restore = () => restoreHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themes: deps.themes, themeId, approvedDigest, explainThemeTree: deps.explainThemeTree });
-      const result = await execute({ deps: deps.gatedMutations.gatewayDeps, ...actor(res), hooks: restoreHooks({ deps, scope: { themeId, digest: approvedDigest }, restore }), confirmationToken });
-      requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
-      res.status(201).json(result);
-    } catch (error) { sendHeldBackFailure({ res, error, operation: "routes/themes/held-back/restore" }); }
-  });
-}
+const restoreRoute = defineJsonRoute<{ themeId: string; approvedDigest: string; confirmationToken: string }, unknown, HeldBackRouteDeps, Principal>({
+  method: "post",
+  path: BASE + "/restore",
+  parse: (raw) => {
+    const body = bodyRecord({ body: raw.body });
+    return ok({ value: { themeId: String(body.themeId ?? ""), approvedDigest: stringField(body, "approvedDigest"), confirmationToken: stringField(body, "confirmationToken") } });
+  },
+  handle: ({ input, deps, context, authorize }) => refusing(async () => {
+    await permit(authorize, HELD_BACK_RESTORE_PERMISSION);
+    const { themeId, approvedDigest, confirmationToken } = input;
+    if (!approvedDigest || !confirmationToken) throw approvalRequired();
+    const restore = () => restoreHeldBackTheme({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir, themes: deps.themes, themeId, approvedDigest, explainThemeTree: deps.explainThemeTree });
+    const result = await execute({ deps: deps.gatedMutations.gatewayDeps, ...actor(context), hooks: restoreHooks({ deps, scope: { themeId, digest: approvedDigest }, restore }), confirmationToken });
+    requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
+    return ok({ value: result });
+  }),
+}, { successStatus: 201 });
+
+/** These routes never consulted a publishing grant: RBAC answers directly, and an unexpected failure names its step. */
+const mountOptions = (step: string): AdminJsonRouteMountOptions => ({ authorization: "direct", failure: { operation: `routes/themes/held-back/${step}`, code: "INTERNAL_ERROR" } });
 
 /**
  * Registers the four held-back routes. Reading (list, check) is `theme.set`, the themes list's own
@@ -160,18 +187,8 @@ function registerRestoreRoute({ app, deps }: { app: Express; deps: HeldBackRoute
  */
 export function registerAdminHeldBackThemeRoutes(required: { app: Express; deps: HeldBackRouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
-
-  app.get(BASE, async (req, res) => {
-    try {
-      if (!(await allowed({ req, res, deps, permission: HELD_BACK_READ_PERMISSION }))) return;
-      const active = (await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }))?.activeThemeId ?? null;
-      res.json({
-        themes: listHeldBackThemes({ siteDir: deps.siteBinding.dir, themesDir: deps.themesDir }),
-        chosenThemeHeldBack: chosenThemeHeldBack({ siteDir: deps.siteBinding.dir, activeThemeId: active }),
-      });
-    } catch (error) { sendHeldBackFailure({ res, error, operation: "routes/themes/held-back/list" }); }
-  });
-  registerCheckRoute({ app, deps });
-  registerApprovalRoute({ app, deps });
-  registerRestoreRoute({ app, deps });
+  mountAdminJsonRoute({ app, spec: listRoute, deps }, mountOptions("list"));
+  mountAdminJsonRoute({ app, spec: checkRoute, deps }, mountOptions("check"));
+  mountAdminJsonRoute({ app, spec: approvalRoute, deps }, mountOptions("approval"));
+  mountAdminJsonRoute({ app, spec: restoreRoute, deps }, mountOptions("restore"));
 }
