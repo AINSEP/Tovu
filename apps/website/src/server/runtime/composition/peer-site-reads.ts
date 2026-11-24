@@ -1,3 +1,13 @@
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { POST_SEARCH_HOST } from "#src/features/post/search-host-config";
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { commentRepoFor } from "@jini-ai/cms/comments/sql";
+import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";
+import { widgetRegionBindingRepoFor } from "@jini-ai/cms/widgets/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { COMMENTS_TABLES, FORMS_TABLES, NAVIGATION_TABLES, TAXONOMY_TABLES, WIDGETS_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Write-free host composition for owner-only reads of registered local SQLite sites. */
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
@@ -21,15 +31,16 @@ import type { JournalDatabase } from '#src/platform/db/journal-kernel';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { SqliteDatabaseIntrospectionAdapter } from '#src/platform/db/sqlite/database-introspection-adapter.sqlite';
 import { SqliteDatabaseLedgerRepo, SqliteMigrationRunsRepo, SqliteRestorePointsRepo } from '#src/platform/db/sqlite/database-journal-repo';
-import { SqliteChangeSetRepo } from '#src/platform/db/sqlite/change-set-repo.sqlite';
-import { SqliteEntryRefsRepo } from '#src/platform/db/sqlite/entry-refs-repo.sqlite';
-import { SqliteOriginSettingRepo } from '#src/platform/db/sqlite/origin-repo.sqlite';
-import { SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore, SqliteMediaRepo, SqliteTransformDefinitionRepo } from '#src/platform/db/sqlite/media-repo.sqlite';
+import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
+import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
+import { SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore, SqliteMediaRepo, SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { createSitesWorkspace, type SitesWorkspace } from '#src/platform/site-dir/sites-home';
 import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases';
 import { resolveSiteStorage } from '#src/platform/site-dir/site-storage';
 import { resolveWorkspace } from '#src/platform/site-dir/resolve-workspace';
-import { SqlitePostRepo, postSearchIndexFor } from '#src/features/post/index';
+import { SqlitePostRepo } from '#src/features/post/index';
+import { postSearchIndexFor } from '@jini-ai/cms/posts/sql';
 import { PagesHtmlDocumentStore } from '#src/features/pages/index';
 import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
 import { resolveActiveThemeId } from '@jini-ai/cms/presentation/site/active-theme-id';
@@ -37,20 +48,12 @@ import { LocalFsBlobStore } from '#src/features/media/index';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
 import { SqliteWorkspaceRepo } from '@jini-ai/cms/workspace/site/repo.sqlite';
-import { schemaErasedKernel } from "#src/platform/db/content-kernel";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from '#src/features/forms/repo.sqlite';
 import { createSiteFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-binding';
-import { SqliteTaxonomyRepo, SqliteTermRepo, SqliteEntryTermRepo, SqliteTaxonomyRevisionRepo } from '#src/features/taxonomy/repo.sqlite';
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from '#src/features/navigation/repo.sqlite';
-import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
-import { SqliteContentTypeRepo } from '#src/features/content-types/repo.sqlite';
 import { discoverAllBuiltInThemes } from '#src/features/theme/index';
-import { SqliteCommentRepo } from '#src/features/comments/repo.sqlite';
 import { SqliteMemberRepo, SqliteMemberTierRepo, SqliteMemberSubscriptionRepo } from '#src/features/members/repo.sqlite';
 import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo, SqliteNewsletterSubscriptionRepo, SqliteNewsletterAudienceSnapshotRepo, SqliteNewsletterSendRepo } from '#src/features/newsletter/repo.sqlite';
 import { SqliteRedirectRepo } from '#src/features/redirects/repo.sqlite';
 import { createSeoDeps } from '#src/features/seo/index';
-import { SqliteWidgetRegionBindingRepo } from '#src/features/widgets/repo.sqlite';
 import { SqliteTrashRepo } from '#src/features/trash/index';
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
@@ -227,7 +230,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     // Optional build-time settings are explicit so builders don't iterate a poison value.
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
-    postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
+    postRepo, postSearch: postSearchIndexFor({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), entryRefsRepo,
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo({ store: kernel }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: kernel }), mediaContentTypeStore, transformDefinitionRepo,
@@ -241,21 +244,21 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     },
     // The existing factories borrow their connection; construction/get/history reads never write.
     workspaceRepo: new SqliteWorkspaceRepo({ store: kernel, kernelFor: schemaErasedKernel }), chatHistory: createChatStoreFactory({ store: chat }),
-    formDefinitionRepo: new SqliteFormDefinitionRepo({ store: kernel }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: kernel }),
+    formDefinitionRepo: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES }), formSubmissionRepo: formSubmissionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES }),
     // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
     // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
     formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },
-    taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
-    entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
-    menuRepo: new SqliteMenuRepo({ store: kernel }), navLocationBindingRepo: new SqliteNavLocationBindingRepo({ store: kernel }),
-    entryRepo: new SqliteEntryRepo({ store: kernel }), contentTypeRepo: new SqliteContentTypeRepo({ store: kernel }),
+    taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}), termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    entryTermRepo: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}), taxonomyRevisionRepo: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    menuRepo: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}), navLocationBindingRepo: new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}),
+    entryRepo: entryRepoFor({ store: kernel }), contentTypeRepo: contentTypeRepoFor({ store: kernel }),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
     // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
     presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),
       save: unavailable({ field: 'presentationRepo.save' }), listAll: unavailable({ field: 'presentationRepo.listAll' }) },
     // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
     resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
-    commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
+    commentRepo: commentRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: COMMENTS_TABLES }), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
     memberRepo: new SqliteMemberRepo({ store: kernel }), memberTierRepo: new SqliteMemberTierRepo({ store: kernel }), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo({ store: kernel }),
     newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo({ store: kernel }), newsletterListRepo: new SqliteNewsletterListRepo({ store: kernel }),
     newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo({ store: kernel }), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }), newsletterSendRepo: new SqliteNewsletterSendRepo({ store: kernel }),
@@ -263,7 +266,7 @@ function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, 
     // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
     redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>
       (await trashRepo.findByEntity({ workspaceId: id, entityType: REDIRECT_ENTITY_TYPE, entityId })) !== null } }),
-    widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo({ store: kernel }),
+    widgetBindingRepo: widgetRegionBindingRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: WIDGETS_TABLES }), changeSets: new SqliteChangeSetRepo({ store: kernel }),
     registry: buildTrashRegistry(), trash: { list: trashRepo.list.bind(trashRepo) },
     databaseIntrospection: introspection, dbOps: { getCapabilities: dbOps.getCapabilities.bind(dbOps) },
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize,

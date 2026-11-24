@@ -8,7 +8,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost } from "../post-create.js";
-import { DEFAULT_BODY_JSON } from "../post.js";
+import { DEFAULT_BODY_JSON } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { buildPostRegistrations } from "../tool-registrations.js";

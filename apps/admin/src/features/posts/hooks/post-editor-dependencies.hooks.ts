@@ -1,10 +1,10 @@
 import { getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";

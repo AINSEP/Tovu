@@ -1,12 +1,13 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
-import { TOOLBAR_PRIMARY_RANKS } from "../hooks/use-post-editor-ui.hooks";
+import { TOOLBAR_PRIMARY_RANKS } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "../rules";
 import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
 
@@ -29,7 +30,7 @@ import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
  * - One toolbar snapshot per `TOOLBAR_PROBES` entry made active, pinning probe → control mapping.
  */
 
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
@@ -130,7 +131,7 @@ function harness(
   });
   const ctrl: Harness["ctrl"] = { current: null };
   const hook = ({ postId }: { postId: string }): PostEditorController => {
-    const real = usePostEditor({ postId, deps: { port, navigate, t } });
+    const real = usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t } });
     ctrl.current = real;
     return { ...real, ...options.overrides };
   };
@@ -138,7 +139,7 @@ function harness(
 }
 
 async function renderScreen(h: Harness, postId = "p1") {
-  const utils = render(<PostEditor postId={postId} usePostEditorHook={h.hook} />);
+  const utils = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId={postId} usePostEditorHook={h.hook} />);
   if (h.preview) await screen.findByTitle("Post settings");
   else await screen.findByTitle("Bold (⌘B)");
   return utils;
@@ -246,10 +247,10 @@ describe("PostEditor DOM — states", () => {
 
   it("template picker for a theme with no templates, and none rendered for an html page", async () => {
     const withNone = await renderScreen(harness({ post: SAVED_POST }));
-    expect(withNone.container.querySelector(".editor-template-picker select[disabled]")).not.toBeNull();
+    expect(withNone.container.querySelector(".jini-editor-template-picker select[disabled]")).not.toBeNull();
     withNone.unmount();
     const htmlPage = await renderScreen(harness({ post: { ...SAVED_POST, bodyFormat: "html" } }));
-    expect(htmlPage.container.querySelector(".editor-template-picker")).toBeNull();
+    expect(htmlPage.container.querySelector(".jini-editor-template-picker")).toBeNull();
   });
 
   it("template source modal gate", async () => {
@@ -334,17 +335,17 @@ describe("PostEditor DOM — preview tab", () => {
 
 describe("PostEditor — loading / error contract", () => {
   it("renders the error notice, with nothing else, when there is an error and no post", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: null, error: "Failed to load" })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: null, error: "Failed to load" })} />);
     expect(normalizedHtml(container)).toBe('<div class="notice error">Failed to load</div>');
   });
 
   it("renders the loading notice when there is no post and no error", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: null })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: null })} />);
     expect(normalizedHtml(container)).toBe('<div class="notice">Loading editor…</div>');
   });
 
   it("an error while a post is on screen does not replace the editor", () => {
-    const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub({ post: SAVED_POST, error: "Could not save" })} />);
+    const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub({ post: SAVED_POST, error: "Could not save" })} />);
     expect(container.querySelector(".content-editor-header")).not.toBeNull();
     expect(container.querySelector(".save-error")).toHaveTextContent("Could not save");
   });
@@ -352,22 +353,23 @@ describe("PostEditor — loading / error contract", () => {
   it("goes loading → ready without changing the hook order (no 'rendered more hooks')", () => {
     let current: Partial<PostEditorController> = { post: null };
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { rerender, container } = render(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    const { rerender, container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.textContent).toBe("Loading editor…");
     current = { post: SAVED_POST };
-    rerender(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.querySelector(".content-editor-header")).not.toBeNull();
     current = { post: null, error: "gone" };
-    rerender(<PostEditor postId="p1" usePostEditorHook={() => stub(current)} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => stub(current)} />);
     expect(container.textContent).toBe("gone");
     expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("calls the injected hook once per render with the postId", () => {
     const spy = vi.fn((input: { postId: string }) => { void input; return stub({ post: null }); });
-    render(<PostEditor postId="abc" usePostEditorHook={spy} />);
+    const routeKeys = createPostEditorRouteKeyStore();
+    render(<PostEditor routeKeys={routeKeys} postId="abc" usePostEditorHook={spy} />);
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith({ postId: "abc" });
+    expect(spy).toHaveBeenCalledWith({ postId: "abc", routeKeys }, {});
   });
 });
 
@@ -483,7 +485,7 @@ describe("PostEditor — DOM order of the regions", () => {
         saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined },
       },
     }));
-    const handles = Array.from(container.querySelectorAll('.notice[data-agent-element]')).map((el) => el.getAttribute("data-agent-element"));
+    const handles = Array.from(container.querySelectorAll('.notice[data-agent-element], .jini-post-notice[data-agent-element]')).map((el) => el.getAttribute("data-agent-element"));
     // A save conflict hides the stale-basis notice: the conflict banner's Load latest / Replace their
     // version is the one choice left (tv-bugs3b B2).
     expect(handles).toEqual(["post-autosave-recovery", "post-version-conflict"]);
@@ -496,7 +498,7 @@ describe("PostEditor — URL dialog mount lifetime", () => {
     let view: "edit" | "preview" = "edit";
     const h = harness({ post: SAVED_POST });
     const useHook = ({ postId }: { postId: string }): PostEditorController => ({ ...h.hook({ postId }), view, setView: (next) => { view = next; } });
-    const { rerender } = render(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    const { rerender } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await screen.findByTitle("Bold (⌘B)");
 
     await user.click(screen.getByRole("button", { name: "Img by URL" }));
@@ -505,12 +507,12 @@ describe("PostEditor — URL dialog mount lifetime", () => {
     expect(input).toHaveValue("https://example.com/pic.png");
 
     view = "preview";
-    rerender(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await waitFor(() => expect(document.querySelector(".post-preview-surface")).not.toBeNull());
     expect(screen.queryByLabelText("URL")).toBeNull();
 
     view = "edit";
-    rerender(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+    rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
     await screen.findByTitle("Bold (⌘B)");
     expect(screen.queryByLabelText("URL")).toBeNull();
 
@@ -548,7 +550,7 @@ describe("PostEditor — toolbar overflow geometry", () => {
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
       configurable: true,
       get(this: HTMLElement) {
-        if (this.classList.contains("tb-more")) return MORE_WIDTH;
+        if (this.hasAttribute("data-toolbar-more")) return MORE_WIDTH;
         if (this.hasAttribute("data-tb-rank")) return CONTROL_WIDTH;
         return 0;
       },
@@ -632,8 +634,8 @@ describe("PostEditor — toolbar overflow geometry", () => {
     // toolbar's is the live one whose first target is the toolbar, and there must be exactly one.
     const live = FakeResizeObserver.instances.filter((observer) => !observer.disconnected && observer.observed[0]?.classList.contains("editor-toolbar"));
     expect(live).toHaveLength(1);
-    const targets = live[0]!.observed.map((el) => (el.classList.contains("editor-toolbar") ? "toolbar" : el.classList.contains("tb-more") ? "more" : `rank${el.getAttribute("data-tb-rank")}`));
-    // `querySelectorAll(".tb-more, [data-tb-rank]")` is document order: the ranked controls sit in
+    const targets = live[0]!.observed.map((el) => (el.classList.contains("editor-toolbar") ? "toolbar" : el.hasAttribute("data-toolbar-more") ? "more" : `rank${el.getAttribute("data-tb-rank")}`));
+    // `querySelectorAll("[data-toolbar-more], [data-tb-rank]")` is document order: the ranked controls sit in
     // the formatting groups, More is the button after the last group.
     expect(targets).toEqual(["toolbar", "rank0", "rank1", "rank2", "rank3", "rank4", "rank5", "more"]);
     expect(container.querySelector(".editor-toolbar")).toBe(live[0]!.observed[0]);

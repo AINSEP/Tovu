@@ -24,7 +24,7 @@ import { toolMetadata as frontend_control } from './frontend-control.js';
 import { toolMetadata as fs_files } from './fs-files.js';
 import { toolMetadata as identity } from '@jini-ai/core/tool-metadata/identity';
 import { toolMetadata as files_copy } from '@jini-ai/core/tool-metadata/files-copy';
-import { toolMetadata as image_transform } from './image-transform.js';
+import { toolMetadata as image_transform } from '@jini-ai/core/tool-metadata/image-transform';
 import { toolMetadata as email_templates } from '@jini-ai/core/tool-metadata/email-templates';
 import { toolMetadata as mail_status } from '@jini-ai/core/tool-metadata/mail-status';
 import { toolMetadata as media } from '@jini-ai/core/tool-metadata/media';
@@ -36,7 +36,7 @@ import { toolMetadata as newsletter } from '@jini-ai/core/tool-metadata/newslett
 import { toolMetadata as pages } from '@jini-ai/core/tool-metadata/pages';
 import { toolMetadata as permanent_delete } from './permanent-delete.js';
 import { toolMetadata as plugin_runtime } from './plugin-runtime.js';
-import { toolMetadata as post } from './post.js';
+import { toolMetadata as post } from '@jini-ai/core/tool-metadata/post';
 import { toolMetadata as publish_content } from '@jini-ai/cms/publish/content/tool-metadata';
 import { toolMetadata as recovery } from './recovery.js';
 import { toolMetadata as redirects } from './redirects.js';

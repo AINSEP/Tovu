@@ -9,7 +9,7 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { contributeMailProviders } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { MailProviderSetup, PositionalMailer as MailerPort } from "@jini-ai/platform/mail";

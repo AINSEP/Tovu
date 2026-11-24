@@ -2,7 +2,7 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ByokConfig, ExecutionConfig } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { AdminExecutionMode as RealAdminExecutionMode } from "../AiAssistant";
 import type { ComponentProps } from "react";

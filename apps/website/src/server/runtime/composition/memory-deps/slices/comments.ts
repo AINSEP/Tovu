@@ -4,10 +4,11 @@ import { createCommentsHostPorts } from "#src/features/comments/index";
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { createCommentsCapability } from '#src/features/comments/provider-selection';
+import { createCommentsCapability } from '@jini-ai/cms/comments/site/provider-selection';
+import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { InMemorySettingsRepo } from "#src/features/settings/index";
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "#src/features/settings/index";
 import type { MemoryClock, MemoryIdGen } from "../ports.js";
 import type { composeIdentitySettings } from "./identity-settings.js";
 import type { InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -56,7 +57,8 @@ export function composeMemoryComments(required: MemoryCommentsInput, _optional =
   }, {});
   const commentsCapability = createCommentsCapability({
     siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals, createPrincipalLookup: createSettingsPrincipalLookup },
+    createProviderRegistry: createCommentsProviderRegistry,
   });
   return { commentsModule, commentsCapability };
 }

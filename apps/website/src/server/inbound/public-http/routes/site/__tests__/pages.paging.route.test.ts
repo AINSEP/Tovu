@@ -7,7 +7,8 @@ import test, { type TestContext } from "node:test";
 
 import express, { type NextFunction, type Request, type Response } from "express";
 
-import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

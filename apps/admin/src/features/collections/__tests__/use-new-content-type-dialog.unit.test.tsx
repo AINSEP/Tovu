@@ -1,12 +1,14 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { NewContentTypeDialog } from "../NewContentTypeDialog";
-import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
-import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
+import { NewContentTypeDialog } from "@jini-ai/admin/screens/collections/NewContentTypeDialog";
+import { createFakeNewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-dependencies.hooks";
+import { useNewContentTypeDialog } from "@jini-ai/admin/screens/collections/hooks/use-new-content-type-dialog.hooks";
+import { useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
+import { collectionsHostKit } from "../collections-host-ports";
 import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";
 
 /**
@@ -233,7 +235,7 @@ describe("native dialog lifecycle (M3)", () => {
   it("native cancel reaches the domain's current cancel handler", () => {
     const onCancel = vi.fn();
     render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={onCancel} t={({ key }, _optional = {}) => key}
-      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
+      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog({ props: props, kit: collectionsHostKit, port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -243,7 +245,7 @@ describe("native dialog lifecycle (M3)", () => {
     document.body.appendChild(opener);
     opener.focus();
     const { unmount } = render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={vi.fn()} t={({ key }, _optional = {}) => key}
-      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
+      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog({ props: props, kit: collectionsHostKit, port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
     unmount();
@@ -258,7 +260,7 @@ describe("cancel — in-flight guard (H4)", () => {
     const onCreated = vi.fn();
     const created = deferred<{ contentType: AdminContentType }>();
     const port: NewContentTypeDialogPort = { createContentType: () => created.promise };
-    const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel }, { port, locale: "en" }), {
+    const { result } = renderHook(() => useNewContentTypeDialog({ props: { onCreated, onCancel }, kit: collectionsHostKit, port, locale: "en" }), {
       wrapper,
     });
 
@@ -288,7 +290,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const onCreated = vi.fn();
     try {
       const port = createFakeNewContentTypeDialogPort();
-      const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+      const { result } = renderHook(() => useNewContentTypeDialog({ props: { onCreated, onCancel: vi.fn() }, kit: collectionsHostKit, port, locale: "en" }), { wrapper });
 
       act(() => result.current.setKey("  recipe  "));
       act(() => result.current.setLabel("  Recipe  "));
@@ -313,7 +315,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("sets the locale-aware fallback error when the injected port rejects with an ApiError-shaped empty message", async () => {
     const port = createFakeNewContentTypeDialogPort({ createError: new ApiError({ message: "", status: 500 }) });
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    const { result } = renderHook(() => useNewContentTypeDialog({ props: { onCreated, onCancel: vi.fn() }, kit: collectionsHostKit, port, locale: "en" }), { wrapper });
 
     act(() => result.current.setKey("recipe"));
     act(() => result.current.setLabel("Recipe"));

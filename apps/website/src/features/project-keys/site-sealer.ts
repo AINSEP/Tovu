@@ -1,5 +1,5 @@
 import { ToolInputError } from '@jini-ai/core';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/secrets';
 
 /** Credential services need an active handle for human saves, never owner key derivation.
  * @returns A handle-only keyring; every derivation fails without reaching the owner keyring.

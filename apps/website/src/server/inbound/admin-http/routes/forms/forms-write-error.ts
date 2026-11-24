@@ -1,19 +1,20 @@
 /**
- * @file Express adapter for the admin `forms` routes: writes the status/body `@jini-ai/cms` maps a
- * forms/core error to (errors.spec.md §2/§6, `@jini-ai/cms/admin-http/http/forms-write-error`).
- * The mapping lives in the engine; this half stays with the host's routes because it writes to an
- * Express `Response`.
+ * @file Express adapter for the admin `forms` routes still hand-written here: writes the forms/core
+ * error -> HTTP mapping (errors.spec.md §2/§6). The mapping itself lives with the route specs in
+ * `@jini-ai/cms/admin-http/routes/forms/write-error`; this wire half stays with the host's routes
+ * because it writes to an Express `Response`.
  */
 import type { Response } from "express";
-import { formsWriteErrorWire } from "@jini-ai/cms/admin-http/http/forms-write-error";
+import { formsWriteErrorAnswer } from "@jini-ai/cms/admin-http/routes/forms/write-error";
 
 /**
  * Returns `true` once it has written a response (caller should stop); `false` for an unrecognized
  * error (caller falls through to its own generic 500).
  */
 export function mapFormsWriteError({ err, res }: { err: unknown; res: Response }, _optional = {}): boolean {
-  const wire = formsWriteErrorWire({ err });
-  if (!wire) return false;
-  res.status(wire.status).json(wire.body);
+  // The admin surface's outward copy for a classified domain error is that error's own message.
+  const answer = formsWriteErrorAnswer({ err, outwardErrorMessage: ({ error }) => error.message });
+  if (!answer) return false;
+  res.status(answer.status).json(answer.body);
   return true;
 }

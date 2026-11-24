@@ -1,4 +1,3 @@
-import { publishEntityTypeLabel } from "./ui/sections.js";
 import { ToolInputError } from "@jini-ai/core";
 import type { PublishContentToolDeps } from "./tool-deps.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
@@ -10,12 +9,17 @@ import { confirmPeerImport, executePeerImport } from "./peer-transport.js";
 import {
   applyPublishCriteria,
   parsePublishContentToolInput,
+  preparePublishConfirmation,
+  toPublishReportRows,
+} from "./ui/index.js";
+import {
+  canConfirmPlan,
+  overwriteReplanIsConsistent,
+  selectableRowKeys,
+  type PublishContentPlanResult,
+  type PublishContentReport,
   type PublishCriteria,
-} from "@jini-ai/cms/publish/content/dialog/criteria";
-import { canConfirmPlan } from "@jini-ai/cms/publish/content/dialog/phase";
-import { overwriteReplanIsConsistent, preparePublishConfirmation } from "@jini-ai/cms/publish/content/dialog/replan";
-import { selectableRowKeys, toPublishReportRows } from "@jini-ai/cms/publish/content/dialog/report-rows";
-import type { PublishContentPlanResult, PublishContentReport } from "@jini-ai/cms/publish/content/dialog/contract";
+} from "@jini-ai/cms/publish/content/ui";
 
 /** Strict tool boundary: misspelled filters must never widen an autonomous publish. */
 function readCriteria(input: Record<string, unknown>): PublishCriteria & { readonly excludeItems?: readonly string[] } {
@@ -27,7 +31,7 @@ function readCriteria(input: Record<string, unknown>): PublishCriteria & { reado
     }
   }
   try {
-    return { ...parsePublishContentToolInput(input), ...(input.excludeItems === undefined ? {} : { excludeItems: input.excludeItems as string[] }) };
+    return { ...parsePublishContentToolInput({ input }), ...(input.excludeItems === undefined ? {} : { excludeItems: input.excludeItems as string[] }) };
   } catch (error) {
     throw new ToolInputError({ message: error instanceof Error ? error.message.replace(/^admin\.publish_content:/, "publish_content_publish:") : "Invalid publish selection." });
   }
@@ -71,13 +75,13 @@ export async function publishContentFromTool(
   const { peer, contentDeps } = planningDeps({ deps, credential });
   const plan = (selection: PlanSelection = {}) => planForTool({ context: { deps, peer, contentDeps, principalId }, selection });
   const initial = await plan();
-  const selectionRows = toPublishReportRows({ report: initial.details, entityTypeLabel: publishEntityTypeLabel }).map(row => ({ ...row, names: initial.itemNames[row.key] ?? [] }));
+  const selectionRows = toPublishReportRows({ report: initial.details }).map(row => ({ ...row, names: initial.itemNames[row.key] ?? [] }));
   const selection = applyPublishCriteria({ rows: selectionRows.map(row => ({ ...row, selectable: true })), criteria });
   const skipped = excludedBySelection({ selectionRows, selection });
   const chosen = await choosePlan({ initial, selection, plan });
   // Nothing selected: never re-stage an empty bundle on live, and never confirm `chosen`, which
   // still holds every row.
-  const nothingSelected = selectableRowKeys({ rows: toPublishReportRows({ report: chosen.details, entityTypeLabel: publishEntityTypeLabel }) }).every(key => selection.deselectedKeys.has(key));
+  const nothingSelected = selectableRowKeys({ rows: toPublishReportRows({ report: chosen.details }) }).every(key => selection.deselectedKeys.has(key));
   const confirmed = await confirmationPlan({ chosen, nothingSelected, selection, plan });
   const urls = (confirmed as typeof initial).publicUrls ?? chosen.publicUrls;
   const summary = { initial, confirmed, selection, skipped, urls };
@@ -153,7 +157,7 @@ async function choosePlan({ initial, selection, plan }: { initial: ToolPlan; sel
 async function confirmationPlan({ chosen, nothingSelected, selection, plan }: { chosen: ToolPlan; nothingSelected: boolean; selection: ToolSelection; plan: ToolPlanner }, _optional: Record<string, never> = {}) {
   let confirmed: PublishContentPlanResult = chosen;
   try {
-    if (!nothingSelected) confirmed = await preparePublishConfirmation({ entityTypeLabel: publishEntityTypeLabel, plan: chosen, deselectedKeys: selection.deselectedKeys, planPublish: plan });
+    if (!nothingSelected) confirmed = await preparePublishConfirmation({ plan: chosen, deselectedKeys: selection.deselectedKeys, planPublish: plan });
   } catch (error) {
     throw new ToolInputError({ message: error instanceof Error ? error.message : "Could not plan this publish." });
   }
@@ -185,13 +189,13 @@ function legacyResult({ summary, selectionRows, execution }: { summary: PublishS
 
 function completedResult({ summary, actual, execution, baseUrl }: { summary: PublishSummary; actual: PublishContentReport; execution: Record<string, unknown> | null; baseUrl: string }, _optional: Record<string, never> = {}) {
   const { initial, confirmed, selection, skipped, urls } = summary;
-  const rows = toPublishReportRows({ report: actual, entityTypeLabel: publishEntityTypeLabel });
+  const rows = toPublishReportRows({ report: actual });
   const published = execution ? rows.filter(row => row.appliesOnExecute).map(row => ({
     entityKey: row.key, title: row.entityLabel, outcome: row.outcome, publicUrl: urls[row.key] ?? null
   })) : [];
   // Locally skipped pack units and unsupported types never reached live's apply report.
   const known = new Set(rows.map(row => row.key));
-  const omitted = toPublishReportRows({ report: initial.details, entityTypeLabel: publishEntityTypeLabel }).filter(row => !row.appliesOnExecute && !known.has(row.key) && !selection.deselectedKeys.has(row.key));
+  const omitted = toPublishReportRows({ report: initial.details }).filter(row => !row.appliesOnExecute && !known.has(row.key) && !selection.deselectedKeys.has(row.key));
   skipped.push(...[...rows, ...omitted].filter(row => row.disposition === "skipped" && !selection.deselectedKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel, reason: row.reason ?? "The live site skipped this item." })));
   const publishedItemLabel = published.length === 1 ? "item" : "items";
   return {

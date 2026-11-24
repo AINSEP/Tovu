@@ -1,8 +1,8 @@
 import { type UUID, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import { type PostRepoPort, type PostRecord, PostNotFoundError, SYSTEM_ACTOR_ID, PostConflictError } from "./post.js";
+import { type PostRepoPort, type PostRecord, PostNotFoundError, SYSTEM_ACTOR_ID, PostConflictError } from "@jini-ai/cms/posts/post";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { appendPostRevision, emitPublicTransitionEvent } from "./post-write-effects.js";
+import { appendPostRevision, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 
 export interface DeletePostInput {
   /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) — unset

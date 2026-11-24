@@ -1,4 +1,4 @@
-import { listPublishedPosts } from "#src/features/post/post-read";
+import { listPublishedPosts } from "@jini-ai/cms/posts/post-read";
 import { createMemberAccessResolver } from "@jini-ai/user-management/members/access-resolver";
 import { resolveRenderThemeId } from "@jini-ai/cms/public-http/middleware/render-theme-override";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";

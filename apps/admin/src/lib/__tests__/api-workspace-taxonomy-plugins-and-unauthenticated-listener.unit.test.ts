@@ -1,9 +1,9 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { taxonomyApi } from "../../features/taxonomy/taxonomy-host-ports";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import { membersApi } from "../../features/members/api/members-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 import { onUnauthenticated } from "../admin-http/request";

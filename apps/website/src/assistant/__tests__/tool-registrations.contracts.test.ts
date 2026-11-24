@@ -94,10 +94,12 @@ import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-to
 import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
 import { getChangeSetsAgentToolCatalog } from "@jini-ai/cms/change-sets/agent-tools";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
-import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
+const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
 import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/providers-tools.js";
-import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
-import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
+import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
+import { buildMediaViewImageAgentToolCatalog } from "@jini-ai/cms/media/site/view-image-tool";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { mailStatusAgentToolCatalog } from "@jini-ai/user-management/mail/status/agent-tools";
 import { mailProviderAgentToolCatalog } from "@jini-ai/user-management/mail/status/provider-agent-tools";
@@ -315,7 +317,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "media-video-view": mediaVideoCatalog as unknown as AgentToolDefinition[],
   "agent-plugins-install": agentPluginsInstallCatalog as unknown as AgentToolDefinition[],
   "agent-plugin-guidance": agentPluginGuidanceCatalog,
-  "media-view": mediaViewImageAgentToolCatalog as unknown as AgentToolDefinition[],
+  "media-view": buildMediaViewImageAgentToolCatalog({ mediaAssetReadToolId: "content_read.media_asset" }) as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],

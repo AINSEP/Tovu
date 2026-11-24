@@ -8,8 +8,7 @@ Tovu imports those owners directly. The original architecture notes below are hi
 | Tovu file | Host responsibility |
 | --- | --- |
 | `index.ts` | Permission/reserved-slug binding, authoring, email validation, SHA-256 attempts and background dispatch. |
-| `repo.sqlite.ts` | Site connection and unchanged definition/submission table names. |
-| `rate-limit-profile.ts` | Anonymous forms submission rate profile. |
+| `platform/db/content-tables.ts` | The unchanged definition/submission table names (host schema); repos are built with `@jini-ai/cms/forms/sql` `formDefinitionRepoFor`/`formSubmissionRepoFor`. |
 | `submission-ip-expiry-sweep.ts` | Boot pass, daily timer and shutdown. |
 | `publish-content.ts` | Tovu publication resource registration. |
 | `tool-registrations.ts`, `agent-tools.ts` | Tovu tool IDs, policy and model-facing catalog. |
@@ -85,9 +84,9 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 | `write-service.ts` | Admin definition mutations, wraps `executeCommand`. |
 | `submit-service.ts` | The public submission write path (`submitForm`), fire-and-forget outbox drain. |
 | `notify-subscriber.ts` | Outbox subscriber: `MailerPort.send()` per configured recipient. |
-| `rate-limit-profile.ts` | `FORMS_SUBMIT_PROFILE` + composite rate-limit key builder. |
+| `@jini-ai/cms/forms/site/rate-limit-profile` | `FORMS_SUBMIT_PROFILE` (moved to Jini); the composite key builder is `@jini-ai/cms/forms`. |
 | `ports.ts` | `FormDefinitionRepoPort`, `FormSubmissionRepoPort` (rule-of-two). |
-| `repo.memory.ts` / `repo.sqlite.ts` | The two adapters. |
+| `repo.memory.ts` / `@jini-ai/cms/forms/sql` | The two adapters. |
 | `errors.ts` | Typed domain errors mapped 1:1 to `errors.spec.md` §2. |
 
 ## Out of Scope (this pass)
@@ -99,5 +98,10 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 
 ## Wiring
 
+- `FORMS_SUBMIT_PROFILE` comes from `@jini-ai/cms/forms/site/rate-limit-profile`; the host builds the
+  limiter (`createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`) in its route-deps composition
+  and injects it as `formsRateLimiter`.
+- `FormAnalyticsProvenance` comes from `@jini-ai/cms/forms/site/analytics-provenance`; the host's
+  consent layer builds the value and passes it as the `analyticsProvenance` option of the submit path.
 - Form slugs come from `toSlug`, imported directly from `@jini-ai/cms/html/site/slug` in
   `index.ts` (P12 cut #7). No host slug copy remains.

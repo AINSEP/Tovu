@@ -8,8 +8,8 @@ import {
   type PostRevisionAppendResult,
   type PostRevisionInput,
   type PostRevisionRecord,
-} from "./post.js";
-import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+} from "@jini-ai/cms/posts/post";
+import { comparePostsByDisplayDate, currentIso, isLiveAt } from "@jini-ai/core/scheduled-publish";
 import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**
@@ -57,7 +57,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   /** Same bounded kind-filtered contract as the SQL adapter. */
-  async listHtmlByKind(required: { workspaceId: string; kind: import("#src/contracts/core/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+  async listHtmlByKind(required: { workspaceId: string; kind: import("@jini-ai/core/contracts/site/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
     return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind)
       .filter(row => row.bodyFormat === "html" && row.bodyHtml !== null && !row.deletedAt)
       .filter(row => !required.before || row.updatedAt < required.before.updatedAt || (row.updatedAt === required.before.updatedAt && row.id > required.before.id))

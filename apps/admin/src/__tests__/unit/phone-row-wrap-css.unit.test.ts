@@ -15,6 +15,6 @@ describe("phone row wrapping", () => {
   });
 
   it("starts the open toolbar's character count at the left, clear of the floating chat button", () => {
-    expect(effectiveDeclarationsFor(stylesheet, '.editor-toolbar[data-more-open="true"] .editor-toolbar-count')).toContain("margin-left: 0;");
+    expect(effectiveDeclarationsFor(stylesheet, '.editor-toolbar[data-more-open="true"] .jini-post-toolbar__count')).toContain("margin-left: 0;");
   });
 });

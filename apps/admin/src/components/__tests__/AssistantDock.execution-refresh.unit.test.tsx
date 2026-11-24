@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.hooks";
 import { EXECUTION_CONFIG_MAX_AGE_MS } from "../AssistantDock/hooks/execution-config-ledger.hooks";

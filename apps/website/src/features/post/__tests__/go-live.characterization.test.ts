@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import { POST_GO_LIVE_LOOKBACK_MS, startPostGoLiveSweep } from "../go-live-sweep.js";
-import type { PostRecord } from "../post.js";
+import { POST_GO_LIVE_LOOKBACK_MS, startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "./post-record.fixture.js";
 
 /**
@@ -61,8 +61,8 @@ test("lifecycle: a failed pass leaves the window start unchanged, so the next ti
   let now = Date.parse(GO_LIVE);
   const { state, timers } = manualTimers();
   const sweep = startPostGoLiveSweep(
-    { deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => now } }, workspaceId: "ws" },
-    { timers, onError: () => {} }
+    { deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => now } }, workspaceId: "ws", onError: () => {} },
+    { timers }
   );
   await settle();
   const afterFirstSuccess = new Date(Date.parse(GO_LIVE) - POST_GO_LIVE_LOOKBACK_MS).toISOString();
@@ -87,7 +87,7 @@ test("lifecycle: the first pass runs at once, a tick during an active pass start
   let release!: () => void;
   repo.gate = new Promise<void>((resolve) => { release = resolve; });
   const { state, timers } = manualTimers();
-  const sweep = startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws" }, { timers });
+  const sweep = startPostGoLiveSweep({ deps: { repo, outbox: new RecordingOutbox(), clock: { nowMs: () => Date.parse(LATER) } }, workspaceId: "ws", onError: () => {} }, { timers });
   assert.equal(repo.calls.length, 1, "the first pass starts immediately, before any tick");
   state.tick?.();
   state.tick?.();

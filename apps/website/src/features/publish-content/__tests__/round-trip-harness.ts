@@ -1,13 +1,15 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
+import { FORMS_TABLES, TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
-import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.sqlite";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
@@ -132,11 +134,11 @@ export function sqliteContentSite() {
   const repos = {
     db,
     posts: new SqlitePostRepo({ store: db }),
-    entries: new SqliteEntryRepo({ store: db }),
+    entries: entryRepoFor({ store: db }),
     contentTypes: new InMemoryContentTypeRepo(),
-    taxonomies: new SqliteTaxonomyRepo({ db, workspaceId }),
-    terms: new SqliteTermRepo({ db, workspaceId }),
-    entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
+    taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
+    entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
     settings: new SqliteSettingsRepo({ store: db }),
     presentation: new SqlitePresentationSettingsRepo({ store: db }),
     /** The site's discovered themes; a test pushes stand-ins. */
@@ -146,7 +148,7 @@ export function sqliteContentSite() {
     // A function port, so not `unused()`'s Proxy (calling a Proxy over `{}` is a bare TypeError).
     post: { repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
     ...buildContentPublishPorts({
-      formDefinitionRepo: new SqliteFormDefinitionRepo({ store: db }),
+      formDefinitionRepo: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
       contentTypeRepo: repos.contentTypes,
       contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
       workspaceId,
@@ -154,7 +156,7 @@ export function sqliteContentSite() {
       taxonomyRepo: repos.taxonomies,
       termRepo: repos.terms,
       entryTermRepo: repos.entryTerms,
-      taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId }),
+      taxonomyRevisionRepo: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId }, {}),
       stampWatermark: () => {},
       entryRepo: repos.entries,
       entryRefsRepo: unused("entryRefsRepo"),

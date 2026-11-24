@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { ExecutionConfig, ExecutionPort } from "@jini-ai/ui";
+import type { ExecutionConfig, ExecutionPort } from "@jini-ai/core/contracts/execution";
 
 import {
   DEFAULT_EXECUTION_CONFIG,

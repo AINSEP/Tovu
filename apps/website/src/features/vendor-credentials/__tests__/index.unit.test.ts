@@ -6,7 +6,7 @@ import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 
 import * as vault from "../vault-adapter.js";
 
-/** The feature surface includes the repo and scoped vault operations, each its owner's binding. */
+/** The feature surface includes the repo and vault operations, each its owner's binding. */
 test("vendor-credentials exposes the owning repo and scoped vault operations", () => {
   const expected = { InMemoryVendorCredentialSetRepo,
     credentialVault: vault.credentialVault, credentialScope: vault.credentialScope, credentialHint: vault.credentialHint };

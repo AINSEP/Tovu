@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminMedia } from "../../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import {
   appendMediaSlugs,
   hasModeContent,

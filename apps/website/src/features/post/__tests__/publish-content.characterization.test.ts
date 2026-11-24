@@ -6,7 +6,7 @@ import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish
 import type { PublishContentHandler } from "@jini-ai/cms/publish/content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";
 
 /**

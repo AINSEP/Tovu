@@ -6,7 +6,7 @@ import { observabilityApi } from "../../features/observability/api/observability
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
-import { postsApi } from "../../features/posts/api/posts-api";
+import { postsApi } from "../../features/posts/posts-host-ports";
 import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";

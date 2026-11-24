@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError } from "../rules";
 

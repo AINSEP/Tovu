@@ -1,17 +1,18 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { menusHostKit } from "@/features/menus/menus-host-ports";
 import { FetchQueryProvider } from './fetch-query-provider.test-helper';
 import { AdminKitProvider } from '@jini-ai/admin/react/kit';
 import { adminKit } from '../integrations/jini-kits';
 import type { ReactNode } from 'react';
-import type { AdminPost } from '@/features/posts/api/posts-api.types';
+import type { AdminPost } from '@jini-ai/admin/posts/api/posts-api.types';
 import type { AdminMenu } from '@jini-ai/admin/screens/menus/api/menus-api.types';
 import type { AdminWorkspaceResponse as AdminWorkspace } from '@jini-ai/core/contracts/site/cms-workspace';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';
 import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
-import { useMenuEditor } from '@/features/menus/hooks/use-menu-editor.hooks';
-import { createFakeMenusPort } from '@/features/menus/hooks/menus-dependencies.hooks';
+import { useMenuEditor } from '@jini-ai/admin/screens/menus/hooks/use-menu-editor.hooks';
+import { createFakeMenusPort } from '@jini-ai/admin/screens/menus/hooks/menus-dependencies.hooks';
 import { useWorkspace } from '@jini-ai/admin/screens/workspace/hooks/use-workspace.hooks';
 import { describeApiError as describeWorkspaceError } from '@/features/workspace/rules';
 import { t as workspaceT } from '@/features/workspace/workspace-i18n';
@@ -63,7 +64,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const menu: AdminMenu = { id: 'm1', workspaceId: 'ws1', slug: 'main', title: 'Cached menu', status: 'draft',
       items: [], locations: [], updatedAt: '2026-10-01T00:00:00Z', version: 1 };
     const port = createFakeMenusPort({ menus: [menu] });
-    const deps = { port, navigate: () => {}, t };
+    const deps = { kit: menusHostKit, port, navigate: () => {}, t };
     let current!: ReturnType<typeof useMenuEditor>;
     function Probe() { current = useMenuEditor({ menuId: 'main', dependencies: deps }); return null; }
     const view = render(<Scope><Probe /></Scope>);

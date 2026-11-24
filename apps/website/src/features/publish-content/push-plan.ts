@@ -7,7 +7,7 @@ import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPla
 import { entryPublicPath } from "#src/platform/routing/index";
 /** The post fields `entryPublicPath` reads, named `PostRecord` so the cast at its call below stays as written. */
 type PostRecord = Parameters<typeof entryPublicPath>[0]["post"];
-import type { PublishScope } from "@jini-ai/cms/publish/content/dialog/contract";
+import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 export interface PlanPublishToPeerDeps {
   workspaceId: string;

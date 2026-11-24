@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
-import type { DetectedAgent } from "@jini-ai/ui";
+import type { ExecutionCardAgent } from "@jini-ai/core/contracts/execution";
 import { useSelectedAgentAuthWarning } from "../hooks/use-selected-agent-auth-warning.hooks";
 import { resetLocalAgentDetectionCache } from "@/lib/execution-settings";
 
@@ -10,9 +10,9 @@ afterEach(() => {
   resetLocalAgentDetectionCache();
 });
 
-const claudeMissing: DetectedAgent = { id: "claude", label: "Claude Code", installed: true, authStatus: "missing" };
-const claudeOk: DetectedAgent = { ...claudeMissing, authStatus: "ok" };
-const codexUnknown: DetectedAgent = { id: "codex", label: "Codex", installed: true, authStatus: "unknown" };
+const claudeMissing: ExecutionCardAgent = { id: "claude", label: "Claude Code", installed: true, authStatus: "missing" };
+const claudeOk: ExecutionCardAgent = { ...claudeMissing, authStatus: "ok" };
+const codexUnknown: ExecutionCardAgent = { id: "codex", label: "Codex", installed: true, authStatus: "unknown" };
 const WARNING = "Claude Code: Authentication required. Sign in before sending.";
 
 function fakeRuntimeAccess(calls: string[]): ChatPaneRuntimeAccess {
@@ -23,7 +23,7 @@ function fakeRuntimeAccess(calls: string[]): ChatPaneRuntimeAccess {
   };
 }
 
-function fakePort({ detect, rescan }: { detect: DetectedAgent[]; rescan?: DetectedAgent[] }, calls: string[] = []) {
+function fakePort({ detect, rescan }: { detect: ExecutionCardAgent[]; rescan?: ExecutionCardAgent[] }, calls: string[] = []) {
   return {
     detectLocalAgents: async () => { calls.push("detect"); return detect; },
     rescanLocalAgents: async () => { calls.push("rescan"); return rescan ?? detect; },
@@ -79,7 +79,7 @@ test("D-21b: the picker's Rescan re-probes auth beside it, and a fresh sign-in c
 test("D-21b: a failed re-probe drops the warning rather than keeping a stale one", async () => {
   const port = {
     detectLocalAgents: async () => [claudeMissing],
-    rescanLocalAgents: async (): Promise<DetectedAgent[]> => { throw new Error("detection failed"); },
+    rescanLocalAgents: async (): Promise<ExecutionCardAgent[]> => { throw new Error("detection failed"); },
   };
   const { result } = render(port, { mode: "local-cli", agentId: "claude", locale: "en" });
   await waitFor(() => expect(result.current.warning).toBe(WARNING));
@@ -88,9 +88,9 @@ test("D-21b: a failed re-probe drops the warning rather than keeping a stale one
 });
 
 test("D-21b: a slow first scan cannot overwrite a newer rescan's result", async () => {
-  let resolveFirst: (agents: DetectedAgent[]) => void = () => {};
+  let resolveFirst: (agents: ExecutionCardAgent[]) => void = () => {};
   const port = {
-    detectLocalAgents: () => new Promise<DetectedAgent[]>((resolve) => { resolveFirst = resolve; }),
+    detectLocalAgents: () => new Promise<ExecutionCardAgent[]>((resolve) => { resolveFirst = resolve; }),
     rescanLocalAgents: async () => [claudeOk],
   };
   const { result } = render(port, { mode: "local-cli", agentId: "claude", locale: "en" });
@@ -100,7 +100,7 @@ test("D-21b: a slow first scan cannot overwrite a newer rescan's result", async 
 });
 
 test("D-21b: rescan falls back to detection when the port has no forced-rescan capability", async () => {
-  let detected: DetectedAgent[] = [claudeMissing];
+  let detected: ExecutionCardAgent[] = [claudeMissing];
   const port = { detectLocalAgents: async () => detected };
   const calls: string[] = [];
   const runtimeAccess = fakeRuntimeAccess(calls);
@@ -119,7 +119,7 @@ test("D-21b: rescan falls back to detection when the port has no forced-rescan c
 
 test("D-21b: an older scan's failure cannot clear a newer confirmed sign-in warning", async () => {
   let rejectFirst!: (error: Error) => void;
-  const first = new Promise<DetectedAgent[]>((_resolve, reject) => { rejectFirst = reject; });
+  const first = new Promise<ExecutionCardAgent[]>((_resolve, reject) => { rejectFirst = reject; });
   const port = { detectLocalAgents: () => first, rescanLocalAgents: async () => [claudeMissing] };
   const { result } = render(port, { mode: "local-cli", agentId: "claude", locale: "en" });
   await act(async () => { await result.current.runtimeAccess.rescanAgents(); });

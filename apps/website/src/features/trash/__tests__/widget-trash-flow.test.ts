@@ -1,3 +1,6 @@
+import type { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
+import { contentTypeRepoFor } from "#src/features/content-types/content-type-repo";
+import { entryRepoFor } from "#src/features/entries/entry-repo";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
@@ -8,8 +11,6 @@ import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStatus, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
@@ -40,7 +41,7 @@ interface Harness {
   db: ContentDb;
   registry: TrashRegistry;
   trash: TrashPort;
-  entries: SqliteEntryRepo;
+  entries: SqlEntryRepo;
   deps: WidgetTrashDeps;
 }
 
@@ -76,10 +77,10 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     transaction: ({ work }) => (transaction)(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const entries = new SqliteEntryRepo({ store: db });
+  const entries = entryRepoFor({ store: db });
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
-    contentTypeRepo: new SqliteContentTypeRepo({ store: db }),
+    contentTypeRepo: contentTypeRepoFor({ store: db }),
     entryRefsRepo: new SqliteEntryRefsRepo({ store: db }),
     clock: { nowMs: () => Date.parse(AT) },
     ids: { newId: () => randomUUID() },

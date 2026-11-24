@@ -4,7 +4,7 @@ import test from "node:test";
 import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";

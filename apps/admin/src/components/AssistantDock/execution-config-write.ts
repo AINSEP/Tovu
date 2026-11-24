@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ChatPaneAgentSelection } from "@jini-ai/chat/react";
-import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, type ExecutionConfig } from "@jini-ai/ui";
+import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";

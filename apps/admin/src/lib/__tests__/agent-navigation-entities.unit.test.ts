@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { AdminAgentPlugin } from "../../features/integrations/api/integrations-api.types";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
-import type { AdminPost } from "../../features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
 import * as router from "@jini-ai/admin/shell/lib/router";

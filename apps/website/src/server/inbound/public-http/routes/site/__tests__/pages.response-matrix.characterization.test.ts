@@ -22,9 +22,9 @@ import test, { type TestContext } from "node:test";
 
 import { CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
 import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
-import { type MemberSessionRecord } from "@jini-ai/user-management/members/types";
-import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
-import { ROOT_SLUG } from "#src/features/post/post";
+import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { type PostRecord, ROOT_SLUG } from "@jini-ai/cms/posts/post";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";

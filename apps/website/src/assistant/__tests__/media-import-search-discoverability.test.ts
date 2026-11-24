@@ -3,8 +3,10 @@ import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
-import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
-import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
+const mediaGenerationAgentToolCatalog = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS, mediaAssetReadToolId: "content_read.media_asset" });
+import { mediaImportAgentToolCatalog } from "../../features/media-import/tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 /**

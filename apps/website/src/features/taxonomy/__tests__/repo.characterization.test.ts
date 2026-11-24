@@ -1,16 +1,12 @@
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { Taxonomy, Term } from "@jini-ai/cms/taxonomy";
-import {
-  SqliteEntryTermRepo,
-  SqliteTaxonomyRepo,
-  SqliteTaxonomyRevisionRepo,
-  SqliteTermRepo,
-} from "../repo.sqlite.js";
-
 /**
  * @file S1a T0: the four taxonomy repos' behaviour on the unmoved code, before their query bodies move to
  * Jini `@jini-ai/cms/taxonomy/sql`. Real SQLite kernel (the recorder from the lane-su pins), driven through the
@@ -32,20 +28,20 @@ function term(id: string, taxonomyId: string, overrides: Partial<Term> = {}): Te
 
 interface Repos {
   kernel: ContentKernel;
-  taxonomies: SqliteTaxonomyRepo;
-  terms: SqliteTermRepo;
-  entryTerms: SqliteEntryTermRepo;
-  revisions: SqliteTaxonomyRevisionRepo;
+  taxonomies: SqlTaxonomyRepo;
+  terms: SqlTermRepo;
+  entryTerms: SqlEntryTermRepo;
+  revisions: SqlTaxonomyRevisionRepo;
 }
 
 function reposOn(kernel: ContentKernel, workspaceId: string): Repos {
   const deps = { db: kernel, workspaceId };
   return {
     kernel,
-    taxonomies: new SqliteTaxonomyRepo(deps),
-    terms: new SqliteTermRepo(deps),
-    entryTerms: new SqliteEntryTermRepo(deps),
-    revisions: new SqliteTaxonomyRevisionRepo(deps),
+    taxonomies: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: deps.db }), tables: TAXONOMY_TABLES, workspaceId: deps.workspaceId }, {}),
+    terms: new SqlTermRepo({ kernel: schemaErasedKernel({ store: deps.db }), tables: TAXONOMY_TABLES, workspaceId: deps.workspaceId }, {}),
+    entryTerms: new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: deps.db }), tables: TAXONOMY_TABLES, workspaceId: deps.workspaceId }, {}),
+    revisions: new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: deps.db }), tables: TAXONOMY_TABLES, workspaceId: deps.workspaceId }, {}),
   };
 }
 

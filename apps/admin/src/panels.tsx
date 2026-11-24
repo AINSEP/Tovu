@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
-import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
@@ -57,6 +57,7 @@ import {
   Playground,
   Sites,
 } from "./panel-pages";
+import { commentsMount, formsMount, widgetsMount } from "./integrations/jini-admin/panel-mounts";
 import type { UseAdminLocaleHook } from "@jini-ai/admin/react/kit";
 import { t as tApp } from "./app-i18n";
 
@@ -126,6 +127,9 @@ export type TovuAdminPanel = AdminPanel<PanelRenderer>;
  * derives the nav model from this array via `buildNav` — group and item order both come from
  * here, not a second list).
  */
+/** The one route-key store of this admin composition; `<PostEditor>` receives the same instance it is keyed with. */
+const postEditorRouteKeys = createPostEditorRouteKeyStore();
+
 const PANELS: readonly TovuAdminPanel[] = [
   // --- Ungrouped top row ---
   {
@@ -238,7 +242,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["content.read"],
     render: (ctx, _options = {}) => {
       // Query mode avoids reserving a real post slug such as "new".
-      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey({ segment: "" })} postId="" />;
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKeys.routeKey({ segment: "" })} routeKeys={postEditorRouteKeys} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
@@ -248,9 +252,9 @@ const PANELS: readonly TovuAdminPanel[] = [
         // and writes to the wrong record. Remounting per id closes the whole class at the routing
         // layer instead of one hand-rolled staleness ref per hook. `Jini packages/admin/src/seo/react/pages/SeoPage.tsx:443` already does this
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
-        // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
-        // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-        return <PostEditor key={postEditorRouteKey({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
+        // `postEditorRouteKeys.routeKey`: the editor's own save can rename the slug in the URL; that is the same
+        // record, so it keeps its key instead of remounting (see `@jini-ai/admin/posts/post-editor-route-key`).
+        return <PostEditor key={postEditorRouteKeys.routeKey({ segment: ctx.params.postId })} routeKeys={postEditorRouteKeys} postId={ctx.params.postId} />;
       }
       return <Posts />;
     },
@@ -362,19 +366,19 @@ const PANELS: readonly TovuAdminPanel[] = [
     render: (ctx, _options = {}) => {
       switch (ctx.view) {
         case "widget-regions":
-          return <WidgetRegions useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <WidgetRegions {...widgetsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
         case "widget-region-editor":
           // Guaranteed present: this view only fires when `/regions/:regionKey` matched.
-          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} {...widgetsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
         case "widget-editor": {
           // Same split as `menus`: the `/new` pattern captures no `widgetId`, so its presence is
           // what distinguishes "editing" from "creating" — `widgetType` only ever came from the
           // query string on the create path.
           const widgetId = ctx.params.widgetId ?? null;
-          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} {...widgetsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
         }
         default:
-          return <WidgetsLibrary useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <WidgetsLibrary {...widgetsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
       }
     },
     nav: {
@@ -420,16 +424,16 @@ const PANELS: readonly TovuAdminPanel[] = [
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" {...formsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
         case "form-submissions":
           // Guaranteed present: this view only fires when `/:formId/submissions` matched. Same
           // `key` as `form-editor` above (both key off `ctx.params.formId`) — switching between
           // Fields and Submissions for the SAME form is a route change, not a remount, so
           // in-progress Fields edits survive the round trip (ADR-063). A different `formId`
           // switching the key IS meant to remount, resetting state for the new form.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" {...formsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
         default:
-          return <FormsList useAdminLocaleHook={ctx.useAdminLocaleHook} />;
+          return <FormsList {...formsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />;
       }
     },
     nav: {
@@ -540,7 +544,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // working screen stays reachable. `soonPreviewable` is what makes that combination coherent:
     // without it the row would render as a disabled link and the badge would hide shipped
     // functionality rather than annotate it.
-    render: (ctx) => <Comments useAdminLocaleHook={ctx.useAdminLocaleHook} />,
+    render: (ctx) => <Comments {...commentsMount({ useAdminLocaleHook: ctx.useAdminLocaleHook })} />,
     nav: {
       label: "Comments",
       group: "People",

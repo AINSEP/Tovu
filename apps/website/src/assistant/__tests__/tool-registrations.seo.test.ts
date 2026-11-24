@@ -19,7 +19,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryPostRepo } from "../../features/post/index.js";
-import type { PostRecord } from "../../features/post/post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemorySettingsRepo } from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {

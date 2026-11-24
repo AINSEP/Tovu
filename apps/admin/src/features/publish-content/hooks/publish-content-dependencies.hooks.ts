@@ -1,11 +1,5 @@
-import type {
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentPeerSummary,
-  PublishContentPlanResult,
-  PublishContentReport,
-  PublishScope,
-} from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishContentReport, PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 import { publishContentApi } from "@/features/publish-content/api/publish-content-api";
@@ -34,7 +28,7 @@ export const defaultPublishContentPort: PublishContentPort = {
  *  `plan` on a `PLAN_STALE`/network error, `confirm` on a permission or an expired token, `execute`
  *  on `RESTORE_POINT_UNAVAILABLE` — and the dialog owes the operator a different sentence for each. */
 export interface FakePublishContentPortOptions {
-  peers?: readonly PublishContentPeerSummary[];
+  peers?: readonly PublishContentPeerView[];
   report?: PublishContentReport;
   planId?: string;
   planHash?: string;
@@ -185,7 +179,7 @@ export function createFakePublishContentPort(
       // offered, as one peer — matching the real route's `201` response.
       const candidateUrl = options.destination?.candidateUrl ?? DEFAULT_DESTINATION.candidateUrl;
       const baseUrl = input.siteUrl ?? candidateUrl ?? "https://example.test";
-      const site: PublishContentPeerSummary = {
+      const site: PublishContentPeerView = {
         id: "peer-connected",
         label: new URL(baseUrl).host,
         baseUrl,

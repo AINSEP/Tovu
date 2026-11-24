@@ -1,13 +1,14 @@
 import { type UUID, type JsonObject, type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PostStatus } from "@jini-ai/cms/core";
-import { type PostRepoPort, type PostRecord, PostValidationError, type PublicPostRecord, isPublicPost, PostNotFoundError, SYSTEM_ACTOR_ID } from "./post.js";
+import { type PostRepoPort, type PostRecord, PostValidationError, type PublicPostRecord, isPublicPost, PostNotFoundError, SYSTEM_ACTOR_ID } from "@jini-ai/cms/posts/post";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "@jini-ai/cms/posts/post-before-save";
-import { type SlugChangeCaptureLookup, assertValidExplicitSlug, hasPostBeenPublished, availablePostSlug, trashedSlugHolderOrConflict, releaseTrashedSlug, captureSlugChange } from "./post-slugs.js";
-import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "./post-write-fields.js";
+import { type SlugChangeCaptureLookup, assertValidExplicitSlug, hasPostBeenPublished, availablePostSlug, trashedSlugHolderOrConflict, releaseTrashedSlug, captureSlugChange } from "@jini-ai/cms/posts/post-slugs";
+import { RESERVED_SEGMENTS, postPublicPath } from "#src/platform/routing/index";
+import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "@jini-ai/cms/posts/post-write-fields";
 import { isAutomaticPostSlug } from "@jini-ai/cms/posts/slug";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
-import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
+import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "@jini-ai/cms/posts/post-write-effects";
 import { isDeepStrictEqual } from "node:util";
 
 export interface UpdatePostInput {
@@ -132,7 +133,7 @@ function validateUpdatePostInput(
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
   // conversion path"), so the row's real kind — not any caller-supplied value, `UpdatePostInput`
   // carries none — is what gates the same root-slug exception `resolveExplicitSlug` applies on create.
-  if (slug !== existing.slug) assertValidExplicitSlug({ slug, kind: existing.kind });
+  if (slug !== existing.slug) assertValidExplicitSlug({ slug, kind: existing.kind, reservedSegments: RESERVED_SEGMENTS });
   // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
   // document at all, so demanding one here would make its title, slug and status permanently
   // un-editable — the only way to change them is this function, and the caller has no Tiptap body
@@ -251,7 +252,7 @@ export async function updatePost(
   normalizePostAuthor({ author: input.author });
   normalizeShowPostAuthor({ showAuthor: input.showAuthor });
   if (await followsTitleSlug({ repo: deps.repo, input, existing, title })) {
-    slug = (await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: "post", selfId: existing.id })).slug;
+    slug = (await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: "post", selfId: existing.id, reservedSegments: RESERVED_SEGMENTS })).slug;
   }
   const trashedHolder = await trashedSlugHolderOrConflict({ repo: deps.repo, workspaceId: input.workspaceId, slug }, { selfId: input.id });
 
@@ -285,9 +286,9 @@ export async function updatePost(
       const current = await unchangedLiveRow({ repo: deps.repo, input, post });
       if (current) return { post: current, revisionId: null, previousRevisionId: null };
     }
-    if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
+    if (trashedHolder) await releaseTrashedSlug({ repo: deps.repo, holder: trashedHolder });
     await persistUpdatedPost({ repo: deps.repo, post, expectedVersion: input.expectedVersion });
-    await captureSlugChange({ lookup: deps.slugChangeCapture, existing, post, actor: input.actorId ?? SYSTEM_ACTOR_ID });
+    await captureSlugChange({ lookup: deps.slugChangeCapture, existing, post, actor: input.actorId ?? SYSTEM_ACTOR_ID, postPublicPath });
     const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
     // Inside the transaction (2026-10-21): committing the edit without its event (a crash, a failed
     // enqueue) would push `updatedAt` past a pending go-live and lose that announcement for good.

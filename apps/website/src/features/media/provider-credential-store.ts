@@ -1,14 +1,12 @@
-export type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlan, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
-import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
-import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from "@jini-ai/platform/secrets/credential-token";
-import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";

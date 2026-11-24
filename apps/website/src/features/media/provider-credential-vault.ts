@@ -5,7 +5,7 @@ import {
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-contracts.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "@jini-ai/cms/media/site/provider-credential-contracts";
 
 const MEDIA_PROVIDER_KIND = "media-provider" as const;
 

@@ -8,7 +8,7 @@ import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/veri
 import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerDuplicateLabelError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

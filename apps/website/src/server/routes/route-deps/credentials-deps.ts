@@ -3,13 +3,13 @@ import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials
 import type { PublishCompatibilityPort } from "../../../features/custom-credentials/index.js";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "#src/assistant/host-ports";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { DatabaseDestinationStorePort } from "../../../features/database-transfer/destination-store.js";
 import type { CustomCredentialSetRepoPort } from "../../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../../features/vendor-credentials/index.js";
-import type { MediaProviderCredentialRepoPort } from "../../../features/media/index.js";
+import type { MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import type { ExternalMcpServerRepoPort } from "@jini-ai/core/contracts/hosted-mcp";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ExternalMcpToolApprovalRepoPort } from "../../../assistant/mcp-services.js";

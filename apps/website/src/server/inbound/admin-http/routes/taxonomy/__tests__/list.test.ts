@@ -1,3 +1,6 @@
+import { SqlTaxonomyRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -7,9 +10,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminTaxonomyListRoute } from "../list.js";
+import { registerAdminTaxonomyListRoute } from "#src/server/runtime/composition/modules/taxonomy";
 import type { TaxonomyRouteDeps } from "../deps.js";
 
 /** The same SQLite adapters `createRouteDeps` composes, over a private in-memory database. (The CMS
@@ -18,8 +20,8 @@ import type { TaxonomyRouteDeps } from "../deps.js";
 function createTaxonomyRepos(): Pick<TaxonomyRouteDeps, "taxonomyRepo" | "termRepo"> {
   const db = openContentDb(":memory:");
   return {
-    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: "ws-1" }),
-    termRepo: new SqliteTermRepo({ db, workspaceId: "ws-1" }),
+    taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
+    termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
   };
 }
 

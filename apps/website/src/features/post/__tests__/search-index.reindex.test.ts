@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
+import { POST_SEARCH_HOST } from "../search-host-config.js";
 import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import type { PostRecord } from "../post.js";
+import { type ContentKernel, schemaErasedKernel } from "../../../platform/db/content-kernel.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
-import { POST_SEARCH_PROJECTION_VERSION_SETTING_ID, PostSearchIndex, postSearchFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "../search-index.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
+import { PostSearchIndex, postSearchFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "@jini-ai/cms/posts/sql";
 
 // The boot step under test (RED before it existed: the boot only filled MISSING projections, so the
 // first post-boot search below found nothing). batchSize 1 makes the rebuild cross page boundaries.
-const boot = (kernel: ContentKernel) => preparePostSearchIndex({ kernel }, { batchSize: 1 });
+const boot = (kernel: ContentKernel) => preparePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }, { batchSize: 1 });
 
 // f7ca1e766 follow-up: rows indexed before HTML bodies were projected (and before query folding) must
 // be corrected by boot alone, with nobody resaving a post — and only once.
@@ -28,7 +29,8 @@ const docPost: PostRecord = {
 
 /** What the pre-f7ca1e766 projection wrote for an HTML post: the empty doc placeholder's text. */
 async function writeLegacyProjection(kernel: ContentKernel, post: PostRecord): Promise<void> {
-  await postSearchFor(kernel).upsert({ kernel, document: { postId: post.id as UUID, title: post.title, slug: post.slug, bodyText: "" } });
+  const erased = schemaErasedKernel({ store: kernel });
+  await postSearchFor(erased, POST_SEARCH_HOST).upsert({ kernel: erased, document: { postId: post.id as UUID, title: post.title, slug: post.slug, bodyText: "" } });
 }
 
 const tables = ["posts", "post_revisions", "post_search_document", "setting_values_global"];
@@ -37,7 +39,7 @@ for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
     const kernel = dialect.make();
     if (dialect.dialect === "sqlite") t.after(() => kernel.close());
     const repo = postRepoFor(kernel);
-    const search = new PostSearchIndex({ kernel });
+    const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     const find = async (query: string) => (await searchAdminPosts({
       deps: { search }, input: { workspaceId: "reindex-ws", query },
     })).hits.map((hit) => hit.id).sort();
@@ -72,13 +74,13 @@ for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
     const repo = postRepoFor(kernel);
     await repo.save(page);
     await repo.save(docPost);
-    assert.equal(await reindexStalePostSearchIndex({ kernel }), 2);
-    assert.equal(await reindexStalePostSearchIndex({ kernel }), 0, "a readable current version skips the rebuild");
+    assert.equal(await reindexStalePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 2);
+    assert.equal(await reindexStalePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 0, "a readable current version skips the rebuild");
 
-    await kernel.run((db) => db.updateTable("setting_values_global").set({ value_json: "{not json" }).where("setting_id", "=", POST_SEARCH_PROJECTION_VERSION_SETTING_ID).execute());
+    await kernel.run((db) => db.updateTable("setting_values_global").set({ value_json: "{not json" }).where("setting_id", "=", POST_SEARCH_HOST.projectionVersionSettingId).execute());
     await writeLegacyProjection(kernel, page);
-    assert.equal(await reindexStalePostSearchIndex({ kernel }), 2);
-    const hits = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel }) }, input: { workspaceId: "reindex-ws", query: "needleword" } });
+    assert.equal(await reindexStalePostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 2);
+    const hits = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }) }, input: { workspaceId: "reindex-ws", query: "needleword" } });
     assert.deepEqual(hits.hits.map((hit) => hit.id), ["studio"], "the stale row was corrected by the rebuild");
   });
 }

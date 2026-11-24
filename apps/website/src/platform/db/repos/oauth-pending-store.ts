@@ -5,7 +5,7 @@ import type { Insertable, Selectable } from "kysely";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { DeviceAuthorization } from "@jini-ai/oauth";
 import type { DeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type { ContentKernel } from "../content-kernel.js";

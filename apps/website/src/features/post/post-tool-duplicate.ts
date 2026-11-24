@@ -1,4 +1,4 @@
-import { getAdminPostById } from "./post-read.js";
+import { getAdminPostById } from "@jini-ai/cms/posts/post-read";
 import { createPost } from "./post-create.js";
 import { AGENT_TOOL_PRINCIPAL_KIND } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
@@ -6,12 +6,13 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { DuplicateResourceHandlerContributor } from "@jini-ai/core/contracts/site/assistant-tool-contributions";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { PostNotFoundError, PostValidationError, type PostRecord, type PublicPostRecord } from "./post.js";
-import type { PostKind } from "#src/contracts/core/post-kind";
+import { PostNotFoundError, PostValidationError, type PostRecord, type PublicPostRecord } from "@jini-ai/cms/posts/post";
+import type { PostKind } from "@jini-ai/core/contracts/site/post-kind";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { deriveDuplicateName } from "../content-duplication/copy-naming-policy.js";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, postCommandDeps } from "./post-tool-policy.js";
-import { toPostWriteResultView } from "./post-tool-views.js";
+import { toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
+import { postToolViewDeps } from "./post-tool-view-deps.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
 
 /**
@@ -124,7 +125,7 @@ async function duplicatePostOrPage(
   // common case enqueues nothing).
   await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-  return { post: toPostWriteResultView(routeDeps, finalPost) };
+  return { post: toPostWriteResultView({ deps: postToolViewDeps({ routeDeps }), post: finalPost }) };
 }
 
 async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, title, slug, status, bodyJsonForCreate, sourceHtml, input }: {

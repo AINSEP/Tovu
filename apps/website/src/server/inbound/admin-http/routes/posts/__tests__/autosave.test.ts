@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import type { PostAutosaveSnapshot } from "#src/features/post/index";
+import type { PostAutosaveSnapshot } from "@jini-ai/cms/posts/post";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { lastRouteHandler } from "#src/server/__tests__/helpers/last-route-handler";

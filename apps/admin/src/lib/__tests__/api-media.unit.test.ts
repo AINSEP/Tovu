@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import type { AdminMedia, AdminMediaProviderMap } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
+import type { AdminMediaProviderMap } from "../../features/media/api/media-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { ApiError } from "../admin-http/request";
 

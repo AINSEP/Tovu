@@ -6,7 +6,7 @@ import type { RunHandlers } from "@jini-ai/chat/react";
 import {
   createTovuAssistantTransport,
 } from "../assistant-transport";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { FakeEventSource, resetFakeEventSource, streamFromChunks } from "./assistant-transport.test-helpers";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";

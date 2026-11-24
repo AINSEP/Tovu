@@ -2,7 +2,7 @@ import { type Translate, interpolate } from "@jini-ai/core/text";
 import { isUnexpectedServerFailure } from "@jini-ai/admin/shell/lib/server-failure";
 import { ApiError } from "@/lib/admin-http/request";
 import { publishLocalAdminFailure } from "@/lib/admin-failure-channel";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { isoToLocalDateTimeInput, isScheduledPost } from "../rules";
 
 /**

@@ -4,7 +4,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 
-import { startPostGoLiveSweep } from "../go-live-sweep.js";
+import { startPostGoLiveSweep } from "@jini-ai/cms/posts/go-live-sweep";
 
 const outbox: OutboxPort = {
   async enqueue() {},
@@ -22,7 +22,7 @@ test("one go-live pass traces post.go_live.sweep", async () => {
   };
   const sweep = startPostGoLiveSweep({
     deps: { repo: { async listGoLiveCandidates() { calls++; return []; } }, outbox, clock: { nowMs: () => Date.parse("2026-10-21T12:00:00.000Z") } },
-    workspaceId: "ws",
+    workspaceId: "ws", onError: () => {},
   }, { tracker, timers: { setInterval: () => ({}), clearInterval() {} } });
   try {
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -46,8 +46,8 @@ test("a rejected go-live pass reports and retries the same watermark", async () 
   const repo: Parameters<typeof startPostGoLiveSweep>[0]["deps"]["repo"] = {
     async listGoLiveCandidates(input) { requests.push(input); if (failing) throw failure; return []; },
   };
-  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => now } }, workspaceId: "ws" }, {
-    tracker, onError: ({ error }) => { errors.push(error); },
+  const sweep = startPostGoLiveSweep({ deps: { repo, outbox, clock: { nowMs: () => now } }, workspaceId: "ws", onError: ({ error }) => { errors.push(error); } }, {
+    tracker,
     timers: { setInterval: ({ fn }) => { tick = fn; return {}; }, clearInterval() {} },
   });
   try {

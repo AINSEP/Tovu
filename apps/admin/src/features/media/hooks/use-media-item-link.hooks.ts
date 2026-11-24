@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { MediaTabId } from "./use-media-tabs.hooks";
 

@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { Translate } from "@jini-ai/core/text";
 import { Icon } from "@jini-ai/ui";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { siteUrl } from "../../../../lib/site-url";
 
 /**

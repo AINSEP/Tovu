@@ -5,7 +5,7 @@ import test from 'node:test';
 import type { FormsRouteDeps } from '../deps.js';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminFormsPullSubmissionsRoute } from '../pull-submissions.js';
+import { registerAdminFormsPullSubmissionsRoute } from '#src/server/runtime/composition/modules/forms-admin';
 
 const PATH = `${BASE}/forms/submissions/pull`;
 const REPORT: Awaited<ReturnType<NonNullable<FormsRouteDeps['formSubmissionsPull']>['pull']>> = { ran: true, message: 'No new submissions.', destinations: [], forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 } };

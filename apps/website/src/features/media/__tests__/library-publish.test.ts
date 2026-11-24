@@ -6,7 +6,8 @@ import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { InMemoryOutbox } from '#src/contracts/core/events/index';
 import type { PackedEntity } from '#src/features/publish-content/type-registry';
 import { contributeMediaPublish } from '../publish-content.js';
-import { duplicateMediaAsset } from '../duplicate-asset.js';
+import { duplicateMediaAsset } from '@jini-ai/cms/media/site/duplicate-asset';
+import { deriveDuplicateName } from '#src/features/content-duplication/copy-naming-policy';
 import { libraryFixture } from './library.fixture.js';
 
 test('Library documents and their blobs are absent from publish output; forged apply and public duplication fail', async () => {
@@ -37,7 +38,7 @@ test('Library documents and their blobs are absent from publish output; forged a
   assert.ok(typeof disguisedRefusal === "string");
   assert.match(disguisedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }));
-  await assert.rejects(duplicateMediaAsset({ routeDeps: deps, principalId: 'owner', id: doc.id, overrides: {} }));
+  await assert.rejects(duplicateMediaAsset({ routeDeps: deps, deriveDuplicateName, principalId: 'owner', id: doc.id, overrides: {} }));
   assert.equal(reads, 0);
   const remaining = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
   assert.equal(remaining.length, 1); assert.equal(remaining[0]!.kind, 'document');

@@ -2,7 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
-import { useTaxonomyHtmlEmbed } from "../hooks/use-taxonomy-html-embed.hooks";
+import { useTaxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy-html-embed.hooks";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /** Copy writes the saved-identity embed and shows translated feedback for success and failure. */
 
@@ -17,7 +18,7 @@ describe("useTaxonomyHtmlEmbed", () => {
     const writes: string[] = [];
     const clipboard = { writeText: async (text: string) => { writes.push(text); } };
     const topics = tax("tx_1", "Topics");
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(topics), group(tax("tx_2", "Tags"))], t }, { clipboard }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(topics), group(tax("tx_2", "Tags"))], t, failures: taxonomyHostKit.failures }, { clipboard }));
     expect(result.current.copyFeedback).toBeNull();
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: topics }); });
     expect(writes).toEqual([`<div data-embed-config='{"type":"taxonomy","id":"Topics","mode":"html"}'></div>`]);
@@ -28,7 +29,7 @@ describe("useTaxonomyHtmlEmbed", () => {
     const writes: string[] = [];
     const clipboard = { writeText: async (text: string) => { writes.push(text); } };
     const a = tax("tx_a", "Topics");
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(a), group(tax("tx_b", "Topics"))], t }, { clipboard }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(a), group(tax("tx_b", "Topics"))], t, failures: taxonomyHostKit.failures }, { clipboard }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: a }); });
     expect(writes).toEqual([`<div data-embed-config='{"type":"taxonomy","id":"tx_a","mode":"html"}'></div>`]);
   });
@@ -36,7 +37,7 @@ describe("useTaxonomyHtmlEmbed", () => {
   it("treats a not-yet-loaded list as empty: the copied taxonomy is then keyed by id", async () => {
     const writes: string[] = [];
     const clipboard = { writeText: async (text: string) => { writes.push(text); } };
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: null, t }, { clipboard }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: null, t, failures: taxonomyHostKit.failures }, { clipboard }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: tax("tx_9", "Topics") }); });
     expect(writes).toEqual([`<div data-embed-config='{"type":"taxonomy","id":"tx_9","mode":"html"}'></div>`]);
     expect(result.current.copyFeedback).toBe("«Copied!»");
@@ -45,7 +46,7 @@ describe("useTaxonomyHtmlEmbed", () => {
   it("shows the failure message when the clipboard refuses", async () => {
     adminFailureChannel.reset();
     const clipboard = { writeText: async () => { throw new DOMException("denied", "NotAllowedError"); } };
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [], t }, { clipboard }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [], t, failures: taxonomyHostKit.failures }, { clipboard }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: tax("tx_1", "Topics") }); });
     expect(result.current.copyFeedback).toBe("«Could not copy embed»");
     expect(adminFailureChannel.getSnapshot()).toBeNull();
@@ -54,7 +55,7 @@ describe("useTaxonomyHtmlEmbed", () => {
   it("publishes redacted details for an unexpected clipboard failure", async () => {
     adminFailureChannel.reset();
     const clipboard = { writeText: async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } };
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [], t }, { clipboard }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [], t, failures: taxonomyHostKit.failures }, { clipboard }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: tax("tx_1", "Topics") }); });
     expect(result.current.copyFeedback).toBe("«Could not copy embed»");
     const failure = adminFailureChannel.getSnapshot();
@@ -72,7 +73,7 @@ describe("useTaxonomyHtmlEmbed", () => {
     const writeText = vi.fn(async () => {});
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     const topics = tax("tx_1", "Topics");
-    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(topics)], t }));
+    const { result } = renderHook(() => useTaxonomyHtmlEmbed({ taxonomies: [group(topics)], t, failures: taxonomyHostKit.failures }));
     await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: topics }); });
     expect(writeText).toHaveBeenCalledExactlyOnceWith(`<div data-embed-config='{"type":"taxonomy","id":"Topics","mode":"html"}'></div>`);
     expect(result.current.copyFeedback).toBe("«Copied!»");

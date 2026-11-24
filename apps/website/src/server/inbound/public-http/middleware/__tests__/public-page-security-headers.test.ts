@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import express from "express";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createPublicPageSecurityHeaders } from "../public-page-security-headers.js";

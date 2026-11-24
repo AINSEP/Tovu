@@ -3,8 +3,8 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
-import { getPublishedPostBySlug } from "#src/features/post/post-read";
-import { PostNotFoundError } from "#src/features/post/post";
+import { getPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";

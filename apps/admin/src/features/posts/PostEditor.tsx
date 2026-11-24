@@ -1,19 +1,22 @@
+import { useCallback } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import type { PostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
 import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
 import { PostPreview } from "./editor/preview/PostPreview";
-import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
+import { PostEditorTemplateModalGate } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
 import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
-import { PostDeleteConfirmDialog } from "./editor/PostDeleteConfirmDialog";
+import { PostDeleteConfirmDialog } from "@jini-ai/admin/posts/editor/PostDeleteConfirmDialog";
 import { PostEditorBody } from "./editor/PostEditorBody";
 import { PostSavedPanels } from "./editor/PostSavedPanels";
 import { useWiredPostEditor } from "./hooks/use-post-editor.hooks";
 import { usePostEditorScreen } from "./hooks/use-post-editor-screen.hooks";
 import { PostCoverImage } from "./PostCoverImage";
-import { PostSettingsDialog } from "./PostSettingsDialog";
+import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import "../../styles/native-domain-dialogs.css";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -31,6 +34,8 @@ import { PostSettingsDialog } from "./PostSettingsDialog";
  */
 
 export interface PostEditorProps {
+  /** The host composition's route-key store, the same instance `panels.tsx` keys `<PostEditor>` with. */
+  routeKeys: PostEditorRouteKeyStore;
   /** Persisted id/slug, or an empty string for the local working copy before first Save. */
   postId: string;
   /**
@@ -50,8 +55,9 @@ export interface PostEditorProps {
   usePostEditorScreenHook?: typeof usePostEditorScreen;
 }
 
-export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor, usePostEditorScreenHook = usePostEditorScreen }: PostEditorProps) {
-  const screen = usePostEditorScreenHook({ postId, usePostEditorHook });
+export function PostEditor({ postId, routeKeys, usePostEditorHook = useWiredPostEditor, usePostEditorScreenHook = usePostEditorScreen }: PostEditorProps) {
+  const boundEditorHook = useCallback((input: { postId: string }, options: Record<string, never> = {}) => usePostEditorHook({ ...input, routeKeys }, options), [usePostEditorHook, routeKeys]);
+  const screen = usePostEditorScreenHook({ postId, usePostEditorHook: boundEditorHook });
   if (screen.status === "error") return <div className="notice error">{screen.error}</div>;
   if (screen.status === "loading") return <div className="notice">{screen.t("Loading editor…")}</div>;
   const { view, t } = screen;

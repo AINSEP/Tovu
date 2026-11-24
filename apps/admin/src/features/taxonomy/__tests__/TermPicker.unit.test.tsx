@@ -1,12 +1,15 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TermPicker } from "../TermPicker";
-import { useTermPicker, type TermPickerController } from "../hooks/use-term-picker.hooks";
-import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
+import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
+import { useTermPicker, type TermPickerController } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-picker.hooks";
+import { createFakeTermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `TermPicker` — the Categories & Tags box the post, page and collection-entry editors mount.
@@ -63,7 +66,7 @@ function controller(overrides: Partial<TermPickerController> = {}): TermPickerCo
 
 function renderPicker(overrides: Partial<TermPickerController> = {}) {
   const useHook = vi.fn(() => controller(overrides));
-  render(<TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} />);
+  render(<TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />);
   return useHook;
 }
 
@@ -72,11 +75,11 @@ async function renderRealPickerInForm() {
   const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
   let ctrl!: TermPickerController;
   function useHook(target: { contentType: string; contentId: string }) {
-    ctrl = useTermPicker(target, { port, locale: "en" });
+    ctrl = useTermPicker({ target, port, locale: "en", kit: taxonomyHostKit });
     return ctrl;
   }
   render(<FetchQueryProvider><form onSubmit={onSubmit}>
-    <TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} />
+    <TermPicker contentType="post" contentId="p1" useTermPickerHook={useHook} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />
     <button type="submit">Save editor</button>
   </form></FetchQueryProvider>);
   const input = await screen.findByRole("combobox", { name: "Term name" });

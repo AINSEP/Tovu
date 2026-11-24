@@ -1,10 +1,10 @@
 import { sitesApi } from "@/features/sites/api/sites-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import { themesApi } from "@/features/themes/api/themes-api";
-import { postsApi } from "@/features/posts/api/posts-api";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { authApi } from "@/features/auth/api/auth-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
-import { commentsApi } from "@/features/comments/api/comments-api";
+import { commentsApi } from "@/features/comments/comments-host-ports";
 import type { DashboardPort } from "@jini-ai/admin/screens/dashboard/hooks/dashboard-port.hooks";
 
 /**

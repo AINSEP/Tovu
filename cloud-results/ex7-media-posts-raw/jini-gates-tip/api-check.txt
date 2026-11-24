@@ -1,0 +1,8 @@
+
+> jini@ api:check /home/user/Jini
+> node --import tsx ./scripts/check-api-surface.ts
+
+[api] @jini-ai/platform
+  changed export  ./object-store/site/setting#ensureMediaObjectStoreSetting
+  changed export  ./object-store/site/setting#readMediaObjectStoreSetting
+[api] checked 40 packages, 878 entries, 18036 symbols

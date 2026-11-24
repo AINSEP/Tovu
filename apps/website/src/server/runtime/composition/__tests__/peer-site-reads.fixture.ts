@@ -1,3 +1,6 @@
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { invokeRegisteredTool } from "../../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
@@ -28,12 +31,11 @@ import { createSettingsPrincipalLookup } from '#src/features/settings/index';
 import { createPost, SqlitePostRepo } from '#src/features/post/index';
 import { PagesHtmlDocumentStore } from '#src/features/pages/index';
 import { LocalFsBlobStore } from '#src/features/media/index';
-import { SqliteFormDefinitionRepo } from '#src/features/forms/repo.sqlite';
 import { SqliteToolAttemptAuditSink } from '#src/features/tool-audit/repo.sqlite';
-import { installCommentsDataModule } from '#src/features/comments/data-module-install';
+import { installCommentsDataModule } from '@jini-ai/cms/comments/site/data-module-install';
 import { installNewsletterDataModule } from '@jini-ai/user-management/newsletter/data-module-manifest';
 import { declareDataModule } from '@jini-ai/db/data-modules';
-import { FIRST_PARTY_PUBLISHER } from '../data-modules.js';
+import { COMMENTS_DATA_MODULE_PROVENANCE, FIRST_PARTY_PUBLISHER } from '../data-modules.js';
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteMediaContentTypeStore } from '#src/platform/db/sqlite/media-repo.sqlite';
 import { createRouteDeps } from '../app.js';
 import { createAppPermissionGrants } from '../app-permission-grants.js';
@@ -71,10 +73,10 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const identity = createSqliteIdentityRouteDeps({ db: contentKernel({ store: db }), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
-    await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath });
+    await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule });
     await installNewsletterDataModule({ publisher: FIRST_PARTY_PUBLISHER, declareDataModule, db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
-    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
+    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: FORMS_TABLES });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
     await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat({ seedHtml: `<main>${name} page</main>` });

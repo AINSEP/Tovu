@@ -8,7 +8,7 @@ import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 
 /**
  * @file `Posts` — markup-only list screen, twin of `features/pages/Pages.tsx`. Had NO test file

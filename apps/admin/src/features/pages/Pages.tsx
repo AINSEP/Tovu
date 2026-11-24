@@ -1,7 +1,7 @@
 import { Pages as JiniPages, type PagesListPaths, type PagesListSorting } from "@jini-ai/admin/pages/Pages";
 import type { Translate } from "@jini-ai/core/text";
 
-import type { AdminPost } from "../posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import {
   compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated,
   columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT,

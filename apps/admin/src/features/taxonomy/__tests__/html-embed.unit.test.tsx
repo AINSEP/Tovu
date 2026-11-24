@@ -3,12 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminTaxonomy } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
-import { Taxonomy } from "../Taxonomy";
-import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
-import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
+import { Taxonomy } from "../TaxonomyScreen";
+import { useTaxonomy } from "@jini-ai/admin/screens/taxonomy/hooks/use-taxonomy.hooks";
+import { createFakeTaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-dependencies.hooks";
 import { taxonomyHtmlEmbed } from "@jini-ai/admin/screens/taxonomy/html-rules";
 import { TAXONOMY_DICT } from "../taxonomy-i18n";
 import { FORMS_DICT } from "../../forms/forms-i18n";
+import { createTaxonomyBlockedError, taxonomyHostKit } from "../taxonomy-host-ports";
 
 vi.mock("@/hooks/use-admin-locale.hooks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/hooks/use-admin-locale.hooks")>()),
@@ -25,8 +26,8 @@ describe("taxonomy Copy HTML embed", () => {
   it("copies each saved taxonomy identity via its visible button and shows success/failure", async () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-    const port = createFakeTaxonomyPort({ groups: [category, tags].map((taxonomy) => ({ taxonomy, terms: [] })) });
-    render(<Taxonomy useTaxonomyHook={() => useTaxonomy(port, "en", (key) => key)} />, { wrapper });
+    const port = createFakeTaxonomyPort({ blockedError: createTaxonomyBlockedError }, { groups: [category, tags].map((taxonomy) => ({ taxonomy, terms: [] })) });
+    render(<Taxonomy useTaxonomyHook={() => useTaxonomy({ port, locale: "en", t: (key) => key, kit: taxonomyHostKit })} />, { wrapper });
     const buttons = await screen.findAllByRole("button", { name: "Copy HTML embed" });
     await user.click(buttons[0]);
     expect(writeText).toHaveBeenLastCalledWith(`<div data-embed-config='{"type":"taxonomy","id":"Categories","mode":"html"}'></div>`);

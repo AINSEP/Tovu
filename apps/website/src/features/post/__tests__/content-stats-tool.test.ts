@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
-import { InMemoryPostRepo, type PostRecord } from "../index.js";
+import { InMemoryPostRepo } from "../index.js";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import { buildContentStatsRegistrations, contentStatsDerivedRisk, contributeContentStatsTools, type ContentStatsToolDeps } from "../content-stats-tool.js";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });

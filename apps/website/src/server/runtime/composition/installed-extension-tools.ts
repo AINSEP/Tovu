@@ -34,7 +34,7 @@ import { registerInstalledSkillTools } from "@jini-ai/agentic/skills/site/tool-r
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
-import { PostNotFoundError } from "#src/features/post/index";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime

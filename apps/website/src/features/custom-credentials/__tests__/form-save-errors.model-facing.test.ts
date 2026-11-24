@@ -32,7 +32,7 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 const CREATE_TOOL_ID = "credential_save";
 const SET_TOKEN_TOOL_ID = "credential_save";

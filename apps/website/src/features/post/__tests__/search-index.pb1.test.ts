@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
+import { POST_SEARCH_HOST } from "../search-host-config.js";
 import test from "node:test";
 
 import { eachDialect, emptiedPgContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
-import { backfillPostSearchIndex, PostSearchIndex, type SearchProjectionTables } from "../search-index.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
+import { backfillPostSearchIndex, PostSearchIndex, type SearchProjectionTables } from "@jini-ai/cms/posts/sql";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 
 // pb1/F2.6/F6.4: independently observe the real save and backfill paths through ranked search.
 // Counterexample: retain bodyJson-only projection or omit body_format/body_html from backfill.
@@ -21,7 +23,7 @@ for (const dialect of eachDialect({ tables: ["posts", "post_revisions", "post_se
     const kernel = dialect.make();
     if (dialect.dialect === "sqlite") t.after(() => kernel.close());
     const repo = postRepoFor(kernel);
-    const search = new PostSearchIndex({ kernel });
+    const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     const find = async (query: string) => (await searchAdminPosts({
       deps: { search }, input: { workspaceId: "pb1-ws", query },
     })).hits;
@@ -37,9 +39,9 @@ for (const dialect of eachDialect({ tables: ["posts", "post_revisions", "post_se
     await kernel.run((db) => db.withTables<SearchProjectionTables>()
       .deleteFrom("post_search_document").where("post_id", "=", "studio").execute());
     assert.deepEqual(await find("needleword"), []);
-    assert.equal(await backfillPostSearchIndex({ kernel }), 1);
+    assert.equal(await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 1);
     assert.deepEqual((await find("needleword")).map((hit) => hit.id), ["studio"]);
-    assert.equal(await backfillPostSearchIndex({ kernel }), 0);
+    assert.equal(await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 0);
 
     // The same shared projection must also replace HTML text when the format changes to doc.
     await repo.save({ ...page, version: 2, bodyFormat: "doc", bodyHtml: null });
@@ -54,7 +56,7 @@ test("BUG: PostgreSQL query folding re-tokenizes compatibility decompositions be
   await repo.save({ ...page, bodyFormat: "doc", bodyHtml: null,
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "½ cup crème brûlée." }] }] },
   });
-  const search = new PostSearchIndex({ kernel });
+  const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
   for (const query of ["½", "crème", "cre\u0300me"]) {
     assert.deepEqual((await searchAdminPosts({
       deps: { search }, input: { workspaceId: "pb1-ws", query },

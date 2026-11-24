@@ -12,7 +12,9 @@
  * its own dictionary (`dashboard-i18n.ts`). Pure data, no runtime dependency (see `index.ts`).
  */
 
-import type { PublishSection } from "@jini-ai/core/contracts/site/ui-sections";
+import { definePublishSection as section, publishEntityTypeLabel as labelFor, publishEntityTypePluralLabel as pluralLabelFor, publishSectionById as sectionById, publishSectionForEntityTypes as sectionForEntityTypes, type PublishSection } from "@jini-ai/cms/publish/content/ui";
+
+export type { PublishSection };
 
 export const PUBLISH_SECTIONS = [
   section({ id: "pages", labelKey: "Publish pages", descriptionKey: "Sends your pages to the live site.", typeLabelKeys: { page: "Page" }, typePluralLabelKeys: { page: "Pages" } }),
@@ -33,7 +35,7 @@ export type PublishSectionId = (typeof PUBLISH_SECTIONS)[number]["section"];
 
 /** @complexity O(sections). */
 export function publishSectionById({ id }: { id: string }, _optional = {}): PublishSection | undefined {
-  return PUBLISH_SECTIONS.find((candidate) => candidate.section === id);
+  return sectionById({ id, sections: PUBLISH_SECTIONS });
 }
 
 /**
@@ -43,47 +45,17 @@ export function publishSectionById({ id }: { id: string }, _optional = {}): Publ
  * @complexity O(sections × types).
  */
 export function publishSectionForEntityTypes({ entityTypes }: { entityTypes: readonly string[] }, _optional: Record<string, never> = {}): PublishSection | undefined {
-  const wanted = new Set(entityTypes);
-  return PUBLISH_SECTIONS.find(
-    (candidate) =>
-      candidate.entityTypes.length === wanted.size && candidate.entityTypes.every((type) => wanted.has(type)),
-  );
+  return sectionForEntityTypes({ entityTypes, sections: PUBLISH_SECTIONS });
 }
 
 /** The friendly type name for the dialog's type column, or the raw `entityType` for a type no
  *  section names yet (degraded, never blank). @complexity O(sections). */
 export function publishEntityTypeLabel({ entityType }: { entityType: string }, _optional = {}): string {
-  for (const candidate of PUBLISH_SECTIONS) {
-    const label: string | undefined = (candidate.typeLabelKeys as Readonly<Record<string, string>>)[entityType];
-    if (label !== undefined) return label;
-  }
-  return entityType;
+  return labelFor({ entityType, sections: PUBLISH_SECTIONS });
 }
 
 /** The plural friendly name for a counted line, or the raw `entityType` for a type no section names
  *  yet (degraded, never blank). @complexity O(sections). */
 export function publishEntityTypePluralLabel({ entityType }: { entityType: string }, _optional = {}): string {
-  for (const candidate of PUBLISH_SECTIONS) {
-    const label: string | undefined = (candidate.typePluralLabelKeys as Readonly<Record<string, string>>)[entityType];
-    if (label !== undefined) return label;
-  }
-  return entityType;
-}
-
-function section<const S extends string, const T extends Record<string, string>>({ id, labelKey, descriptionKey, typeLabelKeys, typePluralLabelKeys }: { id: S; labelKey: string; descriptionKey: string; typeLabelKeys: T; typePluralLabelKeys: { readonly [K in keyof T]: string } }, _optional = {}): {
-  section: S;
-  entityTypes: readonly (keyof T & string)[];
-  labelKey: string;
-  descriptionKey: string;
-  typeLabelKeys: T;
-  typePluralLabelKeys: { readonly [K in keyof T]: string };
-} {
-  return {
-    section: id,
-    entityTypes: Object.keys(typeLabelKeys) as (keyof T & string)[],
-    labelKey,
-    descriptionKey,
-    typeLabelKeys,
-    typePluralLabelKeys,
-  };
+  return pluralLabelFor({ entityType, sections: PUBLISH_SECTIONS });
 }

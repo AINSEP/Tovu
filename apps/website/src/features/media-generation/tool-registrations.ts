@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "../media/index.js";
+import { captureMediaUploaded } from "@jini-ai/cms/media/site/analytics";
 import { withChatPreview } from "@jini-ai/cms/media/site/chat-preview";
 import type { MediaProvenance } from "@jini-ai/cms/media";
 import type { ImageCodecPort } from "@jini-ai/core/contracts/site/cms-media";
@@ -21,7 +21,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import {
   getMediaProviderCredentials,
   resolveMediaProviderCredential,
@@ -30,16 +30,16 @@ import {
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
   type BlobStorePort,
-  type MediaProviderCredentialRepoPort,
   type MediaRecord,
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
+import type { MediaProviderCredentialRepoPort } from "@jini-ai/cms/media/site/provider-credential-contracts";
 import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 import { resolveMediaPublicUrls } from "../media/public-urls.js";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
-import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog } from "@jini-ai/cms/media/site-generation/agent-tools";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for
@@ -435,7 +435,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
   // bare fake); the published enum then falls back to the built-in projection. Every composition
   // root supplies the registry, and the handler always reads it.
   const imageModelIds = registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
-  const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds }) });
+  const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds, mediaAssetReadToolId: "content_read.media_asset" }) });
   const handlers: Record<string, ToolHandler> = {
     media_generate_asset: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -479,7 +479,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
-    catalogModule: "features/media-generation/agent-tools.ts",
+    catalogModule: "@jini-ai/cms/media/site-generation/agent-tools",
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: mediaGenerationDerivedRisk,

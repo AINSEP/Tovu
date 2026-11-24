@@ -140,7 +140,8 @@
    small rule rather than a misuse of that primitive. Layout only: the surrounding `.field-group`
    in `FormEditor.tsx` supplies the vertical rhythm to its neighbors, same as every other field on
    this screen, so this rule does not set its own margin. */
-.form-checkbox-field {
+.form-checkbox-field,
+.jini-collections-dialog .jini-form-checkbox-field {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -301,7 +302,7 @@
    `align-items: stretch` above would otherwise stretch it to the dialog's full width (rendered and
    caught live: a full-width "Add link" sitting flush against `WidgetPickerDialog.tsx`'s own
    full-width-by-coincidence "Create and place" submit button read as one glitchy double-height
-   control). Same fix shape as `styles.css`'s `.menu-tree > .btn-secondary` for the identical
+   control). Same fix shape as `styles.css`'s `.jini-menu-tree > .btn-secondary` for the identical
    stretch-by-default-flex-column class of bug. */
 .widget-config-fields > button {
   align-self: flex-start;
@@ -333,6 +334,6 @@
 /* Detail owns Back to submissions; the editor's Back to forms would otherwise
    stack above it. Preserve the header rail and restore its link on returning to
    the list, without a second copy of the submission selection state. */
-.page:has(.form-submission-detail) > .page-header > .page-header-lead {
+.page:has(.form-submission-detail) > .page-header > .page-header-lead,.jini-page:has(.form-submission-detail) > .jini-page-header > .jini-page-header-lead {
   visibility: hidden;
 }

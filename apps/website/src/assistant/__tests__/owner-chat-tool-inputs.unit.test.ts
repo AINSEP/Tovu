@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizeToolInput, type ToolRegistration } from '@jini-ai/core';
 import { getThemesAgentToolCatalog } from '../../features/theme/agent-tools.js';
-import { mediaImportAgentToolCatalog } from '../../features/media-import/agent-tools.js';
+import { mediaImportAgentToolCatalog } from '../../features/media-import/tool-registrations.js';
 import { mediaAgentToolCatalog } from '../../features/media/index.js';
 import { postPreviewAgentToolCatalog } from '../../features/post/preview-tool.js';
 import { buildSiteInspectionRegistrations, type SiteInspectionToolDeps } from '../../features/site-inspection/tool-registrations.js';

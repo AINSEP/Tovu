@@ -1,0 +1,13 @@
+HEAD 5593f937b
+build exit=0 secs=250
+typecheck exit=0 secs=281
+guard exit=0 secs=102
+api-check exit=0 secs=25
+cross-package exit=1 secs=3
+size exit=1 secs=44
+complexity exit=1 secs=50
+why-comments exit=1 secs=24
+hooks exit=1 secs=2
+errors exit=0 secs=41
+log-safety exit=1 secs=46
+DONE

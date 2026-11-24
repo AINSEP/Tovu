@@ -1,4 +1,4 @@
-import type { PostRecord } from "../../features/post/contracts.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { PresentationSettingsRecord } from "@jini-ai/cms/presentation";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 

@@ -6,8 +6,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminContentTypeListRoute } from "../list.js";
-import type { ContentTypesRouteDeps } from "../deps.js";
+import { registerAdminContentTypeListRoute } from "#src/server/runtime/composition/modules/content-types";
+import type { ContentTypesRouteDeps } from "#src/server/runtime/composition/modules/content-types";
 
 function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.Express {
   const fakeRepo = {

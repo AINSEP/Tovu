@@ -28,7 +28,10 @@ import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort,
 import type { PasswordHasherPort, PrincipalRepoPort, UserRepoPort } from "@jini-ai/core/contracts/site/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "@jini-ai/user-management/identity/api-key-types";
 import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
-import type { PostRepoPort, PostSearchPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
+import type { RemovePostFn } from "../../features/post/index.js";
+import type { SlugChangeCaptureLookup } from "@jini-ai/cms/posts/post-slugs";
+import type { PostRepoPort, PostRecord } from "@jini-ai/cms/posts/post";
+import type { PostSearchPort } from "@jini-ai/cms/posts/search";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
@@ -68,7 +71,7 @@ import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-
 // `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
-import type { RemoveMediaFn } from "../../features/media/contracts.js";
+import type { RemoveMediaFn } from "@jini-ai/cms/media/site/contracts";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
@@ -336,12 +339,12 @@ export interface ContentTaxonomyDeps {
   /**
    * Assignment persistence with by-term enumeration for gated merge, counts for
    * guarded taxonomy/term deletion, unassignment, and publish-content term-id reads.
-   * Both roots wire `SqliteEntryTermRepo`, which implements these capabilities.
+   * Both roots wire `SqlEntryTermRepo`, which implements these capabilities.
    */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort & UnassignableEntryTermRepoPort & EntryTermReadPort;
   /**
    * Optional public-render read port for terms assigned to a post/page. The real
-   * root shares its `SqliteEntryTermRepo` instance with `entryTermRepo`; the hermetic
+   * root shares its `SqlEntryTermRepo` instance with `entryTermRepo`; the hermetic
    * composition leaves this slot unset. Consumers degrade to no terms rather than
    * throwing; see `resolveAssignedTermsForRender`.
    */
@@ -545,7 +548,7 @@ export interface PostDeps {
    * A sibling of `postRepo` rather than a method on it: `PostRepoPort` is a record store of exact
    * lookups whose in-memory adapter is three array scans, while this is a durable inverted index
    * with its own migration, sync obligation and backfill. See `features/post/search.ts` for the
-   * full argument, and `search-index.sqlite.ts` for why the index carries only text while
+   * full argument, and `@jini-ai/cms/posts/sql`'s `search-index.sqlite.ts` for why the index carries only text while
    * workspace/kind/status/trash stay query-time filters on the live row.
    */
   postSearch: PostSearchPort;

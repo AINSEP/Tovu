@@ -1,28 +1,19 @@
-import { autoFocusCancelForLifecycleOp, lifecycleCopy, type LifecycleConfirmOp } from "../rules";
+import type { LifecycleConfirmOp } from "@jini-ai/admin/screens/collections/rules";
+import { useLifecycleConfirmDialog, type LifecycleConfirmDialogController } from "@jini-ai/admin/screens/collections/hooks/use-lifecycle-confirm-dialog.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { collectionsHostKit } from "../collections-host-ports";
 
 /**
- * @file `LifecycleConfirmDialog`'s op-derived copy/focus decision — native cancellation and
- * focus lifecycle now belong to Jini, so the dialog in `Collections.tsx` is only markup. This dialog holds no state
- * of its own; both derivations move to `rules.ts` (`LIFECYCLE_COPY`, `autoFocusCancelForLifecycleOp`)
- * since they compute a value from `op`, not just render one.
- *
- * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
- * nothing outside `features/collections` needs it.
+ * @file This host's binding of `@jini-ai/admin`'s `useLifecycleConfirmDialog`: the resolved admin
+ * locale and the collections host kit.
  */
 
-export interface LifecycleConfirmDialogController {
-  copy: { title: string; body: string };
-  autoFocusCancel: boolean;
-}
-
-export function useLifecycleConfirmDialog(props: {
+/** Binds the resolved `useAdminLocale()` value and {@link collectionsHostKit}; the zero-deps half
+ *  `LifecycleConfirmDialog` mounts. */
+export function useWiredLifecycleConfirmDialog(props: {
   op: LifecycleConfirmOp;
   onCancel: () => void;
 }): LifecycleConfirmDialogController {
   const locale = useAdminLocale();
-  return {
-    copy: lifecycleCopy({ op: props.op }, { locale }),
-    autoFocusCancel: autoFocusCancelForLifecycleOp(props.op),
-  };
+  return useLifecycleConfirmDialog({ props, locale, kit: collectionsHostKit });
 }

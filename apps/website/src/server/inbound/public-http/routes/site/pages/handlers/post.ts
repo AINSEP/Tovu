@@ -1,6 +1,6 @@
 import { renderCommentsMarkers } from "#src/features/comments/public-markers";
 import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.js";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import type { MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";
 // Keep request rendering separate from theme installation, imports, and agent tools.

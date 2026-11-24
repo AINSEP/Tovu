@@ -18,7 +18,7 @@ import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-no
 
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import type { PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/declared-content-types";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";

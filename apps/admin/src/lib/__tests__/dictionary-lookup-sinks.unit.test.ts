@@ -187,7 +187,15 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
           COMMON_DICTIONARY_FACTORIES.has(call.expression.text) && ts.isPropertyAssignment(parent) &&
           node.text === "COMMON_I18N" && parent.initializer === node &&
           parent.name.getText(f.ast) === "commonDictionary" && call.arguments[0] === parent.parent;
-        if (!declaration && !syntaxName && !translator && !commonFactory && !isConstruction(node)) {
+        // K4-i18n-common: a Jini `create<X>Dictionary({ commonDictionary: COMMON_I18N })` factory call is the
+        // host binding of a moved dictionary — the factory builds the translator, so COMMON_I18N is still
+        // only ever the translator's fallback layer.
+        const hostFactoryBinding = node.text === "COMMON_I18N" && ts.isPropertyAssignment(parent) &&
+          parent.name.getText(f.ast) === "commonDictionary" && ts.isObjectLiteralExpression(parent.parent) &&
+          ts.isCallExpression(parent.parent.parent) && ts.isIdentifier(parent.parent.parent.expression) &&
+          /^create[A-Z]\w*Dictionary$/.test(parent.parent.parent.expression.text) &&
+          parent.parent.parent.arguments[0] === parent.parent;
+        if (!declaration && !syntaxName && !translator && !commonFactory && !hostFactoryBinding && !isConstruction(node)) {
           report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
         }
       }
@@ -343,6 +351,15 @@ describe("findInlineDictionaryLookups: the detector", () => {
     ]);
     const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; const DICT: Record<string, Record<string, string>> = {}; export const t = createDictionaryTranslator({ featureDictionary: DICT }, { commonDictionary: COMMON_I18N });" };
     expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+    const factoryBound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; export const { t } = createFormsDictionary({ commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, factoryBound])).toEqual([]);
+    for (const leak of [
+      "createFormsDictionary({ other: COMMON_I18N })",
+      "lookupDictionary({ commonDictionary: COMMON_I18N })",
+    ]) {
+      const factoryLeak = { path: DICT_FILE.path, source: `import { COMMON_I18N } from '../../lib/i18n-common'; export const x = ${leak};` };
+      expect(findInlineDictionaryLookups([common, factoryLeak])).toEqual([`${DICT_FILE.path}: references COMMON_I18N`]);
+    }
   });
 
   it("permits COMMON_I18N as the required commonDictionary of a K4 feature dictionary factory, nowhere else", () => {

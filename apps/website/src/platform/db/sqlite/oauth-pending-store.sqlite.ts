@@ -1,6 +1,6 @@
 import type { UUID, Clock } from "@jini-ai/core/primitives";
 
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/secrets";
 import type { DeviceAuthorizationStore } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";

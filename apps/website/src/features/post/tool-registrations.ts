@@ -1,9 +1,9 @@
 import { updatePost } from "./post-update.js";
 import { restorePostForward, deletePost } from "./post-trash.js";
-import { getAdminPostById, listAdminPosts } from "./post-read.js";
-import { normalizeShowPostAuthor, normalizePostAuthor } from "./post-write-fields.js";
+import { getAdminPostById, listAdminPosts } from "@jini-ai/cms/posts/post-read";
+import { normalizeShowPostAuthor, normalizePostAuthor } from "@jini-ai/cms/posts/post-write-fields";
 import { createPost } from "./post-create.js";
-import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/post';
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
@@ -16,15 +16,16 @@ import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { PostNotFoundError, type PostRecord } from "./post.js";
+import { PostNotFoundError, type PostRecord } from "@jini-ai/cms/posts/post";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
-import { parseExpectedVersion } from "./expected-version.js";
-import { searchAdminPosts } from "./search.js";
+import { parseExpectedVersion } from "@jini-ai/cms/posts/expected-version";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
 import { CONTENT_READ_PERMISSION, CONTENT_WRITE_PERMISSION, CATALOG_BY_ID, ASSISTANT_ACTOR_PLUGIN_ID, postCommandDeps, postDerivedRisk } from "./post-tool-policy.js";
-import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "./post-tool-errors.js";
+import { isPostShapeRejection, POST_MODEL_FACING_ERRORS } from "@jini-ai/cms/posts/post-tool-errors";
 import { requirePostKind, optionalPostStatus, requireBodyJson, optionalPublishAt, resolveFeaturedImageInput } from "./post-tool-input.js";
-import { toPostToolView, toPostToolViewWithPublicUrl, toPostWriteResultView, headerNavigationView } from "./post-tool-views.js";
+import { toPostToolView, toPostToolViewWithPublicUrl, toPostWriteResultView } from "@jini-ai/cms/posts/post-tool-views";
+import { headerNavigationView, postToolViewDeps } from "./post-tool-view-deps.js";
 import { clampPostListLimit, optionalPostListFields, matchesPostListFilters, projectPostListRow, toPostListRow, excerptCharsFor } from "./post-tool-list.js";
 import { loadDeletablePost, assertFreshVersion } from "./post-tool-delete.js";
 import { parseUpdatePatch, assertPatchNotEmpty, loadUpdateTarget, assertTemplateAvailable, mergeUpdatePatch, isPartialPatch, assertHtmlBodyUnchanged, updateInverse } from "./post-tool-update.js";
@@ -53,7 +54,7 @@ async function listPostToolPosts({ routeDeps, ctx }: { routeDeps: PostToolDeps; 
   return {
     posts: posts.map((post) => {
       if (fields !== undefined) return projectPostListRow({ row: toPostListRow({ routeDeps, post, excerptChars: excerptCharsFor({ rowCount: posts.length }) }), fields });
-      return includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow({ routeDeps, post, excerptChars: excerptCharsFor({ rowCount: posts.length }) });
+      return includeBody ? toPostToolViewWithPublicUrl({ deps: postToolViewDeps({ routeDeps }), post }) : toPostListRow({ routeDeps, post, excerptChars: excerptCharsFor({ rowCount: posts.length }) });
     }),
     total,
     hasMore: total > posts.length,
@@ -144,7 +145,7 @@ async function createPostToolPost({ routeDeps, ctx }: { routeDeps: PostToolDeps;
     // (`agent daemon outbox`).
     await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-    return { post: toPostWriteResultView(routeDeps, result.post), ...headerNavigationView({ kind }) };
+    return { post: toPostWriteResultView({ deps: postToolViewDeps({ routeDeps }), post: result.post }), ...headerNavigationView({ kind }) };
   } });
 }
 
@@ -298,7 +299,7 @@ async function updatePostToolPost({ routeDeps, ctx }: { routeDeps: PostToolDeps;
     // delivers instead (`agent daemon outbox`).
     await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-    return { post: toPostWriteResultView(routeDeps, result.post) };
+    return { post: toPostWriteResultView({ deps: postToolViewDeps({ routeDeps }), post: result.post }) };
   } });
 }
 
@@ -383,7 +384,7 @@ async function deletePostToolPost({ routeDeps, ctx }: { routeDeps: PostToolDeps;
   // invalidation subscriber — the same inline drain content_post_update and the routes perform.
   await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-  return { deleted: true, cancelled: false, post: toPostToolView(result.post) };
+  return { deleted: true, cancelled: false, post: toPostToolView({ post: result.post }) };
 }
 
 /**
@@ -467,7 +468,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         throw new PostNotFoundError(`page '${id}' was not found`);
       }
 
-      return { post: toPostToolViewWithPublicUrl(routeDeps, post) };
+      return { post: toPostToolViewWithPublicUrl({ deps: postToolViewDeps({ routeDeps }), post }) };
     },
 
     content_post_create: async (ctx) => createPostToolPost({ routeDeps, ctx }),

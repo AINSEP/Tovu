@@ -1,7 +1,7 @@
 import { resolveByokProtocol } from "./byok-provider-turn.js";
 import { resolveSiteAssistantApiKey, type ResolvedSiteAssistantCredential } from "./site-credential-store.js";
 import type { SiteAssistantCredentialRepoPort } from "./site-credential-store.js";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 
 export type PublicAssistantAvailability =
   | { ready: true; credential: ResolvedSiteAssistantCredential }

@@ -1,10 +1,11 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { formDefinitionRepoFor, formSubmissionRepoFor, type SqlFormDefinitionRepo, type SqlFormSubmissionRepo } from "@jini-ai/cms/forms/sql";
+import { FORMS_TABLES } from "#src/platform/db/content-tables";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { FormDefinitionNotFoundError } from "@jini-ai/cms/forms";
 import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
@@ -32,8 +33,8 @@ interface Harness {
   db: ContentDb;
   registry: TrashRegistry;
   trash: TrashPort;
-  definitions: SqliteFormDefinitionRepo;
-  submissions: SqliteFormSubmissionRepo;
+  definitions: SqlFormDefinitionRepo;
+  submissions: SqlFormSubmissionRepo;
 }
 
 function harness(): Harness {
@@ -60,8 +61,8 @@ function harness(): Harness {
     db,
     registry,
     trash,
-    definitions: new SqliteFormDefinitionRepo({ store: db }),
-    submissions: new SqliteFormSubmissionRepo({ store: db }),
+    definitions: formDefinitionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
+    submissions: formSubmissionRepoFor({ kernel: schemaErasedKernel({ store: db }), tables: FORMS_TABLES }),
   };
 }
 

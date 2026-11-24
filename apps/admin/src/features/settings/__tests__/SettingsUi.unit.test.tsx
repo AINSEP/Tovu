@@ -2,13 +2,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  createFakeMediaProvidersPort,
-  createFakeSourceConfigDependencies,
-  type ByokConfig,
-  type ExecutionConfig,
-  type SourceConfigItem,
-} from "@jini-ai/ui";
+import { createFakeMediaProvidersPort, createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
 import { SettingsUi as RealSettingsUi } from "../SettingsUi";

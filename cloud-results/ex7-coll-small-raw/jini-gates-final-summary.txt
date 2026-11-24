@@ -1,0 +1,13 @@
+HEAD 123902945
+build exit=0 secs=192
+typecheck exit=0 secs=153
+guard exit=0 secs=78
+api-check exit=0 secs=18
+cross-package exit=1 secs=2
+size exit=1 secs=32
+complexity exit=1 secs=35
+why-comments exit=1 secs=28
+hooks exit=1 secs=2
+errors exit=0 secs=28
+log-safety exit=1 secs=31
+DONE

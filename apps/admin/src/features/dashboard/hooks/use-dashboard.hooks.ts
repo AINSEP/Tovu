@@ -1,5 +1,6 @@
 import { useDashboard, type DashboardController } from "@jini-ai/admin/screens/dashboard/hooks/use-dashboard.hooks";
 
+
 import { describeApiError } from "@/lib/admin-http/request";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";

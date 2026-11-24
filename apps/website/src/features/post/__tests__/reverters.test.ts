@@ -5,7 +5,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPostReverters, type PostReverterDeps } from "../reverters.js";
 import { buildPostRecord } from "./post-record.fixture.js";
-import { PostVersionConflictError, type PostRecord } from "../post.js";
+import { PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 
 const WS = "workspace-1";
 

@@ -1,7 +1,10 @@
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { ContentAnalysisCard } from "@jini-ai/admin/screens/content-analysis/ContentAnalysisCard";
 import { useWiredContentAnalysis } from "../../content-analysis/hooks/use-content-analysis.hooks";
-import { TermPicker } from "../../taxonomy/TermPicker";
+import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
+import { useWiredTermPicker } from "../../taxonomy/taxonomy-wired.hooks";
 
 /* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
     enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
@@ -12,7 +15,7 @@ export function PostSavedPanels({ post, title, bodyJson }: { post: AdminPost; ti
   return post.id ? (
     <>
       <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} useContentAnalysisHook={useWiredContentAnalysis} />
-      <TermPicker contentType={post.kind} contentId={post.id} />
+      <TermPicker contentType={post.kind} contentId={post.id} useTermPickerHook={useWiredTermPicker} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />
     </>
   ) : null;
 }

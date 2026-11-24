@@ -1,6 +1,6 @@
 import type { SetStateAction } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 vi.mock("@/lib/execution-settings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/execution-settings")>()),

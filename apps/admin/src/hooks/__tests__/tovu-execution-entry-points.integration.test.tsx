@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { ExecutionConfig, ExecutionPort } from '@jini-ai/ui';
+import type { ExecutionConfig, ExecutionPort } from '@jini-ai/core/contracts/execution';
 import { SettingsUi } from '@/features/settings/SettingsUi';
 import type { SettingsUiController } from '@/features/settings/hooks/use-settings-ui.hooks';
 import { AdminExecutionMode } from '@/features/ai-assistant/AiAssistant';

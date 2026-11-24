@@ -1,4 +1,4 @@
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { collectCoverMediaRefs } from "@jini-ai/cms/media/cover-image";
 import type { StaticFeaturedImage } from "#src/features/theme/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";

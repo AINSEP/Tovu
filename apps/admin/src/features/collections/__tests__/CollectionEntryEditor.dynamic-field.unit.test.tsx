@@ -33,7 +33,7 @@ vi.mock("../hooks/use-collection-entry-editor.hooks", async (importOriginal) => 
   // rename of what gets intercepted, not a behavior or assertion change.
   return { ...actual, useWiredCollectionEntryEditor: () => editorControllerRef.current };
 });
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),

@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
-import { PostSettingsDialog, type PostSettingsDialogProps } from "../PostSettingsDialog";
-import type { PostSettingsDialogController, PostSettingsTab } from "../hooks/use-post-editor-ui.hooks";
+import { PostSettingsDialog, type PostSettingsDialogProps } from "@jini-ai/admin/posts/PostSettingsDialog";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import type { PostSettingsDialogController, PostSettingsTab } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 
 /**
  * @file The post/page settings modal: closed renders nothing, the title names the content kind,
@@ -16,6 +17,8 @@ function dialog(tab: PostSettingsTab, overrides: Partial<PostSettingsDialogContr
 
 function renderDialog(overrides: Partial<PostSettingsDialogProps> = {}) {
   const props: PostSettingsDialogProps = {
+    hooks: { useTabBarKeyboard },
+    resolveTabBarTabIndex,
     dialog: dialog("author"),
     kindLabel: "post",
     author: "Ada",

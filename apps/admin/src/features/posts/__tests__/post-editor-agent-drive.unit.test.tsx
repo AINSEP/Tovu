@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { useState } from "react";
 import { act, fireEvent, render, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
@@ -6,13 +7,13 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/posts-host-ports";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
 // branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
@@ -136,7 +137,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
 
 function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
   const ctrl = controller(overrides);
-  const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => ctrl} />);
+  const { container } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => ctrl} />);
   return { ctrl, container };
 }
 
@@ -144,7 +145,7 @@ function renderStatefulPostEditor(initialView: "edit" | "preview") {
   const ctrl = controller();
   function Harness() {
     const [view, setView] = useState(initialView);
-    return <PostEditor postId="p1" usePostEditorHook={() => ({
+    return <PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={() => ({
       ...ctrl,
       view,
       setView: (next) => { ctrl.setView(next); setView(next); },

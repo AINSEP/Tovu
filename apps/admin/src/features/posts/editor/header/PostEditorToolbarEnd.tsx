@@ -1,5 +1,6 @@
 import { WiredThemePreviewReloadButton } from "../../../themes/ThemePreviewReloadButton";
-import { PostEditorTemplatePicker } from "../template/PostEditorTemplatePicker";
+import { PostEditorTemplatePicker } from "@jini-ai/admin/posts/editor/template/PostEditorTemplatePicker";
+import { ViewTemplateButton } from "../../../../components/TemplateSource/ViewTemplateButton";
 import { type PostEditorView } from "../../hooks/use-post-editor.hooks";
 
 /**
@@ -8,6 +9,9 @@ import { type PostEditorView } from "../../hooks/use-post-editor.hooks";
  * (shared `DevicePreviewToggle`, 2026-09-22 owner ask) moved to the LEFT group beside the
  * Editor/Preview tabs (owner, 2026-10-10: "right next to" them), so it is rendered by `PostEditor`.
  *
+ * The picker lives in `@jini-ai/admin`; this call site binds the host's shared `ViewTemplateButton`
+ * (also used by the page editor's picker) into its required `ViewTemplateButton` prop.
+ *
  * @complexity O(1).
  */
 export function PostEditorToolbarEnd({
@@ -15,11 +19,11 @@ export function PostEditorToolbarEnd({
   ...pickerProps
 }: {
   view: PostEditorView;
-} & Parameters<typeof PostEditorTemplatePicker>[0]) {
+} & Omit<Parameters<typeof PostEditorTemplatePicker>[0], "ViewTemplateButton">) {
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
-      <PostEditorTemplatePicker {...pickerProps} />
+      <PostEditorTemplatePicker {...pickerProps} ViewTemplateButton={ViewTemplateButton} />
     </div>
   );
 }

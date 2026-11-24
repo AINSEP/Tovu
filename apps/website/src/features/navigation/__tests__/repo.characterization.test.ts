@@ -1,11 +1,12 @@
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { MenuConflictError, MenuVersionConflictError, type NavMenuDoc, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
-
 /**
  * @file S1b T0: the menu and nav-location-binding repos' behaviour on the unmoved code, before their query bodies
  * move to Jini `@jini-ai/cms/navigation/sql`. Real SQLite kernel (the recorder from the lane-su pins), driven through
@@ -23,7 +24,7 @@ function menu(id: string, overrides: Partial<NavMenuEntry> = {}): NavMenuEntry {
 }
 
 function reposOn(kernel: ContentKernel) {
-  return { menus: new SqliteMenuRepo({ store: kernel }), bindings: new SqliteNavLocationBindingRepo({ store: kernel }) };
+  return { menus: new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}), bindings: new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {}) };
 }
 
 test("a save with a stale expectedVersion is refused with the version conflict and leaves the row", async () => {

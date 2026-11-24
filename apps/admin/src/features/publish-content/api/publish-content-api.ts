@@ -1,10 +1,5 @@
-import type {
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentPeerSummary,
-  PublishContentPlanResult,
-  PublishScope,
-} from "@jini-ai/cms/publish/content/dialog";
+import type { PublishContentPeerView } from "@jini-ai/core/contracts/site/cms-publish-content";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPlanResult, PublishScope } from "@jini-ai/cms/publish/content/ui";
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminPublishDestinationView } from "./publish-content-api.types";
@@ -30,10 +25,10 @@ export const publishContentApi = {
   // two drifting copies of the report shape.
   //
   // Every call names a PEER by id. A raw peer URL or credential is never sent from the browser and
-  // never returned to it — `PublishContentPeerSummary` carries `masked`/`hasCredential` and nothing
+  // never returned to it — `PublishContentPeerView` carries `masked`/`hasCredential` and nothing
   // else credential-shaped (Task 10 owns the sealing).
   listPublishContentPeers: () =>
-    request<{ peers: PublishContentPeerSummary[] }>({ path: `/workspaces/${WORKSPACE_ID}/publish-content/peers` }),
+    request<{ peers: PublishContentPeerView[] }>({ path: `/workspaces/${WORKSPACE_ID}/publish-content/peers` }),
   /** Zero-setup connect — reads whether this install already publishes somewhere, and if not, the
    *  candidate pre-filled from the repo's own deploy config
    *  (`routes/publish-content/destination.ts`). Nothing credential-shaped is ever in this response:

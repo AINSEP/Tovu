@@ -79,7 +79,7 @@ export interface SourceControlCredentialSetRepoPort {
   readonly canonical?: CanonicalSourceControlKeys;
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
-   *  `vendor-credentials/project-scope.ts`: site first, then attached project rows; new rows go to the project
+   *  `@jini-ai/integrations/vendor-credentials/project-scope`: site first, then attached project rows; new rows go to the project
    *  unless saved "only for this site"). Absent = site only (Fly/production). */
   readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   insert(record: SourceControlCredentialSetRecord): Promise<void>;

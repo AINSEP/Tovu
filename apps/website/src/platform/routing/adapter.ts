@@ -2,7 +2,7 @@ import { createConsoleLogger } from "@jini-ai/core/primitives";
 /** Tovu binding for @jini-ai/cms/routing. One instance preserves the existing process-wide
  * registration lifecycle; the current publication gate remains the sole visibility owner. */
 import { createRouting } from '@jini-ai/cms/routing';
-import { currentIso, isLiveAt } from "#src/contracts/core/scheduled-publish";
+import { currentIso, isLiveAt } from "@jini-ai/core/scheduled-publish";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

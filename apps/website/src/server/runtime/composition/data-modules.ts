@@ -1,7 +1,7 @@
 /** Trusted bundled declarations, shared by namespace claims and site portability.
  * Never populate this registry from an imported archive or activate imported plugins. */
 import { createNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
-import { COMMENTS_DATA_MODULE } from "../../../features/comments/types.js";
+import { commentsDataModule } from "@jini-ai/cms/comments/site/types";
 import { createStoreManifest } from "@jini-ai/plugins/site/store/manifest";
 import { createLipayManifest } from "@jini-ai/plugins/site/lipay/manifest";
 import type { DataModuleDecl } from "@jini-ai/core/contracts/site/db-data-modules";
@@ -46,6 +46,10 @@ export const FIRST_PARTY_PUBLISHER = "tovu-core";
  * Now: the callee is `installNewsletterDataModule` in that Jini module; `site-deps/boot-data.ts` binds its
  * `declareDataModule` and {@link FIRST_PARTY_PUBLISHER}, and `createNewsletterDataModule` is in {@link FIRST_PARTY_DATA_MODULES}.
  */
+
+/** The bundled comments declaration's provenance: this host's own publisher identity. */
+export const COMMENTS_DATA_MODULE_PROVENANCE = { sourceUrl: "builtin://comments", publisher: "tovu-core" };
+const COMMENTS_DATA_MODULE = commentsDataModule({ provenance: COMMENTS_DATA_MODULE_PROVENANCE });
 
 export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [
   createStoreManifest({ publisher: FIRST_PARTY_PUBLISHER }),

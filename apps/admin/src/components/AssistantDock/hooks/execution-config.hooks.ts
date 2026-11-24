@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";

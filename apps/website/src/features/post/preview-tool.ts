@@ -1,10 +1,10 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
+import { toolMetadata } from '@jini-ai/core/tool-metadata/post';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type ToolContributor } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { getAdminPostById } from "./post-read.js";
-import { PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
+import { getAdminPostById } from "@jini-ai/cms/posts/post-read";
+import { PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "@jini-ai/diagnostics/web-evidence/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 

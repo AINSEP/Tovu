@@ -1,11 +1,13 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
-import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
+import { useMergeTermSection } from "@jini-ai/admin/screens/taxonomy/hooks/use-merge-term-section.hooks";
+import { useWiredMergeTermSection } from "../taxonomy-wired.hooks";
+import { createFakeMergeTermSectionPort } from "@jini-ai/admin/screens/taxonomy/hooks/merge-term-section-dependencies.hooks";
 import type { AdminTerm, MergeTermPlanDetails } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import type { GatedPlanResult } from "@jini-ai/core/contracts/site/gated-results";
+import { taxonomyHostKit } from "../taxonomy-host-ports";
 
 /**
  * @file `useMergeTermSection` — the plan/confirm/execute merge-term ceremony (ADR-044,
@@ -282,7 +284,7 @@ describe("stale settlement across a term switch mid-wizard (no key={term.id} rem
       });
     }
     const { result, rerender } = renderHook(
-      ({ term }) => useMergeTermSection({ term, onMerged }, port, "en"),
+      ({ term }) => useMergeTermSection({ options: { term, onMerged }, port: port, locale: "en", kit: taxonomyHostKit }),
       { initialProps: { term: termFixture() }, wrapper }
     );
     act(() => result.current.setIntoTermId("into1"));
@@ -323,7 +325,7 @@ describe("stale settlement across a term switch mid-wizard (no key={term.id} rem
     );
 
     const { result, rerender } = renderHook(
-      ({ term }) => useMergeTermSection({ term, onMerged: vi.fn() }, port, "en"),
+      ({ term }) => useMergeTermSection({ options: { term, onMerged: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }),
       { initialProps: { term: termFixture({ id: "from1" }) }, wrapper }
     );
     act(() => result.current.setIntoTermId("into1"));
@@ -360,7 +362,7 @@ describe("useMergeTermSection — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeMergeTermSectionPort({ overlappingContentCount: 5 });
 
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useMergeTermSection({ options: { term: termFixture(), onMerged: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setIntoTermId("into1"));
     await act(async () => {
       await result.current.startPlan();
@@ -377,7 +379,7 @@ describe("useMergeTermSection — injected port", () => {
     const confirmSpy = vi.spyOn(port, "confirmMergeTerm");
     const executeSpy = vi.spyOn(port, "executeMergeTerm");
     const onMerged = vi.fn();
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useMergeTermSection({ options: { term: termFixture(), onMerged }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
 
     act(() => result.current.setIntoTermId("into1"));
     await act(async () => {
@@ -399,7 +401,7 @@ describe("useMergeTermSection — injected port", () => {
 
   it("surfaces a rejected planMergeTerm call's message on the error channel", async () => {
     const port = createFakeMergeTermSectionPort({ planError: "cycle detected" });
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useMergeTermSection({ options: { term: termFixture(), onMerged: vi.fn() }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setIntoTermId("into1"));
 
     await act(async () => {
@@ -413,7 +415,7 @@ describe("useMergeTermSection — injected port", () => {
   it("keeps the plan available when the fake rejects confirmation", async () => {
     const port = createFakeMergeTermSectionPort({ confirmError: "plan expired" });
     const onMerged = vi.fn();
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useMergeTermSection({ options: { term: termFixture(), onMerged }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setIntoTermId("into1"));
     await act(async () => { await result.current.startPlan(); });
     await act(async () => { await result.current.doConfirm(); });
@@ -429,7 +431,7 @@ describe("useMergeTermSection — injected port", () => {
   it("retains the confirmed ceremony without reporting a merge when the fake rejects execution", async () => {
     const port = createFakeMergeTermSectionPort({ executeError: "merge refused" });
     const onMerged = vi.fn();
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
+    const { result } = renderHook(() => useMergeTermSection({ options: { term: termFixture(), onMerged }, port: port, locale: "en", kit: taxonomyHostKit }), { wrapper });
     act(() => result.current.setIntoTermId("into1"));
     await act(async () => { await result.current.startPlan(); });
     await act(async () => { await result.current.doConfirm(); });

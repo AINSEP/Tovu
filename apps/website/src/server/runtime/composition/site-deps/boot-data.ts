@@ -1,15 +1,16 @@
-import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
-import { SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { SqliteNewsletterListRepo } from "#src/features/newsletter/repo.sqlite";
 import { SqliteTransformDefinitionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { builtInSeedUploadsDir } from "../site-paths.js";
 import { ensureCoreMediaTransform } from "@jini-ai/cms/media/site/bootstrap";
 import { ensureDefaultList } from "@jini-ai/user-management/newsletter/lists";
 import { hydrateBlobStoreFromSeed } from "@jini-ai/cms/media/site/hydrate-blob-store-from-seed";
-import { installCommentsDataModule } from "#src/features/comments/data-module-install";
+import { installCommentsDataModule } from "@jini-ai/cms/comments/site/data-module-install";
 import { installNewsletterDataModule } from "@jini-ai/user-management/newsletter/data-module-manifest";
 import { declareDataModule } from "@jini-ai/db/data-modules";
-import { FIRST_PARTY_PUBLISHER } from "../data-modules.js";
+import { FIRST_PARTY_PUBLISHER, COMMENTS_DATA_MODULE_PROVENANCE } from "../data-modules.js";
 import { rebuildNavLocationBindings } from "@jini-ai/cms/navigation";
 import type { SiteStore } from "../open-site-store.js";
 import type { resolveSiteBindingOverride } from "./overrides.js";
@@ -36,8 +37,8 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
   // whatever menus this content.db already holds. Fire-and-forget, mirroring `settingsReady`'s
   // shape — logged and swallowed rather than aborting boot, matching W-003's "logs and continues
   // on failure" contract (ADR-PIPE-012 Wiring Map).
-  const menuRepo = new SqliteMenuRepo({ store: kernel });
-  const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });
+  const menuRepo = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
+  const navLocationBindingRepo = new SqlNavLocationBindingRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: NAVIGATION_TABLES }, {});
   const menuBindingsReady = rebuildNavLocationBindings({
     menuRepo,
     bindingRepo: navLocationBindingRepo,
@@ -78,7 +79,7 @@ export function startBootData(required: StartBootDataRequired, _optional = {}) {
    * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
    */
   const commentsReady = newsletterReady
-    .then(() => installCommentsDataModule({ db: kernel, dbPath }))
+    .then(() => installCommentsDataModule({ db: kernel, dbPath, provenance: COMMENTS_DATA_MODULE_PROVENANCE, declareDataModule }))
     .catch((err) => {
       consoleLogger.error({ message: `installCommentsDataModule failed at boot: ${(err as Error).message}` });
     });

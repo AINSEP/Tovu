@@ -13,7 +13,7 @@ import type { DbOpsPort, RestoreCapability } from "@jini-ai/core/contracts/site/
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../custom-credentials/store.js";
-import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";

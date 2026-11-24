@@ -51,6 +51,7 @@ const templateErrorDeps = {
   isTemplateNotFound: ({ err }: { err: unknown }) => err instanceof EmailTemplateNotFoundError,
   isTemplateInput: ({ err }: { err: unknown }) => err instanceof EmailTemplateInputError,
   isTemplateVersionConflict: ({ err }: { err: unknown }) => err instanceof EmailTemplateVersionConflictError,
+  outwardErrorMessage: ({ error }: { error: Error }): string => error.message,
 };
 
 /** The unexpected-failure copy key (`sendAdminFailure`'s operation) every route of this family used. */

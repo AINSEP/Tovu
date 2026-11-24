@@ -11384,6 +11384,734 @@
     {
       "id": "5d0bf59d60b3",
       "reason": "Reworded in place (w5-webfeat): development/scripts/check-tool-guides.ts absoluteOf doc now also names the @jini-ai/<pkg> linked-package ref form"
+    },
+    {
+      "id": "c4c36b8ab0df",
+      "reason": "Moved to Jini @jini-ai/cms/media/site-import/agent-tools.ts with the catalog builder; header kept, product name and host paths reworded neutrally (N2)."
+    },
+    {
+      "id": "6017f863acbc",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2)."
+    },
+    {
+      "id": "e4c9a8cc8241",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2); the host naming policy is now the injected deriveDuplicateName."
+    },
+    {
+      "id": "d84b6fbc4c4a",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2); @param for the injected deriveDuplicateName added."
+    },
+    {
+      "id": "b350f74e74b8",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/duplicate-asset.ts with the handler; text kept, host paths reworded neutrally (N2) (composition root and dependency-rule references)."
+    },
+    {
+      "id": "204a0379b225",
+      "reason": "Moved to Jini @jini-ai/cms/media/site-generation/agent-tools.ts with the catalog builder; header kept, product name and host paths reworded neutrally (N2)."
+    },
+    {
+      "id": "2400f5ca847f",
+      "reason": "Subject deleted: the pre-bound mediaGenerationAgentToolCatalog constant is gone; Jini cannot import the media-providers catalogue, so host call sites bind IMAGE_MODEL_IDS (see media INFO.md Wiring)."
+    },
+    {
+      "id": "434a6d54ed2f",
+      "reason": "Moved to Jini @jini-ai/cms/media/site/view-image-tool.ts with the module; host file paths reworded neutrally (N2)."
+    },
+    {
+      "id": "12a0712c0a97",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/screens/media/hooks/use-edit-media-modal.hooks.ts @file doc (useEditMediaModal) (w3-content), reworded neutral where it named host paths; the Tovu file is deleted."
+    },
+    {
+      "id": "9d8d2841aa30",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/screens/media/hooks/use-media-card-metadata.hooks.ts useMediaCardMetadata doc (w3-content), the host upload-limit name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "8b7b396b53b9",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostAutosaveRecoveryBanner.tsx PostAutosaveRecoveryBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "f1c7604fc6ac",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostAutosaveStaleBanner.tsx PostAutosaveStaleBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "02e90c063e62",
+      "reason": "Moved to Jini @jini-ai/admin packages/admin/src/posts/editor/notices/PostVersionConflictBanner.tsx PostVersionConflictBanner doc (w3-content), verbatim apart from neutral host-path wording; the Tovu file is deleted."
+    },
+    {
+      "id": "2278e5d282d4",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts @file doc (importMediaEntity) (w3-content), report/host paths reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "0271c1bcc463",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts ImportMediaEntityDeps doc (w3-content), the host publish-content.ts path reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "9c480b3daa11",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/media/site/import-media-entity.ts importMediaEntity body comment (w3-content), verbatim; the Tovu file is deleted."
+    },
+    {
+      "id": "96f6da0c95be",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/import-url.ts mediaImportUrlRoute doc (w3-content), \"Quick wins A\" label dropped, \"the tool\" reworded to \"the assistant's import tool\"; the Tovu file is deleted."
+    },
+    {
+      "id": "5406dc190280",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/media/where-used.ts mediaWhereUsedRoute doc (w3-content), verbatim inside the expanded route doc; the Tovu file is deleted."
+    },
+    {
+      "id": "690bcf5bd64d",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/posts/get-by-id.ts postGetRoute handler comment (w3-content), host lookup name reworded neutral; the Tovu file is deleted."
+    },
+    {
+      "id": "0f7129e7370b",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/navigation/site/import-menu.ts @file doc (w3-content), verbatim apart from neutral host-path wording: \"host-local\" dropped (the chokepoint now lives in Jini), `features/navigation/publish-content.ts` reworded to \"the host's navigation publish-content adapter\" (twice) and `features/post/post.ts` to \"the host post feature\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "75c2a9da2182",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/navigation/site/import-menu.ts importMenuEntity doc (w3-content), verbatim apart from `features/navigation/publish-content.ts` reworded to \"the host's navigation publish-content adapter\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "1ca44bcf583b",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/widgets.ts widgetForbiddenToResponse doc (w3-content), verbatim apart from dropping the host menus/create.ts path example and the \"See widgets-error-code-parity.test.ts\" pointer (no such test exists in either repo any more); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "0aee9b49a1b4",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/http/widgets.ts WIDGET_ERROR_MAPPERS doc (w3-content): `widgetErrorToResponse` renamed `widgetDomainErrorToResponse`, \"the unconditional 500 fallback\" became \"the caller's own fallback\" (the 500 moved to the host error port); rest verbatim; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "65155d8f2ae8",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/get-settings.ts commentsGetSettingsRoute doc (w3-content): first sentence verbatim, host seo path reworded \"the seo settings GET route\"; the \"Retyped from RouteRegistrar to CommentsModerationRouteDeps, see deps.ts\" sentence's subject is deleted (Express registrar and deps.ts gone; the spec declares its own deps); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "f794a916d00f",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/put-settings.ts commentsPutSettingsRoute doc (w3-content): first sentence verbatim, host seo path reworded \"the seo settings PUT route\"; the \"Retyped from RouteRegistrar to CommentsModerationRouteDeps, see deps.ts\" sentence's subject is deleted (Express registrar and deps.ts gone; the spec declares its own deps); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "5ec2627bf6c9",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/moderate.ts parseModerationBody doc (w3-content): \"`null` means expectedVersion failed validation\" is no longer true (it throws the flat 400 via rejectRoute) and says so instead; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "fc9a0cc9469a",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/comments/moderate.ts refuseModerationResult doc (the not-found/version-conflict split from result.reason) plus moderationActionRoute doc (\"204 on success\") (w3-content); the Express response writer it described is deleted; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "681207b6ace0",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/lifecycle.ts contentTypeLifecycleRoute doc (w3-content), verbatim apart from the host {@link import(...lifecycle-dispatch)} reworded to `ContentTypeLifecycleOp` and the host settings path to \"the settings register-definitions route\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "96036d7784eb",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/list.ts contentTypeListRoute doc (w3-content): pointer restored as `../database/timeline.ts`'s exact shape; the Express step names (getAuthedPrincipal, deps.authorize(), res.json()) reworded to the spec's authenticated principal -> authorize -> the list; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "eb77cf6bd5c3",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/content-types/register.ts contentTypeRegisterRoute doc (w3-content), verbatim apart from the host settings path reworded \"the settings register-definitions route\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "c5178fc1d751",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/entries/lifecycle.ts entryLifecycleRoute doc (w3-content): host {@link import(...)} reworded to `EntryLifecycleOp`, sibling pointer restored as `../content-types/lifecycle.ts`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "c3919eea605f",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/get-by-id.ts formsGetByIdRoute handler comment (w3-content), verbatim apart from `FormEditor.tsx`/`use-form-editor.hooks.ts` reworded \"the admin form editor\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "8ac30d9e11a2",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/get-submission.ts findSubmissionScopedToDefinition doc (w3-content), verbatim apart from the host test file reworded \"the host's forms-submissions cross-form-mismatch regression test\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "72b122a45bc2",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/list-submissions.ts handler comment (w3-content), verbatim apart from `FormEditor.tsx` reworded \"the admin form editor\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "69123e19d2d7",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/forms/resolve-definition.ts resolveFormDefinitionByIdOrSlug doc (w3-content), verbatim apart from `FormEditor.tsx` -> \"the admin form editor\" and posts' getAdminPostByIdOrSlug (host path) -> \"posts' admin get-by-id-or-slug lookup\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "7e27ebe7f0cd",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts assignmentDeps doc (w3-content): \"Jini's write deps\" reworded \"The write service's deps\" (the code is in Jini now); rest verbatim; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "93c4984c0f05",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts parseAssignmentBody doc (w3-content): \"or `null` after answering 400\" became \"or the 400 refusal\" (rejectRoute throws); the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "9c7a4ecbe766",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/taxonomy/assign-terms.ts taxonomyUnassignTermsRoute doc (w3-content), verbatim apart from \"Jini `unassignTerms`\" -> \"`unassignTerms`\"; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "0d302c329117",
+      "reason": "Subject deleted: removeEmbedPlacement was folded into Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-placement.ts removeWidgetToolPlacement's embed branch, whose doc keeps \"a thin pass-through to removeWidgetEmbed\"; \"kept symmetric with removeRegionPlacement\" no longer describes a separate helper; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "bafa8cae6883",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-placement.ts removeWidgetToolPlacement doc (w3-content), verbatim apart from `placeTarget` renamed `placeWidgetToolTarget`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "a48b6bb44def",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/agent-tools-targets.ts parseCreateToolInput doc (w3-content), verbatim apart from `readTarget` renamed `readWidgetToolTarget`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "1f4f25698362",
+      "reason": "Moved to Jini @jini-ai/cms packages/cms/src/admin-http/routes/widgets/list.ts widgetListRoute doc (w3-content): verbatim, the host menus list path restored as `../menus/list.ts`; the Tovu file is deleted (rv1123g ex7-coll-small FIX 2)."
+    },
+    {
+      "id": "ab79364b38cc",
+      "reason": "Moved to Jini @jini-ai/cms/posts/expected-version.ts with versionConflictEnvelope; text kept verbatim, one sentence added naming the injected outwardErrorMessage port (log-safety)."
+    },
+    {
+      "id": "3e4233c818e4",
+      "reason": "Moved to Jini @jini-ai/cms/posts/go-live-sweep.ts @file header; text kept, product name reworded neutrally (N1) and the console reporter replaced by the host-injected onError (log-safety)."
+    },
+    {
+      "id": "0b8f0e0f4e15",
+      "reason": "Moved to Jini @jini-ai/cms/posts/go-live-sweep.ts with startPostGoLiveSweep; text kept, host paths reworded neutrally (N2) and the required onError reporter documented (log-safety)."
+    },
+    {
+      "id": "80cf6f5f956d",
+      "reason": "Subject deleted: the barrel no longer re-exports expected-version (importers use @jini-ai/cms/posts/expected-version directly); the same rationale lives in that Jini file's @file header."
+    },
+    {
+      "id": "d57dd4415240",
+      "reason": "Moved to Jini @jini-ai/cms/posts/post.ts with PostRecord.deletedAt; text kept, product name reworded neutrally (N1: 'nothing in Tovu' -> 'the host')."
+    },
+    {
+      "id": "e94084ba548a",
+      "reason": "Moved to Jini @jini-ai/cms/posts/post.ts with PostRepoPort.listPublishedPreviews; text kept, host paths reworded neutrally (N2)."
+    },
+    {
+      "id": "a38038ea2431",
+      "reason": "Moved to Jini @jini-ai/admin screens/comments/index.ts @file doc (w3-content), `panels.tsx` reworded to the host route table (N2); the 'not an API change unless exported here' line is dropped because its subject, this folder's re-export list, is deleted (the Jini file is the host-mounted panel, not a barrel); the Tovu file is deleted."
+    },
+    {
+      "id": "0ed0844fb37d",
+      "reason": "Moved to Jini @jini-ai/admin screens/widgets/index.ts @file doc (w3-content), `panels.tsx` reworded to the host route table (N2); the 'not an API change unless exported' line is dropped because its subject, this folder's re-export list, is deleted (the Jini file is the host-mounted panels, not a barrel); the Tovu file is deleted."
+    },
+    {
+      "id": "4201145c4980",
+      "reason": "Moved to Jini @jini-ai/admin screens/widgets/index.ts region-panel doc (w3-content), `panels.tsx` reworded to 'its route table' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "3b0cee7d26b2",
+      "reason": "Moved to Jini @jini-ai/admin screens/library/Library.hooks.tsx @file doc (w3-content), `@jini-ai/ui/tab-strip` reworded to the admin kit tab strip (TabBar slot) it now uses (L5: admin may not import @jini-ai/ui); the Tovu file is deleted."
+    },
+    {
+      "id": "c3dcb09eb0e1",
+      "reason": "Moved to Jini @jini-ai/admin screens/media/hooks/use-edit-media-modal.hooks.ts useEditMediaModal doc (w3-content); @param lines rewritten for the object-args signature (args.open/onClose plus the injected kit dialog helpers); the Tovu file is deleted."
+    },
+    {
+      "id": "d09727f76d8d",
+      "reason": "Moved to Jini @jini-ai/admin screens/menus/hooks/menus-dependencies.hooks.ts @file doc (w3-content), `lib/api`/`features/menus` reworded to the host-bound menus API client and Trash client (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "941ee50c0a1e",
+      "reason": "Moved to Jini @jini-ai/admin screens/menus/hooks/use-menus.hooks.ts @file doc (w3-content), host file names reworded neutrally (N2); the screen-local/promote-later sentence was restored there neutrally (w3c-whycomments-2); the Tovu file keeps only the host binding useWiredMenus."
+    },
+    {
+      "id": "cbb046735eaa",
+      "reason": "Moved to Jini @jini-ai/admin screens/menus/hooks/use-menus.hooks.ts describeMenuTrashError doc (w3-content), `features/menus`/`instanceof` reworded to 'the menus screen'/'host error-class' check via the injected kit (N2); the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "fd1d7082f5a2",
+      "reason": "Moved to Jini @jini-ai/admin screens/menus/Menus.tsx @file doc (w3-content), the host `MenuEditor.tsx` file name dropped (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "43f9834a941c",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/merge-term-section-dependencies.hooks.ts @file doc (w3-content), `lib/api`/`features/taxonomy/hooks` reworded to the host-bound taxonomy API client (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "b685022b18b1",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/new-taxonomy-form-dependencies.hooks.ts @file doc (w3-content), `lib/api`/`features/taxonomy/hooks` reworded to the host-bound taxonomy API client (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "02224d14aed2",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/new-term-form-dependencies.hooks.ts @file doc (w3-content), `lib/api`/`features/taxonomy/hooks` reworded to the host-bound taxonomy API client (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "b63f511b610d",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/taxonomy-dependencies.hooks.ts @file doc (w3-content), `lib/api`/`features/taxonomy/hooks` reworded to the host-bound taxonomy API and Trash clients (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "926bd05d4b3d",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/term-picker-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to the host-bound taxonomy API client (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "401d4a602e7c",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/use-taxonomy.hooks.ts @file doc (w3-content), host file names reworded neutrally (N2) and the positional-`t` paragraph updated to the object-args signature the hook took with its move; the Tovu file is deleted."
+    },
+    {
+      "id": "c9d84e680262",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/hooks/use-term-picker.hooks.ts @file doc (w3-content), `TermPicker.tsx`/'below' reworded to the host's wired binding and its TermPicker view (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "16d035b1d254",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/Taxonomy.tsx @file doc (w3-content), product name dropped (N1), classes renamed to their jini- prefixed forms, the cms path reworded to `@jini-ai/cms`, plus one sentence on the required injected hooks; the Tovu file is deleted."
+    },
+    {
+      "id": "e0e39f113ee0",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/TaxonomyTermList.tsx local-components doc (w3-content), rewritten to the current wiring: the local components now receive their hooks through the required TaxonomyScreenHooks the host binds, so the old 'they call useWiredX directly' statement was no longer true; the Tovu file is deleted."
+    },
+    {
+      "id": "fa465ffd3514",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/TaxonomyTermList.tsx namespaceList doc (w3-content), classes renamed to their jini- prefixed forms and `styles.css` reworded to the host stylesheet (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "c7fe43db61ac",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/TaxonomyTermList.tsx namespaceList termHandles comment (w3-content), the host `CollectionEntryEditor.tsx` file name dropped (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "1a8f451dc22a",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/TermPicker.tsx group-row comment (w3-content), `styles.css`'s `.term-picker-group` reworded to the host stylesheet's `.jini-term-picker-group` (N2, jini- class prefix); the Tovu file is deleted."
+    },
+    {
+      "id": "d76d4408e965",
+      "reason": "Moved to Jini @jini-ai/admin screens/taxonomy/TermPicker.tsx TermPickerActions comment (w3-content), class renamed to `jini-term-picker-actions` (jini- class prefix); the Tovu file is deleted."
+    },
+    {
+      "id": "f74ac3f90553",
+      "reason": "Moved to Jini @jini-ai/core contracts/site/scheduled-publish.ts @file doc (w3-content), host paths reworded neutrally (`contracts/core` -> `contracts/site`, `platform/routing` -> a host routing layer, `features/post` -> the cms posts module) (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "426160ee2ee6",
+      "reason": "Moved to Jini @jini-ai/cms comments/site/data-module-install.ts @file doc (w3-content), the host newsletter file reference reworded to 'the host's newsletter data-module install' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "c1b3af8b9407",
+      "reason": "Moved to Jini @jini-ai/cms comments/site/types.ts @file doc (w3-content), product name reworded (N1) and 'Domain types live in Jini' restated as 'in this package; the host supplies the declaration's provenance'; the Tovu file is deleted."
+    },
+    {
+      "id": "dd36eda60aa6",
+      "reason": "Subject deleted: the form-destinations re-export barrel was removed (importers name each module directly, SELF-CHECK 1); the same rationale lives in Jini @jini-ai/cms forms/destination-contracts.ts @file header and Tovu features/form-destinations/README.md."
+    },
+    {
+      "id": "6af98728e29d",
+      "reason": "Moved to Jini @jini-ai/cms forms/site/analytics-provenance.ts FormAnalyticsProvenance doc (w3-content), product name reworded to 'Host' (N1); the Tovu file is deleted."
+    },
+    {
+      "id": "80bb22de1a66",
+      "reason": "Moved to Jini @jini-ai/cms media/site/contracts.ts MediaPublicUrlDeps doc (w3-content), host builder name and route-deps path reworded neutrally (N1/N2); the Tovu file is deleted."
+    },
+    {
+      "id": "723f15af0c81",
+      "reason": "Moved to Jini @jini-ai/cms media/site/list-pending-chat-attachments.ts @file doc (w3-content), product name, host daemon-access path and workspace env var reworded neutrally (N1/N2); the Tovu file is deleted."
+    },
+    {
+      "id": "f6c437a66f91",
+      "reason": "Moved to Jini @jini-ai/cms media/site/purge-media.ts purgeMedia doc (w3-content), product name reworded to 'The host's' (N1); the Tovu file is deleted."
+    },
+    {
+      "id": "6ab0d63deb92",
+      "reason": "Moved to Jini @jini-ai/cms media/site/where-used.ts findMediaWhereUsed doc (w3-content), product name reworded to 'the host's' (N1); the Tovu file is deleted."
+    },
+    {
+      "id": "28ac2a781048",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/taxonomy/delete-taxonomy.ts header doc (w3-content), host paths and the guard name reworded neutrally (N2); the Tovu route file is deleted."
+    },
+    {
+      "id": "34b02a89bce1",
+      "reason": "Moved to Jini @jini-ai/cms admin-http/routes/taxonomy/delete-term.ts header doc (w3-content), host paths and the guard name reworded neutrally (N2); the Tovu route file is deleted."
+    },
+    {
+      "id": "aa45881770d3",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/api/collections-api.ts listContentTypes comment (w3-content); 'the rest of this file' reworded to 'most other admin clients' and '`database`/`recovery` below' to 'the database and recovery clients', since the client is now its own feature file without those neighbours; the Tovu file is deleted."
+    },
+    {
+      "id": "ef6d1f307449",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/LifecycleConfirmDialog.tsx button comment (w3-content) — the confirm dialog was split out of Collections.tsx with its markup; classes renamed to `.jini-btn-warning`/`.jini-btn-danger` (jini- class prefix) and the stray 'Jini ' path prefix dropped; Tovu Collections.tsx no longer renders those buttons."
+    },
+    {
+      "id": "0cfe59771fc1",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/collection-entries-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to 'the host-bound collections API client' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "63fe9ee35387",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/collection-entry-editor-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to 'the host-bound collections API client' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "da417642afee",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/collections-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to 'the host-bound collections API client' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "e9ecfe1ed371",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/edit-fields-dialog-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to 'the host-bound collections API client' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "9d90965dfb29",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/new-content-type-dialog-dependencies.hooks.ts @file doc (w3-content), `lib/api` reworded to 'the host-bound collections API client' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "730a74408895",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/use-collection-entries.hooks.ts @file doc (w3-content), verbatim except '`useWiredCollectionEntries` below' -> 'the host's `useWiredCollectionEntries`' (the binding stays in the Tovu hook file) and the 'stays a direct, uninjected import' clause updated to the lookup now arriving as `deps.kit.translate`/`deps.kit.describeApiError`; the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "4bec3e65d094",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/use-collection-entry-editor.hooks.ts @file doc (w3-content), verbatim except '`useWiredCollectionEntryEditor` below' -> 'the host's', the direct-`translate`-import clause updated to `kit.translate`, plus one paragraph on the injected `useBodyEditor`/kit; the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "2651d5d98b6d",
+      "reason": "Split with its subject (w3-content): the useEditor call moved to the host (no @tiptap in Jini), so the Tovu hooks/use-collection-entry-editor.hooks.ts body-editor binding doc restates the 'role is restated for the reason use-post-editor.hooks.ts gives' half, and Jini Jini @jini-ai/admin screens/collections/hooks/use-collection-entry-editor.hooks.ts keeps 'Names the body editor's contenteditable, which had none' at the aria-label site."
+    },
+    {
+      "id": "70b8579937b6",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/use-collections.hooks.ts @file doc (w3-content), verbatim except '`useWiredCollections` below' -> 'the host's', the direct-`translate`-import clause updated to `deps.kit.translate`, plus a clause naming the injected `kit`/`lifecycleFailureMessage`; the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "cab8cb24e111",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/use-edit-fields-dialog.hooks.ts @file doc (w3-content), verbatim except '`useWiredEditFieldsDialog` below' -> 'the host's `useWiredEditFieldsDialog`'; the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "1e1a57eb8882",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/hooks/use-new-content-type-dialog.hooks.ts @file doc (w3-content), verbatim except '`useWiredNewContentTypeDialog` below' -> 'the host's'; the Tovu file keeps only the host binding."
+    },
+    {
+      "id": "f1025fd98327",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/rules.ts @file doc (w3-content), `features/posts/rules.ts` reworded to 'the posts screen's rules module' (N2); the one-shared-counter rationale is kept, but the 'module-level nextRowId'/'ES modules are singletons' sentences were rewritten because their subject (the module-level counter) was replaced by the host-bound createDraftRowIdCounter (HW3 no module state); KEYS paragraphs verbatim; plus a kit paragraph; the Tovu file is deleted."
+    },
+    {
+      "id": "0ee28c7c741c",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/rules.ts embed-marker doc (w3-content), '`@jini-ai/cms/widgets/markers`'s' reworded to 'the generalised marker-snippet builder' plus one sentence that it arrives as `kit.embedMarkerSnippet` (admin may not import cms, L5); the Tovu file is deleted."
+    },
+    {
+      "id": "d6a4b35e32cd",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/rules.ts describeEditFieldsError doc (w3-content), verbatim except @complexity 'one `instanceof` check' -> 'one host error-class check' (the error class is now injected via kit); the Tovu file is deleted."
+    },
+    {
+      "id": "1799bbaa819b",
+      "reason": "Moved to Jini @jini-ai/admin screens/collections/rules.ts ContentTypeRowMenuHandlers doc (w3-content), '`posts/rules.ts`'s' reworded to 'the posts rules'' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "2874c512e903",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.ts templatePreviewUrl comment (w3-content), host route path, `vite.config.ts`/Vite, the :5173 port and `render.ts` reworded to the host's template-preview route / admin dev server / the renderer (N2), 'above' dropped (method order changed); the Tovu file is deleted."
+    },
+    {
+      "id": "b973a8a03cb4",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.ts updatePost expectedVersion comment (w3-content), '`features/posts`' editor, PageEditor' reworded to 'the post editor, the page editor' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "064468226335",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.ts deletePost comment (w3-content), host route path reworded to 'the host's posts delete route' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "47d7f8c9468f",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.ts putAutosave comment (w3-content), host route path reworded to 'the host's autosave route' (N2), 'above' dropped, and bodyFitsKeepalive now linked as the injected PostsApiDeps.bodyFitsKeepalive; the Tovu file is deleted."
+    },
+    {
+      "id": "c42e78c408ea",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.types.ts AdminPost.kind comment (w3-content), host serializer path reworded to 'the host's headless post serializer' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "66aca9561e9a",
+      "reason": "Moved to Jini @jini-ai/admin posts/api/posts-api.types.ts AdminPost.bodyFormat doc (w3-content), host contract/serializer paths reworded to 'the host's headless contracts and post serializer' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "1696004df156",
+      "reason": "Moved to Jini @jini-ai/admin posts/editor/template/PostEditorTemplatePicker.tsx doc (w3-content), verbatim plus one paragraph on the host's ViewTemplateButton arriving as a required prop; the Tovu file is deleted."
+    },
+    {
+      "id": "85a688ae8de3",
+      "reason": "Moved to Jini @jini-ai/admin posts/editor/template/PostEditorTemplatePicker.tsx ViewTemplateButton comment (w3-content), the host component path reworded to 'the host's, shared with its page editor's own template picker' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "e38e9779023b",
+      "reason": "Moved to Jini @jini-ai/admin posts/editor/toolbar/ToolbarCharacterCount.tsx doc (w3-content), `styles.css` reworded to 'host stylesheet' (N2); the Tovu file is deleted."
+    },
+    {
+      "id": "025ffc6b5eda",
+      "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts public-path resolver doc (w3-content), the routing source reworded to the injected entryPublicPath; the Tovu block's code left tool-registrations.ts."
+    },
+    {
+      "id": "27a009fadd4b",
+      "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts in-admin edit path resolver doc (w3-content), host paths reworded neutral; the Tovu code is deleted."
+    },
+    {
+      "id": "27bbe21e5324",
+      "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts view-with-paths type doc (w3-content), verbatim apart from neutral link targets; the Tovu declaration is deleted."
+    },
+    {
+      "id": "31a8cd4495ad",
+      "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts toPostToolView-with-urls doc (w3-content), link targets follow the moved resolvers; the Tovu code is deleted."
+    },
+    {
+      "id": "b7d3da015420",
+      "reason": "Moved to Jini @jini-ai/cms posts/post-tool-views.ts toPostToolView projection doc (w3-content), verbatim; the Tovu function is deleted."
+    },
+    {
+      "id": "32fedeacce2e",
+      "reason": "Moved to Jini @jini-ai/admin screens/menus/hooks/use-menu-editor.hooks.ts @file (w3-content); the hook was split into state/writes/tree modules, and the header names them; Tovu keeps only useWiredMenuEditor."
+    },
+    {
+      "id": "508a292e1752",
+      "reason": "Moved verbatim to Jini @jini-ai/admin screens/menus/hooks (menu editor tab-switch seeding doc, w3-content); the Tovu code is deleted."
+    },
+    {
+      "id": "85afbf8bb95a",
+      "reason": "Moved verbatim to Jini @jini-ai/admin screens/menus/hooks/use-menu-editor.hooks.ts readable-slugs S6b redirect doc (w3-content); the host now injects slugRedirectPath through MenusHostKit."
+    },
+    {
+      "id": "b0f918a73686",
+      "reason": "w4-core-owners: moved with the declaration to Jini packages/core/src/tool-metadata/post.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/post.ts:4-4."
+    },
+    {
+      "id": "d9da48651fdc",
+      "reason": "w4-core-owners: moved with the declaration to Jini packages/core/src/tool-metadata/image-transform.ts; only the './index.ts' pointer changed to 'the host aggregator' because the index stays in Tovu. Was apps/website/src/contracts/core/tool-metadata/image-transform.ts:4-4."
+    },
+    {
+      "id": "8b83d6d2a60d",
+      "reason": "Moved with the screen to Jini packages/admin/src/screens/collections/CollectionEntries.tsx (comment kept; only the host class name `.btn-primary` reworded neutrally)."
+    },
+    {
+      "id": "25ec377b89bd",
+      "reason": "Moved with the screen to Jini packages/admin/src/screens/collections/Collections.tsx (comment kept; the host package reference dropped)."
+    },
+    {
+      "id": "46df8d4b4b87",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/collections/collections-i18n/create-collections-dictionary.ts (same fallback explanation, `commonDictionary` instead of the host's `COMMON_I18N`)."
+    },
+    {
+      "id": "c062ad99bf9a",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/screens/media/media-i18n/create-media-dictionary.ts header (reworded for the split into slices)."
+    },
+    {
+      "id": "370511803024",
+      "reason": "Subject deleted: the per-locale spread over add-on tables is replaced by mergeLocaleOverlays; the 'a locale absent from one overlay contributes nothing' guarantee is documented on it in Jini packages/core/src/text/merge-locale-overlays.ts and in create-media-dictionary.ts ('so a locale absent from one of them still merges cleanly')."
+    },
+    {
+      "id": "be625ca98a88",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx @file doc and packages/admin/src/screens/menus/MenuItemFields.tsx @file doc (the NavItemAttrs disclosure paragraph); reworded for the split into row/field/tab/header files."
+    },
+    {
+      "id": "94c5c0bf0801",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemFields.tsx (named `?? \"\"` helper comment; `{@link targetForKind}` reference dropped)."
+    },
+    {
+      "id": "24ba87799706",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemFields.tsx (MenuItemTargetFields comment; 'now re-exported from rules' dropped as host-specific)."
+    },
+    {
+      "id": "e04db493dec9",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemRow.tsx (label audit comment; the host `.visually-hidden`/`.a11y-label-wrap` stylesheet references reworded since the host styles the `jini-*` classes)."
+    },
+    {
+      "id": "ac26c2bb49a2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuItemRow.tsx (remove-confirmation audit comment)."
+    },
+    {
+      "id": "d6b5a6b10fe4",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuModeTabs.tsx (tab list and literal-keys comments; the host tab-strip helper is now the injected `tabStrip` prop)."
+    },
+    {
+      "id": "0eec8757a92a",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuModeTabs.tsx (tab list and literal-keys comments; the host tab-strip helper is now the injected `tabStrip` prop)."
+    },
+    {
+      "id": "a30fa3a762a2",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditorHeader.tsx (`jini-page-header-split` idiom and unsaved-edits guard comments; host router/stylesheet names reworded)."
+    },
+    {
+      "id": "a7504a2d4b51",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditorHeader.tsx (`jini-page-header-split` idiom and unsaved-edits guard comments; host router/stylesheet names reworded)."
+    },
+    {
+      "id": "cc781b8030f4",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx (title/slug row and secondary Add-item comments; host stylesheet references reworded)."
+    },
+    {
+      "id": "ed561c1157da",
+      "reason": "Moved with the code to Jini packages/admin/src/screens/menus/MenuEditor.tsx (title/slug row and secondary Add-item comments; host stylesheet references reworded)."
+    },
+    {
+      "id": "91c0fe8c84fd",
+      "reason": "Moved with the test to Jini packages/admin/src/screens/menus/__tests__/MenuEditor.unit.test.tsx."
+    },
+    {
+      "id": "64a58e8af595",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/menus/menus-i18n/create-menus-dictionary.ts (`commonDictionary` instead of the host's `common_i18n`)."
+    },
+    {
+      "id": "3d8e656fcf74",
+      "reason": "Moved with the dictionary factory to Jini packages/admin/src/screens/menus/menus-i18n/create-menus-dictionary.ts (`commonDictionary` instead of the host's `common_i18n`)."
+    },
+    {
+      "id": "aee652dea3f1",
+      "reason": "Moved with the file to Jini packages/admin/src/posts/post-editor-route-key.ts (comment kept; the host-only `panels.tsx` reference dropped)."
+    },
+    {
+      "id": "f805ec56f3d0",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/posts/posts-i18n/create-posts-dictionary.ts @file doc, posts-trash-dialog-i18n.ts (the `Move` prefix and kindLabel-variant notes) and posts-list-i18n.ts (the `Unpublish` note)."
+    },
+    {
+      "id": "973d4e6669f7",
+      "reason": "Per-locale section label moved as the slice headers of Jini packages/admin/src/posts/posts-i18n/posts-editor-header-i18n.ts and posts-toolbar-{marks,blocks,style}-i18n.ts (the 16 repeated labels are the slice boundaries)."
+    },
+    {
+      "id": "f90a07773e03",
+      "reason": "Moved with the code to Jini packages/admin/src/posts/posts-i18n/create-posts-dictionary.ts (createPostsDictionary doc; `commonDictionary` instead of `common_i18n`)."
+    },
+    {
+      "id": "6cb2763f7196",
+      "reason": "Moved to Jini packages/admin/src/posts/posts-i18n/posts-template-preview-i18n.ts @file doc ('shared Page/Post preview copy')."
+    },
+    {
+      "id": "d57dfba24233",
+      "reason": "Subject deleted: the Object.assign/indexed-write augmentation is replaced by mergeLocaleOverlays; the dictionary-lookup-sinks guard rationale is kept in Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/create-taxonomy-dictionary.ts (and the posts/forms/comments/widgets equivalents) and packages/core/src/text/merge-locale-overlays.ts."
+    },
+    {
+      "id": "ebf85ad31ffb",
+      "reason": "Subject deleted: the Object.assign/indexed-write augmentation is replaced by mergeLocaleOverlays; the dictionary-lookup-sinks guard rationale is kept in Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/create-taxonomy-dictionary.ts (and the posts/forms/comments/widgets equivalents) and packages/core/src/text/merge-locale-overlays.ts."
+    },
+    {
+      "id": "468373f7a697",
+      "reason": "Moved with the dictionary to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n/taxonomy-term-picker-i18n.ts @file doc."
+    },
+    {
+      "id": "fe7db227fc18",
+      "reason": "Moved with the helper to Jini packages/core/src/text/merge-locale-overlays.ts (MergedLocaleDictionary doc, reworded 'caller-owned')."
+    },
+    {
+      "id": "a26445072761",
+      "reason": "Moved with the adapter to Jini packages/cms/src/comments/site/builtin-provider.ts (header kept, product name dropped)."
+    },
+    {
+      "id": "3c374002f1e4",
+      "reason": "Moved with the settings wiring to Jini packages/cms/src/comments/site/settings.ts @file doc (host path to seo/settings.ts reworded)."
+    },
+    {
+      "id": "5b630e14443e",
+      "reason": "Kept in Tovu: the sentence now heads apps/website/src/platform/db/content-tables.ts (shared by all five deleted repo.sqlite.ts files)."
+    },
+    {
+      "id": "250b3682c9f9",
+      "reason": "Kept in Tovu: relocated to the schemaErasedKernel doc in apps/website/src/platform/db/content-kernel.ts, the one place the schema-erasing cast now lives."
+    },
+    {
+      "id": "dc7cf40239ba",
+      "reason": "Subject deleted: SqliteCommentRepo (a subclass that only bound a kernel and the plugin table names) is gone; composition calls Jini's commentRepoFor with COMMENTS_TABLES (content-tables.ts) and schemaErasedKernel, whose docs carry the remaining rationale."
+    },
+    {
+      "id": "4b85997fe3cc",
+      "reason": "Subject deleted: SqliteCommentRepo (a subclass that only bound a kernel and the plugin table names) is gone; composition calls Jini's commentRepoFor with COMMENTS_TABLES (content-tables.ts) and schemaErasedKernel, whose docs carry the remaining rationale."
+    },
+    {
+      "id": "4a0b692fb61b",
+      "reason": "Subject deleted: SqliteContentTypeRepo (a named subclass kept for old call sites) is gone; features/content-types/content-type-repo.ts (contentTypeRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "7d54e47dd2a7",
+      "reason": "Subject deleted: SqliteContentTypeRepo (a named subclass kept for old call sites) is gone; features/content-types/content-type-repo.ts (contentTypeRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "ed2b58b62523",
+      "reason": "Subject deleted: SqliteEntryRepo (a named subclass kept for old call sites) is gone; features/entries/entry-repo.ts (entryRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "c3e4029e46d3",
+      "reason": "Subject deleted: SqliteEntryRepo (a named subclass kept for old call sites) is gone; features/entries/entry-repo.ts (entryRepoFor) now has the equivalent @file doc."
+    },
+    {
+      "id": "471cd53957e8",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "3138afd63486",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "e9f93fdafaf2",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "23b8113e7acf",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "26a438c66763",
+      "reason": "Subject deleted: the forms/navigation/taxonomy/widgets repo.sqlite.ts named subclasses only forwarded to the Jini Sql* classes; call sites in server/runtime/composition now construct the Sql* classes directly with the *_TABLES from platform/db/content-tables.ts and schemaErasedKernel, so there is no wrapper left to explain."
+    },
+    {
+      "id": "cff85654ec8f",
+      "reason": "Kept in Tovu with the module path updated: 'Project-first (`@jini-ai/integrations/vendor-credentials/project-scope`); \"site\" = only for this site.' in source-control/store.ts and deployments/publish-credentials/store.ts (import-only edit; vendor-credentials/project-scope.ts moved to Jini)."
+    },
+    {
+      "id": "a01c3222bd89",
+      "reason": "Subject deleted: the SqlitePostSearchIndex re-export it annotated is gone from features/post/index.ts; in Jini the SQLite adapter (cms/src/posts/sql/search-index.sqlite.ts) imports nothing from search-index.ts, so no module cycle remains to explain."
+    },
+    {
+      "id": "adb06a65607a",
+      "reason": "Moved with the code to Jini packages/cms/src/posts/post-import.ts (the 'third function' rationale kept; host `features/media/import-media-entity.ts` path reworded)."
+    },
+    {
+      "id": "dfc38542ec21",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.postgres.ts (host `tovu_search` configuration name now injected)."
+    },
+    {
+      "id": "749b80b8ee1e",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.postgres.ts (host `tovu_search` configuration name now injected)."
+    },
+    {
+      "id": "6894d5d3e2df",
+      "reason": "Moved with the adapter to Jini packages/cms/src/posts/sql/search-index.sqlite.ts @file doc (product name dropped)."
+    },
+    {
+      "id": "4840f757d9f6",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "854f086b8cb4",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "557a014dee85",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "c934b1f29010",
+      "reason": "Moved verbatim with the code to Jini packages/cms/src/posts/sql/search-index.ts."
+    },
+    {
+      "id": "3d8ba61fc60a",
+      "reason": "Moved with the port bag to Jini packages/core/src/contracts/site/publish-ports.ts @file doc (generic over the host's bag; host file lists and 'this site's' wording reworded neutrally)."
+    },
+    {
+      "id": "3f136a1ad0b8",
+      "reason": "Moved to Jini packages/cms/src/redirects/publish-ports.ts (host path reworded)."
+    },
+    {
+      "id": "14df7b5631ee",
+      "reason": "Moved to Jini packages/cms/src/publish/content/publish-ports.ts (factory-built types and host-hooks comments; host composition paths reworded)."
+    },
+    {
+      "id": "f85ba7a70c29",
+      "reason": "Moved to Jini packages/cms/src/publish/content/publish-ports.ts (factory-built types and host-hooks comments; host composition paths reworded)."
+    },
+    {
+      "id": "4c578a803601",
+      "reason": "Moved to Jini packages/cms/src/widgets/publish-ports.ts."
+    },
+    {
+      "id": "19a73b4c2627",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "08d1a7f95e5a",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "b9c361ab47b6",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/publish-ports.ts (host composition path reworded)."
+    },
+    {
+      "id": "9d2472b1466f",
+      "reason": "Moved with the contract to Jini packages/cms/src/publish/content/ui/contract.ts @file doc."
+    },
+    {
+      "id": "3fd9ac05307a",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/criteria.ts (parser docs; {@link} targets reworded)."
+    },
+    {
+      "id": "43f33f7362a0",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/criteria.ts (parser docs; {@link} targets reworded)."
+    },
+    {
+      "id": "91c377a40a74",
+      "reason": "Moved with the code to Jini packages/cms/src/publish/content/ui/report-rows.ts."
     }
   ]
 }

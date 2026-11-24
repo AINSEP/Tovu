@@ -81,8 +81,8 @@ export type SeoRouteRegistrar = (required: { app: Express; deps: SeoRouteDeps },
 
 /** The two port fields every seo mount passes. `authorize` is read per request, as the hand-written
  *  routes read `deps.authorize`, so a later reassignment of it is still honoured. */
-function seoPortDeps({ deps }: { deps: SeoRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps & { seoReady: Promise<void> } {
-  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), seoReady: deps.seoReady };
+function seoPortDeps({ deps }: { deps: SeoRouteDeps }, _optional: Record<string, never> = {}): AdminJsonRoutePortDeps & { seoReady: Promise<void>; outwardErrorMessage: ({ error }: { error: Error }) => string } {
+  return { workspaceId: deps.workspaceId, authorize: (params) => deps.authorize(params), seoReady: deps.seoReady, outwardErrorMessage: ({ error }) => error.message };
 }
 
 /** Each route's `sendAdminFailure` operation and authorization mode: every SEO route used
@@ -118,6 +118,7 @@ const PUT_ENTRY_FAILURE = {
 export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   const putDeps = {
     ...seoPortDeps({ deps }), seoDeps: deps.seoDeps, clock: deps.clock,
+    outwardErrorMessage: ({ error }: { error: Error }) => error.message,
     entryAuthorize: (params: Parameters<SeoRouteDeps["authorize"]>[0]) => deps.authorize(params),
     invalidateSitemapCache: (input: { workspaceId: string }) => deps.sitemapService.invalidateSitemapCache(input),
   };

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as React from 'react';
 import { renderHook, act } from '@testing-library/react';
-import type { DetectedAgent, ExecutionPort } from '@jini-ai/ui';
+import type { ExecutionCardAgent, ExecutionPort } from '@jini-ai/core/contracts/execution';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { createAgentPresentationPort, isDesktopAdmin, localCliScopeCopy, normalizeAgentDescription, selectedAgentWarning } from '../ai-agent-presentation';
 import { useAiAgentPresentation } from '../hooks/use-ai-agent-presentation.hooks';
 
-const claude: DetectedAgent = { id: 'claude', label: 'Claude Code', installed: true, authStatus: 'missing' };
-const fakePort = (agents: readonly DetectedAgent[]): ExecutionPort => ({ detectLocalAgents: async () => agents, testConnection: async () => ({ ok: true }) });
+const claude: ExecutionCardAgent = { id: 'claude', label: 'Claude Code', installed: true, authStatus: 'missing' };
+const fakePort = (agents: readonly ExecutionCardAgent[]): ExecutionPort => ({ detectLocalAgents: async () => agents, testConnection: async () => ({ ok: true }) });
 
 describe('D-21 AI agent presentation', () => {
   it('uses browser scope by default and tolerates a configuration that has not loaded yet', async () => {
@@ -30,7 +30,7 @@ describe('D-21 AI agent presentation', () => {
   });
 
   it('keeps the warning after an identical scan and clears it when authentication changes', async () => {
-    let agents: readonly DetectedAgent[] = [claude];
+    let agents: readonly ExecutionCardAgent[] = [claude];
     const port: ExecutionPort = { ...fakePort([]), detectLocalAgents: async () => agents };
     const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true }));
     await act(async () => { await result.current.port.detectLocalAgents(); });
@@ -44,8 +44,8 @@ describe('D-21 AI agent presentation', () => {
   });
 
   it('lets a pending detection finish after unmount without publishing another presentation', async () => {
-    let complete!: (agents: readonly DetectedAgent[]) => void;
-    const detected = new Promise<readonly DetectedAgent[]>(resolve => { complete = resolve; });
+    let complete!: (agents: readonly ExecutionCardAgent[]) => void;
+    const detected = new Promise<readonly ExecutionCardAgent[]>(resolve => { complete = resolve; });
     const port = { ...fakePort([]), detectLocalAgents: vi.fn<ExecutionPort['detectLocalAgents']>().mockResolvedValueOnce([claude]).mockReturnValueOnce(detected) };
     const presentations: (string | null)[] = [];
     // React suppresses renders after unmount; observe the publication sink before React can discard it.
@@ -97,7 +97,7 @@ describe('D-21 AI agent presentation', () => {
     expect(normalizeAgentDescription({ agent })).toBe(agent);
   });
   it('projects detection/rescan results and keeps scan failures visible', async () => {
-    const snapshots: (readonly DetectedAgent[])[] = [];
+    const snapshots: (readonly ExecutionCardAgent[])[] = [];
     const port = createAgentPresentationPort({ port: {
       ...fakePort([claude]), rescanLocalAgents: async () => [{ ...claude, authStatus: 'ok' }],
     }, onAgents: ({ agents }, _options = {}) => snapshots.push(agents) });
@@ -132,9 +132,9 @@ it('warns for the dock default Claude when the ledger has no agent selection yet
 });
 
 it('ignores an older scan finishing after a successful sign-in rescan', async () => {
-  let complete: (agents: readonly DetectedAgent[]) => void = () => {};
-  const slow = new Promise<readonly DetectedAgent[]>((resolve) => { complete = resolve; });
-  const snapshots: (readonly DetectedAgent[])[] = [];
+  let complete: (agents: readonly ExecutionCardAgent[]) => void = () => {};
+  const slow = new Promise<readonly ExecutionCardAgent[]>((resolve) => { complete = resolve; });
+  const snapshots: (readonly ExecutionCardAgent[])[] = [];
   const port = createAgentPresentationPort({
     port: { ...fakePort([]), detectLocalAgents: () => slow, rescanLocalAgents: async () => [{ ...claude, authStatus: 'ok' }] },
     onAgents: ({ agents }, _options = {}) => snapshots.push(agents),

@@ -1,9 +1,9 @@
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
-import { collectionsApi } from "../../features/collections/api/collections-api";
+import { collectionsApi } from "../../features/collections/collections-host-ports";
 import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
-import { menusApi } from "../../features/menus/api/menus-api";
+import { menusApi } from "../../features/menus/menus-host-ports";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
-import { formsApi } from "../../features/forms/api/forms-api";
+import { formsApi } from "../../features/forms/forms-host-ports";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
 import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";

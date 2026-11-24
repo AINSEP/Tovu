@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import type { ExecutionConfig } from '@jini-ai/ui';
+import type { ExecutionConfig } from '@jini-ai/core/contracts/execution';
 import type { ChatPaneAgent, ChatPaneAgentSelection, ChatPaneRuntimeAccess } from '@jini-ai/chat/react';
 import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/execution-config.hooks';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';

@@ -1,8 +1,9 @@
 import { updatePost } from "../post/post-update.js";
 import { restorePostForward } from "../post/post-trash.js";
-import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
-import { PostVersionConflictError, PostNotFoundError } from "../post/post.js";
-import type { ForgetRemovedPostFn, PostRecord, PostRepoPort } from "../post/contracts.js";
+import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "@jini-ai/cms/posts/post-read";
+import { PostVersionConflictError, PostNotFoundError } from "@jini-ai/cms/posts/post";
+import type { ForgetRemovedPostFn } from "../post/contracts.js";
+import type { PostRecord, PostRepoPort } from "@jini-ai/cms/posts/post";
 import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 /**

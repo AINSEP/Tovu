@@ -6,6 +6,6 @@
  * directory without the router noticing. Adding a file to this feature is not an API change unless
  * it is exported from this line.
  */
-export { Collections } from "./Collections";
-export { CollectionEntries } from "./CollectionEntries";
+export { Collections } from "./CollectionsScreen";
+export { CollectionEntries } from "./CollectionEntriesScreen";
 export { CollectionEntryEditor } from "./CollectionEntryEditor";

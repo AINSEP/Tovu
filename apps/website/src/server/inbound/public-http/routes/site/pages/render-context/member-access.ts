@@ -1,6 +1,6 @@
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access-resolver";
 import type { MemberAccessDecision, MemberContext } from "@jini-ai/user-management/members/types";
 import type { MemberAccessResolver } from "@jini-ai/user-management/members/ports";

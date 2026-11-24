@@ -12,7 +12,9 @@ import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { CompositeBlobStoreRead } from "@jini-ai/cms/publish/content/composite-blob-source";
 import type { PublishContentDeps } from "./type-registry.js";
-import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
+import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
+import type { WidgetPublishPorts } from "@jini-ai/cms/widgets/publish-ports";
 
 
 

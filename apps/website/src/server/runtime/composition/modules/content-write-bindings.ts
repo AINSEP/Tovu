@@ -1,18 +1,14 @@
+import { parseExpectedVersion, versionConflictEnvelope } from "@jini-ai/cms/posts/expected-version";
+import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
+import { resolveFeaturedMediaIdForWrite } from "@jini-ai/cms/posts/featured-image";
+import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
   createPost,
   deletePost,
   getAdminPostByIdOrSlug,
-  parseExpectedVersion,
-  PostConflictError,
-  PostNotFoundError,
-  PostValidationError,
-  PostVersionConflictError,
-  resolveFeaturedMediaIdForWrite,
   restorePostForward,
   updatePost,
-  versionConflictEnvelope,
-  type PostRecord,
   type UpdatePostInput,
 } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
@@ -62,7 +58,7 @@ export const postWriteErrors = {
   isNotFound: ({ err }: { err: unknown }) => err instanceof PostNotFoundError,
   // Body built by the shared boundary module, not spelled out here, so the `code` a client
   // branches on has exactly one definition across every arm that can produce this conflict.
-  versionConflictBody: ({ err }: { err: unknown }) => versionConflictEnvelope(err as PostVersionConflictError),
+  versionConflictBody: ({ err }: { err: unknown }) => versionConflictEnvelope({ err: err as PostVersionConflictError, outwardErrorMessage: ({ error }) => error.message }),
 };
 
 /** The plugin hook's `PLUGIN_HOOK_FAILED` refusal (Tovu's bound envelope) and the page-kind not-found error. */
@@ -176,7 +172,7 @@ export async function applyContentUpdate(
       // `execute`, after the gateway's `content.write` check, so an unauthorized caller
       // cannot probe the media library through this field's error messages.
       featuredMediaId: await resolveFeaturedMediaIdForWrite({
-        deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore },
+        deps: { mediaRepo: deps.mediaRepo, findMediaByIdOrSlug, mediaContentTypeStore: deps.mediaContentTypeStore },
         input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
       }),
       actorId,

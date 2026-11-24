@@ -48,7 +48,9 @@ const ADMIN_SRC = path.resolve(__dirname, "..", "..");
 
 /** Every hook this pass wired, relative to `apps/admin/src`. */
 const WIRED_HOOKS: readonly string[] = [
-  "features/taxonomy/hooks/use-taxonomy.hooks.ts",
+  // Taxonomy's list hook moved into `@jini-ai/admin`; its subscription is checked in the built
+  // module this admin actually imports.
+  "../node_modules/@jini-ai/admin/dist/screens/taxonomy/hooks/use-taxonomy.hooks.js",
   "features/posts/hooks/use-posts.hooks.ts",
   "features/pages/hooks/use-pages.hooks.ts",
   "features/plugins/hooks/use-plugins.hooks.ts",

@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";

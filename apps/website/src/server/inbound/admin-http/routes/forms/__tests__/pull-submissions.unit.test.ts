@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { BASE, WS, fixture, invokeRouteDirectly } from '#src/server/__tests__/helpers/admin-route-failures';
-import { registerAdminFormsPullSubmissionsRoute } from '../pull-submissions.js';
+import { registerAdminFormsPullSubmissionsRoute } from '#src/server/runtime/composition/modules/forms-admin';
 
 /** @file POST forms/submissions/pull: authorization, input, the unwired case, and the pass-through. */
 

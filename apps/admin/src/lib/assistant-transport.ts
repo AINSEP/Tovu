@@ -1,6 +1,6 @@
 import { createAssistantTransportClient } from "@jini-ai/chat/transports/http";
 import type { ChatMessage, StartRunInput } from "@jini-ai/chat/core";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
 import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
 import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";

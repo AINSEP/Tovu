@@ -1,4 +1,4 @@
-import type { AdminMedia } from "../../features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "../../features/media/api/media-api";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 

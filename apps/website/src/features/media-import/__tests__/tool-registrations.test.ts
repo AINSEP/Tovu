@@ -29,9 +29,8 @@ import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/exec
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeMediaImportTools, withCallerSafeEgressRefusal } from "../tool-registrations.js";
+import { contributeMediaImportTools, mediaImportAgentToolCatalog, withCallerSafeEgressRefusal } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {

@@ -1,8 +1,8 @@
-import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
-import type { MediaPort } from "./media-port.hooks";
+import type { MediaPort } from "@jini-ai/admin/screens/media/hooks/media-port.hooks";
 import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { trimChars } from "@jini-ai/core/primitives";
 

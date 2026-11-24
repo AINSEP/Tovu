@@ -1,10 +1,14 @@
 import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { entityKey } from "./plan-rows.js";
-import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
-import type { PublishContentHandler, SkippedPackEntity } from "@jini-ai/cms/publish/content/type-registry";
-import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
-import type { PublishScope } from "@jini-ai/cms/publish/content/dialog/contract";
+import {
+  buildPublishContentCatalog,
+  type PackedEntity,
+  type PublishContentDeps,
+  type PublishContentHandler,
+  type SkippedPackEntity,
+} from "./type-registry.js";
+import type { PublishScope } from "@jini-ai/cms/publish/content/ui";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

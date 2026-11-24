@@ -1,4 +1,5 @@
-import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
+import type { SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import { ACCENT_SWATCH_PRESETS } from "@jini-ai/ui/core";
 
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";

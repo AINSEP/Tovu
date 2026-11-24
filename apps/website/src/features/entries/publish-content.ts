@@ -5,7 +5,7 @@ import { collectBodyReferences } from "#src/features/publish-content/content-ref
 import { tombstonedAtDestination } from "@jini-ai/cms/publish/content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
-import type { EntryPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
+import type { EntryPublishPorts } from "@jini-ai/cms/entries/publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "@jini-ai/cms/taxonomy/site/publish-term-ids";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 

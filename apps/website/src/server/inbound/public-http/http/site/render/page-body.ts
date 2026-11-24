@@ -1,6 +1,6 @@
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import type { ResolveHtmlPageEmbedsResult, PluginExportRender } from "@jini-ai/cms/widgets/html";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
+import type { PublicPostRecord as PostRecord } from "@jini-ai/cms/posts/post";
 import { postAuthorForContentHeader } from "#src/features/theme/static-render-content";
 import { substituteHtmlEmbeds, type PageHtmlEmbedRef, type EmbedOccurrence } from "@jini-ai/cms/widgets/html/html-embeds";
 import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";

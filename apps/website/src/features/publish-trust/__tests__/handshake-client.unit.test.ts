@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { KeyringPort } from "@jini-ai/integrations/secrets";
 import { buildChallengeMessage } from "../challenge.js";
 import {
   fetchDestinationIdentity,

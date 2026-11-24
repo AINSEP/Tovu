@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
+import { resolveSelectedPreset } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import { createExecutionPort } from "@/lib/execution-settings";
 import { applyExecutionConfigChange, persistExecutionConfigWrite } from "../execution-config-write";

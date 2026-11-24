@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
+import { POST_SEARCH_HOST } from "../search-host-config.js";
 import { before, test } from "node:test";
 
 import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createPost } from "../post-create.js";
 import { updatePost } from "../post-update.js";
 import { deletePost } from "../post-trash.js";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
-import { backfillPostSearchIndex, PostSearchIndex } from "../search-index.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
+import { backfillPostSearchIndex, PostSearchIndex } from "@jini-ai/cms/posts/sql";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { removeVia } from "./remove-post-double.js";
 import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures, SQLITE_BASELINE } from "./search.eval.js";
@@ -33,7 +34,7 @@ function body(text: string): JsonObject {
 }
 
 async function run(kernel: ContentKernel, query: string, limit = 10): Promise<string[]> {
-  const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel }) }, input: { workspaceId: WS, query, limit } });
+  const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }) }, input: { workspaceId: WS, query, limit } });
   return hits.map((hit) => hit.id);
 }
 
@@ -67,13 +68,13 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
   }
 
   test("a saved post is findable at once; the backfill indexes nothing on a warm database", async () => {
-    assert.equal(await backfillPostSearchIndex({ kernel }), 0);
+    assert.equal(await backfillPostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }), 0);
     assert.deepEqual((await run(kernel, "pricing")).slice(0, 1), ["p01"]);
   });
 
   test("search filters workspace, trash, kind and status independently on every dialect", async () => {
     const repo = postRepoFor(kernel);
-    const search = new PostSearchIndex({ kernel });
+    const search = new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST });
     for (const [id, workspaceId, kind, status] of [
       ["visibility-live", WS, "page", "published"], ["visibility-foreign", "foreign-ws", "page", "published"],
       ["visibility-trash", WS, "page", "published"], ["visibility-draft", WS, "page", "draft"], ["visibility-post", WS, "post", "published"],

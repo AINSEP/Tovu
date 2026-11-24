@@ -1,7 +1,8 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import type { JSONContent } from "@tiptap/core";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
-import type { AdminPost } from "../../features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { usePostEditor } from "../../features/posts/hooks/use-post-editor.hooks";
 import { createFakePostEditorPort } from "../../features/posts/hooks/post-editor-dependencies.hooks";
 import { usePageEditor } from "../../features/pages/hooks/use-page-editor.hooks";
@@ -24,7 +25,7 @@ afterEach(() => localStorage.clear());
 it("a failed post Save preserves the exact working document before re-login", async () => {
   const fake = createFakePostEditorPort({ post: row });
   const port = { ...fake, getBackupPrincipalId: () => scope.principalId, updatePost: expired, putAutosave: expired };
-  const first = renderHook(() => usePostEditor({ postId: row.id, deps: { port, navigate: () => {}, t: key => key } }));
+  const first = renderHook(() => usePostEditor({ postId: row.id, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(first.result.current.post).not.toBeNull());
   await waitFor(() => expect(first.result.current.editor).not.toBeNull());
   act(() => {
@@ -37,7 +38,7 @@ it("a failed post Save preserves the exact working document before re-login", as
   expect(standingDraftLocalBackup.read({ entryId: row.id }, scope)).toMatchObject({ title: "Unsaved post title", slug: "unsaved-post-slug", bodyJson: document });
   first.unmount();
   const restoredPort = { ...fake, getBackupPrincipalId: () => scope.principalId };
-  const second = renderHook(() => usePostEditor({ postId: row.id, deps: { port: restoredPort, navigate: () => {}, t: key => key } }));
+  const second = renderHook(() => usePostEditor({ postId: row.id, deps: { routeKeys: createPostEditorRouteKeyStore(), port: restoredPort, navigate: () => {}, t: key => key } }));
   await waitFor(() => expect(second.result.current.recoverableDraft?.title).toBe("Unsaved post title"));
   expect(second.result.current.title).toBe("Saved title");
   act(() => second.result.current.restoreRecoveredDraft());

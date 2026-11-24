@@ -1,8 +1,9 @@
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "@jini-ai/cms/posts/slug";
 
-import { TIPTAP_TEXT_BODY_EXAMPLE } from "./post-tool-schemas.js";
+import { TIPTAP_TEXT_BODY_EXAMPLE } from "@jini-ai/cms/posts/post-tool-schemas";
+import { tiptapBlockNodeSchema, BLOCK_NODE_REF } from "@jini-ai/cms/posts/tiptap-block-schema";
+import { POST_SCHEMA_TOOL_NAMES } from "./post-schema-binding.js";
 import { TIPTAP_MARK_SCHEMA, TIPTAP_TEXT_NODE_SCHEMA } from "@jini-ai/cms/posts/tiptap-text-schema";
-import { BLOCK_NODE_REF, TIPTAP_BLOCK_NODE_SCHEMA } from "./tiptap-block-schema.js";
 
 /**
  * The full TipTap/ProseMirror doc-node vocabulary, as a recursive JSON Schema (`$defs`/`$ref`) — the
@@ -129,7 +130,7 @@ export const TIPTAP_DOC_SCHEMA = {
         "Inline content — this codebase's renderer supports 'text' (formatted text runs), 'hardBreak' (forced line break), and " +
         "'mention' (an inline link to another post/page) here; no other inline node type.",
     },
-    blockNode: TIPTAP_BLOCK_NODE_SCHEMA,
+    blockNode: tiptapBlockNodeSchema({ tools: POST_SCHEMA_TOOL_NAMES }),
     listItemNode: {
       type: "object",
       additionalProperties: false,

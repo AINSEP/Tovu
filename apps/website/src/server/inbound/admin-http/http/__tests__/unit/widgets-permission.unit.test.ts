@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse, toAdminWidgetResponse } from "../../widgets.js";
+import { requireWidgetsPermissionOrRespond } from "../../widgets.js";
+import { toAdminWidgetAreaResponse, toAdminWidgetResponse } from "@jini-ai/cms/admin-http/http/widgets";
 
 test("widget permission preserves the authenticated principal and passes the exact scope", async () => {
   const { res, capture } = createCapturingResponse();

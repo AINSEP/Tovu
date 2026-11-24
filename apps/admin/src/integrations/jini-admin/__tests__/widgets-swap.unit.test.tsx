@@ -9,8 +9,9 @@ import type { AdminWidget } from '@jini-ai/admin/widgets';
 import { widgets } from '@jini-ai/admin/widgets/react';
 import { reactModuleUi } from '@jini-ai/admin/core/react';
 import { createAdmin } from '@jini-ai/admin/core/module';
-import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from '../../../features/widgets';
+import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from '@jini-ai/admin/screens/widgets';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
+import { widgetsMount } from '../panel-mounts';
 import { widgetsEvents, widgetsNavigation } from '../widgets-ports';
 import { WidgetsConfigFieldsSlot } from '../widgets-module.hooks';
 import { WidgetAddControl } from '../../../components/WidgetPickerDialog/WidgetPickerDialog';
@@ -65,7 +66,7 @@ describe('Jini widgets host switch', () => {
   it('mounts the library loading notice, row handles, create route and publish contribution', async () => {
     setPublishToLiveAvailable({ next: true });
     const { node, useAdminLocaleHook } = fixture();
-    render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetsLibrary {...widgetsMount({ useAdminLocaleHook })} />));
     expect(screen.getByText('Loading widgets…')).toHaveClass('notice');
     expect(await screen.findByRole('heading', { name: 'Widgets' })).toHaveClass('page-title');
     expect(screen.getByRole('link', { name: 'Reusable footer' })).toHaveAttribute('href', '/admin/widgets/footer-note');
@@ -78,7 +79,7 @@ describe('Jini widgets host switch', () => {
   it("labels the create-type select and its options in the admin's locale", async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ data: [{ key: 'locale', value: 'es' }] }), { headers: { 'content-type': 'application/json' } })));
     const { node, useAdminLocaleHook } = fixture({ useLocale: useHostAdminLocale });
-    render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetsLibrary {...widgetsMount({ useAdminLocaleHook })} />));
     const select = await screen.findByRole('combobox', { name: 'Tipo de widget a crear' });
     expect(within(select).getAllByRole('option').map(o => o.textContent)).toEqual([
       'Multimedia', 'Galería', 'Texto', 'Enlaces sociales', 'Entradas recientes', 'Menú', 'Formulario de contacto',
@@ -88,7 +89,7 @@ describe('Jini widgets host switch', () => {
   // Retained from WidgetInstanceEditor.unit: ConfigFields has its OWN shared dictionary.
   it("threads a Spanish locale into the nested WidgetConfigFields via a SECOND t bound to shared-components-i18n, not this screen's own widgets-i18n t", async () => {
     const { node, useAdminLocaleHook } = fixture({ useLocale: () => 'es' });
-    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" {...widgetsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByLabelText('Texto')).toBeInTheDocument();
     expect(screen.queryByLabelText('Text')).not.toBeInTheDocument();
   });
@@ -111,12 +112,12 @@ describe('Jini widgets host switch', () => {
     let locale = 'en';
     const { api, node, useAdminLocaleHook } = fixture({ useLocale: () => locale });
     const read = vi.spyOn(api, 'getWidget');
-    const view = render(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
+    const view = render(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} {...widgetsMount({ useAdminLocaleHook })} />));
     const title = await screen.findByLabelText('Widget title');
     const body = screen.getByLabelText('Text');
     fireEvent.change(title, { target: { value: 'Unsaved footer' } });
     fireEvent.change(body, { target: { value: 'Unsaved body' } });
-    locale = 'es'; view.rerender(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
+    locale = 'es'; view.rerender(node(<WidgetInstanceEditor widgetId="footer-note" widgetType={null} {...widgetsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByLabelText('Texto')).toBe(body);
     expect(title).toHaveValue('Unsaved footer');
     expect(body).toHaveValue('Unsaved body');
@@ -127,7 +128,7 @@ describe('Jini widgets host switch', () => {
     const user = userEvent.setup();
     const { api, node, useAdminLocaleHook } = fixture();
     const create = vi.spyOn(api, 'createWidget');
-    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetInstanceEditor widgetId={null} widgetType="text" {...widgetsMount({ useAdminLocaleHook })} />));
     // A new editor paints immediately; awaited gestures flush its effect-owned controller.
     const title = await screen.findByLabelText('Widget title');
     await user.type(title, 'New footer');
@@ -140,7 +141,7 @@ describe('Jini widgets host switch', () => {
   it('binds a new region and retains the host regions route', async () => {
     const { api, node, useAdminLocaleHook } = fixture();
     const bind = vi.spyOn(api, 'bindWidgetRegion');
-    render(node(<WidgetRegions useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetRegions {...widgetsMount({ useAdminLocaleHook })} />));
     expect(await screen.findByRole('link', { name: 'footer' })).toHaveAttribute('href', '/admin/widgets/regions/footer');
     fireEvent.change(screen.getByPlaceholderText('e.g. footer'), { target: { value: ' sidebar ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Bind region' }));
@@ -157,7 +158,7 @@ describe('Jini widgets host switch', () => {
       ? { data: [{ key: 'locale', value: 'en' }] } : { widgets: [widget] }), { headers: { 'content-type': 'application/json' } })));
     const { api, node, useAdminLocaleHook } = fixture();
     const save = vi.spyOn(api, 'mutateWidgetRegionPlacements');
-    render(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetRegionEditor regionKey="footer" {...widgetsMount({ useAdminLocaleHook })} />));
     await user.click(await screen.findByRole('button', { name: '+ Add widget' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('combobox', { name: 'Existing Text widgets' }));
@@ -174,7 +175,7 @@ describe('Jini widgets host switch', () => {
   it('refreshes only the mounted library resource and unsubscribes on unmount', async () => {
     const { api, node, useAdminLocaleHook } = fixture();
     const read = vi.spyOn(api, 'listWidgets');
-    const view = render(node(<WidgetsLibrary useAdminLocaleHook={useAdminLocaleHook} />));
+    const view = render(node(<WidgetsLibrary {...widgetsMount({ useAdminLocaleHook })} />));
     await screen.findByRole('heading', { name: 'Widgets' });
     act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(read).toHaveBeenCalledTimes(1);
@@ -191,7 +192,7 @@ describe('Jini widgets host switch', () => {
     api.widgets[0]!.id = id;
     window.history.replaceState(null, '', `/admin/widgets/${id}`);
     const length = window.history.length;
-    render(node(<WidgetInstanceEditor widgetId={id} widgetType={null} useAdminLocaleHook={useAdminLocaleHook} />));
+    render(node(<WidgetInstanceEditor widgetId={id} widgetType={null} {...widgetsMount({ useAdminLocaleHook })} />));
     await screen.findByDisplayValue('Reusable footer');
     await waitFor(() => expect(window.location.pathname).toBe('/admin/widgets/footer-note'));
     expect(window.history.length).toBe(length);
@@ -205,11 +206,11 @@ describe('Jini widgets host switch', () => {
       placements: [{ placementId: 'p1', widgetEntryId: 'w9', enabled: true }] });
     const read = vi.spyOn(api, 'getWidgetRegion');
     const save = vi.spyOn(api, 'mutateWidgetRegionPlacements');
-    const view = render(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
+    const view = render(node(<WidgetRegionEditor regionKey="footer" {...widgetsMount({ useAdminLocaleHook })} />));
     const enabled = await screen.findByRole('checkbox', { name: 'Enabled' });
     fireEvent.click(enabled);
     expect(enabled).not.toBeChecked();
-    locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" useAdminLocaleHook={useAdminLocaleHook} />));
+    locale = 'es'; view.rerender(node(<WidgetRegionEditor regionKey="footer" {...widgetsMount({ useAdminLocaleHook })} />));
     act(() => publishContentRefresh({ resources: ['widgets-regions'] }));
     expect(view.container.querySelector('input[type="checkbox"]')).toBe(enabled);
     expect(enabled).not.toBeChecked();

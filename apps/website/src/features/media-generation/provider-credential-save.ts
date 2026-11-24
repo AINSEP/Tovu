@@ -1,5 +1,6 @@
-import type { CredentialTokenHint } from "@jini-ai/core/contracts/site/secrets-credential-token";
-import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, type MediaProviderCredentialWriteDeps } from '../media/provider-credential-store.js';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+import { saveMediaProviderCredentials, type MediaProviderCredentialWriteDeps } from '../media/provider-credential-store.js';
+import type { MediaProviderCredentialRepoPort } from '@jini-ai/cms/media/site/provider-credential-contracts';
 
 /**
  * Saves one human-submitted key using the admin PUT's validation/sealing/save path.

@@ -1,3 +1,6 @@
+import { SqlTaxonomyRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,16 +9,15 @@ import type { NextFunction, Request, Response } from "express";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminTaxonomyAssignTermsRoute } from "../assign-terms.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "#src/server/runtime/composition/modules/taxonomy";
 import type { TaxonomyRouteDeps } from "../deps.js";
 
 /**
  * S10 (web-high fix plan, 2026-09-24): assigning terms to a trashed post/page is refused with
  * 409 and the guard's own code, not a 500 or a silent join.
  */
-function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
+function buildApp(postRepo: TaxonomyRouteDeps["postRepo"], jsonBodies: unknown[] = []): express.Express {
   // The same SQLite adapters `createRouteDeps` composes (the CMS package's in-memory taxonomy/term
   // repos lack the host's `findForTrash`/`findAnyById` reads `TaxonomyRouteDeps` requires).
   const db = openContentDb(":memory:");
@@ -27,14 +29,21 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z"), nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
-    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: "ws-1" }),
-    termRepo: new SqliteTermRepo({ db, workspaceId: "ws-1" }),
+    taxonomyRepo: new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
+    termRepo: new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: "ws-1" }, {}),
     postRepo,
     stampWatermark: async () => {},
   };
 
   const app = express();
   app.use(express.json());
+  // Records every `res.json` body: Express strips a 204 body on the wire, so only this proves the
+  // empty success response skipped the JSON path entirely.
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    const json = res.json.bind(res);
+    res.json = (body: unknown) => { jsonBodies.push(body); return json(body); };
+    next();
+  });
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
@@ -80,4 +89,22 @@ test("assign-terms: a trashed page is refused with 409 ENTITY_IN_TRASH", async (
     code: "ENTITY_IN_TRASH",
     error: "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.",
   });
+});
+
+test("assign-terms: an empty assignment to a live post answers 204 with no body and never calls res.json", async (t) => {
+  const postRepo = {
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) =>
+      workspaceId === "ws-1" && id === "p1" ? { id, workspaceId, kind: "post", deletedAt: null } : null,
+  } as any;
+  const jsonBodies: unknown[] = [];
+  const baseUrl = await startTestServer(buildApp(postRepo, jsonBodies), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ contentType: "post", contentId: "p1", termIds: [] }),
+  });
+  assert.equal(res.status, 204, await res.clone().text());
+  assert.equal(await res.text(), "");
+  assert.equal(res.headers.get("content-type"), null);
+  assert.deepEqual(jsonBodies, []);
 });

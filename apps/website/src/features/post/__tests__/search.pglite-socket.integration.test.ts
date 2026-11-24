@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
+import { POST_SEARCH_HOST } from "../search-host-config.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
 import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { type ContentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { createPost } from "../post-create.js";
 import { postRepoFor } from "../repo.js";
-import { searchAdminPosts } from "../search.js";
-import { PostSearchIndex } from "../search-index.js";
+import { searchAdminPosts } from "@jini-ai/cms/posts/search";
+import { PostSearchIndex } from "@jini-ai/cms/posts/sql";
 import { EVAL_POSTS, EVAL_QUERIES, evalGateFailures } from "./search.eval.js";
 
 /**
@@ -50,7 +51,7 @@ before(async () => {
     });
   }
   for (const q of EVAL_QUERIES) {
-    const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel }) }, input: { workspaceId: WS, query: q.query, limit: 10 } });
+    const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel: schemaErasedKernel({ store: kernel }), config: POST_SEARCH_HOST }) }, input: { workspaceId: WS, query: q.query, limit: 10 } });
     results.set(q.id, hits.map((hit) => hit.id));
   }
 });

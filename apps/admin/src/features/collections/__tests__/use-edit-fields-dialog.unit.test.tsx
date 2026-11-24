@@ -1,11 +1,13 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { EditFieldsDialog } from "../EditFieldsDialog";
-import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
-import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
+import { EditFieldsDialog } from "@jini-ai/admin/screens/collections/EditFieldsDialog";
+import { createFakeEditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-dependencies.hooks";
+import { useEditFieldsDialog } from "@jini-ai/admin/screens/collections/hooks/use-edit-fields-dialog.hooks";
+import { useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
+import { collectionsHostKit } from "../collections-host-ports";
 import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 /**
@@ -175,7 +177,7 @@ describe("native dialog lifecycle (M3)", () => {
   it("native cancel reaches the domain's current cancel handler", () => {
     const onCancel = vi.fn();
     render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={onCancel} t={({ key }, _optional = {}) => key}
-      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ kit: collectionsHostKit, props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -185,7 +187,7 @@ describe("native dialog lifecycle (M3)", () => {
     document.body.appendChild(opener);
     opener.focus();
     const { unmount } = render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={vi.fn()} t={({ key }, _optional = {}) => key}
-      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ kit: collectionsHostKit, props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
     unmount();
@@ -200,7 +202,7 @@ describe("cancel — in-flight guard (H4)", () => {
     const onSaved = vi.fn();
     const updated = deferred<{ contentType: AdminContentType }>();
     const port: EditFieldsDialogPort = { updateContentTypeFields: () => updated.promise };
-    const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel }, port: port }), {
+    const { result } = renderHook(() => useEditFieldsDialog({ kit: collectionsHostKit, props: { contentType: TYPE, onSaved, onCancel }, port: port }), {
       wrapper,
     });
 
@@ -227,7 +229,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const onSaved = vi.fn();
     try {
       const port = createFakeEditFieldsDialogPort();
-      const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
+      const { result } = renderHook(() => useEditFieldsDialog({ kit: collectionsHostKit, props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
 
       await act(async () => {
         await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
@@ -248,7 +250,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("maps a rejected injected port call through describeEditFieldsError (plain Error: its own message)", async () => {
     const port = createFakeEditFieldsDialogPort({ updateError: new Error("network down") });
     const onSaved = vi.fn();
-    const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
+    const { result } = renderHook(() => useEditFieldsDialog({ kit: collectionsHostKit, props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
 
     await act(async () => {
       await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);

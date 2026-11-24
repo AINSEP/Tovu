@@ -1,4 +1,5 @@
-import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import userEvent from "@testing-library/user-event";
 import { Suspense, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +13,7 @@ import { useHostAdminLocale } from "@/hooks/admin-locale-dependencies.hooks";
 import { translateAdminNavLabel } from "../../../lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { Library, documentMenuItems, markdownFrameDocument } from "../Library";
-import { resolveLibraryTabId } from "../Library.hooks";
+import { resolveLibraryTabId } from "@jini-ai/admin/screens/library/Library.hooks";
 import {
   createApiLibraryPort,
   createFakeLibraryPort,
@@ -21,9 +22,12 @@ import {
   type LibraryApiClient,
   type LibraryFetch,
 } from "../hooks/library-dependencies.hooks";
-import { useLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "../hooks/use-library.hooks";
+import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
+import { useLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { readFileAsBase64 } from "@/features/media/rules";
 import { t as libraryT } from "../library-i18n";
-import { libraryFileProblem, LIBRARY_ACCEPT, LIBRARY_MAX_BYTES } from "../rules";
+import { libraryFileProblem, LIBRARY_ACCEPT, LIBRARY_MAX_BYTES } from "@jini-ai/admin/screens/library/rules";
 
 /**
  * @file The Library admin page: sidebar registration beside Media, the Upload/Documents `?tab=`
@@ -41,12 +45,12 @@ function wrapper({ children }: { children: ReactNode }) {
 const english = (key: string) => key;
 
 function renderLibraryHook(port: ReturnType<typeof createFakeLibraryPort>) {
-  return renderHook(() => useLibrary({ port, locale: "en", t: english }), { wrapper });
+  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), { wrapper });
 }
 
 function renderLibrary(port: ReturnType<typeof createFakeLibraryPort>, tabId: string | null) {
   function useHook(): LibraryController {
-    return useLibrary({ port, locale: "en", t: english });
+    return useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription });
   }
   return render(<Library tabId={tabId} useLibraryHook={useHook} />, { wrapper });
 }
@@ -252,7 +256,7 @@ describe("Library rename and Trash", () => {
     const dismissNotice = vi.fn();
     const port = createFakeLibraryPort();
     function useHook(): LibraryController {
-      return { ...useLibrary({ port, locale: "en", t: english }), notice: "Moved to Trash.", dismissNotice };
+      return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), notice: "Moved to Trash.", dismissNotice };
     }
     const { container } = render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
     const toast = await screen.findByRole("status");
@@ -271,7 +275,7 @@ describe("Library rename and Trash", () => {
       const dismissNotice = vi.fn();
       const port = createFakeLibraryPort();
       function useHook(): LibraryController {
-        return { ...useLibrary({ port, locale: "en", t: english }), notice: "Moved to Trash.", dismissNotice };
+        return { ...useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), notice: "Moved to Trash.", dismissNotice };
       }
       render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
       act(() => vi.advanceTimersByTime(10_000));

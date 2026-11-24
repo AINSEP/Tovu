@@ -6,7 +6,7 @@ import { executeCommand, InMemoryChangeSetRepo } from '#src/contracts/core/comma
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerAdminFormsCreateRoute } from '../create.js';
 import { registerAdminFormsAuthoringRoute } from '../authoring.js';
-import { registerAdminFormsUpdateRoute } from '../update.js';
+import { registerAdminFormsUpdateRoute } from '#src/server/runtime/composition/modules/forms-admin';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
 
 const WS = 'workspace-local';

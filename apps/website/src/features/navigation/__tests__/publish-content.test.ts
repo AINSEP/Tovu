@@ -7,7 +7,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuDoc, type NavMenuEntry, type MenuRepoPort, type NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import { type MenuRepoPort, type NavLocationBindingRepoPort, InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuDoc, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "../publish-content.js";
 

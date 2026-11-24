@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
+import { updatePost, InMemoryPostRepo } from "#src/features/post/index";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 import {
   executeCommand,
 } from "@jini-ai/cms/core";

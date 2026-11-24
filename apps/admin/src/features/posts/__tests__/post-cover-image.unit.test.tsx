@@ -1,11 +1,13 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
-import { PostSettingsDialog } from "../PostSettingsDialog";
+import { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { PostCoverImage } from "../PostCoverImage";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "../rules";
 
@@ -142,7 +144,7 @@ describe("PostCoverImage edits usePostEditor's featuredMediaId and hideCoverImag
   const useTestPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => usePostFeaturedImage({ value, onChange, deps: { port: mediaPort } });
 
   function Harness({ port, onController }: { port: FakePostEditorPort; onController: (c: PostEditorController) => void }) {
-    const controller = usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } });
+    const controller = usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: vi.fn(), t: fakeT } });
     onController(controller);
     return (
       <PostCoverImage
@@ -230,6 +232,8 @@ describe("Hide the cover image in the body, under the cover slot (owner, 2026-10
   it("the settings modal has no Image tab any more", () => {
     render(
       <PostSettingsDialog
+        hooks={{ useTabBarKeyboard }}
+        resolveTabBarTabIndex={resolveTabBarTabIndex}
         dialog={{ open: true, tab: "author", setTab: vi.fn(), openDialog: vi.fn(), closeDialog: vi.fn() }}
         kindLabel="post"
         author=""

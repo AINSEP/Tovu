@@ -3,8 +3,9 @@ import test from "node:test";
 
 import sharp from "sharp";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../../media/index.js";
-import { resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "../featured-image.js";
-import { PostValidationError } from "../post.js";
+import { resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
+import { PostValidationError } from "@jini-ai/cms/posts/post";
+import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 
 const WORKSPACE_ID = "ws-featured";
 
@@ -22,7 +23,7 @@ async function seededDeps(contentTypes?: Map<string, string>): Promise<{ deps: F
     },
     input: { workspaceId: WORKSPACE_ID, bytes, filename: "hero.png", contentType: "image/png", createdByPrincipal: "owner" },
   });
-  const deps: FeaturedImageDeps = { mediaRepo, ...(contentTypes ? { mediaContentTypeStore: { getMany: async () => contentTypes } } : {}) };
+  const deps: FeaturedImageDeps = { mediaRepo, findMediaByIdOrSlug, ...(contentTypes ? { mediaContentTypeStore: { getMany: async () => contentTypes } } : {}) };
   return { deps, mediaRepo, asset: { id: media.id, slug: media.slug, sha256: media.source.sha256 } };
 }
 
@@ -63,4 +64,18 @@ test("an asset whose sniffed type is known and not an image is refused, naming t
     resolveFeaturedMediaIdForWrite({ deps, input: { workspaceId: WORKSPACE_ID, featuredMediaId: asset.id } }),
     (error: unknown) => error instanceof PostValidationError && error.message === `featuredMediaId: media asset '${asset.id}' is application/pdf, not an image. A featured image must be an image.`,
   );
+});
+
+test("the lookup is the host-injected findMediaByIdOrSlug, called with the repo and the trimmed reference", async () => {
+  const { deps, asset } = await seededDeps();
+  const calls: Array<{ idOrSlug: string; sameRepo: boolean }> = [];
+  const injected: FeaturedImageDeps = {
+    ...deps,
+    findMediaByIdOrSlug: async (required) => {
+      calls.push({ idOrSlug: required.input.idOrSlug, sameRepo: required.deps.mediaRepo === deps.mediaRepo });
+      return findMediaByIdOrSlug(required);
+    },
+  };
+  assert.equal(await resolveFeaturedMediaIdForWrite({ deps: injected, input: { workspaceId: WORKSPACE_ID, featuredMediaId: ` ${asset.slug} ` } }), asset.id);
+  assert.deepEqual(calls, [{ idOrSlug: asset.slug, sameRepo: true }]);
 });

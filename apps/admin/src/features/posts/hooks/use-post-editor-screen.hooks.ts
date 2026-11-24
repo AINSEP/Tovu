@@ -1,10 +1,10 @@
 import type { ComponentProps } from "react";
 import type { Translate } from "@jini-ai/core/text";
-import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useDevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import type { PostDeleteConfirmDialog } from "../editor/PostDeleteConfirmDialog";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import type { PostDeleteConfirmDialog } from "@jini-ai/admin/posts/editor/PostDeleteConfirmDialog";
 import type { PostEditorBody } from "../editor/PostEditorBody";
 import type { PostSavedPanels } from "../editor/PostSavedPanels";
 import type { PostEditorActions } from "../editor/header/PostEditorActions";
@@ -12,12 +12,14 @@ import type { PostEditorHeader } from "../editor/header/PostEditorHeader";
 import type { PostEditorNotices } from "../editor/notices/PostEditorNotices";
 import type { PostEditorSlugCollisionWarning } from "../editor/notices/PostEditorSlugCollisionWarning";
 import type { PostPreview } from "../editor/preview/PostPreview";
-import type { PostEditorTemplateModalGate } from "../editor/template/PostEditorTemplateModalGate";
+import type { PostEditorTemplateModalGateProps } from "@jini-ai/admin/posts/editor/template/PostEditorTemplateModalGate";
+import { TemplateSourceModal } from "@/components/TemplateSource/TemplateSourceModal";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { VIEW_TABS } from "../editor/view-bar/view-tabs";
 import type { PostEditorViewBar } from "../editor/view-bar/PostEditorViewBar";
 import type { PostCoverImage } from "../PostCoverImage";
-import type { PostSettingsDialog } from "../PostSettingsDialog";
-import { usePostSettingsDialog, type PostSettingsDialogController } from "./use-post-editor-ui.hooks";
+import type { PostSettingsDialog } from "@jini-ai/admin/posts/PostSettingsDialog";
+import { usePostSettingsDialog, type PostSettingsDialogController } from "@jini-ai/admin/posts/hooks/use-post-editor-ui.hooks";
 import type { PostEditorController, PostEditorView, useWiredPostEditor } from "./use-post-editor.hooks";
 
 /**
@@ -29,7 +31,7 @@ import type { PostEditorController, PostEditorView, useWiredPostEditor } from ".
 /** What the screen needs: the post to edit and the controller hook (injectable for tests). */
 export interface PostEditorScreenInput {
   postId: string;
-  usePostEditorHook: typeof useWiredPostEditor;
+  usePostEditorHook: (input: { postId: string }, options?: Record<string, never>) => ReturnType<typeof useWiredPostEditor>;
 }
 
 /** The props the root hands each region, one bundle per region, named after the region. */
@@ -49,7 +51,7 @@ export interface PostEditorReadyScreen {
   savedPanels: ComponentProps<typeof PostSavedPanels>;
   unchangedSave: { open: boolean; pending: boolean; onConfirm: () => void; onCancel: () => void };
   deleteDialog: ComponentProps<typeof PostDeleteConfirmDialog>;
-  templateGate: ComponentProps<typeof PostEditorTemplateModalGate>;
+  templateGate: PostEditorTemplateModalGateProps<ThemeTier>;
 }
 
 /** The screen's three states: nothing yet, a load failure with no post to show, or the editor. */
@@ -123,6 +125,8 @@ function actionsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEdi
 
 function settingsBundle({ ctrl, kindLabel, settingsDialog }: ReadyInput): PostEditorReadyScreen["settings"] {
   return {
+    hooks: { useTabBarKeyboard },
+    resolveTabBarTabIndex,
     dialog: settingsDialog,
     kindLabel,
     author: ctrl.author,
@@ -205,6 +209,7 @@ function dialogBundles({ ctrl, post, kindLabel }: ReadyInput): Pick<PostEditorRe
       onClose: ctrl.onCloseTemplateModal,
       confirmLeave: ctrl.confirmLeave,
       t: ctrl.t,
+      TemplateSourceModal,
     },
   };
 }

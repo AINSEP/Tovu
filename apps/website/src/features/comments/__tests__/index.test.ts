@@ -5,8 +5,9 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { EntryRecord, EntryStatus } from "@jini-ai/cms/entries";
 import { createCommentsModule } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";
-import { InMemorySettingsRepo } from "../../settings/index.js";
+import { createCommentsHostPorts, DEFAULT_COMMENTS_SETTINGS } from "../index.js";
+import { InMemorySettingsRepo, createSettingsPrincipalLookup } from "../../settings/index.js";
+import { ensureCommentsSettingDefinitions, setCommentsSettings } from "@jini-ai/cms/comments/site/settings";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
 import type { CommentSubmission, SpamVerdict } from "@jini-ai/cms/comments";
@@ -178,7 +179,7 @@ test("one composed module reads ledger changes live for both ingress and the ent
   const clock = { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") };
   let sequence = 0;
   const ids = { newId: () => `comments-live-${++sequence}` };
-  const settingsDeps = { settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
+  const settingsDeps = { settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }), createPrincipalLookup: createSettingsPrincipalLookup };
   await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
@@ -243,7 +244,7 @@ test("comment submissions immediately honor a changed per-IP budget without rese
   let sequence = 0;
   const idGen = { newId: () => `live-budget-${++sequence}` };
   const settingsRepo = new InMemorySettingsRepo();
-  const settingsDeps = { settingsRepo, clock, ids: idGen, outbox: new InMemoryOutbox(), authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
+  const settingsDeps = { settingsRepo, clock, ids: idGen, outbox: new InMemoryOutbox(), authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }), createPrincipalLookup: createSettingsPrincipalLookup };
   await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
   const patch = (maxPerIpPerHour: number) => setCommentsSettings(settingsDeps, {
     workspaceId: WORKSPACE_ID, callerPrincipalId: "operator", patch: { maxPerIpPerHour },

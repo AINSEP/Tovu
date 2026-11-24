@@ -1,3 +1,4 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { render, screen, waitFor, within, fireEvent, act } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,14 +7,14 @@ import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { postsApi } from "@/features/posts/api/posts-api";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/posts-host-ports";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "@jini-ai/admin/pages/page-editor-rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
 // branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
-vi.mock("../../taxonomy/TermPicker", () => ({
+vi.mock("@jini-ai/admin/screens/taxonomy/TermPicker", () => ({
   TermPicker: (props: { contentType: string; contentId: string }) => (
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
@@ -198,10 +199,10 @@ afterEach(() => {
 async function renderRealPostEditor() {
   let ctrl!: PostEditorController;
   function useHook({ postId }: { postId: string }) {
-    ctrl = useWiredPostEditor({ postId: postId });
+    ctrl = useWiredPostEditor({ postId: postId, routeKeys: createPostEditorRouteKeyStore() });
     return ctrl;
   }
-  render(<PostEditor postId="p1" usePostEditorHook={useHook} />);
+  render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={useHook} />);
   await screen.findByTitle("Bold (⌘B)");
   return ctrl;
 }
@@ -225,7 +226,7 @@ describe("Publish", () => {
       .mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }))
       .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, status: "published", version: 2 } }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     const publishButton = await screen.findByRole("button", { name: /^publish$/i });
     await user.click(publishButton);
@@ -242,7 +243,7 @@ describe("Publish", () => {
   it("is not offered for an already-published post", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, status: "published" } }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
     expect(screen.queryByRole("button", { name: /^publish$/i })).not.toBeInTheDocument();
@@ -268,7 +269,7 @@ describe("Delete confirmation", () => {
     const confirmSpy = vi.spyOn(window, "confirm");
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     const deleteButton = await screen.findByRole("button", { name: /^delete$/i });
     await user.click(deleteButton);
@@ -299,7 +300,7 @@ describe("Delete confirmation", () => {
       .mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }))
       .mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await user.click(await screen.findByRole("button", { name: /^delete$/i }));
     await screen.findByText(/move to trash\?/i);
@@ -315,7 +316,7 @@ describe("Title and slug fields — accessible names", () => {
   it("gives the title and slug fields a real accessible name, not just a placeholder", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     const titleInput = await screen.findByLabelText("Post title");
     expect(titleInput).toHaveAttribute("placeholder", "Post title");
@@ -335,7 +336,7 @@ describe("Formatting toolbar — alignment icons", () => {
   it("align buttons keep their accessible name via aria-label, with no visible text label left in the button", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     // Waits for the real TipTap editor to mount — `Toolbar` is null-gated on `editor` until then.
     await screen.findByTitle("Bold (⌘B)");
@@ -361,7 +362,7 @@ describe("CharacterCount readout", () => {
   it("shows the live character count once the editor has mounted", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     expect(await screen.findByText("11 characters")).toBeInTheDocument();
   });
@@ -371,7 +372,7 @@ describe("CharacterCount readout", () => {
       jsonResponse({ post: { ...DRAFT_POST, title: "H", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } } }),
     );
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     expect(await screen.findByText("1 character")).toBeInTheDocument();
   });
@@ -381,7 +382,7 @@ describe("Post load — error and loading states", () => {
   it("shows the error notice, not the loading placeholder, when the load fails", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     // A network failure reads as plain words; the shared failure notice carries the details.
     expect(await screen.findByText("This post didn't finish loading. Reload the page; nothing was changed.")).toBeInTheDocument();
@@ -392,7 +393,7 @@ describe("Post load — error and loading states", () => {
   it("shows the loading placeholder before the post has loaded", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     expect(screen.getByText(/loading editor/i)).toBeInTheDocument();
   });
@@ -427,7 +428,7 @@ describe("Formatting toolbar — mark and block-type toggles", () => {
   ])("clicking '%s' toggles its own aria-pressed state on", async (title) => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     const button = await screen.findByTitle(title);
     expect(button).toHaveAttribute("aria-pressed", "false");
@@ -464,7 +465,7 @@ describe("Formatting toolbar — alignment button clicks", () => {
     async (name) => {
       const user = userEvent.setup();
       fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-      render(<PostEditor postId="p1" />);
+      render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
       const button = await screen.findByRole("button", { name });
       expect(button).toHaveAttribute("aria-pressed", "false");
@@ -551,7 +552,7 @@ describe("Formatting toolbar — Link button", () => {
   it("does nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     const link = await screen.findByTitle("Link");
 
     await user.click(link);
@@ -613,7 +614,7 @@ describe("Formatting toolbar — font family/size/line height selects", () => {
   ])("'%s' applies the chosen value, then reverts on 'Default'", async (label, someValue) => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     const select = screen.getByLabelText(label) as HTMLSelectElement;
@@ -634,7 +635,7 @@ describe("Formatting toolbar — insert image by URL", () => {
   it("inserts a media-image node with the dialog src/alt", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     const trigger = screen.getByRole("button", { name: /img by url/i });
@@ -653,7 +654,7 @@ describe("Formatting toolbar — insert image by URL", () => {
   it("inserts nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     const trigger = screen.getByRole("button", { name: /img by url/i });
@@ -693,7 +694,7 @@ describe("Formatting toolbar — insert YouTube video", () => {
   it("inserts nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     const trigger = screen.getByRole("button", { name: /youtube/i });
@@ -730,7 +731,7 @@ describe("Formatting toolbar — mention picker", () => {
   it("does nothing when the selected slug matches no mentionable post", async () => {
     mentionablePostsFixture = [OTHER_MENTIONABLE_POST];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     const select = screen.getByLabelText("Mention a post") as HTMLSelectElement;
@@ -744,7 +745,7 @@ describe("Formatting toolbar — code block language picker", () => {
   it("choosing a language converts the current block to a code block set to that language", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     const codeBlockBtn = await screen.findByTitle("Code block");
     expect(codeBlockBtn).toHaveAttribute("aria-pressed", "false");
 
@@ -760,7 +761,7 @@ describe("Formatting toolbar — divider and table inserts", () => {
   it("Divider inserts a horizontal rule", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     await user.click(screen.getByTitle("Divider"));
@@ -770,7 +771,7 @@ describe("Formatting toolbar — divider and table inserts", () => {
   it("Table inserts a 3x3 table with a header row", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
     await user.click(screen.getByTitle("Insert table"));
@@ -814,7 +815,7 @@ describe("Back-to-list link", () => {
   it("points at the Posts list for a post", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     const link = await screen.findByRole("link", { name: /posts/i });
     expect(link).toHaveAttribute("href", "/admin/posts");
@@ -823,7 +824,7 @@ describe("Back-to-list link", () => {
   it("points at the Pages list for a page — was hardcoded to Posts regardless of kind", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_PAGE }));
 
-    render(<PostEditor postId="pg1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="pg1" />);
 
     const link = await screen.findByRole("link", { name: /pages/i });
     expect(link).toHaveAttribute("href", "/admin/pages");
@@ -850,7 +851,7 @@ describe("Template picker", () => {
     activeThemeTemplates = ["blog-post.html", "long-form.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: null } }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
     const select = templateSelect();
@@ -865,10 +866,10 @@ describe("Template picker", () => {
     activeThemeTemplates = ["blog-post.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_PAGE, bodyFormat: "html" } }));
 
-    render(<PostEditor postId="pg1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="pg1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
-    expect(document.querySelector(".editor-template-picker")).not.toBeInTheDocument();
+    expect(document.querySelector(".jini-editor-template-picker")).not.toBeInTheDocument();
   });
 
   it("the View Template button is disabled once 'No template chosen' is selected", async () => {
@@ -876,7 +877,7 @@ describe("Template picker", () => {
     activeThemeTemplates = ["blog-post.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
     expect(screen.getByRole("button", { name: /view template/i })).toBeEnabled();
@@ -916,7 +917,7 @@ describe("Template picker", () => {
       }),
     );
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
     await user.click(screen.getByRole("button", { name: /view template/i }));
@@ -934,7 +935,7 @@ describe("Template picker", () => {
       .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }))
       .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "", version: 2 } }));
 
-    render(<PostEditor postId="p1" />);
+    render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" />);
 
     await screen.findByRole("button", { name: /^save$/i });
     await user.selectOptions(templateSelect(), "");
@@ -1065,7 +1066,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
 function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
   const ctrl = postController(overrides);
   const usePostEditorHook = () => ctrl;
-  const utils = render(<PostEditor postId="p1" usePostEditorHook={usePostEditorHook} />);
+  const utils = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="p1" usePostEditorHook={usePostEditorHook} />);
   return { ctrl, ...utils };
 }
 
@@ -1867,8 +1868,8 @@ it("typing in a new post then clicking Save creates the edited document once", a
   const create = vi.spyOn(port, "createPost");
   const update = vi.spyOn(port, "updatePost");
   const navigate = vi.fn();
-  function useLocalEditor({ postId }: { postId: string }) { return usePostEditor({ postId, deps: { port, navigate, t: key => key } }); }
-  render(<PostEditor postId="" usePostEditorHook={useLocalEditor} />);
+  function useLocalEditor({ postId }: { postId: string }) { return usePostEditor({ postId, deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: key => key } }); }
+  render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="" usePostEditorHook={useLocalEditor} />);
   const title = await screen.findByLabelText("Post title");
   expect(create).not.toHaveBeenCalled();
   fireEvent.change(title, { target: { value: "My first post" } });
@@ -1886,13 +1887,13 @@ it("typing in a new post then clicking Save creates the edited document once", a
 it("a local preview reveals the server frame and saved panels when the first Save supplies an id", () => {
   const ctrl = postController({ post: { ...DRAFT_POST, id: "", version: 0 }, view: "preview" });
   const usePostEditorHook = () => ctrl;
-  const { rerender } = render(<PostEditor postId="" usePostEditorHook={usePostEditorHook} />);
+  const { rerender } = render(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="" usePostEditorHook={usePostEditorHook} />);
   expect(screen.getByRole("status")).toHaveTextContent("Save this post to preview it.");
   expect(screen.queryByTitle("Post preview")).not.toBeInTheDocument();
   expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
   expect(screen.queryByTestId("content-analysis")).not.toBeInTheDocument();
   ctrl.post = DRAFT_POST;
-  rerender(<PostEditor postId="" usePostEditorHook={usePostEditorHook} />);
+  rerender(<PostEditor routeKeys={createPostEditorRouteKeyStore()} postId="" usePostEditorHook={usePostEditorHook} />);
   expect(screen.queryByText("Save this post to preview it.")).not.toBeInTheDocument();
   expect(screen.getByTitle("Post preview")).toBeInTheDocument();
   expect(screen.getByTestId("term-picker")).toHaveTextContent("post/p1");

@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/_
 import userEvent from "@testing-library/user-event";
 import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { browserAgentSettingsPort } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";

@@ -3,13 +3,13 @@
  * both composition roots (`app.ts`'s in-memory root, `deps.ts`'s SQLite root) call it.
  */
 
-import { ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { ensureCommentsProviderDefinition } from "@jini-ai/cms/comments/site/provider-selection";
 import { ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
 import { seoSettingsHostBindings } from "#src/features/seo/index";
 import { ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
-import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps } from "#src/features/settings/index";
+import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { ensureSettingsUiTabDefinitions } from "@jini-ai/cms/webmcp/settings";
-import { ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { ensureCommentsSettingDefinitions } from "@jini-ai/cms/comments/site/settings";
 import { ensureAnalyticsSettingDefinitions } from "@jini-ai/analytics/site/config.settings";
 
 /** Tovu's shared boot order; feature modules retain ownership of their definitions.
@@ -39,8 +39,8 @@ export function startSettingsRegistration(required: {
   // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
   // hazard `seoReady`'s own comment documents immediately above.
   const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(deps, { workspaceId, systemPrincipalId })
-      .then(() => ensureCommentsProviderDefinition({ deps, systemPrincipalId }))
+    ensureCommentsSettingDefinitions({ ...deps, createPrincipalLookup: createSettingsPrincipalLookup }, { workspaceId, systemPrincipalId })
+      .then(() => ensureCommentsProviderDefinition({ deps: { ...deps, createPrincipalLookup: createSettingsPrincipalLookup }, systemPrincipalId }))
   );
 
   // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).

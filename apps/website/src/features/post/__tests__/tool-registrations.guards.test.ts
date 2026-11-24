@@ -14,7 +14,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { ForgetRemovedPostFn, RemovePostFn } from "../post-trash.js";
-import type { PostSearchQuery } from "../search.js";
+import type { PostSearchQuery } from "@jini-ai/cms/posts/search";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, contributePostTools } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";

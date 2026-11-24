@@ -4,7 +4,7 @@ import test from "node:test";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
 import { VersionConflictError } from "@jini-ai/cms/entries";
 import { buildWidgetHostPorts, buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "../../deps.js";
-import { PostNotFoundError, PostVersionConflictError, type PostRepoPort } from "../../../post/index.js";
+import { PostNotFoundError, PostVersionConflictError, type PostRepoPort } from "@jini-ai/cms/posts/post";
 
 /**
  * @file `buildWidgetsDeps`/`buildWidgetsRegionDeps` — the shared write-path deps composer

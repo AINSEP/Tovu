@@ -1,4 +1,4 @@
-import type { PostRecord, PublicPostRecord } from "../post.js";
+import type { PostRecord, PublicPostRecord } from "@jini-ai/cms/posts/post";
 
 /**
  * @file The one shared `PostRecord` builder for tests.

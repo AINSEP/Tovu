@@ -1,6 +1,7 @@
+import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPost } from "@jini-ai/admin/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { PostAuthorFields } from "@jini-ai/admin/posts/PostAuthorFields";
@@ -16,7 +17,7 @@ afterEach(() => localStorage.clear());
 
 async function opened(post = POST) {
   const port = createFakePostEditorPort({ post });
-  const hook = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } }));
+  const hook = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: translate } }));
   await waitFor(() => expect(hook.result.current.post?.id).toBe("p1"));
   await waitFor(() => expect(hook.result.current.editor).not.toBeNull());
   return { port, ...hook };
@@ -74,7 +75,7 @@ describe("post author editor", () => {
     const autosave = { bodyFormat: "doc" as const, bodyJson: POST.bodyJson, title: POST.title, slug: POST.slug,
       baseVersion: 1, savedAt: "2026-10-09T01:00:00Z", savedByPrincipalId: "fake-principal", author: "Recovered Writer", showAuthor: true };
     const port = createFakePostEditorPort({ post: POST, autosave });
-    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: translate } }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.restoreRecoveredDraft());
@@ -87,7 +88,7 @@ describe("post author editor", () => {
   it("renders accessible controls driven by hook state and saves their actual edits", async () => {
     const port = createFakePostEditorPort({ post: POST });
     function Fields() {
-      const controller = usePostEditor({ postId: "p1", deps: { port, navigate, t: translate } });
+      const controller = usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate, t: translate } });
       return <><PostAuthorFields {...controller} t={translate} agentHandle={agentHandle} /><button onClick={() => { void controller.save({}); }}>Save credit</button></>;
     }
     render(<Fields />);

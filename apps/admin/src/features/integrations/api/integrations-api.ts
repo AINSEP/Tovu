@@ -1,6 +1,7 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminAgentPlugin, AdminAgentPluginFiles, AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminExternalMcpConnectStart, AdminExternalMcpProbeResult, AdminExternalMcpServer, AdminExternalMcpServerInput, AdminExternalMcpToolApproval, AdminFederatedAdmissionEntry, AdminToolRefusalReason, AdminWebhookDelivery, AdminWebhookSubscription } from "./integrations-api.types";
+import type { AdminAgentPlugin, AdminAgentPluginFiles, AdminExternalMcpConnectStart, AdminExternalMcpServer, AdminExternalMcpServerInput, AdminExternalMcpToolApproval, AdminWebhookDelivery, AdminWebhookSubscription } from "./integrations-api.types";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminExternalMcpProbeResult, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@jini-ai/core/contracts/hosted-mcp";
 
 /**
  * The wire shape `GET .../mcp-servers/admissions` (C-008) actually sends, BEFORE

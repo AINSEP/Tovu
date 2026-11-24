@@ -22,7 +22,7 @@ import {
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 
-import type { PostRecord } from "../post.js";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { contributePostPublish, toPublishableState } from "../publish-content.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 

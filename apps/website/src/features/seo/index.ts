@@ -9,10 +9,9 @@ import type {
 } from "@jini-ai/cms/seo";
 import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import {
-  createPublicPostReader, resolveFeaturedImageRef, ROOT_SLUG,
-  type FeaturedImageDeps, type PostRecord, type PostRepoPort,
-} from "../post/index.js";
+import { createPublicPostReader } from "../post/index.js";
+import { resolveFeaturedImageRef, type FeaturedImageDeps } from "@jini-ai/cms/posts/featured-image";
+import { ROOT_SLUG, type PostRecord, type PostRepoPort } from "@jini-ai/cms/posts/post";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { findMediaByIdOrSlug, type TransformDefinitionRepoPort } from "../media/index.js";
 import { mediaPublicPath, mediaUrlKey } from "@jini-ai/cms/media/site/public-path";
@@ -20,7 +19,7 @@ import { resolvePostMemberAccess } from "@jini-ai/user-management/members/access
 import { createSettingsPrincipalLookup, ensureSettingDefinitions, getEffective, set, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "@jini-ai/cms/settings/site/site-title";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
-import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
+import { isScheduledAt, isLiveAt, postDisplayDateIso } from "@jini-ai/core/scheduled-publish";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet, type SeoSettingsLedgerBindings } from "@jini-ai/cms/seo/site/settings";
@@ -63,12 +62,12 @@ export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _opt
  * @example createSeoFeaturedImagePort({ deps: mediaDeps }, {})
  * @complexity O(1) wiring; lookups retain the owners' bounded reads and errors.
  */
-export function createSeoFeaturedImagePort({ deps }: { deps: FeaturedImageDeps }, _optional: Record<string, never> = {}): SeoFeaturedImagePort {
+export function createSeoFeaturedImagePort({ deps }: { deps: Omit<FeaturedImageDeps, "findMediaByIdOrSlug"> }, _optional: Record<string, never> = {}): SeoFeaturedImagePort {
   return {
     findMediaByIdOrSlug: (input) => findMediaByIdOrSlug({ deps, input }),
     mediaUrlKey: ({ asset }) => mediaUrlKey(asset),
     mediaPublicPath: (input) => mediaPublicPath(input),
-    resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps, input }),
+    resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps: { ...deps, findMediaByIdOrSlug }, input }),
   };
 }
 
@@ -85,7 +84,7 @@ export interface SeoHostBindings extends SeoSitemapDeps {
  * @example createSeoDeps({ deps: routeOwners }, {})
  * @complexity O(1) wiring; effects/errors belong to the bound owners.
  */
-export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
+export function createSeoDeps({ deps }: { deps: Omit<FeaturedImageDeps, "findMediaByIdOrSlug"> & {
   postRepo: PostRepoPort;
   settingsRepo: SettingsRepoPort;
   transformDefinitionRepo: TransformDefinitionRepoPort;

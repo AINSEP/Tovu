@@ -1,6 +1,7 @@
+import { SqlTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
-import { SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
-import { SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/index";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
@@ -33,11 +34,11 @@ export function composeTrashStores(required: ComposeTrashStoresRequired, _option
   const trashRepo = new SqliteTrashRepo({ store: kernel });
   // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
   // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
-  // `Jini packages/cms/src/taxonomy/taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
-  // `SqliteTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
+  // `Jini packages/cms/src/taxonomy/taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqlTermRepo`/
+  // `SqlTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
   // `taxonomyRevisionRepo` below use) rather than hoisting those out of the return object literal.
-  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });
-  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId });
+  const taxonomyFollowUpTermRepo = new SqlTermRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {});
+  const taxonomyFollowUpRevisions = new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: TAXONOMY_TABLES, workspaceId }, {});
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
   // Built here (stateless over `kernel`) because a form or submission purge scrubs its frozen
   // delivery jobs; the delivery wiring further down reuses the same instance.

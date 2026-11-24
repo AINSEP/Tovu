@@ -9,12 +9,12 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost } from "../post-create.js";
 import { deletePost, type RemovePostFn } from "../post-trash.js";
-import { findPublishedPostBySlug } from "../post-read.js";
-import { importPostEntity } from "../post-import.js";
-import { normalizeFeaturedMediaId } from "../post-write-fields.js";
+import { findPublishedPostBySlug } from "@jini-ai/cms/posts/post-read";
+import { importPostEntity } from "@jini-ai/cms/posts/post-import";
+import { normalizeFeaturedMediaId } from "@jini-ai/cms/posts/post-write-fields";
 import { retirePostForReplacement } from "../post-retire.js";
 import { updatePost } from "../post-update.js";
-import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "../post.js";
+import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 

@@ -1,5 +1,5 @@
 import { EXTERNAL_MCP_PRODUCT_VARS } from "@/integrations/jini-admin/settings-external-mcp-copy";
-import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@jini-ai/core/contracts/hosted-mcp";
 
 /**
  * @file What the RUNNING assistant actually admitted, turned into operator-facing rows — the

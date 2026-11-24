@@ -1,6 +1,6 @@
 import { renderBareDocument } from "@jini-ai/cms/presentation/document-shell";
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord } from "@jini-ai/cms/posts/post";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import type { MediaAssetRenderMeta } from "@jini-ai/core/contracts/site/cms-media";

@@ -1,13 +1,18 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/render-with-jini-kits";
+import { useContentRefreshSubscription } from "@jini-ai/admin/shell/hooks/use-content-refresh-subscription.hooks";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
-import type { LibraryPort } from "../hooks/library-port.hooks";
-import { useLibrary, useWiredLibrary } from "../hooks/use-library.hooks";
-import { LIBRARY_MAX_BYTES } from "../rules";
+import type { LibraryPort } from "@jini-ai/admin/screens/library/hooks/library-port.hooks";
+import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
+import { useLibrary } from "@jini-ai/admin/screens/library/hooks/use-library.hooks";
+import { useWiredLibrary } from "../hooks/use-wired-library.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
+import { readFileAsBase64 } from "@/features/media/rules";
+import { LIBRARY_MAX_BYTES } from "@jini-ai/admin/screens/library/rules";
 
 /**
  * @file `useLibrary`'s controller contract beyond the screen-level suite in `Library.unit.test.tsx`:
@@ -23,7 +28,7 @@ function wrapper({ children }: { children: ReactNode }) {
 const english = (key: string) => key;
 
 function renderController(port: LibraryPort) {
-  return renderHook(() => useLibrary({ port, locale: "en", t: english }), { wrapper });
+  return renderHook(() => useLibrary({ port, locale: "en", t: english, describeApiError, readFileAsBase64, renderMarkdownToSafeHtml, useContentRefreshSubscription }), { wrapper });
 }
 
 /** A promise the test settles by hand, to hold a port call in flight. */

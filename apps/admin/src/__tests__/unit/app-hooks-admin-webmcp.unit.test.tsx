@@ -1,8 +1,9 @@
+import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
-import { PUBLISH_CONTENT_CAPABILITY } from "@jini-ai/cms/publish/content/dialog";
+
 import { PAGE_CAPABILITIES, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { browserAgentSettingsPort } from "../../features/webmcp/browser-agent-settings.hooks";

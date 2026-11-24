@@ -1,3 +1,6 @@
+import { SqlMenuRepo } from "@jini-ai/cms/navigation/sql";
+import { NAVIGATION_TABLES } from "#src/platform/db/content-tables";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -10,8 +13,6 @@ import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { SqliteMenuRepo } from "../repo.sqlite.js";
-
 /**
  * @file Menu compare-and-set (wm S4) on a REAL Postgres server, two pooled kernels = two
  * connections: writer A's conditional UPDATE holds the row lock inside an open transaction, writer B's
@@ -67,8 +68,8 @@ async function untilALockWaits(kernel: ContentKernel): Promise<void> {
 }
 
 test("postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict", async () => {
-  const repoA = new SqliteMenuRepo({ store: first });
-  const repoB = new SqliteMenuRepo({ store: second });
+  const repoA = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: first }), tables: NAVIGATION_TABLES }, {});
+  const repoB = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: second }), tables: NAVIGATION_TABLES }, {});
   await repoA.save(menu());
 
   let releaseA!: () => void;
@@ -99,8 +100,8 @@ test("postgres: two writers on the same base version, B blocked on A's row lock 
 });
 
 test("postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict", async () => {
-  const repoA = new SqliteMenuRepo({ store: first });
-  const repoB = new SqliteMenuRepo({ store: second });
+  const repoA = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: first }), tables: NAVIGATION_TABLES }, {});
+  const repoB = new SqlMenuRepo({ kernel: schemaErasedKernel({ store: second }), tables: NAVIGATION_TABLES }, {});
   const created = (title: string) => menu({ id: "created-1", slug: "created", title });
 
   let releaseA!: () => void;

@@ -31,7 +31,10 @@ import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.h
 import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
-import { TermPicker } from "../taxonomy/TermPicker";
+import { TermPicker } from "@jini-ai/admin/screens/taxonomy/TermPicker";
+import { useTermListReveal } from "@jini-ai/admin/screens/taxonomy/hooks/use-term-list-reveal.hooks";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
+import { useWiredTermPicker } from "../taxonomy/taxonomy-wired.hooks";
 import {
   pageEditorSurface,
   pagePickerValue,
@@ -923,7 +926,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
       {/* Categories & Tags — the same box the post and collection-entry editors mount; it saves on
           its own button, separately from the page's Save/Publish. */}
-      <TermPicker contentType={page.kind} contentId={page.id} />
+      <TermPicker contentType={page.kind} contentId={page.id} useTermPickerHook={useWiredTermPicker} useTermListRevealHook={useTermListReveal} SuggestInput={SuggestInput} />
 
       {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button — same as
           Edit post. "Save anyway" still sends the content; the server writes nothing if it's identical. */}

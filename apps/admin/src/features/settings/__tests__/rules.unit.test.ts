@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExecutionConfig, SourceFieldValues } from "@jini-ai/ui";
+import type { SourceFieldValues } from "@jini-ai/ui";
+import type { ExecutionConfig } from "@jini-ai/core/contracts/execution";
 
 import {
   areAnySlicesLoading,

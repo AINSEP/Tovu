@@ -5,7 +5,7 @@ import type { RateLimitProfile } from '@jini-ai/core/contracts/site/http-kit-rat
 import { parseConsentConfig, consentConfigProblems } from '@jini-ai/cookie-consent/site/validation';
 import { withSiteConsentDefaultCss } from '@jini-ai/cookie-consent/site/config';
 import { createSiteConsentConfig } from '@jini-ai/cookie-consent/site/settings';
-import { findPublishedPostBySlug } from "#src/features/post/post-read";
+import { findPublishedPostBySlug } from '@jini-ai/cms/posts/post-read';
 import type { RouteDeps } from '#src/server/routes/types';
 import { resolvePublicOrigin, resolveProtocol } from '../../../../platform/express/public-origin.js';
 /** Receipt evidence is non-portable and stays outside the public site assets. */

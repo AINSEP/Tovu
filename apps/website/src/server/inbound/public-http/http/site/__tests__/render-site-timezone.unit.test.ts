@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublicPostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "@jini-ai/cms/posts/post";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { runLiquidRender } from "../liquid-render.js";
 import { renderSite } from "../render-site.js";

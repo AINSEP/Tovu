@@ -54,7 +54,8 @@ import { toolMetadata } from '@jini-ai/core/tool-metadata/media';
  */
 import { ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { sniffContentType } from "@jini-ai/cms/media";
-import { AttachmentRejectedError, type AttachmentStore } from "@jini-ai/daemon/http";
+import { AttachmentRejectedError } from "@jini-ai/daemon/http";
+import type { AttachmentStore } from "@jini-ai/core/contracts/site/daemon-http";
 
 export const MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID = "media_promote_chat_attachment";
 

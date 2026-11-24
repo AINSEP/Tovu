@@ -1,4 +1,6 @@
-import { contentKernel } from "#src/platform/db/content-kernel";
+import { SqlTaxonomyRepo, SqlTermRepo, SqlEntryTermRepo, SqlTaxonomyRevisionRepo } from "@jini-ai/cms/taxonomy/sql";
+import { TAXONOMY_TABLES } from "#src/platform/db/content-tables";
+import { contentKernel, schemaErasedKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,18 +8,13 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
 import {
-  SqliteEntryTermRepo,
-  SqliteTaxonomyRepo,
-  SqliteTaxonomyRevisionRepo,
-  SqliteTermRepo,
-} from "#src/features/taxonomy/repo.sqlite";
-import {
   createTaxonomyPurgeFollowUp,
   createTermPurgeFollowUp,
   type TaxonomyEventOutboxPort,
 } from "@jini-ai/cms/taxonomy";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
-import { updatePost, type PostRecord } from "#src/features/post/index";
+import { updatePost } from "#src/features/post/index";
+import { type PostRecord } from "@jini-ai/cms/posts/post";
 
 
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
@@ -48,9 +45,9 @@ interface Harness {
   db: ContentDb;
   registry: TrashRegistry;
   trash: TrashPort;
-  taxonomies: SqliteTaxonomyRepo;
-  terms: SqliteTermRepo;
-  entryTerms: SqliteEntryTermRepo;
+  taxonomies: SqlTaxonomyRepo;
+  terms: SqlTermRepo;
+  entryTerms: SqlEntryTermRepo;
   posts: SqlitePostRepo;
   outbox: TaxonomyEventOutboxPort & { events: Record<string, unknown>[] };
 }
@@ -69,10 +66,10 @@ function harness(): Harness {
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });
 
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: WS });
-  const termRepo = new SqliteTermRepo({ db, workspaceId: WS });
-  const entryTermRepo = new SqliteEntryTermRepo({ db, workspaceId: WS });
-  const revisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId: WS });
+  const taxonomyRepo = new SqlTaxonomyRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {});
+  const termRepo = new SqlTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {});
+  const entryTermRepo = new SqlEntryTermRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {});
+  const revisions = new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {});
   const outbox = recordingOutbox();
   const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
@@ -332,7 +329,7 @@ test("purging a trashed term writes exactly one taxonomy_revisions row and one t
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-5"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-5" }), [
+  assert.deepEqual(await new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: h.db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {}).listForTests({ taxonomyId: "tax-5" }), [
     { taxonomyId: "tax-5", op: "delete", previousState: { termId: "t1", name: "Red" }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);
@@ -359,7 +356,7 @@ test("purging a trashed taxonomy writes exactly one taxonomy_revisions row and o
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-6"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-6" }), [
+  assert.deepEqual(await new SqlTaxonomyRevisionRepo({ kernel: schemaErasedKernel({ store: h.db }), tables: TAXONOMY_TABLES, workspaceId: WS }, {}).listForTests({ taxonomyId: "tax-6" }), [
     { taxonomyId: "tax-6", op: "delete", previousState: { deletedTermIds: ["c1"] }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);
