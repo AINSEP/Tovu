@@ -1,7 +1,9 @@
 /**
  * @file Tovu's bindings for the collaborators the `@jini-ai/admin` shell takes by injection
  * (ex5-fnd-kit review, rv-g FIX 1/3). Jini's shell imports no core implementation and writes no
- * console output; this file is where the admin app chooses them.
+ * console output; this file is where the admin app chooses them. The owner auth clients (sign-in,
+ * MFA, passkeys, recovery, initial-session bootstrap) are NOT bound here: their single host binding
+ * is `./owner-clients.ts` (rv1123k fnd T1), built over Jini's `@jini-ai/user-management/react/auth`.
  */
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
@@ -14,18 +16,12 @@ import { createAssistantPermanentDeletesPort } from "@jini-ai/admin/shell/lib/as
 import { createAssistantAgentsSnapshot } from "@jini-ai/admin/shell/lib/assistant-agents-snapshot";
 import { createAgentInventorySnapshot } from "@jini-ai/chat/browser/agent-inventory";
 import { createCredentialSubmitErrorClassifier } from "@jini-ai/admin/shell/lib/credential-submit-error";
-import { createReadInitialAdminSession } from "@jini-ai/admin/shell/lib/local-owner-signin";
 import { createAssistantSubagentsPort } from "@jini-ai/admin/shell/lib/assistant-subagents";
-import { createOwnerMfaPort } from "@jini-ai/admin/shell/lib/owner-mfa-api";
-import { createOwnerPasskeyPorts } from "@jini-ai/admin/shell/lib/owner-passkey-api";
-import { createOwnerRecoveryFailure, createOwnerRecoveryPort } from "@jini-ai/admin/shell/lib/owner-recovery-api";
-import { readInitialSession } from "@jini-ai/user-management/session-bootstrap";
 import { createStandingDraftLocalBackup } from "@jini-ai/ui/panel-kit";
 import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
 import { createTypedAnswerPoster, type DeliverTypedAnswer } from "@jini-ai/chat/react";
 import { createA2uiActionPoster as createChatA2uiActionPoster, type CreateA2uiActionPosterOptions } from "@jini-ai/chat/transports/http";
-import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import { ApiError, authenticatedAdminRequest, describeApiError, requestOnce } from "./admin-http/request";
+import { ApiError, authenticatedAdminRequest } from "./admin-http/request";
 import { WORKSPACE_ID } from "./admin-http/config";
 
 /** The admin app's logger: core's console logger describes caught errors instead of printing them raw. */
@@ -78,19 +74,8 @@ export const { readAgentsSnapshot, writeAgentsSnapshot } = createAssistantAgents
 /** The credential create/update rejection classifier, bound to the admin client's `ApiError`. */
 export const classifyCredentialSubmitError = createCredentialSubmitErrorClassifier({ isRequestError: isAdminApiError });
 
-/** The initial session read with local-owner bootstrap: user-management's reader plus the admin client's `ApiError`. */
-export const readInitialAdminSession = createReadInitialAdminSession({ readInitialSession, isRequestError: isAdminApiError });
-
 /** The Full CLI (subagents) setting port, sent through the admin session client's authenticated request. */
 export const assistantSubagentsPort = createAssistantSubagentsPort({ http: adminRequestOps, workspaceId: WORKSPACE_ID });
-
-/** The owner auth ports (MFA, passkeys, recovery): single-send requests through the admin client's `requestOnce`. */
-const adminRequestOnceOps = { requestOnce };
-export const ownerMfaPort = createOwnerMfaPort({ http: adminRequestOnceOps });
-export const { settings: ownerPasskeySettingsPort, signIn: ownerPasskeySignInPort } = createOwnerPasskeyPorts({ http: adminRequestOnceOps });
-export const ownerRecoveryPort = createOwnerRecoveryPort({ http: adminRequestOnceOps });
-/** Recovery failures keep the server's explanation and redact with Tovu's secret-redaction vocabulary. */
-export const ownerRecoveryFailure = createOwnerRecoveryFailure({ describeError: describeApiError, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
 
 /** The standing-draft editor's local backup of refused work. The exact storage prefix is retained so
  *  refused work parked before extraction stays recoverable; storage failures remain best-effort. */
